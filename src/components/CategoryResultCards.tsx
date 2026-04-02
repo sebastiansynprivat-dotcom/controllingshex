@@ -212,12 +212,12 @@ function CategoryCard({ category }: { category: Category }) {
 
   return (
     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
-      <div className="px-8 py-5 border-b border-white/[0.04] flex items-center gap-3">
-        <span className="text-lg">{category.emoji}</span>
-        <h3 className="text-sm font-medium tracking-wide text-foreground/85">
+      <div className="px-10 py-7 border-b border-white/[0.04] flex items-center gap-4">
+        <span className="text-2xl">{category.emoji}</span>
+        <h3 className="text-2xl font-semibold tracking-wide gold-text">
           {category.categoryName}
         </h3>
-        <span className="ml-auto text-[10px] text-white/20 font-light tracking-wider">
+        <span className="ml-auto text-xs text-white/25 font-light tracking-wider">
           {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
         </span>
       </div>
