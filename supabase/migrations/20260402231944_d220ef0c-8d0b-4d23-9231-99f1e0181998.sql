@@ -1,0 +1,1 @@
+ALTER TABLE public.models ADD COLUMN platform text NOT NULL DEFAULT 'Maloum' CHECK (platform IN ('Maloum', 'Brezzels', 'FansyMe'));
