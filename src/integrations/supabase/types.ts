@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      models: {
+        Row: {
+          created_at: string
+          follower_count: number
+          id: string
+          model_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          follower_count?: number
+          id?: string
+          model_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          follower_count?: number
+          id?: string
+          model_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
