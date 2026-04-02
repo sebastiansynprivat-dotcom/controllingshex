@@ -58,19 +58,19 @@ export default function Dashboard() {
     <AnimatePresence mode="wait">
       <motion.div
         key={platform}
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -12 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="max-w-6xl mx-auto space-y-10"
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="max-w-5xl mx-auto space-y-12"
       >
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="font-display text-4xl font-bold gold-text tracking-tight">
+        <div className="space-y-3">
+          <h1 className="text-3xl font-extralight tracking-tight text-foreground">
             {platform}
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Lade die tägliche Datei für <span className="text-foreground font-medium">{platform}</span> hoch und starte die KI-Analyse.
+          <p className="text-white/30 text-sm font-light tracking-wide">
+            Tägliche Analyse für {platform} — Datei hochladen und KI starten.
           </p>
         </div>
 
@@ -79,12 +79,12 @@ export default function Dashboard() {
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          className={`relative rounded-2xl p-16 text-center transition-all duration-500 cursor-pointer ${
+          className={`relative rounded-2xl p-20 text-center transition-all duration-700 cursor-pointer ${
             dragOver
-              ? "glass-card-gold gold-glow"
+              ? "bg-white/[0.03] border border-primary/15 gold-glow-sm"
               : file
-              ? "glass-card border-primary/20"
-              : "glass-card hover:border-primary/15"
+              ? "bg-white/[0.02] border border-white/[0.06]"
+              : "bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.025]"
           }`}
           onClick={() => document.getElementById("file-input")?.click()}
         >
@@ -96,24 +96,26 @@ export default function Dashboard() {
             onChange={onFileChange}
           />
           {file ? (
-            <div className="flex items-center justify-center gap-4">
-              <div className="p-3 rounded-xl bg-primary/10">
-                <FileSpreadsheet className="h-8 w-8 text-primary" />
+            <div className="flex items-center justify-center gap-5">
+              <div className="p-3 rounded-xl bg-primary/8">
+                <FileSpreadsheet className="h-6 w-6 text-primary/70" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground text-lg">{file.name}</p>
-                <p className="text-sm text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                <p className="font-medium text-foreground/90 text-sm tracking-wide">{file.name}</p>
+                <p className="text-xs text-white/25 mt-0.5 font-light">{(file.size / 1024).toFixed(1)} KB</p>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="mx-auto w-16 h-16 rounded-2xl glass-card flex items-center justify-center">
-                <Upload className="h-7 w-7 text-muted-foreground" />
+            <div className="space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center">
+                <Upload className="h-5 w-5 text-white/20" />
               </div>
-              <p className="text-foreground font-semibold text-lg">
-                Datei hierher ziehen oder klicken
-              </p>
-              <p className="text-sm text-muted-foreground">CSV, XLSX oder XLS</p>
+              <div>
+                <p className="text-foreground/70 font-light text-sm tracking-wide">
+                  Datei hierher ziehen oder klicken
+                </p>
+                <p className="text-[11px] text-white/20 mt-1 font-light tracking-wider uppercase">CSV · XLSX · XLS</p>
+              </div>
             </div>
           )}
         </div>
@@ -122,20 +124,20 @@ export default function Dashboard() {
         <Button
           onClick={analyze}
           disabled={!file || loading}
-          className="w-full gold-gradient text-primary-foreground font-bold text-lg py-7 rounded-2xl transition-all duration-500 hover:gold-glow disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-full bg-white/[0.04] hover:bg-white/[0.06] text-foreground/80 font-light text-sm py-7 rounded-xl border border-white/[0.06] hover:border-primary/15 transition-all duration-700 disabled:opacity-20 disabled:cursor-not-allowed tracking-wide"
         >
           {loading ? (
             <span className="flex items-center gap-3">
               <span
-                className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
+                className="h-4 w-4 border border-white/20 border-t-white/60 rounded-full"
                 style={{ animation: "spin-slow 1s linear infinite" }}
               />
-              KI analysiert Daten...
+              <span className="text-white/50">Analysiert...</span>
             </span>
           ) : (
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              Analysieren
+            <span className="flex items-center gap-2.5">
+              <Sparkles className="h-4 w-4 text-primary/60" />
+              Analyse starten
             </span>
           )}
         </Button>
