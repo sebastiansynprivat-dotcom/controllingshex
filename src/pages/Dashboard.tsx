@@ -11,7 +11,8 @@ export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string>("");
-  const [result, setResult] = useState<string>("");
+  const [result, setResult] = useState<any>(null);
+  const [resultRaw, setResultRaw] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
