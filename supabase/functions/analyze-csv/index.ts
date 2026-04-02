@@ -42,7 +42,28 @@ Deno.serve(async (req) => {
       .select("value")
       .eq("key", "system_prompt")
       .single();
-    const systemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
+    const userSystemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
+
+    // Append strict formatting instructions so the frontend parser can split by category
+    const formatInstructions = `
+
+WICHTIG – AUSGABEFORMAT:
+Deine Antwort wird NICHT in Google Sheets eingefügt, sondern direkt im Dashboard als visuelle Cards gerendert. Halte dich EXAKT an dieses Format:
+
+1. Jede Kategorie beginnt mit einer eigenen Zeile im Format: **EMOJI KATEGORIENAME IN GROSSBUCHSTABEN**
+   Beispiele: **⚠️ ACCOUNT-EINBRUCH**, **🔵 ONBOARDING TAG 1**, **🌟 BREAKOUT-STAR**, **🔴 KÜNDIGUNG/ABWANDERUNG**, **📉 0€ UMSATZ**, **🟢 TOP-PERFORMER**, **🔄 ACCOUNT-TAUSCH**, **💰 UPSELL-POTENZIAL**, **🚀 WACHSTUM**
+
+2. Direkt nach der Kategorie-Zeile kommt eine Markdown-Tabelle mit Header und Separator:
+| Chatter | Startdatum | Account/Model | Umsatz | Offene Chats | MassDMs | Empfehlung |
+|---|---|---|---|---|---|---|
+| Max Mustermann | 01.04.2026 | modelname | 151,19 € | 12 | 5 | Konkrete Handlungsempfehlung hier |
+
+3. Spalten können variieren – nutze was für die Kategorie relevant ist. "Chatter" und "Empfehlung" sollten IMMER dabei sein.
+4. Geldbeträge IMMER mit € formatieren (z.B. 151,19 €).
+5. Keine Einleitung, keine Zusammenfassung, kein Fließtext – NUR die Kategorie-Blöcke mit Tabellen.
+6. Erwähne NIEMALS Google Sheets oder Tabellenkalkulationen.`;
+
+    const systemPrompt = userSystemPrompt + formatInstructions;
 
     // Build message
     const userMessage = `Plattform: ${activePlatform}\n\nHier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen (nur ${activePlatform}):\n${modelsText}`;
