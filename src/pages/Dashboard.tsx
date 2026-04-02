@@ -149,7 +149,7 @@ export default function Dashboard() {
         </Button>
 
         {/* Result */}
-        {result && <CategoryResultCards markdown={result} />}
+        {(result || resultRaw) && <CategoryResultCards data={result} raw={resultRaw} />}
       </motion.div>
     </AnimatePresence>
   );
