@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { csvData } = await req.json();
+    const { csvData, platform } = await req.json();
     if (!csvData || typeof csvData !== "string") {
       return new Response(JSON.stringify({ error: "csvData is required" }), {
         status: 400,
@@ -18,13 +18,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const validPlatforms = ["Maloum", "Brezzels", "FansyMe"];
+    const activePlatform = validPlatforms.includes(platform) ? platform : "Maloum";
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch models
-    const { data: models } = await supabase.from("models").select("model_name, follower_count");
+    // Fetch models ONLY for the active platform
+    const { data: models } = await supabase
+      .from("models")
+      .select("model_name, follower_count")
+      .eq("platform", activePlatform);
+
     const modelsText = models && models.length > 0
       ? models.map((m: any) => `${m.model_name}: ${m.follower_count} Follower`).join("\n")
       : "Keine Models vorhanden.";
@@ -38,7 +45,7 @@ Deno.serve(async (req) => {
     const systemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
 
     // Build message
-    const userMessage = `Hier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen:\n${modelsText}`;
+    const userMessage = `Plattform: ${activePlatform}\n\nHier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen (nur ${activePlatform}):\n${modelsText}`;
 
     // Call Anthropic API
     const response = await fetch("https://api.anthropic.com/v1/messages", {
