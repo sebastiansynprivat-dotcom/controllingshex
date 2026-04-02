@@ -1,6 +1,6 @@
 import { LayoutDashboard, Users, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +25,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarContent className="pt-8 px-2">
-        <div className="px-3 mb-10">
+        <div className="px-3 mb-6">
           {!collapsed ? (
             <h1 className="font-display text-xl font-bold gold-text tracking-tight">
               ChatAgency
@@ -34,6 +34,9 @@ export function AppSidebar() {
             <span className="text-xl font-bold gold-text block text-center">C</span>
           )}
         </div>
+
+        <PlatformSwitcher />
+
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
