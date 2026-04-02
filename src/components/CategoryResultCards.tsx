@@ -48,6 +48,12 @@ function isMoneyValue(value: string): boolean {
   return /\d+[\.,]?\d*\s*€|€\s*\d+/i.test(value);
 }
 
+function toTitleCase(name: string): string {
+  return name
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /* ------------------------------------------------------------------ */
 /*  CLIPBOARD                                                          */
 /* ------------------------------------------------------------------ */
@@ -206,12 +212,12 @@ function CategoryCard({ category }: { category: Category }) {
 
   return (
     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
-      <div className="px-8 py-5 border-b border-white/[0.04] flex items-center gap-3">
-        <span className="text-lg">{category.emoji}</span>
-        <h3 className="text-sm font-medium tracking-wide text-foreground/85">
+      <div className="px-10 py-7 border-b border-white/[0.04] flex items-center gap-4">
+        <span className="text-2xl">{category.emoji}</span>
+        <h3 className="text-2xl font-semibold tracking-wide gold-text">
           {category.categoryName}
         </h3>
-        <span className="ml-auto text-[10px] text-white/20 font-light tracking-wider">
+        <span className="ml-auto text-xs text-white/25 font-light tracking-wider">
           {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
         </span>
       </div>
@@ -231,22 +237,42 @@ function CategoryCard({ category }: { category: Category }) {
 
 function ChatterItem({ chatter }: { chatter: Chatter }) {
   const kpiEntries = Object.entries(chatter.kpis);
+  const [nameCopied, setNameCopied] = useState(false);
+  const formattedName = toTitleCase(chatter.name || "—");
+
+  const copyName = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(formattedName);
+    setNameCopied(true);
+    toast.success(`Copied: ${formattedName}`);
+    setTimeout(() => setNameCopied(false), 1500);
+  };
 
   return (
-    <div className="px-8 py-6 hover:bg-white/[0.01] transition-colors duration-500">
-      <div className="flex flex-col lg:flex-row lg:items-start gap-5 lg:gap-8">
+    <div className="px-10 py-8 hover:bg-white/[0.015] transition-colors duration-500">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-10">
         {/* Left: Name & Date */}
-        <div className="shrink-0 lg:w-48">
-          <p className="font-medium text-foreground/90 text-[13px] tracking-wide leading-tight">
-            {chatter.name || "—"}
-          </p>
+        <div className="shrink-0 lg:w-56">
+          <button
+            onClick={copyName}
+            className="group flex items-center gap-2 text-left"
+          >
+            <span className="text-xl font-semibold text-foreground/95 tracking-wide group-hover:underline underline-offset-4 decoration-primary/30 transition-all duration-300">
+              {formattedName}
+            </span>
+            {nameCopied ? (
+              <Check className="h-3.5 w-3.5 text-emerald-400/70 shrink-0" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-white/15 group-hover:text-white/40 transition-colors duration-300 shrink-0" />
+            )}
+          </button>
           {chatter.startDate && (
-            <p className="text-[11px] text-white/20 mt-1 font-light tracking-wide">
+            <p className="text-sm text-white/25 mt-1.5 font-light tracking-wide">
               {chatter.startDate}
             </p>
           )}
           {chatter.account && (
-            <span className="inline-block mt-2 text-[10px] font-light px-2.5 py-0.5 rounded-full bg-white/[0.03] text-white/40 border border-white/[0.06] tracking-wider">
+            <span className="inline-block mt-2.5 text-xs font-light px-3 py-1 rounded-full bg-white/[0.03] text-white/45 border border-white/[0.06] tracking-wider">
               {chatter.account}
             </span>
           )}
@@ -254,18 +280,18 @@ function ChatterItem({ chatter }: { chatter: Chatter }) {
 
         {/* Middle: KPIs */}
         {kpiEntries.length > 0 && (
-          <div className="flex flex-wrap gap-x-8 gap-y-3 flex-1 min-w-0">
+          <div className="flex flex-wrap gap-x-10 gap-y-4 flex-1 min-w-0">
             {kpiEntries.map(([label, value]) => (
               <div key={label} className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-light">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">
                   {label}
                 </span>
                 {isMoneyValue(value) ? (
-                  <span className="text-xl font-extralight tracking-tight gold-text mt-0.5">
+                  <span className="text-2xl font-extralight tracking-tight gold-text mt-1">
                     {value}
                   </span>
                 ) : (
-                  <span className="text-sm font-light text-foreground/75 mt-0.5">
+                  <span className="text-base font-light text-foreground/75 mt-1">
                     {value}
                   </span>
                 )}
@@ -276,8 +302,8 @@ function ChatterItem({ chatter }: { chatter: Chatter }) {
 
         {/* Right: Recommendation */}
         {chatter.recommendation && (
-          <div className="lg:max-w-sm shrink-0 border-l-[1.5px] border-primary/15 pl-4">
-            <p className="text-[12px] leading-relaxed text-white/35 font-light italic">
+          <div className="lg:max-w-md shrink-0 border-l-2 border-primary/20 pl-5">
+            <p className="text-base leading-relaxed text-zinc-200/60 font-light italic">
               {chatter.recommendation}
             </p>
           </div>
