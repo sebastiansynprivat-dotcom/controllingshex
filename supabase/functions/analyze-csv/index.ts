@@ -1,8 +1,9 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -26,7 +27,6 @@ Deno.serve(async (req) => {
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch models ONLY for the active platform
     const { data: models } = await supabase
       .from("models")
       .select("model_name, follower_count")
@@ -36,7 +36,6 @@ Deno.serve(async (req) => {
       ? models.map((m: any) => `${m.model_name}: ${m.follower_count} Follower`).join("\n")
       : "Keine Models vorhanden.";
 
-    // Fetch system prompt
     const { data: promptData } = await supabase
       .from("settings")
       .select("value")
@@ -44,31 +43,46 @@ Deno.serve(async (req) => {
       .single();
     const userSystemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
 
-    // Append strict formatting instructions so the frontend parser can split by category
     const formatInstructions = `
 
-WICHTIG – AUSGABEFORMAT:
-Deine Antwort wird NICHT in Google Sheets eingefügt, sondern direkt im Dashboard als visuelle Cards gerendert. Halte dich EXAKT an dieses Format:
+KRITISCH – AUSGABEFORMAT (JSON):
+Du MUSST deine gesamte Antwort als ein einziges, valides JSON-Objekt ausgeben. Kein Markdown, kein Fließtext, keine Erklärungen – NUR JSON.
 
-1. Jede Kategorie beginnt mit einer eigenen Zeile im Format: **EMOJI KATEGORIENAME IN GROSSBUCHSTABEN**
-   Beispiele: **⚠️ ACCOUNT-EINBRUCH**, **🔵 ONBOARDING TAG 1**, **🌟 BREAKOUT-STAR**, **🔴 KÜNDIGUNG/ABWANDERUNG**, **📉 0€ UMSATZ**, **🟢 TOP-PERFORMER**, **🔄 ACCOUNT-TAUSCH**, **💰 UPSELL-POTENZIAL**, **🚀 WACHSTUM**
+Das JSON muss exakt dieses Schema haben:
+{
+  "categories": [
+    {
+      "emoji": "⚠️",
+      "categoryName": "ACCOUNT-EINBRUCH",
+      "chatters": [
+        {
+          "name": "Max Mustermann",
+          "startDate": "01.04.2026",
+          "account": "modelname",
+          "kpis": {
+            "Tagesumsatz": "151,19 €",
+            "Offene Chats": "12",
+            "MassDMs": "5"
+          },
+          "recommendation": "Konkrete Handlungsempfehlung hier"
+        }
+      ]
+    }
+  ]
+}
 
-2. Direkt nach der Kategorie-Zeile kommt eine Markdown-Tabelle mit Header und Separator:
-| Chatter | Startdatum | Account/Model | Umsatz | Offene Chats | MassDMs | Empfehlung |
-|---|---|---|---|---|---|---|
-| Max Mustermann | 01.04.2026 | modelname | 151,19 € | 12 | 5 | Konkrete Handlungsempfehlung hier |
-
-3. Spalten können variieren – nutze was für die Kategorie relevant ist. "Chatter" und "Empfehlung" sollten IMMER dabei sein.
-4. Geldbeträge IMMER mit € formatieren (z.B. 151,19 €).
-5. Keine Einleitung, keine Zusammenfassung, kein Fließtext – NUR die Kategorie-Blöcke mit Tabellen.
-6. Erwähne NIEMALS Google Sheets oder Tabellenkalkulationen.`;
+Regeln:
+- "categories" ist ein Array aller erkannten Kategorien.
+- Typische Kategorien: ⚠️ ACCOUNT-EINBRUCH, 🔵 ONBOARDING TAG 1, 🌟 BREAKOUT-STAR, 🔴 KÜNDIGUNG/ABWANDERUNG, 📉 0€ UMSATZ, 🟢 TOP-PERFORMER, 🔄 ACCOUNT-TAUSCH, 💰 UPSELL-POTENZIAL, 🚀 WACHSTUM
+- "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Keys sind die Labels (z.B. "Tagesumsatz", "Offene Chats"). Geldbeträge mit € formatieren.
+- "recommendation" ist die konkrete Handlungsempfehlung.
+- KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
+- Antworte mit NICHTS außer dem JSON. Kein \`\`\`json Block, kein Text davor oder danach.`;
 
     const systemPrompt = userSystemPrompt + formatInstructions;
 
-    // Build message
     const userMessage = `Plattform: ${activePlatform}\n\nHier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen (nur ${activePlatform}):\n${modelsText}`;
 
-    // Call Anthropic API
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -93,9 +107,22 @@ Deine Antwort wird NICHT in Google Sheets eingefügt, sondern direkt im Dashboar
     }
 
     const aiResult = await response.json();
-    const resultText = aiResult.content?.[0]?.text || "Keine Antwort erhalten.";
+    const resultText = aiResult.content?.[0]?.text || "";
 
-    return new Response(JSON.stringify({ result: resultText }), {
+    // Parse JSON from Claude's response
+    let parsed;
+    try {
+      // Strip potential ```json wrapping
+      const cleaned = resultText.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      // Fallback: return raw text so frontend can show it
+      return new Response(JSON.stringify({ result: null, raw: resultText }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ result: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -11,7 +11,8 @@ export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string>("");
-  const [result, setResult] = useState<string>("");
+  const [result, setResult] = useState<any>(null);
+  const [resultRaw, setResultRaw] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
@@ -40,13 +41,18 @@ export default function Dashboard() {
       return;
     }
     setLoading(true);
-    setResult("");
+    setResult(null);
+    setResultRaw("");
     try {
       const { data, error } = await supabase.functions.invoke("analyze-csv", {
         body: { csvData, platform },
       });
       if (error) throw error;
-      setResult(data.result || "Keine Ergebnisse erhalten.");
+      if (data.result) {
+        setResult(data.result);
+      } else {
+        setResultRaw(data.raw || "Keine Ergebnisse erhalten.");
+      }
     } catch (err: any) {
       toast.error("Analyse fehlgeschlagen: " + (err.message || "Unbekannter Fehler"));
     } finally {
@@ -143,7 +149,7 @@ export default function Dashboard() {
         </Button>
 
         {/* Result */}
-        {result && <CategoryResultCards markdown={result} />}
+        {(result || resultRaw) && <CategoryResultCards data={result} raw={resultRaw} />}
       </motion.div>
     </AnimatePresence>
   );
