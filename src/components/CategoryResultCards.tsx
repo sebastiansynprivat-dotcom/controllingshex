@@ -48,6 +48,12 @@ function isMoneyValue(value: string): boolean {
   return /\d+[\.,]?\d*\s*€|€\s*\d+/i.test(value);
 }
 
+function toTitleCase(name: string): string {
+  return name
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /* ------------------------------------------------------------------ */
 /*  CLIPBOARD                                                          */
 /* ------------------------------------------------------------------ */
