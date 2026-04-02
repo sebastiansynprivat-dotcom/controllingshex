@@ -112,14 +112,54 @@ Regeln:
     // Parse JSON from Claude's response
     let parsed;
     try {
-      // Strip potential ```json wrapping
       const cleaned = resultText.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
       parsed = JSON.parse(cleaned);
     } catch {
-      // Fallback: return raw text so frontend can show it
       return new Response(JSON.stringify({ result: null, raw: resultText }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Save chatter history from parsed JSON
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const rows: any[] = [];
+
+      for (const cat of parsed.categories || []) {
+        for (const chatter of cat.chatters || []) {
+          const name = (chatter.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+          const kpis = chatter.kpis || {};
+
+          // Parse revenue: handle "151,19 €", "0,00 €", "0€" etc.
+          let revenue = 0;
+          const revKey = Object.keys(kpis).find((k) => /umsatz|revenue/i.test(k));
+          if (revKey) {
+            const revStr = kpis[revKey].replace(/[^\d,.\-]/g, "").replace(",", ".");
+            revenue = parseFloat(revStr) || 0;
+          }
+
+          // Parse massDMs
+          let massDms = 0;
+          const dmKey = Object.keys(kpis).find((k) => /mass\s*dm|massdm/i.test(k));
+          if (dmKey) {
+            massDms = parseInt(kpis[dmKey].replace(/\D/g, ""), 10) || 0;
+          }
+
+          rows.push({
+            chatter_name: name,
+            revenue_today: revenue,
+            mass_dms: massDms,
+            platform: activePlatform,
+            analysis_date: today,
+          });
+        }
+      }
+
+      if (rows.length > 0) {
+        await supabase.from("chatter_history").insert(rows);
+      }
+    } catch (saveErr) {
+      console.error("Failed to save chatter history:", saveErr);
     }
 
     return new Response(JSON.stringify({ result: parsed }), {

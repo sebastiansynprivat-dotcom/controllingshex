@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      chatter_history: {
+        Row: {
+          analysis_date: string
+          chatter_name: string
+          created_at: string
+          id: string
+          mass_dms: number | null
+          platform: string
+          revenue_today: number | null
+        }
+        Insert: {
+          analysis_date?: string
+          chatter_name: string
+          created_at?: string
+          id?: string
+          mass_dms?: number | null
+          platform?: string
+          revenue_today?: number | null
+        }
+        Update: {
+          analysis_date?: string
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          mass_dms?: number | null
+          platform?: string
+          revenue_today?: number | null
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           created_at: string
