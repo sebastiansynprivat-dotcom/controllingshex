@@ -21,18 +21,16 @@ const items = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarContent className="pt-6">
-        <div className="px-4 mb-8">
-          {!collapsed && (
-            <h1 className="font-display text-xl font-bold gold-text">
+      <SidebarContent className="pt-8 px-2">
+        <div className="px-3 mb-10">
+          {!collapsed ? (
+            <h1 className="font-display text-xl font-bold gold-text tracking-tight">
               ChatAgency
             </h1>
-          )}
-          {collapsed && (
+          ) : (
             <span className="text-xl font-bold gold-text block text-center">C</span>
           )}
         </div>
@@ -45,8 +43,8 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-surface-3"
-                      activeClassName="text-primary bg-surface-3 gold-glow-sm"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground transition-all duration-300 hover:text-foreground hover:bg-muted"
+                      activeClassName="text-primary bg-muted gold-glow-sm"
                     >
                       <item.icon className="h-5 w-5 shrink-0" />
                       {!collapsed && <span className="font-medium">{item.title}</span>}
