@@ -41,13 +41,18 @@ export default function Dashboard() {
       return;
     }
     setLoading(true);
-    setResult("");
+    setResult(null);
+    setResultRaw("");
     try {
       const { data, error } = await supabase.functions.invoke("analyze-csv", {
         body: { csvData, platform },
       });
       if (error) throw error;
-      setResult(data.result || "Keine Ergebnisse erhalten.");
+      if (data.result) {
+        setResult(data.result);
+      } else {
+        setResultRaw(data.raw || "Keine Ergebnisse erhalten.");
+      }
     } catch (err: any) {
       toast.error("Analyse fehlgeschlagen: " + (err.message || "Unbekannter Fehler"));
     } finally {
