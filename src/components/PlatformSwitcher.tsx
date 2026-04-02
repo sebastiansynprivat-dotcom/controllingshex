@@ -14,36 +14,38 @@ export function PlatformSwitcher() {
   const collapsed = state === "collapsed";
 
   return (
-    <div className="px-2 mb-6">
-      <p className={`text-[10px] uppercase tracking-widest text-muted-foreground mb-2 ${collapsed ? "text-center" : "px-1"}`}>
-        {collapsed ? "Brand" : "Workspace"}
+    <div className="px-1 mb-8">
+      <p className={`text-[9px] uppercase tracking-[0.25em] text-white/25 mb-3 ${collapsed ? "text-center" : "px-3"}`}>
+        {collapsed ? "" : "Workspace"}
       </p>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5">
         {platforms.map((p) => {
           const isActive = platform === p;
           return (
             <button
               key={p}
               onClick={() => setPlatform(p)}
-              className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 ${
+              className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all duration-500 ${
                 collapsed ? "justify-center" : ""
               } ${
                 isActive
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "text-white/90"
+                  : "text-white/30 hover:text-white/60 hover:bg-white/[0.02]"
               }`}
             >
               {isActive && (
                 <motion.div
                   layoutId="platform-active"
-                  className="absolute inset-0 rounded-xl glass-card-gold gold-glow-sm"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  className="absolute inset-0 rounded-lg bg-white/[0.04] border border-white/[0.06]"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
               )}
-              <span className="relative z-10 font-bold text-xs w-5 h-5 rounded-md flex items-center justify-center bg-primary/10">
+              <span className={`relative z-10 text-[10px] font-semibold w-5 h-5 rounded flex items-center justify-center tracking-wider ${
+                isActive ? "bg-primary/15 text-primary" : "bg-white/[0.04] text-white/30"
+              }`}>
                 {platformIcons[p]}
               </span>
-              {!collapsed && <span className="relative z-10">{p}</span>}
+              {!collapsed && <span className="relative z-10 font-light">{p}</span>}
             </button>
           );
         })}

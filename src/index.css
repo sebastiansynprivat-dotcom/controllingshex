@@ -2,56 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 240 10% 3%;
-    --foreground: 0 0% 95%;
+    --background: 240 6% 4%;
+    --foreground: 0 0% 93%;
 
-    --card: 0 0% 100% / 0.04;
-    --card-foreground: 0 0% 95%;
+    --card: 0 0% 100% / 0.02;
+    --card-foreground: 0 0% 93%;
 
-    --popover: 240 8% 6%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 240 6% 5%;
+    --popover-foreground: 0 0% 93%;
 
-    --primary: 43 74% 49%;
-    --primary-foreground: 240 10% 4%;
+    --primary: 40 45% 55%;
+    --primary-foreground: 240 6% 4%;
 
-    --secondary: 0 0% 100% / 0.06;
-    --secondary-foreground: 0 0% 80%;
+    --secondary: 0 0% 100% / 0.04;
+    --secondary-foreground: 0 0% 70%;
 
-    --muted: 0 0% 100% / 0.06;
-    --muted-foreground: 0 0% 50%;
+    --muted: 0 0% 100% / 0.04;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 43 74% 49%;
-    --accent-foreground: 240 10% 4%;
+    --accent: 40 45% 55%;
+    --accent-foreground: 240 6% 4%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 55% 48%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 100% / 0.08;
-    --input: 0 0% 100% / 0.08;
-    --ring: 43 74% 49%;
+    --border: 0 0% 100% / 0.05;
+    --input: 0 0% 100% / 0.05;
+    --ring: 40 45% 55%;
 
-    --radius: 0.875rem;
+    --radius: 0.75rem;
 
-    --gold: 43 74% 49%;
-    --gold-light: 43 80% 62%;
-    --gold-dark: 43 70% 38%;
+    --gold: 40 45% 55%;
+    --gold-light: 40 50% 65%;
+    --gold-dark: 40 40% 42%;
 
-    --surface-1: 240 8% 4%;
-    --surface-2: 0 0% 100% / 0.03;
-    --surface-3: 0 0% 100% / 0.06;
+    --surface-1: 240 6% 5%;
+    --surface-2: 0 0% 100% / 0.02;
+    --surface-3: 0 0% 100% / 0.04;
 
-    --sidebar-background: 240 8% 4%;
-    --sidebar-foreground: 0 0% 65%;
-    --sidebar-primary: 43 74% 49%;
-    --sidebar-primary-foreground: 240 10% 4%;
-    --sidebar-accent: 0 0% 100% / 0.06;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 100% / 0.06;
-    --sidebar-ring: 43 74% 49%;
+    --sidebar-background: 240 6% 4%;
+    --sidebar-foreground: 0 0% 50%;
+    --sidebar-primary: 40 45% 55%;
+    --sidebar-primary-foreground: 240 6% 4%;
+    --sidebar-accent: 0 0% 100% / 0.04;
+    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-border: 0 0% 100% / 0.04;
+    --sidebar-ring: 40 45% 55%;
   }
 }
 
@@ -61,70 +61,86 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer utilities {
   .gold-gradient {
-    background: linear-gradient(135deg, hsl(43 74% 49%), hsl(43 80% 62%));
+    background: linear-gradient(135deg, hsl(40 45% 55%), hsl(40 50% 65%));
   }
 
   .gold-text {
-    background: linear-gradient(135deg, hsl(43 74% 49%), hsl(43 80% 62%));
+    background: linear-gradient(135deg, hsl(40 50% 65%), hsl(40 40% 50%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gold-text-subtle {
+    background: linear-gradient(135deg, hsl(40 30% 60%), hsl(40 20% 50%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .gold-glow {
-    box-shadow: 0 0 24px hsl(43 74% 49% / 0.25), 0 0 48px hsl(43 74% 49% / 0.08);
+    box-shadow: 0 0 40px hsl(40 45% 55% / 0.12), 0 0 80px hsl(40 45% 55% / 0.04);
   }
 
   .gold-glow-sm {
-    box-shadow: 0 0 12px hsl(43 74% 49% / 0.15);
+    box-shadow: 0 0 16px hsl(40 45% 55% / 0.08);
   }
 
   .glass {
-    background: hsl(0 0% 0% / 0.4);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: hsl(0 0% 0% / 0.5);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
   }
 
   .glass-card {
-    background: hsl(0 0% 100% / 0.03);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(0 0% 100% / 0.07);
+    background: hsl(0 0% 100% / 0.02);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid hsl(0 0% 100% / 0.05);
   }
 
   .glass-card-gold {
-    background: hsl(0 0% 100% / 0.03);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(43 74% 49% / 0.15);
+    background: hsl(0 0% 100% / 0.02);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid hsl(40 45% 55% / 0.1);
   }
 
   .glass-border {
-    border: 1px solid hsl(0 0% 100% / 0.06);
+    border: 1px solid hsl(0 0% 100% / 0.04);
+  }
+
+  .bg-depth {
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, hsl(40 30% 20% / 0.04) 0%, transparent 70%),
+                hsl(240 6% 4%);
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   .animate-fade-in-delay {
-    animation: fadeIn 0.5s ease-out 0.15s forwards;
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
     opacity: 0;
   }
 
   .animate-fade-in-delay-2 {
-    animation: fadeIn 0.5s ease-out 0.3s forwards;
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
     opacity: 0;
   }
 }
@@ -132,7 +148,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -143,14 +159,5 @@
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse-gold {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
   }
 }
