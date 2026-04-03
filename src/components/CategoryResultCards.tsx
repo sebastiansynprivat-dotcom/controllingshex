@@ -164,7 +164,7 @@ function calcScore(history: HistoryEntry[]): number {
 function buildClipboardTSV(categories: Category[]): string {
   const allHeaders = new Set<string>();
   categories.forEach((cat) =>
-    cat.chatters.forEach((c) => Object.keys(c.kpis).forEach((k) => allHeaders.add(k)))
+    cat.chatters.forEach((c) => Object.keys(c.kpis || {}).forEach((k) => allHeaders.add(k)))
   );
   const kpiCols = Array.from(allHeaders);
   const header = ["Kategorie", "Chatter", "Startdatum", "Account", ...kpiCols, "Empfehlung"].join("\t");
@@ -483,7 +483,7 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
 /* ------------------------------------------------------------------ */
 
 function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats }) {
-  const kpiEntries = Object.entries(chatter.kpis);
+  const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
