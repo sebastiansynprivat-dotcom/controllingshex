@@ -6,12 +6,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL_CASCADE = [
-  "google/gemini-3.1-pro-preview",
-  "google/gemini-2.5-pro",
-  "google/gemini-2.5-flash",
-  "openai/gpt-5-mini",
-];
+const MODEL_NAME = "google/gemini-2.5-flash";
 const TIMEOUT_MS = 60000;
 
 function repairJsonString(value: string) {
@@ -156,70 +151,62 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
 
     const userMessage = `Plattform: ${activePlatform}\n\nHier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen (nur ${activePlatform}):\n${modelsText}`;
 
-    let response: Response | null = null;
-    let usedModel = "";
+    console.log(`[analyze-csv] Nutze Modell: ${MODEL_NAME}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    for (const modelName of MODEL_CASCADE) {
-      console.log(`[analyze-csv] Versuche Modell: ${modelName}`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let response: Response;
+    try {
+      const attempt = await fetch(AI_GATEWAY_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          max_tokens: 16384,
+          response_format: { type: "json_object" },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
-      try {
-        const attempt = await fetch(AI_GATEWAY_URL, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userMessage },
-            ],
-            max_tokens: 16384,
-            response_format: { type: "json_object" },
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (attempt.ok) {
-          response = attempt;
-          usedModel = modelName;
-          console.log(`[analyze-csv] Nutze Modell: ${modelName} ✓`);
-          break;
-        }
-
+      if (!attempt.ok) {
         const errText = await attempt.text();
-        console.warn(`[analyze-csv] ${modelName} fehlgeschlagen (${attempt.status}): ${errText.substring(0, 200)}`);
+        console.error(`[analyze-csv] ${MODEL_NAME} fehlgeschlagen (${attempt.status}): ${errText.substring(0, 300)}`);
 
         if (attempt.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte warte kurz und versuche es erneut.", details: errText }), {
+          return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte warte kurz und versuche es erneut." }), {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         if (attempt.status === 402) {
-          return new Response(JSON.stringify({ error: "AI-Credits aufgebraucht. Bitte Credits aufladen.", details: errText }), {
+          return new Response(JSON.stringify({ error: "AI-Credits aufgebraucht. Bitte Credits aufladen." }), {
             status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        // 400/404 → model not found, try next
-      } catch (fetchErr: any) {
-        clearTimeout(timeoutId);
-        if (fetchErr.name === "AbortError") {
-          console.warn(`[analyze-csv] ${modelName} Timeout nach 60s, versuche nächstes Modell...`);
-          continue;
-        }
-        throw fetchErr;
-      }
-    }
 
-    if (!response) {
-      console.error("[analyze-csv] Alle Modelle fehlgeschlagen");
-      return new Response(JSON.stringify({ error: "Alle AI-Modelle sind fehlgeschlagen. Bitte später erneut versuchen." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({ error: `Modell ${MODEL_NAME} Fehler (${attempt.status}): ${errText.substring(0, 200)}` }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      response = attempt;
+      console.log(`[analyze-csv] ${MODEL_NAME} ✓ Antwort erhalten`);
+    } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
+      if (fetchErr.name === "AbortError") {
+        console.error(`[analyze-csv] ${MODEL_NAME} Timeout nach ${TIMEOUT_MS / 1000}s`);
+        return new Response(JSON.stringify({ error: `Timeout nach ${TIMEOUT_MS / 1000}s. Versuche es mit weniger Daten.` }), {
+          status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw fetchErr;
     }
 
     const aiResult = await response.json();
