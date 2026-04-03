@@ -48,11 +48,78 @@ interface ChatterStats {
 /*  HELPERS                                                            */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  WHITELISTED CATEGORIES — the ONLY categories allowed               */
+/* ------------------------------------------------------------------ */
+
+const ALLOWED_CATEGORIES = [
+  { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" },
+  { emoji: "🔄", name: "MODEL-TAUSCH" },
+  { emoji: "🔵", name: "ONBOARDING TAG 1" },
+  { emoji: "🔵", name: "ONBOARDING TAG 2" },
+  { emoji: "🔵", name: "ONBOARDING TAG 3" },
+  { emoji: "🔵", name: "ONBOARDING TAG 4" },
+  { emoji: "🔵", name: "ONBOARDING TAG 5" },
+  { emoji: "🌟", name: "BREAKOUT-STAR" },
+  { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" },
+  { emoji: "🚀", name: "KURZ VOR UPGRADE" },
+  { emoji: "📉", name: "0€ UMSATZ IN FOLGE" },
+  { emoji: "🟠", name: "WARNUNG" },
+  { emoji: "📼", name: "VIDEO-COACHING" },
+  { emoji: "⚪", name: "WEITER SO / MITTELFELD" },
+] as const;
+
+const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
+const MITTELFELD = "WEITER SO / MITTELFELD";
+const MITTELFELD_EMOJI = "⚪";
+
+/** Map an AI-returned category name to the closest whitelisted name */
+function mapToAllowed(rawName: string): { emoji: string; name: string } {
+  const upper = rawName.replace(/^[^\w]*/, "").trim().toUpperCase();
+
+  // Direct match
+  for (const ac of ALLOWED_CATEGORIES) {
+    if (upper === ac.name || upper.includes(ac.name)) return { emoji: ac.emoji, name: ac.name };
+  }
+
+  // Fuzzy keyword matching
+  if (/EINBRUCH/i.test(rawName)) return { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" };
+  if (/MODEL.?TAUSCH/i.test(rawName)) return { emoji: "🔄", name: "MODEL-TAUSCH" };
+  if (/BREAKOUT/i.test(rawName)) return { emoji: "🌟", name: "BREAKOUT-STAR" };
+  if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" };
+  if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "KURZ VOR UPGRADE" };
+  if (/0\s*€.*FOLGE|FOLGE.*0\s*€/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ IN FOLGE" };
+  if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
+  if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "📼", name: "VIDEO-COACHING" };
+  if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: MITTELFELD };
+
+  // Onboarding with tag number
+  const onboardingMatch = rawName.match(/ONBOARDING.*?TAG\s*(\d+)/i);
+  if (onboardingMatch) {
+    const tag = parseInt(onboardingMatch[1], 10);
+    if (tag >= 1 && tag <= 5) return { emoji: "🔵", name: `ONBOARDING TAG ${tag}` };
+    return { emoji: MITTELFELD_EMOJI, name: MITTELFELD }; // Tag > 5 → Mittelfeld
+  }
+  if (/ONBOARDING/i.test(rawName)) return { emoji: "🔵", name: "ONBOARDING TAG 1" };
+
+  // Fallback: everything unknown → Mittelfeld
+  return { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
+}
+
+/** Sanitize delay: anything > 100 is a parsing error */
+function sanitizeDelayValue(raw: number, revenue?: number): number {
+  const val = Math.round(raw);
+  if (val < 0 || val > 100) return 0;
+  if (revenue !== undefined && (val === Math.round(revenue) || val === Math.round(revenue * 100))) return 0;
+  return val;
+}
+
 const emojiAccent: Record<string, string> = {
   "⚠️": "text-amber-400/80", "🔴": "text-red-400/70", "📉": "text-red-400/60",
   "🔵": "text-blue-400/70", "🌟": "text-yellow-300/70", "🟢": "text-emerald-400/70",
   "🔄": "text-violet-400/70", "❌": "text-rose-400/70", "🟡": "text-yellow-400/70",
-  "💰": "text-emerald-300/70", "🚀": "text-sky-400/70",
+  "💰": "text-emerald-300/70", "🚀": "text-sky-400/70", "🟠": "text-orange-400/70",
+  "📼": "text-purple-400/70", "⚪": "text-white/50",
 };
 
 function isMoneyValue(value: string): boolean {
