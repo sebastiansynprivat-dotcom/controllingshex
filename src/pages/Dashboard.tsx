@@ -363,16 +363,21 @@ export default function Dashboard() {
       addStatus("[Step 3/3] Management-Strategie wird erstellt…");
       setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
 
-      let parsedWebhookData: unknown = null;
-      try {
-        parsedWebhookData = extractJsonFromResponse(rawResponseText);
-      } catch (parseErr: any) {
-        throw new Error(`Error ${response.status}: ${parseErr.message}`);
+      // Try JSON first, then plaintext fallback
+      let items: WebhookChatter[] = [];
+      const parsedWebhookData = extractJsonFromResponse(rawResponseText);
+      if (parsedWebhookData) {
+        items = extractWebhookItems(parsedWebhookData);
       }
-
-      const items = extractWebhookItems(parsedWebhookData);
       if (items.length === 0) {
-        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse vom Hub erhalten.`);
+        const plainItems = parsePlainTextResponse(rawResponseText);
+        if (plainItems && plainItems.length > 0) {
+          addStatus("📝 Klartext-Antwort erkannt — wird konvertiert…");
+          items = plainItems;
+        }
+      }
+      if (items.length === 0) {
+        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse erkannt. Antwort: '${rawResponseText.slice(0, 150)}'`);
       }
 
       const analysisResult = webhookResponseToAnalysis(items);
