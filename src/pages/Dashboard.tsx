@@ -300,9 +300,9 @@ export default function Dashboard() {
 
       let parsedWebhookData: unknown = null;
       try {
-        parsedWebhookData = rawResponseText ? JSON.parse(rawResponseText) : null;
-      } catch {
-        throw new Error(`Error ${response.status}: Webhook antwortet mit '${rawResponseText.slice(0, 120)}' statt JSON`);
+        parsedWebhookData = extractJsonFromResponse(rawResponseText);
+      } catch (parseErr: any) {
+        throw new Error(`Error ${response.status}: ${parseErr.message}`);
       }
 
       const items = extractWebhookItems(parsedWebhookData);
