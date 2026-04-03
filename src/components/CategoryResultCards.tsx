@@ -1,8 +1,10 @@
 import { Copy, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePlatform } from "@/contexts/PlatformContext";
+import ChatterSlideOver from "@/components/ChatterSlideOver";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
