@@ -8,6 +8,7 @@ import { Layout } from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Models from "@/pages/Models";
 import SettingsPage from "@/pages/SettingsPage";
+import AIConsultant from "@/pages/AIConsultant";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
