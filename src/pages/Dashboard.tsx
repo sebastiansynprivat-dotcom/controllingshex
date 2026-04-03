@@ -213,7 +213,7 @@ export default function Dashboard() {
       addStatus("[Step 3/3] Management-Strategie wird erstellt…");
       setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
 
-      const webhookData = await response.json();
+      const webhookData = responseData;
       const items: WebhookChatter[] = Array.isArray(webhookData) ? webhookData
         : Array.isArray(webhookData?.data) ? webhookData.data
         : Array.isArray(webhookData?.result) ? webhookData.result
