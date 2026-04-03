@@ -393,7 +393,8 @@ export default function Dashboard() {
               >
                 <div className="flex items-center justify-between text-xs font-light tracking-wider">
                   <span className="text-primary/70 uppercase">
-                    Batch {Math.min(Math.ceil(progress.current / BATCH_SIZE) + (progress.current < progress.total ? 1 : 0), Math.ceil(progress.total / BATCH_SIZE))} von {Math.ceil(progress.total / BATCH_SIZE)}
+                    Batch {progress.batchNum} von {progress.totalBatches}
+                  </span>
                   </span>
                   <span className="text-white/40">
                     {Math.round((progress.current / progress.total) * 100)}%
