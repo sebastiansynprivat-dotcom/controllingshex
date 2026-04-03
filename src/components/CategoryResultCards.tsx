@@ -219,7 +219,7 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
 /*  CATEGORY CARD                                                      */
 /* ------------------------------------------------------------------ */
 
-function CategoryCard({ category }: { category: Category }) {
+function CategoryCard({ category, onChatterClick }: { category: Category; onChatterClick: (name: string) => void }) {
   const accent = emojiAccent[category.emoji] || "text-primary/70";
 
   return (
@@ -236,7 +236,7 @@ function CategoryCard({ category }: { category: Category }) {
 
       <div className="divide-y divide-white/[0.03]">
         {category.chatters.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} />
         ))}
       </div>
     </div>
