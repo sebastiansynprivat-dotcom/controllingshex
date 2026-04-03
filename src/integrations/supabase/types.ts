@@ -21,7 +21,9 @@ export type Database = {
           created_at: string
           id: string
           mass_dms: number | null
+          open_chats: number | null
           platform: string
+          response_delay_days: number | null
           revenue_today: number | null
         }
         Insert: {
@@ -30,7 +32,9 @@ export type Database = {
           created_at?: string
           id?: string
           mass_dms?: number | null
+          open_chats?: number | null
           platform?: string
+          response_delay_days?: number | null
           revenue_today?: number | null
         }
         Update: {
@@ -39,7 +43,9 @@ export type Database = {
           created_at?: string
           id?: string
           mass_dms?: number | null
+          open_chats?: number | null
           platform?: string
+          response_delay_days?: number | null
           revenue_today?: number | null
         }
         Relationships: []

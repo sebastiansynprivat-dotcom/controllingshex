@@ -1,10 +1,10 @@
 import { Copy, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlatform } from "@/contexts/PlatformContext";
-import ChatterSlideOver from "@/components/ChatterSlideOver";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
@@ -28,8 +28,13 @@ interface AnalysisResult {
   categories: Category[];
 }
 
+interface ChatterAvg {
+  avgChats: number;
+  avgDelay: number;
+}
+
 /* ------------------------------------------------------------------ */
-/*  EMOJI COLOR MAP                                                    */
+/*  HELPERS                                                            */
 /* ------------------------------------------------------------------ */
 
 const emojiAccent: Record<string, string> = {
@@ -51,14 +56,8 @@ function isMoneyValue(value: string): boolean {
 }
 
 function toTitleCase(name: string): string {
-  return name
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
-/* ------------------------------------------------------------------ */
-/*  CLIPBOARD                                                          */
-/* ------------------------------------------------------------------ */
 
 function buildClipboardTSV(categories: Category[]): string {
   const allHeaders = new Set<string>();
@@ -67,7 +66,6 @@ function buildClipboardTSV(categories: Category[]): string {
   );
   const kpiCols = Array.from(allHeaders);
   const header = ["Kategorie", "Chatter", "Startdatum", "Account", ...kpiCols, "Empfehlung"].join("\t");
-
   const rows = categories.flatMap((cat) =>
     cat.chatters.map((c) =>
       [
@@ -80,7 +78,6 @@ function buildClipboardTSV(categories: Category[]): string {
       ].join("\t")
     )
   );
-
   return [header, ...rows].join("\n");
 }
 
@@ -91,15 +88,48 @@ function buildClipboardTSV(categories: Category[]): string {
 interface CategoryResultCardsProps {
   data: AnalysisResult | null;
   raw?: string;
+  onChatterSelect: (name: string) => void;
 }
 
-export default function CategoryResultCards({ data, raw }: CategoryResultCardsProps) {
+export default function CategoryResultCards({ data, raw, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
-  const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
+  const [chatterAvgs, setChatterAvgs] = useState<Record<string, ChatterAvg>>({});
 
   const categories = data?.categories ?? [];
+
+  // Fetch historical averages for all chatters in one query
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const allNames = categories.flatMap((c) => c.chatters.map((ch) => toTitleCase(ch.name)));
+    const uniqueNames = [...new Set(allNames)];
+    if (uniqueNames.length === 0) return;
+
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, open_chats, response_delay_days")
+      .eq("platform", platform)
+      .in("chatter_name", uniqueNames)
+      .then(({ data: rows }) => {
+        if (!rows) return;
+        const grouped: Record<string, { chats: number[]; delays: number[] }> = {};
+        for (const r of rows as any[]) {
+          const n = r.chatter_name;
+          if (!grouped[n]) grouped[n] = { chats: [], delays: [] };
+          grouped[n].chats.push(Number(r.open_chats) || 0);
+          grouped[n].delays.push(Number(r.response_delay_days) || 0);
+        }
+        const avgs: Record<string, ChatterAvg> = {};
+        for (const [name, vals] of Object.entries(grouped)) {
+          avgs[name] = {
+            avgChats: vals.chats.length ? vals.chats.reduce((a, b) => a + b, 0) / vals.chats.length : 0,
+            avgDelay: vals.delays.length ? vals.delays.reduce((a, b) => a + b, 0) / vals.delays.length : 0,
+          };
+        }
+        setChatterAvgs(avgs);
+      });
+  }, [categories, platform]);
 
   const toggleFilter = (name: string) => {
     setActiveFilters((prev) => {
@@ -123,7 +153,6 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Fallback: raw text if JSON parsing failed
   if (!data || categories.length === 0) {
     return (
       <div className="space-y-6">
@@ -145,9 +174,7 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
       {/* Toolbar */}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-extralight text-foreground tracking-tight">
-            Analyse-Ergebnis
-          </h2>
+          <h2 className="text-xl font-extralight text-foreground tracking-tight">Analyse-Ergebnis</h2>
           <p className="text-[11px] text-white/25 mt-1 font-light tracking-wider">
             {totalChatters} Einträge · {categories.length} Kategorien
           </p>
@@ -198,19 +225,11 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={(name) => setSelectedChatter(name)} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterAvgs={chatterAvgs} />
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
-
-      {/* Slide-Over */}
-      <ChatterSlideOver
-        open={!!selectedChatter}
-        onClose={() => setSelectedChatter(null)}
-        chatterName={selectedChatter || ""}
-        platform={platform}
-      />
     </div>
   );
 }
@@ -219,24 +238,19 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
 /*  CATEGORY CARD                                                      */
 /* ------------------------------------------------------------------ */
 
-function CategoryCard({ category, onChatterClick }: { category: Category; onChatterClick: (name: string) => void }) {
-  const accent = emojiAccent[category.emoji] || "text-primary/70";
-
+function CategoryCard({ category, onChatterClick, chatterAvgs }: { category: Category; onChatterClick: (name: string) => void; chatterAvgs: Record<string, ChatterAvg> }) {
   return (
     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
       <div className="px-10 py-7 border-b border-white/[0.04] flex items-center gap-4">
         <span className="text-2xl">{category.emoji}</span>
-        <h3 className="text-2xl font-semibold tracking-wide gold-text">
-          {category.categoryName}
-        </h3>
+        <h3 className="text-2xl font-semibold tracking-wide gold-text">{category.categoryName}</h3>
         <span className="ml-auto text-xs text-white/25 font-light tracking-wider">
           {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
         </span>
       </div>
-
       <div className="divide-y divide-white/[0.03]">
         {category.chatters.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} avg={chatterAvgs[toTitleCase(chatter.name)]} />
         ))}
       </div>
     </div>
@@ -247,7 +261,7 @@ function CategoryCard({ category, onChatterClick }: { category: Category; onChat
 /*  CHATTER ITEM                                                       */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterClick: (name: string) => void }) {
+function ChatterItem({ chatter, onChatterClick, avg }: { chatter: Chatter; onChatterClick: (name: string) => void; avg?: ChatterAvg }) {
   const kpiEntries = Object.entries(chatter.kpis);
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
@@ -266,12 +280,9 @@ function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterC
       onClick={() => onChatterClick(formattedName)}
     >
       <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-10">
-        {/* Left: Name & Date */}
+        {/* Left: Name, Date & Avg Stats */}
         <div className="shrink-0 lg:w-56">
-          <button
-            onClick={copyName}
-            className="group flex items-center gap-2 text-left"
-          >
+          <button onClick={copyName} className="group flex items-center gap-2 text-left">
             <span className="text-xl font-semibold text-foreground/95 tracking-wide group-hover:underline underline-offset-4 decoration-primary/30 transition-all duration-300">
               {formattedName}
             </span>
@@ -282,14 +293,19 @@ function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterC
             )}
           </button>
           {chatter.startDate && (
-            <p className="text-sm text-white/25 mt-1.5 font-light tracking-wide">
-              {chatter.startDate}
-            </p>
+            <p className="text-sm text-white/25 mt-1.5 font-light tracking-wide">{chatter.startDate}</p>
           )}
           {chatter.account && (
             <span className="inline-block mt-2.5 text-xs font-light px-3 py-1 rounded-full bg-white/[0.03] text-white/45 border border-white/[0.06] tracking-wider">
               {chatter.account}
             </span>
+          )}
+          {/* Avg stats from history */}
+          {avg && (avg.avgChats > 0 || avg.avgDelay > 0) && (
+            <div className="flex gap-4 mt-3">
+              <span className="text-xs text-zinc-500 font-light">Ø Chats: {avg.avgChats.toFixed(1)}</span>
+              <span className="text-xs text-zinc-500 font-light">Ø Verzug: {avg.avgDelay.toFixed(1)}d</span>
+            </div>
           )}
         </div>
 
@@ -298,17 +314,11 @@ function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterC
           <div className="flex flex-wrap gap-x-10 gap-y-4 flex-1 min-w-0">
             {kpiEntries.map(([label, value]) => (
               <div key={label} className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">
-                  {label}
-                </span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">{label}</span>
                 {isMoneyValue(value) ? (
-                  <span className="text-2xl font-extralight tracking-tight gold-text mt-1">
-                    {value}
-                  </span>
+                  <span className="text-2xl font-extralight tracking-tight gold-text mt-1">{value}</span>
                 ) : (
-                  <span className="text-base font-light text-foreground/75 mt-1">
-                    {value}
-                  </span>
+                  <span className="text-base font-light text-foreground/75 mt-1">{value}</span>
                 )}
               </div>
             ))}
@@ -318,9 +328,7 @@ function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterC
         {/* Right: Recommendation */}
         {chatter.recommendation && (
           <div className="lg:max-w-md shrink-0 border-l-2 border-primary/20 pl-5">
-            <p className="text-base leading-relaxed text-zinc-200/60 font-light italic">
-              {chatter.recommendation}
-            </p>
+            <p className="text-base leading-relaxed text-zinc-200/60 font-light italic">{chatter.recommendation}</p>
           </div>
         )}
       </div>
