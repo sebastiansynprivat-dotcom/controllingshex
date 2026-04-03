@@ -237,12 +237,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return stats;
   }, [allHistory]);
 
+  // Single-select: click toggles one filter, clicking active deselects all
   const toggleFilter = (name: string) => {
     setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
+      if (prev.has(name)) return new Set();
+      return new Set([name]);
     });
   };
 
