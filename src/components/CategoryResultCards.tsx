@@ -483,7 +483,7 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
 /* ------------------------------------------------------------------ */
 
 function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats }) {
-  const kpiEntries = Object.entries(chatter.kpis);
+  const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
