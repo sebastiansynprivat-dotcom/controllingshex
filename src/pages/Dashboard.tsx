@@ -263,7 +263,7 @@ export default function Dashboard() {
       try {
         parsedWebhookData = rawResponseText ? JSON.parse(rawResponseText) : null;
       } catch {
-        throw new Error(`Error ${response.status}: Ungültige JSON-Antwort vom Webhook`);
+        throw new Error(`Error ${response.status}: Webhook antwortet mit '${rawResponseText.slice(0, 120)}' statt JSON`);
       }
 
       const items = extractWebhookItems(parsedWebhookData);
