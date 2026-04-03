@@ -290,6 +290,19 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       }
     }
 
+    // Sort chatters within each category by revenue (descending)
+    const parseRevenue = (ch: Chatter): number => {
+      const kpis = ch.kpis || {};
+      const key = Object.keys(kpis).find((k) => /umsatz|revenue/i.test(k));
+      if (!key) return 0;
+      const val = kpis[key].replace(/[^\d,.\-]/g, "").replace(",", ".");
+      return parseFloat(val) || 0;
+    };
+
+    for (const [, cat] of catMap) {
+      cat.chatters.sort((a, b) => parseRevenue(b) - parseRevenue(a));
+    }
+
     // Return only categories with chatters, ordered by ALLOWED_CATEGORIES order
     const ordered: Category[] = [];
     for (const ac of ALLOWED_CATEGORIES) {
