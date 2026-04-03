@@ -395,7 +395,6 @@ export default function Dashboard() {
                   <span className="text-primary/70 uppercase">
                     Batch {progress.batchNum} von {progress.totalBatches}
                   </span>
-                  </span>
                   <span className="text-white/40">
                     {Math.round((progress.current / progress.total) * 100)}%
                   </span>
