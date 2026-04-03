@@ -77,7 +77,9 @@ Regeln:
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Keys sind die Labels (z.B. "Tagesumsatz", "Offene Chats"). Geldbeträge mit € formatieren.
 - "recommendation" ist die konkrete Handlungsempfehlung.
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
-- Antworte mit NICHTS außer dem JSON. Kein \`\`\`json Block, kein Text davor oder danach.`;
+- Antworte mit NICHTS außer dem JSON. Kein \`\`\`json Block, kein Text davor oder danach.
+
+CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, analyze, and include EVERY SINGLE CHATTER in your final JSON output. DO NOT summarize, DO NOT group them together, and DO NOT skip anyone to save space. If the input contains 100 chatters, your output MUST contain exactly 100 chatters. Compare your output against the input before finishing to ensure 100% completeness.`;
 
     const systemPrompt = userSystemPrompt + formatInstructions;
 
