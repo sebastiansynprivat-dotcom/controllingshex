@@ -301,11 +301,26 @@ export default function Dashboard() {
       }
 
       const merged = batches.length === 1 ? batchResults[0] : mergeResults(batchResults);
+
+      // Validate merged structure
+      if (!merged || !Array.isArray(merged.categories)) {
+        throw new Error("Merged result hat keine gültige categories-Struktur.");
+      }
+
       const totalChatters = merged.categories.reduce((sum, c) => sum + c.chatters.length, 0);
       console.log(`[Analyse] ✓ Fertig: ${totalChatters} Chatter in ${merged.categories.length} Kategorien`);
 
+      // Persist to localStorage before rendering
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: merged, ts: Date.now() }));
+        console.log("[Cache] Result saved to localStorage");
+      } catch { /* storage full — non-critical */ }
+
+      // Dampen animations for 2s to let browser breathe
+      setAnimationsReady(false);
       setResult(merged);
       toast.success(`Analyse abgeschlossen: ${totalChatters} Chatter verarbeitet.`);
+      setTimeout(() => setAnimationsReady(true), 2000);
     } catch (err: any) {
       console.error("[Analyse] ✗ Fehler:", err);
       toast.error(err.message || "Analyse fehlgeschlagen.");
