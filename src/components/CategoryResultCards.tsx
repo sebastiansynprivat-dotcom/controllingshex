@@ -1,8 +1,10 @@
 import { Copy, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePlatform } from "@/contexts/PlatformContext";
+import ChatterSlideOver from "@/components/ChatterSlideOver";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
@@ -92,8 +94,10 @@ interface CategoryResultCardsProps {
 }
 
 export default function CategoryResultCards({ data, raw }: CategoryResultCardsProps) {
+  const { platform } = usePlatform();
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
 
   const categories = data?.categories ?? [];
 
@@ -194,11 +198,19 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} />
+              <CategoryCard category={cat} onChatterClick={(name) => setSelectedChatter(name)} />
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Slide-Over */}
+      <ChatterSlideOver
+        open={!!selectedChatter}
+        onClose={() => setSelectedChatter(null)}
+        chatterName={selectedChatter || ""}
+        platform={platform}
+      />
     </div>
   );
 }
@@ -207,7 +219,7 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
 /*  CATEGORY CARD                                                      */
 /* ------------------------------------------------------------------ */
 
-function CategoryCard({ category }: { category: Category }) {
+function CategoryCard({ category, onChatterClick }: { category: Category; onChatterClick: (name: string) => void }) {
   const accent = emojiAccent[category.emoji] || "text-primary/70";
 
   return (
@@ -224,7 +236,7 @@ function CategoryCard({ category }: { category: Category }) {
 
       <div className="divide-y divide-white/[0.03]">
         {category.chatters.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} />
         ))}
       </div>
     </div>
@@ -235,7 +247,7 @@ function CategoryCard({ category }: { category: Category }) {
 /*  CHATTER ITEM                                                       */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter }: { chatter: Chatter }) {
+function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterClick: (name: string) => void }) {
   const kpiEntries = Object.entries(chatter.kpis);
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
@@ -249,7 +261,10 @@ function ChatterItem({ chatter }: { chatter: Chatter }) {
   };
 
   return (
-    <div className="px-10 py-8 hover:bg-white/[0.015] transition-colors duration-500">
+    <div
+      className="px-10 py-8 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer"
+      onClick={() => onChatterClick(formattedName)}
+    >
       <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-10">
         {/* Left: Name & Date */}
         <div className="shrink-0 lg:w-56">
