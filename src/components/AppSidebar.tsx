@@ -29,7 +29,7 @@ export function AppSidebar() {
         <div className="px-3 mb-10">
           {!collapsed ? (
             <h1 className="text-sm font-semibold tracking-[0.2em] uppercase gold-text-subtle">
-              ChatAgency
+              Controlling
             </h1>
           ) : (
             <span className="text-sm font-semibold gold-text-subtle block text-center">C</span>
