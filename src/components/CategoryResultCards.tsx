@@ -94,8 +94,10 @@ interface CategoryResultCardsProps {
 }
 
 export default function CategoryResultCards({ data, raw }: CategoryResultCardsProps) {
+  const { platform } = usePlatform();
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
 
   const categories = data?.categories ?? [];
 
