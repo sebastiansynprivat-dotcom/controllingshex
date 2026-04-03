@@ -324,7 +324,11 @@ export default function Dashboard() {
       toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
       setTimeout(() => setAnimationsReady(true), 2000);
     } catch (err: any) {
-      if (err.name === "AbortError") return;
+      if (err.name === "AbortError") {
+        addStatus("⏳ Timeout nach 120s erreicht. Bitte versuche es später erneut.");
+        toast.error("Timeout: Make.com hat nicht rechtzeitig geantwortet.");
+        return;
+      }
       console.error("[Analyse] Fehler:", err);
       const msg = err.message || "Network Error: CORS block";
       addStatus(`💥 ${msg}`);
