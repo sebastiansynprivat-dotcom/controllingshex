@@ -266,8 +266,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           if (!grouped[n]) grouped[n] = [];
           const rev = Number(r.revenue_today) || 0;
           const rawDelay = Number(r.response_delay_days) || 0;
-          // Sanitize: delay must be ≤31 and must not mirror the revenue value
-          const safeDelay = rawDelay > 31 || rawDelay === Math.round(rev) ? 0 : rawDelay;
+          // Hard guard: delay > 30 OR equals revenue*100 (parsing bug) → 0
+          const safeDelay = rawDelay > 30 || rawDelay === Math.round(rev) || rawDelay === Math.round(rev * 100) ? 0 : Math.round(rawDelay);
           grouped[n].push({
             analysis_date: r.analysis_date,
             revenue_today: rev,
