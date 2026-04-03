@@ -82,15 +82,11 @@ function calcTrend(history: HistoryEntry[]): "up" | "down" | "stable" {
 
 function calcScore(history: HistoryEntry[]): number {
   if (history.length === 0) return 0;
-  const last = history[history.length - 1];
   const avgRev = history.reduce((s, r) => s + r.revenue_today, 0) / history.length;
   const avgDMs = history.reduce((s, r) => s + r.mass_dms, 0) / history.length;
   const avgDelay = history.reduce((s, r) => s + r.response_delay_days, 0) / history.length;
-  // Revenue score (0-40): normalized against 500€ as "excellent"
   const revScore = Math.min(40, (avgRev / 500) * 40);
-  // MassDMs score (0-30): higher is better, 20+ is excellent
   const dmScore = Math.min(30, (avgDMs / 20) * 30);
-  // Delay penalty (0-30): 0 delay = 30 points, 7+ days = 0
   const delayScore = Math.max(0, 30 - (avgDelay / 7) * 30);
   return Math.round(revScore + dmScore + delayScore);
 }
@@ -111,10 +107,10 @@ function buildClipboardTSV(categories: Category[]): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  SPARKLINE (SVG)                                                    */
+/*  SPARKLINE (SVG) — minimal, no axes                                 */
 /* ------------------------------------------------------------------ */
 
-function Sparkline({ data, width = 80, height = 28 }: { data: number[]; width?: number; height?: number }) {
+function Sparkline({ data, width = 72, height = 32 }: { data: number[]; width?: number; height?: number }) {
   if (data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -125,7 +121,7 @@ function Sparkline({ data, width = 80, height = 28 }: { data: number[]; width?: 
     return `${x},${y}`;
   });
   return (
-    <svg width={width} height={height} className="shrink-0 opacity-60">
+    <svg width={width} height={height} className="shrink-0 opacity-50">
       <polyline
         points={points.join(" ")}
         fill="none"
@@ -143,25 +139,25 @@ function Sparkline({ data, width = 80, height = 28 }: { data: number[]; width?: 
 /* ------------------------------------------------------------------ */
 
 function ScoreRing({ score, initials }: { score: number; initials: string }) {
-  const radius = 20;
-  const stroke = 2;
+  const radius = 18;
+  const stroke = 1.5;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
   const color = score >= 70 ? "#D4AF37" : score >= 40 ? "rgba(255,255,255,0.25)" : "rgba(183,110,100,0.6)";
 
   return (
-    <div className="relative shrink-0 w-11 h-11 flex items-center justify-center">
-      <svg width={44} height={44} className="absolute inset-0 -rotate-90">
-        <circle cx={22} cy={22} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+    <div className="relative shrink-0 w-10 h-10 flex items-center justify-center">
+      <svg width={40} height={40} className="absolute inset-0 -rotate-90">
+        <circle cx={20} cy={20} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
         <circle
-          cx={22} cy={22} r={radius} fill="none"
+          cx={20} cy={20} r={radius} fill="none"
           stroke={color} strokeWidth={stroke}
           strokeDasharray={circumference} strokeDashoffset={offset}
           strokeLinecap="round"
           style={{ transition: "stroke-dashoffset 0.8s ease" }}
         />
       </svg>
-      <span className="text-[11px] font-medium text-white/50 z-10">{initials}</span>
+      <span className="text-[10px] font-medium text-white/40 z-10">{initials}</span>
     </div>
   );
 }
@@ -171,9 +167,9 @@ function ScoreRing({ score, initials }: { score: number; initials: string }) {
 /* ------------------------------------------------------------------ */
 
 function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
-  if (trend === "up") return <TrendingUp className="h-3.5 w-3.5 text-primary/70" style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.4))" }} />;
-  if (trend === "down") return <TrendingDown className="h-3.5 w-3.5 text-[#B76E64]/70" />;
-  return <Minus className="h-3 w-3 text-white/20" />;
+  if (trend === "up") return <TrendingUp className="h-3 w-3 text-primary/70" style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.4))" }} />;
+  if (trend === "down") return <TrendingDown className="h-3 w-3 text-[#B76E64]/70" />;
+  return <Minus className="h-2.5 w-2.5 text-white/15" />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -194,7 +190,6 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
 
   const categories = data?.categories ?? [];
 
-  // Fetch full history for all chatters in one query
   useEffect(() => {
     if (categories.length === 0) return;
     const allNames = categories.flatMap((c) => c.chatters.map((ch) => toTitleCase(ch.name)));
@@ -225,13 +220,14 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
       });
   }, [categories, platform]);
 
-  // Compute stats per chatter
   const chatterStats = useMemo(() => {
     const stats: Record<string, ChatterStats> = {};
     for (const [name, hist] of Object.entries(allHistory)) {
+      // For avgDelay, only count entries where delay > 0
+      const withDelay = hist.filter((r) => r.response_delay_days > 0);
       stats[name] = {
         avgChats: hist.length ? hist.reduce((s, r) => s + r.open_chats, 0) / hist.length : 0,
-        avgDelay: hist.length ? hist.reduce((s, r) => s + r.response_delay_days, 0) / hist.length : 0,
+        avgDelay: withDelay.length ? withDelay.reduce((s, r) => s + r.response_delay_days, 0) / withDelay.length : 0,
         history: hist,
         trend: calcTrend(hist),
         score: calcScore(hist),
@@ -278,11 +274,11 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
   const totalChatters = categories.reduce((a, c) => a + c.chatters.length, 0);
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-10 animate-fade-in">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-extralight text-foreground tracking-tight">Analyse-Ergebnis</h2>
-          <p className="text-[11px] text-white/25 mt-1 font-light tracking-wider">
+          <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider">
             {totalChatters} Einträge · {categories.length} Kategorien
           </p>
         </div>
@@ -316,7 +312,7 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
       </div>
 
       {/* Category Cards */}
-      <div className="grid gap-8">
+      <div className="grid gap-10">
         <AnimatePresence mode="popLayout">
           {visibleCategories.map((cat, idx) => (
             <motion.div
@@ -341,10 +337,10 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
 function CategoryCard({ category, onChatterClick, chatterStats }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats> }) {
   return (
     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
-      <div className="px-10 py-7 border-b border-white/[0.04] flex items-center gap-4">
-        <span className="text-2xl">{category.emoji}</span>
-        <h3 className="text-2xl font-semibold tracking-wide gold-text">{category.categoryName}</h3>
-        <span className="ml-auto text-xs text-white/25 font-light tracking-wider">
+      <div className="px-8 py-6 border-b border-white/[0.04] flex items-center gap-3">
+        <span className="text-lg">{category.emoji}</span>
+        <h3 className="text-lg font-medium tracking-wide gold-text">{category.categoryName}</h3>
+        <span className="ml-auto text-[10px] text-white/20 font-light tracking-wider">
           {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
         </span>
       </div>
@@ -358,7 +354,7 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
 }
 
 /* ------------------------------------------------------------------ */
-/*  CHATTER ITEM                                                       */
+/*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
 function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats }) {
@@ -367,6 +363,13 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const sparkData = stats?.history.slice(-14).map((r) => r.revenue_today) ?? [];
+
+  // Find the primary revenue value
+  const revenueEntry = kpiEntries.find(([, v]) => isMoneyValue(v));
+  // Ghost-chat stats from history
+  const ghostChats = stats && stats.avgChats > 0
+    ? `Ø ${Math.round(stats.avgChats)} Chats / ${stats.avgDelay.toFixed(1)} Tage`
+    : null;
 
   const copyName = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -378,71 +381,77 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
 
   return (
     <div
-      className="px-10 py-8 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer"
+      className="px-8 py-6 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer group"
       onClick={() => onChatterClick(formattedName)}
     >
-      <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8">
-        {/* Left: Score Ring + Name */}
-        <div className="shrink-0 lg:w-64 flex gap-4 items-start">
-          <ScoreRing score={stats?.score ?? 0} initials={initials} />
-          <div className="min-w-0">
-            <button onClick={copyName} className="group flex items-center gap-2 text-left">
-              <span className="text-xl font-semibold text-foreground/95 tracking-wide group-hover:underline underline-offset-4 decoration-primary/30 transition-all duration-300">
+      {/* Row 1: Main info in a clean grid */}
+      <div className="flex items-center gap-5">
+        {/* Score Ring */}
+        <ScoreRing score={stats?.score ?? 0} initials={initials} />
+
+        {/* Name block */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <button onClick={copyName} className="group/name flex items-center gap-1.5 text-left">
+              <span className="text-sm font-medium text-foreground/90 tracking-wide group-hover/name:underline underline-offset-4 decoration-primary/30 transition-all duration-300">
                 {formattedName}
               </span>
               {nameCopied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-400/70 shrink-0" />
+                <Check className="h-3 w-3 text-emerald-400/70 shrink-0" />
               ) : (
-                <Copy className="h-3.5 w-3.5 text-white/15 group-hover:text-white/40 transition-colors duration-300 shrink-0" />
+                <Copy className="h-3 w-3 text-white/10 group-hover/name:text-white/30 transition-colors duration-300 shrink-0" />
               )}
             </button>
-            {chatter.startDate && (
-              <p className="text-sm text-white/25 mt-1 font-light tracking-wide">{chatter.startDate}</p>
-            )}
             {chatter.account && (
-              <span className="inline-block mt-2 text-xs font-light px-3 py-1 rounded-full bg-white/[0.03] text-white/45 border border-white/[0.06] tracking-wider">
+              <span className="text-[10px] font-light px-2 py-0.5 rounded-full bg-white/[0.03] text-white/30 border border-white/[0.05] tracking-wider">
                 {chatter.account}
               </span>
             )}
-            {stats && (stats.avgChats > 0 || stats.avgDelay > 0) && (
-              <div className="flex gap-4 mt-2">
-                <span className="text-xs text-white/30 font-light">Ø Chats: {stats.avgChats.toFixed(1)}</span>
-                <span className="text-xs text-white/30 font-light">Ø Verzug: {stats.avgDelay.toFixed(1)}d</span>
-              </div>
-            )}
           </div>
+          {chatter.startDate && (
+            <p className="text-[11px] text-white/20 mt-0.5 font-light">{chatter.startDate}</p>
+          )}
         </div>
 
-        {/* Sparkline */}
+        {/* Sparkline — tiny, no axes */}
         {sparkData.length >= 2 && (
-          <div className="shrink-0 flex items-center pt-1">
-            <Sparkline data={sparkData} />
+          <Sparkline data={sparkData} width={64} height={28} />
+        )}
+
+        {/* Revenue + Trend */}
+        {revenueEntry && (
+          <div className="shrink-0 flex items-center gap-2 min-w-[100px] justify-end">
+            <span className="text-base font-light gold-text tracking-tight">{revenueEntry[1]}</span>
+            {stats && <TrendIcon trend={stats.trend} />}
           </div>
         )}
 
-        {/* KPIs with trend */}
-        {kpiEntries.length > 0 && (
-          <div className="flex flex-wrap gap-x-8 gap-y-4 flex-1 min-w-0">
-            {kpiEntries.map(([label, value], idx) => (
-              <div key={label} className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">{label}</span>
-                {isMoneyValue(value) ? (
-                  <span className="flex items-center gap-2 mt-1">
-                    <span className="text-2xl font-extralight tracking-tight gold-text">{value}</span>
-                    {idx === 0 && stats && <TrendIcon trend={stats.trend} />}
-                  </span>
-                ) : (
-                  <span className="text-base font-light text-foreground/75 mt-1">{value}</span>
-                )}
-              </div>
-            ))}
+        {/* Ghost-Chat stat */}
+        {ghostChats && (
+          <div className="shrink-0 hidden md:block">
+            <span className="text-[11px] text-white/25 font-light tracking-wide">{ghostChats}</span>
           </div>
         )}
+      </div>
+
+      {/* Row 2: KPIs (excluding revenue already shown) + Recommendation */}
+      <div className="ml-[60px] mt-4 flex flex-col lg:flex-row lg:items-start gap-4">
+        {/* Other KPIs */}
+        <div className="flex flex-wrap gap-x-6 gap-y-2 flex-1">
+          {kpiEntries
+            .filter(([, v]) => !isMoneyValue(v))
+            .map(([label, value]) => (
+              <div key={label} className="flex items-baseline gap-1.5">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light">{label}</span>
+                <span className="text-xs font-light text-foreground/60">{value}</span>
+              </div>
+            ))}
+        </div>
 
         {/* Recommendation */}
         {chatter.recommendation && (
-          <div className="lg:max-w-sm shrink-0 border-l-2 border-primary/20 pl-5">
-            <p className="text-base leading-relaxed text-white/40 font-light italic">{chatter.recommendation}</p>
+          <div className="lg:max-w-xs shrink-0 border-l border-primary/15 pl-4">
+            <p className="text-xs leading-relaxed text-white/35 font-light italic">{chatter.recommendation}</p>
           </div>
         )}
       </div>
