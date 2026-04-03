@@ -111,10 +111,26 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
     const aiResult = await response.json();
     const resultText = aiResult.content?.[0]?.text || "";
 
-    // Parse JSON from Claude's response
+    // Parse JSON from Claude's response — robust extraction
     let parsed;
     try {
-      const cleaned = resultText.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+      let cleaned = resultText
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+
+      // Find actual JSON boundaries
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found");
+      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+      // Fix common LLM issues
+      cleaned = cleaned
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x1F\x7F]/g, "");
+
       parsed = JSON.parse(cleaned);
     } catch {
       return new Response(JSON.stringify({ result: null, raw: resultText }), {
