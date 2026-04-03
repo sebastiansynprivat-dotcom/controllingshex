@@ -1,13 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Upload, Sparkles, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface AnalysisChatter {
   name: string;
