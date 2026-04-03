@@ -405,15 +405,11 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
                 <Copy className="h-3 w-3 text-white/10 group-hover/name:text-white/30 transition-colors duration-300 shrink-0" />
               )}
             </button>
-            {chatter.account && (
-              <span className="text-[10px] font-light px-2 py-0.5 rounded-full bg-white/[0.03] text-white/30 border border-white/[0.05] tracking-wider">
-                {chatter.account}
-              </span>
-            )}
           </div>
-          {chatter.startDate && (
-            <p className="text-[11px] text-white/20 mt-0.5 font-light">{chatter.startDate}</p>
-          )}
+          <p className="text-[11px] text-white/20 mt-0.5 font-light">
+            {chatter.account || "Kein Account zugewiesen"}
+            {chatter.startDate && ` · ${chatter.startDate}`}
+          </p>
         </div>
 
         {/* Sparkline — tiny, no axes */}
