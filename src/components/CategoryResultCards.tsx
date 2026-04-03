@@ -317,10 +317,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         for (const r of rows as any[]) {
           const n = r.chatter_name;
           if (!grouped[n]) grouped[n] = [];
-          const rev = Number(r.revenue_today) || 0;
           const rawDelay = Number(r.response_delay_days) || 0;
-          // Hard guard: delay > 30 OR equals revenue*100 (parsing bug) → 0
-          const safeDelay = rawDelay > 30 || rawDelay === Math.round(rev) || rawDelay === Math.round(rev * 100) ? 0 : Math.round(rawDelay);
+          const rev = Number(r.revenue_today) || 0;
+          const safeDelay = sanitizeDelayValue(rawDelay, rev);
           grouped[n].push({
             analysis_date: r.analysis_date,
             revenue_today: rev,
