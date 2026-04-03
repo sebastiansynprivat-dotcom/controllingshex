@@ -261,14 +261,15 @@ export default function Dashboard() {
       setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
       addStatus(`📤 Sende ${data.length} Datensätze an High-Precision-Pipeline…`);
 
-      const MAX_RETRIES = 3;
+      const timeoutId = setTimeout(() => abortController.abort(), FETCH_TIMEOUT_MS);
+
+      const MAX_RETRIES = 1;
       let response: Response | null = null;
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (cancelledRef.current) return;
+        if (cancelledRef.current) { clearTimeout(timeoutId); return; }
         if (attempt > 0) {
-          const waitSec = attempt * 15;
-          addStatus(`⏳ Rate-Limit — warte ${waitSec}s (Versuch ${attempt + 1}/${MAX_RETRIES + 1})…`);
-          await new Promise((r) => setTimeout(r, waitSec * 1000));
+          addStatus(`⏳ Rate-Limit (429) — warte 5s (Versuch ${attempt + 1}/${MAX_RETRIES + 1})…`);
+          await new Promise((r) => setTimeout(r, 5000));
         }
         response = await window.fetch(WEBHOOK_URL, {
           method: "POST",
@@ -280,8 +281,9 @@ export default function Dashboard() {
         });
         if (response.status !== 429) break;
       }
+      clearTimeout(timeoutId);
       if (!response) throw new Error("Keine Antwort erhalten.");
-      if (response.status === 429) throw new Error("Error 429: Make.com Rate-Limit nach mehreren Versuchen. Bitte warte 1-2 Minuten.");
+      if (response.status === 429) throw new Error("Error 429: Rate-Limit nach Retry. Bitte warte 1-2 Minuten.");
 
       const rawResponseText = await response.text();
 
