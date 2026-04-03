@@ -181,11 +181,10 @@ function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
 
 interface CategoryResultCardsProps {
   data: AnalysisResult | null;
-  raw?: string;
   onChatterSelect: (name: string) => void;
 }
 
-export default function CategoryResultCards({ data, raw, onChatterSelect }: CategoryResultCardsProps) {
+export default function CategoryResultCards({ data, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
@@ -226,7 +225,6 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
   const chatterStats = useMemo(() => {
     const stats: Record<string, ChatterStats> = {};
     for (const [name, hist] of Object.entries(allHistory)) {
-      // For avgDelay, only count entries where delay > 0
       const withDelay = hist.filter((r) => r.response_delay_days > 0);
       stats[name] = {
         avgChats: hist.length ? hist.reduce((s, r) => s + r.open_chats, 0) / hist.length : 0,
@@ -253,7 +251,9 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
     : categories.filter((c) => activeFilters.has(c.categoryName));
 
   const copyToClipboard = async () => {
-    const text = categories.length > 0 ? buildClipboardTSV(categories) : raw || "";
+    const text = categories.length > 0
+      ? buildClipboardTSV(categories)
+      : JSON.stringify(data ?? { categories: [] });
     await navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success("Tabelle kopiert!");
@@ -267,8 +267,8 @@ export default function CategoryResultCards({ data, raw, onChatterSelect }: Cate
           <h2 className="text-lg font-light text-foreground/80 tracking-wide">Ergebnis</h2>
           <CopyButton copied={copied} onClick={copyToClipboard} />
         </div>
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-2xl overflow-x-auto">
-          <pre className="whitespace-pre-wrap text-sm text-white/50 font-light">{raw || "Keine Daten."}</pre>
+        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-2xl min-h-40 flex items-center justify-center">
+          <p className="text-sm text-white/35 font-light">Keine strukturierte Analyse verfügbar.</p>
         </div>
       </div>
     );

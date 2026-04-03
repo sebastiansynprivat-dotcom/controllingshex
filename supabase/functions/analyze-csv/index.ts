@@ -5,6 +5,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function repairJsonString(value: string) {
+  let braces = 0;
+  let brackets = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (const char of value) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+    if (char === "{") braces += 1;
+    if (char === "}") braces -= 1;
+    if (char === "[") brackets += 1;
+    if (char === "]") brackets -= 1;
+  }
+
+  let repaired = value;
+  while (brackets > 0) {
+    repaired += "]";
+    brackets -= 1;
+  }
+  while (braces > 0) {
+    repaired += "}";
+    braces -= 1;
+  }
+
+  return repaired;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -76,6 +118,7 @@ Regeln:
 - Typische Kategorien: ⚠️ ACCOUNT-EINBRUCH, 🔵 ONBOARDING TAG 1, 🌟 BREAKOUT-STAR, 🔴 KÜNDIGUNG/ABWANDERUNG, 📉 0€ UMSATZ, 🟢 TOP-PERFORMER, 🔄 ACCOUNT-TAUSCH, 💰 UPSELL-POTENZIAL, 🚀 WACHSTUM
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Keys sind die Labels (z.B. "Tagesumsatz", "Offene Chats"). Geldbeträge mit € formatieren.
 - WICHTIG: Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein (z.B. "12 Chats seit 3 Tagen"), damit wir die Anzahl und den Verzug separat parsen können.
+- Gib das JSON kompakt aus: keine unnötigen Leerzeilen, keine Einrückungen, keine zusätzlichen Whitespaces.
 - "recommendation" ist die konkrete Handlungsempfehlung.
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
 - Antworte mit NICHTS außer dem JSON. Kein \`\`\`json Block, kein Text davor oder danach.
@@ -112,7 +155,6 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
     const aiResult = await response.json();
     const resultText = aiResult.content?.[0]?.text || "";
 
-    // Parse JSON from Claude's response — robust extraction
     let parsed;
     try {
       let cleaned = resultText
@@ -121,23 +163,27 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
         .trim();
 
       const jsonStart = cleaned.indexOf("{");
+      if (jsonStart === -1) throw new Error("No JSON found");
+
       const jsonEnd = cleaned.lastIndexOf("}");
-      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found");
-      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+      cleaned = jsonEnd > jsonStart ? cleaned.substring(jsonStart, jsonEnd + 1) : cleaned.substring(jsonStart);
 
       cleaned = cleaned
         .replace(/,\s*}/g, "}")
         .replace(/,\s*]/g, "]")
         .replace(/[\x00-\x1F\x7F]/g, "");
 
-      parsed = JSON.parse(cleaned);
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        parsed = JSON.parse(repairJsonString(cleaned));
+      }
     } catch {
-      return new Response(JSON.stringify({ result: null, raw: resultText }), {
+      return new Response(JSON.stringify({ result: null, error: "Failed to parse structured analysis" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Save chatter history from parsed JSON
     try {
       const today = new Date().toISOString().split("T")[0];
       const rows: any[] = [];
@@ -147,7 +193,6 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
           const name = (chatter.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
           const kpis = chatter.kpis || {};
 
-          // Parse revenue
           let revenue = 0;
           const revKey = Object.keys(kpis).find((k) => /umsatz|revenue/i.test(k));
           if (revKey) {
@@ -155,31 +200,35 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
             revenue = parseFloat(revStr) || 0;
           }
 
-          // Parse massDMs
           let massDms = 0;
           const dmKey = Object.keys(kpis).find((k) => /mass\s*dm|massdm/i.test(k));
           if (dmKey) {
             massDms = parseInt(kpis[dmKey].replace(/\D/g, ""), 10) || 0;
           }
 
-          // Parse "Offene Chats" — e.g. "12 Chats seit 3 Tagen" or just "12"
           let openChats = 0;
           let responseDelay = 0;
           const chatKey = Object.keys(kpis).find((k) => /offene?\s*chats?|open\s*chats?/i.test(k));
           if (chatKey) {
             const chatVal = kpis[chatKey];
-            // Try "X Chats seit Y Tagen" pattern first
             const fullMatch = chatVal.match(/(\d+)\s*(?:chats?)\s*seit\s*(\d+)\s*(?:tagen?|days?)/i);
             if (fullMatch) {
               openChats = parseInt(fullMatch[1], 10) || 0;
               responseDelay = parseInt(fullMatch[2], 10) || 0;
             } else {
-              // Fallback: just a number
-              openChats = parseInt(chatVal.replace(/\D/g, ""), 10) || 0;
-              // Check separate delay key
-              const delayKey = Object.keys(kpis).find((k) => /seit|verzug|delay|tage/i.test(k));
-              if (delayKey) {
-                responseDelay = parseInt(kpis[delayKey].replace(/\D/g, ""), 10) || 0;
+              const chatCountMatch = chatVal.match(/(\d+)/);
+              openChats = chatCountMatch ? parseInt(chatCountMatch[1], 10) || 0 : 0;
+
+              const delayMatch = chatVal.match(/seit\s*(\d+)\s*(?:tagen?|days?)/i);
+              if (delayMatch) {
+                responseDelay = parseInt(delayMatch[1], 10) || 0;
+              } else {
+                const delayKey = Object.keys(kpis).find((k) => /seit|verzug|delay|tage/i.test(k));
+                if (delayKey) {
+                  const delayValue = kpis[delayKey];
+                  const delayNumber = delayValue.match(/(\d+)/);
+                  responseDelay = delayNumber ? parseInt(delayNumber[1], 10) || 0 : 0;
+                }
               }
             }
           }

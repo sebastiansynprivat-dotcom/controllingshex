@@ -8,12 +8,139 @@ import { motion, AnimatePresence } from "framer-motion";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 
+interface AnalysisChatter {
+  name: string;
+  startDate?: string;
+  account?: string;
+  kpis: Record<string, string>;
+  recommendation?: string;
+}
+
+interface AnalysisCategory {
+  emoji: string;
+  categoryName: string;
+  chatters: AnalysisChatter[];
+}
+
+interface AnalysisResult {
+  categories: AnalysisCategory[];
+}
+
+function isAnalysisResult(value: unknown): value is AnalysisResult {
+  return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
+}
+
+function extractJsonCandidate(value: string) {
+  const cleaned = value
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  const jsonStart = cleaned.indexOf("{");
+  if (jsonStart === -1) {
+    throw new Error("Kein JSON im Response gefunden.");
+  }
+
+  const jsonEnd = cleaned.lastIndexOf("}");
+  const sliced = jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned.slice(jsonStart);
+
+  return sliced
+    .replace(/,\s*}/g, "}")
+    .replace(/,\s*]/g, "]")
+    .replace(/[\x00-\x1F\x7F]/g, "");
+}
+
+function repairJsonString(value: string) {
+  let braces = 0;
+  let brackets = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (const char of value) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+    if (char === "{") braces += 1;
+    if (char === "}") braces -= 1;
+    if (char === "[") brackets += 1;
+    if (char === "]") brackets -= 1;
+  }
+
+  let repaired = value;
+  while (brackets > 0) {
+    repaired += "]";
+    brackets -= 1;
+  }
+  while (braces > 0) {
+    repaired += "}";
+    braces -= 1;
+  }
+
+  return repaired;
+}
+
+function parseAnalysisPayload(payload: unknown): AnalysisResult {
+  if (isAnalysisResult(payload)) {
+    return payload;
+  }
+
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+
+    if (isAnalysisResult(record.result)) {
+      return record.result;
+    }
+
+    const candidates = [record.result, record.raw];
+    for (const candidate of candidates) {
+      if (typeof candidate !== "string" || !candidate.trim()) continue;
+      const extracted = extractJsonCandidate(candidate);
+
+      try {
+        const parsed = JSON.parse(extracted);
+        if (isAnalysisResult(parsed)) return parsed;
+      } catch {
+        const repaired = repairJsonString(extracted);
+        const parsed = JSON.parse(repaired);
+        if (isAnalysisResult(parsed)) return parsed;
+      }
+    }
+  }
+
+  if (typeof payload === "string" && payload.trim()) {
+    const extracted = extractJsonCandidate(payload);
+
+    try {
+      const parsed = JSON.parse(extracted);
+      if (isAnalysisResult(parsed)) return parsed;
+    } catch {
+      const repaired = repairJsonString(extracted);
+      const parsed = JSON.parse(repaired);
+      if (isAnalysisResult(parsed)) return parsed;
+    }
+  }
+
+  throw new Error("Die Analyse konnte nicht strukturiert geladen werden.");
+}
+
 export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string>("");
-  const [result, setResult] = useState<any>(null);
-  const [resultRaw, setResultRaw] = useState<string>("");
+  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
@@ -42,21 +169,20 @@ export default function Dashboard() {
       toast.error("Bitte lade zuerst eine Datei hoch.");
       return;
     }
+
     setLoading(true);
     setResult(null);
-    setResultRaw("");
+
     try {
       const { data, error } = await supabase.functions.invoke("analyze-csv", {
         body: { csvData, platform },
       });
+
       if (error) throw error;
-      if (data.result) {
-        setResult(data.result);
-      } else {
-        setResultRaw(data.raw || "Keine Ergebnisse erhalten.");
-      }
+      const parsed = parseAnalysisPayload(data);
+      setResult(parsed);
     } catch (err: any) {
-      toast.error("Analyse fehlgeschlagen: " + (err.message || "Unbekannter Fehler"));
+      toast.error(err.message || "Analyse fehlgeschlagen.");
     } finally {
       setLoading(false);
     }
@@ -64,7 +190,6 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-full min-h-0">
-      {/* Main content - shrinks when panel is open */}
       <div className={`flex-1 min-w-0 overflow-y-auto transition-all duration-500 ${selectedChatter ? "mr-0" : ""}`}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -75,7 +200,6 @@ export default function Dashboard() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-5xl mx-auto space-y-12 p-8 lg:p-12"
           >
-            {/* Header */}
             <div className="space-y-3">
               <h1 className="text-3xl font-extralight tracking-tight text-foreground">
                 {platform}
@@ -85,7 +209,6 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Upload Zone */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -94,8 +217,8 @@ export default function Dashboard() {
                 dragOver
                   ? "bg-white/[0.03] border border-primary/15 gold-glow-sm"
                   : file
-                  ? "bg-white/[0.02] border border-white/[0.06]"
-                  : "bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.025]"
+                    ? "bg-white/[0.02] border border-white/[0.06]"
+                    : "bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.025]"
               }`}
               onClick={() => document.getElementById("file-input")?.click()}
             >
@@ -131,7 +254,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Analyze Button */}
             <Button
               onClick={analyze}
               disabled={!file || loading}
@@ -153,11 +275,9 @@ export default function Dashboard() {
               )}
             </Button>
 
-            {/* Result */}
-            {(result || resultRaw) && (
+            {result && (
               <CategoryResultCards
                 data={result}
-                raw={resultRaw}
                 onChatterSelect={setSelectedChatter}
               />
             )}
@@ -165,7 +285,6 @@ export default function Dashboard() {
         </AnimatePresence>
       </div>
 
-      {/* Side Panel - embedded, not floating */}
       <ChatterSlideOver
         open={!!selectedChatter}
         onClose={() => setSelectedChatter(null)}
