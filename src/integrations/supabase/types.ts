@@ -50,6 +50,30 @@ export type Database = {
         }
         Relationships: []
       }
+      coaching_notes: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          id: string
+          note_text: string
+          platform: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          id?: string
+          note_text: string
+          platform?: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          note_text?: string
+          platform?: string
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           created_at: string

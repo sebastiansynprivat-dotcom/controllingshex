@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Settings, MessageSquareText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import {
@@ -14,6 +14,7 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];

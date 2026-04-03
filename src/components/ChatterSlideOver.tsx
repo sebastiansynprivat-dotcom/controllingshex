@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
-import { X } from "lucide-react";
+import { X, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   ResponsiveContainer,
   LineChart,
@@ -11,6 +12,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
 } from "recharts";
 
 interface HistoryRow {
@@ -19,6 +21,12 @@ interface HistoryRow {
   mass_dms: number;
   open_chats: number;
   response_delay_days: number;
+}
+
+interface CoachingNote {
+  id: string;
+  note_text: string;
+  created_at: string;
 }
 
 interface Props {
@@ -37,6 +45,11 @@ function formatDate(iso: string) {
   return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
 }
 
+function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} — ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function formatCurrency(v: number) {
   return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
@@ -44,13 +57,16 @@ function formatCurrency(v: number) {
 /* Custom Tooltips */
 function RevenueTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
-  const row = payload[0]?.payload as HistoryRow | undefined;
+  const row = payload[0]?.payload as (HistoryRow & { note?: string }) | undefined;
   if (!row) return null;
   return (
-    <div className="bg-zinc-900/90 backdrop-blur-2xl border border-white/[0.08] rounded-xl px-5 py-3.5 shadow-2xl">
+    <div className="bg-zinc-900/90 backdrop-blur-2xl border border-white/[0.08] rounded-xl px-5 py-3.5 shadow-2xl max-w-[240px]">
       <p className="text-[11px] text-white/35 font-light tracking-wider mb-2">{formatDate(row.analysis_date)}</p>
       <p className="text-lg font-light gold-text">{formatCurrency(row.revenue_today)}</p>
       <p className="text-xs text-white/40 font-light mt-1">{row.mass_dms} MassDMs</p>
+      {row.note && (
+        <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2">📝 {row.note}</p>
+      )}
     </div>
   );
 }
@@ -71,29 +87,82 @@ function GhostChatTooltip({ active, payload }: any) {
 export default function ChatterSlideOver({ open, onClose, chatterName, platform }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notes, setNotes] = useState<CoachingNote[]>([]);
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (!open || !chatterName) return;
     setLoading(true);
-    supabase
-      .from("chatter_history")
-      .select("analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
-      .eq("chatter_name", chatterName)
-      .eq("platform", platform)
-      .order("analysis_date", { ascending: true })
-      .then(({ data }) => {
-        setHistory(
-          (data || []).map((r: any) => ({
-            analysis_date: r.analysis_date,
-            revenue_today: Number(r.revenue_today) || 0,
-            mass_dms: Number(r.mass_dms) || 0,
-            open_chats: Number(r.open_chats) || 0,
-            response_delay_days: Number(r.response_delay_days) || 0,
-          }))
-        );
-        setLoading(false);
-      });
+    Promise.all([
+      supabase
+        .from("chatter_history")
+        .select("analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .order("analysis_date", { ascending: true }),
+      supabase
+        .from("coaching_notes")
+        .select("id, note_text, created_at")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .order("created_at", { ascending: false }),
+    ]).then(([histRes, notesRes]) => {
+      setHistory(
+        (histRes.data || []).map((r: any) => ({
+          analysis_date: r.analysis_date,
+          revenue_today: Number(r.revenue_today) || 0,
+          mass_dms: Number(r.mass_dms) || 0,
+          open_chats: Number(r.open_chats) || 0,
+          response_delay_days: Number(r.response_delay_days) || 0,
+        }))
+      );
+      setNotes((notesRes.data as CoachingNote[]) || []);
+      setLoading(false);
+    });
   }, [open, chatterName, platform]);
+
+  const saveNote = async () => {
+    if (!noteText.trim()) return;
+    setSavingNote(true);
+    const { data, error } = await supabase
+      .from("coaching_notes")
+      .insert({ chatter_name: chatterName, platform, note_text: noteText.trim() })
+      .select("id, note_text, created_at")
+      .single();
+    if (error) {
+      toast.error("Notiz konnte nicht gespeichert werden.");
+    } else if (data) {
+      setNotes((prev) => [data as CoachingNote, ...prev]);
+      setNoteText("");
+      toast.success("Notiz gespeichert.");
+    }
+    setSavingNote(false);
+  };
+
+  // Map notes to dates for chart reference lines
+  const noteDateMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of notes) {
+      const dateStr = n.created_at.split("T")[0];
+      map.set(dateStr, n.note_text);
+    }
+    return map;
+  }, [notes]);
+
+  // Enrich history with note data for tooltip
+  const enrichedHistory = useMemo(() => {
+    return history.map((row) => ({
+      ...row,
+      note: noteDateMap.get(row.analysis_date) || undefined,
+    }));
+  }, [history, noteDateMap]);
+
+  // Unique note dates that appear in chart range
+  const noteDates = useMemo(() => {
+    const histDates = new Set(history.map((h) => h.analysis_date));
+    return Array.from(noteDateMap.keys()).filter((d) => histDates.has(d));
+  }, [history, noteDateMap]);
 
   const avgRevenue = history.length ? history.reduce((s, r) => s + r.revenue_today, 0) / history.length : 0;
   const maxRevenue = history.length ? Math.max(...history.map((r) => r.revenue_today)) : 0;
@@ -106,14 +175,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
       })()
     : "0";
 
-  // Ghost-chat trend analysis (last 7 days)
   const ghostSummary = useMemo(() => {
     if (history.length < 2) return null;
     const last7 = history.slice(-7);
     const avgC = last7.reduce((s, r) => s + r.open_chats, 0) / last7.length;
     const avgD = last7.filter((r) => r.response_delay_days > 0);
     const avgDel = avgD.length ? avgD.reduce((s, r) => s + r.response_delay_days, 0) / avgD.length : 0;
-    // Trend: compare first half vs second half
     const half = Math.floor(last7.length / 2);
     const firstHalf = last7.slice(0, half);
     const secondHalf = last7.slice(half);
@@ -122,11 +189,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     let trend = "Stabil";
     if (avgSecond > avgFirst * 1.1) trend = "Verschlechternd ↗";
     else if (avgSecond < avgFirst * 0.9) trend = "Verbessernd ↘";
-    return {
-      avgChats: avgC.toFixed(1),
-      avgDelay: avgDel.toFixed(1),
-      trend,
-    };
+    return { avgChats: avgC.toFixed(1), avgDelay: avgDel.toFixed(1), trend };
   }, [history]);
 
   const kpis = [
@@ -156,10 +219,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                 <h2 className="text-2xl font-light text-foreground tracking-tight">{displayName}</h2>
                 <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider">{platform} · Performance</p>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-white/[0.05] text-white/30 hover:text-white/60 transition-colors duration-300"
-              >
+              <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/[0.05] text-white/30 hover:text-white/60 transition-colors duration-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -182,24 +242,28 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                   ))}
                 </div>
 
-                {/* Revenue Chart */}
+                {/* Revenue Chart with coaching note markers */}
                 <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-6">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-6">Umsatzverlauf</p>
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={history}>
+                    <LineChart data={enrichedHistory}>
                       <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
                       <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.15)" }} />
+                      {noteDates.map((date) => (
+                        <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.3)" strokeDasharray="3 3" />
+                      ))}
                       <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.3)", strokeWidth: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
+                  {noteDates.length > 0 && (
+                    <p className="text-[10px] text-white/20 font-light mt-3">Gestrichelte Linien = Coaching-Notizen</p>
+                  )}
                 </div>
 
-                {/* Postfach-Disziplin Section */}
+                {/* Postfach-Disziplin */}
                 <div className="space-y-6">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Postfach-Disziplin (Historie)</p>
-
-                  {/* Ghost-Chat Area Chart */}
                   <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-6">
                     <ResponsiveContainer width="100%" height={160}>
                       <AreaChart data={history}>
@@ -216,8 +280,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-
-                  {/* AI Summary */}
                   {ghostSummary && (
                     <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-5">
                       <p className="text-xs text-white/40 font-light leading-relaxed">
@@ -225,6 +287,39 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                         <span className="text-[#E25822] font-medium">{ghostSummary.avgDelay} Tage</span> ignoriert.{" "}
                         Trend: <span className="font-medium text-white/60">{ghostSummary.trend}</span>
                       </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Coaching Logbook */}
+                <div className="space-y-5">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
+
+                  <div className="flex gap-3">
+                    <textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Was wurde heute besprochen?"
+                      rows={2}
+                      className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                    />
+                    <button
+                      onClick={saveNote}
+                      disabled={savingNote || !noteText.trim()}
+                      className="self-end px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {notes.length > 0 && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {notes.map((n) => (
+                        <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-4 py-3">
+                          <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
+                          <p className="text-[10px] text-white/20 font-light mt-2">{formatDateTime(n.created_at)}</p>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
