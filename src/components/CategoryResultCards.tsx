@@ -164,7 +164,7 @@ function calcScore(history: HistoryEntry[]): number {
 function buildClipboardTSV(categories: Category[]): string {
   const allHeaders = new Set<string>();
   categories.forEach((cat) =>
-    cat.chatters.forEach((c) => Object.keys(c.kpis).forEach((k) => allHeaders.add(k)))
+    cat.chatters.forEach((c) => Object.keys(c.kpis || {}).forEach((k) => allHeaders.add(k)))
   );
   const kpiCols = Array.from(allHeaders);
   const header = ["Kategorie", "Chatter", "Startdatum", "Account", ...kpiCols, "Empfehlung"].join("\t");
