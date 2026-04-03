@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Upload, Sparkles, FileSpreadsheet, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -196,15 +197,12 @@ export default function Dashboard() {
       setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
       addStatus(`📤 Sende ${jsonArray.length} Datensätze an High-Precision-Pipeline…`);
 
-      const response = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: jsonArray, platform }),
-        signal: abortController.signal,
+      const { data: responseData, error: invokeError } = await supabase.functions.invoke("make-webhook", {
+        body: { data: jsonArray, platform },
       });
 
-      if (!response.ok) {
-        throw new Error(`Verbindung zum Analyse-Hub fehlgeschlagen (Status ${response.status}).`);
+      if (invokeError) {
+        throw new Error(`Verbindung zum Analyse-Hub fehlgeschlagen.`);
       }
 
       addStatus("✅ Antwort erhalten.");
@@ -215,7 +213,7 @@ export default function Dashboard() {
       addStatus("[Step 3/3] Management-Strategie wird erstellt…");
       setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
 
-      const webhookData = await response.json();
+      const webhookData = responseData;
       const items: WebhookChatter[] = Array.isArray(webhookData) ? webhookData
         : Array.isArray(webhookData?.data) ? webhookData.data
         : Array.isArray(webhookData?.result) ? webhookData.result
