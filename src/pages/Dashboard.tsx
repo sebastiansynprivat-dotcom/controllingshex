@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Upload, Sparkles, FileSpreadsheet, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
