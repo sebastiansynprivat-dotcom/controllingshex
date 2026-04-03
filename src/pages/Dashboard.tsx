@@ -31,52 +31,6 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
 
-function extractJsonCandidate(value: string) {
-  const cleaned = value.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  const jsonStart = cleaned.indexOf("{");
-  if (jsonStart === -1) throw new Error("Kein JSON gefunden.");
-  const jsonEnd = cleaned.lastIndexOf("}");
-  const sliced = jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned.slice(jsonStart);
-  return sliced.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
-}
-
-function repairJsonString(value: string) {
-  let braces = 0, brackets = 0, inString = false, escaped = false;
-  for (const char of value) {
-    if (escaped) { escaped = false; continue; }
-    if (char === "\\") { escaped = true; continue; }
-    if (char === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (char === "{") braces++;
-    if (char === "}") braces--;
-    if (char === "[") brackets++;
-    if (char === "]") brackets--;
-  }
-  let repaired = value;
-  while (brackets > 0) { repaired += "]"; brackets--; }
-  while (braces > 0) { repaired += "}"; braces--; }
-  return repaired;
-}
-
-function parseAnalysisPayload(payload: unknown): AnalysisResult {
-  if (isAnalysisResult(payload)) return payload;
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    if (isAnalysisResult(record.result)) return record.result;
-    for (const candidate of [record.result, record.raw]) {
-      if (typeof candidate !== "string" || !candidate.trim()) continue;
-      const extracted = extractJsonCandidate(candidate);
-      try { const p = JSON.parse(extracted); if (isAnalysisResult(p)) return p; }
-      catch { const p = JSON.parse(repairJsonString(extracted)); if (isAnalysisResult(p)) return p; }
-    }
-  }
-  if (typeof payload === "string" && payload.trim()) {
-    const extracted = extractJsonCandidate(payload);
-    try { const p = JSON.parse(extracted); if (isAnalysisResult(p)) return p; }
-    catch { const p = JSON.parse(repairJsonString(extracted)); if (isAnalysisResult(p)) return p; }
-  }
-  throw new Error("Analyse konnte nicht geladen werden.");
-}
 
 const STORAGE_KEY = "dashboard_last_result";
 const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
