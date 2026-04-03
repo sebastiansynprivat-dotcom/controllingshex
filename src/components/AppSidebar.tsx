@@ -14,6 +14,7 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
