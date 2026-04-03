@@ -328,6 +328,18 @@ export default function Dashboard() {
               )}
             </Button>
 
+            {loading && progress.total > 0 && (
+              <div className="space-y-3">
+                <Progress
+                  value={(progress.current / progress.total) * 100}
+                  className="h-1.5 bg-white/[0.04]"
+                />
+                <p className="text-center text-xs text-white/30 font-light tracking-wide">
+                  Analysiere Chatter {progress.current} von {progress.total}…
+                </p>
+              </div>
+            )}
+
             {result && (
               <CategoryResultCards
                 data={result}
