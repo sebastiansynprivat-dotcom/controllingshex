@@ -1,13 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Upload, Sparkles, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface AnalysisChatter {
   name: string;
@@ -216,6 +216,8 @@ async function invokeBatchWithRetry(
   throw new Error(`Batch ${batchIndex + 1} nach ${MAX_RETRIES} Versuchen fehlgeschlagen: ${lastError?.message}`);
 }
 
+const STORAGE_KEY = "dashboard_last_result";
+
 export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
@@ -225,6 +227,21 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0, batchNum: 0, totalBatches: 0 });
+  const [animationsReady, setAnimationsReady] = useState(true);
+
+  // Restore cached result on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.platform === platform && isAnalysisResult(parsed.data)) {
+          setResult(parsed.data);
+          console.log("[Cache] Restored previous result from localStorage");
+        }
+      }
+    } catch { /* ignore corrupt cache */ }
+  }, [platform]);
 
   const handleFile = (f: File) => {
     setFile(f);
@@ -284,11 +301,26 @@ export default function Dashboard() {
       }
 
       const merged = batches.length === 1 ? batchResults[0] : mergeResults(batchResults);
+
+      // Validate merged structure
+      if (!merged || !Array.isArray(merged.categories)) {
+        throw new Error("Merged result hat keine gültige categories-Struktur.");
+      }
+
       const totalChatters = merged.categories.reduce((sum, c) => sum + c.chatters.length, 0);
       console.log(`[Analyse] ✓ Fertig: ${totalChatters} Chatter in ${merged.categories.length} Kategorien`);
 
+      // Persist to localStorage before rendering
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: merged, ts: Date.now() }));
+        console.log("[Cache] Result saved to localStorage");
+      } catch { /* storage full — non-critical */ }
+
+      // Dampen animations for 2s to let browser breathe
+      setAnimationsReady(false);
       setResult(merged);
       toast.success(`Analyse abgeschlossen: ${totalChatters} Chatter verarbeitet.`);
+      setTimeout(() => setAnimationsReady(true), 2000);
     } catch (err: any) {
       console.error("[Analyse] ✗ Fehler:", err);
       toast.error(err.message || "Analyse fehlgeschlagen.");
@@ -415,10 +447,14 @@ export default function Dashboard() {
             )}
 
             {result && (
-              <CategoryResultCards
-                data={result}
-                onChatterSelect={setSelectedChatter}
-              />
+              <ErrorBoundary>
+                <div className={animationsReady ? "" : "!transition-none !animate-none"}>
+                  <CategoryResultCards
+                    data={result}
+                    onChatterSelect={setSelectedChatter}
+                  />
+                </div>
+              </ErrorBoundary>
             )}
           </motion.div>
         </AnimatePresence>

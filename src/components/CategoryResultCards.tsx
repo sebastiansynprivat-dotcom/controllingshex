@@ -337,7 +337,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 /*  CATEGORY CARD                                                      */
 /* ------------------------------------------------------------------ */
 
+const INITIAL_VISIBLE = 10;
+
 function CategoryCard({ category, onChatterClick, chatterStats }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats> }) {
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const visible = category.chatters.slice(0, visibleCount);
+  const hasMore = visibleCount < category.chatters.length;
+
   return (
     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
       <div className="px-8 py-6 border-b border-white/[0.04] flex items-center gap-3">
@@ -348,10 +354,18 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
         </span>
       </div>
       <div className="divide-y divide-white/[0.03]">
-        {category.chatters.map((chatter, i) => (
+        {visible.map((chatter, i) => (
           <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} />
         ))}
       </div>
+      {hasMore && (
+        <button
+          onClick={() => setVisibleCount((v) => v + 20)}
+          className="w-full py-4 text-[11px] text-primary/50 hover:text-primary/80 font-light tracking-wider uppercase transition-colors duration-500 border-t border-white/[0.03]"
+        >
+          Weitere {Math.min(20, category.chatters.length - visibleCount)} von {category.chatters.length - visibleCount} anzeigen
+        </button>
+      )}
     </div>
   );
 }
