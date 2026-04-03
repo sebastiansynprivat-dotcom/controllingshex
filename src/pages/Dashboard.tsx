@@ -447,10 +447,14 @@ export default function Dashboard() {
             )}
 
             {result && (
-              <CategoryResultCards
-                data={result}
-                onChatterSelect={setSelectedChatter}
-              />
+              <ErrorBoundary>
+                <div className={animationsReady ? "" : "!transition-none !animate-none"}>
+                  <CategoryResultCards
+                    data={result}
+                    onChatterSelect={setSelectedChatter}
+                  />
+                </div>
+              </ErrorBoundary>
             )}
           </motion.div>
         </AnimatePresence>
