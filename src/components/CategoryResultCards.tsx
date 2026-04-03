@@ -85,9 +85,12 @@ function calcScore(history: HistoryEntry[]): number {
   const avgRev = history.reduce((s, r) => s + r.revenue_today, 0) / history.length;
   const avgDMs = history.reduce((s, r) => s + r.mass_dms, 0) / history.length;
   const avgDelay = history.reduce((s, r) => s + r.response_delay_days, 0) / history.length;
-  const revScore = Math.min(40, (avgRev / 500) * 40);
-  const dmScore = Math.min(30, (avgDMs / 20) * 30);
-  const delayScore = Math.max(0, 30 - (avgDelay / 7) * 30);
+  // Revenue: 60% weight, target 30€/day
+  const revScore = Math.min(60, (avgRev / 30) * 60);
+  // MassDMs: 20% weight, target 2/day
+  const dmScore = Math.min(20, (avgDMs / 2) * 20);
+  // Discipline: 20% weight, 0 delay = full points
+  const delayScore = Math.max(0, 20 - (avgDelay / 3) * 20);
   return Math.round(revScore + dmScore + delayScore);
 }
 
