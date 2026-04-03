@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Upload, Sparkles, FileSpreadsheet, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,7 +31,6 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
 
-
 const STORAGE_KEY = "dashboard_last_result";
 const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
 const CANCEL_TIMEOUT_MS = 120_000;
@@ -44,7 +42,9 @@ function csvToJsonArray(csvData: string): Record<string, string>[] {
   return lines.slice(1).map((line) => {
     const vals = line.split(",");
     const obj: Record<string, string> = {};
-    headers.forEach((h, i) => { obj[h] = (vals[i] || "").trim(); });
+    headers.forEach((h, i) => {
+      obj[h] = (vals[i] || "").trim();
+    });
     return obj;
   });
 }
@@ -52,15 +52,16 @@ function csvToJsonArray(csvData: string): Record<string, string>[] {
 interface WebhookChatter {
   name?: string;
   category?: string;
-  revenue?: string;
-  oldestChat?: string;
-  massDMs?: string;
-  follower?: string;
+  revenue?: string | number;
+  oldestChat?: string | number;
+  massDMs?: string | number;
+  follower?: string | number;
   recommendation?: string;
 }
 
 function webhookResponseToAnalysis(items: WebhookChatter[]): AnalysisResult {
   const catMap = new Map<string, AnalysisCategory>();
+
   for (const item of items) {
     const catName = item.category || "Unkategorisiert";
     if (!catMap.has(catName)) {
@@ -76,19 +77,44 @@ function webhookResponseToAnalysis(items: WebhookChatter[]): AnalysisResult {
         : "📊";
       catMap.set(catName, { emoji, categoryName: catName, chatters: [] });
     }
-    const kpis: Record<string, string> = {};
-    if (item.revenue != null) kpis["Tagesumsatz"] = String(item.revenue);
-    if (item.oldestChat != null) kpis["Offene Chats"] = String(item.oldestChat);
-    if (item.massDMs != null) kpis["MassDMs"] = String(item.massDMs);
-    if (item.follower != null) kpis["Follower"] = String(item.follower);
 
     catMap.get(catName)!.chatters.push({
       name: item.name || "N/A",
-      kpis,
+      kpis: {
+        Tagesumsatz: item.revenue != null ? String(item.revenue) : "N/A",
+        "Offene Chats": item.oldestChat != null ? String(item.oldestChat) : "N/A",
+        MassDMs: item.massDMs != null ? String(item.massDMs) : "N/A",
+        Follower: item.follower != null ? String(item.follower) : "N/A",
+      },
       recommendation: item.recommendation || "N/A",
     });
   }
+
   return { categories: Array.from(catMap.values()) };
+}
+
+function extractWebhookItems(payload: unknown): WebhookChatter[] {
+  if (Array.isArray(payload)) return payload as WebhookChatter[];
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.data)) return record.data as WebhookChatter[];
+    if (Array.isArray(record.result)) return record.result as WebhookChatter[];
+    if (Array.isArray(record.chatterData)) return record.chatterData as WebhookChatter[];
+  }
+  return [];
+}
+
+function formatWebhookError(status: number, rawText: string) {
+  const trimmed = rawText.trim();
+  if (!trimmed) return `Error ${status}: Unbekannte Antwort`;
+
+  try {
+    const parsed = JSON.parse(trimmed) as { error?: string; message?: string };
+    const message = parsed.error || parsed.message || trimmed;
+    return `Error ${status}: ${message}`;
+  } catch {
+    return `Error ${status}: ${trimmed.slice(0, 200)}`;
+  }
 }
 
 export default function Dashboard() {
@@ -120,35 +146,46 @@ export default function Dashboard() {
         const parsed = JSON.parse(cached);
         if (parsed.platform === platform && isAnalysisResult(parsed.data)) setResult(parsed.data);
       }
-    } catch { /* ignore */ }
+    } catch {
+    }
   }, [platform]);
 
   const handleFile = (f: File) => {
     setFile(f);
     const reader = new FileReader();
+
     reader.onload = (e) => {
       const data = e.target?.result;
       if (!data) return;
+
       try {
         if (/\.(xlsx|xls)$/i.test(f.name)) {
           const wb = XLSX.read(data, { type: "array" });
           const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-          if (csv.startsWith("PK")) { toast.error("Datei konnte nicht konvertiert werden."); return; }
+          if (csv.startsWith("PK")) {
+            toast.error("Datei konnte nicht konvertiert werden.");
+            return;
+          }
           setCsvData(csv);
         } else {
           const text = new TextDecoder().decode(data as ArrayBuffer);
-          if (text.startsWith("PK")) { toast.error("Datei konnte nicht konvertiert werden."); return; }
+          if (text.startsWith("PK")) {
+            toast.error("Datei konnte nicht konvertiert werden.");
+            return;
+          }
           setCsvData(text);
         }
       } catch (err: any) {
         toast.error("Datei konnte nicht gelesen werden: " + (err.message || "Fehler"));
       }
     };
+
     reader.readAsArrayBuffer(f);
   };
 
   const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); setDragOver(false);
+    e.preventDefault();
+    setDragOver(false);
     const f = e.dataTransfer.files[0];
     if (f) handleFile(f);
   }, []);
@@ -169,7 +206,10 @@ export default function Dashboard() {
   };
 
   const analyze = async () => {
-    if (!csvData) { toast.error("Bitte lade zuerst eine Datei hoch."); return; }
+    if (!csvData) {
+      toast.error("Bitte lade zuerst eine Datei hoch.");
+      return;
+    }
 
     setLoading(true);
     setResult(null);
@@ -182,50 +222,63 @@ export default function Dashboard() {
     abortRef.current = abortController;
 
     try {
-      // Step 1: Parse data
       addStatus("[Step 1/3] Daten werden bereinigt…");
       setProgress({ current: 1, total: 3, batch: 1, totalBatches: 3 });
 
-      const jsonArray = csvToJsonArray(csvData);
-      if (jsonArray.length === 0) throw new Error("Keine Daten in der Datei gefunden.");
-      addStatus(`✅ ${jsonArray.length} Datensätze extrahiert.`);
+      const data = csvToJsonArray(csvData);
+      if (data.length === 0) throw new Error("Keine Daten in der Datei gefunden.");
+      addStatus(`✅ ${data.length} Datensätze extrahiert.`);
 
       if (cancelledRef.current) return;
 
-      // Step 2: Send to webhook
       addStatus("[Step 2/3] Kategorien werden berechnet…");
       setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
-      addStatus(`📤 Sende ${jsonArray.length} Datensätze an High-Precision-Pipeline…`);
+      addStatus(`📤 Sende ${data.length} Datensätze an High-Precision-Pipeline…`);
 
-      const { data: responseData, error: invokeError } = await supabase.functions.invoke("make-webhook", {
-        body: { data: jsonArray, platform },
+      const response = await window.fetch(WEBHOOK_URL, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ chatterData: data }),
+        signal: abortController.signal,
       });
 
-      if (invokeError) {
-        throw new Error(`Verbindung zum Analyse-Hub fehlgeschlagen.`);
+      const rawResponseText = await response.text();
+
+      if (!response.ok) {
+        throw new Error(formatWebhookError(response.status, rawResponseText));
       }
 
       addStatus("✅ Antwort erhalten.");
 
       if (cancelledRef.current) return;
 
-      // Step 3: Map response
       addStatus("[Step 3/3] Management-Strategie wird erstellt…");
       setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
 
-      const webhookData = responseData;
-      const items: WebhookChatter[] = Array.isArray(webhookData) ? webhookData
-        : Array.isArray(webhookData?.data) ? webhookData.data
-        : Array.isArray(webhookData?.result) ? webhookData.result
-        : [];
+      let parsedWebhookData: unknown = null;
+      try {
+        parsedWebhookData = rawResponseText ? JSON.parse(rawResponseText) : null;
+      } catch {
+        throw new Error(`Error ${response.status}: Ungültige JSON-Antwort vom Webhook`);
+      }
 
-      if (items.length === 0) throw new Error("Keine Analyse-Ergebnisse vom Hub erhalten.");
+      const items = extractWebhookItems(parsedWebhookData);
+      if (items.length === 0) {
+        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse vom Hub erhalten.`);
+      }
 
       const analysisResult = webhookResponseToAnalysis(items);
       const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
 
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() })); } catch {}
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() }));
+      } catch {
+      }
 
       setAnimationsReady(false);
       setResult(analysisResult);
@@ -234,7 +287,7 @@ export default function Dashboard() {
     } catch (err: any) {
       if (err.name === "AbortError") return;
       console.error("[Analyse] Fehler:", err);
-      const msg = err.message?.includes("Analyse-Hub") ? err.message : `Verbindung zum Analyse-Hub fehlgeschlagen.`;
+      const msg = err.message || "Network Error: CORS block";
       addStatus(`💥 ${msg}`);
       toast.error(msg);
     } finally {
