@@ -34,6 +34,32 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 const STORAGE_KEY = "dashboard_last_result";
 const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
 const CANCEL_TIMEOUT_MS = 120_000;
+const FETCH_TIMEOUT_MS = 120_000;
+
+function extractJsonFromResponse(raw: string): unknown {
+  let cleaned = raw.trim();
+  if (!cleaned) throw new Error("Leere Antwort vom Webhook");
+
+  const jsonStart = cleaned.search(/[{[]/);
+  const jsonEnd = Math.max(cleaned.lastIndexOf("]"), cleaned.lastIndexOf("}"));
+  if (jsonStart !== -1 && jsonEnd > jsonStart) {
+    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+  }
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    cleaned = cleaned
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/[\x00-\x1F\x7F]/g, "");
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      throw new Error(`Webhook antwortet mit '${raw.slice(0, 120)}' statt JSON`);
+    }
+  }
+}
 
 function csvToJsonArray(csvData: string): Record<string, string>[] {
   const lines = csvData.split("\n").filter((l) => l.trim());
@@ -235,14 +261,15 @@ export default function Dashboard() {
       setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
       addStatus(`📤 Sende ${data.length} Datensätze an High-Precision-Pipeline…`);
 
-      const MAX_RETRIES = 3;
+      const timeoutId = setTimeout(() => abortController.abort(), FETCH_TIMEOUT_MS);
+
+      const MAX_RETRIES = 1;
       let response: Response | null = null;
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (cancelledRef.current) return;
+        if (cancelledRef.current) { clearTimeout(timeoutId); return; }
         if (attempt > 0) {
-          const waitSec = attempt * 15;
-          addStatus(`⏳ Rate-Limit — warte ${waitSec}s (Versuch ${attempt + 1}/${MAX_RETRIES + 1})…`);
-          await new Promise((r) => setTimeout(r, waitSec * 1000));
+          addStatus(`⏳ Rate-Limit (429) — warte 5s (Versuch ${attempt + 1}/${MAX_RETRIES + 1})…`);
+          await new Promise((r) => setTimeout(r, 5000));
         }
         response = await window.fetch(WEBHOOK_URL, {
           method: "POST",
@@ -254,8 +281,9 @@ export default function Dashboard() {
         });
         if (response.status !== 429) break;
       }
+      clearTimeout(timeoutId);
       if (!response) throw new Error("Keine Antwort erhalten.");
-      if (response.status === 429) throw new Error("Error 429: Make.com Rate-Limit nach mehreren Versuchen. Bitte warte 1-2 Minuten.");
+      if (response.status === 429) throw new Error("Error 429: Rate-Limit nach Retry. Bitte warte 1-2 Minuten.");
 
       const rawResponseText = await response.text();
 
@@ -272,9 +300,9 @@ export default function Dashboard() {
 
       let parsedWebhookData: unknown = null;
       try {
-        parsedWebhookData = rawResponseText ? JSON.parse(rawResponseText) : null;
-      } catch {
-        throw new Error(`Error ${response.status}: Webhook antwortet mit '${rawResponseText.slice(0, 120)}' statt JSON`);
+        parsedWebhookData = extractJsonFromResponse(rawResponseText);
+      } catch (parseErr: any) {
+        throw new Error(`Error ${response.status}: ${parseErr.message}`);
       }
 
       const items = extractWebhookItems(parsedWebhookData);
@@ -296,7 +324,11 @@ export default function Dashboard() {
       toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
       setTimeout(() => setAnimationsReady(true), 2000);
     } catch (err: any) {
-      if (err.name === "AbortError") return;
+      if (err.name === "AbortError") {
+        addStatus("⏳ Timeout nach 120s erreicht. Bitte versuche es später erneut.");
+        toast.error("Timeout: Make.com hat nicht rechtzeitig geantwortet.");
+        return;
+      }
       console.error("[Analyse] Fehler:", err);
       const msg = err.message || "Network Error: CORS block";
       addStatus(`💥 ${msg}`);
