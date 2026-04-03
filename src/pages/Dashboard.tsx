@@ -380,7 +380,7 @@ export default function Dashboard() {
                 {loading && progress.total > 0 && (
                   <>
                     <div className="flex items-center justify-between text-xs font-light tracking-wider">
-                      <span className="text-primary/70 uppercase">Batch {progress.batch} / {progress.totalBatches}</span>
+                      <span className="text-primary/70 uppercase">High-Precision-Pipeline — Step {progress.batch} / {progress.totalBatches}</span>
                       <span className="text-white/40">{Math.round((progress.current / progress.total) * 100)}%</span>
                     </div>
                     <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
