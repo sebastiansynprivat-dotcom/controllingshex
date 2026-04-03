@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
 
     const response = await fetch(WEBHOOK_URL, {
       method: "POST",
+      mode: "cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
