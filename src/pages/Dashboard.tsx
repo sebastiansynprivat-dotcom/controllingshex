@@ -79,9 +79,8 @@ function parseAnalysisPayload(payload: unknown): AnalysisResult {
   throw new Error("Analyse konnte nicht geladen werden.");
 }
 
-const BATCH_SIZE = 30;
-const MAX_RETRIES = 2;
 const STORAGE_KEY = "dashboard_last_result";
+const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
 const CANCEL_TIMEOUT_MS = 60_000;
 
 function sanitizeCsvLine(line: string): string {
