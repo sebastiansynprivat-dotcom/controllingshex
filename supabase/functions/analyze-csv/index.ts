@@ -132,7 +132,7 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
           const name = (chatter.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
           const kpis = chatter.kpis || {};
 
-          // Parse revenue: handle "151,19 €", "0,00 €", "0€" etc.
+          // Parse revenue
           let revenue = 0;
           const revKey = Object.keys(kpis).find((k) => /umsatz|revenue/i.test(k));
           if (revKey) {
@@ -147,10 +147,26 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
             massDms = parseInt(kpis[dmKey].replace(/\D/g, ""), 10) || 0;
           }
 
+          // Parse open chats
+          let openChats = 0;
+          const chatKey = Object.keys(kpis).find((k) => /offene?\s*chats?|open\s*chats?/i.test(k));
+          if (chatKey) {
+            openChats = parseInt(kpis[chatKey].replace(/\D/g, ""), 10) || 0;
+          }
+
+          // Parse response delay days (e.g. "Seit 3 Tagen", "5 Tage")
+          let responseDelay = 0;
+          const delayKey = Object.keys(kpis).find((k) => /seit|verzug|delay|tage/i.test(k));
+          if (delayKey) {
+            responseDelay = parseInt(kpis[delayKey].replace(/\D/g, ""), 10) || 0;
+          }
+
           rows.push({
             chatter_name: name,
             revenue_today: revenue,
             mass_dms: massDms,
+            open_chats: openChats,
+            response_delay_days: responseDelay,
             platform: activePlatform,
             analysis_date: today,
           });
