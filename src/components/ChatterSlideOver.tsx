@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { X, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -84,12 +84,27 @@ function GhostChatTooltip({ active, payload }: any) {
   );
 }
 
+/* Sanitize delay: must be 0-365, never mirror revenue */
+function sanitizeDelay(raw: number, revenue: number): number {
+  const val = Math.round(raw);
+  if (val < 0 || val > 365 || val === Math.round(revenue)) return 0;
+  return val;
+}
+
 export default function ChatterSlideOver({ open, onClose, chatterName, platform }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to top when a new chatter is selected
+  useEffect(() => {
+    if (open && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [open, chatterName]);
 
   useEffect(() => {
     if (!open || !chatterName) return;
@@ -109,13 +124,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
         .order("created_at", { ascending: false }),
     ]).then(([histRes, notesRes]) => {
       setHistory(
-        (histRes.data || []).map((r: any) => ({
-          analysis_date: r.analysis_date,
-          revenue_today: Number(r.revenue_today) || 0,
-          mass_dms: Number(r.mass_dms) || 0,
-          open_chats: Number(r.open_chats) || 0,
-          response_delay_days: Number(r.response_delay_days) || 0,
-        }))
+        (histRes.data || []).map((r: any) => {
+          const rev = Number(r.revenue_today) || 0;
+          return {
+            analysis_date: r.analysis_date,
+            revenue_today: rev,
+            mass_dms: Number(r.mass_dms) || 0,
+            open_chats: Number(r.open_chats) || 0,
+            response_delay_days: sanitizeDelay(Number(r.response_delay_days) || 0, rev),
+          };
+        })
       );
       setNotes((notesRes.data as CoachingNote[]) || []);
       setLoading(false);
@@ -140,7 +158,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     setSavingNote(false);
   };
 
-  // Map notes to dates for chart reference lines
   const noteDateMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const n of notes) {
@@ -150,7 +167,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     return map;
   }, [notes]);
 
-  // Enrich history with note data for tooltip
   const enrichedHistory = useMemo(() => {
     return history.map((row) => ({
       ...row,
@@ -158,7 +174,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     }));
   }, [history, noteDateMap]);
 
-  // Unique note dates that appear in chart range
   const noteDates = useMemo(() => {
     const histDates = new Set(history.map((h) => h.analysis_date));
     return Array.from(noteDateMap.keys()).filter((d) => histDates.has(d));
@@ -168,6 +183,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   const maxRevenue = history.length ? Math.max(...history.map((r) => r.revenue_today)) : 0;
   const avgDMs = history.length ? Math.round(history.reduce((s, r) => s + r.mass_dms, 0) / history.length) : 0;
   const avgChats = history.length ? (history.reduce((s, r) => s + r.open_chats, 0) / history.length).toFixed(1) : "0";
+  
+  // Only compute delay average from rows that actually have delay > 0
   const avgDelay = history.length
     ? (() => {
         const withDelay = history.filter((r) => r.response_delay_days > 0);
@@ -195,8 +212,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   const kpis = [
     { label: "Ø Tagesumsatz", value: formatCurrency(avgRevenue), gold: true },
     { label: "Höchster Umsatz", value: formatCurrency(maxRevenue), gold: true },
-    { label: "Ø MassDMs", value: String(avgDMs), gold: false },
-    { label: "Ø Offene Chats", value: avgChats, gold: false },
+    { label: "Ø MassDMs / Tag", value: String(avgDMs), gold: false },
     { label: "Ø Antwort-Verzug", value: `${avgDelay} Tage`, gold: false },
   ];
 
@@ -206,148 +222,154 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     <AnimatePresence>
       {open && (
         <motion.aside
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 480, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
+          initial={{ x: 40, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="shrink-0 h-full border-l border-white/[0.08] bg-zinc-950/95 backdrop-blur-3xl overflow-y-auto overflow-x-hidden"
+          className="fixed top-0 right-0 bottom-0 w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)]"
         >
-          <div className="w-[480px] p-10 space-y-10">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-2xl font-light text-foreground tracking-tight">{displayName}</h2>
-                <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider">{platform} · Performance</p>
-              </div>
-              <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/[0.05] text-white/30 hover:text-white/60 transition-colors duration-300">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <span className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
-              </div>
-            ) : history.length === 0 ? (
-              <p className="text-center text-white/25 font-light py-16 text-sm">Noch keine historischen Daten vorhanden.</p>
-            ) : (
-              <>
-                {/* KPI Cards */}
-                <div className="grid grid-cols-2 gap-4">
-                  {kpis.map((kpi) => (
-                    <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">{kpi.label}</p>
-                      <p className={`text-xl font-light mt-2 ${kpi.gold ? "gold-text" : "text-foreground/80"}`}>{kpi.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Revenue Chart with coaching note markers */}
-                <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-6">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-6">Umsatzverlauf</p>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={enrichedHistory}>
-                      <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
-                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.15)" }} />
-                      {noteDates.map((date) => (
-                        <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.3)" strokeDasharray="3 3" />
-                      ))}
-                      <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.3)", strokeWidth: 6 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                  {noteDates.length > 0 && (
-                    <p className="text-[10px] text-white/20 font-light mt-3">Gestrichelte Linien = Coaching-Notizen</p>
-                  )}
-                </div>
-
-                {/* Postfach-Disziplin */}
-                <div className="space-y-6">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Postfach-Disziplin (Historie)</p>
-                  <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-6">
-                    <ResponsiveContainer width="100%" height={160}>
-                      <AreaChart data={history}>
-                        <defs>
-                          <linearGradient id="ghostFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#E25822" stopOpacity={0.2} />
-                            <stop offset="100%" stopColor="#E25822" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} width={30} />
-                        <Tooltip content={<GhostChatTooltip />} cursor={{ stroke: "rgba(226,88,34,0.15)" }} />
-                        <Area type="monotone" dataKey="open_chats" stroke="#E25822" strokeWidth={1.5} fill="url(#ghostFill)" dot={false} activeDot={{ r: 4, fill: "#E25822", stroke: "rgba(226,88,34,0.3)", strokeWidth: 6 }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  {ghostSummary && (
-                    <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-5">
-                      <p className="text-xs text-white/40 font-light leading-relaxed">
-                        In den letzten 7 Tagen wurden im Schnitt <span className="text-[#E25822] font-medium">{ghostSummary.avgChats} Chats</span> für{" "}
-                        <span className="text-[#E25822] font-medium">{ghostSummary.avgDelay} Tage</span> ignoriert.{" "}
-                        Trend: <span className="font-medium text-white/60">{ghostSummary.trend}</span>
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Coaching Logbook */}
-                <div className="space-y-5">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
-
-                  <div className="flex gap-3">
-                    <textarea
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Was wurde heute besprochen?"
-                      rows={2}
-                      className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
-                    />
-                    <button
-                      onClick={saveNote}
-                      disabled={savingNote || !noteText.trim()}
-                      className="self-end px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {notes.length > 0 && (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {notes.map((n) => (
-                        <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-4 py-3">
-                          <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
-                          <p className="text-[10px] text-white/20 font-light mt-2">{formatDateTime(n.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* History List */}
+          <div
+            ref={scrollRef}
+            className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
+          >
+            <div className="p-10 pb-16 space-y-12">
+              {/* ── 1. Header ── */}
+              <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-5">Verlauf</p>
-                  <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] overflow-hidden">
-                    <div className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.05]">
-                      {["Datum", "Umsatz", "Chats", "Verzug", "DMs"].map((h) => (
-                        <span key={h} className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light">{h}</span>
-                      ))}
-                    </div>
-                    {[...history].reverse().map((row, i) => (
-                      <div key={i} className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
-                        <span className="text-xs text-white/40 font-light">{formatDate(row.analysis_date)}</span>
-                        <span className="text-xs font-light gold-text">{formatCurrency(row.revenue_today)}</span>
-                        <span className="text-xs text-white/35 font-light">{row.open_chats}</span>
-                        <span className={`text-xs font-light ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
-                          {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
-                        </span>
-                        <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
+                  <h2 className="text-[26px] font-light tracking-tight gold-text">{displayName}</h2>
+                  <p className="text-[11px] text-white/20 mt-1.5 font-light tracking-[0.15em] uppercase">{platform} · Performance-Profil</p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="p-2.5 rounded-xl hover:bg-white/[0.04] text-white/25 hover:text-white/50 transition-colors duration-300"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-24">
+                  <span className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+                </div>
+              ) : history.length === 0 ? (
+                <p className="text-center text-white/20 font-light py-20 text-sm tracking-wide">Noch keine historischen Daten vorhanden.</p>
+              ) : (
+                <>
+                  {/* ── 2. KPI Grid (2×2) ── */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {kpis.map((kpi) => (
+                      <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">{kpi.label}</p>
+                        <p className={`text-xl font-light mt-2.5 ${kpi.gold ? "gold-text" : "text-foreground/70"}`}>{kpi.value}</p>
                       </div>
                     ))}
                   </div>
-                </div>
-              </>
-            )}
+
+                  {/* ── 3. Revenue Chart ── */}
+                  <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-7">Umsatzverlauf</p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={enrichedHistory}>
+                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
+                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.15)" }} />
+                        {noteDates.map((date) => (
+                          <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.3)" strokeDasharray="3 3" />
+                        ))}
+                        <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.3)", strokeWidth: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    {noteDates.length > 0 && (
+                      <p className="text-[10px] text-white/15 font-light mt-4">Gestrichelte Linien = Coaching-Notizen</p>
+                    )}
+                  </div>
+
+                  {/* ── 4. Postfach-Disziplin ── */}
+                  <div className="space-y-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Postfach-Disziplin</p>
+                    <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7">
+                      <ResponsiveContainer width="100%" height={170}>
+                        <AreaChart data={history}>
+                          <defs>
+                            <linearGradient id="ghostFill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#E25822" stopOpacity={0.2} />
+                              <stop offset="100%" stopColor="#E25822" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} width={30} />
+                          <Tooltip content={<GhostChatTooltip />} cursor={{ stroke: "rgba(226,88,34,0.15)" }} />
+                          <Area type="monotone" dataKey="open_chats" stroke="#E25822" strokeWidth={1.5} fill="url(#ghostFill)" dot={false} activeDot={{ r: 4, fill: "#E25822", stroke: "rgba(226,88,34,0.3)", strokeWidth: 6 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {ghostSummary && (
+                      <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-5">
+                        <p className="text-xs text-white/40 font-light leading-relaxed">
+                          Letzte 7 Tage: Ø <span className="text-[#E25822] font-medium">{ghostSummary.avgChats} Chats</span> offen,{" "}
+                          <span className="text-[#E25822] font-medium">{ghostSummary.avgDelay} Tage</span> Verzug.{" "}
+                          Trend: <span className="font-medium text-white/60">{ghostSummary.trend}</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── 5. Management-Logbuch ── */}
+                  <div className="space-y-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
+                    <div className="flex gap-3">
+                      <textarea
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder="Was wurde heute besprochen?"
+                        rows={2}
+                        className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                      />
+                      <button
+                        onClick={saveNote}
+                        disabled={savingNote || !noteText.trim()}
+                        className="self-end px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {notes.length > 0 && (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {notes.map((n) => (
+                          <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-4 py-3">
+                            <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
+                            <p className="text-[10px] text-white/20 font-light mt-2">{formatDateTime(n.created_at)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── 6. Verlauf-Tabelle ── */}
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-5">Verlauf</p>
+                    <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] overflow-hidden">
+                      <div className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.05]">
+                        {["Datum", "Umsatz", "Chats", "Verzug", "DMs"].map((h) => (
+                          <span key={h} className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light">{h}</span>
+                        ))}
+                      </div>
+                      {[...history].reverse().map((row, i) => (
+                        <div key={i} className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
+                          <span className="text-xs text-white/40 font-light">{formatDate(row.analysis_date)}</span>
+                          <span className="text-xs font-light gold-text">{formatCurrency(row.revenue_today)}</span>
+                          <span className="text-xs text-white/35 font-light">{row.open_chats}</span>
+                          <span className={`text-xs font-light ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
+                            {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
+                          </span>
+                          <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </motion.aside>
       )}
