@@ -189,8 +189,44 @@ export default function Dashboard() {
   const handleFile = (f: File) => {
     setFile(f);
     const reader = new FileReader();
-    reader.onload = (e) => setCsvData(e.target?.result as string);
-    reader.readAsText(f);
+
+    reader.onload = (e) => {
+      const data = e.target?.result;
+      if (!data) return;
+
+      try {
+        const isExcel = /\.(xlsx|xls)$/i.test(f.name);
+
+        if (isExcel) {
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const csv = XLSX.utils.sheet_to_csv(firstSheet);
+          console.log(`[Upload] XLSX → CSV converted. First 100 chars: ${csv.substring(0, 100)}`);
+
+          if (csv.startsWith("PK")) {
+            toast.error("Datei konnte nicht in Text konvertiert werden.");
+            return;
+          }
+
+          setCsvData(csv);
+        } else {
+          const text = new TextDecoder().decode(data as ArrayBuffer);
+          console.log(`[Upload] CSV loaded. First 100 chars: ${text.substring(0, 100)}`);
+
+          if (text.startsWith("PK")) {
+            toast.error("Datei konnte nicht in Text konvertiert werden. Ist das wirklich eine CSV?");
+            return;
+          }
+
+          setCsvData(text);
+        }
+      } catch (err: any) {
+        console.error("[Upload] File parse error:", err);
+        toast.error("Datei konnte nicht gelesen werden: " + (err.message || "Unbekannter Fehler"));
+      }
+    };
+
+    reader.readAsArrayBuffer(f);
   };
 
   const onDrop = useCallback((e: React.DragEvent) => {
