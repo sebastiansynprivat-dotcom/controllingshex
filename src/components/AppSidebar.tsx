@@ -25,14 +25,16 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-white/[0.04]">
-      <SidebarContent className="pt-10 px-3">
-        <div className="px-3 mb-10">
+      <SidebarContent className={`pt-10 transition-all duration-300 ease-in-out ${collapsed ? "px-0 items-center" : "px-3"}`}>
+        <div className={`mb-10 transition-all duration-300 ease-in-out ${collapsed ? "flex justify-center px-0" : "px-3"}`}>
           {!collapsed ? (
             <h1 className="text-sm font-semibold tracking-[0.2em] uppercase gold-text-subtle">
               Controlling
             </h1>
           ) : (
-            <span className="text-sm font-semibold gold-text-subtle block text-center">C</span>
+            <span className="text-sm font-semibold gold-text-subtle flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+              C
+            </span>
           )}
         </div>
 
@@ -47,7 +49,9 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/35 transition-all duration-500 hover:text-white/70 hover:bg-white/[0.03]"
+                      className={`flex items-center rounded-lg text-white/35 transition-all duration-300 ease-in-out hover:text-white/70 hover:bg-white/[0.03] ${
+                        collapsed ? "justify-center px-0 py-2.5 w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5"
+                      }`}
                       activeClassName="text-white/90 bg-white/[0.04]"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
