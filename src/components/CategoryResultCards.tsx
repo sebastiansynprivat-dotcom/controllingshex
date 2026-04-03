@@ -190,7 +190,61 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
 
-  const categories = data?.categories ?? [];
+  // Post-process categories: enforce onboarding date lock & filter empty
+  const categories = useMemo(() => {
+    const raw = data?.categories ?? [];
+    if (raw.length === 0) return raw;
+
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+    const mittelfeldName = "⚪ WEITER SO / MITTELFELD";
+    const isOnboarding = (name: string) => /onboarding/i.test(name);
+    // Filter out "Tag 6+" categories entirely, and relocate stale onboarding chatters
+    const displaced: Chatter[] = [];
+
+    const cleaned = raw
+      .filter((cat) => {
+        // Remove categories like "Onboarding Tag 6", "Tag 22", etc.
+        if (isOnboarding(cat.categoryName)) {
+          const tagMatch = cat.categoryName.match(/tag\s*(\d+)/i);
+          if (tagMatch && parseInt(tagMatch[1], 10) > 5) {
+            displaced.push(...cat.chatters);
+            return false;
+          }
+        }
+        return true;
+      })
+      .map((cat) => {
+        if (!isOnboarding(cat.categoryName)) return cat;
+        // Within valid onboarding categories, check each chatter's startDate
+        const kept: Chatter[] = [];
+        for (const ch of cat.chatters) {
+          if (ch.startDate) {
+            const start = new Date(ch.startDate.split(".").reverse().join("-"));
+            if (!isNaN(start.getTime()) && start < fiveDaysAgo) {
+              displaced.push(ch);
+              continue;
+            }
+          }
+          kept.push(ch);
+        }
+        return { ...cat, chatters: kept };
+      })
+      .filter((cat) => cat.chatters.length > 0);
+
+    // Merge displaced chatters into Mittelfeld
+    if (displaced.length > 0) {
+      const existing = cleaned.find((c) => c.categoryName === mittelfeldName);
+      if (existing) {
+        existing.chatters.push(...displaced);
+      } else {
+        cleaned.push({ emoji: "⚪", categoryName: mittelfeldName, chatters: displaced });
+      }
+    }
+
+    return cleaned;
+  }, [data]);
 
   useEffect(() => {
     if (categories.length === 0) return;
@@ -212,8 +266,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           if (!grouped[n]) grouped[n] = [];
           const rev = Number(r.revenue_today) || 0;
           const rawDelay = Number(r.response_delay_days) || 0;
-          // Sanitize: delay must be ≤31 and must not mirror the revenue value
-          const safeDelay = rawDelay > 31 || rawDelay === Math.round(rev) ? 0 : rawDelay;
+          // Hard guard: delay > 30 OR equals revenue*100 (parsing bug) → 0
+          const safeDelay = rawDelay > 30 || rawDelay === Math.round(rev) || rawDelay === Math.round(rev * 100) ? 0 : Math.round(rawDelay);
           grouped[n].push({
             analysis_date: r.analysis_date,
             revenue_today: rev,

@@ -84,10 +84,10 @@ function GhostChatTooltip({ active, payload }: any) {
   );
 }
 
-/* Sanitize delay: must be 0-365, never mirror revenue */
+/* Sanitize delay: must be 0-30, never mirror revenue or revenue×100 */
 function sanitizeDelay(raw: number, revenue: number): number {
   const val = Math.round(raw);
-  if (val < 0 || val > 365 || val === Math.round(revenue)) return 0;
+  if (val < 0 || val > 30 || val === Math.round(revenue) || val === Math.round(revenue * 100)) return 0;
   return val;
 }
 
