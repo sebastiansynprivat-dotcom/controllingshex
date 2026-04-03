@@ -287,30 +287,29 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         <CopyButton copied={copied} onClick={copyToClipboard} />
       </div>
 
-      {/* Filter Pills */}
+      {/* Filter Pills — only show categories with chatters, single-select */}
       <div className="flex flex-wrap gap-2 items-center">
         <Filter className="h-3 w-3 text-white/15 mr-1" />
-        {categories.map((cat) => {
-          const isActive = activeFilters.has(cat.categoryName);
-          return (
-            <button
-              key={cat.categoryName}
-              onClick={() => toggleFilter(cat.categoryName)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-light transition-all duration-500 border tracking-wide ${
-                isActive
-                  ? "bg-primary/8 border-primary/15 text-primary/90"
-                  : "bg-white/[0.02] border-white/[0.05] text-white/30 hover:text-white/55 hover:border-white/[0.08]"
-              }`}
-            >
-              <span className="text-xs">{cat.emoji}</span>
-              <span>{cat.categoryName}</span>
-              <span className="text-white/15 ml-0.5">{cat.chatters.length}</span>
-            </button>
-          );
-        })}
-        {activeFilters.size > 0 && (
-          <button onClick={() => setActiveFilters(new Set())} className="text-[10px] text-white/25 hover:text-white/50 ml-2 transition-colors duration-500 tracking-wider uppercase">Reset</button>
-        )}
+        {categories
+          .filter((cat) => cat.chatters.length > 0)
+          .map((cat) => {
+            const isActive = activeFilters.has(cat.categoryName);
+            return (
+              <button
+                key={cat.categoryName}
+                onClick={() => toggleFilter(cat.categoryName)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-light transition-all duration-500 border tracking-wide ${
+                  isActive
+                    ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_12px_-3px_hsl(var(--primary)/0.25)]"
+                    : "bg-white/[0.02] border-white/[0.05] text-white/30 hover:text-white/55 hover:border-white/[0.08]"
+                }`}
+              >
+                <span className="text-xs">{cat.emoji}</span>
+                <span>{cat.categoryName}</span>
+                <span className={`ml-0.5 ${isActive ? "text-primary/50" : "text-white/15"}`}>{cat.chatters.length}</span>
+              </button>
+            );
+          })}
       </div>
 
       {/* Category Cards */}
