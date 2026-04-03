@@ -48,11 +48,78 @@ interface ChatterStats {
 /*  HELPERS                                                            */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  WHITELISTED CATEGORIES — the ONLY categories allowed               */
+/* ------------------------------------------------------------------ */
+
+const ALLOWED_CATEGORIES = [
+  { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" },
+  { emoji: "🔄", name: "MODEL-TAUSCH" },
+  { emoji: "🔵", name: "ONBOARDING TAG 1" },
+  { emoji: "🔵", name: "ONBOARDING TAG 2" },
+  { emoji: "🔵", name: "ONBOARDING TAG 3" },
+  { emoji: "🔵", name: "ONBOARDING TAG 4" },
+  { emoji: "🔵", name: "ONBOARDING TAG 5" },
+  { emoji: "🌟", name: "BREAKOUT-STAR" },
+  { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" },
+  { emoji: "🚀", name: "KURZ VOR UPGRADE" },
+  { emoji: "📉", name: "0€ UMSATZ IN FOLGE" },
+  { emoji: "🟠", name: "WARNUNG" },
+  { emoji: "📼", name: "VIDEO-COACHING" },
+  { emoji: "⚪", name: "WEITER SO / MITTELFELD" },
+] as const;
+
+const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
+const MITTELFELD = "WEITER SO / MITTELFELD";
+const MITTELFELD_EMOJI = "⚪";
+
+/** Map an AI-returned category name to the closest whitelisted name */
+function mapToAllowed(rawName: string): { emoji: string; name: string } {
+  const upper = rawName.replace(/^[^\w]*/, "").trim().toUpperCase();
+
+  // Direct match
+  for (const ac of ALLOWED_CATEGORIES) {
+    if (upper === ac.name || upper.includes(ac.name)) return { emoji: ac.emoji, name: ac.name };
+  }
+
+  // Fuzzy keyword matching
+  if (/EINBRUCH/i.test(rawName)) return { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" };
+  if (/MODEL.?TAUSCH/i.test(rawName)) return { emoji: "🔄", name: "MODEL-TAUSCH" };
+  if (/BREAKOUT/i.test(rawName)) return { emoji: "🌟", name: "BREAKOUT-STAR" };
+  if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" };
+  if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "KURZ VOR UPGRADE" };
+  if (/0\s*€.*FOLGE|FOLGE.*0\s*€/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ IN FOLGE" };
+  if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
+  if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "📼", name: "VIDEO-COACHING" };
+  if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: MITTELFELD };
+
+  // Onboarding with tag number
+  const onboardingMatch = rawName.match(/ONBOARDING.*?TAG\s*(\d+)/i);
+  if (onboardingMatch) {
+    const tag = parseInt(onboardingMatch[1], 10);
+    if (tag >= 1 && tag <= 5) return { emoji: "🔵", name: `ONBOARDING TAG ${tag}` };
+    return { emoji: MITTELFELD_EMOJI, name: MITTELFELD }; // Tag > 5 → Mittelfeld
+  }
+  if (/ONBOARDING/i.test(rawName)) return { emoji: "🔵", name: "ONBOARDING TAG 1" };
+
+  // Fallback: everything unknown → Mittelfeld
+  return { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
+}
+
+/** Sanitize delay: anything > 100 is a parsing error */
+function sanitizeDelayValue(raw: number, revenue?: number): number {
+  const val = Math.round(raw);
+  if (val < 0 || val > 100) return 0;
+  if (revenue !== undefined && (val === Math.round(revenue) || val === Math.round(revenue * 100))) return 0;
+  return val;
+}
+
 const emojiAccent: Record<string, string> = {
   "⚠️": "text-amber-400/80", "🔴": "text-red-400/70", "📉": "text-red-400/60",
   "🔵": "text-blue-400/70", "🌟": "text-yellow-300/70", "🟢": "text-emerald-400/70",
   "🔄": "text-violet-400/70", "❌": "text-rose-400/70", "🟡": "text-yellow-400/70",
-  "💰": "text-emerald-300/70", "🚀": "text-sky-400/70",
+  "💰": "text-emerald-300/70", "🚀": "text-sky-400/70", "🟠": "text-orange-400/70",
+  "📼": "text-purple-400/70", "⚪": "text-white/50",
 };
 
 function isMoneyValue(value: string): boolean {
@@ -190,7 +257,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
 
-  // Post-process categories: enforce onboarding date lock & filter empty
+  // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
     const raw = data?.categories ?? [];
     if (raw.length === 0) return raw;
@@ -198,52 +265,38 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-    const mittelfeldName = "⚪ WEITER SO / MITTELFELD";
-    const isOnboarding = (name: string) => /onboarding/i.test(name);
-    // Filter out "Tag 6+" categories entirely, and relocate stale onboarding chatters
-    const displaced: Chatter[] = [];
+    // Map all AI categories to whitelisted names and merge into a single map
+    const catMap = new Map<string, Category>();
 
-    const cleaned = raw
-      .filter((cat) => {
-        // Remove categories like "Onboarding Tag 6", "Tag 22", etc.
-        if (isOnboarding(cat.categoryName)) {
-          const tagMatch = cat.categoryName.match(/tag\s*(\d+)/i);
-          if (tagMatch && parseInt(tagMatch[1], 10) > 5) {
-            displaced.push(...cat.chatters);
-            return false;
-          }
-        }
-        return true;
-      })
-      .map((cat) => {
-        if (!isOnboarding(cat.categoryName)) return cat;
-        // Within valid onboarding categories, check each chatter's startDate
-        const kept: Chatter[] = [];
-        for (const ch of cat.chatters) {
+    for (const cat of raw) {
+      for (const ch of cat.chatters) {
+        let mapped = mapToAllowed(cat.categoryName);
+
+        // Onboarding hard-cap: if startDate > 5 days ago → Mittelfeld
+        if (mapped.name.startsWith("ONBOARDING")) {
           if (ch.startDate) {
             const start = new Date(ch.startDate.split(".").reverse().join("-"));
             if (!isNaN(start.getTime()) && start < fiveDaysAgo) {
-              displaced.push(ch);
-              continue;
+              mapped = { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
             }
           }
-          kept.push(ch);
         }
-        return { ...cat, chatters: kept };
-      })
-      .filter((cat) => cat.chatters.length > 0);
 
-    // Merge displaced chatters into Mittelfeld
-    if (displaced.length > 0) {
-      const existing = cleaned.find((c) => c.categoryName === mittelfeldName);
-      if (existing) {
-        existing.chatters.push(...displaced);
-      } else {
-        cleaned.push({ emoji: "⚪", categoryName: mittelfeldName, chatters: displaced });
+        const key = mapped.name;
+        if (!catMap.has(key)) {
+          catMap.set(key, { emoji: mapped.emoji, categoryName: key, chatters: [] });
+        }
+        catMap.get(key)!.chatters.push(ch);
       }
     }
 
-    return cleaned;
+    // Return only categories with chatters, ordered by ALLOWED_CATEGORIES order
+    const ordered: Category[] = [];
+    for (const ac of ALLOWED_CATEGORIES) {
+      const entry = catMap.get(ac.name);
+      if (entry && entry.chatters.length > 0) ordered.push(entry);
+    }
+    return ordered;
   }, [data]);
 
   useEffect(() => {
@@ -264,10 +317,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         for (const r of rows as any[]) {
           const n = r.chatter_name;
           if (!grouped[n]) grouped[n] = [];
-          const rev = Number(r.revenue_today) || 0;
           const rawDelay = Number(r.response_delay_days) || 0;
-          // Hard guard: delay > 30 OR equals revenue*100 (parsing bug) → 0
-          const safeDelay = rawDelay > 30 || rawDelay === Math.round(rev) || rawDelay === Math.round(rev * 100) ? 0 : Math.round(rawDelay);
+          const rev = Number(r.revenue_today) || 0;
+          const safeDelay = sanitizeDelayValue(rawDelay, rev);
           grouped[n].push({
             analysis_date: r.analysis_date,
             revenue_today: rev,
