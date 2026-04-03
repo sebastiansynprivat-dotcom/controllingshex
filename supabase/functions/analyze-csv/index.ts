@@ -61,7 +61,7 @@ Das JSON muss exakt dieses Schema haben:
           "account": "modelname",
           "kpis": {
             "Tagesumsatz": "151,19 €",
-            "Offene Chats": "12",
+            "Offene Chats": "12 Chats seit 3 Tagen",
             "MassDMs": "5"
           },
           "recommendation": "Konkrete Handlungsempfehlung hier"
@@ -75,6 +75,7 @@ Regeln:
 - "categories" ist ein Array aller erkannten Kategorien.
 - Typische Kategorien: ⚠️ ACCOUNT-EINBRUCH, 🔵 ONBOARDING TAG 1, 🌟 BREAKOUT-STAR, 🔴 KÜNDIGUNG/ABWANDERUNG, 📉 0€ UMSATZ, 🟢 TOP-PERFORMER, 🔄 ACCOUNT-TAUSCH, 💰 UPSELL-POTENZIAL, 🚀 WACHSTUM
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Keys sind die Labels (z.B. "Tagesumsatz", "Offene Chats"). Geldbeträge mit € formatieren.
+- WICHTIG: Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein (z.B. "12 Chats seit 3 Tagen"), damit wir die Anzahl und den Verzug separat parsen können.
 - "recommendation" ist die konkrete Handlungsempfehlung.
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
 - Antworte mit NICHTS außer dem JSON. Kein \`\`\`json Block, kein Text davor oder danach.
@@ -119,13 +120,11 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
         .replace(/```\s*/g, "")
         .trim();
 
-      // Find actual JSON boundaries
       const jsonStart = cleaned.indexOf("{");
       const jsonEnd = cleaned.lastIndexOf("}");
       if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found");
       cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
 
-      // Fix common LLM issues
       cleaned = cleaned
         .replace(/,\s*}/g, "}")
         .replace(/,\s*]/g, "]")
@@ -163,18 +162,26 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
             massDms = parseInt(kpis[dmKey].replace(/\D/g, ""), 10) || 0;
           }
 
-          // Parse open chats
+          // Parse "Offene Chats" — e.g. "12 Chats seit 3 Tagen" or just "12"
           let openChats = 0;
+          let responseDelay = 0;
           const chatKey = Object.keys(kpis).find((k) => /offene?\s*chats?|open\s*chats?/i.test(k));
           if (chatKey) {
-            openChats = parseInt(kpis[chatKey].replace(/\D/g, ""), 10) || 0;
-          }
-
-          // Parse response delay days (e.g. "Seit 3 Tagen", "5 Tage")
-          let responseDelay = 0;
-          const delayKey = Object.keys(kpis).find((k) => /seit|verzug|delay|tage/i.test(k));
-          if (delayKey) {
-            responseDelay = parseInt(kpis[delayKey].replace(/\D/g, ""), 10) || 0;
+            const chatVal = kpis[chatKey];
+            // Try "X Chats seit Y Tagen" pattern first
+            const fullMatch = chatVal.match(/(\d+)\s*(?:chats?)\s*seit\s*(\d+)\s*(?:tagen?|days?)/i);
+            if (fullMatch) {
+              openChats = parseInt(fullMatch[1], 10) || 0;
+              responseDelay = parseInt(fullMatch[2], 10) || 0;
+            } else {
+              // Fallback: just a number
+              openChats = parseInt(chatVal.replace(/\D/g, ""), 10) || 0;
+              // Check separate delay key
+              const delayKey = Object.keys(kpis).find((k) => /seit|verzug|delay|tage/i.test(k));
+              if (delayKey) {
+                responseDelay = parseInt(kpis[delayKey].replace(/\D/g, ""), 10) || 0;
+              }
+            }
           }
 
           rows.push({
