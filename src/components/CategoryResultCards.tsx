@@ -257,7 +257,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
 
-  // Post-process categories: enforce onboarding date lock & filter empty
+  // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
     const raw = data?.categories ?? [];
     if (raw.length === 0) return raw;
@@ -265,52 +265,38 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-    const mittelfeldName = "⚪ WEITER SO / MITTELFELD";
-    const isOnboarding = (name: string) => /onboarding/i.test(name);
-    // Filter out "Tag 6+" categories entirely, and relocate stale onboarding chatters
-    const displaced: Chatter[] = [];
+    // Map all AI categories to whitelisted names and merge into a single map
+    const catMap = new Map<string, Category>();
 
-    const cleaned = raw
-      .filter((cat) => {
-        // Remove categories like "Onboarding Tag 6", "Tag 22", etc.
-        if (isOnboarding(cat.categoryName)) {
-          const tagMatch = cat.categoryName.match(/tag\s*(\d+)/i);
-          if (tagMatch && parseInt(tagMatch[1], 10) > 5) {
-            displaced.push(...cat.chatters);
-            return false;
-          }
-        }
-        return true;
-      })
-      .map((cat) => {
-        if (!isOnboarding(cat.categoryName)) return cat;
-        // Within valid onboarding categories, check each chatter's startDate
-        const kept: Chatter[] = [];
-        for (const ch of cat.chatters) {
+    for (const cat of raw) {
+      for (const ch of cat.chatters) {
+        let mapped = mapToAllowed(cat.categoryName);
+
+        // Onboarding hard-cap: if startDate > 5 days ago → Mittelfeld
+        if (mapped.name.startsWith("ONBOARDING")) {
           if (ch.startDate) {
             const start = new Date(ch.startDate.split(".").reverse().join("-"));
             if (!isNaN(start.getTime()) && start < fiveDaysAgo) {
-              displaced.push(ch);
-              continue;
+              mapped = { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
             }
           }
-          kept.push(ch);
         }
-        return { ...cat, chatters: kept };
-      })
-      .filter((cat) => cat.chatters.length > 0);
 
-    // Merge displaced chatters into Mittelfeld
-    if (displaced.length > 0) {
-      const existing = cleaned.find((c) => c.categoryName === mittelfeldName);
-      if (existing) {
-        existing.chatters.push(...displaced);
-      } else {
-        cleaned.push({ emoji: "⚪", categoryName: mittelfeldName, chatters: displaced });
+        const key = mapped.name;
+        if (!catMap.has(key)) {
+          catMap.set(key, { emoji: mapped.emoji, categoryName: key, chatters: [] });
+        }
+        catMap.get(key)!.chatters.push(ch);
       }
     }
 
-    return cleaned;
+    // Return only categories with chatters, ordered by ALLOWED_CATEGORIES order
+    const ordered: Category[] = [];
+    for (const ac of ALLOWED_CATEGORIES) {
+      const entry = catMap.get(ac.name);
+      if (entry && entry.chatters.length > 0) ordered.push(entry);
+    }
+    return ordered;
   }, [data]);
 
   useEffect(() => {
