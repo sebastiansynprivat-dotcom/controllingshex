@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const MODEL_NAME = "google/gemini-2.5-pro";
+const TIMEOUT_MS = 60000;
+
 function repairJsonString(value: string) {
   let braces = 0;
   let brackets = 0;
@@ -26,6 +30,36 @@ function repairJsonString(value: string) {
   while (brackets > 0) { repaired += "]"; brackets -= 1; }
   while (braces > 0) { repaired += "}"; braces -= 1; }
   return repaired;
+}
+
+function cleanAndParseJson(raw: string): any {
+  // Strip markdown code fences
+  let cleaned = raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  // Extract JSON object
+  const jsonStart = cleaned.indexOf("{");
+  if (jsonStart === -1) throw new Error("No JSON object found in response");
+
+  const jsonEnd = cleaned.lastIndexOf("}");
+  cleaned = jsonEnd > jsonStart
+    ? cleaned.substring(jsonStart, jsonEnd + 1)
+    : cleaned.substring(jsonStart);
+
+  // Fix common issues
+  cleaned = cleaned
+    .replace(/,\s*}/g, "}")
+    .replace(/,\s*]/g, "]")
+    .replace(/[\x00-\x1F\x7F]/g, "");
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    console.error("[analyze-csv] First parse failed, attempting repair. First 100 chars:", cleaned.substring(0, 100));
+    return JSON.parse(repairJsonString(cleaned));
+  }
 }
 
 Deno.serve(async (req) => {
@@ -117,24 +151,42 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
 
     const userMessage = `Plattform: ${activePlatform}\n\nHier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen (nur ${activePlatform}):\n${modelsText}`;
 
-    console.log(`[analyze-csv] Calling Lovable AI Gateway (google/gemini-2.5-pro) for platform: ${activePlatform}`);
+    console.log(`[analyze-csv] Calling AI Gateway (${MODEL_NAME}) for platform: ${activePlatform}`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        max_tokens: 16384,
-        response_format: { type: "json_object" },
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(AI_GATEWAY_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          max_tokens: 16384,
+          response_format: { type: "json_object" },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      if (fetchErr.name === "AbortError") {
+        console.error("[analyze-csv] Request timed out after 60s");
+        return new Response(JSON.stringify({ error: "AI-Anfrage Timeout nach 60 Sekunden. Versuche es mit weniger Chattern." }), {
+          status: 408,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw fetchErr;
+    }
 
     if (!response.ok) {
       const errText = await response.text();
@@ -163,33 +215,15 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
     const resultText = aiResult.choices?.[0]?.message?.content || "";
 
     console.log(`[analyze-csv] Response received, length: ${resultText.length} chars`);
+    console.log(`[analyze-csv] First 200 chars: ${resultText.substring(0, 200)}`);
 
     let parsed;
     try {
-      let cleaned = resultText
-        .replace(/```json\s*/gi, "")
-        .replace(/```\s*/g, "")
-        .trim();
-
-      const jsonStart = cleaned.indexOf("{");
-      if (jsonStart === -1) throw new Error("No JSON found in response");
-
-      const jsonEnd = cleaned.lastIndexOf("}");
-      cleaned = jsonEnd > jsonStart ? cleaned.substring(jsonStart, jsonEnd + 1) : cleaned.substring(jsonStart);
-
-      cleaned = cleaned
-        .replace(/,\s*}/g, "}")
-        .replace(/,\s*]/g, "]")
-        .replace(/[\x00-\x1F\x7F]/g, "");
-
-      try {
-        parsed = JSON.parse(cleaned);
-      } catch {
-        parsed = JSON.parse(repairJsonString(cleaned));
-      }
+      parsed = cleanAndParseJson(resultText);
     } catch (parseErr) {
       console.error("[analyze-csv] JSON parse failed:", parseErr);
-      return new Response(JSON.stringify({ result: null, error: "Failed to parse structured analysis", rawResponse: resultText.substring(0, 500) }), {
+      console.error("[analyze-csv] Raw response (first 300 chars):", resultText.substring(0, 300));
+      return new Response(JSON.stringify({ result: null, error: "Analyse konnte nicht als JSON gelesen werden. Rohdaten in den Logs.", rawResponse: resultText.substring(0, 500) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -234,6 +268,11 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
                 responseDelay = parseInt(delayMatch[1], 10) || 0;
               }
             }
+          }
+
+          // Verzug-Schutz: Werte > 30 sind Parsing-Fehler
+          if (responseDelay > 30) {
+            responseDelay = 0;
           }
 
           rows.push({
