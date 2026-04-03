@@ -9,24 +9,110 @@ import * as XLSX from "xlsx";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import {
-  step1_cleanData,
-  step2_categorize,
-  buildStep3Payload,
-  mergeRecommendations,
-  type AnalysisResult,
-  type ModelInfo,
-  type CategorizedChatter,
-  type PipelineStep,
-} from "@/lib/analysis-pipeline";
+
+interface AnalysisChatter {
+  name: string;
+  startDate?: string;
+  account?: string;
+  kpis: Record<string, string>;
+  recommendation?: string;
+}
+
+interface AnalysisCategory {
+  emoji: string;
+  categoryName: string;
+  chatters: AnalysisChatter[];
+}
+
+interface AnalysisResult {
+  categories: AnalysisCategory[];
+}
 
 function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
 
+function extractJsonCandidate(value: string) {
+  const cleaned = value.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  if (jsonStart === -1) throw new Error("Kein JSON gefunden.");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  const sliced = jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned.slice(jsonStart);
+  return sliced.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+}
+
+function repairJsonString(value: string) {
+  let braces = 0, brackets = 0, inString = false, escaped = false;
+  for (const char of value) {
+    if (escaped) { escaped = false; continue; }
+    if (char === "\\") { escaped = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (char === "{") braces++;
+    if (char === "}") braces--;
+    if (char === "[") brackets++;
+    if (char === "]") brackets--;
+  }
+  let repaired = value;
+  while (brackets > 0) { repaired += "]"; brackets--; }
+  while (braces > 0) { repaired += "}"; braces--; }
+  return repaired;
+}
+
+function parseAnalysisPayload(payload: unknown): AnalysisResult {
+  if (isAnalysisResult(payload)) return payload;
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    if (isAnalysisResult(record.result)) return record.result;
+    for (const candidate of [record.result, record.raw]) {
+      if (typeof candidate !== "string" || !candidate.trim()) continue;
+      const extracted = extractJsonCandidate(candidate);
+      try { const p = JSON.parse(extracted); if (isAnalysisResult(p)) return p; }
+      catch { const p = JSON.parse(repairJsonString(extracted)); if (isAnalysisResult(p)) return p; }
+    }
+  }
+  if (typeof payload === "string" && payload.trim()) {
+    const extracted = extractJsonCandidate(payload);
+    try { const p = JSON.parse(extracted); if (isAnalysisResult(p)) return p; }
+    catch { const p = JSON.parse(repairJsonString(extracted)); if (isAnalysisResult(p)) return p; }
+  }
+  throw new Error("Analyse konnte nicht geladen werden.");
+}
+
 const BATCH_SIZE = 30;
+const MAX_RETRIES = 2;
 const STORAGE_KEY = "dashboard_last_result";
 const CANCEL_TIMEOUT_MS = 60_000;
+
+function sanitizeCsvLine(line: string): string {
+  return line.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+}
+
+function splitCsvIntoBatches(csvData: string): string[] {
+  const lines = csvData.split("\n");
+  const header = sanitizeCsvLine(lines[0]);
+  const dataLines = lines.slice(1).map((l) => sanitizeCsvLine(l)).filter((l) => l.trim());
+  if (dataLines.length <= BATCH_SIZE) return [[header, ...dataLines].join("\n")];
+  const batches: string[] = [];
+  for (let i = 0; i < dataLines.length; i += BATCH_SIZE) {
+    batches.push([header, ...dataLines.slice(i, i + BATCH_SIZE)].join("\n"));
+  }
+  return batches;
+}
+
+function mergeResults(results: AnalysisResult[]): AnalysisResult {
+  const catMap = new Map<string, AnalysisCategory>();
+  for (const r of results) {
+    for (const cat of r.categories) {
+      if (catMap.has(cat.categoryName)) {
+        catMap.get(cat.categoryName)!.chatters.push(...cat.chatters);
+      } else {
+        catMap.set(cat.categoryName, { ...cat, chatters: [...cat.chatters] });
+      }
+    }
+  }
+  return { categories: Array.from(catMap.values()) };
+}
 
 export default function Dashboard() {
   const { platform } = usePlatform();
@@ -36,10 +122,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
-  const [pipelineStep, setPipelineStep] = useState<PipelineStep | 0>(0);
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [showCancel, setShowCancel] = useState(false);
   const [animationsReady, setAnimationsReady] = useState(true);
+  const [progress, setProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
 
   const cancelledRef = useRef(false);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,15 +135,12 @@ export default function Dashboard() {
     setStatusLog((prev) => [...prev.slice(-29), `[${ts}] ${msg}`]);
   }, []);
 
-  // Restore cached result on mount
   useEffect(() => {
     try {
       const cached = localStorage.getItem(STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.platform === platform && isAnalysisResult(parsed.data)) {
-          setResult(parsed.data);
-        }
+        if (parsed.platform === platform && isAnalysisResult(parsed.data)) setResult(parsed.data);
       }
     } catch { /* ignore */ }
   }, [platform]);
@@ -65,45 +148,29 @@ export default function Dashboard() {
   const handleFile = (f: File) => {
     setFile(f);
     const reader = new FileReader();
-
     reader.onload = (e) => {
       const data = e.target?.result;
       if (!data) return;
-
       try {
-        const isExcel = /\.(xlsx|xls)$/i.test(f.name);
-
-        if (isExcel) {
-          const workbook = XLSX.read(data, { type: "array" });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const csv = XLSX.utils.sheet_to_csv(firstSheet);
-          console.log(`[Upload] XLSX → CSV converted. First 100 chars: ${csv.substring(0, 100)}`);
-          if (csv.startsWith("PK")) {
-            toast.error("Datei konnte nicht in Text konvertiert werden.");
-            return;
-          }
+        if (/\.(xlsx|xls)$/i.test(f.name)) {
+          const wb = XLSX.read(data, { type: "array" });
+          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+          if (csv.startsWith("PK")) { toast.error("Datei konnte nicht konvertiert werden."); return; }
           setCsvData(csv);
         } else {
           const text = new TextDecoder().decode(data as ArrayBuffer);
-          console.log(`[Upload] CSV loaded. First 100 chars: ${text.substring(0, 100)}`);
-          if (text.startsWith("PK")) {
-            toast.error("Datei konnte nicht in Text konvertiert werden.");
-            return;
-          }
+          if (text.startsWith("PK")) { toast.error("Datei konnte nicht konvertiert werden."); return; }
           setCsvData(text);
         }
       } catch (err: any) {
-        console.error("[Upload] File parse error:", err);
-        toast.error("Datei konnte nicht gelesen werden: " + (err.message || "Unbekannter Fehler"));
+        toast.error("Datei konnte nicht gelesen werden: " + (err.message || "Fehler"));
       }
     };
-
     reader.readAsArrayBuffer(f);
   };
 
   const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
+    e.preventDefault(); setDragOver(false);
     const f = e.dataTransfer.files[0];
     if (f) handleFile(f);
   }, []);
@@ -115,145 +182,103 @@ export default function Dashboard() {
 
   const cancelAnalysis = () => {
     cancelledRef.current = true;
-    addStatus("⛔ Analyse manuell abgebrochen.");
-    toast.info("Analyse wurde abgebrochen.");
+    addStatus("⛔ Analyse abgebrochen.");
+    toast.info("Analyse abgebrochen.");
     setLoading(false);
     setShowCancel(false);
-    setPipelineStep(0);
     if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
   };
 
   const analyze = async () => {
-    if (!csvData) {
-      toast.error("Bitte lade zuerst eine Datei hoch.");
-      return;
-    }
+    if (!csvData) { toast.error("Bitte lade zuerst eine Datei hoch."); return; }
 
     setLoading(true);
     setResult(null);
     setStatusLog([]);
     setShowCancel(false);
-    setPipelineStep(0);
     cancelledRef.current = false;
-
     cancelTimerRef.current = setTimeout(() => setShowCancel(true), CANCEL_TIMEOUT_MS);
 
     try {
-      /* ===== STEP 1: Data Cleaning ===== */
-      setPipelineStep(1);
-      addStatus("🧹 [Step 1/3] Daten werden bereinigt und validiert…");
+      const batches = splitCsvIntoBatches(csvData);
+      const totalLines = csvData.split("\n").slice(1).filter((l) => l.trim()).length;
 
-      // Fetch models for follower matching
-      addStatus("📋 Lade Model-Liste aus der Datenbank…");
-      const { data: modelsData } = await supabase
-        .from("models")
-        .select("model_name, follower_count")
-        .eq("platform", platform);
+      addStatus(`📊 ${totalLines} Chatter → ${batches.length} Batch(es) à max. ${BATCH_SIZE}`);
+      setProgress({ current: 0, total: totalLines, batch: 0, totalBatches: batches.length });
 
-      const models: ModelInfo[] = (modelsData || []).map((m: any) => ({
-        model_name: m.model_name,
-        follower_count: m.follower_count,
-      }));
-      addStatus(`📋 ${models.length} Models geladen`);
+      const batchResults: AnalysisResult[] = [];
 
-      if (cancelledRef.current) return;
+      for (let i = 0; i < batches.length; i++) {
+        if (cancelledRef.current) break;
 
-      const cleaned = step1_cleanData(csvData, models);
-      addStatus(`✅ [Step 1/3] ${cleaned.length} Chatter bereinigt. Namen, Follower & OCR-Schutz angewendet.`);
+        const rowCount = batches[i].split("\n").length - 1;
+        addStatus(`📤 Batch ${i + 1}/${batches.length} (${rowCount} Chatter) → Gemini 2.5 Pro…`);
+        setProgress({ current: i * BATCH_SIZE, total: totalLines, batch: i + 1, totalBatches: batches.length });
 
-      if (cancelledRef.current) return;
+        let parsed: AnalysisResult | null = null;
+        let lastErr: Error | null = null;
 
-      /* ===== STEP 2: Rule-Based Categorization ===== */
-      setPipelineStep(2);
-      addStatus("🏷️ [Step 2/3] Kategorien werden berechnet (regelbasiert)…");
-
-      const categorized = step2_categorize(cleaned);
-
-      // Count categories
-      const catCounts = new Map<string, number>();
-      for (const ch of categorized) {
-        catCounts.set(ch.category, (catCounts.get(ch.category) || 0) + 1);
-      }
-      const catSummary = Array.from(catCounts.entries())
-        .map(([name, count]) => `${name}: ${count}`)
-        .join(", ");
-      addStatus(`✅ [Step 2/3] Kategorisiert: ${catSummary}`);
-
-      // Show intermediate result (without AI recommendations)
-      const intermediateResult = mergeRecommendations(categorized, {});
-      setAnimationsReady(false);
-      setResult(intermediateResult);
-      setTimeout(() => setAnimationsReady(true), 500);
-
-      if (cancelledRef.current) return;
-
-      /* ===== STEP 3: AI Recommendations ===== */
-      setPipelineStep(3);
-      addStatus("🧠 [Step 3/3] KI erstellt Management-Strategien (Gemini 2.5 Pro)…");
-
-      const step3Payload = buildStep3Payload(categorized);
-
-      // Batch chatters for AI in groups of BATCH_SIZE
-      const allChatters = categorized;
-      const totalChatters = allChatters.length;
-      const allRecommendations: Record<string, string> = {};
-
-      if (totalChatters <= BATCH_SIZE) {
-        // Single batch
-        addStatus(`📤 Sende ${totalChatters} Chatter an KI…`);
-        const recs = await invokeStep3(step3Payload, platform);
-        Object.assign(allRecommendations, recs);
-        addStatus(`✅ ${Object.keys(recs).length} Empfehlungen erhalten`);
-      } else {
-        // Multiple batches
-        const numBatches = Math.ceil(totalChatters / BATCH_SIZE);
-        addStatus(`📦 ${totalChatters} Chatter → ${numBatches} Batches`);
-
-        for (let i = 0; i < numBatches; i++) {
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
           if (cancelledRef.current) break;
+          if (attempt > 1) addStatus(`🔄 Retry ${attempt}/${MAX_RETRIES}…`);
+          addStatus("⏳ Warte auf Gemini…");
 
-          const batchChatters = allChatters.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
-          const batchPayload = buildStep3Payload(batchChatters);
+          try {
+            const { data, error } = await supabase.functions.invoke("analyze-csv", {
+              body: { csvData: batches[i], platform },
+            });
+            if (error) throw new Error(typeof error === "string" ? error : error.message || "Edge Function Fehler");
 
-          addStatus(`📤 Batch ${i + 1}/${numBatches}: ${batchChatters.length} Chatter an KI…`);
-
-          const recs = await invokeStep3(batchPayload, platform);
-          Object.assign(allRecommendations, recs);
-
-          addStatus(`✅ Batch ${i + 1}: ${Object.keys(recs).length} Empfehlungen`);
-
-          // Progressive update
-          const progressResult = mergeRecommendations(categorized, allRecommendations);
-          setAnimationsReady(false);
-          setResult(progressResult);
-          setTimeout(() => setAnimationsReady(true), 300);
+            addStatus("🔍 Antwort erhalten, parse JSON…");
+            parsed = parseAnalysisPayload(data);
+            const count = parsed.categories.reduce((s, c) => s + c.chatters.length, 0);
+            addStatus(`✅ Batch ${i + 1}: ${count} Chatter verarbeitet`);
+            break;
+          } catch (err: any) {
+            lastErr = err;
+            addStatus(`❌ Fehler: ${(err.message || "").substring(0, 120)}`);
+            if (attempt < MAX_RETRIES) {
+              const delay = 2000 * attempt;
+              addStatus(`⏱ Retry in ${delay / 1000}s…`);
+              await new Promise((r) => setTimeout(r, delay));
+            }
+          }
         }
+
+        if (cancelledRef.current) break;
+        if (!parsed) throw new Error(`Batch ${i + 1} fehlgeschlagen: ${lastErr?.message}`);
+
+        batchResults.push(parsed);
+
+        // Progressive display
+        const progressive = mergeResults(batchResults);
+        setAnimationsReady(false);
+        setResult(progressive);
+        setTimeout(() => setAnimationsReady(true), 500);
+
+        setProgress({ current: Math.min((i + 1) * BATCH_SIZE, totalLines), total: totalLines, batch: i + 1, totalBatches: batches.length });
       }
 
       if (cancelledRef.current) return;
 
-      // Final merge with all recommendations
-      const finalResult = mergeRecommendations(categorized, allRecommendations);
+      const merged = mergeResults(batchResults);
+      const total = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
+      addStatus(`🎉 Fertig: ${total} Chatter in ${merged.categories.length} Kategorien`);
 
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: finalResult, ts: Date.now() }));
-      } catch { /* storage full */ }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: merged, ts: Date.now() })); } catch {}
 
       setAnimationsReady(false);
-      setResult(finalResult);
-      toast.success(`Analyse abgeschlossen: ${totalChatters} Chatter verarbeitet.`);
+      setResult(merged);
+      toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
       setTimeout(() => setAnimationsReady(true), 2000);
-
-      addStatus(`🎉 Pipeline abgeschlossen: ${totalChatters} Chatter, ${Object.keys(allRecommendations).length} Empfehlungen`);
     } catch (err: any) {
-      console.error("[Pipeline] ✗ Fehler:", err);
-      const stepLabel = pipelineStep > 0 ? ` in Schritt ${pipelineStep}` : "";
-      addStatus(`💥 Fehler${stepLabel}: ${(err.message || "").substring(0, 150)}`);
-      toast.error(`Fehler${stepLabel}: ${err.message || "Analyse fehlgeschlagen."}`);
+      console.error("[Analyse] Fehler:", err);
+      addStatus(`💥 Fehler: ${(err.message || "").substring(0, 150)}`);
+      toast.error(err.message || "Analyse fehlgeschlagen.");
     } finally {
       setLoading(false);
       setShowCancel(false);
-      setPipelineStep(0);
+      setProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
       if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     }
   };
@@ -271,9 +296,7 @@ export default function Dashboard() {
             className="max-w-5xl mx-auto space-y-12 p-8 lg:p-12"
           >
             <div className="space-y-3">
-              <h1 className="text-3xl font-extralight tracking-tight text-foreground">
-                {platform}
-              </h1>
+              <h1 className="text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
               <p className="text-white/30 text-sm font-light tracking-wide">
                 Tägliche Analyse für {platform} — Datei hochladen und KI starten.
               </p>
@@ -285,26 +308,16 @@ export default function Dashboard() {
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
               className={`relative rounded-2xl p-20 text-center transition-all duration-700 cursor-pointer ${
-                dragOver
-                  ? "bg-white/[0.03] border border-primary/15 gold-glow-sm"
-                  : file
-                    ? "bg-white/[0.02] border border-white/[0.06]"
+                dragOver ? "bg-white/[0.03] border border-primary/15 gold-glow-sm"
+                  : file ? "bg-white/[0.02] border border-white/[0.06]"
                     : "bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.025]"
               }`}
               onClick={() => document.getElementById("file-input")?.click()}
             >
-              <input
-                id="file-input"
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                className="hidden"
-                onChange={onFileChange}
-              />
+              <input id="file-input" type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={onFileChange} />
               {file ? (
                 <div className="flex items-center justify-center gap-5">
-                  <div className="p-3 rounded-xl bg-primary/8">
-                    <FileSpreadsheet className="h-6 w-6 text-primary/70" />
-                  </div>
+                  <div className="p-3 rounded-xl bg-primary/8"><FileSpreadsheet className="h-6 w-6 text-primary/70" /></div>
                   <div className="text-left">
                     <p className="font-medium text-foreground/90 text-sm tracking-wide">{file.name}</p>
                     <p className="text-xs text-white/25 mt-0.5 font-light">{(file.size / 1024).toFixed(1)} KB</p>
@@ -316,16 +329,14 @@ export default function Dashboard() {
                     <Upload className="h-5 w-5 text-white/20" />
                   </div>
                   <div>
-                    <p className="text-foreground/70 font-light text-sm tracking-wide">
-                      Datei hierher ziehen oder klicken
-                    </p>
+                    <p className="text-foreground/70 font-light text-sm tracking-wide">Datei hierher ziehen oder klicken</p>
                     <p className="text-[11px] text-white/20 mt-1 font-light tracking-wider uppercase">CSV · XLSX · XLS</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Action Buttons */}
+            {/* Buttons */}
             <div className="flex gap-3">
               <Button
                 onClick={analyze}
@@ -334,10 +345,7 @@ export default function Dashboard() {
               >
                 {loading ? (
                   <span className="flex items-center gap-3">
-                    <span
-                      className="h-4 w-4 border border-white/20 border-t-white/60 rounded-full"
-                      style={{ animation: "spin-slow 1s linear infinite" }}
-                    />
+                    <span className="h-4 w-4 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
                     <span className="text-white/50">Analysiert…</span>
                   </span>
                 ) : (
@@ -347,58 +355,38 @@ export default function Dashboard() {
                   </span>
                 )}
               </Button>
-
               {showCancel && loading && (
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                   <Button onClick={cancelAnalysis} variant="destructive" className="py-7 px-6 rounded-xl">
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Abbrechen
+                    <XCircle className="h-4 w-4 mr-2" />Abbrechen
                   </Button>
                 </motion.div>
               )}
             </div>
 
-            {/* Pipeline Progress */}
+            {/* Status Log */}
             {(loading || statusLog.length > 0) && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] p-6"
-              >
-                {/* Step indicator */}
-                {loading && pipelineStep > 0 && (
-                  <div className="flex items-center gap-2 mb-3">
-                    {[1, 2, 3].map((step) => (
-                      <div key={step} className="flex items-center gap-2">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-500 ${
-                            step < pipelineStep
-                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                              : step === pipelineStep
-                                ? "bg-primary/20 text-primary border border-primary/30 animate-pulse"
-                                : "bg-white/[0.03] text-white/20 border border-white/[0.06]"
-                          }`}
-                        >
-                          {step < pipelineStep ? "✓" : step}
-                        </div>
-                        <span className={`text-[10px] tracking-wider uppercase ${
-                          step === pipelineStep ? "text-primary/70" : step < pipelineStep ? "text-green-400/50" : "text-white/15"
-                        }`}>
-                          {step === 1 ? "Bereinigung" : step === 2 ? "Kategorien" : "KI-Strategie"}
-                        </span>
-                        {step < 3 && <div className={`w-6 h-px ${step < pipelineStep ? "bg-green-500/30" : "bg-white/[0.06]"}`} />}
-                      </div>
-                    ))}
-                  </div>
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] p-6">
+                {loading && progress.total > 0 && (
+                  <>
+                    <div className="flex items-center justify-between text-xs font-light tracking-wider">
+                      <span className="text-primary/70 uppercase">Batch {progress.batch} / {progress.totalBatches}</span>
+                      <span className="text-white/40">{Math.round((progress.current / progress.total) * 100)}%</span>
+                    </div>
+                    <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
+                      <motion.div
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.6))" }}
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${(progress.current / progress.total) * 100}%` }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                      />
+                    </div>
+                  </>
                 )}
-
-                {/* Status log */}
                 <div className="max-h-48 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed scrollbar-thin">
                   {statusLog.map((line, i) => (
-                    <div
-                      key={i}
-                      className={`${i === statusLog.length - 1 ? "text-white/60" : "text-white/25"} transition-colors duration-300`}
-                    >
+                    <div key={i} className={`${i === statusLog.length - 1 ? "text-white/60" : "text-white/25"} transition-colors duration-300`}>
                       {line}
                     </div>
                   ))}
@@ -418,50 +406,7 @@ export default function Dashboard() {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      <ChatterSlideOver
-        open={!!selectedChatter}
-        onClose={() => setSelectedChatter(null)}
-        chatterName={selectedChatter || ""}
-        platform={platform}
-      />
+      <ChatterSlideOver open={!!selectedChatter} onClose={() => setSelectedChatter(null)} chatterName={selectedChatter || ""} platform={platform} />
     </div>
   );
-}
-
-/* ------------------------------------------------------------------ */
-/*  HELPER: Invoke Step 3 edge function with retry                     */
-/* ------------------------------------------------------------------ */
-
-async function invokeStep3(
-  payload: ReturnType<typeof buildStep3Payload>,
-  platform: string,
-  retries = 2
-): Promise<Record<string, string>> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const { data, error } = await supabase.functions.invoke("analyze-csv", {
-        body: { categorizedData: payload, platform },
-      });
-
-      if (error) {
-        throw new Error(typeof error === "string" ? error : error.message || "Edge Function error");
-      }
-
-      if (data?.recommendations && typeof data.recommendations === "object") {
-        return data.recommendations;
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      return {};
-    } catch (err: any) {
-      if (attempt === retries) throw err;
-      console.warn(`[Step 3] Attempt ${attempt} failed, retrying:`, err.message);
-      await new Promise((r) => setTimeout(r, 2000 * attempt));
-    }
-  }
-  return {};
 }
