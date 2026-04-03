@@ -36,6 +36,70 @@ const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6"
 const CANCEL_TIMEOUT_MS = 120_000;
 const FETCH_TIMEOUT_MS = 120_000;
 
+function parsePlainTextResponse(raw: string): WebhookChatter[] | null {
+  const lines = raw.trim().split("\n").filter((l) => l.trim());
+  if (lines.length === 0) return null;
+
+  // Detect pipe-delimited format like: [Name]: ⚠️ Category | Account: X (Yk Follower) | Umsatz: 25 € | ...
+  const parsed: WebhookChatter[] = [];
+  for (const line of lines) {
+    if (!line.includes("|")) continue;
+
+    const nameMatch = line.match(/^\[([^\]]+)\]/);
+    const name = nameMatch ? nameMatch[1].trim() : undefined;
+
+    // Extract category (emoji + text after ]: )
+    const catMatch = line.match(/\]:\s*(.+?)\s*\|/);
+    const category = catMatch ? catMatch[1].replace(/^[\p{Emoji}\s]+/u, "").trim() : undefined;
+    const fullCat = catMatch ? catMatch[1].trim() : undefined;
+
+    const segments = line.split("|").map((s) => s.trim());
+
+    let account: string | undefined;
+    let follower: string | undefined;
+    let revenue: string | undefined;
+    let oldestChat: string | undefined;
+    let massDMs: string | undefined;
+    let recommendation: string | undefined;
+
+    for (const seg of segments) {
+      const accMatch = seg.match(/Account:\s*(.+?)(?:\((.+?)\))?$/);
+      if (accMatch) {
+        account = accMatch[1].trim();
+        if (accMatch[2]) follower = accMatch[2].replace(/[Ff]ollower/i, "").trim();
+      }
+      const revMatch = seg.match(/Umsatz:\s*([\d.,]+)/);
+      if (revMatch) revenue = revMatch[1];
+      const chatMatch = seg.match(/Offene Chats:\s*([\d.,]+)/);
+      if (chatMatch) oldestChat = chatMatch[1];
+      const massMatch = seg.match(/Mass\s*DMs?:\s*([\d.,]+)/i);
+      if (massMatch) massDMs = massMatch[1];
+      const recoMatch = seg.match(/Empfehlung:\s*(.+)/i) || seg.match(/Recommendation:\s*(.+)/i);
+      if (recoMatch) recommendation = recoMatch[1].trim();
+    }
+
+    // Last segment without a known key might be the recommendation
+    const lastSeg = segments[segments.length - 1];
+    if (!recommendation && lastSeg && !lastSeg.includes(":")) {
+      recommendation = lastSeg;
+    }
+
+    if (name || account) {
+      parsed.push({
+        name: name || account || "N/A",
+        category: fullCat || category,
+        revenue,
+        oldestChat,
+        massDMs,
+        follower,
+        recommendation,
+      });
+    }
+  }
+
+  return parsed.length > 0 ? parsed : null;
+}
+
 function extractJsonFromResponse(raw: string): unknown {
   let cleaned = raw.trim();
   if (!cleaned) throw new Error("Leere Antwort vom Webhook");
@@ -56,7 +120,8 @@ function extractJsonFromResponse(raw: string): unknown {
     try {
       return JSON.parse(cleaned);
     } catch {
-      throw new Error(`Webhook antwortet mit '${raw.slice(0, 120)}' statt JSON`);
+      // Not JSON — will be handled by plaintext parser
+      return null;
     }
   }
 }
@@ -298,16 +363,21 @@ export default function Dashboard() {
       addStatus("[Step 3/3] Management-Strategie wird erstellt…");
       setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
 
-      let parsedWebhookData: unknown = null;
-      try {
-        parsedWebhookData = extractJsonFromResponse(rawResponseText);
-      } catch (parseErr: any) {
-        throw new Error(`Error ${response.status}: ${parseErr.message}`);
+      // Try JSON first, then plaintext fallback
+      let items: WebhookChatter[] = [];
+      const parsedWebhookData = extractJsonFromResponse(rawResponseText);
+      if (parsedWebhookData) {
+        items = extractWebhookItems(parsedWebhookData);
       }
-
-      const items = extractWebhookItems(parsedWebhookData);
       if (items.length === 0) {
-        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse vom Hub erhalten.`);
+        const plainItems = parsePlainTextResponse(rawResponseText);
+        if (plainItems && plainItems.length > 0) {
+          addStatus("📝 Klartext-Antwort erkannt — wird konvertiert…");
+          items = plainItems;
+        }
+      }
+      if (items.length === 0) {
+        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse erkannt. Antwort: '${rawResponseText.slice(0, 150)}'`);
       }
 
       const analysisResult = webhookResponseToAnalysis(items);
