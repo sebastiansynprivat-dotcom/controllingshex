@@ -247,7 +247,7 @@ function CategoryCard({ category, onChatterClick }: { category: Category; onChat
 /*  CHATTER ITEM                                                       */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter }: { chatter: Chatter }) {
+function ChatterItem({ chatter, onChatterClick }: { chatter: Chatter; onChatterClick: (name: string) => void }) {
   const kpiEntries = Object.entries(chatter.kpis);
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
@@ -261,7 +261,10 @@ function ChatterItem({ chatter }: { chatter: Chatter }) {
   };
 
   return (
-    <div className="px-10 py-8 hover:bg-white/[0.015] transition-colors duration-500">
+    <div
+      className="px-10 py-8 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer"
+      onClick={() => onChatterClick(formattedName)}
+    >
       <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-10">
         {/* Left: Name & Date */}
         <div className="shrink-0 lg:w-56">
