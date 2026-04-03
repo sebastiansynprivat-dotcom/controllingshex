@@ -203,6 +203,14 @@ export default function CategoryResultCards({ data, raw }: CategoryResultCardsPr
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Slide-Over */}
+      <ChatterSlideOver
+        open={!!selectedChatter}
+        onClose={() => setSelectedChatter(null)}
+        chatterName={selectedChatter || ""}
+        platform={platform}
+      />
     </div>
   );
 }
