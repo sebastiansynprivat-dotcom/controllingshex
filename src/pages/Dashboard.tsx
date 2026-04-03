@@ -138,13 +138,20 @@ function parseAnalysisPayload(payload: unknown): AnalysisResult {
 }
 
 const BATCH_SIZE = 50;
+const MAX_RETRIES = 3;
+
+function sanitizeCsvLine(line: string): string {
+  return line.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+}
 
 function splitCsvIntoBatches(csvData: string): string[] {
   const lines = csvData.split("\n");
-  const header = lines[0];
-  const dataLines = lines.slice(1).filter((l) => l.trim());
+  const header = sanitizeCsvLine(lines[0]);
+  const dataLines = lines.slice(1)
+    .map((l) => sanitizeCsvLine(l))
+    .filter((l) => l.trim());
 
-  if (dataLines.length <= BATCH_SIZE) return [csvData];
+  if (dataLines.length <= BATCH_SIZE) return [[header, ...dataLines].join("\n")];
 
   const batches: string[] = [];
   for (let i = 0; i < dataLines.length; i += BATCH_SIZE) {
@@ -171,6 +178,44 @@ function mergeResults(results: AnalysisResult[]): AnalysisResult {
   return { categories: Array.from(categoryMap.values()) };
 }
 
+async function invokeBatchWithRetry(
+  batch: string,
+  platform: string,
+  batchIndex: number,
+  totalBatches: number
+): Promise<AnalysisResult> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[Batch ${batchIndex + 1}/${totalBatches}] Attempt ${attempt}/${MAX_RETRIES} — ${batch.split("\n").length - 1} rows`);
+
+      const { data, error } = await supabase.functions.invoke("analyze-csv", {
+        body: { csvData: batch, platform },
+      });
+
+      if (error) {
+        throw new Error(typeof error === "string" ? error : error.message || "Edge Function error");
+      }
+
+      const parsed = parseAnalysisPayload(data);
+      console.log(`[Batch ${batchIndex + 1}/${totalBatches}] ✓ Success — ${parsed.categories.reduce((sum, c) => sum + c.chatters.length, 0)} chatters parsed`);
+      return parsed;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[Batch ${batchIndex + 1}/${totalBatches}] ✗ Attempt ${attempt} failed:`, err.message);
+
+      if (attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`[Batch ${batchIndex + 1}] Retrying in ${delay / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw new Error(`Batch ${batchIndex + 1} nach ${MAX_RETRIES} Versuchen fehlgeschlagen: ${lastError?.message}`);
+}
+
 export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
@@ -179,7 +224,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [progress, setProgress] = useState({ current: 0, total: 0, batchNum: 0, totalBatches: 0 });
 
   const handleFile = (f: File) => {
     setFile(f);
@@ -212,32 +257,44 @@ export default function Dashboard() {
     try {
       const batches = splitCsvIntoBatches(csvData);
       const totalLines = csvData.split("\n").slice(1).filter((l) => l.trim()).length;
-      setProgress({ current: 0, total: totalLines });
+      console.log(`[Analyse] Start: ${totalLines} Chatter in ${batches.length} Batches à ${BATCH_SIZE}`);
+
+      setProgress({ current: 0, total: totalLines, batchNum: 0, totalBatches: batches.length });
 
       const batchResults: AnalysisResult[] = [];
 
       for (let i = 0; i < batches.length; i++) {
-        const processed = Math.min((i + 1) * BATCH_SIZE, totalLines);
-        setProgress({ current: Math.min(i * BATCH_SIZE, totalLines), total: totalLines });
-
-        const { data, error } = await supabase.functions.invoke("analyze-csv", {
-          body: { csvData: batches[i], platform },
+        setProgress({
+          current: i * BATCH_SIZE,
+          total: totalLines,
+          batchNum: i + 1,
+          totalBatches: batches.length,
         });
 
-        if (error) throw error;
-        const parsed = parseAnalysisPayload(data);
+        const parsed = await invokeBatchWithRetry(batches[i], platform, i, batches.length);
         batchResults.push(parsed);
 
-        setProgress({ current: processed, total: totalLines });
+        const processed = Math.min((i + 1) * BATCH_SIZE, totalLines);
+        setProgress({
+          current: processed,
+          total: totalLines,
+          batchNum: i + 1,
+          totalBatches: batches.length,
+        });
       }
 
       const merged = batches.length === 1 ? batchResults[0] : mergeResults(batchResults);
+      const totalChatters = merged.categories.reduce((sum, c) => sum + c.chatters.length, 0);
+      console.log(`[Analyse] ✓ Fertig: ${totalChatters} Chatter in ${merged.categories.length} Kategorien`);
+
       setResult(merged);
+      toast.success(`Analyse abgeschlossen: ${totalChatters} Chatter verarbeitet.`);
     } catch (err: any) {
+      console.error("[Analyse] ✗ Fehler:", err);
       toast.error(err.message || "Analyse fehlgeschlagen.");
     } finally {
       setLoading(false);
-      setProgress({ current: 0, total: 0 });
+      setProgress({ current: 0, total: 0, batchNum: 0, totalBatches: 0 });
     }
   };
 
@@ -336,7 +393,7 @@ export default function Dashboard() {
               >
                 <div className="flex items-center justify-between text-xs font-light tracking-wider">
                   <span className="text-primary/70 uppercase">
-                    Batch {Math.min(Math.ceil(progress.current / BATCH_SIZE) + (progress.current < progress.total ? 1 : 0), Math.ceil(progress.total / BATCH_SIZE))} von {Math.ceil(progress.total / BATCH_SIZE)}
+                    Batch {progress.batchNum} von {progress.totalBatches}
                   </span>
                   <span className="text-white/40">
                     {Math.round((progress.current / progress.total) * 100)}%
