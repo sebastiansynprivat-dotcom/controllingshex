@@ -137,7 +137,7 @@ function parseAnalysisPayload(payload: unknown): AnalysisResult {
   throw new Error("Die Analyse konnte nicht strukturiert geladen werden.");
 }
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 30;
 const MAX_RETRIES = 3;
 
 function sanitizeCsvLine(line: string): string {
