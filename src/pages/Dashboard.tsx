@@ -137,6 +137,40 @@ function parseAnalysisPayload(payload: unknown): AnalysisResult {
   throw new Error("Die Analyse konnte nicht strukturiert geladen werden.");
 }
 
+const BATCH_SIZE = 50;
+
+function splitCsvIntoBatches(csvData: string): string[] {
+  const lines = csvData.split("\n");
+  const header = lines[0];
+  const dataLines = lines.slice(1).filter((l) => l.trim());
+
+  if (dataLines.length <= BATCH_SIZE) return [csvData];
+
+  const batches: string[] = [];
+  for (let i = 0; i < dataLines.length; i += BATCH_SIZE) {
+    const chunk = dataLines.slice(i, i + BATCH_SIZE);
+    batches.push([header, ...chunk].join("\n"));
+  }
+  return batches;
+}
+
+function mergeResults(results: AnalysisResult[]): AnalysisResult {
+  const categoryMap = new Map<string, AnalysisCategory>();
+
+  for (const r of results) {
+    for (const cat of r.categories) {
+      const key = cat.categoryName;
+      if (categoryMap.has(key)) {
+        categoryMap.get(key)!.chatters.push(...cat.chatters);
+      } else {
+        categoryMap.set(key, { ...cat, chatters: [...cat.chatters] });
+      }
+    }
+  }
+
+  return { categories: Array.from(categoryMap.values()) };
+}
+
 export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
@@ -145,6 +179,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const handleFile = (f: File) => {
     setFile(f);
@@ -175,17 +210,34 @@ export default function Dashboard() {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("analyze-csv", {
-        body: { csvData, platform },
-      });
+      const batches = splitCsvIntoBatches(csvData);
+      const totalLines = csvData.split("\n").slice(1).filter((l) => l.trim()).length;
+      setProgress({ current: 0, total: totalLines });
 
-      if (error) throw error;
-      const parsed = parseAnalysisPayload(data);
-      setResult(parsed);
+      const batchResults: AnalysisResult[] = [];
+
+      for (let i = 0; i < batches.length; i++) {
+        const processed = Math.min((i + 1) * BATCH_SIZE, totalLines);
+        setProgress({ current: Math.min(i * BATCH_SIZE, totalLines), total: totalLines });
+
+        const { data, error } = await supabase.functions.invoke("analyze-csv", {
+          body: { csvData: batches[i], platform },
+        });
+
+        if (error) throw error;
+        const parsed = parseAnalysisPayload(data);
+        batchResults.push(parsed);
+
+        setProgress({ current: processed, total: totalLines });
+      }
+
+      const merged = batches.length === 1 ? batchResults[0] : mergeResults(batchResults);
+      setResult(merged);
     } catch (err: any) {
       toast.error(err.message || "Analyse fehlgeschlagen.");
     } finally {
       setLoading(false);
+      setProgress({ current: 0, total: 0 });
     }
   };
 
