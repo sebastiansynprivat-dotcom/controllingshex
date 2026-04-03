@@ -81,7 +81,7 @@ function parseAnalysisPayload(payload: unknown): AnalysisResult {
 
 const STORAGE_KEY = "dashboard_last_result";
 const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
-const CANCEL_TIMEOUT_MS = 60_000;
+const CANCEL_TIMEOUT_MS = 120_000;
 
 function sanitizeCsvLine(line: string): string {
   return line.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
