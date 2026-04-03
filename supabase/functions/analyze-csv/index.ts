@@ -6,12 +6,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL_CASCADE = [
-  "google/gemini-3.1-pro-preview",
-  "google/gemini-2.5-pro",
-  "google/gemini-2.5-flash",
-  "openai/gpt-5-mini",
-];
+const MODEL_NAME = "google/gemini-2.5-flash";
 const TIMEOUT_MS = 60000;
 
 function repairJsonString(value: string) {
