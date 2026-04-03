@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Upload, Sparkles, FileSpreadsheet, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,84 +31,61 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
 
-function extractJsonCandidate(value: string) {
-  const cleaned = value.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  const jsonStart = cleaned.indexOf("{");
-  if (jsonStart === -1) throw new Error("Kein JSON gefunden.");
-  const jsonEnd = cleaned.lastIndexOf("}");
-  const sliced = jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned.slice(jsonStart);
-  return sliced.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
-}
 
-function repairJsonString(value: string) {
-  let braces = 0, brackets = 0, inString = false, escaped = false;
-  for (const char of value) {
-    if (escaped) { escaped = false; continue; }
-    if (char === "\\") { escaped = true; continue; }
-    if (char === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (char === "{") braces++;
-    if (char === "}") braces--;
-    if (char === "[") brackets++;
-    if (char === "]") brackets--;
-  }
-  let repaired = value;
-  while (brackets > 0) { repaired += "]"; brackets--; }
-  while (braces > 0) { repaired += "}"; braces--; }
-  return repaired;
-}
-
-function parseAnalysisPayload(payload: unknown): AnalysisResult {
-  if (isAnalysisResult(payload)) return payload;
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    if (isAnalysisResult(record.result)) return record.result;
-    for (const candidate of [record.result, record.raw]) {
-      if (typeof candidate !== "string" || !candidate.trim()) continue;
-      const extracted = extractJsonCandidate(candidate);
-      try { const p = JSON.parse(extracted); if (isAnalysisResult(p)) return p; }
-      catch { const p = JSON.parse(repairJsonString(extracted)); if (isAnalysisResult(p)) return p; }
-    }
-  }
-  if (typeof payload === "string" && payload.trim()) {
-    const extracted = extractJsonCandidate(payload);
-    try { const p = JSON.parse(extracted); if (isAnalysisResult(p)) return p; }
-    catch { const p = JSON.parse(repairJsonString(extracted)); if (isAnalysisResult(p)) return p; }
-  }
-  throw new Error("Analyse konnte nicht geladen werden.");
-}
-
-const BATCH_SIZE = 30;
-const MAX_RETRIES = 2;
 const STORAGE_KEY = "dashboard_last_result";
-const CANCEL_TIMEOUT_MS = 60_000;
+const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
+const CANCEL_TIMEOUT_MS = 120_000;
 
-function sanitizeCsvLine(line: string): string {
-  return line.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+function csvToJsonArray(csvData: string): Record<string, string>[] {
+  const lines = csvData.split("\n").filter((l) => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map((h) => h.trim());
+  return lines.slice(1).map((line) => {
+    const vals = line.split(",");
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] || "").trim(); });
+    return obj;
+  });
 }
 
-function splitCsvIntoBatches(csvData: string): string[] {
-  const lines = csvData.split("\n");
-  const header = sanitizeCsvLine(lines[0]);
-  const dataLines = lines.slice(1).map((l) => sanitizeCsvLine(l)).filter((l) => l.trim());
-  if (dataLines.length <= BATCH_SIZE) return [[header, ...dataLines].join("\n")];
-  const batches: string[] = [];
-  for (let i = 0; i < dataLines.length; i += BATCH_SIZE) {
-    batches.push([header, ...dataLines.slice(i, i + BATCH_SIZE)].join("\n"));
-  }
-  return batches;
+interface WebhookChatter {
+  name?: string;
+  category?: string;
+  revenue?: string;
+  oldestChat?: string;
+  massDMs?: string;
+  follower?: string;
+  recommendation?: string;
 }
 
-function mergeResults(results: AnalysisResult[]): AnalysisResult {
+function webhookResponseToAnalysis(items: WebhookChatter[]): AnalysisResult {
   const catMap = new Map<string, AnalysisCategory>();
-  for (const r of results) {
-    for (const cat of r.categories) {
-      if (catMap.has(cat.categoryName)) {
-        catMap.get(cat.categoryName)!.chatters.push(...cat.chatters);
-      } else {
-        catMap.set(cat.categoryName, { ...cat, chatters: [...cat.chatters] });
-      }
+  for (const item of items) {
+    const catName = item.category || "Unkategorisiert";
+    if (!catMap.has(catName)) {
+      const emoji = catName.includes("EINBRUCH") ? "⚠️"
+        : catName.includes("ONBOARDING") ? "🔵"
+        : catName.includes("TOP") ? "🟢"
+        : catName.includes("KÜNDIGUNG") || catName.includes("ABWANDERUNG") ? "🔴"
+        : catName.includes("0€") || catName.includes("0 €") ? "📉"
+        : catName.includes("BREAKOUT") ? "🌟"
+        : catName.includes("UPSELL") ? "💰"
+        : catName.includes("WACHSTUM") ? "🚀"
+        : catName.includes("TAUSCH") ? "🔄"
+        : "📊";
+      catMap.set(catName, { emoji, categoryName: catName, chatters: [] });
     }
+    const kpis: Record<string, string> = {};
+    if (item.revenue != null) kpis["Tagesumsatz"] = String(item.revenue);
+    if (item.oldestChat != null) kpis["Offene Chats"] = String(item.oldestChat);
+    if (item.massDMs != null) kpis["MassDMs"] = String(item.massDMs);
+    if (item.follower != null) kpis["Follower"] = String(item.follower);
+
+    catMap.get(catName)!.chatters.push({
+      name: item.name || "N/A",
+      kpis,
+      recommendation: item.recommendation || "N/A",
+    });
   }
   return { categories: Array.from(catMap.values()) };
 }
@@ -125,10 +101,11 @@ export default function Dashboard() {
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [showCancel, setShowCancel] = useState(false);
   const [animationsReady, setAnimationsReady] = useState(true);
-  const [progress, setProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
+  const [progress, setProgress] = useState({ current: 0, total: 3, batch: 0, totalBatches: 3 });
 
   const cancelledRef = useRef(false);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const addStatus = useCallback((msg: string) => {
     const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -182,6 +159,7 @@ export default function Dashboard() {
 
   const cancelAnalysis = () => {
     cancelledRef.current = true;
+    abortRef.current?.abort();
     addStatus("⛔ Analyse abgebrochen.");
     toast.info("Analyse abgebrochen.");
     setLoading(false);
@@ -199,90 +177,75 @@ export default function Dashboard() {
     cancelledRef.current = false;
     cancelTimerRef.current = setTimeout(() => setShowCancel(true), CANCEL_TIMEOUT_MS);
 
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+
     try {
-      const batches = splitCsvIntoBatches(csvData);
-      const totalLines = csvData.split("\n").slice(1).filter((l) => l.trim()).length;
+      // Step 1: Parse data
+      addStatus("[Step 1/3] Daten werden bereinigt…");
+      setProgress({ current: 1, total: 3, batch: 1, totalBatches: 3 });
 
-      addStatus(`📊 ${totalLines} Chatter → ${batches.length} Batch(es) à max. ${BATCH_SIZE}`);
-      setProgress({ current: 0, total: totalLines, batch: 0, totalBatches: batches.length });
-
-      const batchResults: AnalysisResult[] = [];
-
-      for (let i = 0; i < batches.length; i++) {
-        if (cancelledRef.current) break;
-
-        const rowCount = batches[i].split("\n").length - 1;
-        addStatus(`📤 Batch ${i + 1}/${batches.length} (${rowCount} Chatter) → Gemini 2.5 Pro…`);
-        setProgress({ current: i * BATCH_SIZE, total: totalLines, batch: i + 1, totalBatches: batches.length });
-
-        let parsed: AnalysisResult | null = null;
-        let lastErr: Error | null = null;
-
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-          if (cancelledRef.current) break;
-          if (attempt > 1) addStatus(`🔄 Retry ${attempt}/${MAX_RETRIES}…`);
-          addStatus("⏳ Warte auf Gemini…");
-
-          try {
-            const { data, error } = await supabase.functions.invoke("analyze-csv", {
-              body: { csvData: batches[i], platform },
-            });
-            if (error) throw new Error(typeof error === "string" ? error : error.message || "Edge Function Fehler");
-
-            addStatus("🔍 Antwort erhalten, parse JSON…");
-            parsed = parseAnalysisPayload(data);
-            const count = parsed.categories.reduce((s, c) => s + c.chatters.length, 0);
-            addStatus(`✅ Batch ${i + 1}: ${count} Chatter verarbeitet`);
-            break;
-          } catch (err: any) {
-            lastErr = err;
-            addStatus(`❌ Fehler: ${(err.message || "").substring(0, 120)}`);
-            if (attempt < MAX_RETRIES) {
-              const delay = 2000 * attempt;
-              addStatus(`⏱ Retry in ${delay / 1000}s…`);
-              await new Promise((r) => setTimeout(r, delay));
-            }
-          }
-        }
-
-        if (cancelledRef.current) break;
-        if (!parsed) throw new Error(`Batch ${i + 1} fehlgeschlagen: ${lastErr?.message}`);
-
-        batchResults.push(parsed);
-
-        // Progressive display
-        const progressive = mergeResults(batchResults);
-        setAnimationsReady(false);
-        setResult(progressive);
-        setTimeout(() => setAnimationsReady(true), 500);
-
-        setProgress({ current: Math.min((i + 1) * BATCH_SIZE, totalLines), total: totalLines, batch: i + 1, totalBatches: batches.length });
-      }
+      const jsonArray = csvToJsonArray(csvData);
+      if (jsonArray.length === 0) throw new Error("Keine Daten in der Datei gefunden.");
+      addStatus(`✅ ${jsonArray.length} Datensätze extrahiert.`);
 
       if (cancelledRef.current) return;
 
-      const merged = mergeResults(batchResults);
-      const total = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
-      addStatus(`🎉 Fertig: ${total} Chatter in ${merged.categories.length} Kategorien`);
+      // Step 2: Send to webhook
+      addStatus("[Step 2/3] Kategorien werden berechnet…");
+      setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
+      addStatus(`📤 Sende ${jsonArray.length} Datensätze an High-Precision-Pipeline…`);
 
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: merged, ts: Date.now() })); } catch {}
+      const response = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: jsonArray, platform }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Verbindung zum Analyse-Hub fehlgeschlagen (Status ${response.status}).`);
+      }
+
+      addStatus("✅ Antwort erhalten.");
+
+      if (cancelledRef.current) return;
+
+      // Step 3: Map response
+      addStatus("[Step 3/3] Management-Strategie wird erstellt…");
+      setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
+
+      const webhookData = await response.json();
+      const items: WebhookChatter[] = Array.isArray(webhookData) ? webhookData
+        : Array.isArray(webhookData?.data) ? webhookData.data
+        : Array.isArray(webhookData?.result) ? webhookData.result
+        : [];
+
+      if (items.length === 0) throw new Error("Keine Analyse-Ergebnisse vom Hub erhalten.");
+
+      const analysisResult = webhookResponseToAnalysis(items);
+      const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
+      addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
+
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() })); } catch {}
 
       setAnimationsReady(false);
-      setResult(merged);
+      setResult(analysisResult);
       toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
       setTimeout(() => setAnimationsReady(true), 2000);
     } catch (err: any) {
+      if (err.name === "AbortError") return;
       console.error("[Analyse] Fehler:", err);
-      addStatus(`💥 Fehler: ${(err.message || "").substring(0, 150)}`);
-      toast.error(err.message || "Analyse fehlgeschlagen.");
+      const msg = err.message?.includes("Analyse-Hub") ? err.message : `Verbindung zum Analyse-Hub fehlgeschlagen.`;
+      addStatus(`💥 ${msg}`);
+      toast.error(msg);
     } finally {
       setLoading(false);
       setShowCancel(false);
-      setProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
+      setProgress({ current: 0, total: 3, batch: 0, totalBatches: 3 });
       if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     }
   };
-
   return (
     <div className="flex h-full min-h-0">
       <div className={`flex-1 min-w-0 overflow-y-auto transition-all duration-500 ${selectedChatter ? "mr-0" : ""}`}>
@@ -370,7 +333,7 @@ export default function Dashboard() {
                 {loading && progress.total > 0 && (
                   <>
                     <div className="flex items-center justify-between text-xs font-light tracking-wider">
-                      <span className="text-primary/70 uppercase">Batch {progress.batch} / {progress.totalBatches}</span>
+                      <span className="text-primary/70 uppercase">High-Precision-Pipeline — Step {progress.batch} / {progress.totalBatches}</span>
                       <span className="text-white/40">{Math.round((progress.current / progress.total) * 100)}%</span>
                     </div>
                     <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
