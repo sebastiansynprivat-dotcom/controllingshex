@@ -19,14 +19,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const activePlatform = platform || "Maloum";
 
-    // Fetch recent chatter history (last 14 days)
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
     const { data: historyData } = await supabase
@@ -37,7 +43,6 @@ Deno.serve(async (req) => {
       .order("analysis_date", { ascending: false })
       .limit(500);
 
-    // Fetch coaching notes
     const { data: notesData } = await supabase
       .from("coaching_notes")
       .select("*")
@@ -45,7 +50,6 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(100);
 
-    // Fetch models
     const { data: modelsData } = await supabase
       .from("models")
       .select("model_name, follower_count")
@@ -82,41 +86,56 @@ Dein Stil:
 
 ${dataContext}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map((m: any) => ({
+            role: m.role === "assistant" ? "assistant" : "user",
+            content: m.content,
+          })),
+        ],
         max_tokens: 4096,
-        system: systemPrompt,
-        messages: messages.map((m: any) => ({
-          role: m.role === "assistant" ? "assistant" : "user",
-          content: m.content,
-        })),
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
-      return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), {
+      console.error("[ai-consultant] AI Gateway error:", response.status, errText);
+
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte warte kurz." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI-Credits aufgebraucht. Bitte Credits aufladen." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: `AI Gateway Fehler: ${response.status}`, details: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiResult = await response.json();
-    const text = aiResult.content?.[0]?.text || "";
+    const text = aiResult.choices?.[0]?.message?.content || "";
 
     return new Response(JSON.stringify({ reply: text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("ai-consultant error:", err);
+    console.error("[ai-consultant] error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -12,21 +12,9 @@ function repairJsonString(value: string) {
   let escaped = false;
 
   for (const char of value) {
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-
-    if (char === "\\") {
-      escaped = true;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = !inString;
-      continue;
-    }
-
+    if (escaped) { escaped = false; continue; }
+    if (char === "\\") { escaped = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
     if (inString) continue;
     if (char === "{") braces += 1;
     if (char === "}") braces -= 1;
@@ -35,15 +23,8 @@ function repairJsonString(value: string) {
   }
 
   let repaired = value;
-  while (brackets > 0) {
-    repaired += "]";
-    brackets -= 1;
-  }
-  while (braces > 0) {
-    repaired += "}";
-    braces -= 1;
-  }
-
+  while (brackets > 0) { repaired += "]"; brackets -= 1; }
+  while (braces > 0) { repaired += "}"; braces -= 1; }
   return repaired;
 }
 
@@ -66,7 +47,14 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data: models } = await supabase
@@ -129,31 +117,52 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
 
     const userMessage = `Plattform: ${activePlatform}\n\nHier sind die CSV-Daten der heutigen Analyse:\n\n${csvData}\n\nHier ist die Liste der Models und ihrer Followerzahlen (nur ${activePlatform}):\n${modelsText}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    console.log(`[analyze-csv] Calling Lovable AI Gateway (google/gemini-2.5-pro) for platform: ${activePlatform}`);
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
+        model: "google/gemini-2.5-pro",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 16384,
+        response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      return new Response(JSON.stringify({ error: `Anthropic API error: ${response.status}`, details: errText }), {
+      console.error(`[analyze-csv] AI Gateway error: ${response.status}`, errText);
+
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte warte kurz und versuche es erneut.", details: errText }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI-Credits aufgebraucht. Bitte Credits aufladen.", details: errText }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: `AI Gateway Fehler: ${response.status}`, details: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiResult = await response.json();
-    const resultText = aiResult.content?.[0]?.text || "";
+    const resultText = aiResult.choices?.[0]?.message?.content || "";
+
+    console.log(`[analyze-csv] Response received, length: ${resultText.length} chars`);
 
     let parsed;
     try {
@@ -163,7 +172,7 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
         .trim();
 
       const jsonStart = cleaned.indexOf("{");
-      if (jsonStart === -1) throw new Error("No JSON found");
+      if (jsonStart === -1) throw new Error("No JSON found in response");
 
       const jsonEnd = cleaned.lastIndexOf("}");
       cleaned = jsonEnd > jsonStart ? cleaned.substring(jsonStart, jsonEnd + 1) : cleaned.substring(jsonStart);
@@ -178,12 +187,14 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
       } catch {
         parsed = JSON.parse(repairJsonString(cleaned));
       }
-    } catch {
-      return new Response(JSON.stringify({ result: null, error: "Failed to parse structured analysis" }), {
+    } catch (parseErr) {
+      console.error("[analyze-csv] JSON parse failed:", parseErr);
+      return new Response(JSON.stringify({ result: null, error: "Failed to parse structured analysis", rawResponse: resultText.substring(0, 500) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Save to chatter_history
     try {
       const today = new Date().toISOString().split("T")[0];
       const rows: any[] = [];
@@ -218,17 +229,9 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
             } else {
               const chatCountMatch = chatVal.match(/(\d+)/);
               openChats = chatCountMatch ? parseInt(chatCountMatch[1], 10) || 0 : 0;
-
               const delayMatch = chatVal.match(/seit\s*(\d+)\s*(?:tagen?|days?)/i);
               if (delayMatch) {
                 responseDelay = parseInt(delayMatch[1], 10) || 0;
-              } else {
-                const delayKey = Object.keys(kpis).find((k) => /seit|verzug|delay|tage/i.test(k));
-                if (delayKey) {
-                  const delayValue = kpis[delayKey];
-                  const delayNumber = delayValue.match(/(\d+)/);
-                  responseDelay = delayNumber ? parseInt(delayNumber[1], 10) || 0 : 0;
-                }
               }
             }
           }
@@ -247,15 +250,17 @@ CRITICAL INSTRUCTION: You are given a dataset of chatters. You MUST process, ana
 
       if (rows.length > 0) {
         await supabase.from("chatter_history").insert(rows);
+        console.log(`[analyze-csv] Saved ${rows.length} chatter records`);
       }
     } catch (saveErr) {
-      console.error("Failed to save chatter history:", saveErr);
+      console.error("[analyze-csv] Failed to save chatter history:", saveErr);
     }
 
     return new Response(JSON.stringify({ result: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("[analyze-csv] Fatal error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
