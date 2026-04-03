@@ -256,23 +256,29 @@ export default function Dashboard() {
 
       if (cancelledRef.current) return;
 
-      // Step 3: Map response
       addStatus("[Step 3/3] Management-Strategie wird erstellt…");
       setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
 
-      const webhookData = responseData;
-      const items: WebhookChatter[] = Array.isArray(webhookData) ? webhookData
-        : Array.isArray(webhookData?.data) ? webhookData.data
-        : Array.isArray(webhookData?.result) ? webhookData.result
-        : [];
+      let parsedWebhookData: unknown = null;
+      try {
+        parsedWebhookData = rawResponseText ? JSON.parse(rawResponseText) : null;
+      } catch {
+        throw new Error(`Error ${response.status}: Ungültige JSON-Antwort vom Webhook`);
+      }
 
-      if (items.length === 0) throw new Error("Keine Analyse-Ergebnisse vom Hub erhalten.");
+      const items = extractWebhookItems(parsedWebhookData);
+      if (items.length === 0) {
+        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse vom Hub erhalten.`);
+      }
 
       const analysisResult = webhookResponseToAnalysis(items);
       const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
 
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() })); } catch {}
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() }));
+      } catch {
+      }
 
       setAnimationsReady(false);
       setResult(analysisResult);
@@ -281,7 +287,7 @@ export default function Dashboard() {
     } catch (err: any) {
       if (err.name === "AbortError") return;
       console.error("[Analyse] Fehler:", err);
-      const msg = err.message?.includes("Analyse-Hub") ? err.message : `Verbindung zum Analyse-Hub fehlgeschlagen.`;
+      const msg = err.message || "Network Error: CORS block";
       addStatus(`💥 ${msg}`);
       toast.error(msg);
     } finally {
