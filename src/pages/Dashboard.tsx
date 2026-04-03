@@ -329,15 +329,32 @@ export default function Dashboard() {
             </Button>
 
             {loading && progress.total > 0 && (
-              <div className="space-y-3">
-                <Progress
-                  value={(progress.current / progress.total) * 100}
-                  className="h-1.5 bg-white/[0.04]"
-                />
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] p-8"
+              >
+                <div className="flex items-center justify-between text-xs font-light tracking-wider">
+                  <span className="text-primary/70 uppercase">
+                    Batch {Math.min(Math.ceil(progress.current / BATCH_SIZE) + (progress.current < progress.total ? 1 : 0), Math.ceil(progress.total / BATCH_SIZE))} von {Math.ceil(progress.total / BATCH_SIZE)}
+                  </span>
+                  <span className="text-white/40">
+                    {Math.round((progress.current / progress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
+                  <motion.div
+                    className="absolute inset-y-0 left-0 rounded-full"
+                    style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.6))" }}
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
+                </div>
                 <p className="text-center text-xs text-white/30 font-light tracking-wide">
                   Analysiere Chatter {progress.current} von {progress.total}…
                 </p>
-              </div>
+              </motion.div>
             )}
 
             {result && (
