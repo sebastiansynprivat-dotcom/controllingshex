@@ -216,6 +216,8 @@ async function invokeBatchWithRetry(
   throw new Error(`Batch ${batchIndex + 1} nach ${MAX_RETRIES} Versuchen fehlgeschlagen: ${lastError?.message}`);
 }
 
+const STORAGE_KEY = "dashboard_last_result";
+
 export default function Dashboard() {
   const { platform } = usePlatform();
   const [file, setFile] = useState<File | null>(null);
@@ -225,6 +227,21 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0, batchNum: 0, totalBatches: 0 });
+  const [animationsReady, setAnimationsReady] = useState(true);
+
+  // Restore cached result on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.platform === platform && isAnalysisResult(parsed.data)) {
+          setResult(parsed.data);
+          console.log("[Cache] Restored previous result from localStorage");
+        }
+      }
+    } catch { /* ignore corrupt cache */ }
+  }, [platform]);
 
   const handleFile = (f: File) => {
     setFile(f);
