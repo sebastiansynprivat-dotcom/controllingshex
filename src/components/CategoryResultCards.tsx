@@ -210,12 +210,16 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         for (const r of rows as any[]) {
           const n = r.chatter_name;
           if (!grouped[n]) grouped[n] = [];
+          const rev = Number(r.revenue_today) || 0;
+          const rawDelay = Number(r.response_delay_days) || 0;
+          // Sanitize: delay must be ≤31 and must not mirror the revenue value
+          const safeDelay = rawDelay > 31 || rawDelay === Math.round(rev) ? 0 : rawDelay;
           grouped[n].push({
             analysis_date: r.analysis_date,
-            revenue_today: Number(r.revenue_today) || 0,
+            revenue_today: rev,
             mass_dms: Number(r.mass_dms) || 0,
             open_chats: Number(r.open_chats) || 0,
-            response_delay_days: Number(r.response_delay_days) || 0,
+            response_delay_days: safeDelay,
           });
         }
         setAllHistory(grouped);
