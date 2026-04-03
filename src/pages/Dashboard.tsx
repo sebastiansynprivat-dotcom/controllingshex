@@ -9,146 +9,22 @@ import * as XLSX from "xlsx";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-interface AnalysisChatter {
-  name: string;
-  startDate?: string;
-  account?: string;
-  kpis: Record<string, string>;
-  recommendation?: string;
-}
-
-interface AnalysisCategory {
-  emoji: string;
-  categoryName: string;
-  chatters: AnalysisChatter[];
-}
-
-interface AnalysisResult {
-  categories: AnalysisCategory[];
-}
+import {
+  step1_cleanData,
+  step2_categorize,
+  buildStep3Payload,
+  mergeRecommendations,
+  type AnalysisResult,
+  type ModelInfo,
+  type CategorizedChatter,
+  type PipelineStep,
+} from "@/lib/analysis-pipeline";
 
 function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
 
-function extractJsonCandidate(value: string) {
-  const cleaned = value
-    .replace(/```json\s*/gi, "")
-    .replace(/```\s*/g, "")
-    .trim();
-
-  const jsonStart = cleaned.indexOf("{");
-  if (jsonStart === -1) {
-    throw new Error("Kein JSON im Response gefunden.");
-  }
-
-  const jsonEnd = cleaned.lastIndexOf("}");
-  const sliced = jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned.slice(jsonStart);
-
-  return sliced
-    .replace(/,\s*}/g, "}")
-    .replace(/,\s*]/g, "]")
-    .replace(/[\x00-\x1F\x7F]/g, "");
-}
-
-function repairJsonString(value: string) {
-  let braces = 0;
-  let brackets = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (const char of value) {
-    if (escaped) { escaped = false; continue; }
-    if (char === "\\") { escaped = true; continue; }
-    if (char === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (char === "{") braces += 1;
-    if (char === "}") braces -= 1;
-    if (char === "[") brackets += 1;
-    if (char === "]") brackets -= 1;
-  }
-
-  let repaired = value;
-  while (brackets > 0) { repaired += "]"; brackets -= 1; }
-  while (braces > 0) { repaired += "}"; braces -= 1; }
-  return repaired;
-}
-
-function parseAnalysisPayload(payload: unknown): AnalysisResult {
-  if (isAnalysisResult(payload)) return payload;
-
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    if (isAnalysisResult(record.result)) return record.result;
-
-    const candidates = [record.result, record.raw];
-    for (const candidate of candidates) {
-      if (typeof candidate !== "string" || !candidate.trim()) continue;
-      const extracted = extractJsonCandidate(candidate);
-      try {
-        const parsed = JSON.parse(extracted);
-        if (isAnalysisResult(parsed)) return parsed;
-      } catch {
-        const repaired = repairJsonString(extracted);
-        const parsed = JSON.parse(repaired);
-        if (isAnalysisResult(parsed)) return parsed;
-      }
-    }
-  }
-
-  if (typeof payload === "string" && payload.trim()) {
-    const extracted = extractJsonCandidate(payload);
-    try {
-      const parsed = JSON.parse(extracted);
-      if (isAnalysisResult(parsed)) return parsed;
-    } catch {
-      const repaired = repairJsonString(extracted);
-      const parsed = JSON.parse(repaired);
-      if (isAnalysisResult(parsed)) return parsed;
-    }
-  }
-
-  throw new Error("Die Analyse konnte nicht strukturiert geladen werden.");
-}
-
 const BATCH_SIZE = 30;
-const MAX_RETRIES = 3;
-
-function sanitizeCsvLine(line: string): string {
-  return line.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-}
-
-function splitCsvIntoBatches(csvData: string): string[] {
-  const lines = csvData.split("\n");
-  const header = sanitizeCsvLine(lines[0]);
-  const dataLines = lines.slice(1).map((l) => sanitizeCsvLine(l)).filter((l) => l.trim());
-
-  if (dataLines.length <= BATCH_SIZE) return [[header, ...dataLines].join("\n")];
-
-  const batches: string[] = [];
-  for (let i = 0; i < dataLines.length; i += BATCH_SIZE) {
-    const chunk = dataLines.slice(i, i + BATCH_SIZE);
-    batches.push([header, ...chunk].join("\n"));
-  }
-  return batches;
-}
-
-function mergeResults(results: AnalysisResult[]): AnalysisResult {
-  const categoryMap = new Map<string, AnalysisCategory>();
-  for (const r of results) {
-    for (const cat of r.categories) {
-      const key = cat.categoryName;
-      if (categoryMap.has(key)) {
-        categoryMap.get(key)!.chatters.push(...cat.chatters);
-      } else {
-        categoryMap.set(key, { ...cat, chatters: [...cat.chatters] });
-      }
-    }
-  }
-  return { categories: Array.from(categoryMap.values()) };
-}
-
 const STORAGE_KEY = "dashboard_last_result";
 const CANCEL_TIMEOUT_MS = 60_000;
 
@@ -160,7 +36,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
-  const [progress, setProgress] = useState({ current: 0, total: 0, batchNum: 0, totalBatches: 0 });
+  const [pipelineStep, setPipelineStep] = useState<PipelineStep | 0>(0);
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [showCancel, setShowCancel] = useState(false);
   const [animationsReady, setAnimationsReady] = useState(true);
@@ -170,7 +46,7 @@ export default function Dashboard() {
 
   const addStatus = useCallback((msg: string) => {
     const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    setStatusLog((prev) => [...prev.slice(-19), `[${ts}] ${msg}`]);
+    setStatusLog((prev) => [...prev.slice(-29), `[${ts}] ${msg}`]);
   }, []);
 
   // Restore cached result on mount
@@ -202,22 +78,18 @@ export default function Dashboard() {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const csv = XLSX.utils.sheet_to_csv(firstSheet);
           console.log(`[Upload] XLSX → CSV converted. First 100 chars: ${csv.substring(0, 100)}`);
-
           if (csv.startsWith("PK")) {
             toast.error("Datei konnte nicht in Text konvertiert werden.");
             return;
           }
-
           setCsvData(csv);
         } else {
           const text = new TextDecoder().decode(data as ArrayBuffer);
           console.log(`[Upload] CSV loaded. First 100 chars: ${text.substring(0, 100)}`);
-
           if (text.startsWith("PK")) {
-            toast.error("Datei konnte nicht in Text konvertiert werden. Ist das wirklich eine CSV?");
+            toast.error("Datei konnte nicht in Text konvertiert werden.");
             return;
           }
-
           setCsvData(text);
         }
       } catch (err: any) {
@@ -247,6 +119,7 @@ export default function Dashboard() {
     toast.info("Analyse wurde abgebrochen.");
     setLoading(false);
     setShowCancel(false);
+    setPipelineStep(0);
     if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
   };
 
@@ -260,119 +133,128 @@ export default function Dashboard() {
     setResult(null);
     setStatusLog([]);
     setShowCancel(false);
+    setPipelineStep(0);
     cancelledRef.current = false;
 
-    // Show cancel button after 60s
     cancelTimerRef.current = setTimeout(() => setShowCancel(true), CANCEL_TIMEOUT_MS);
 
     try {
-      const batches = splitCsvIntoBatches(csvData);
-      const totalLines = csvData.split("\n").slice(1).filter((l) => l.trim()).length;
+      /* ===== STEP 1: Data Cleaning ===== */
+      setPipelineStep(1);
+      addStatus("🧹 [Step 1/3] Daten werden bereinigt und validiert…");
 
-      addStatus(`📊 ${totalLines} Chatter erkannt → ${batches.length} Batch(es) à ${BATCH_SIZE}`);
-      setProgress({ current: 0, total: totalLines, batchNum: 0, totalBatches: batches.length });
+      // Fetch models for follower matching
+      addStatus("📋 Lade Model-Liste aus der Datenbank…");
+      const { data: modelsData } = await supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("platform", platform);
 
-      const batchResults: AnalysisResult[] = [];
+      const models: ModelInfo[] = (modelsData || []).map((m: any) => ({
+        model_name: m.model_name,
+        follower_count: m.follower_count,
+      }));
+      addStatus(`📋 ${models.length} Models geladen`);
 
-      for (let i = 0; i < batches.length; i++) {
-        if (cancelledRef.current) break;
+      if (cancelledRef.current) return;
 
-        const rowCount = batches[i].split("\n").length - 1;
-        addStatus(`📤 Sende Batch ${i + 1}/${batches.length} (${rowCount} Chatter) an KI…`);
+      const cleaned = step1_cleanData(csvData, models);
+      addStatus(`✅ [Step 1/3] ${cleaned.length} Chatter bereinigt. Namen, Follower & OCR-Schutz angewendet.`);
 
-        setProgress({
-          current: i * BATCH_SIZE,
-          total: totalLines,
-          batchNum: i + 1,
-          totalBatches: batches.length,
-        });
+      if (cancelledRef.current) return;
 
-        let lastError: Error | null = null;
-        let batchParsed: AnalysisResult | null = null;
+      /* ===== STEP 2: Rule-Based Categorization ===== */
+      setPipelineStep(2);
+      addStatus("🏷️ [Step 2/3] Kategorien werden berechnet (regelbasiert)…");
 
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const categorized = step2_categorize(cleaned);
+
+      // Count categories
+      const catCounts = new Map<string, number>();
+      for (const ch of categorized) {
+        catCounts.set(ch.category, (catCounts.get(ch.category) || 0) + 1);
+      }
+      const catSummary = Array.from(catCounts.entries())
+        .map(([name, count]) => `${name}: ${count}`)
+        .join(", ");
+      addStatus(`✅ [Step 2/3] Kategorisiert: ${catSummary}`);
+
+      // Show intermediate result (without AI recommendations)
+      const intermediateResult = mergeRecommendations(categorized, {});
+      setAnimationsReady(false);
+      setResult(intermediateResult);
+      setTimeout(() => setAnimationsReady(true), 500);
+
+      if (cancelledRef.current) return;
+
+      /* ===== STEP 3: AI Recommendations ===== */
+      setPipelineStep(3);
+      addStatus("🧠 [Step 3/3] KI erstellt Management-Strategien (Gemini 2.5 Pro)…");
+
+      const step3Payload = buildStep3Payload(categorized);
+
+      // Batch chatters for AI in groups of BATCH_SIZE
+      const allChatters = categorized;
+      const totalChatters = allChatters.length;
+      const allRecommendations: Record<string, string> = {};
+
+      if (totalChatters <= BATCH_SIZE) {
+        // Single batch
+        addStatus(`📤 Sende ${totalChatters} Chatter an KI…`);
+        const recs = await invokeStep3(step3Payload, platform);
+        Object.assign(allRecommendations, recs);
+        addStatus(`✅ ${Object.keys(recs).length} Empfehlungen erhalten`);
+      } else {
+        // Multiple batches
+        const numBatches = Math.ceil(totalChatters / BATCH_SIZE);
+        addStatus(`📦 ${totalChatters} Chatter → ${numBatches} Batches`);
+
+        for (let i = 0; i < numBatches; i++) {
           if (cancelledRef.current) break;
 
-          if (attempt > 1) {
-            addStatus(`🔄 Retry ${attempt}/${MAX_RETRIES} für Batch ${i + 1}…`);
-          }
+          const batchChatters = allChatters.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+          const batchPayload = buildStep3Payload(batchChatters);
 
-          addStatus("⏳ Warte auf KI-Antwort…");
+          addStatus(`📤 Batch ${i + 1}/${numBatches}: ${batchChatters.length} Chatter an KI…`);
 
-          try {
-            const { data, error } = await supabase.functions.invoke("analyze-csv", {
-              body: { csvData: batches[i], platform },
-            });
+          const recs = await invokeStep3(batchPayload, platform);
+          Object.assign(allRecommendations, recs);
 
-            if (error) {
-              const errMsg = typeof error === "string" ? error : error.message || "Edge Function error";
-              throw new Error(errMsg);
-            }
+          addStatus(`✅ Batch ${i + 1}: ${Object.keys(recs).length} Empfehlungen`);
 
-            addStatus("🔍 Antwort erhalten, verarbeite JSON…");
-            batchParsed = parseAnalysisPayload(data);
-
-            const chatterCount = batchParsed.categories.reduce((sum, c) => sum + c.chatters.length, 0);
-            addStatus(`✅ Batch ${i + 1} erfolgreich: ${chatterCount} Chatter geparst`);
-            break;
-          } catch (err: any) {
-            lastError = err;
-            const shortMsg = (err.message || "Unbekannter Fehler").substring(0, 120);
-            addStatus(`❌ Batch ${i + 1}, Versuch ${attempt} fehlgeschlagen: ${shortMsg}`);
-
-            if (attempt < MAX_RETRIES) {
-              const delay = Math.pow(2, attempt) * 1000;
-              addStatus(`⏱ Nächster Versuch in ${delay / 1000}s…`);
-              await new Promise((resolve) => setTimeout(resolve, delay));
-            }
-          }
+          // Progressive update
+          const progressResult = mergeRecommendations(categorized, allRecommendations);
+          setAnimationsReady(false);
+          setResult(progressResult);
+          setTimeout(() => setAnimationsReady(true), 300);
         }
-
-        if (cancelledRef.current) break;
-
-        if (!batchParsed) {
-          throw new Error(`Batch ${i + 1} nach ${MAX_RETRIES} Versuchen fehlgeschlagen: ${lastError?.message}`);
-        }
-
-        batchResults.push(batchParsed);
-
-        // Progressive: merge & show results after each batch
-        const progressiveMerge = mergeResults(batchResults);
-        setAnimationsReady(false);
-        setResult(progressiveMerge);
-        setTimeout(() => setAnimationsReady(true), 500);
-
-        const processed = Math.min((i + 1) * BATCH_SIZE, totalLines);
-        setProgress({ current: processed, total: totalLines, batchNum: i + 1, totalBatches: batches.length });
       }
 
       if (cancelledRef.current) return;
 
-      const merged = mergeResults(batchResults);
-      if (!merged || !Array.isArray(merged.categories)) {
-        throw new Error("Merged result hat keine gültige categories-Struktur.");
-      }
-
-      const totalChatters = merged.categories.reduce((sum, c) => sum + c.chatters.length, 0);
-      addStatus(`🎉 Analyse abgeschlossen: ${totalChatters} Chatter in ${merged.categories.length} Kategorien`);
+      // Final merge with all recommendations
+      const finalResult = mergeRecommendations(categorized, allRecommendations);
 
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: merged, ts: Date.now() }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: finalResult, ts: Date.now() }));
       } catch { /* storage full */ }
 
       setAnimationsReady(false);
-      setResult(merged);
+      setResult(finalResult);
       toast.success(`Analyse abgeschlossen: ${totalChatters} Chatter verarbeitet.`);
       setTimeout(() => setAnimationsReady(true), 2000);
+
+      addStatus(`🎉 Pipeline abgeschlossen: ${totalChatters} Chatter, ${Object.keys(allRecommendations).length} Empfehlungen`);
     } catch (err: any) {
-      console.error("[Analyse] ✗ Fehler:", err);
-      addStatus(`💥 Fataler Fehler: ${(err.message || "").substring(0, 150)}`);
-      toast.error(err.message || "Analyse fehlgeschlagen.");
+      console.error("[Pipeline] ✗ Fehler:", err);
+      const stepLabel = pipelineStep > 0 ? ` in Schritt ${pipelineStep}` : "";
+      addStatus(`💥 Fehler${stepLabel}: ${(err.message || "").substring(0, 150)}`);
+      toast.error(`Fehler${stepLabel}: ${err.message || "Analyse fehlgeschlagen."}`);
     } finally {
       setLoading(false);
       setShowCancel(false);
+      setPipelineStep(0);
       if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-      setProgress({ current: 0, total: 0, batchNum: 0, totalBatches: 0 });
     }
   };
 
@@ -397,6 +279,7 @@ export default function Dashboard() {
               </p>
             </div>
 
+            {/* Drop Zone */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -442,6 +325,7 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Action Buttons */}
             <div className="flex gap-3">
               <Button
                 onClick={analyze}
@@ -465,15 +349,8 @@ export default function Dashboard() {
               </Button>
 
               {showCancel && loading && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  <Button
-                    onClick={cancelAnalysis}
-                    variant="destructive"
-                    className="py-7 px-6 rounded-xl"
-                  >
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                  <Button onClick={cancelAnalysis} variant="destructive" className="py-7 px-6 rounded-xl">
                     <XCircle className="h-4 w-4 mr-2" />
                     Abbrechen
                   </Button>
@@ -481,36 +358,42 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Status Log Panel */}
+            {/* Pipeline Progress */}
             {(loading || statusLog.length > 0) && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] p-6"
               >
-                {loading && progress.total > 0 && (
-                  <>
-                    <div className="flex items-center justify-between text-xs font-light tracking-wider">
-                      <span className="text-primary/70 uppercase">
-                        Batch {progress.batchNum} von {progress.totalBatches}
-                      </span>
-                      <span className="text-white/40">
-                        {Math.round((progress.current / progress.total) * 100)}%
-                      </span>
-                    </div>
-                    <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
-                      <motion.div
-                        className="absolute inset-y-0 left-0 rounded-full"
-                        style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.6))" }}
-                        initial={{ width: "0%" }}
-                        animate={{ width: `${(progress.current / progress.total) * 100}%` }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
-                      />
-                    </div>
-                  </>
+                {/* Step indicator */}
+                {loading && pipelineStep > 0 && (
+                  <div className="flex items-center gap-2 mb-3">
+                    {[1, 2, 3].map((step) => (
+                      <div key={step} className="flex items-center gap-2">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-500 ${
+                            step < pipelineStep
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : step === pipelineStep
+                                ? "bg-primary/20 text-primary border border-primary/30 animate-pulse"
+                                : "bg-white/[0.03] text-white/20 border border-white/[0.06]"
+                          }`}
+                        >
+                          {step < pipelineStep ? "✓" : step}
+                        </div>
+                        <span className={`text-[10px] tracking-wider uppercase ${
+                          step === pipelineStep ? "text-primary/70" : step < pipelineStep ? "text-green-400/50" : "text-white/15"
+                        }`}>
+                          {step === 1 ? "Bereinigung" : step === 2 ? "Kategorien" : "KI-Strategie"}
+                        </span>
+                        {step < 3 && <div className={`w-6 h-px ${step < pipelineStep ? "bg-green-500/30" : "bg-white/[0.06]"}`} />}
+                      </div>
+                    ))}
+                  </div>
                 )}
 
-                <div className="max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed scrollbar-thin">
+                {/* Status log */}
+                <div className="max-h-48 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed scrollbar-thin">
                   {statusLog.map((line, i) => (
                     <div
                       key={i}
@@ -519,20 +402,16 @@ export default function Dashboard() {
                       {line}
                     </div>
                   ))}
-                  {loading && (
-                    <div className="text-white/30 animate-pulse">▌</div>
-                  )}
+                  {loading && <div className="text-white/30 animate-pulse">▌</div>}
                 </div>
               </motion.div>
             )}
 
+            {/* Results */}
             {result && (
               <ErrorBoundary>
                 <div className={animationsReady ? "" : "!transition-none !animate-none"}>
-                  <CategoryResultCards
-                    data={result}
-                    onChatterSelect={setSelectedChatter}
-                  />
+                  <CategoryResultCards data={result} onChatterSelect={setSelectedChatter} />
                 </div>
               </ErrorBoundary>
             )}
@@ -548,4 +427,41 @@ export default function Dashboard() {
       />
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  HELPER: Invoke Step 3 edge function with retry                     */
+/* ------------------------------------------------------------------ */
+
+async function invokeStep3(
+  payload: ReturnType<typeof buildStep3Payload>,
+  platform: string,
+  retries = 2
+): Promise<Record<string, string>> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-csv", {
+        body: { categorizedData: payload, platform },
+      });
+
+      if (error) {
+        throw new Error(typeof error === "string" ? error : error.message || "Edge Function error");
+      }
+
+      if (data?.recommendations && typeof data.recommendations === "object") {
+        return data.recommendations;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return {};
+    } catch (err: any) {
+      if (attempt === retries) throw err;
+      console.warn(`[Step 3] Attempt ${attempt} failed, retrying:`, err.message);
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+  }
+  return {};
 }
