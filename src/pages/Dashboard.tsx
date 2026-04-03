@@ -34,6 +34,32 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 const STORAGE_KEY = "dashboard_last_result";
 const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
 const CANCEL_TIMEOUT_MS = 120_000;
+const FETCH_TIMEOUT_MS = 120_000;
+
+function extractJsonFromResponse(raw: string): unknown {
+  let cleaned = raw.trim();
+  if (!cleaned) throw new Error("Leere Antwort vom Webhook");
+
+  const jsonStart = cleaned.search(/[{[]/);
+  const jsonEnd = Math.max(cleaned.lastIndexOf("]"), cleaned.lastIndexOf("}"));
+  if (jsonStart !== -1 && jsonEnd > jsonStart) {
+    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+  }
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    cleaned = cleaned
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/[\x00-\x1F\x7F]/g, "");
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      throw new Error(`Webhook antwortet mit '${raw.slice(0, 120)}' statt JSON`);
+    }
+  }
+}
 
 function csvToJsonArray(csvData: string): Record<string, string>[] {
   const lines = csvData.split("\n").filter((l) => l.trim());
