@@ -572,6 +572,7 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
 
   return (
       <div
+        data-chatter-name={formattedName}
         className="w-full max-w-full overflow-hidden px-4 sm:px-8 py-4 sm:py-6 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer group"
       onClick={() => onChatterClick(formattedName)}
     >
