@@ -669,8 +669,8 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
   const [sparkWidth, setSparkWidth] = useState(200);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-  const sparkData = stats?.history.slice(-14).map((r) => r.revenue_today) ?? [];
-
+  const sparkData = stats?.history.slice(-14) ?? [];
+  const sparkRevenues = sparkData.map((r) => r.revenue_today);
   useEffect(() => {
     if (!sparkContainerRef.current) return;
     const obs = new ResizeObserver((entries) => {
