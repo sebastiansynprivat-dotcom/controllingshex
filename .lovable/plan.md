@@ -1,41 +1,33 @@
 
 
-## Farbcodierte Alerts / Notifications
+## Filter visuell aufwerten (Desktop)
 
-### Was wird gebaut
-Ein Alert-Banner-Bereich direkt unter der Suchleiste und über dem TrendWidget im Dashboard. Die Alerts werden automatisch aus den Analysedaten berechnet und zeigen die kritischsten Probleme auf einen Blick — farblich codiert nach Dringlichkeit.
+### Problem
+Die 20+ Kategorie-Filter-Pills sind alle gleichförmig in einer langen, umbrechen Reihe angezeigt — unstrukturiert und schwer zu scannen.
 
-### Alert-Regeln (automatisch berechnet aus `result.categories`)
+### Lösung
+Die Filter visuell in logische Gruppen gliedern und das Design aufwerten:
 
-| Farbe | Priorität | Regel | Beispiel |
-|-------|-----------|-------|----------|
-| **Rot** | Kritisch | Chatters mit Verzug > 3 Tage (Kategorie "WARNUNG") | "🟠 3 Chatters mit Antwortverzug > 3 Tage" |
-| **Rot** | Kritisch | Chatters in "0€ UMSATZ TAG 5" bis "TAG 7+" | "📉 2 Chatters mit 0€ seit 5+ Tagen" |
-| **Orange** | Warnung | Chatters in "ACCOUNT-EINBRUCH" | "⚠️ 1 Account mit Umsatzeinbruch" |
-| **Orange** | Warnung | Chatters in "COACHING / ENGERE KONTROLLE" | "🟡 4 Chatters brauchen engere Kontrolle" |
-| **Blau** | Info | Neue Onboarding-Chatters (TAG 1-2) | "🔵 2 neue Chatters im Onboarding" |
-| **Grün** | Positiv | Chatters mit Upgrade/Breakout | "🟢 3 Chatters im Upgrade-Streak" |
+**1. Gruppierung nach Dringlichkeit**
+Die Pills werden in 4 visuelle Gruppen mit dezenten Trennlinien aufgeteilt:
+- **Kritisch** (rot-getönt): WARNUNG, 0€ UMSATZ TAG 1-7+
+- **Achtung** (orange-getönt): ACCOUNT-EINBRUCH, COACHING/ENGERE KONTROLLE
+- **Info** (blau-getönt): ONBOARDING TAG 1-5, MODEL-TAUSCH, VIDEO-COACHING
+- **Positiv** (grün-getönt): BREAKOUT-STAR, ACCOUNT UPGRADE, KURZ VOR UPGRADE, WEITER SO
 
-### UI-Design
-- Horizontal gestapelte Alert-Karten, jeweils mit farbigem Rand links (4px)
-- Hintergrund leicht getönt passend zur Farbe (z.B. `bg-red-500/5`, `border-l-red-500`)
-- Klickbar: Bei Klick wird zur entsprechenden Kategorie gescrollt
-- Nur angezeigt wenn Alerts vorhanden (kein leerer Container)
-- Alerts sortiert nach Priorität: Rot → Orange → Blau → Grün
-- Kompakt: max. 2 Zeilen, bei mehr als 4 Alerts wird ein "Mehr anzeigen"-Toggle eingeblendet
+**2. Visuelles Redesign der Pills**
+- Jeder Pill bekommt einen subtilen farbigen Punkt (4px dot) passend zur Gruppe statt nur Emoji
+- Emoji bleibt, aber der Pill-Hintergrund wird leicht nach Gruppenfarbe getönt (z.B. `bg-red-500/[0.03]` für kritische)
+- Aktiver Pill: stärkere Farbe der Gruppe statt einheitliches Primary-Gold
+- Leere Kategorien (0 Chatters) werden kompakter dargestellt oder ausgeblendet
 
-### Technischer Ansatz
+**3. Layout-Verbesserung**
+- Gruppen werden jeweils in einer eigenen Zeile dargestellt mit einem kleinen Label links (z.B. "Kritisch", "Info")
+- Oder: Ein 2-Spalten-Grid auf Desktop für bessere Raumnutzung
+- "Alle anzeigen" / "Zurücksetzen" Button wenn ein Filter aktiv ist
 
-**Einzige Datei: `src/pages/Dashboard.tsx`**
-- Neuer `useMemo`-Hook `alerts` der aus `result.categories` die Alert-Regeln berechnet
-- Zählt Chatters pro relevanter Kategorie und generiert Alert-Objekte mit `{ color, icon, message, categoryName }`
-- Neuer `<DashboardAlerts>` Inline-Bereich zwischen Suchleiste und TrendWidget
-- Bei Klick auf einen Alert: `scrollIntoView` zur Kategorie-Karte (via `data-category-name` Attribut, muss in `CategoryResultCards.tsx` ergänzt werden)
+### Datei
+- `src/components/CategoryResultCards.tsx` — Nur die Desktop-Filter-Sektion (Zeile 475-499) wird umgebaut
 
-**Kleine Änderung: `src/components/CategoryResultCards.tsx`**
-- `data-category-name` Attribut an die Kategorie-Container hängen (für Scroll-Target)
-
-### Dateien
-1. **`src/pages/Dashboard.tsx`** — Alert-Berechnung + Rendering
-2. **`src/components/CategoryResultCards.tsx`** — `data-category-name` Attribut ergänzen
+### Keine DB-Änderungen nötig
 
