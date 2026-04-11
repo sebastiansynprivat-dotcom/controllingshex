@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, Users, AlertTriangle, DollarSign, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Users, AlertTriangle, DollarSign, X, ChevronDown, ChevronUp } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -49,6 +49,33 @@ function extractKpis(report: ReportSummary) {
   };
 }
 
+/** Extract per-category counts across all reports */
+function extractCategoryTimeline(reports: ReportSummary[]) {
+  // Collect all unique category names from latest report
+  const latestResult = reports.length > 0 && isAnalysisResult(reports[0].result_json)
+    ? reports[0].result_json
+    : null;
+  if (!latestResult) return { categoryNames: [], timeline: [] };
+
+  const categoryNames = latestResult.categories.map((c) => c.categoryName);
+
+  // Build timeline (oldest first)
+  const timeline = [...reports].reverse().map((report) => {
+    const result = isAnalysisResult(report.result_json) ? report.result_json : null;
+    const entry: Record<string, number | string> = {
+      date: report.analysis_date,
+      dateLabel: new Date(report.analysis_date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
+    };
+    for (const catName of categoryNames) {
+      const found = result?.categories.find((c) => c.categoryName === catName);
+      entry[catName] = found ? found.chatters.length : 0;
+    }
+    return entry;
+  });
+
+  return { categoryNames, timeline };
+}
+
 interface TrendWidgetProps {
   reports: ReportSummary[];
   selectedIndex: number;
@@ -89,9 +116,118 @@ const cardMeta: Record<CardKey, { label: string; icon: typeof Users; invert: boo
   zeroAccounts: { label: "0€ Accounts", icon: DollarSign, invert: true, color: "#ef4444" },
 };
 
+const categoryColors = [
+  "hsl(var(--primary))", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6",
+  "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#a855f7",
+  "#6366f1", "#84cc16", "#e11d48", "#0ea5e9", "#d946ef",
+  "#22c55e", "#eab308", "#3b82f6", "#f43f5e", "#64748b",
+  "#7c3aed", "#059669",
+];
+
+function ExpandedChart({
+  dataKey,
+  label,
+  color,
+  data,
+  onClose,
+}: {
+  dataKey: string;
+  label: string;
+  color: string;
+  data: Record<string, number | string>[];
+  onClose: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="overflow-hidden"
+    >
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-medium text-foreground/80">{label} — Verlauf</span>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-md hover:bg-white/5 text-white/30 hover:text-white/60 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="h-48 sm:h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis
+                dataKey="dateLabel"
+                tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }}
+                axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey={dataKey}
+                stroke={color}
+                strokeWidth={2}
+                dot={{ r: 3, fill: color, strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: "rgba(255,255,255,0.2)" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Data table */}
+        <div className="mt-4 max-h-32 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-white/30 border-b border-white/[0.06]">
+                <th className="text-left pb-2 font-medium">Datum</th>
+                <th className="text-right pb-2 font-medium">Anzahl</th>
+                <th className="text-right pb-2 font-medium">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...data].reverse().map((row, i, arr) => {
+                const val = (row[dataKey] as number) || 0;
+                const prevVal = i < arr.length - 1 ? (arr[i + 1][dataKey] as number) || 0 : 0;
+                const delta = val - prevVal;
+                return (
+                  <tr key={row.date as string} className="border-b border-white/[0.03]">
+                    <td className="py-1.5 text-foreground/60">
+                      {new Date(row.date as string).toLocaleDateString("de-DE")}
+                    </td>
+                    <td className="py-1.5 text-right text-foreground">{val}</td>
+                    <td className={`py-1.5 text-right ${
+                      delta === 0 ? "text-white/20" : delta < 0 ? "text-emerald-400" : "text-red-400"
+                    }`}>
+                      {i < arr.length - 1 ? (delta > 0 ? `+${delta}` : delta) : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps) {
   const allKpis = useMemo(() => reports.map(extractKpis).reverse(), [reports]);
+  const { categoryNames, timeline } = useMemo(() => extractCategoryTimeline(reports), [reports]);
   const [expandedCard, setExpandedCard] = useState<CardKey | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [showCategories, setShowCategories] = useState(false);
 
   const current = allKpis.length > 0 ? allKpis[allKpis.length - 1 - selectedIndex] : null;
   const previous = allKpis.length > 1 && selectedIndex < reports.length - 1
@@ -106,8 +242,13 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
     { key: "zeroAccounts", value: current.zeroAccounts },
   ];
 
+  // Current & previous values per category
+  const currentTimelineIdx = timeline.length - 1 - selectedIndex;
+  const prevTimelineIdx = currentTimelineIdx - 1;
+
   return (
     <div className="space-y-3">
+      {/* Global KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {cards.map((card) => {
           const meta = cardMeta[card.key];
@@ -115,7 +256,7 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
           return (
             <div
               key={card.key}
-              onClick={() => setExpandedCard(isExpanded ? null : card.key)}
+              onClick={() => { setExpandedCard(isExpanded ? null : card.key); setExpandedCategory(null); }}
               className={`rounded-xl border p-3 sm:p-4 space-y-2 transition-all duration-300 cursor-pointer ${
                 isExpanded
                   ? "border-white/20 bg-white/[0.04]"
@@ -149,9 +290,33 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
         })}
       </div>
 
-      {/* Expanded detail chart */}
+      {/* Expanded global KPI chart */}
       <AnimatePresence>
         {expandedCard && (
+          <ExpandedChart
+            dataKey={expandedCard}
+            label={cardMeta[expandedCard].label}
+            color={cardMeta[expandedCard].color}
+            data={allKpis}
+            onClose={(e) => { e.stopPropagation(); setExpandedCard(null); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Category breakdown toggle */}
+      {categoryNames.length > 0 && (
+        <button
+          onClick={() => setShowCategories(!showCategories)}
+          className="flex items-center gap-2 text-[11px] text-white/30 hover:text-white/50 transition-colors font-medium tracking-wide uppercase"
+        >
+          {showCategories ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          Kategorien-Verlauf ({categoryNames.length})
+        </button>
+      )}
+
+      {/* Per-category mini cards */}
+      <AnimatePresence>
+        {showCategories && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -159,88 +324,65 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const Icon = cardMeta[expandedCard].icon;
-                    return <Icon className="h-4 w-4 text-white/40" />;
-                  })()}
-                  <span className="text-sm font-medium text-foreground/80">
-                    {cardMeta[expandedCard].label} — Verlauf
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setExpandedCard(null); }}
-                  className="p-1 rounded-md hover:bg-white/5 text-white/30 hover:text-white/60 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {categoryNames.map((catName, i) => {
+                const color = categoryColors[i % categoryColors.length];
+                const currentVal = currentTimelineIdx >= 0 ? (timeline[currentTimelineIdx]?.[catName] as number) || 0 : 0;
+                const prevVal = prevTimelineIdx >= 0 ? (timeline[prevTimelineIdx]?.[catName] as number) || 0 : 0;
+                const isExpanded = expandedCategory === catName;
+                // Find emoji from latest report
+                const latestResult = isAnalysisResult(reports[0]?.result_json) ? reports[0].result_json : null;
+                const emoji = latestResult?.categories.find((c) => c.categoryName === catName)?.emoji || "";
 
-              <div className="h-48 sm:h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={allKpis} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                    <XAxis
-                      dataKey="dateLabel"
-                      tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }}
-                      axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey={expandedCard}
-                      stroke={cardMeta[expandedCard].color}
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: cardMeta[expandedCard].color, strokeWidth: 0 }}
-                      activeDot={{ r: 5, fill: cardMeta[expandedCard].color, strokeWidth: 2, stroke: "rgba(255,255,255,0.2)" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Data table */}
-              <div className="mt-4 max-h-32 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-white/30 border-b border-white/[0.06]">
-                      <th className="text-left pb-2 font-medium">Datum</th>
-                      <th className="text-right pb-2 font-medium">{cardMeta[expandedCard].label}</th>
-                      <th className="text-right pb-2 font-medium">Δ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...allKpis].reverse().map((row, i, arr) => {
-                      const prev = i < arr.length - 1 ? arr[i + 1] : null;
-                      const delta = prev ? row[expandedCard] - prev[expandedCard] : 0;
-                      return (
-                        <tr key={row.date} className="border-b border-white/[0.03]">
-                          <td className="py-1.5 text-foreground/60">
-                            {new Date(row.date).toLocaleDateString("de-DE")}
-                          </td>
-                          <td className="py-1.5 text-right text-foreground">{row[expandedCard]}</td>
-                          <td className={`py-1.5 text-right ${
-                            delta === 0 ? "text-white/20" :
-                            (cardMeta[expandedCard].invert ? delta < 0 : delta > 0) ? "text-emerald-400" : "text-red-400"
-                          }`}>
-                            {i < arr.length - 1 ? (delta > 0 ? `+${delta}` : delta) : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                return (
+                  <div
+                    key={catName}
+                    onClick={() => { setExpandedCategory(isExpanded ? null : catName); setExpandedCard(null); }}
+                    className={`rounded-lg border p-2.5 space-y-1 transition-all duration-300 cursor-pointer ${
+                      isExpanded
+                        ? "border-white/20 bg-white/[0.04]"
+                        : "border-white/[0.04] bg-white/[0.01] hover:border-white/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between min-w-0">
+                      <span className="text-[10px] text-white/35 font-medium truncate mr-1">
+                        {emoji} {catName}
+                      </span>
+                      {prevTimelineIdx >= 0 && <TrendIcon current={currentVal} previous={prevVal} />}
+                    </div>
+                    <div className="flex items-end gap-1.5">
+                      <span className="text-base font-light text-foreground">{currentVal}</span>
+                      {prevTimelineIdx >= 0 && (
+                        <DeltaBadge current={currentVal} previous={prevVal} invert={false} />
+                      )}
+                    </div>
+                    {timeline.length >= 3 && (
+                      <div className="h-6 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={timeline}>
+                            <Line type="monotone" dataKey={catName} stroke={color} strokeWidth={1} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Expanded category chart */}
+      <AnimatePresence>
+        {expandedCategory && (
+          <ExpandedChart
+            dataKey={expandedCategory}
+            label={expandedCategory}
+            color={categoryColors[categoryNames.indexOf(expandedCategory) % categoryColors.length]}
+            data={timeline}
+            onClose={(e) => { e.stopPropagation(); setExpandedCategory(null); }}
+          />
         )}
       </AnimatePresence>
     </div>
