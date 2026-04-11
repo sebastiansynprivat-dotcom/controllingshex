@@ -358,14 +358,14 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                         ))}
                       </div>
                       {[...history].reverse().map((row, i) => (
-                        <div key={i} className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
+                        <div key={i} className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
                           <span className="text-xs text-white/40 font-light">{formatDate(row.analysis_date)}</span>
                           <span className="text-xs font-light gold-text">{formatCurrency(row.revenue_today)}</span>
-                          <span className="text-xs text-white/35 font-light">{row.open_chats}</span>
-                          <span className={`text-xs font-light ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
+                          <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
+                          <span className="text-xs text-white/35 font-light hidden sm:block">{row.open_chats}</span>
+                          <span className={`text-xs font-light hidden sm:block ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
                             {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
                           </span>
-                          <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
                         </div>
                       ))}
                     </div>
