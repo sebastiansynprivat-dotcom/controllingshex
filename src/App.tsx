@@ -13,6 +13,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import AIConsultant from "@/pages/AIConsultant";
 import Videocoaching from "@/pages/Videocoaching";
 import Leaderboard from "@/pages/Leaderboard";
+import Notes from "@/pages/Notes";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
@@ -47,6 +48,7 @@ const AppRoutes = () => (
               <Route path="/videocoaching" element={<Videocoaching />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/ai-consultant" element={<AIConsultant />} />
+              <Route path="/notes" element={<Notes />} />
               <Route path="/models" element={<Models />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
