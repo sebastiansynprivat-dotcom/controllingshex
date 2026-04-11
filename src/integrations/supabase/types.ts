@@ -95,6 +95,68 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_label_assignments: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          id: string
+          label_id: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          id?: string
+          label_id: string
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          label_id?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_label_assignments_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "chatter_labels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatter_labels: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          label_name: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          label_name: string
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          label_name?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coaching_notes: {
         Row: {
           chatter_name: string
