@@ -291,6 +291,47 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                     ))}
                   </div>
 
+                  {/* ── 30-Tage-Trend ── */}
+                  {last30.length >= 4 && (
+                    <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7 relative">
+                      <div className="flex items-center justify-between mb-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">30-Tage-Trend</p>
+                        <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                          trend30.direction === "up"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : trend30.direction === "down"
+                            ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                            : "bg-white/[0.04] text-white/40 border border-white/[0.06]"
+                        }`}>
+                          {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
+                          {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
+                        </span>
+                      </div>
+                      <ResponsiveContainer width="100%" height={140}>
+                        <AreaChart data={last30}>
+                          <defs>
+                            <linearGradient id="trend30Fill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.2} />
+                              <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
+                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+                          <Area
+                            type="monotone"
+                            dataKey="revenue_today"
+                            stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                            strokeWidth={1.5}
+                            fill="url(#trend30Fill)"
+                            dot={false}
+                            activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.1)", strokeWidth: 4 }}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
                   {/* ── 3. Revenue Chart ── */}
                   <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-7">Umsatzverlauf</p>
