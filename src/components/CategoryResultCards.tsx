@@ -638,48 +638,58 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         <CopyButton copied={copied} onClick={copyToClipboard} />
       </div>
 
-      {/* Mobile Filter Dropdown */}
-      <div className="flex sm:hidden w-full">
+      {/* Mobile Filter Dropdowns */}
+      <div className="flex sm:hidden w-full gap-2">
         <Select
           value={activeFilters.size === 1 ? [...activeFilters][0] : "all"}
           onValueChange={(val) => {
-            if (val === "all") { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); }
-            else if (val.startsWith("label:")) {
-              const labelId = val.slice(6);
-              toggleLabelFilter(labelId);
-            } else { setActiveFilters(new Set([val])); }
+            if (val === "all") { setActiveFilters(new Set()); }
+            else { setActiveFilters(new Set([val])); }
           }}
         >
-          <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
+          <SelectTrigger className={cn("bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9", allLabels.length > 0 ? "flex-1" : "w-full")}>
             <div className="flex items-center gap-2">
               <Filter className="h-3 w-3 text-white/25" />
-              <SelectValue placeholder="Alle Kategorien" />
+              <SelectValue placeholder="Kategorie" />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle anzeigen ({totalChatters})</SelectItem>
+            <SelectItem value="all">Alle Kategorien ({totalChatters})</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat.categoryName} value={cat.categoryName}>
                 {cat.emoji} {cat.categoryName} ({cat.chatters.length})
               </SelectItem>
             ))}
-            {allLabels.length > 0 && (
-              <>
-                <div className="px-2 py-1.5 mt-1 border-t border-white/[0.06]">
-                  <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">Labels</span>
-                </div>
-                {allLabels.map((label) => (
-                  <SelectItem key={`label-${label.id}`} value={`label:${label.id}`}>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                      {label.label_name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </>
-            )}
           </SelectContent>
         </Select>
+
+        {allLabels.length > 0 && (
+          <Select
+            value={activeLabelFilters.size === 1 ? [...activeLabelFilters][0] : "all-labels"}
+            onValueChange={(val) => {
+              if (val === "all-labels") { setActiveLabelFilters(new Set()); }
+              else { toggleLabelFilter(val); }
+            }}
+          >
+            <SelectTrigger className="flex-1 bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
+              <div className="flex items-center gap-2">
+                <Tag className="h-3 w-3 text-white/25" />
+                <SelectValue placeholder="Label" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all-labels">Alle Labels</SelectItem>
+              {allLabels.map((label) => (
+                <SelectItem key={label.id} value={label.id}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                    {label.label_name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
 
