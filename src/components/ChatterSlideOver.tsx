@@ -393,3 +393,4 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   );
 
   return typeof document !== "undefined" ? createPortal(slideOverContent, document.body) : slideOverContent;
+}
