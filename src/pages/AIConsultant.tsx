@@ -64,7 +64,7 @@ export default function AIConsultant() {
     <div className="flex flex-col h-full min-h-0">
       {/* Chat area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-8 py-12 space-y-8">
+        <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-12 space-y-6 sm:space-y-8">
           {messages.length === 0 && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -82,7 +82,7 @@ export default function AIConsultant() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {quickActions.map((q) => (
                   <button
                     key={q}
@@ -105,7 +105,7 @@ export default function AIConsultant() {
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-6 py-4 ${
+                className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-4 sm:px-6 py-3 sm:py-4 ${
                   msg.role === "user"
                     ? "bg-primary/8 border border-primary/12 text-foreground/90"
                     : "bg-white/[0.02] border border-white/[0.06] text-foreground/80"
@@ -135,7 +135,7 @@ export default function AIConsultant() {
 
       {/* Input bar */}
       <div className="shrink-0 border-t border-white/[0.04] bg-zinc-950/80 backdrop-blur-2xl">
-        <div className="max-w-3xl mx-auto px-8 py-5">
+        <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
           <div className="flex gap-3 items-end">
             <textarea
               value={input}

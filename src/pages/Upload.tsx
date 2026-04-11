@@ -457,13 +457,13 @@ export default function UploadPage() {
                   {reports.map((r) => (
                     <div
                       key={r.id}
-                      className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.06] px-5 py-4 hover:bg-white/[0.03] transition-all duration-300"
+                      className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.06] px-3 sm:px-5 py-3 sm:py-4 hover:bg-white/[0.03] transition-all duration-300 gap-2"
                     >
                       <div
-                        className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer"
+                        className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 cursor-pointer"
                         onClick={() => viewReport(r)}
                       >
-                        <div className="p-2 rounded-lg bg-primary/8">
+                        <div className="p-2 rounded-lg bg-primary/8 shrink-0 hidden sm:block">
                           <FileSpreadsheet className="h-4 w-4 text-primary/60" />
                         </div>
                         <div className="min-w-0">
@@ -474,7 +474,7 @@ export default function UploadPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
