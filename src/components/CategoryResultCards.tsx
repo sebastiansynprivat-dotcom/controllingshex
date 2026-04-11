@@ -840,6 +840,8 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
             >
               Weitere {Math.min(20, category.chatters.length - visibleCount)} von {category.chatters.length - visibleCount} anzeigen
             </button>
+          )}
+        </>
       )}
     </div>
   );
