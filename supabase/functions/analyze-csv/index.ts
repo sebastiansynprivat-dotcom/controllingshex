@@ -43,16 +43,37 @@ function cleanAndParseJson(raw: string): any {
   }
 }
 
-function splitCsvIntoBatches(csvData: string, batchSize: number): { header: string; batches: string[][] } {
-  const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
-  if (lines.length < 2) return { header: lines[0] || "", batches: [] };
-  const header = lines[0];
-  const dataLines = lines.slice(1);
-  const batches: string[][] = [];
-  for (let i = 0; i < dataLines.length; i += batchSize) {
-    batches.push(dataLines.slice(i, i + batchSize));
+function extractNameFromCsvRow(row: string, nameColIndex: number): string {
+  // Handle quoted CSV fields
+  const fields: string[] = [];
+  let current = "", inQuotes = false;
+  for (const ch of row) {
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ""; continue; }
+    current += ch;
   }
-  return { header, batches };
+  fields.push(current.trim());
+  return (fields[nameColIndex] || "").replace(/^[@\s]+/, "").trim();
+}
+
+function findNameColumn(header: string): number {
+  const cols = header.toLowerCase().split(",").map(c => c.trim());
+  const idx = cols.findIndex(c => c === "name" || c === "chatter" || c === "chatter_name");
+  return idx >= 0 ? idx : 1; // fallback to column index 1 (Name is usually 2nd)
+}
+
+function getReturnedNames(result: any): Set<string> {
+  const names = new Set<string>();
+  for (const cat of result.categories || []) {
+    for (const ch of cat.chatters || []) {
+      if (ch.name) names.add(ch.name.toLowerCase().replace(/[_\s]+/g, " ").trim());
+    }
+  }
+  return names;
+}
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
 }
 
 async function analyzeBatch(
@@ -105,6 +126,48 @@ async function analyzeBatch(
     if (err.name === "AbortError") throw new Error(`Batch ${batchNum} timeout`);
     throw err;
   }
+}
+
+async function analyzeBatchWithRetry(
+  lovableApiKey: string,
+  systemPrompt: string,
+  header: string,
+  batchLines: string[],
+  activePlatform: string,
+  modelsText: string,
+  batchNum: number,
+  totalBatches: number,
+  nameColIndex: number,
+): Promise<any> {
+  const MAX_RETRIES = 2;
+  let currentLines = batchLines;
+  const allResults: any[] = [];
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const result = await analyzeBatch(lovableApiKey, systemPrompt, header, currentLines, activePlatform, modelsText, batchNum, totalBatches);
+    allResults.push(result);
+
+    // Check which names from the CSV are missing in the result
+    const returnedNames = getReturnedNames(mergeResults(allResults));
+    const missingLines = currentLines.filter(line => {
+      const csvName = extractNameFromCsvRow(line, nameColIndex);
+      return csvName && !returnedNames.has(normalizeName(csvName));
+    });
+
+    if (missingLines.length === 0) {
+      console.log(`[analyze-csv] Batch ${batchNum}: 100% coverage after attempt ${attempt + 1}`);
+      break;
+    }
+
+    if (attempt < MAX_RETRIES) {
+      console.log(`[analyze-csv] Batch ${batchNum}: ${missingLines.length} missing, retry ${attempt + 1}…`);
+      currentLines = missingLines;
+    } else {
+      console.warn(`[analyze-csv] Batch ${batchNum}: ${missingLines.length} still missing after ${MAX_RETRIES + 1} attempts`);
+    }
+  }
+
+  return mergeResults(allResults);
 }
 
 function mergeResults(results: any[]): any {
