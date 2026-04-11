@@ -612,8 +612,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             )}
           </p>
         </div>
-        
-      </div>
+        <button
+          onClick={() => setAllCollapsed((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/40 hover:text-white/70 bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200"
+        >
+          {allCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+          {allCollapsed ? "Alle aufklappen" : "Alle einklappen"}
+        </button>
 
       {/* Mobile Filter Dropdowns */}
       <div className="flex sm:hidden w-full gap-2">
