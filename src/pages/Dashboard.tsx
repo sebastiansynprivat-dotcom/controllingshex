@@ -174,8 +174,8 @@ export default function Dashboard() {
         addStatus(`📊 ${bi.succeeded}/${bi.total} Batches erfolgreich (${bi.inputRows} Input → ${bi.totalChatters} Output)`);
       }
       addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
-      if (bi && bi.totalChatters < bi.inputRows) {
-        addStatus(`⚠️ ${bi.inputRows - bi.totalChatters} Chatter fehlen – ggf. erneut versuchen.`);
+      if (bi && bi.totalChatters === bi.inputRows) {
+        addStatus(`✅ 100% Coverage – alle ${bi.inputRows} Chatter erfasst!`);
       }
 
       try {
