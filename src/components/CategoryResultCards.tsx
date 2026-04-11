@@ -473,62 +473,72 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       </div>
 
       {/* Desktop Filter Pills — Grouped */}
-      <div className="hidden sm:block space-y-3 pb-2">
-        {activeFilters.size > 0 && (
-          <button
-            onClick={() => setActiveFilters(new Set())}
-            className="text-[10px] text-primary/60 hover:text-primary transition-colors font-light tracking-wider"
-          >
-            ✕ Filter zurücksetzen
-          </button>
-        )}
-        {(() => {
-          const filterGroups: { label: string; color: string; dotClass: string; bgTint: string; activeBg: string; activeBorder: string; activeText: string; regex: RegExp }[] = [
-            { label: "Kritisch", color: "red", dotClass: "bg-red-500", bgTint: "bg-red-500/[0.03]", activeBg: "bg-red-500/10", activeBorder: "border-red-500/30", activeText: "text-red-400", regex: /WARNUNG|0€ UMSATZ/ },
-            { label: "Achtung", color: "orange", dotClass: "bg-orange-500", bgTint: "bg-orange-500/[0.03]", activeBg: "bg-orange-500/10", activeBorder: "border-orange-500/30", activeText: "text-orange-400", regex: /EINBRUCH|KONTROLLE/ },
-            { label: "Info", color: "blue", dotClass: "bg-blue-500", bgTint: "bg-blue-500/[0.03]", activeBg: "bg-blue-500/10", activeBorder: "border-blue-500/30", activeText: "text-blue-400", regex: /ONBOARDING|MODEL-TAUSCH|VIDEO/ },
-            { label: "Positiv", color: "green", dotClass: "bg-emerald-500", bgTint: "bg-emerald-500/[0.03]", activeBg: "bg-emerald-500/10", activeBorder: "border-emerald-500/30", activeText: "text-emerald-400", regex: /BREAKOUT|UPGRADE|WEITER SO|KURZ VOR/ },
-          ];
+      <div className="hidden sm:block pb-2">
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] backdrop-blur-xl p-5 space-y-0.5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-3.5 w-3.5 text-white/20" />
+              <span className="text-[11px] text-white/40 font-medium tracking-wider uppercase">Kategorien</span>
+            </div>
+            {activeFilters.size > 0 && (
+              <button
+                onClick={() => setActiveFilters(new Set())}
+                className="text-[10px] text-primary/70 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
+              >
+                ✕ Zurücksetzen
+              </button>
+            )}
+          </div>
+          {(() => {
+            const filterGroups: { label: string; dotClass: string; borderAccent: string; activeBg: string; activeBorder: string; activeText: string; hoverBorder: string; regex: RegExp }[] = [
+              { label: "Kritisch", dotClass: "bg-red-400", borderAccent: "border-l-red-500/40", activeBg: "bg-red-500/10", activeBorder: "border-red-400/40", activeText: "text-red-300", hoverBorder: "hover:border-red-500/20", regex: /WARNUNG|0€ UMSATZ/ },
+              { label: "Achtung", dotClass: "bg-amber-400", borderAccent: "border-l-amber-500/40", activeBg: "bg-amber-500/10", activeBorder: "border-amber-400/40", activeText: "text-amber-300", hoverBorder: "hover:border-amber-500/20", regex: /EINBRUCH|KONTROLLE/ },
+              { label: "Info", dotClass: "bg-blue-400", borderAccent: "border-l-blue-500/40", activeBg: "bg-blue-500/10", activeBorder: "border-blue-400/40", activeText: "text-blue-300", hoverBorder: "hover:border-blue-500/20", regex: /ONBOARDING|MODEL-TAUSCH|VIDEO/ },
+              { label: "Positiv", dotClass: "bg-emerald-400", borderAccent: "border-l-emerald-500/40", activeBg: "bg-emerald-500/10", activeBorder: "border-emerald-400/40", activeText: "text-emerald-300", hoverBorder: "hover:border-emerald-500/20", regex: /BREAKOUT|UPGRADE|WEITER SO|KURZ VOR/ },
+            ];
 
-          return filterGroups.map((group) => {
-            const groupCats = categories.filter((c) => group.regex.test(c.categoryName));
-            if (groupCats.length === 0) return null;
-            const groupTotal = groupCats.reduce((s, c) => s + c.chatters.length, 0);
+            return filterGroups.map((group, gi) => {
+              const groupCats = categories.filter((c) => group.regex.test(c.categoryName));
+              if (groupCats.length === 0) return null;
+              const groupTotal = groupCats.reduce((s, c) => s + c.chatters.length, 0);
 
-            return (
-              <div key={group.label} className="flex items-start gap-3">
-                <div className="flex items-center gap-1.5 pt-1.5 min-w-[72px] shrink-0">
-                  <span className={`w-1.5 h-1.5 rounded-full ${group.dotClass}`} />
-                  <span className="text-[10px] text-white/30 font-medium tracking-wider uppercase">{group.label}</span>
-                  <span className="text-[9px] text-white/15">{groupTotal}</span>
+              return (
+                <div key={group.label} className={`py-3 ${gi > 0 ? "border-t border-white/[0.04]" : ""}`}>
+                  <div className={`flex items-start gap-4 pl-1 border-l-2 ${group.borderAccent}`}>
+                    <div className="flex items-center gap-2 pt-0.5 min-w-[80px] shrink-0">
+                      <span className={`w-2 h-2 rounded-full ${group.dotClass} shadow-sm`} />
+                      <span className="text-[11px] text-white/50 font-semibold tracking-wide">{group.label}</span>
+                      <span className="text-[10px] text-white/20 font-medium">{groupTotal}</span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {groupCats.map((cat) => {
+                        const isActive = activeFilters.has(cat.categoryName);
+                        const isEmpty = cat.chatters.length === 0;
+                        return (
+                          <button
+                            key={cat.categoryName}
+                            onClick={() => toggleFilter(cat.categoryName)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap ${
+                              isActive
+                                ? `${group.activeBg} ${group.activeBorder} ${group.activeText} shadow-[0_0_10px_-4px] shadow-current`
+                                : isEmpty
+                                  ? "bg-transparent border-white/[0.03] text-white/15 cursor-default"
+                                  : `bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/70 ${group.hoverBorder} hover:bg-white/[0.05]`
+                            }`}
+                          >
+                            <span className="text-xs leading-none">{cat.emoji}</span>
+                            <span>{cat.categoryName}</span>
+                            <span className={`text-[10px] tabular-nums font-medium ${isActive ? "opacity-60" : isEmpty ? "text-white/10" : "text-white/25"}`}>{cat.chatters.length}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {groupCats.map((cat) => {
-                    const isActive = activeFilters.has(cat.categoryName);
-                    const isEmpty = cat.chatters.length === 0;
-                    return (
-                      <button
-                        key={cat.categoryName}
-                        onClick={() => toggleFilter(cat.categoryName)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-light transition-all duration-300 border tracking-wide whitespace-nowrap ${
-                          isActive
-                            ? `${group.activeBg} ${group.activeBorder} ${group.activeText} shadow-sm`
-                            : isEmpty
-                              ? "bg-white/[0.01] border-white/[0.03] text-white/15"
-                              : `${group.bgTint} border-white/[0.05] text-white/35 hover:text-white/55 hover:border-white/[0.08]`
-                        }`}
-                      >
-                        <span className="text-xs">{cat.emoji}</span>
-                        <span>{cat.categoryName}</span>
-                        <span className={`ml-0.5 text-[10px] ${isActive ? `${group.activeText}/50` : isEmpty ? "text-white/10" : "text-white/15"}`}>{cat.chatters.length}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          });
-        })()}
+              );
+            });
+          })()}
+        </div>
       </div>
 
       {/* Category Cards */}
