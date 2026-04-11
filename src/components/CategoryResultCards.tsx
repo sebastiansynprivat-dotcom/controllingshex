@@ -382,7 +382,38 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         }
         setVideoCoachings(latest);
       });
+
+    // Load daily checks for today
+    supabase
+      .from("daily_chatter_checks")
+      .select("chatter_name")
+      .eq("platform", platform)
+      .eq("check_date", new Date().toISOString().slice(0, 10))
+      .then(({ data: rows }) => {
+        if (!rows) return;
+        setDailyChecks(new Set((rows as any[]).map((r) => r.chatter_name)));
+      });
   }, [categories, platform]);
+
+  const toggleDailyCheck = useCallback(async (chatterName: string) => {
+    const isChecked = dailyChecks.has(chatterName);
+    if (isChecked) {
+      setDailyChecks((prev) => { const next = new Set(prev); next.delete(chatterName); return next; });
+      await supabase
+        .from("daily_chatter_checks")
+        .delete()
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .eq("check_date", todayStr);
+    } else {
+      setDailyChecks((prev) => new Set(prev).add(chatterName));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase
+        .from("daily_chatter_checks")
+        .insert({ chatter_name: chatterName, platform, check_date: todayStr, user_id: user.id });
+    }
+  }, [dailyChecks, platform, todayStr]);
 
   const chatterStats = useMemo(() => {
     const stats: Record<string, ChatterStats> = {};
