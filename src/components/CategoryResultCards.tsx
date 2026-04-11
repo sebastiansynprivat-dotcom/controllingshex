@@ -1,7 +1,7 @@
 import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -200,7 +200,7 @@ function buildClipboardTSV(categories: Category[]): string {
 /*  SPARKLINE (SVG) — minimal, no axes                                 */
 /* ------------------------------------------------------------------ */
 
-function Sparkline({ data, width = 72, height = 32 }: { data: number[]; width?: number; height?: number }) {
+function Sparkline({ data, width = 72, height = 32, showFill = false }: { data: number[]; width?: number; height?: number; showFill?: boolean }) {
   if (data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -210,8 +210,21 @@ function Sparkline({ data, width = 72, height = 32 }: { data: number[]; width?: 
     const y = height - ((v - min) / range) * (height - 4) - 2;
     return `${x},${y}`;
   });
+  const fillPoints = `0,${height} ${points.join(" ")} ${width},${height}`;
+  const id = `sparkFill-${width}-${height}`;
   return (
-    <svg width={width} height={height} className="shrink-0 opacity-50">
+    <svg width={width} height={height} className="shrink-0">
+      {showFill && (
+        <>
+          <defs>
+            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.15} />
+              <stop offset="100%" stopColor="#D4AF37" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <polygon points={fillPoints} fill={`url(#${id})`} />
+        </>
+      )}
       <polyline
         points={points.join(" ")}
         fill="none"
@@ -651,9 +664,20 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
+  const sparkContainerRef = useRef<HTMLDivElement>(null);
+  const [sparkWidth, setSparkWidth] = useState(200);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const sparkData = stats?.history.slice(-14).map((r) => r.revenue_today) ?? [];
+
+  useEffect(() => {
+    if (!sparkContainerRef.current) return;
+    const obs = new ResizeObserver((entries) => {
+      for (const e of entries) setSparkWidth(Math.floor(e.contentRect.width) - 24);
+    });
+    obs.observe(sparkContainerRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   const revenueEntry = kpiEntries.find(([, v]) => isMoneyValue(v));
   const ghostChats = stats && stats.avgChats > 0
@@ -730,9 +754,9 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
           )}
         </div>
 
-        {/* Sparkline — hidden on mobile */}
+        {/* Sparkline — compact, hidden on mobile (shown full-width below) */}
         {sparkData.length >= 2 && (
-          <div className="hidden sm:block">
+          <div className="hidden lg:block">
             <Sparkline data={sparkData} width={64} height={28} />
           </div>
         )}
@@ -774,6 +798,26 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
           </div>
         )}
       </div>
+
+      {/* Row 3: Full-width revenue sparkline */}
+      {sparkData.length >= 2 && (
+        <div className="ml-[52px] sm:ml-[60px] mt-3" ref={sparkContainerRef}>
+          <div className="rounded-lg bg-white/[0.015] border border-white/[0.04] px-3 py-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] uppercase tracking-[0.15em] text-white/15 font-light">Umsatz (14 Tage)</span>
+              {stats && (
+                <div className="flex items-center gap-1">
+                  <TrendIcon trend={stats.trend} />
+                  <span className={`text-[10px] font-light ${stats.trend === "up" ? "text-primary/60" : stats.trend === "down" ? "text-[#B76E64]/60" : "text-white/20"}`}>
+                    {stats.trend === "up" ? "Aufwärts" : stats.trend === "down" ? "Abwärts" : "Stabil"}
+                  </span>
+                </div>
+              )}
+            </div>
+            <Sparkline data={sparkData} width={sparkWidth > 50 ? sparkWidth : 200} height={36} showFill />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
