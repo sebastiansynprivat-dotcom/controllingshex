@@ -17,34 +17,40 @@ export type Database = {
       chatter_history: {
         Row: {
           analysis_date: string
+          category: string | null
           chatter_name: string
           created_at: string
           id: string
           mass_dms: number | null
           open_chats: number | null
           platform: string
+          recommendation: string | null
           response_delay_days: number | null
           revenue_today: number | null
         }
         Insert: {
           analysis_date?: string
+          category?: string | null
           chatter_name: string
           created_at?: string
           id?: string
           mass_dms?: number | null
           open_chats?: number | null
           platform?: string
+          recommendation?: string | null
           response_delay_days?: number | null
           revenue_today?: number | null
         }
         Update: {
           analysis_date?: string
+          category?: string | null
           chatter_name?: string
           created_at?: string
           id?: string
           mass_dms?: number | null
           open_chats?: number | null
           platform?: string
+          recommendation?: string | null
           response_delay_days?: number | null
           revenue_today?: number | null
         }

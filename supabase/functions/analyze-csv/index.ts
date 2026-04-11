@@ -227,6 +227,31 @@ Deno.serve(async (req) => {
     const { data: models } = await supabase.from("models").select("model_name, follower_count").eq("platform", activePlatform);
     const modelsText = models?.length ? models.map((m: any) => `${m.model_name}: ${m.follower_count} Follower`).join("\n") : "Keine Models vorhanden.";
 
+    // Load last 14 days of history for this platform
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const { data: historyData } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, category")
+      .eq("platform", activePlatform)
+      .gte("analysis_date", fourteenDaysAgo.toISOString().split("T")[0])
+      .order("analysis_date", { ascending: true });
+
+    let historyBlock = "";
+    if (historyData && historyData.length > 0) {
+      const byChatter = new Map<string, string[]>();
+      for (const row of historyData) {
+        const name = row.chatter_name;
+        if (!byChatter.has(name)) byChatter.set(name, []);
+        byChatter.get(name)!.push(`${row.analysis_date}: ${row.revenue_today}€, ${row.mass_dms} DMs, ${row.open_chats} offene Chats${row.category ? `, Kat: ${row.category}` : ""}`);
+      }
+      const lines: string[] = [];
+      for (const [name, entries] of byChatter) {
+        lines.push(`${name}:\n  ${entries.join("\n  ")}`);
+      }
+      historyBlock = `\n\nHISTORISCHE DATEN (letzte 14 Tage, Plattform: ${activePlatform}):\n${lines.join("\n")}\n\nNutze diese Historie um Trends zu erkennen: 0€-Streaks, Account-Einbrüche, Umsatz-Streaks, Onboarding-Tage, etc.`;
+    }
+
     const { data: promptData } = await supabase.from("settings").select("value").eq("key", "system_prompt").single();
     const userSystemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
 
@@ -294,7 +319,7 @@ Regeln:
 - Antworte mit NICHTS außer dem JSON.
 - CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
-    const systemPrompt = userSystemPrompt + formatInstructions;
+    const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
 
     // Split CSV into batches
     const { header, batches } = splitCsvIntoBatches(csvData, BATCH_SIZE);
@@ -360,11 +385,11 @@ Regeln:
             else { openChats = parseInt((chatVal.match(/(\d+)/) || [])[1] || "0") || 0; }
           }
           if (responseDelay > 30) responseDelay = 0;
-          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today });
+          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null });
         }
       }
       if (rows.length > 0) {
-        await supabase.from("chatter_history").insert(rows);
+        await supabase.from("chatter_history").upsert(rows, { onConflict: "chatter_name,platform,analysis_date" });
         console.log(`[analyze-csv] Saved ${rows.length} records`);
       }
     } catch (saveErr) {
