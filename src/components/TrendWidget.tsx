@@ -115,12 +115,12 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
           return (
             <div
               key={card.key}
-              onClick={() => allKpis.length >= 2 && setExpandedCard(isExpanded ? null : card.key)}
-              className={`rounded-xl border p-3 sm:p-4 space-y-2 transition-all duration-300 ${
+              onClick={() => setExpandedCard(isExpanded ? null : card.key)}
+              className={`rounded-xl border p-3 sm:p-4 space-y-2 transition-all duration-300 cursor-pointer ${
                 isExpanded
                   ? "border-white/20 bg-white/[0.04]"
                   : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
-              } ${allKpis.length >= 2 ? "cursor-pointer" : ""}`}
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white/40">
@@ -151,7 +151,7 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
 
       {/* Expanded detail chart */}
       <AnimatePresence>
-        {expandedCard && allKpis.length >= 2 && (
+        {expandedCard && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
