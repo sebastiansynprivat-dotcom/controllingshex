@@ -266,7 +266,7 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
                 )}
               </div>
               {timeline.length >= 3 && (
-                <div className="h-6 w-full">
+                <div className="h-6 w-full pointer-events-none">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={timeline}>
                       <Line type="monotone" dataKey={catName} stroke={color} strokeWidth={1} dot={false} />
