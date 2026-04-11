@@ -6,7 +6,7 @@ import ChatterSlideOver from "@/components/ChatterSlideOver";
 import TrendWidget from "@/components/TrendWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
-import { FileSpreadsheet, Upload, Search, X } from "lucide-react";
+import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,6 +85,56 @@ export default function Dashboard() {
       cat.chatters.map((c) => ({ name: c.name, category: cat.categoryName, emoji: cat.emoji }))
     );
   }, [result]);
+
+  // ── Alert computation ──
+  const alerts = useMemo(() => {
+    if (!result) return [];
+    const list: { color: string; icon: string; message: string; categoryName: string; priority: number }[] = [];
+
+    for (const cat of result.categories) {
+      const n = cat.chatters.length;
+      if (n === 0) continue;
+      const name = cat.categoryName.toUpperCase();
+
+      // Red: WARNUNG
+      if (/WARNUNG/.test(name)) {
+        list.push({ color: "red", icon: "🟠", message: `${n} Chatter${n > 1 ? "s" : ""} mit Antwortverzug > 3 Tage`, categoryName: cat.categoryName, priority: 0 });
+      }
+      // Red: 0€ TAG 5+
+      else if (/0\s*€.*TAG\s*[5-9]|0\s*€.*TAG\s*7\+/i.test(name)) {
+        list.push({ color: "red", icon: "📉", message: `${n} Chatter${n > 1 ? "s" : ""} mit 0€ seit 5+ Tagen`, categoryName: cat.categoryName, priority: 1 });
+      }
+      // Orange: ACCOUNT-EINBRUCH
+      else if (/EINBRUCH/.test(name)) {
+        list.push({ color: "orange", icon: "⚠️", message: `${n} Account${n > 1 ? "s" : ""} mit Umsatzeinbruch`, categoryName: cat.categoryName, priority: 2 });
+      }
+      // Orange: COACHING / ENGERE KONTROLLE
+      else if (/ENGERE|KONTROLLE/.test(name)) {
+        list.push({ color: "orange", icon: "🟡", message: `${n} Chatter${n > 1 ? "s" : ""} brauchen engere Kontrolle`, categoryName: cat.categoryName, priority: 3 });
+      }
+      // Blue: ONBOARDING
+      else if (/ONBOARDING/.test(name)) {
+        list.push({ color: "blue", icon: "🔵", message: `${n} neue${n > 1 ? "" : "r"} Chatter im Onboarding`, categoryName: cat.categoryName, priority: 4 });
+      }
+      // Green: UPGRADE / BREAKOUT
+      else if (/UPGRADE|BREAKOUT/.test(name)) {
+        list.push({ color: "green", icon: "🟢", message: `${n} Chatter${n > 1 ? "s" : ""} im Upgrade-Streak`, categoryName: cat.categoryName, priority: 5 });
+      }
+    }
+
+    // Deduplicate by color+priority bucket, merge counts
+    const merged = new Map<string, typeof list[0]>();
+    for (const a of list) {
+      const key = `${a.priority}`;
+      if (merged.has(key)) continue; // first match wins per priority
+      merged.set(key, a);
+    }
+
+    return [...merged.values()].sort((a, b) => a.priority - b.priority);
+  }, [result]);
+
+  const [alertsExpanded, setAlertsExpanded] = useState(false);
+  const visibleAlerts = alertsExpanded ? alerts : alerts.slice(0, 4);
 
   const filteredChatters = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -196,6 +246,42 @@ export default function Dashboard() {
                       </button>
                     ))}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Alerts */}
+            {alerts.length > 0 && (
+              <div className="space-y-2">
+                {visibleAlerts.map((alert, i) => {
+                  const colorMap: Record<string, string> = {
+                    red: "border-l-red-500 bg-red-500/5",
+                    orange: "border-l-orange-400 bg-orange-400/5",
+                    blue: "border-l-blue-400 bg-blue-400/5",
+                    green: "border-l-emerald-400 bg-emerald-400/5",
+                  };
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const el = document.querySelector(`[data-category-name="${alert.categoryName}"]`);
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border-l-4 text-sm text-foreground/80 font-light transition-all hover:brightness-125 cursor-pointer ${colorMap[alert.color] || ""}`}
+                    >
+                      <span>{alert.icon}</span>
+                      <span>{alert.message}</span>
+                    </button>
+                  );
+                })}
+                {alerts.length > 4 && (
+                  <button
+                    onClick={() => setAlertsExpanded((v) => !v)}
+                    className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/50 transition-colors font-light mx-auto"
+                  >
+                    {alertsExpanded ? "Weniger anzeigen" : `${alerts.length - 4} weitere anzeigen`}
+                    <ChevronDown className={`h-3 w-3 transition-transform ${alertsExpanded ? "rotate-180" : ""}`} />
+                  </button>
                 )}
               </div>
             )}

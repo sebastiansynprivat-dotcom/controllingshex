@@ -529,7 +529,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings }
   const hasMore = visibleCount < category.chatters.length;
 
   return (
-    <div className="w-full max-w-full rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
+    <div data-category-name={category.categoryName} className="w-full max-w-full rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
       <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-white/[0.04] flex flex-wrap items-start gap-x-3 gap-y-2 min-w-0">
         <span className="text-base sm:text-lg">{category.emoji}</span>
         <h3 className="min-w-0 flex-1 text-sm leading-tight sm:text-lg font-medium tracking-wide gold-text break-words">
