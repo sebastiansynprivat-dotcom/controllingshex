@@ -250,6 +250,42 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Alerts */}
+            {alerts.length > 0 && (
+              <div className="space-y-2">
+                {visibleAlerts.map((alert, i) => {
+                  const colorMap: Record<string, string> = {
+                    red: "border-l-red-500 bg-red-500/5",
+                    orange: "border-l-orange-400 bg-orange-400/5",
+                    blue: "border-l-blue-400 bg-blue-400/5",
+                    green: "border-l-emerald-400 bg-emerald-400/5",
+                  };
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const el = document.querySelector(`[data-category-name="${alert.categoryName}"]`);
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border-l-4 text-sm text-foreground/80 font-light transition-all hover:brightness-125 cursor-pointer ${colorMap[alert.color] || ""}`}
+                    >
+                      <span>{alert.icon}</span>
+                      <span>{alert.message}</span>
+                    </button>
+                  );
+                })}
+                {alerts.length > 4 && (
+                  <button
+                    onClick={() => setAlertsExpanded((v) => !v)}
+                    className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/50 transition-colors font-light mx-auto"
+                  >
+                    {alertsExpanded ? "Weniger anzeigen" : `${alerts.length - 4} weitere anzeigen`}
+                    <ChevronDown className={`h-3 w-3 transition-transform ${alertsExpanded ? "rotate-180" : ""}`} />
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Trend Widget */}
             {reports.length > 0 && (
               <TrendWidget
