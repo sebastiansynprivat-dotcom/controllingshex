@@ -542,6 +542,19 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return stats;
   }, [allHistory]);
 
+  const chatterLabelsMap = useMemo(() => {
+    const map: Record<string, ChatterLabel[]> = {};
+    const labelMap = new Map(allLabels.map((l) => [l.id, l]));
+    for (const a of labelAssignments) {
+      const label = labelMap.get(a.label_id);
+      if (label) {
+        if (!map[a.chatter_name]) map[a.chatter_name] = [];
+        map[a.chatter_name].push(label);
+      }
+    }
+    return map;
+  }, [allLabels, labelAssignments]);
+
   // Single-select: click toggles one filter, clicking active deselects all
   const toggleFilter = (name: string) => {
     setActiveFilters((prev) => {
