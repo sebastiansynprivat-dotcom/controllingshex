@@ -1,6 +1,6 @@
 import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
