@@ -664,9 +664,20 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
+  const sparkContainerRef = useRef<HTMLDivElement>(null);
+  const [sparkWidth, setSparkWidth] = useState(200);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const sparkData = stats?.history.slice(-14).map((r) => r.revenue_today) ?? [];
+
+  useEffect(() => {
+    if (!sparkContainerRef.current) return;
+    const obs = new ResizeObserver((entries) => {
+      for (const e of entries) setSparkWidth(Math.floor(e.contentRect.width) - 24);
+    });
+    obs.observe(sparkContainerRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   const revenueEntry = kpiEntries.find(([, v]) => isMoneyValue(v));
   const ghostChats = stats && stats.avgChats > 0
