@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Upload, Sparkles, FileSpreadsheet, XCircle } from "lucide-react";
+import { Upload, Sparkles, FileSpreadsheet, XCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
