@@ -349,7 +349,7 @@ function RevenueHoverPopup({ history, children }: { history: HistoryEntry[]; chi
       </UITooltip>
     </TooltipProvider>
   );
-
+}
 
 /* ------------------------------------------------------------------ */
 /*  MAIN COMPONENT                                                     */
