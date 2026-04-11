@@ -371,6 +371,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
+  const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
+  const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
