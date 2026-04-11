@@ -104,9 +104,17 @@ export default function Dashboard() {
   }, []);
 
   const handleChatterSelect = (name: string) => {
-    setSelectedChatter(name);
     setSearchQuery("");
     setSearchOpen(false);
+    // Scroll to the chatter card first, then open slide-over
+    const el = document.querySelector(`[data-chatter-name="${name}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Brief highlight flash
+      el.classList.add("ring-1", "ring-primary/40", "bg-white/[0.04]");
+      setTimeout(() => el.classList.remove("ring-1", "ring-primary/40", "bg-white/[0.04]"), 1500);
+    }
+    setTimeout(() => setSelectedChatter(name), 400);
   };
 
   return (
