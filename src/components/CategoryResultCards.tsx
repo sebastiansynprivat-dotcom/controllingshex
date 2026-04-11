@@ -813,7 +813,7 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
                 </linearGradient>
               </defs>
               <XAxis dataKey="analysis_date" hide />
-              <Tooltip
+              <RechartsTooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const row = payload[0]?.payload as HistoryEntry;
