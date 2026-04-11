@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Trophy, CalendarIcon } from "lucide-react";
+import { toast } from "sonner";
 import { format, startOfDay, startOfWeek, startOfMonth, subDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
