@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Trophy, CalendarIcon } from "lucide-react";
+import { toast } from "sonner";
 import { format, startOfDay, startOfWeek, startOfMonth, subDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -176,7 +177,16 @@ export default function Leaderboard() {
 
                 {/* Name + days */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p
+                    className="text-sm font-medium text-foreground truncate cursor-copy hover:text-primary transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const displayName = entry.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                      navigator.clipboard.writeText(displayName);
+                      toast("Name kopiert", { description: displayName });
+                    }}
+                    title="Klicken zum Kopieren"
+                  >
                     {entry.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
