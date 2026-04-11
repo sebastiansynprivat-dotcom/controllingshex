@@ -564,9 +564,34 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
-  const visibleCategories = activeFilters.size === 0
-    ? categories
-    : categories.filter((c) => activeFilters.has(c.categoryName));
+  const toggleLabelFilter = (labelId: string) => {
+    setActiveLabelFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(labelId)) next.delete(labelId);
+      else next.add(labelId);
+      return next;
+    });
+  };
+
+  const visibleCategories = useMemo(() => {
+    let filtered = activeFilters.size === 0
+      ? categories
+      : categories.filter((c) => activeFilters.has(c.categoryName));
+
+    if (activeLabelFilters.size > 0) {
+      filtered = filtered
+        .map((cat) => ({
+          ...cat,
+          chatters: cat.chatters.filter((ch) => {
+            const labels = chatterLabelsMap[toTitleCase(ch.name)] || [];
+            return labels.some((l) => activeLabelFilters.has(l.id));
+          }),
+        }))
+        .filter((cat) => cat.chatters.length > 0);
+    }
+
+    return filtered;
+  }, [activeFilters, activeLabelFilters, categories, chatterLabelsMap]);
 
   const copyToClipboard = async () => {
     const text = categories.length > 0
