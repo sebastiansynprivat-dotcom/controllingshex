@@ -823,10 +823,12 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
           })()}
 
           {revenueEntry && (
-            <div className="mt-2 flex items-center gap-1.5 sm:hidden min-w-0">
-              <span className="text-sm font-light gold-text tracking-tight break-words">{revenueEntry[1]}</span>
-              {stats && <TrendIcon trend={stats.trend} />}
-            </div>
+            <RevenueHoverPopup history={stats?.history ?? []}>
+              <div className="mt-2 flex items-center gap-1.5 sm:hidden min-w-0 cursor-default">
+                <span className="text-sm font-light gold-text tracking-tight break-words">{revenueEntry[1]}</span>
+                {stats && <TrendIcon trend={stats.trend} />}
+              </div>
+            </RevenueHoverPopup>
           )}
         </div>
 
