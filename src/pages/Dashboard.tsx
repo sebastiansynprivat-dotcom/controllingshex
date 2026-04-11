@@ -156,8 +156,7 @@ export default function Dashboard() {
       if (!response.ok || data?.error) {
         const errMsg = data?.error || `Fehler (${response.status})`;
         throw new Error(errMsg);
-
-
+      }
 
       const analysisResult = data?.result as AnalysisResult | undefined;
       if (!analysisResult || !Array.isArray(analysisResult.categories)) {
