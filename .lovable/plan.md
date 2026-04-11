@@ -1,22 +1,20 @@
 
 
-## Alte Daten bereinigen & Tag 1 = heute setzen
+## ChatterSlideOver: Sticky Header + Name kopierbar
 
-### Problem
-In der `chatter_history` liegen 199 Einträge für Maloum vom 03.04.2026 — also alte Test-/Vorgängerdaten. Das verfälscht Trends, Onboarding-Zählung und das Performance-Profil. Die AI im `analyze-csv` bekommt diese alten Daten als Historie und zieht falsche Schlüsse.
+### Änderungen in `src/components/ChatterSlideOver.tsx`
 
-### Was passiert
+**1. Header aus dem Scroll-Container herausnehmen und sticky machen**
+- Den Header-Block (Name + X-Button) über den scrollbaren Bereich verschieben
+- Fester Header oben, darunter der scrollbare Content
+- Backdrop-blur + Border-bottom für visuellen Abschluss
 
-**1. Alte History-Daten löschen (Datenbank)**
-- Alle `chatter_history`-Einträge mit `analysis_date < '2026-04-11'` werden gelöscht
-- Damit ist heute der erste Tag mit echten Daten
-- Verwendung: Supabase Insert-Tool mit DELETE-Statement
+**2. Name per Klick kopierbar**
+- onClick auf den Namen: `navigator.clipboard.writeText(displayName)` + kurzer Toast ("Name kopiert")
+- Cursor-pointer + dezenter Hover-Effekt als visueller Hinweis
 
-**2. Keine Code-Änderungen nötig**
-- Die `analyze-csv` Edge Function lädt bereits nur die letzten 14 Tage History — ab jetzt gibt es nur Daten ab heute
-- Das Performance-Profil in `ChatterSlideOver` zeigt dann korrekt nur die echten Daten
-- Wenn ein Chatter nur einen Datenpunkt hat, wird dieser als Startpunkt genutzt (das funktioniert bereits so)
+**3. Responsive**
+- Funktioniert auf Desktop (520px Panel) und Mobile (volle Breite) gleich
 
-### Zusammenfassung
-Ein einziger DELETE-Befehl bereinigt die Altdaten. Ab heute zählt Tag 1 für alle Plattformen.
+### Keine DB-Änderungen nötig
 
