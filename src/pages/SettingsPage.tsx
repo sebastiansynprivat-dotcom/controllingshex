@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SettingsPage() {
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -12,6 +13,7 @@ export default function SettingsPage() {
   const [showKey, setShowKey] = useState(false);
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => { loadSettings(); }, []);
 

@@ -9,6 +9,7 @@ import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ const CANCEL_TIMEOUT_MS = 120_000;
 
 export default function UploadPage() {
   const { platform } = usePlatform();
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string>("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -146,7 +148,7 @@ export default function UploadPage() {
 
   const uploadFileToStorage = async (f: File): Promise<string> => {
     const dateStr = new Date().toISOString().split("T")[0];
-    const path = `${platform}/${dateStr}/${Date.now()}_${f.name}`;
+    const path = `${user?.id}/${platform}/${dateStr}/${Date.now()}_${f.name}`;
     const { error } = await supabase.storage.from("report-files").upload(path, f);
     if (error) throw new Error("Datei-Upload fehlgeschlagen: " + error.message);
     return path;
@@ -188,7 +190,7 @@ export default function UploadPage() {
           headers: {
             "Content-Type": "application/json",
             "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           },
           body: JSON.stringify({ csvData, platform }),
           signal: AbortSignal.timeout(300000),
@@ -225,6 +227,7 @@ export default function UploadPage() {
         file_path: filePath,
         result_json: analysisResult as any,
         chatter_count: total,
+        user_id: user?.id,
       });
       if (insertError) {
         console.error("Report save error:", insertError);
@@ -269,7 +272,7 @@ export default function UploadPage() {
           headers: {
             "Content-Type": "application/json",
             "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           },
           body: JSON.stringify({ analysis_date: report.analysis_date, platform: report.platform }),
         }
