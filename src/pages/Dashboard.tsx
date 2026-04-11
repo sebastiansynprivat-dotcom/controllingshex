@@ -331,7 +331,41 @@ export default function Dashboard() {
                   </Button>
                 </motion.div>
               )}
+              {result && !loading && (
+                <Button
+                  onClick={() => setDeleteDialogOpen(true)}
+                  variant="ghost"
+                  className="py-7 px-6 rounded-xl text-red-400/70 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-500"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />Analyse löschen
+                </Button>
+              )}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <DialogContent className="bg-background border-white/10">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground">Analyse löschen?</DialogTitle>
+                  <DialogDescription className="text-white/50">
+                    Möchtest du die heutige Analyse ({new Date().toLocaleDateString("de-DE")}) für <strong className="text-foreground/80">{platform}</strong> wirklich löschen? Ältere Analysen bleiben erhalten.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="gap-2">
+                  <DialogClose asChild>
+                    <Button variant="ghost" className="text-white/50">Abbrechen</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={deleteAnalysis}
+                    disabled={deleting}
+                    variant="destructive"
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {deleting ? "Löscht…" : "Ja, löschen"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Status Log */}
             {(loading || statusLog.length > 0) && (
