@@ -488,6 +488,23 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         if (!rows) return;
         setDailyChecks(new Set((rows as any[]).map((r) => r.chatter_name)));
       });
+
+    // Load labels and assignments
+    supabase
+      .from("chatter_labels")
+      .select("id, label_name, color")
+      .eq("platform", platform)
+      .then(({ data: rows }) => {
+        if (rows) setAllLabels(rows as ChatterLabel[]);
+      });
+
+    supabase
+      .from("chatter_label_assignments")
+      .select("chatter_name, label_id")
+      .eq("platform", platform)
+      .then(({ data: rows }) => {
+        if (rows) setLabelAssignments(rows as LabelAssignment[]);
+      });
   }, [categories, platform]);
 
   const toggleDailyCheck = useCallback(async (chatterName: string) => {
