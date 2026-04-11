@@ -43,6 +43,18 @@ function cleanAndParseJson(raw: string): any {
   }
 }
 
+function splitCsvIntoBatches(csvData: string, batchSize: number): { header: string; batches: string[][] } {
+  const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return { header: lines[0] || "", batches: [] };
+  const header = lines[0];
+  const dataLines = lines.slice(1);
+  const batches: string[][] = [];
+  for (let i = 0; i < dataLines.length; i += batchSize) {
+    batches.push(dataLines.slice(i, i + batchSize));
+  }
+  return { header, batches };
+}
+
 function extractNameFromCsvRow(row: string, nameColIndex: number): string {
   // Handle quoted CSV fields
   const fields: string[] = [];
