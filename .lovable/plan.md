@@ -1,24 +1,27 @@
 
 
-## Chatter-Entwicklungsgraph (30 Tage)
+## Custom Labels für Chatter
 
-### Was wird gebaut
-Im `ChatterSlideOver` wird oberhalb des bestehenden Umsatzverlauf-Charts ein neuer **30-Tage-Trend-Block** eingefügt mit:
-- Einem kompakten **Area-Chart** der letzten 30 Tage Umsatz
-- Einer **Trend-Anzeige** (↑ / ↓ / →) mit prozentualem Vergleich (letzte 15 Tage vs. vorherige 15 Tage)
-- Farbcodierung: Grün bei positivem Trend, Rot bei negativem, Neutral bei stabil
+Frei wählbare Tags (z.B. "Fokus", "Probephase", "Talent") die du selbst erstellen und einzelnen Chattern zuweisen kannst — mehrere pro Chatter möglich.
 
-### Änderungen
+### Was gebaut wird
 
-**`src/components/ChatterSlideOver.tsx`**
-- Neues `useMemo` für `last30Days`: die letzten 30 Einträge aus `history` filtern
-- Neues `useMemo` für `trend30`: Vergleich Durchschnittsumsatz erste Hälfte vs. zweite Hälfte → Prozent-Differenz + Richtung
-- Neuer UI-Block zwischen KPI-Grid und bestehendem Umsatzverlauf:
-  - Überschrift "30-Tage-Trend"
-  - Kompakter AreaChart (Höhe 140px) mit Gradient-Fill (grün/rot je nach Trend)
-  - Trend-Badge rechts oben: z.B. "↑ +12%" in Grün oder "↓ -8%" in Rot
-- Der bestehende "Umsatzverlauf"-Chart bleibt unverändert als Gesamthistorie
+1. **Neue Datenbank-Tabelle `chatter_labels`** — speichert die verfügbaren Labels pro User (Name + Farbe)
+2. **Neue Datenbank-Tabelle `chatter_label_assignments`** — verknüpft Labels mit Chattern (many-to-many)
+3. **Label-Badge auf der Chatter-Karte** — kleine farbige Tags direkt unter dem Namen sichtbar
+4. **Label-Verwaltung im ChatterSlideOver** — Labels zuweisen/entfernen wenn man einen Chatter öffnet, plus neue Labels erstellen
+5. **Filter nach Labels** — im bestehenden Filter-Dropdown auch nach Labels filtern können
 
-### Keine DB-Änderung nötig
-Die Daten kommen aus dem bereits geladenen `history`-Array.
+### Technische Details
+
+**Migration SQL:**
+- `chatter_labels`: id, user_id, platform, label_name, color (hex), created_at — mit RLS
+- `chatter_label_assignments`: id, user_id, chatter_name, platform, label_id (FK), created_at — mit RLS
+
+**UI-Änderungen:**
+- `CategoryResultCards.tsx`: Labels laden und als kleine farbige Badges unter dem Chatter-Namen anzeigen
+- `ChatterSlideOver.tsx`: Neuer Abschnitt "Labels" mit Dropdown zum Zuweisen + kleines Formular zum Erstellen neuer Labels (Name + Farbauswahl)
+- Optional: Filter-Erweiterung um Label-basierte Filterung
+
+**Farbauswahl:** 6-8 vordefinierte Farben zur Auswahl (Rot, Blau, Grün, Gelb, Lila, Orange, Pink, Türkis)
 
