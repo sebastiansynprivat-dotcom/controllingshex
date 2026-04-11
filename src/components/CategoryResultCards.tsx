@@ -1,7 +1,7 @@
-import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -277,6 +277,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
+  const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
+
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
@@ -379,7 +382,38 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         }
         setVideoCoachings(latest);
       });
+
+    // Load daily checks for today
+    supabase
+      .from("daily_chatter_checks")
+      .select("chatter_name")
+      .eq("platform", platform)
+      .eq("check_date", new Date().toISOString().slice(0, 10))
+      .then(({ data: rows }) => {
+        if (!rows) return;
+        setDailyChecks(new Set((rows as any[]).map((r) => r.chatter_name)));
+      });
   }, [categories, platform]);
+
+  const toggleDailyCheck = useCallback(async (chatterName: string) => {
+    const isChecked = dailyChecks.has(chatterName);
+    if (isChecked) {
+      setDailyChecks((prev) => { const next = new Set(prev); next.delete(chatterName); return next; });
+      await supabase
+        .from("daily_chatter_checks")
+        .delete()
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .eq("check_date", todayStr);
+    } else {
+      setDailyChecks((prev) => new Set(prev).add(chatterName));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase
+        .from("daily_chatter_checks")
+        .insert({ chatter_name: chatterName, platform, check_date: todayStr, user_id: user.id });
+    }
+  }, [dailyChecks, platform, todayStr]);
 
   const chatterStats = useMemo(() => {
     const stats: Record<string, ChatterStats> = {};
@@ -433,6 +467,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   }
 
   const totalChatters = categories.reduce((a, c) => a + c.chatters.length, 0);
+  const checkedCount = dailyChecks.size;
+  const checkProgress = totalChatters > 0 ? Math.round((checkedCount / totalChatters) * 100) : 0;
 
   return (
     <div className="space-y-10 animate-fade-in w-full max-w-full overflow-hidden">
@@ -441,6 +477,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           <h2 className="text-xl font-extralight text-foreground tracking-tight">Analyse-Ergebnis</h2>
           <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider">
             {totalChatters} Einträge · {categories.length} Kategorien
+            {checkedCount > 0 && (
+              <span className="ml-2 text-emerald-400/60">
+                · ✓ {checkedCount}/{totalChatters} erledigt ({checkProgress}%)
+              </span>
+            )}
           </p>
         </div>
         <CopyButton copied={copied} onClick={copyToClipboard} />
@@ -551,7 +592,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -566,7 +607,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
 const INITIAL_VISIBLE = 10;
 
-function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string> }) {
+function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const visible = category.chatters.slice(0, visibleCount);
   const hasMore = visibleCount < category.chatters.length;
@@ -588,7 +629,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings }
             <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
           </div>
         ) : visible.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} />
         ))}
       </div>
       {hasMore && (
@@ -607,16 +648,14 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings }
 /*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string }) {
+function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const sparkData = stats?.history.slice(-14).map((r) => r.revenue_today) ?? [];
 
-  // Find the primary revenue value
   const revenueEntry = kpiEntries.find(([, v]) => isMoneyValue(v));
-  // Ghost-chat stats from history
   const ghostChats = stats && stats.avgChats > 0
     ? `Ø ${Math.round(stats.avgChats)} Chats / ${stats.avgDelay.toFixed(1)} Tage`
     : null;
@@ -629,14 +668,30 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt }: { 
     setTimeout(() => setNameCopied(false), 1500);
   };
 
+  const handleCheck = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleCheck?.();
+  };
+
   return (
       <div
         data-chatter-name={formattedName}
-        className="w-full max-w-full overflow-hidden px-4 sm:px-8 py-4 sm:py-6 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer group"
+        className={`w-full max-w-full overflow-hidden px-4 sm:px-8 py-4 sm:py-6 hover:bg-white/[0.015] transition-all duration-500 cursor-pointer group ${isChecked ? "opacity-40" : ""}`}
       onClick={() => onChatterClick(formattedName)}
     >
       {/* Row 1: Main info */}
       <div className="flex items-start gap-3 sm:gap-5 w-full min-w-0">
+        {/* Daily Check */}
+        <button
+          onClick={handleCheck}
+          className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border transition-all duration-300 flex items-center justify-center ${
+            isChecked
+              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+              : "border-white/10 hover:border-white/25 text-transparent hover:text-white/15"
+          }`}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+        </button>
         {/* Score Ring */}
         <ScoreRing score={stats?.score ?? 0} initials={initials} />
 
