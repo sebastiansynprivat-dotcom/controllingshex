@@ -60,10 +60,47 @@ export default function Dashboard() {
   const cancelledRef = useRef(false);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const addStatus = useCallback((msg: string) => {
     const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setStatusLog((prev) => [...prev.slice(-29), `[${ts}] ${msg}`]);
   }, []);
+
+  const deleteAnalysis = async () => {
+    setDeleting(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-analysis`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ analysis_date: today, platform }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Fehler beim Löschen");
+      }
+      toast.success(`${data.deletedCount} Einträge für heute gelöscht.`);
+      localStorage.removeItem(STORAGE_KEY);
+      setResult(null);
+      setFile(null);
+      setCsvData("");
+      setStatusLog([]);
+    } catch (err: any) {
+      toast.error(err.message || "Fehler beim Löschen");
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
 
   useEffect(() => {
     try {
