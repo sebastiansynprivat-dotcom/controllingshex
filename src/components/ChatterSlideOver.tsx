@@ -218,7 +218,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     toast.success("Label gelöscht");
   };
 
-
+  const saveNote = async () => {
     if (!noteText.trim()) return;
     setSavingNote(true);
     const { data, error } = await supabase
