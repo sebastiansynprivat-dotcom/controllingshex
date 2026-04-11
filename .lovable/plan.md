@@ -1,29 +1,43 @@
 
 
-## Chatter-Suche / Schnellzugriff
+## Videocoaching-Tracker
 
 ### Was wird gebaut
-Eine Suchleiste oben im Dashboard-Header, mit der du einen Chatter-Namen eintippen kannst. Während du tippst, erscheinen passende Vorschläge aus der aktuellen Analyse. Ein Klick auf einen Vorschlag öffnet sofort das ChatterSlideOver — ohne durch Kategorien scrollen zu müssen.
+Ein neuer Menüpunkt "Videocoaching" in der Sidebar. Dort kannst du Chatter-Namen eintragen, um zu loggen, dass du ein Videocoaching geschickt hast. Das Datum wird automatisch gespeichert. In der Dashboard-Analyse wird dann bei jedem Chatter angezeigt, wie viele Tage das letzte Videocoaching her ist.
 
-### Technischer Ansatz
+### Datenbank
+Neue Tabelle `video_coachings`:
+- `id` (uuid, PK)
+- `user_id` (uuid, für RLS)
+- `chatter_name` (text)
+- `platform` (text, default 'Maloum')
+- `sent_at` (timestamptz, default now())
+- `created_at` (timestamptz, default now())
 
-**Datei: `src/pages/Dashboard.tsx`**
-- Neuen State `searchQuery` hinzufügen
-- Alle Chatter-Namen aus `result.categories` extrahieren (flat map über alle Kategorien)
-- Gefilterte Liste bei Eingabe berechnen (case-insensitive Substring-Match)
-- Suchleiste zwischen Header und TrendWidget platzieren
-- Popover/Dropdown mit Treffern anzeigen (max. 8 Ergebnisse)
-- Bei Klick auf Treffer: `setSelectedChatter(name)` aufrufen → SlideOver öffnet sich
-- Bei Escape oder Blur: Dropdown schließen
+RLS: Nutzer sehen/erstellen/löschen nur eigene Einträge.
 
-**UI-Komponente**
-- Einfaches `<input>` mit Search-Icon (Lucide), kein Command-Menü nötig
-- Darunter ein absolut positioniertes Dropdown mit den Treffern
-- Jeder Treffer zeigt: Kategorie-Emoji + Chatter-Name + Kategorie-Name (dezent)
-- Styling passend zum bestehenden Dark-Theme (bg-white/[0.03], border-white/[0.06])
+### Sidebar
+Neuer Eintrag zwischen "Dashboard" und "Upload":
+- Titel: "Videocoaching"
+- Icon: `Video` (Lucide)
+- Route: `/videocoaching`
 
-**Keine DB-Änderungen nötig** — die Chatter-Daten kommen aus dem bereits geladenen `result_json`.
+### Neue Seite: `/videocoaching`
+- Eingabefeld für Chatter-Name + Button "Eintragen"
+- Darunter eine Liste aller bisherigen Einträge (Name + Datum), sortiert nach Datum absteigend
+- Löschen-Option pro Eintrag
+- Autocomplete aus bekannten Chatter-Namen (aus `chatter_history`)
+
+### Dashboard-Integration
+In `CategoryResultCards.tsx` beim Rendern jedes Chatters:
+- Video-Coachings für die aktuelle Platform laden
+- Wenn ein Eintrag für den Chatter existiert, ein Badge anzeigen: z.B. "📼 vor 3 Tagen"
+- Berechnung: Differenz zwischen heute und `sent_at` des letzten Eintrags
 
 ### Dateien
-- `src/pages/Dashboard.tsx` — Suchleiste + Logik hinzufügen (einzige Änderung)
+1. **Migration** — Tabelle `video_coachings` + RLS
+2. **`src/pages/Videocoaching.tsx`** — Neue Seite
+3. **`src/App.tsx`** — Route hinzufügen
+4. **`src/components/AppSidebar.tsx`** — Menüpunkt hinzufügen
+5. **`src/components/CategoryResultCards.tsx`** — Badge "📼 vor X Tagen" bei Chattern anzeigen
 
