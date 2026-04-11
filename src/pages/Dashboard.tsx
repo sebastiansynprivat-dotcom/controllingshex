@@ -149,6 +149,49 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Chatter Search */}
+            {result && (
+              <div ref={searchRef} className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                    onFocus={() => setSearchOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); }
+                    }}
+                    placeholder="Chatter suchen…"
+                    className="w-full sm:w-80 h-10 pl-9 pr-9 rounded-lg bg-white/[0.03] border border-white/[0.06] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {searchOpen && filteredChatters.length > 0 && (
+                  <div className="absolute z-50 mt-1 w-full sm:w-80 rounded-lg border border-white/[0.08] bg-popover shadow-lg overflow-hidden">
+                    {filteredChatters.map((c) => (
+                      <button
+                        key={`${c.emoji}-${c.name}`}
+                        onClick={() => handleChatterSelect(c.name)}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-foreground/80 hover:bg-white/[0.06] transition-colors text-left"
+                      >
+                        <span>{c.emoji}</span>
+                        <span className="font-medium truncate">{c.name}</span>
+                        <span className="ml-auto text-xs text-muted-foreground truncate">{c.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Trend Widget */}
             {reports.length > 0 && (
               <TrendWidget
