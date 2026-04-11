@@ -81,7 +81,7 @@ export default function Models() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="max-w-4xl mx-auto space-y-10"
+        className="max-w-4xl mx-auto space-y-8 sm:space-y-10"
       >
         <div>
           <h1 className="text-2xl font-extralight tracking-tight text-foreground">
