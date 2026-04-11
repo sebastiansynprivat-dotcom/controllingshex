@@ -90,7 +90,7 @@ export default function UploadPage() {
       .eq("platform", platform)
       .order("analysis_date", { ascending: false })
       .limit(50);
-    setReports((data as ReportRow[] | null) ?? []);
+    setReports((data as unknown as ReportRow[] | null) ?? []);
     setLoadingReports(false);
   }, [platform]);
 
