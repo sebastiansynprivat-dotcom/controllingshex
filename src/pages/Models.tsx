@@ -127,7 +127,6 @@ export default function Models() {
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Model</th>
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Follower</th>
                 <th className="text-right py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Aktionen</th>
-                </thead>
               </tr>
             </thead>
             <tbody>
