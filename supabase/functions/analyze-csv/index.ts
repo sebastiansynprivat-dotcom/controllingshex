@@ -9,9 +9,14 @@ const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL_NAME = "google/gemini-2.5-flash";
 const TIMEOUT_MS = 240000;
 
-function repairJsonString(value: string) {
+function repairJsonString(value: string): string {
+  // Remove trailing incomplete key-value pairs (e.g. "key": "val)
+  let s = value.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "");
+  // Remove trailing commas before closing brackets
+  s = s.replace(/,\s*$/, "");
+  
   let braces = 0, brackets = 0, inString = false, escaped = false;
-  for (const char of value) {
+  for (const char of s) {
     if (escaped) { escaped = false; continue; }
     if (char === "\\") { escaped = true; continue; }
     if (char === '"') { inString = !inString; continue; }
@@ -21,10 +26,11 @@ function repairJsonString(value: string) {
     if (char === "[") brackets++;
     if (char === "]") brackets--;
   }
-  let repaired = value;
-  while (brackets > 0) { repaired += "]"; brackets--; }
-  while (braces > 0) { repaired += "}"; braces--; }
-  return repaired;
+  // If we're inside a string, close it
+  if (inString) s += '"';
+  while (brackets > 0) { s = s.replace(/,\s*$/, "") + "]"; brackets--; }
+  while (braces > 0) { s = s.replace(/,\s*$/, "") + "}"; braces--; }
+  return s;
 }
 
 function cleanAndParseJson(raw: string): any {
@@ -33,9 +39,21 @@ function cleanAndParseJson(raw: string): any {
   if (jsonStart === -1) throw new Error("No JSON object found");
   const jsonEnd = cleaned.lastIndexOf("}");
   cleaned = jsonEnd > jsonStart ? cleaned.substring(jsonStart, jsonEnd + 1) : cleaned.substring(jsonStart);
-  cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+  cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, " ");
+  // Fix unescaped newlines inside strings
+  cleaned = cleaned.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
+    return match.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+  });
   try { return JSON.parse(cleaned); }
-  catch { return JSON.parse(repairJsonString(cleaned)); }
+  catch {
+    try { return JSON.parse(repairJsonString(cleaned)); }
+    catch (e2) {
+      console.error("[analyze-csv] Repair also failed, trying aggressive cleanup");
+      // Last resort: extract what we can
+      const aggressive = repairJsonString(cleaned.replace(/[\u0000-\u001F]/g, ""));
+      return JSON.parse(aggressive);
+    }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -139,7 +157,7 @@ CRITICAL: Include EVERY SINGLE CHATTER. DO NOT skip anyone.`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
           ],
-          max_tokens: 16384,
+          max_tokens: 32768,
           response_format: { type: "json_object" },
         }),
         signal: controller.signal,
