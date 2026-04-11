@@ -223,18 +223,7 @@ function ExpandedChart({
 }
 
 export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps) {
-  const allKpis = useMemo(() => reports.map(extractKpis).reverse(), [reports]);
-  const { categoryNames, timeline } = useMemo(() => extractCategoryTimeline(reports), [reports]);
-  const [expandedCard, setExpandedCard] = useState<CardKey | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [showCategories, setShowCategories] = useState(false);
-
-  const current = allKpis.length > 0 ? allKpis[allKpis.length - 1 - selectedIndex] : null;
-  const previous = allKpis.length > 1 && selectedIndex < reports.length - 1
-    ? allKpis[allKpis.length - 2 - selectedIndex]
-    : null;
-
-  if (!current) return null;
 
   const cards: { key: CardKey; value: number }[] = [
     { key: "chatters", value: current.chatters },
