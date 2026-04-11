@@ -643,8 +643,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         <Select
           value={activeFilters.size === 1 ? [...activeFilters][0] : "all"}
           onValueChange={(val) => {
-            if (val === "all") setActiveFilters(new Set());
-            else setActiveFilters(new Set([val]));
+            if (val === "all") { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); }
+            else if (val.startsWith("label:")) {
+              const labelId = val.slice(6);
+              toggleLabelFilter(labelId);
+            } else { setActiveFilters(new Set([val])); }
           }}
         >
           <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
@@ -653,6 +656,31 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               <SelectValue placeholder="Alle Kategorien" />
             </div>
           </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle anzeigen ({totalChatters})</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.categoryName} value={cat.categoryName}>
+                {cat.emoji} {cat.categoryName} ({cat.chatters.length})
+              </SelectItem>
+            ))}
+            {allLabels.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 mt-1 border-t border-white/[0.06]">
+                  <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">Labels</span>
+                </div>
+                {allLabels.map((label) => (
+                  <SelectItem key={`label-${label.id}`} value={`label:${label.id}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                      {label.label_name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </>
+            )}
+          </SelectContent>
+        </Select>
+      </div>
           <SelectContent>
             <SelectItem value="all">Alle anzeigen ({totalChatters})</SelectItem>
             {categories.map((cat) => (
