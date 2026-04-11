@@ -45,7 +45,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-10 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-8 sm:space-y-10 animate-fade-in">
       <div>
         <h1 className="text-2xl font-extralight tracking-tight text-foreground">
           Einstellungen
@@ -56,7 +56,7 @@ export default function SettingsPage() {
       </div>
 
       {/* System Prompt */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 space-y-5 backdrop-blur-2xl">
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
         <div>
           <h2 className="text-[13px] font-medium text-foreground/70 tracking-wide">System-Prompt</h2>
           <p className="text-[11px] text-white/20 mt-0.5 font-light">Das Gehirn deiner KI-Analyse</p>
@@ -79,7 +79,7 @@ export default function SettingsPage() {
       </div>
 
       {/* API Key */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 space-y-5 backdrop-blur-2xl">
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
         <div>
           <h2 className="text-[13px] font-medium text-foreground/70 tracking-wide">Anthropic API-Key</h2>
           <p className="text-[11px] text-white/20 mt-0.5 font-light">Wird sicher im Backend gespeichert</p>

@@ -72,10 +72,10 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-5xl mx-auto space-y-12 p-8 lg:p-12"
+            className="max-w-5xl mx-auto space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
             <div className="space-y-3">
-              <h1 className="text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
+              <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
               <p className="text-white/30 text-sm font-light tracking-wide">
                 {reportDate
                   ? `Letzte Analyse: ${new Date(reportDate).toLocaleDateString("de-DE")}`

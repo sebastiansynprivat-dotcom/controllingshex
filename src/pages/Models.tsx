@@ -81,7 +81,7 @@ export default function Models() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="max-w-4xl mx-auto space-y-10"
+        className="max-w-4xl mx-auto space-y-8 sm:space-y-10"
       >
         <div>
           <h1 className="text-2xl font-extralight tracking-tight text-foreground">
@@ -93,8 +93,8 @@ export default function Models() {
         </div>
 
         {/* Add New */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-2xl">
-          <h2 className="text-[13px] font-medium text-foreground/70 mb-5 tracking-wide">Neues Model</h2>
+        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 backdrop-blur-2xl">
+          <h2 className="text-[13px] font-medium text-foreground/70 mb-4 sm:mb-5 tracking-wide">Neues Model</h2>
           <div className="flex flex-col sm:flex-row gap-3">
             <Input
               placeholder="Name"
@@ -124,9 +124,9 @@ export default function Models() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.04]">
-                <th className="text-left py-4 px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Model</th>
-                <th className="text-left py-4 px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Follower</th>
-                <th className="text-right py-4 px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Aktionen</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Model</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Follower</th>
+                <th className="text-right py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -141,22 +141,22 @@ export default function Models() {
                 <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors duration-500">
                   {editId === m.id ? (
                     <>
-                      <td className="py-4 px-8">
+                      <td className="py-3 sm:py-4 px-4 sm:px-8">
                         <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
                       </td>
-                      <td className="py-4 px-8">
-                        <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-28 text-sm font-light" />
+                      <td className="py-3 sm:py-4 px-4 sm:px-8">
+                        <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
                       </td>
-                      <td className="py-4 px-8 text-right space-x-1">
+                      <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1">
                         <Button size="sm" variant="ghost" onClick={saveEdit} className="text-primary/60 hover:text-primary hover:bg-primary/5 h-7 w-7 p-0"><Save className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="text-white/25 hover:text-white/50 h-7 w-7 p-0"><X className="h-3.5 w-3.5" /></Button>
                       </td>
                     </>
                   ) : (
                     <>
-                      <td className="py-5 px-8 text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</td>
-                      <td className="py-5 px-8 text-foreground/60 font-extralight text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
-                      <td className="py-5 px-8 text-right space-x-1">
+                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</td>
+                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
+                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
                         <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => deleteModel(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </td>

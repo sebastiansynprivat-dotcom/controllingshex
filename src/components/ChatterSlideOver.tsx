@@ -226,17 +226,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="fixed top-0 right-0 bottom-0 w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)]"
+          className="fixed top-0 right-0 bottom-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)]"
         >
           <div
             ref={scrollRef}
             className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
           >
-            <div className="p-10 pb-16 space-y-12">
+            <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
               {/* ── 1. Header ── */}
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-[26px] font-light tracking-tight gold-text">{displayName}</h2>
+                  <h2 className="text-xl sm:text-[26px] font-light tracking-tight gold-text">{displayName}</h2>
                   <p className="text-[11px] text-white/20 mt-1.5 font-light tracking-[0.15em] uppercase">{platform} · Performance-Profil</p>
                 </div>
                 <button
@@ -349,20 +349,23 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-5">Verlauf</p>
                     <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] overflow-hidden">
-                      <div className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.05]">
-                        {["Datum", "Umsatz", "Chats", "Verzug", "DMs"].map((h) => (
+                      <div className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.05]">
+                        {["Datum", "Umsatz", "DMs"].map((h) => (
                           <span key={h} className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light">{h}</span>
+                        ))}
+                        {["Chats", "Verzug"].map((h) => (
+                          <span key={h} className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light hidden sm:block">{h}</span>
                         ))}
                       </div>
                       {[...history].reverse().map((row, i) => (
-                        <div key={i} className="grid grid-cols-5 px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
+                        <div key={i} className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
                           <span className="text-xs text-white/40 font-light">{formatDate(row.analysis_date)}</span>
                           <span className="text-xs font-light gold-text">{formatCurrency(row.revenue_today)}</span>
-                          <span className="text-xs text-white/35 font-light">{row.open_chats}</span>
-                          <span className={`text-xs font-light ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
+                          <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
+                          <span className="text-xs text-white/35 font-light hidden sm:block">{row.open_chats}</span>
+                          <span className={`text-xs font-light hidden sm:block ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
                             {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
                           </span>
-                          <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
                         </div>
                       ))}
                     </div>

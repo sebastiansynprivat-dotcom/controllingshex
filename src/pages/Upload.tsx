@@ -334,10 +334,10 @@ export default function UploadPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-5xl mx-auto space-y-12 p-8 lg:p-12"
+            className="max-w-5xl mx-auto space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
             <div className="space-y-3">
-              <h1 className="text-3xl font-extralight tracking-tight text-foreground">Upload & Analyse</h1>
+              <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">Upload & Analyse</h1>
               <p className="text-white/30 text-sm font-light tracking-wide">
                 Datei hochladen, KI-Analyse starten — Reports werden automatisch gespeichert.
               </p>
@@ -348,7 +348,7 @@ export default function UploadPage() {
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
-              className={`relative rounded-2xl p-20 text-center transition-all duration-700 cursor-pointer ${
+              className={`relative rounded-2xl p-10 sm:p-20 text-center transition-all duration-700 cursor-pointer ${
                 dragOver ? "bg-white/[0.03] border border-primary/15 gold-glow-sm"
                   : file ? "bg-white/[0.02] border border-white/[0.06]"
                     : "bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.025]"

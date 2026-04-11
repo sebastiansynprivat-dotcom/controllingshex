@@ -430,7 +430,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       </div>
 
       {/* Filter Pills — static, always show all categories */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
         <Filter className="h-3 w-3 text-white/15 mr-1" />
         {categories.map((cat) => {
             const isActive = activeFilters.has(cat.categoryName);
@@ -439,7 +439,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               <button
                 key={cat.categoryName}
                 onClick={() => toggleFilter(cat.categoryName)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-light transition-all duration-500 border tracking-wide ${
+                className={`inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-light transition-all duration-500 border tracking-wide ${
                   isActive
                     ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_12px_-3px_hsl(var(--primary)/0.25)]"
                     : isEmpty
@@ -487,9 +487,9 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
 
   return (
     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
-      <div className="px-8 py-6 border-b border-white/[0.04] flex items-center gap-3">
-        <span className="text-lg">{category.emoji}</span>
-        <h3 className="text-lg font-medium tracking-wide gold-text">{category.categoryName}</h3>
+      <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-white/[0.04] flex items-center gap-3">
+        <span className="text-base sm:text-lg">{category.emoji}</span>
+        <h3 className="text-base sm:text-lg font-medium tracking-wide gold-text">{category.categoryName}</h3>
         <span className="ml-auto text-[10px] text-white/20 font-light tracking-wider">
           {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
         </span>
@@ -543,11 +543,11 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
 
   return (
     <div
-      className="px-8 py-6 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer group"
+      className="px-4 sm:px-8 py-4 sm:py-6 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer group"
       onClick={() => onChatterClick(formattedName)}
     >
-      {/* Row 1: Main info in a clean grid */}
-      <div className="flex items-center gap-5">
+      {/* Row 1: Main info */}
+      <div className="flex items-center gap-3 sm:gap-5">
         {/* Score Ring */}
         <ScoreRing score={stats?.score ?? 0} initials={initials} />
 
@@ -555,7 +555,7 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <button onClick={copyName} className="group/name flex items-center gap-1.5 text-left">
-              <span className="text-sm font-medium text-foreground/90 tracking-wide group-hover/name:underline underline-offset-4 decoration-primary/30 transition-all duration-300">
+              <span className="text-sm font-medium text-foreground/90 tracking-wide group-hover/name:underline underline-offset-4 decoration-primary/30 transition-all duration-300 truncate">
                 {formattedName}
               </span>
               {nameCopied ? (
@@ -565,37 +565,39 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
               )}
             </button>
           </div>
-          <p className="text-[11px] text-white/20 mt-0.5 font-light">
+          <p className="text-[11px] text-white/20 mt-0.5 font-light truncate">
             {chatter.account || "Kein Account zugewiesen"}
             {chatter.startDate && ` · ${chatter.startDate}`}
           </p>
         </div>
 
-        {/* Sparkline — tiny, no axes */}
+        {/* Sparkline — hidden on mobile */}
         {sparkData.length >= 2 && (
-          <Sparkline data={sparkData} width={64} height={28} />
+          <div className="hidden sm:block">
+            <Sparkline data={sparkData} width={64} height={28} />
+          </div>
         )}
 
         {/* Revenue + Trend */}
         {revenueEntry && (
-          <div className="shrink-0 flex items-center gap-2 min-w-[100px] justify-end">
-            <span className="text-base font-light gold-text tracking-tight">{revenueEntry[1]}</span>
+          <div className="shrink-0 flex items-center gap-1.5 sm:gap-2 min-w-[80px] sm:min-w-[100px] justify-end">
+            <span className="text-sm sm:text-base font-light gold-text tracking-tight">{revenueEntry[1]}</span>
             {stats && <TrendIcon trend={stats.trend} />}
           </div>
         )}
 
-        {/* Ghost-Chat stat */}
+        {/* Ghost-Chat stat — hidden on mobile */}
         {ghostChats && (
-          <div className="shrink-0 hidden md:block">
+          <div className="shrink-0 hidden lg:block">
             <span className="text-[11px] text-white/25 font-light tracking-wide">{ghostChats}</span>
           </div>
         )}
       </div>
 
-      {/* Row 2: KPIs (excluding revenue already shown) + Recommendation */}
-      <div className="ml-[60px] mt-4 flex flex-col lg:flex-row lg:items-start gap-4">
+      {/* Row 2: KPIs + Recommendation */}
+      <div className="ml-[52px] sm:ml-[60px] mt-3 sm:mt-4 flex flex-col lg:flex-row lg:items-start gap-3 sm:gap-4">
         {/* Other KPIs */}
-        <div className="flex flex-wrap gap-x-6 gap-y-2 flex-1">
+        <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-1.5 sm:gap-y-2 flex-1">
           {kpiEntries
             .filter(([, v]) => !isMoneyValue(v))
             .map(([label, value]) => (
@@ -608,7 +610,7 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
 
         {/* Recommendation */}
         {chatter.recommendation && (
-          <div className="lg:max-w-xs shrink-0 border-l border-primary/15 pl-4">
+          <div className="lg:max-w-xs shrink-0 border-l border-primary/15 pl-3 sm:pl-4">
             <p className="text-xs leading-relaxed text-white/35 font-light italic">{chatter.recommendation}</p>
           </div>
         )}
