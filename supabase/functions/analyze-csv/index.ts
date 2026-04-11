@@ -7,14 +7,11 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL_NAME = "google/gemini-2.5-flash";
-const TIMEOUT_MS = 240000;
+const BATCH_SIZE = 50;
+const TIMEOUT_MS = 180000;
 
 function repairJsonString(value: string): string {
-  // Remove trailing incomplete key-value pairs (e.g. "key": "val)
-  let s = value.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "");
-  // Remove trailing commas before closing brackets
-  s = s.replace(/,\s*$/, "");
-  
+  let s = value.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "").replace(/,\s*$/, "");
   let braces = 0, brackets = 0, inString = false, escaped = false;
   for (const char of s) {
     if (escaped) { escaped = false; continue; }
@@ -26,7 +23,6 @@ function repairJsonString(value: string): string {
     if (char === "[") brackets++;
     if (char === "]") brackets--;
   }
-  // If we're inside a string, close it
   if (inString) s += '"';
   while (brackets > 0) { s = s.replace(/,\s*$/, "") + "]"; brackets--; }
   while (braces > 0) { s = s.replace(/,\s*$/, "") + "}"; braces--; }
@@ -40,20 +36,90 @@ function cleanAndParseJson(raw: string): any {
   const jsonEnd = cleaned.lastIndexOf("}");
   cleaned = jsonEnd > jsonStart ? cleaned.substring(jsonStart, jsonEnd + 1) : cleaned.substring(jsonStart);
   cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, " ");
-  // Fix unescaped newlines inside strings
-  cleaned = cleaned.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
-    return match.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
-  });
   try { return JSON.parse(cleaned); }
   catch {
     try { return JSON.parse(repairJsonString(cleaned)); }
-    catch (e2) {
-      console.error("[analyze-csv] Repair also failed, trying aggressive cleanup");
-      // Last resort: extract what we can
-      const aggressive = repairJsonString(cleaned.replace(/[\u0000-\u001F]/g, ""));
-      return JSON.parse(aggressive);
+    catch { return JSON.parse(repairJsonString(cleaned.replace(/[\u0000-\u001F]/g, ""))); }
+  }
+}
+
+function splitCsvIntoBatches(csvData: string, batchSize: number): { header: string; batches: string[][] } {
+  const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return { header: lines[0] || "", batches: [] };
+  const header = lines[0];
+  const dataLines = lines.slice(1);
+  const batches: string[][] = [];
+  for (let i = 0; i < dataLines.length; i += batchSize) {
+    batches.push(dataLines.slice(i, i + batchSize));
+  }
+  return { header, batches };
+}
+
+async function analyzeBatch(
+  lovableApiKey: string,
+  systemPrompt: string,
+  header: string,
+  batchLines: string[],
+  activePlatform: string,
+  modelsText: string,
+  batchNum: number,
+  totalBatches: number,
+): Promise<any> {
+  const batchCsv = [header, ...batchLines].join("\n");
+  const userMessage = `Plattform: ${activePlatform}\nBatch ${batchNum}/${totalBatches} (${batchLines.length} Chatter)\n\nCSV-Daten:\n\n${batchCsv}\n\nModels (${activePlatform}):\n${modelsText}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 16384,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`AI error ${response.status}: ${errText.substring(0, 200)}`);
+    }
+
+    const aiResult = await response.json();
+    const resultText = aiResult.choices?.[0]?.message?.content || "";
+    console.log(`[analyze-csv] Batch ${batchNum}/${totalBatches}: ${resultText.length} chars`);
+    return cleanAndParseJson(resultText);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") throw new Error(`Batch ${batchNum} timeout`);
+    throw err;
+  }
+}
+
+function mergeResults(results: any[]): any {
+  const categoryMap = new Map<string, any>();
+  for (const result of results) {
+    for (const cat of result.categories || []) {
+      const key = cat.categoryName;
+      if (categoryMap.has(key)) {
+        categoryMap.get(key).chatters.push(...(cat.chatters || []));
+      } else {
+        categoryMap.set(key, { ...cat, chatters: [...(cat.chatters || [])] });
+      }
     }
   }
+  return { categories: Array.from(categoryMap.values()) };
 }
 
 Deno.serve(async (req) => {
@@ -83,17 +149,10 @@ Deno.serve(async (req) => {
     const validPlatforms = ["Maloum", "Brezzels", "FansyMe"];
     const activePlatform = validPlatforms.includes(platform) ? platform : "Maloum";
 
-    const { data: models } = await supabase
-      .from("models")
-      .select("model_name, follower_count")
-      .eq("platform", activePlatform);
+    const { data: models } = await supabase.from("models").select("model_name, follower_count").eq("platform", activePlatform);
+    const modelsText = models?.length ? models.map((m: any) => `${m.model_name}: ${m.follower_count} Follower`).join("\n") : "Keine Models vorhanden.";
 
-    const modelsText = models && models.length > 0
-      ? models.map((m: any) => `${m.model_name}: ${m.follower_count} Follower`).join("\n")
-      : "Keine Models vorhanden.";
-
-    const { data: promptData } = await supabase
-      .from("settings").select("value").eq("key", "system_prompt").single();
+    const { data: promptData } = await supabase.from("settings").select("value").eq("key", "system_prompt").single();
     const userSystemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
 
     const formatInstructions = `
@@ -133,86 +192,55 @@ Regeln:
 - "recommendation" ist die konkrete Handlungsempfehlung nach der Formel: [Daten-Fakt] + [Insight] + [Konkretes To-Do].
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
 - Antworte mit NICHTS außer dem JSON.
-
-CRITICAL: Include EVERY SINGLE CHATTER. DO NOT skip anyone.`;
+- CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
     const systemPrompt = userSystemPrompt + formatInstructions;
-    const userMessage = `Plattform: ${activePlatform}\n\nCSV-Daten:\n\n${csvData}\n\nModels (${activePlatform}):\n${modelsText}`;
 
-    console.log(`[analyze-csv] Sende an ${MODEL_NAME}…`);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    // Split CSV into batches
+    const { header, batches } = splitCsvIntoBatches(csvData, BATCH_SIZE);
+    const totalEntries = batches.reduce((s, b) => s + b.length, 0);
+    const totalBatches = batches.length;
+    console.log(`[analyze-csv] ${totalEntries} Chatter in ${totalBatches} Batches à ${BATCH_SIZE}`);
 
-    let response: Response;
-    try {
-      const attempt = await fetch(AI_GATEWAY_URL, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: MODEL_NAME,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
-          max_tokens: 32768,
-          response_format: { type: "json_object" },
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (!attempt.ok) {
-        const errText = await attempt.text();
-        console.error(`[analyze-csv] ${MODEL_NAME} (${attempt.status}): ${errText.substring(0, 300)}`);
-        if (attempt.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit erreicht." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (attempt.status === 402) {
-          return new Response(JSON.stringify({ error: "AI-Credits aufgebraucht." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        return new Response(JSON.stringify({ error: `${MODEL_NAME} Fehler (${attempt.status})` }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      response = attempt;
-      console.log(`[analyze-csv] ${MODEL_NAME} ✓`);
-    } catch (fetchErr: any) {
-      clearTimeout(timeoutId);
-      if (fetchErr.name === "AbortError") {
-        return new Response(JSON.stringify({ error: `Timeout nach ${TIMEOUT_MS / 1000}s.` }), {
-          status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw fetchErr;
-    }
-
-    const aiResult = await response.json();
-    const resultText = aiResult.choices?.[0]?.message?.content || "";
-    console.log(`[analyze-csv] Response: ${resultText.length} chars`);
-
-    let parsed;
-    try {
-      parsed = cleanAndParseJson(resultText);
-    } catch (parseErr) {
-      console.error("[analyze-csv] JSON parse failed:", parseErr);
-      console.error("[analyze-csv] Raw (first 300):", resultText.substring(0, 300));
-      return new Response(JSON.stringify({ result: null, error: "JSON konnte nicht gelesen werden.", rawResponse: resultText.substring(0, 500) }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (totalBatches === 0) {
+      return new Response(JSON.stringify({ error: "Keine Daten gefunden." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Process batches sequentially
+    const batchResults: any[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < totalBatches; i++) {
+      try {
+        console.log(`[analyze-csv] Starte Batch ${i + 1}/${totalBatches} (${batches[i].length} Chatter)…`);
+        const result = await analyzeBatch(lovableApiKey, systemPrompt, header, batches[i], activePlatform, modelsText, i + 1, totalBatches);
+        batchResults.push(result);
+        const chattersInBatch = (result.categories || []).reduce((s: number, c: any) => s + (c.chatters?.length || 0), 0);
+        console.log(`[analyze-csv] Batch ${i + 1} ✓ → ${chattersInBatch} Chatter`);
+      } catch (err: any) {
+        console.error(`[analyze-csv] Batch ${i + 1} failed:`, err.message);
+        errors.push(`Batch ${i + 1}: ${err.message}`);
+      }
+    }
+
+    if (batchResults.length === 0) {
+      return new Response(JSON.stringify({ error: `Alle Batches fehlgeschlagen: ${errors.join("; ")}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Merge all batch results
+    const merged = mergeResults(batchResults);
+    const totalChatters = merged.categories.reduce((s: number, c: any) => s + c.chatters.length, 0);
+    console.log(`[analyze-csv] Merged: ${totalChatters} Chatter in ${merged.categories.length} Kategorien (${errors.length} Batch-Fehler)`);
 
     // Save to chatter_history
     try {
       const today = new Date().toISOString().split("T")[0];
       const rows: any[] = [];
-      for (const cat of parsed.categories || []) {
+      for (const cat of merged.categories || []) {
         for (const chatter of cat.chatters || []) {
           const name = (chatter.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
           const kpis = chatter.kpis || {};
@@ -242,7 +270,10 @@ CRITICAL: Include EVERY SINGLE CHATTER. DO NOT skip anyone.`;
       console.error("[analyze-csv] History save error:", saveErr);
     }
 
-    return new Response(JSON.stringify({ result: parsed }), {
+    return new Response(JSON.stringify({
+      result: merged,
+      batchInfo: { total: totalBatches, succeeded: batchResults.length, failed: errors.length, totalChatters, inputRows: totalEntries },
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {

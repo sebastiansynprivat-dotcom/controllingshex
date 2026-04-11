@@ -127,12 +127,14 @@ export default function Dashboard() {
 
       const lines = csvData.split("\n").filter((l) => l.trim());
       if (lines.length < 2) throw new Error("Keine Daten in der Datei gefunden.");
-      addStatus(`✅ ${lines.length - 1} Datensätze erkannt.`);
+      const chatterCount = lines.length - 1;
+      const batchCount = Math.ceil(chatterCount / 50);
+      addStatus(`✅ ${chatterCount} Chatter erkannt → ${batchCount} Batch${batchCount > 1 ? "es" : ""}`);
 
       if (cancelledRef.current) return;
 
-      addStatus("[Step 2/3] KI-Analyse läuft…");
-      setProgress({ current: 2, total: 3, step: "KI analysiert" });
+      addStatus(`[Step 2/3] KI-Analyse läuft (${batchCount} Batch${batchCount > 1 ? "es" : ""})…`);
+      setProgress({ current: 2, total: 3, step: `KI analysiert (${batchCount} Batches)` });
       addStatus("🧠 Sende Daten an Lovable AI…");
 
       const response = await fetch(
@@ -167,7 +169,14 @@ export default function Dashboard() {
       setProgress({ current: 3, total: 3, step: "Fertig" });
 
       const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
+      const bi = data?.batchInfo;
+      if (bi) {
+        addStatus(`📊 ${bi.succeeded}/${bi.total} Batches erfolgreich (${bi.inputRows} Input → ${bi.totalChatters} Output)`);
+      }
       addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
+      if (bi && bi.totalChatters < bi.inputRows) {
+        addStatus(`⚠️ ${bi.inputRows - bi.totalChatters} Chatter fehlen – ggf. erneut versuchen.`);
+      }
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() }));
