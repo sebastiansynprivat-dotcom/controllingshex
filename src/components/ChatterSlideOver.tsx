@@ -157,7 +157,68 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
     });
   }, [open, chatterName, platform]);
 
-  const saveNote = async () => {
+  // Fetch labels
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("chatter_labels")
+      .select("id, label_name, color")
+      .eq("platform", platform)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => setAllLabels((data as ChatterLabel[]) || []));
+
+    if (!chatterName) return;
+    supabase
+      .from("chatter_label_assignments")
+      .select("label_id")
+      .eq("chatter_name", chatterName)
+      .eq("platform", platform)
+      .then(({ data }) => {
+        setAssignedLabelIds(new Set((data || []).map((r: any) => r.label_id)));
+      });
+  }, [open, chatterName, platform]);
+
+  const createLabel = async () => {
+    if (!newLabelName.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("chatter_labels")
+      .insert({ user_id: user.id, platform, label_name: newLabelName.trim(), color: newLabelColor })
+      .select("id, label_name, color")
+      .single();
+    if (error) { toast.error("Label konnte nicht erstellt werden."); return; }
+    if (data) {
+      setAllLabels((prev) => [...prev, data as ChatterLabel]);
+      setNewLabelName("");
+      setShowNewLabel(false);
+      toast.success("Label erstellt");
+    }
+  };
+
+  const toggleLabel = async (labelId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const isAssigned = assignedLabelIds.has(labelId);
+    if (isAssigned) {
+      setAssignedLabelIds((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
+      await supabase.from("chatter_label_assignments").delete()
+        .eq("chatter_name", chatterName).eq("platform", platform).eq("label_id", labelId);
+    } else {
+      setAssignedLabelIds((prev) => new Set(prev).add(labelId));
+      await supabase.from("chatter_label_assignments")
+        .insert({ user_id: user.id, chatter_name: chatterName, platform, label_id: labelId });
+    }
+  };
+
+  const deleteLabel = async (labelId: string) => {
+    await supabase.from("chatter_labels").delete().eq("id", labelId);
+    setAllLabels((prev) => prev.filter((l) => l.id !== labelId));
+    setAssignedLabelIds((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
+    toast.success("Label gelöscht");
+  };
+
+
     if (!noteText.trim()) return;
     setSavingNote(true);
     const { data, error } = await supabase
