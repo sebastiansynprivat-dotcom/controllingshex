@@ -1,33 +1,22 @@
 
 
-## Filter visuell aufwerten (Desktop)
+## Alte Daten bereinigen & Tag 1 = heute setzen
 
 ### Problem
-Die 20+ Kategorie-Filter-Pills sind alle gleichförmig in einer langen, umbrechen Reihe angezeigt — unstrukturiert und schwer zu scannen.
+In der `chatter_history` liegen 199 Einträge für Maloum vom 03.04.2026 — also alte Test-/Vorgängerdaten. Das verfälscht Trends, Onboarding-Zählung und das Performance-Profil. Die AI im `analyze-csv` bekommt diese alten Daten als Historie und zieht falsche Schlüsse.
 
-### Lösung
-Die Filter visuell in logische Gruppen gliedern und das Design aufwerten:
+### Was passiert
 
-**1. Gruppierung nach Dringlichkeit**
-Die Pills werden in 4 visuelle Gruppen mit dezenten Trennlinien aufgeteilt:
-- **Kritisch** (rot-getönt): WARNUNG, 0€ UMSATZ TAG 1-7+
-- **Achtung** (orange-getönt): ACCOUNT-EINBRUCH, COACHING/ENGERE KONTROLLE
-- **Info** (blau-getönt): ONBOARDING TAG 1-5, MODEL-TAUSCH, VIDEO-COACHING
-- **Positiv** (grün-getönt): BREAKOUT-STAR, ACCOUNT UPGRADE, KURZ VOR UPGRADE, WEITER SO
+**1. Alte History-Daten löschen (Datenbank)**
+- Alle `chatter_history`-Einträge mit `analysis_date < '2026-04-11'` werden gelöscht
+- Damit ist heute der erste Tag mit echten Daten
+- Verwendung: Supabase Insert-Tool mit DELETE-Statement
 
-**2. Visuelles Redesign der Pills**
-- Jeder Pill bekommt einen subtilen farbigen Punkt (4px dot) passend zur Gruppe statt nur Emoji
-- Emoji bleibt, aber der Pill-Hintergrund wird leicht nach Gruppenfarbe getönt (z.B. `bg-red-500/[0.03]` für kritische)
-- Aktiver Pill: stärkere Farbe der Gruppe statt einheitliches Primary-Gold
-- Leere Kategorien (0 Chatters) werden kompakter dargestellt oder ausgeblendet
+**2. Keine Code-Änderungen nötig**
+- Die `analyze-csv` Edge Function lädt bereits nur die letzten 14 Tage History — ab jetzt gibt es nur Daten ab heute
+- Das Performance-Profil in `ChatterSlideOver` zeigt dann korrekt nur die echten Daten
+- Wenn ein Chatter nur einen Datenpunkt hat, wird dieser als Startpunkt genutzt (das funktioniert bereits so)
 
-**3. Layout-Verbesserung**
-- Gruppen werden jeweils in einer eigenen Zeile dargestellt mit einem kleinen Label links (z.B. "Kritisch", "Info")
-- Oder: Ein 2-Spalten-Grid auf Desktop für bessere Raumnutzung
-- "Alle anzeigen" / "Zurücksetzen" Button wenn ein Filter aktiv ist
-
-### Datei
-- `src/components/CategoryResultCards.tsx` — Nur die Desktop-Filter-Sektion (Zeile 475-499) wird umgebaut
-
-### Keine DB-Änderungen nötig
+### Zusammenfassung
+Ein einziger DELETE-Befehl bereinigt die Altdaten. Ab heute zählt Tag 1 für alle Plattformen.
 
