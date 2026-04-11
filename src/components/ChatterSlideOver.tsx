@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -218,7 +219,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
 
   const displayName = toTitleCase(chatterName);
 
-  return (
+  const slideOverContent = (
     <AnimatePresence>
       {open && (
         <motion.aside
@@ -226,10 +227,13 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="fixed top-0 right-0 bottom-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
+          className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
         >
           {/* ── Sticky Header ── */}
-          <div className="flex items-center justify-between px-5 sm:px-10 pt-[env(safe-area-inset-top,16px)] pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
+          <div
+            className="flex items-center justify-between px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0"
+            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
+          >
             <div className="min-w-0">
               <h2
                 onClick={() => {
@@ -256,7 +260,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
             className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
-
               {loading ? (
                 <div className="flex items-center justify-center py-24">
                   <span className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
@@ -388,4 +391,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
       )}
     </AnimatePresence>
   );
+
+  return typeof document !== "undefined" ? createPortal(slideOverContent, document.body) : slideOverContent;
 }
