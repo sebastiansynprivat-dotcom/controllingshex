@@ -495,7 +495,11 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
         </span>
       </div>
       <div className="divide-y divide-white/[0.03]">
-        {visible.map((chatter, i) => (
+        {visible.length === 0 ? (
+          <div className="px-8 py-6 text-center">
+            <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
+          </div>
+        ) : visible.map((chatter, i) => (
           <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} />
         ))}
       </div>
