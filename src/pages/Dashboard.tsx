@@ -78,7 +78,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-full min-h-0">
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={platform}
