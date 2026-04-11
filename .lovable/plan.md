@@ -1,28 +1,48 @@
 
 
-## Plan: Analyse-Ergebnisse einzeln löschen können
+## Plan: Authentifizierung mit E-Mail/Passwort + Google Login
 
-### Problem
-Wenn eine fehlerhafte Analyse hochgeladen wird, gibt es keine Möglichkeit, nur diesen einen Tag zu löschen. Man müsste manuell in die Datenbank — und riskiert, versehentlich alles zu löschen.
+### Was sich ändert
 
-### Lösung
+Nutzer müssen sich anmelden, bevor sie die App nutzen können. Alle Daten (Reports, Chatter-History, etc.) werden einem Benutzer zugeordnet und sind nur nach Login sichtbar — auch vom Handy aus.
 
-**1. "Analyse löschen"-Button auf dem Dashboard**
-- Neben dem Upload-Bereich ein Button "Heutige Analyse löschen" (nur sichtbar, wenn ein Ergebnis angezeigt wird)
-- Klick öffnet einen Bestätigungsdialog: "Möchtest du die Analyse vom [Datum] für [Plattform] wirklich löschen?"
-- Nach Bestätigung: Löscht nur die Einträge des aktuellen Tages + aktueller Plattform aus `chatter_history`
+### Schritte
 
-**2. Edge Function `delete-analysis`**
-- Neue Edge Function, die `analysis_date` und `platform` entgegennimmt
-- Löscht per SQL: `DELETE FROM chatter_history WHERE analysis_date = $date AND platform = $platform`
-- Gibt zurück, wie viele Einträge gelöscht wurden
+**1. Datenbank: `user_id` zu allen Tabellen hinzufügen**
+- Migration: `user_id UUID REFERENCES auth.users(id)` als neue Spalte zu `analysis_reports`, `chatter_history`, `coaching_notes`, `models`, `settings` hinzufügen
+- Bestehende Daten bekommen einen NULL-Wert (nullable, damit nichts kaputt geht)
+- RLS-Policies aktualisieren: Nur eigene Daten lesen/schreiben (`auth.uid() = user_id`)
 
-**3. Nach dem Löschen**
-- Dashboard-Cache (`localStorage`) wird geleert
-- UI zeigt wieder den leeren Upload-Zustand
-- Alle älteren Tage bleiben komplett unberührt
+**2. Auth-Seite erstellen**
+- Neue Seite `src/pages/Auth.tsx` mit Login/Signup-Formular (E-Mail + Passwort)
+- Google-Login-Button via Lovable Cloud OAuth
+- Passwort-Vergessen-Funktion mit Reset-Seite (`/reset-password`)
+
+**3. Auth-Context & Route-Schutz**
+- `src/contexts/AuthContext.tsx` erstellen mit `onAuthStateChange` Listener
+- Alle Routes außer `/auth` und `/reset-password` schützen (Redirect wenn nicht eingeloggt)
+- Logout-Button in der Sidebar
+
+**4. Daten an Benutzer binden**
+- Alle Supabase-Inserts (Upload, Models, Settings, etc.) um `user_id: session.user.id` erweitern
+- Alle Queries filtern automatisch per RLS
+
+**5. Edge Functions anpassen**
+- `analyze-csv`, `delete-analysis`, `save-api-key` etc.: Benutzer-ID aus Auth-Header extrahieren und bei DB-Operationen verwenden
 
 ### Dateien
-- `supabase/functions/delete-analysis/index.ts` — neue Edge Function
-- `src/pages/Dashboard.tsx` — Button + Bestätigungsdialog + Lösch-Aufruf
+
+| Datei | Aktion |
+|---|---|
+| `src/pages/Auth.tsx` | Neu — Login/Signup |
+| `src/pages/ResetPassword.tsx` | Neu — Passwort zurücksetzen |
+| `src/contexts/AuthContext.tsx` | Neu — Session-Management |
+| `src/App.tsx` | Route-Schutz + neue Routes |
+| `src/components/AppSidebar.tsx` | Logout-Button |
+| `src/pages/Upload.tsx` | `user_id` bei Inserts |
+| `src/pages/Dashboard.tsx` | Query mit Auth |
+| `src/pages/Models.tsx` | Query mit Auth |
+| `src/pages/SettingsPage.tsx` | Query mit Auth |
+| Edge Functions | Auth-Header auswerten |
+| Migration SQL | `user_id` + RLS-Policies |
 
