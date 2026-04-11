@@ -47,6 +47,17 @@ interface ChatterStats {
   score: number;
 }
 
+interface ChatterLabel {
+  id: string;
+  label_name: string;
+  color: string;
+}
+
+interface LabelAssignment {
+  chatter_name: string;
+  label_id: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  HELPERS                                                            */
 /* ------------------------------------------------------------------ */
@@ -360,6 +371,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
+  const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
+  const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -475,6 +488,23 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         if (!rows) return;
         setDailyChecks(new Set((rows as any[]).map((r) => r.chatter_name)));
       });
+
+    // Load labels and assignments
+    supabase
+      .from("chatter_labels")
+      .select("id, label_name, color")
+      .eq("platform", platform)
+      .then(({ data: rows }) => {
+        if (rows) setAllLabels(rows as ChatterLabel[]);
+      });
+
+    supabase
+      .from("chatter_label_assignments")
+      .select("chatter_name, label_id")
+      .eq("platform", platform)
+      .then(({ data: rows }) => {
+        if (rows) setLabelAssignments(rows as LabelAssignment[]);
+      });
   }, [categories, platform]);
 
   const toggleDailyCheck = useCallback(async (chatterName: string) => {
@@ -511,6 +541,19 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
     return stats;
   }, [allHistory]);
+
+  const chatterLabelsMap = useMemo(() => {
+    const map: Record<string, ChatterLabel[]> = {};
+    const labelMap = new Map(allLabels.map((l) => [l.id, l]));
+    for (const a of labelAssignments) {
+      const label = labelMap.get(a.label_id);
+      if (label) {
+        if (!map[a.chatter_name]) map[a.chatter_name] = [];
+        map[a.chatter_name].push(label);
+      }
+    }
+    return map;
+  }, [allLabels, labelAssignments]);
 
   // Single-select: click toggles one filter, clicking active deselects all
   const toggleFilter = (name: string) => {
@@ -674,7 +717,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} chatterLabelsMap={chatterLabelsMap} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -689,7 +732,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
 const INITIAL_VISIBLE = 10;
 
-function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void }) {
+function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck, chatterLabelsMap }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void; chatterLabelsMap: Record<string, ChatterLabel[]> }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const visible = category.chatters.slice(0, visibleCount);
   const hasMore = visibleCount < category.chatters.length;
@@ -711,7 +754,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
             <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
           </div>
         ) : visible.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
         ))}
       </div>
       {hasMore && (
@@ -730,7 +773,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 /*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void }) {
+function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck, labels }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void; labels?: ChatterLabel[] }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const sparkContainerRef = useRef<HTMLDivElement>(null);
@@ -814,6 +857,21 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
               </span>
             );
           })()}
+
+          {labels && labels.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {labels.map((label) => (
+                <span
+                  key={label.id}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
+                  style={{ backgroundColor: label.color + "20", borderColor: label.color + "40", color: label.color }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.color }} />
+                  {label.label_name}
+                </span>
+              ))}
+            </div>
+          )}
 
           {revenueEntry && (
             <RevenueHoverPopup history={stats?.history ?? []}>

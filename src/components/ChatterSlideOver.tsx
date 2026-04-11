@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Send } from "lucide-react";
+import { X, Send, Plus, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -28,6 +28,12 @@ interface CoachingNote {
   id: string;
   note_text: string;
   created_at: string;
+}
+
+interface ChatterLabel {
+  id: string;
+  label_name: string;
+  color: string;
 }
 
 interface Props {
@@ -98,7 +104,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   const [notes, setNotes] = useState<CoachingNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
+  const [assignedLabelIds, setAssignedLabelIds] = useState<Set<string>>(new Set());
+  const [showNewLabel, setShowNewLabel] = useState(false);
+  const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState("#3B82F6");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const LABEL_COLORS = [
+    "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
+    "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
+  ];
 
   // Auto-scroll to top when a new chatter is selected
   useEffect(() => {
@@ -140,6 +156,67 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
       setLoading(false);
     });
   }, [open, chatterName, platform]);
+
+  // Fetch labels
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("chatter_labels")
+      .select("id, label_name, color")
+      .eq("platform", platform)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => setAllLabels((data as ChatterLabel[]) || []));
+
+    if (!chatterName) return;
+    supabase
+      .from("chatter_label_assignments")
+      .select("label_id")
+      .eq("chatter_name", chatterName)
+      .eq("platform", platform)
+      .then(({ data }) => {
+        setAssignedLabelIds(new Set((data || []).map((r: any) => r.label_id)));
+      });
+  }, [open, chatterName, platform]);
+
+  const createLabel = async () => {
+    if (!newLabelName.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("chatter_labels")
+      .insert({ user_id: user.id, platform, label_name: newLabelName.trim(), color: newLabelColor })
+      .select("id, label_name, color")
+      .single();
+    if (error) { toast.error("Label konnte nicht erstellt werden."); return; }
+    if (data) {
+      setAllLabels((prev) => [...prev, data as ChatterLabel]);
+      setNewLabelName("");
+      setShowNewLabel(false);
+      toast.success("Label erstellt");
+    }
+  };
+
+  const toggleLabel = async (labelId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const isAssigned = assignedLabelIds.has(labelId);
+    if (isAssigned) {
+      setAssignedLabelIds((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
+      await supabase.from("chatter_label_assignments").delete()
+        .eq("chatter_name", chatterName).eq("platform", platform).eq("label_id", labelId);
+    } else {
+      setAssignedLabelIds((prev) => new Set(prev).add(labelId));
+      await supabase.from("chatter_label_assignments")
+        .insert({ user_id: user.id, chatter_name: chatterName, platform, label_id: labelId });
+    }
+  };
+
+  const deleteLabel = async (labelId: string) => {
+    await supabase.from("chatter_labels").delete().eq("id", labelId);
+    setAllLabels((prev) => prev.filter((l) => l.id !== labelId));
+    setAssignedLabelIds((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
+    toast.success("Label gelöscht");
+  };
 
   const saveNote = async () => {
     if (!noteText.trim()) return;
@@ -289,6 +366,79 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                         <p className={`text-xl font-light mt-2.5 ${kpi.gold ? "gold-text" : "text-foreground/70"}`}>{kpi.value}</p>
                       </div>
                     ))}
+                  </div>
+
+                  {/* ── Labels ── */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
+                        <Tag className="h-3 w-3" /> Labels
+                      </p>
+                      <button
+                        onClick={() => setShowNewLabel(!showNewLabel)}
+                        className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" /> Neu
+                      </button>
+                    </div>
+
+                    {showNewLabel && (
+                      <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
+                        <input
+                          value={newLabelName}
+                          onChange={(e) => setNewLabelName(e.target.value)}
+                          placeholder="Label-Name"
+                          className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
+                          onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                        />
+                        <div className="flex gap-2">
+                          {LABEL_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => setNewLabelColor(c)}
+                              className={`w-6 h-6 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
+                        <button
+                          onClick={createLabel}
+                          disabled={!newLabelName.trim()}
+                          className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        >
+                          Erstellen
+                        </button>
+                      </div>
+                    )}
+
+                    {allLabels.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {allLabels.map((label) => {
+                          const isAssigned = assignedLabelIds.has(label.id);
+                          return (
+                            <button
+                              key={label.id}
+                              onClick={() => toggleLabel(label.id)}
+                              onContextMenu={(e) => { e.preventDefault(); deleteLabel(label.id); }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${
+                                isAssigned
+                                  ? "border-white/20 text-white shadow-sm"
+                                  : "border-white/[0.06] text-white/30 hover:text-white/50"
+                              }`}
+                              style={isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}}
+                              title="Rechtsklick zum Löschen"
+                            >
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              {label.label_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {allLabels.length === 0 && !showNewLabel && (
+                      <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
+                    )}
                   </div>
 
                   {/* ── 30-Tage-Trend ── */}
