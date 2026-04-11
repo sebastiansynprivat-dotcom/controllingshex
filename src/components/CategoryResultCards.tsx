@@ -801,7 +801,7 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
       </div>
 
       {/* Row 3: Interactive revenue mini-chart (only when 2+ data points) */}
-      {sparkData.length >= 2 && (
+      {sparkData.length >= 1 && (
         <div className="ml-[52px] sm:ml-[60px] mt-2" ref={sparkContainerRef} onClick={(e) => e.stopPropagation()}>
           <div className="rounded-lg bg-white/[0.015] border border-white/[0.04] px-3 pt-1.5 pb-1">
             <div className="flex items-center justify-between">
