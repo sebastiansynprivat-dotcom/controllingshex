@@ -368,6 +368,79 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
                     ))}
                   </div>
 
+                  {/* ── Labels ── */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
+                        <Tag className="h-3 w-3" /> Labels
+                      </p>
+                      <button
+                        onClick={() => setShowNewLabel(!showNewLabel)}
+                        className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" /> Neu
+                      </button>
+                    </div>
+
+                    {showNewLabel && (
+                      <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
+                        <input
+                          value={newLabelName}
+                          onChange={(e) => setNewLabelName(e.target.value)}
+                          placeholder="Label-Name"
+                          className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
+                          onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                        />
+                        <div className="flex gap-2">
+                          {LABEL_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => setNewLabelColor(c)}
+                              className={`w-6 h-6 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
+                        <button
+                          onClick={createLabel}
+                          disabled={!newLabelName.trim()}
+                          className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        >
+                          Erstellen
+                        </button>
+                      </div>
+                    )}
+
+                    {allLabels.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {allLabels.map((label) => {
+                          const isAssigned = assignedLabelIds.has(label.id);
+                          return (
+                            <button
+                              key={label.id}
+                              onClick={() => toggleLabel(label.id)}
+                              onContextMenu={(e) => { e.preventDefault(); deleteLabel(label.id); }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${
+                                isAssigned
+                                  ? "border-white/20 text-white shadow-sm"
+                                  : "border-white/[0.06] text-white/30 hover:text-white/50"
+                              }`}
+                              style={isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}}
+                              title="Rechtsklick zum Löschen"
+                            >
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              {label.label_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {allLabels.length === 0 && !showNewLabel && (
+                      <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
+                    )}
+                  </div>
+
                   {/* ── 30-Tage-Trend ── */}
                   {last30.length >= 4 && (
                     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7 relative">
