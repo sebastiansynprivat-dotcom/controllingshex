@@ -223,64 +223,53 @@ function ExpandedChart({
 }
 
 export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps) {
-  const allKpis = useMemo(() => reports.map(extractKpis).reverse(), [reports]);
   const { categoryNames, timeline } = useMemo(() => extractCategoryTimeline(reports), [reports]);
-  const [expandedCard, setExpandedCard] = useState<CardKey | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [showCategories, setShowCategories] = useState(false);
 
-  const current = allKpis.length > 0 ? allKpis[allKpis.length - 1 - selectedIndex] : null;
-  const previous = allKpis.length > 1 && selectedIndex < reports.length - 1
-    ? allKpis[allKpis.length - 2 - selectedIndex]
-    : null;
-
-  if (!current) return null;
-
-  const cards: { key: CardKey; value: number }[] = [
-    { key: "chatters", value: current.chatters },
-    { key: "warnings", value: current.warnings },
-    { key: "zeroAccounts", value: current.zeroAccounts },
-  ];
-
-  // Current & previous values per category
   const currentTimelineIdx = timeline.length - 1 - selectedIndex;
   const prevTimelineIdx = currentTimelineIdx - 1;
 
+  if (categoryNames.length === 0) return null;
+
   return (
     <div className="space-y-3">
-      {/* Global KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {cards.map((card) => {
-          const meta = cardMeta[card.key];
-          const isExpanded = expandedCard === card.key;
+      {/* Per-category mini cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {categoryNames.map((catName, i) => {
+          const color = categoryColors[i % categoryColors.length];
+          const currentVal = currentTimelineIdx >= 0 ? (timeline[currentTimelineIdx]?.[catName] as number) || 0 : 0;
+          const prevVal = prevTimelineIdx >= 0 ? (timeline[prevTimelineIdx]?.[catName] as number) || 0 : 0;
+          const isExpanded = expandedCategory === catName;
+          const latestResult = isAnalysisResult(reports[0]?.result_json) ? reports[0].result_json : null;
+          const emoji = latestResult?.categories.find((c) => c.categoryName === catName)?.emoji || "";
+
           return (
             <div
-              key={card.key}
-              onClick={() => { setExpandedCard(isExpanded ? null : card.key); setExpandedCategory(null); }}
-              className={`rounded-xl border p-3 sm:p-4 space-y-2 transition-all duration-300 cursor-pointer ${
+              key={catName}
+              onClick={() => setExpandedCategory(isExpanded ? null : catName)}
+              className={`rounded-lg border p-2.5 space-y-1 transition-all duration-300 cursor-pointer ${
                 isExpanded
                   ? "border-white/20 bg-white/[0.04]"
-                  : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
+                  : "border-white/[0.04] bg-white/[0.01] hover:border-white/10"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-white/40">
-                  <meta.icon className="h-3.5 w-3.5" />
-                  <span className="text-[11px] font-medium tracking-wide uppercase">{meta.label}</span>
-                </div>
-                {previous && <TrendIcon current={card.value} previous={previous[card.key]} />}
+              <div className="flex items-center justify-between min-w-0">
+                <span className="text-[10px] text-white/35 font-medium truncate mr-1">
+                  {emoji} {catName}
+                </span>
+                {prevTimelineIdx >= 0 && <TrendIcon current={currentVal} previous={prevVal} />}
               </div>
-
-              <div className="flex items-end gap-2">
-                <span className="text-xl sm:text-2xl font-light text-foreground">{card.value}</span>
-                {previous && <DeltaBadge current={card.value} previous={previous[card.key]} invert={meta.invert} />}
+              <div className="flex items-end gap-1.5">
+                <span className="text-base font-light text-foreground">{currentVal}</span>
+                {prevTimelineIdx >= 0 && (
+                  <DeltaBadge current={currentVal} previous={prevVal} invert={false} />
+                )}
               </div>
-
-              {allKpis.length >= 3 && (
-                <div className="h-8 w-full">
+              {timeline.length >= 3 && (
+                <div className="h-6 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={allKpis}>
-                      <Line type="monotone" dataKey={card.key} stroke={meta.color} strokeWidth={1.5} dot={false} />
+                    <LineChart data={timeline}>
+                      <Line type="monotone" dataKey={catName} stroke={color} strokeWidth={1} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -289,89 +278,6 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
           );
         })}
       </div>
-
-      {/* Expanded global KPI chart */}
-      <AnimatePresence>
-        {expandedCard && (
-          <ExpandedChart
-            dataKey={expandedCard}
-            label={cardMeta[expandedCard].label}
-            color={cardMeta[expandedCard].color}
-            data={allKpis}
-            onClose={(e) => { e.stopPropagation(); setExpandedCard(null); }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Category breakdown toggle */}
-      {categoryNames.length > 0 && (
-        <button
-          onClick={() => setShowCategories(!showCategories)}
-          className="flex items-center gap-2 text-[11px] text-white/30 hover:text-white/50 transition-colors font-medium tracking-wide uppercase"
-        >
-          {showCategories ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          Kategorien-Verlauf ({categoryNames.length})
-        </button>
-      )}
-
-      {/* Per-category mini cards */}
-      <AnimatePresence>
-        {showCategories && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-              {categoryNames.map((catName, i) => {
-                const color = categoryColors[i % categoryColors.length];
-                const currentVal = currentTimelineIdx >= 0 ? (timeline[currentTimelineIdx]?.[catName] as number) || 0 : 0;
-                const prevVal = prevTimelineIdx >= 0 ? (timeline[prevTimelineIdx]?.[catName] as number) || 0 : 0;
-                const isExpanded = expandedCategory === catName;
-                // Find emoji from latest report
-                const latestResult = isAnalysisResult(reports[0]?.result_json) ? reports[0].result_json : null;
-                const emoji = latestResult?.categories.find((c) => c.categoryName === catName)?.emoji || "";
-
-                return (
-                  <div
-                    key={catName}
-                    onClick={() => { setExpandedCategory(isExpanded ? null : catName); setExpandedCard(null); }}
-                    className={`rounded-lg border p-2.5 space-y-1 transition-all duration-300 cursor-pointer ${
-                      isExpanded
-                        ? "border-white/20 bg-white/[0.04]"
-                        : "border-white/[0.04] bg-white/[0.01] hover:border-white/10"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between min-w-0">
-                      <span className="text-[10px] text-white/35 font-medium truncate mr-1">
-                        {emoji} {catName}
-                      </span>
-                      {prevTimelineIdx >= 0 && <TrendIcon current={currentVal} previous={prevVal} />}
-                    </div>
-                    <div className="flex items-end gap-1.5">
-                      <span className="text-base font-light text-foreground">{currentVal}</span>
-                      {prevTimelineIdx >= 0 && (
-                        <DeltaBadge current={currentVal} previous={prevVal} invert={false} />
-                      )}
-                    </div>
-                    {timeline.length >= 3 && (
-                      <div className="h-6 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={timeline}>
-                            <Line type="monotone" dataKey={catName} stroke={color} strokeWidth={1} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Expanded category chart */}
       <AnimatePresence>
