@@ -151,7 +151,7 @@ export default function TrendWidget({ reports, selectedIndex }: TrendWidgetProps
 
       {/* Expanded detail chart */}
       <AnimatePresence>
-        {expandedCard && allKpis.length >= 2 && (
+        {expandedCard && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
