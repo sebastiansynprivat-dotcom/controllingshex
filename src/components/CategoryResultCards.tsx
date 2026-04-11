@@ -800,26 +800,26 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
         )}
       </div>
 
-      {/* Row 3: Interactive revenue mini-chart */}
-      {sparkData.length >= 1 && (
-        <div className="ml-[52px] sm:ml-[60px] mt-3" ref={sparkContainerRef} onClick={(e) => e.stopPropagation()}>
-          <div className="rounded-lg bg-white/[0.015] border border-white/[0.04] px-3 py-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] uppercase tracking-[0.15em] text-white/15 font-light">Umsatz (14 Tage)</span>
+      {/* Row 3: Interactive revenue mini-chart (only when 2+ data points) */}
+      {sparkData.length >= 2 && (
+        <div className="ml-[52px] sm:ml-[60px] mt-2" ref={sparkContainerRef} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-lg bg-white/[0.015] border border-white/[0.04] px-3 pt-1.5 pb-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase tracking-[0.15em] text-white/15 font-light">Umsatz ({sparkData.length}d)</span>
               {stats && (
                 <div className="flex items-center gap-1">
                   <TrendIcon trend={stats.trend} />
                   <span className={`text-[10px] font-light ${stats.trend === "up" ? "text-primary/60" : stats.trend === "down" ? "text-[#B76E64]/60" : "text-white/20"}`}>
-                    {stats.trend === "up" ? "Aufwärts" : stats.trend === "down" ? "Abwärts" : "Stabil"}
+                    {stats.trend === "up" ? "↑" : stats.trend === "down" ? "↓" : "→"}
                   </span>
                 </div>
               )}
             </div>
-            <ResponsiveContainer width="100%" height={48}>
-              <AreaChart data={sparkData} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
+            <ResponsiveContainer width="100%" height={36}>
+              <AreaChart data={sparkData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id={`miniGrad-${formattedName.replace(/\s/g, "")}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.2} />
+                    <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.15} />
                     <stop offset="100%" stopColor="#D4AF37" stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -832,14 +832,14 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
                     const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
                     const rev = row.revenue_today.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
                     return (
-                      <div className="bg-zinc-900/95 backdrop-blur-xl border border-white/[0.08] rounded-lg px-3 py-2 shadow-xl">
+                      <div className="bg-zinc-900/95 backdrop-blur-xl border border-white/[0.08] rounded-lg px-3 py-1.5 shadow-xl">
                         <p className="text-[10px] text-white/30 font-light">{dateStr}</p>
-                        <p className="text-sm font-light gold-text">{rev}</p>
+                        <p className="text-xs font-light gold-text">{rev}</p>
                         {row.mass_dms > 0 && <p className="text-[10px] text-white/25 mt-0.5">{row.mass_dms} DMs</p>}
                       </div>
                     );
                   }}
-                  cursor={{ stroke: "rgba(212,175,55,0.2)" }}
+                  cursor={{ stroke: "rgba(212,175,55,0.15)" }}
                 />
                 <Area
                   type="monotone"
