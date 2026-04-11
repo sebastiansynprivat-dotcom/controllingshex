@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Model {
@@ -16,6 +17,7 @@ interface Model {
 
 export default function Models() {
   const { platform } = usePlatform();
+  const { user } = useAuth();
   const [models, setModels] = useState<Model[]>([]);
   const [newName, setNewName] = useState("");
   const [newFollowers, setNewFollowers] = useState("");
@@ -43,6 +45,7 @@ export default function Models() {
       model_name: newName.trim(),
       follower_count: parseInt(newFollowers) || 0,
       platform,
+      user_id: user?.id,
     });
     if (error) { toast.error("Fehler beim Hinzufügen"); return; }
     toast.success(`Model hinzugefügt`);
