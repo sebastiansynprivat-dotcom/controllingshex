@@ -1,27 +1,26 @@
 
 
-## Custom Labels für Chatter
+## Label-Filter im Dashboard
 
-Frei wählbare Tags (z.B. "Fokus", "Probephase", "Talent") die du selbst erstellen und einzelnen Chattern zuweisen kannst — mehrere pro Chatter möglich.
+Erweitert die bestehenden Kategorie-Filter um einen Label-Filter, der kombiniert funktioniert.
 
-### Was gebaut wird
+### Was sich ändert
 
-1. **Neue Datenbank-Tabelle `chatter_labels`** — speichert die verfügbaren Labels pro User (Name + Farbe)
-2. **Neue Datenbank-Tabelle `chatter_label_assignments`** — verknüpft Labels mit Chattern (many-to-many)
-3. **Label-Badge auf der Chatter-Karte** — kleine farbige Tags direkt unter dem Namen sichtbar
-4. **Label-Verwaltung im ChatterSlideOver** — Labels zuweisen/entfernen wenn man einen Chatter öffnet, plus neue Labels erstellen
-5. **Filter nach Labels** — im bestehenden Filter-Dropdown auch nach Labels filtern können
+1. **Neuer State `activeLabelFilters`** — ein `Set<string>` mit Label-IDs, analog zu `activeFilters` für Kategorien
+2. **Label-Filter-Zeile im Desktop-Filter** — neue Gruppe "Labels" unterhalb der Kategorie-Gruppen mit farbigen Pills für jedes erstellte Label
+3. **Label-Filter im Mobile-Dropdown** — Labels als zusätzliche Optionen im bestehenden `<Select>`
+4. **Kombinierte Filterlogik** — `visibleCategories` berücksichtigt beide Filter gleichzeitig:
+   - Kategorie-Filter: zeigt nur passende Kategorien
+   - Label-Filter: zeigt nur Chatter mit dem gewählten Label (filtert innerhalb der Kategorien)
+   - Beide aktiv: Schnittmenge (Kategorie UND Label müssen passen)
 
 ### Technische Details
 
-**Migration SQL:**
-- `chatter_labels`: id, user_id, platform, label_name, color (hex), created_at — mit RLS
-- `chatter_label_assignments`: id, user_id, chatter_name, platform, label_id (FK), created_at — mit RLS
-
-**UI-Änderungen:**
-- `CategoryResultCards.tsx`: Labels laden und als kleine farbige Badges unter dem Chatter-Namen anzeigen
-- `ChatterSlideOver.tsx`: Neuer Abschnitt "Labels" mit Dropdown zum Zuweisen + kleines Formular zum Erstellen neuer Labels (Name + Farbauswahl)
-- Optional: Filter-Erweiterung um Label-basierte Filterung
-
-**Farbauswahl:** 6-8 vordefinierte Farben zur Auswahl (Rot, Blau, Grün, Gelb, Lila, Orange, Pink, Türkis)
+**`CategoryResultCards.tsx`:**
+- Neuer State: `const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set())`
+- `visibleCategories`-Logik erweitern: wenn Label-Filter aktiv, Chatters pro Kategorie filtern nach `chatterLabelsMap`, leere Kategorien ausblenden
+- Neue Filter-Gruppe "Labels" im Desktop-Filter-Panel mit farbigen Pills (Farbe aus Label)
+- Mobile-Select erweitern um Label-Einträge (mit farbigem Dot)
+- "Zurücksetzen" setzt beide Filter zurück
+- Label-Filter ist Multi-Select (mehrere Labels gleichzeitig = ODER-Verknüpfung)
 
