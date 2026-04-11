@@ -185,13 +185,26 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   const avgDMs = history.length ? Math.round(history.reduce((s, r) => s + r.mass_dms, 0) / history.length) : 0;
   const avgChats = history.length ? (history.reduce((s, r) => s + r.open_chats, 0) / history.length).toFixed(1) : "0";
   
-  // Only compute delay average from rows that actually have delay > 0
   const avgDelay = history.length
     ? (() => {
         const withDelay = history.filter((r) => r.response_delay_days > 0);
         return withDelay.length ? (withDelay.reduce((s, r) => s + r.response_delay_days, 0) / withDelay.length).toFixed(1) : "0";
       })()
     : "0";
+
+  const last30 = useMemo(() => history.slice(-30), [history]);
+  const trend30 = useMemo(() => {
+    if (last30.length < 4) return { pct: 0, direction: "stable" as const };
+    const half = Math.floor(last30.length / 2);
+    const first = last30.slice(0, half);
+    const second = last30.slice(half);
+    const avgFirst = first.reduce((s, r) => s + r.revenue_today, 0) / first.length;
+    const avgSecond = second.reduce((s, r) => s + r.revenue_today, 0) / second.length;
+    if (avgFirst === 0) return { pct: 0, direction: "stable" as const };
+    const pct = ((avgSecond - avgFirst) / avgFirst) * 100;
+    const direction = pct > 5 ? "up" as const : pct < -5 ? "down" as const : "stable" as const;
+    return { pct: Math.round(pct), direction };
+  }, [last30]);
 
   const ghostSummary = useMemo(() => {
     if (history.length < 2) return null;
