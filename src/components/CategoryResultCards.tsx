@@ -276,6 +276,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
+  const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
 
   // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
@@ -362,6 +363,21 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           });
         }
         setAllHistory(grouped);
+      });
+
+    // Load latest video coaching per chatter
+    supabase
+      .from("video_coachings")
+      .select("chatter_name, sent_at")
+      .eq("platform", platform)
+      .order("sent_at", { ascending: false })
+      .then(({ data: rows }) => {
+        if (!rows) return;
+        const latest: Record<string, string> = {};
+        for (const r of rows as any[]) {
+          if (!latest[r.chatter_name]) latest[r.chatter_name] = r.sent_at;
+        }
+        setVideoCoachings(latest);
       });
   }, [categories, platform]);
 
@@ -492,7 +508,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -507,7 +523,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
 const INITIAL_VISIBLE = 10;
 
-function CategoryCard({ category, onChatterClick, chatterStats }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats> }) {
+function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string> }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const visible = category.chatters.slice(0, visibleCount);
   const hasMore = visibleCount < category.chatters.length;
@@ -529,7 +545,7 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
             <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
           </div>
         ) : visible.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} />
         ))}
       </div>
       {hasMore && (
@@ -548,7 +564,7 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
 /*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats }) {
+function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
@@ -599,6 +615,14 @@ function ChatterItem({ chatter, onChatterClick, stats }: { chatter: Chatter; onC
             {chatter.account || "Kein Account zugewiesen"}
             {chatter.startDate && ` · ${chatter.startDate}`}
           </p>
+          {videoCoachingSentAt && (() => {
+            const days = Math.floor((Date.now() - new Date(videoCoachingSentAt).getTime()) / 86400000);
+            return (
+              <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-purple-400/70 font-light tracking-wide">
+                📼 vor {days === 0 ? "heute" : `${days} Tag${days !== 1 ? "en" : ""}`}
+              </span>
+            );
+          })()}
 
           {revenueEntry && (
             <div className="mt-2 flex items-center gap-1.5 sm:hidden min-w-0">

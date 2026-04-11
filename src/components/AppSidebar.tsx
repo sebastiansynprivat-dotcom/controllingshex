@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Video } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Videocoaching", url: "/videocoaching", icon: Video },
   { title: "Upload", url: "/upload", icon: Upload },
   { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
   { title: "Models & Follower", url: "/models", icon: Users },
