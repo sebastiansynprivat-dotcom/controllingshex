@@ -276,6 +276,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
+  const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
 
   // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
@@ -362,6 +363,21 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           });
         }
         setAllHistory(grouped);
+      });
+
+    // Load latest video coaching per chatter
+    supabase
+      .from("video_coachings")
+      .select("chatter_name, sent_at")
+      .eq("platform", platform)
+      .order("sent_at", { ascending: false })
+      .then(({ data: rows }) => {
+        if (!rows) return;
+        const latest: Record<string, string> = {};
+        for (const r of rows as any[]) {
+          if (!latest[r.chatter_name]) latest[r.chatter_name] = r.sent_at;
+        }
+        setVideoCoachings(latest);
       });
   }, [categories, platform]);
 
