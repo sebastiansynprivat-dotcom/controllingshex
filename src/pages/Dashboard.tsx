@@ -79,6 +79,36 @@ export default function Dashboard() {
     ? (selectedReport.result_json as unknown as AnalysisResult)
     : null;
 
+  const allChatters = useMemo(() => {
+    if (!result) return [];
+    return result.categories.flatMap((cat) =>
+      cat.chatters.map((c) => ({ name: c.name, category: cat.categoryName, emoji: cat.emoji }))
+    );
+  }, [result]);
+
+  const filteredChatters = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return allChatters.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [searchQuery, allChatters]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleChatterSelect = (name: string) => {
+    setSelectedChatter(name);
+    setSearchQuery("");
+    setSearchOpen(false);
+  };
+
   return (
     <div className="flex h-full min-h-0">
       <div className="flex-1 min-w-0">
