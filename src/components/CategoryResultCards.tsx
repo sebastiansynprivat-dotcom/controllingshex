@@ -858,6 +858,21 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
             );
           })()}
 
+          {labels && labels.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {labels.map((label) => (
+                <span
+                  key={label.id}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
+                  style={{ backgroundColor: label.color + "20", borderColor: label.color + "40", color: label.color }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.color }} />
+                  {label.label_name}
+                </span>
+              ))}
+            </div>
+          )}
+
           {revenueEntry && (
             <RevenueHoverPopup history={stats?.history ?? []}>
               <div className="mt-2 flex items-center gap-1.5 sm:hidden min-w-0 cursor-default">
