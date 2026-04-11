@@ -322,11 +322,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       cat.chatters.sort((a, b) => parseRevenue(b) - parseRevenue(a));
     }
 
-    // Return only categories with chatters, ordered by ALLOWED_CATEGORIES order
+    // Return ALL categories in order, even if empty (static filter list)
     const ordered: Category[] = [];
     for (const ac of ALLOWED_CATEGORIES) {
       const entry = catMap.get(ac.name);
-      if (entry && entry.chatters.length > 0) ordered.push(entry);
+      ordered.push(entry || { emoji: ac.emoji, categoryName: ac.name, chatters: [] });
     }
     return ordered;
   }, [data]);
