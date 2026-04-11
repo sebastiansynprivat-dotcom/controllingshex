@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
