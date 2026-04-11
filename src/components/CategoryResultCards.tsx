@@ -353,8 +353,9 @@ interface CategoryResultCardsProps {
 export default function CategoryResultCards({ data, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
   
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set());
+  const [allCollapsed, setAllCollapsed] = useState(false);
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
