@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Upload, Sparkles, FileSpreadsheet, XCircle } from "lucide-react";
+import { Upload, Sparkles, FileSpreadsheet, XCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -9,6 +9,15 @@ import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface AnalysisChatter {
   name: string;
@@ -51,10 +60,47 @@ export default function Dashboard() {
   const cancelledRef = useRef(false);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const addStatus = useCallback((msg: string) => {
     const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setStatusLog((prev) => [...prev.slice(-29), `[${ts}] ${msg}`]);
   }, []);
+
+  const deleteAnalysis = async () => {
+    setDeleting(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-analysis`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ analysis_date: today, platform }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Fehler beim Löschen");
+      }
+      toast.success(`${data.deletedCount} Einträge für heute gelöscht.`);
+      localStorage.removeItem(STORAGE_KEY);
+      setResult(null);
+      setFile(null);
+      setCsvData("");
+      setStatusLog([]);
+    } catch (err: any) {
+      toast.error(err.message || "Fehler beim Löschen");
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -285,7 +331,41 @@ export default function Dashboard() {
                   </Button>
                 </motion.div>
               )}
+              {result && !loading && (
+                <Button
+                  onClick={() => setDeleteDialogOpen(true)}
+                  variant="ghost"
+                  className="py-7 px-6 rounded-xl text-red-400/70 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-500"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />Analyse löschen
+                </Button>
+              )}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <DialogContent className="bg-background border-white/10">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground">Analyse löschen?</DialogTitle>
+                  <DialogDescription className="text-white/50">
+                    Möchtest du die heutige Analyse ({new Date().toLocaleDateString("de-DE")}) für <strong className="text-foreground/80">{platform}</strong> wirklich löschen? Ältere Analysen bleiben erhalten.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="gap-2">
+                  <DialogClose asChild>
+                    <Button variant="ghost" className="text-white/50">Abbrechen</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={deleteAnalysis}
+                    disabled={deleting}
+                    variant="destructive"
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {deleting ? "Löscht…" : "Ja, löschen"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Status Log */}
             {(loading || statusLog.length > 0) && (
