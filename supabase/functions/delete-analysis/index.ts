@@ -13,6 +13,17 @@ Deno.serve(async (req) => {
   try {
     const { analysis_date, platform } = await req.json();
 
+    // Extract user_id from JWT
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        userId = payload.sub || null;
+      } catch { /* ignore */ }
+    }
+
     if (!analysis_date || !platform) {
       return new Response(
         JSON.stringify({ error: "analysis_date und platform sind erforderlich." }),
@@ -33,12 +44,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("chatter_history")
       .delete()
       .eq("analysis_date", analysis_date)
-      .eq("platform", platform)
-      .select();
+      .eq("platform", platform);
+    if (userId) query = query.eq("user_id", userId);
+    const { data, error } = await query.select();
 
     if (error) {
       console.error("Delete error:", error);

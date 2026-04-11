@@ -204,6 +204,17 @@ Deno.serve(async (req) => {
 
   try {
     const { csvData, platform } = await req.json();
+
+    // Extract user_id from JWT
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        userId = payload.sub || null;
+      } catch { /* ignore */ }
+    }
     if (!csvData || typeof csvData !== "string") {
       return new Response(JSON.stringify({ error: "csvData is required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -385,7 +396,7 @@ Regeln:
             else { openChats = parseInt((chatVal.match(/(\d+)/) || [])[1] || "0") || 0; }
           }
           if (responseDelay > 30) responseDelay = 0;
-          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null });
+          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId });
         }
       }
       if (rows.length > 0) {
