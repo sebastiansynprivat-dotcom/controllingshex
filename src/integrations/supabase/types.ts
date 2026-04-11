@@ -179,6 +179,33 @@ export type Database = {
         }
         Relationships: []
       }
+      video_coachings: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          id: string
+          platform: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          id?: string
+          platform?: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
