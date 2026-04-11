@@ -122,6 +122,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_chatter_checks: {
+        Row: {
+          chatter_name: string
+          check_date: string
+          created_at: string
+          id: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          check_date?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          check_date?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           created_at: string
