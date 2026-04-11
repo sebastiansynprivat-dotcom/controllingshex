@@ -841,10 +841,12 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
 
         {/* Revenue + Trend */}
         {revenueEntry && (
-          <div className="hidden sm:flex shrink-0 items-center gap-1.5 sm:gap-2 min-w-[80px] sm:min-w-[100px] justify-end">
-            <span className="text-sm sm:text-base font-light gold-text tracking-tight">{revenueEntry[1]}</span>
-            {stats && <TrendIcon trend={stats.trend} />}
-          </div>
+          <RevenueHoverPopup history={stats?.history ?? []}>
+            <div className="hidden sm:flex shrink-0 items-center gap-1.5 sm:gap-2 min-w-[80px] sm:min-w-[100px] justify-end cursor-default">
+              <span className="text-sm sm:text-base font-light gold-text tracking-tight">{revenueEntry[1]}</span>
+              {stats && <TrendIcon trend={stats.trend} />}
+            </div>
+          </RevenueHoverPopup>
         )}
 
         {/* Ghost-Chat stat — hidden on mobile */}
