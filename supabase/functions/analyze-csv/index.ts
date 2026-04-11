@@ -319,7 +319,7 @@ Regeln:
 - Antworte mit NICHTS außer dem JSON.
 - CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
-    const systemPrompt = userSystemPrompt + formatInstructions;
+    const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
 
     // Split CSV into batches
     const { header, batches } = splitCsvIntoBatches(csvData, BATCH_SIZE);
