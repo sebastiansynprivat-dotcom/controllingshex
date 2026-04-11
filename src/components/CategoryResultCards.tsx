@@ -63,9 +63,17 @@ const ALLOWED_CATEGORIES = [
   { emoji: "🌟", name: "BREAKOUT-STAR" },
   { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" },
   { emoji: "🚀", name: "KURZ VOR UPGRADE" },
-  { emoji: "📉", name: "0€ UMSATZ IN FOLGE" },
+  { emoji: "🟢", name: "ACCOUNT UPGRADE (TRAFFIC TEST)" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 1" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 2" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 3" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 4" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 5" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 6" },
+  { emoji: "📉", name: "0€ UMSATZ TAG 7+" },
   { emoji: "🟠", name: "WARNUNG" },
   { emoji: "📼", name: "VIDEO-COACHING" },
+  { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" },
   { emoji: "⚪", name: "WEITER SO / MITTELFELD" },
 ] as const;
 
@@ -88,21 +96,32 @@ function mapToAllowed(rawName: string): { emoji: string; name: string } {
   if (/BREAKOUT/i.test(rawName)) return { emoji: "🌟", name: "BREAKOUT-STAR" };
   if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" };
   if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "KURZ VOR UPGRADE" };
-  if (/0\s*€.*FOLGE|FOLGE.*0\s*€/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ IN FOLGE" };
-  if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
+  if (/TRAFFIC.?TEST/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (TRAFFIC TEST)" };
+  if (/COACHING.*KONTROLLE|ENGERE/i.test(rawName)) return { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" };
   if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "📼", name: "VIDEO-COACHING" };
+  if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
   if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: MITTELFELD };
+
+  // 0€ Umsatz with day number
+  const zeroMatch = rawName.match(/0\s*€.*?TAG\s*(\d+\+?)/i);
+  if (zeroMatch) {
+    const tag = zeroMatch[1];
+    if (tag.includes("+") || parseInt(tag) >= 7) return { emoji: "📉", name: "0€ UMSATZ TAG 7+" };
+    const num = parseInt(tag);
+    if (num >= 1 && num <= 6) return { emoji: "📉", name: `0€ UMSATZ TAG ${num}` };
+  }
+  if (/0\s*€.*FOLGE|FOLGE.*0\s*€|KÜNDIGUNG/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ TAG 7+" };
 
   // Onboarding with tag number
   const onboardingMatch = rawName.match(/ONBOARDING.*?TAG\s*(\d+)/i);
   if (onboardingMatch) {
     const tag = parseInt(onboardingMatch[1], 10);
     if (tag >= 1 && tag <= 5) return { emoji: "🔵", name: `ONBOARDING TAG ${tag}` };
-    return { emoji: MITTELFELD_EMOJI, name: MITTELFELD }; // Tag > 5 → Mittelfeld
+    return { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
   }
   if (/ONBOARDING/i.test(rawName)) return { emoji: "🔵", name: "ONBOARDING TAG 1" };
 
-  // Fallback: everything unknown → Mittelfeld
+  // Fallback
   return { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
 }
 
