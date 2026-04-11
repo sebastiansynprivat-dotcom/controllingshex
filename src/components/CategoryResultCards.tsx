@@ -200,7 +200,7 @@ function buildClipboardTSV(categories: Category[]): string {
 /*  SPARKLINE (SVG) — minimal, no axes                                 */
 /* ------------------------------------------------------------------ */
 
-function Sparkline({ data, width = 72, height = 32 }: { data: number[]; width?: number; height?: number }) {
+function Sparkline({ data, width = 72, height = 32, showFill = false }: { data: number[]; width?: number; height?: number; showFill?: boolean }) {
   if (data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -210,8 +210,21 @@ function Sparkline({ data, width = 72, height = 32 }: { data: number[]; width?: 
     const y = height - ((v - min) / range) * (height - 4) - 2;
     return `${x},${y}`;
   });
+  const fillPoints = `0,${height} ${points.join(" ")} ${width},${height}`;
+  const id = `sparkFill-${width}-${height}`;
   return (
-    <svg width={width} height={height} className="shrink-0 opacity-50">
+    <svg width={width} height={height} className="shrink-0">
+      {showFill && (
+        <>
+          <defs>
+            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.15} />
+              <stop offset="100%" stopColor="#D4AF37" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <polygon points={fillPoints} fill={`url(#${id})`} />
+        </>
+      )}
       <polyline
         points={points.join(" ")}
         fill="none"
