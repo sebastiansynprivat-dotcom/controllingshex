@@ -3,11 +3,13 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import TrendWidget from "@/components/TrendWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { FileSpreadsheet, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AnalysisChatter {
   name: string;
@@ -27,6 +29,13 @@ interface AnalysisResult {
   categories: AnalysisCategory[];
 }
 
+interface ReportRow {
+  id: string;
+  analysis_date: string;
+  chatter_count: number;
+  result_json: unknown;
+}
+
 function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
@@ -34,33 +43,38 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 export default function Dashboard() {
   const { platform } = usePlatform();
   const navigate = useNavigate();
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [reports, setReports] = useState<ReportRow[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
-  const [reportDate, setReportDate] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadLatest = async () => {
+    const load = async () => {
       setLoading(true);
-      setResult(null);
+      setReports([]);
+      setSelectedId(null);
+
       const { data } = await supabase
         .from("analysis_reports")
-        .select("result_json, analysis_date")
+        .select("id, analysis_date, chatter_count, result_json")
         .eq("platform", platform)
-        .order("analysis_date", { ascending: false })
-        .limit(1)
-        .single();
+        .order("analysis_date", { ascending: false });
 
-      if (data?.result_json && isAnalysisResult(data.result_json)) {
-        setResult(data.result_json as unknown as AnalysisResult);
-        setReportDate(data.analysis_date);
-      } else {
-        setReportDate(null);
+      if (data && data.length > 0) {
+        const rows = data as unknown as ReportRow[];
+        setReports(rows);
+        setSelectedId(rows[0].id);
       }
       setLoading(false);
     };
-    loadLatest();
+    load();
   }, [platform]);
+
+  const selectedIndex = reports.findIndex((r) => r.id === selectedId);
+  const selectedReport = selectedIndex >= 0 ? reports[selectedIndex] : null;
+  const result = selectedReport && isAnalysisResult(selectedReport.result_json)
+    ? (selectedReport.result_json as unknown as AnalysisResult)
+    : null;
 
   return (
     <div className="flex h-full min-h-0">
@@ -74,14 +88,45 @@ export default function Dashboard() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-5xl mx-auto space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
+            {/* Header + Date Selector */}
             <div className="space-y-3">
               <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
-              <p className="text-white/30 text-sm font-light tracking-wide">
-                {reportDate
-                  ? `Letzte Analyse: ${new Date(reportDate).toLocaleDateString("de-DE")}`
-                  : "Noch keine Analyse vorhanden."}
-              </p>
+              
+              {reports.length > 1 ? (
+                <Select value={selectedId || ""} onValueChange={setSelectedId}>
+                  <SelectTrigger className="w-full sm:w-64 bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
+                    <SelectValue placeholder="Analyse wählen…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {reports.map((r, i) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {new Date(r.analysis_date).toLocaleDateString("de-DE")}
+                        {i === 0 ? " (aktuell)" : ""}
+                        {" · "}{r.chatter_count} Chatters
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-white/30 text-sm font-light tracking-wide">
+                  {selectedReport
+                    ? `Letzte Analyse: ${new Date(selectedReport.analysis_date).toLocaleDateString("de-DE")}`
+                    : "Noch keine Analyse vorhanden."}
+                </p>
+              )}
             </div>
+
+            {/* Trend Widget */}
+            {reports.length > 0 && (
+              <TrendWidget
+                reports={reports.map((r) => ({
+                  analysis_date: r.analysis_date,
+                  chatter_count: r.chatter_count,
+                  result_json: r.result_json,
+                }))}
+                selectedIndex={selectedIndex >= 0 ? selectedIndex : 0}
+              />
+            )}
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -89,7 +134,7 @@ export default function Dashboard() {
               </div>
             ) : result ? (
               <ErrorBoundary>
-                <CategoryResultCards data={result} onChatterSelect={setSelectedChatter} />
+                <CategoryResultCards data={{ categories: result.categories }} onChatterSelect={setSelectedChatter} />
               </ErrorBoundary>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 space-y-6">
