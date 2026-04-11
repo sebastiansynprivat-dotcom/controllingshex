@@ -1,4 +1,4 @@
-import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy } from "lucide-react";
+import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
