@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { PlatformProvider } from "@/contexts/PlatformContext";
 import { Layout } from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
+import UploadPage from "@/pages/Upload";
 import Models from "@/pages/Models";
 import SettingsPage from "@/pages/SettingsPage";
 import AIConsultant from "@/pages/AIConsultant";
@@ -23,6 +24,7 @@ const App = () => (
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/upload" element={<UploadPage />} />
               <Route path="/ai-consultant" element={<AIConsultant />} />
               <Route path="/models" element={<Models />} />
               <Route path="/settings" element={<SettingsPage />} />

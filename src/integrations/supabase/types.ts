@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_reports: {
+        Row: {
+          analysis_date: string
+          chatter_count: number
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          platform: string
+          result_json: Json | null
+        }
+        Insert: {
+          analysis_date?: string
+          chatter_count?: number
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          platform?: string
+          result_json?: Json | null
+        }
+        Update: {
+          analysis_date?: string
+          chatter_count?: number
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          platform?: string
+          result_json?: Json | null
+        }
+        Relationships: []
+      }
       chatter_history: {
         Row: {
           analysis_date: string
