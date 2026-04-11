@@ -47,6 +47,17 @@ interface ChatterStats {
   score: number;
 }
 
+interface ChatterLabel {
+  id: string;
+  label_name: string;
+  color: string;
+}
+
+interface LabelAssignment {
+  chatter_name: string;
+  label_id: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  HELPERS                                                            */
 /* ------------------------------------------------------------------ */
