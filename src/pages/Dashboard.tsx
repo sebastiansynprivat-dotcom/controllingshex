@@ -156,17 +156,8 @@ export default function Dashboard() {
       if (!response.ok || data?.error) {
         const errMsg = data?.error || `Fehler (${response.status})`;
         throw new Error(errMsg);
-      }
 
-      if (data?.error) {
-        if (data.error.includes("Rate limit") || data.error.includes("429")) {
-          throw new Error("⏳ Rate-Limit erreicht. Bitte warte 1-2 Minuten.");
-        }
-        if (data.error.includes("Credits") || data.error.includes("402")) {
-          throw new Error("💳 AI-Credits aufgebraucht. Bitte Credits aufladen.");
-        }
-        throw new Error(data.error);
-      }
+
 
       const analysisResult = data?.result as AnalysisResult | undefined;
       if (!analysisResult || !Array.isArray(analysisResult.categories)) {
