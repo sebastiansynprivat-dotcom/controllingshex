@@ -1,5 +1,6 @@
 import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -429,8 +430,34 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         <CopyButton copied={copied} onClick={copyToClipboard} />
       </div>
 
-      {/* Filter Pills — static, always show all categories */}
-      <div className="flex gap-1.5 sm:gap-2 items-center overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+      {/* Mobile Filter Dropdown */}
+      <div className="flex sm:hidden w-full">
+        <Select
+          value={activeFilters.size === 1 ? [...activeFilters][0] : "all"}
+          onValueChange={(val) => {
+            if (val === "all") setActiveFilters(new Set());
+            else setActiveFilters(new Set([val]));
+          }}
+        >
+          <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
+            <div className="flex items-center gap-2">
+              <Filter className="h-3 w-3 text-white/25" />
+              <SelectValue placeholder="Alle Kategorien" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle anzeigen ({totalChatters})</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.categoryName} value={cat.categoryName}>
+                {cat.emoji} {cat.categoryName} ({cat.chatters.length})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Desktop Filter Pills */}
+      <div className="hidden sm:flex gap-2 items-center overflow-hidden pb-2 flex-wrap">
         <Filter className="h-3 w-3 text-white/15 mr-1 shrink-0" />
         {categories.map((cat) => {
             const isActive = activeFilters.has(cat.categoryName);
@@ -439,7 +466,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               <button
                 key={cat.categoryName}
                 onClick={() => toggleFilter(cat.categoryName)}
-                className={`inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-light transition-all duration-500 border tracking-wide whitespace-nowrap shrink-0 ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-light transition-all duration-500 border tracking-wide whitespace-nowrap ${
                   isActive
                     ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_12px_-3px_hsl(var(--primary)/0.25)]"
                     : isEmpty
