@@ -61,9 +61,16 @@ export default function Dashboard() {
       const cached = localStorage.getItem(STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.platform === platform && isAnalysisResult(parsed.data)) setResult(parsed.data);
+        if (parsed.platform === platform && isAnalysisResult(parsed.data)) {
+          setResult(parsed.data);
+          return;
+        }
       }
     } catch {}
+    setResult(null);
+    setFile(null);
+    setCsvData("");
+    setStatusLog([]);
   }, [platform]);
 
   const handleFile = (f: File) => {
