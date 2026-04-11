@@ -24,6 +24,7 @@ export type Database = {
           id: string
           platform: string
           result_json: Json | null
+          user_id: string | null
         }
         Insert: {
           analysis_date?: string
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           platform?: string
           result_json?: Json | null
+          user_id?: string | null
         }
         Update: {
           analysis_date?: string
@@ -44,6 +46,7 @@ export type Database = {
           id?: string
           platform?: string
           result_json?: Json | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -60,6 +63,7 @@ export type Database = {
           recommendation: string | null
           response_delay_days: number | null
           revenue_today: number | null
+          user_id: string | null
         }
         Insert: {
           analysis_date?: string
@@ -73,6 +77,7 @@ export type Database = {
           recommendation?: string | null
           response_delay_days?: number | null
           revenue_today?: number | null
+          user_id?: string | null
         }
         Update: {
           analysis_date?: string
@@ -86,6 +91,7 @@ export type Database = {
           recommendation?: string | null
           response_delay_days?: number | null
           revenue_today?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -96,6 +102,7 @@ export type Database = {
           id: string
           note_text: string
           platform: string
+          user_id: string | null
         }
         Insert: {
           chatter_name: string
@@ -103,6 +110,7 @@ export type Database = {
           id?: string
           note_text: string
           platform?: string
+          user_id?: string | null
         }
         Update: {
           chatter_name?: string
@@ -110,6 +118,7 @@ export type Database = {
           id?: string
           note_text?: string
           platform?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -121,6 +130,7 @@ export type Database = {
           model_name: string
           platform: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -129,6 +139,7 @@ export type Database = {
           model_name: string
           platform?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -137,6 +148,7 @@ export type Database = {
           model_name?: string
           platform?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -146,6 +158,7 @@ export type Database = {
           id: string
           key: string
           updated_at: string
+          user_id: string | null
           value: string
         }
         Insert: {
@@ -153,6 +166,7 @@ export type Database = {
           id?: string
           key: string
           updated_at?: string
+          user_id?: string | null
           value?: string
         }
         Update: {
@@ -160,6 +174,7 @@ export type Database = {
           id?: string
           key?: string
           updated_at?: string
+          user_id?: string | null
           value?: string
         }
         Relationships: []
