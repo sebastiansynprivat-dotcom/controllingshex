@@ -135,24 +135,27 @@ export default function Dashboard() {
       setProgress({ current: 2, total: 3, step: "KI analysiert" });
       addStatus("🧠 Sende Daten an Lovable AI…");
 
-      const { data, error } = await supabase.functions.invoke("analyze-csv", {
-        body: { csvData, platform },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-csv`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ csvData, platform }),
+          signal: AbortSignal.timeout(300000),
+        }
+      );
+
+      const data = await response.json();
 
       if (cancelledRef.current) return;
 
-      if (error) {
-        throw new Error(error.message || "Backend-Fehler");
-      }
-
-      if (data?.error) {
-        if (data.error.includes("Rate limit") || data.error.includes("429")) {
-          throw new Error("⏳ Rate-Limit erreicht. Bitte warte 1-2 Minuten.");
-        }
-        if (data.error.includes("Credits") || data.error.includes("402")) {
-          throw new Error("💳 AI-Credits aufgebraucht. Bitte Credits aufladen.");
-        }
-        throw new Error(data.error);
+      if (!response.ok || data?.error) {
+        const errMsg = data?.error || `Fehler (${response.status})`;
+        throw new Error(errMsg);
       }
 
       const analysisResult = data?.result as AnalysisResult | undefined;
