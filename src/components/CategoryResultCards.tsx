@@ -648,16 +648,14 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 /*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string }) {
+function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const formattedName = toTitleCase(chatter.name || "—");
   const initials = formattedName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const sparkData = stats?.history.slice(-14).map((r) => r.revenue_today) ?? [];
 
-  // Find the primary revenue value
   const revenueEntry = kpiEntries.find(([, v]) => isMoneyValue(v));
-  // Ghost-chat stats from history
   const ghostChats = stats && stats.avgChats > 0
     ? `Ø ${Math.round(stats.avgChats)} Chats / ${stats.avgDelay.toFixed(1)} Tage`
     : null;
@@ -670,14 +668,30 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt }: { 
     setTimeout(() => setNameCopied(false), 1500);
   };
 
+  const handleCheck = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleCheck?.();
+  };
+
   return (
       <div
         data-chatter-name={formattedName}
-        className="w-full max-w-full overflow-hidden px-4 sm:px-8 py-4 sm:py-6 hover:bg-white/[0.015] transition-colors duration-500 cursor-pointer group"
+        className={`w-full max-w-full overflow-hidden px-4 sm:px-8 py-4 sm:py-6 hover:bg-white/[0.015] transition-all duration-500 cursor-pointer group ${isChecked ? "opacity-40" : ""}`}
       onClick={() => onChatterClick(formattedName)}
     >
       {/* Row 1: Main info */}
       <div className="flex items-start gap-3 sm:gap-5 w-full min-w-0">
+        {/* Daily Check */}
+        <button
+          onClick={handleCheck}
+          className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border transition-all duration-300 flex items-center justify-center ${
+            isChecked
+              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+              : "border-white/10 hover:border-white/25 text-transparent hover:text-white/15"
+          }`}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+        </button>
         {/* Score Ring */}
         <ScoreRing score={stats?.score ?? 0} initials={initials} />
 
