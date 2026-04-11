@@ -133,7 +133,7 @@ export default function Dashboard() {
 
       addStatus("[Step 2/3] KI-Analyse läuft…");
       setProgress({ current: 2, total: 3, step: "KI analysiert" });
-      addStatus("🧠 Sende Daten an Lovable AI (Gemini Pro)…");
+      addStatus("🧠 Sende Daten an Lovable AI…");
 
       const { data, error } = await supabase.functions.invoke("analyze-csv", {
         body: { csvData, platform },
@@ -142,7 +142,7 @@ export default function Dashboard() {
       if (cancelledRef.current) return;
 
       if (error) {
-        throw new Error(error.message || "Edge Function Fehler");
+        throw new Error(error.message || "Backend-Fehler");
       }
 
       if (data?.error) {
@@ -187,145 +187,6 @@ export default function Dashboard() {
     }
   };
 
-    reader.readAsArrayBuffer(f);
-  };
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  }, []);
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) handleFile(f);
-  };
-
-  const cancelAnalysis = () => {
-    cancelledRef.current = true;
-    abortRef.current?.abort();
-    addStatus("⛔ Analyse abgebrochen.");
-    toast.info("Analyse abgebrochen.");
-    setLoading(false);
-    setShowCancel(false);
-    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-  };
-
-  const analyze = async () => {
-    if (!csvData) {
-      toast.error("Bitte lade zuerst eine Datei hoch.");
-      return;
-    }
-
-    setLoading(true);
-    setResult(null);
-    setStatusLog([]);
-    setShowCancel(false);
-    cancelledRef.current = false;
-    cancelTimerRef.current = setTimeout(() => setShowCancel(true), CANCEL_TIMEOUT_MS);
-
-    const abortController = new AbortController();
-    abortRef.current = abortController;
-
-    try {
-      addStatus("[Step 1/3] Daten werden bereinigt…");
-      setProgress({ current: 1, total: 3, batch: 1, totalBatches: 3 });
-
-      const data = csvToJsonArray(csvData);
-      if (data.length === 0) throw new Error("Keine Daten in der Datei gefunden.");
-      addStatus(`✅ ${data.length} Datensätze extrahiert.`);
-
-      if (cancelledRef.current) return;
-
-      addStatus("[Step 2/3] Kategorien werden berechnet…");
-      setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
-      addStatus(`📤 Sende ${data.length} Datensätze an High-Precision-Pipeline…`);
-
-      const timeoutId = setTimeout(() => abortController.abort(), FETCH_TIMEOUT_MS);
-
-      const MAX_RETRIES = 1;
-      let response: Response | null = null;
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (cancelledRef.current) { clearTimeout(timeoutId); return; }
-        if (attempt > 0) {
-          addStatus(`⏳ Rate-Limit (429) — warte 5s (Versuch ${attempt + 1}/${MAX_RETRIES + 1})…`);
-          await new Promise((r) => setTimeout(r, 5000));
-        }
-        response = await window.fetch(WEBHOOK_URL, {
-          method: "POST",
-          mode: "cors",
-          credentials: "omit",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chatterData: data }),
-          signal: abortController.signal,
-        });
-        if (response.status !== 429) break;
-      }
-      clearTimeout(timeoutId);
-      if (!response) throw new Error("Keine Antwort erhalten.");
-      if (response.status === 429) throw new Error("Error 429: Rate-Limit nach Retry. Bitte warte 1-2 Minuten.");
-
-      const rawResponseText = await response.text();
-
-      if (!response.ok) {
-        throw new Error(formatWebhookError(response.status, rawResponseText));
-      }
-
-      addStatus("✅ Antwort erhalten.");
-
-      if (cancelledRef.current) return;
-
-      addStatus("[Step 3/3] Management-Strategie wird erstellt…");
-      setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
-
-      // Try JSON first, then plaintext fallback
-      let items: WebhookChatter[] = [];
-      const parsedWebhookData = extractJsonFromResponse(rawResponseText);
-      if (parsedWebhookData) {
-        items = extractWebhookItems(parsedWebhookData);
-      }
-      if (items.length === 0) {
-        const plainItems = parsePlainTextResponse(rawResponseText);
-        if (plainItems && plainItems.length > 0) {
-          addStatus("📝 Klartext-Antwort erkannt — wird konvertiert…");
-          items = plainItems;
-        }
-      }
-      if (items.length === 0) {
-        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse erkannt. Antwort: '${rawResponseText.slice(0, 150)}'`);
-      }
-
-      const analysisResult = webhookResponseToAnalysis(items);
-      const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
-      addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() }));
-      } catch {
-      }
-
-      setAnimationsReady(false);
-      setResult(analysisResult);
-      toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
-      setTimeout(() => setAnimationsReady(true), 2000);
-    } catch (err: any) {
-      if (err.name === "AbortError") {
-        addStatus("⏳ Timeout nach 120s erreicht. Bitte versuche es später erneut.");
-        toast.error("Timeout: Make.com hat nicht rechtzeitig geantwortet.");
-        return;
-      }
-      console.error("[Analyse] Fehler:", err);
-      const msg = err.message || "Network Error: CORS block";
-      addStatus(`💥 ${msg}`);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-      setShowCancel(false);
-      setProgress({ current: 0, total: 3, batch: 0, totalBatches: 3 });
-      if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-    }
-  };
   return (
     <div className="flex h-full min-h-0">
       <div className={`flex-1 min-w-0 overflow-y-auto transition-all duration-500 ${selectedChatter ? "mr-0" : ""}`}>
@@ -413,7 +274,7 @@ export default function Dashboard() {
                 {loading && progress.total > 0 && (
                   <>
                     <div className="flex items-center justify-between text-xs font-light tracking-wider">
-                      <span className="text-primary/70 uppercase">High-Precision-Pipeline — Step {progress.batch} / {progress.totalBatches}</span>
+                      <span className="text-primary/70 uppercase">KI-Pipeline — Step {progress.current} / {progress.total}</span>
                       <span className="text-white/40">{Math.round((progress.current / progress.total) * 100)}%</span>
                     </div>
                     <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
