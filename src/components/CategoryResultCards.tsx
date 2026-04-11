@@ -368,6 +368,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const { platform } = usePlatform();
   const [copied, setCopied] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
@@ -563,9 +564,34 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
-  const visibleCategories = activeFilters.size === 0
-    ? categories
-    : categories.filter((c) => activeFilters.has(c.categoryName));
+  const toggleLabelFilter = (labelId: string) => {
+    setActiveLabelFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(labelId)) next.delete(labelId);
+      else next.add(labelId);
+      return next;
+    });
+  };
+
+  const visibleCategories = useMemo(() => {
+    let filtered = activeFilters.size === 0
+      ? categories
+      : categories.filter((c) => activeFilters.has(c.categoryName));
+
+    if (activeLabelFilters.size > 0) {
+      filtered = filtered
+        .map((cat) => ({
+          ...cat,
+          chatters: cat.chatters.filter((ch) => {
+            const labels = chatterLabelsMap[toTitleCase(ch.name)] || [];
+            return labels.some((l) => activeLabelFilters.has(l.id));
+          }),
+        }))
+        .filter((cat) => cat.chatters.length > 0);
+    }
+
+    return filtered;
+  }, [activeFilters, activeLabelFilters, categories, chatterLabelsMap]);
 
   const copyToClipboard = async () => {
     const text = categories.length > 0
@@ -617,8 +643,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         <Select
           value={activeFilters.size === 1 ? [...activeFilters][0] : "all"}
           onValueChange={(val) => {
-            if (val === "all") setActiveFilters(new Set());
-            else setActiveFilters(new Set([val]));
+            if (val === "all") { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); }
+            else if (val.startsWith("label:")) {
+              const labelId = val.slice(6);
+              toggleLabelFilter(labelId);
+            } else { setActiveFilters(new Set([val])); }
           }}
         >
           <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
@@ -634,9 +663,26 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
                 {cat.emoji} {cat.categoryName} ({cat.chatters.length})
               </SelectItem>
             ))}
+            {allLabels.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 mt-1 border-t border-white/[0.06]">
+                  <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">Labels</span>
+                </div>
+                {allLabels.map((label) => (
+                  <SelectItem key={`label-${label.id}`} value={`label:${label.id}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                      {label.label_name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>
+
+
 
       {/* Desktop Filter Pills — Grouped */}
       <div className="hidden sm:block pb-2">
@@ -646,9 +692,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               <Filter className="h-3.5 w-3.5 text-white/20" />
               <span className="text-[11px] text-white/40 font-medium tracking-wider uppercase">Kategorien</span>
             </div>
-            {activeFilters.size > 0 && (
+            {(activeFilters.size > 0 || activeLabelFilters.size > 0) && (
               <button
-                onClick={() => setActiveFilters(new Set())}
+                onClick={() => { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); }}
                 className="text-[10px] text-primary/70 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
               >
                 ✕ Zurücksetzen
@@ -704,6 +750,41 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               );
             });
           })()}
+
+          {/* Label Filter Pills */}
+          {allLabels.length > 0 && (
+            <div className="py-3 border-t border-white/[0.04]">
+              <div className="flex items-start gap-4 pl-1 border-l-2 border-l-white/20">
+                <div className="flex items-center gap-2 pt-0.5 min-w-[80px] shrink-0">
+                  <span className="text-[11px] text-white/50 font-semibold tracking-wide">Labels</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {allLabels.map((label) => {
+                    const isActive = activeLabelFilters.has(label.id);
+                    return (
+                      <button
+                        key={label.id}
+                        onClick={() => toggleLabelFilter(label.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap ${
+                          isActive
+                            ? "shadow-[0_0_10px_-4px] shadow-current"
+                            : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/70 hover:bg-white/[0.05]"
+                        }`}
+                        style={isActive ? {
+                          backgroundColor: label.color + "15",
+                          borderColor: label.color + "50",
+                          color: label.color,
+                        } : undefined}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                        <span>{label.label_name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
