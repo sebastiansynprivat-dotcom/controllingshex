@@ -278,6 +278,80 @@ function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  REVENUE HOVER POPUP                                                */
+/* ------------------------------------------------------------------ */
+
+function formatEur(v: number) {
+  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+
+function RevenueHoverPopup({ history, children }: { history: HistoryEntry[]; children: React.ReactNode }) {
+  if (!history.length) return <>{children}</>;
+
+  const sorted = [...history].sort((a, b) => b.analysis_date.localeCompare(a.analysis_date));
+  const today = sorted[0]?.revenue_today ?? 0;
+  const yesterday = sorted[1]?.revenue_today ?? null;
+  const last7 = sorted.slice(0, 7);
+  const last30 = sorted.slice(0, 30);
+  const sum7 = last7.reduce((s, r) => s + r.revenue_today, 0);
+  const sum30 = last30.reduce((s, r) => s + r.revenue_today, 0);
+  const avg7 = last7.length ? sum7 / last7.length : 0;
+
+  const diffYesterday = yesterday !== null && yesterday > 0
+    ? Math.round(((today - yesterday) / yesterday) * 100)
+    : null;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <UITooltip>
+        <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+          {children}
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          align="end"
+          className="bg-zinc-900/95 backdrop-blur-xl border border-white/[0.08] rounded-xl px-5 py-4 shadow-2xl max-w-[220px]"
+        >
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-light">Heute</span>
+              <span className="text-sm font-light gold-text">{formatEur(today)}</span>
+            </div>
+            {yesterday !== null && (
+              <div className="flex items-center justify-between gap-6">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-light">Gestern</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-light text-foreground/60">{formatEur(yesterday)}</span>
+                  {diffYesterday !== null && (
+                    <span className={`text-[10px] font-medium ${diffYesterday > 0 ? "text-emerald-400/70" : diffYesterday < 0 ? "text-red-400/70" : "text-white/25"}`}>
+                      {diffYesterday > 0 ? "+" : ""}{diffYesterday}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between gap-6">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-light">7 Tage</span>
+              <span className="text-sm font-light text-foreground/60">{formatEur(sum7)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-light">Ø / Tag</span>
+              <span className="text-xs font-light text-white/40">{formatEur(avg7)}</span>
+            </div>
+            {last30.length > 7 && (
+              <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between gap-6">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-light">30 Tage</span>
+                <span className="text-sm font-light text-foreground/60">{formatEur(sum30)}</span>
+              </div>
+            )}
+          </div>
+        </TooltipContent>
+      </UITooltip>
+    </TooltipProvider>
+  );
+
+
+/* ------------------------------------------------------------------ */
 /*  MAIN COMPONENT                                                     */
 /* ------------------------------------------------------------------ */
 
