@@ -127,12 +127,14 @@ export default function Dashboard() {
 
       const lines = csvData.split("\n").filter((l) => l.trim());
       if (lines.length < 2) throw new Error("Keine Daten in der Datei gefunden.");
-      addStatus(`✅ ${lines.length - 1} Datensätze erkannt.`);
+      const chatterCount = lines.length - 1;
+      const batchCount = Math.ceil(chatterCount / 50);
+      addStatus(`✅ ${chatterCount} Chatter erkannt → ${batchCount} Batch${batchCount > 1 ? "es" : ""}`);
 
       if (cancelledRef.current) return;
 
-      addStatus("[Step 2/3] KI-Analyse läuft…");
-      setProgress({ current: 2, total: 3, step: "KI analysiert" });
+      addStatus(`[Step 2/3] KI-Analyse läuft (${batchCount} Batch${batchCount > 1 ? "es" : ""})…`);
+      setProgress({ current: 2, total: 3, step: `KI analysiert (${batchCount} Batches)` });
       addStatus("🧠 Sende Daten an Lovable AI…");
 
       const response = await fetch(
