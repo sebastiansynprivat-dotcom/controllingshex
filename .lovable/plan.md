@@ -1,26 +1,18 @@
 
 
-## Label-Filter im Dashboard
+## Zwei getrennte Filter-Dropdowns (Mobile)
 
-Erweitert die bestehenden Kategorie-Filter um einen Label-Filter, der kombiniert funktioniert.
+Aktuell sind Kategorien und Labels in einem einzigen Dropdown zusammengefasst. Beide werden in zwei separate, visuell getrennte Dropdowns aufgeteilt.
 
-### Was sich ändert
+### Änderungen
 
-1. **Neuer State `activeLabelFilters`** — ein `Set<string>` mit Label-IDs, analog zu `activeFilters` für Kategorien
-2. **Label-Filter-Zeile im Desktop-Filter** — neue Gruppe "Labels" unterhalb der Kategorie-Gruppen mit farbigen Pills für jedes erstellte Label
-3. **Label-Filter im Mobile-Dropdown** — Labels als zusätzliche Optionen im bestehenden `<Select>`
-4. **Kombinierte Filterlogik** — `visibleCategories` berücksichtigt beide Filter gleichzeitig:
-   - Kategorie-Filter: zeigt nur passende Kategorien
-   - Label-Filter: zeigt nur Chatter mit dem gewählten Label (filtert innerhalb der Kategorien)
-   - Beide aktiv: Schnittmenge (Kategorie UND Label müssen passen)
+**`src/components/CategoryResultCards.tsx`** — Mobile-Filter-Bereich (Zeilen ~642-683):
 
-### Technische Details
+1. **Zwei separate `<Select>`-Dropdowns** nebeneinander in einer Flex-Row:
+   - **Dropdown 1 — Kategorien**: Zeigt nur Kategorie-Filter (mit Filter-Icon), wie bisher
+   - **Dropdown 2 — Labels**: Zeigt nur Label-Filter (mit farbigen Dots), nur sichtbar wenn Labels existieren
 
-**`CategoryResultCards.tsx`:**
-- Neuer State: `const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set())`
-- `visibleCategories`-Logik erweitern: wenn Label-Filter aktiv, Chatters pro Kategorie filtern nach `chatterLabelsMap`, leere Kategorien ausblenden
-- Neue Filter-Gruppe "Labels" im Desktop-Filter-Panel mit farbigen Pills (Farbe aus Label)
-- Mobile-Select erweitern um Label-Einträge (mit farbigem Dot)
-- "Zurücksetzen" setzt beide Filter zurück
-- Label-Filter ist Multi-Select (mehrere Labels gleichzeitig = ODER-Verknüpfung)
+2. **Layout**: `flex gap-2` Container, beide Selects mit `flex-1` für gleiche Breite. Falls keine Labels vorhanden, nimmt der Kategorie-Filter die volle Breite ein.
+
+3. **Eigenständige Steuerung**: Jeder Dropdown steuert nur seinen eigenen Filter-State (`activeFilters` bzw. `activeLabelFilters`), unabhängig voneinander.
 
