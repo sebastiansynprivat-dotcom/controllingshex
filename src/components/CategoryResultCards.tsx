@@ -808,21 +808,37 @@ const INITIAL_VISIBLE = 10;
 
 function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck, chatterLabelsMap, collapsed }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void; chatterLabelsMap: Record<string, ChatterLabel[]>; collapsed?: boolean }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [localOpen, setLocalOpen] = useState(false);
   const visible = category.chatters.slice(0, visibleCount);
   const hasMore = visibleCount < category.chatters.length;
+  const isOpen = !collapsed || localOpen;
+
+  // Reset localOpen when global collapse changes
+  useEffect(() => {
+    if (collapsed) setLocalOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
 
   return (
     <div data-category-name={category.categoryName} className="w-full max-w-full rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl overflow-hidden">
-      <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-white/[0.04] flex flex-wrap items-start gap-x-3 gap-y-2 min-w-0">
+      <div
+        onClick={() => { if (collapsed && !localOpen) setLocalOpen(true); else if (localOpen) setLocalOpen(false); }}
+        className={cn("px-4 sm:px-8 py-4 sm:py-6 border-b border-white/[0.04] flex flex-wrap items-start gap-x-3 gap-y-2 min-w-0", collapsed ? "cursor-pointer hover:bg-white/[0.03] transition-colors" : "")}
+      >
         <span className="text-base sm:text-lg">{category.emoji}</span>
         <h3 className="min-w-0 flex-1 text-sm leading-tight sm:text-lg font-medium tracking-wide gold-text break-words">
           {category.categoryName}
         </h3>
-        <span className="w-full pl-7 sm:pl-0 sm:w-auto sm:ml-auto text-[10px] text-white/20 font-light tracking-wider">
-          {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
-        </span>
+        <div className="flex items-center gap-2 w-full pl-7 sm:pl-0 sm:w-auto sm:ml-auto">
+          <span className="text-[10px] text-white/20 font-light tracking-wider">
+            {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
+          </span>
+          {collapsed && (
+            <ChevronDown className={cn("h-3 w-3 text-white/20 transition-transform duration-200", localOpen && "rotate-180")} />
+          )}
+        </div>
       </div>
-      {!collapsed && (
+      {isOpen && (
         <>
           <div className="divide-y divide-white/[0.03]">
             {visible.length === 0 ? (
