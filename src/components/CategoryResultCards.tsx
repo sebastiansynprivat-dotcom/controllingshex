@@ -743,9 +743,9 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
           )}
         </div>
 
-        {/* Sparkline — hidden on mobile */}
+        {/* Sparkline — compact, hidden on mobile (shown full-width below) */}
         {sparkData.length >= 2 && (
-          <div className="hidden sm:block">
+          <div className="hidden lg:block">
             <Sparkline data={sparkData} width={64} height={28} />
           </div>
         )}
