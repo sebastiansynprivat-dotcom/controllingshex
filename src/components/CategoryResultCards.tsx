@@ -535,9 +535,10 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
                     </div>
                   </div>
                 </div>
-            );
-          });
-        })()}
+              );
+            });
+          })()}
+        </div>
       </div>
 
       {/* Category Cards */}
