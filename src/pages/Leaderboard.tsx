@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -176,7 +176,16 @@ export default function Leaderboard() {
 
                 {/* Name + days */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p
+                    className="text-sm font-medium text-foreground truncate cursor-copy hover:text-primary transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const displayName = entry.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                      navigator.clipboard.writeText(displayName);
+                      toast("Name kopiert", { description: displayName });
+                    }}
+                    title="Klicken zum Kopieren"
+                  >
                     {entry.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
