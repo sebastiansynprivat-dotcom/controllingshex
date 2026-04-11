@@ -226,26 +226,36 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="fixed top-0 right-0 bottom-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)]"
+          className="fixed top-0 right-0 bottom-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
         >
+          {/* ── Sticky Header ── */}
+          <div className="flex items-center justify-between px-5 sm:px-10 py-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-2xl z-10 shrink-0">
+            <div className="min-w-0">
+              <h2
+                onClick={() => {
+                  navigator.clipboard.writeText(displayName);
+                  toast.success("Name kopiert");
+                }}
+                className="text-xl sm:text-[26px] font-light tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+                title="Klicken zum Kopieren"
+              >
+                {displayName}
+              </h2>
+              <p className="text-[11px] text-white/20 mt-1 font-light tracking-[0.15em] uppercase">{platform} · Performance-Profil</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2.5 rounded-xl hover:bg-white/[0.04] text-white/25 hover:text-white/50 transition-colors duration-300 shrink-0 ml-4"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
           <div
             ref={scrollRef}
-            className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
+            className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
-              {/* ── 1. Header ── */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl sm:text-[26px] font-light tracking-tight gold-text">{displayName}</h2>
-                  <p className="text-[11px] text-white/20 mt-1.5 font-light tracking-[0.15em] uppercase">{platform} · Performance-Profil</p>
-                </div>
-                <button
-                  onClick={onClose}
-                  className="p-2.5 rounded-xl hover:bg-white/[0.04] text-white/25 hover:text-white/50 transition-colors duration-300"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
 
               {loading ? (
                 <div className="flex items-center justify-center py-24">
