@@ -277,6 +277,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
+  const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
+
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
