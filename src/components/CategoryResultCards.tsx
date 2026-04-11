@@ -467,6 +467,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   }
 
   const totalChatters = categories.reduce((a, c) => a + c.chatters.length, 0);
+  const checkedCount = dailyChecks.size;
+  const checkProgress = totalChatters > 0 ? Math.round((checkedCount / totalChatters) * 100) : 0;
 
   return (
     <div className="space-y-10 animate-fade-in w-full max-w-full overflow-hidden">
@@ -475,6 +477,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           <h2 className="text-xl font-extralight text-foreground tracking-tight">Analyse-Ergebnis</h2>
           <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider">
             {totalChatters} Einträge · {categories.length} Kategorien
+            {checkedCount > 0 && (
+              <span className="ml-2 text-emerald-400/60">
+                · ✓ {checkedCount}/{totalChatters} erledigt ({checkProgress}%)
+              </span>
+            )}
           </p>
         </div>
         <CopyButton copied={copied} onClick={copyToClipboard} />
