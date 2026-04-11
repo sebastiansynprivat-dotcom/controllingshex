@@ -258,9 +258,34 @@ Das JSON muss exakt dieses Schema haben:
   ]
 }
 
+KATEGORIE-DEFINITIONEN (nutze NUR diese categoryName-Werte!):
+
+⚠️ ACCOUNT-EINBRUCH — Account war historisch stark, bricht plötzlich massiv ein ODER neuer Chatter performt viel schlechter als Vorgänger. PRIORISIERE DIES!
+🔄 MODEL-TAUSCH — Chatter ist zu groß/klein für den Account. Mache einen konkreten Wechsel-Vorschlag mit einem freien Account.
+🔵 ONBOARDING TAG 1 — Seit gestern aktiv. Fokus: Ist er fleißig angefangen?
+🔵 ONBOARDING TAG 2 — Seit 2 Tagen aktiv. Fokus: Baut er Rückstände auf?
+🔵 ONBOARDING TAG 3 — Seit 3 Tagen aktiv. Fokus: Kommen die ersten Abschlüsse?
+🔵 ONBOARDING TAG 4 — Seit 4 Tagen aktiv. Fokus: Woran hakt es, wenn noch 0€?
+🔵 ONBOARDING TAG 5 — Seit 5 Tagen aktiv. Letzter Tag vor den harten Metriken.
+🌟 BREAKOUT-STAR — Tagesumsatz extrem viel höher als bisher.
+🟢 ACCOUNT UPGRADE (UMSATZ-STREAK) — 5 Tage in Folge >= 30€.
+🚀 KURZ VOR UPGRADE — Exakt 4 Tage in Folge >= 30€.
+🟢 ACCOUNT UPGRADE (TRAFFIC TEST) — > 3 MassDMs/Tag, aber 0€ Umsatz. Verbrennt er Traffic oder ist der Account zu klein?
+📉 0€ UMSATZ TAG 1 — Heute erster Tag 0€ (außerhalb Onboarding).
+📉 0€ UMSATZ TAG 2 — 2 Tage in Folge 0€.
+📉 0€ UMSATZ TAG 3 — 3 Tage in Folge 0€. Scharfer Warnschuss nötig!
+📉 0€ UMSATZ TAG 4 — 4 Tage in Folge 0€.
+📉 0€ UMSATZ TAG 5 — 5 Tage in Folge 0€.
+📉 0€ UMSATZ TAG 6 — 6 Tage in Folge 0€.
+📉 0€ UMSATZ TAG 7+ — 7+ Tage in Folge 0€. Klare Empfehlung zur Kündigung/Austausch!
+🟠 WARNUNG — Chats offen, die älter als 2 Tage sind.
+📼 VIDEO-COACHING — Seit >= 5 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€.
+🟡 COACHING / ENGERE KONTROLLE — Seit > 5 Tagen aktiv UND insgesamt < 20€ eingenommen.
+⚪ WEITER SO / MITTELFELD — Restliche Chatter, die in keine andere Kategorie passen.
+
 Regeln:
-- "categories" ist ein Array aller erkannten Kategorien.
-- Typische Kategorien: ⚠️ ACCOUNT-EINBRUCH, 🔵 ONBOARDING TAG 1, 🌟 BREAKOUT-STAR, 🔴 KÜNDIGUNG/ABWANDERUNG, 📉 0€ UMSATZ, 🟢 TOP-PERFORMER, 🔄 ACCOUNT-TAUSCH, 💰 UPSELL-POTENZIAL, 🚀 WACHSTUM
+- Nutze NUR die oben genannten categoryName-Werte exakt wie geschrieben.
+- Jeder Chatter gehört in GENAU EINE Kategorie (die wichtigste/dringendste).
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Geldbeträge mit € formatieren.
 - WICHTIG: Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein.
 - Gib das JSON kompakt aus.
