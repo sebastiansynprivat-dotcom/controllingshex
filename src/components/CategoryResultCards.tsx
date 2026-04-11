@@ -754,7 +754,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
             <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
           </div>
         ) : visible.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
         ))}
       </div>
       {hasMore && (
