@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AnalysisChatter {
   name: string;
@@ -32,181 +33,7 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 }
 
 const STORAGE_KEY = "dashboard_last_result";
-const WEBHOOK_URL = "https://hook.eu1.make.com/r2tjap7l5qc4cwozn1hmofdb21xn7ss6";
 const CANCEL_TIMEOUT_MS = 120_000;
-const FETCH_TIMEOUT_MS = 120_000;
-
-function parsePlainTextResponse(raw: string): WebhookChatter[] | null {
-  const lines = raw.trim().split("\n").filter((l) => l.trim());
-  if (lines.length === 0) return null;
-
-  // Detect pipe-delimited format like: [Name]: ⚠️ Category | Account: X (Yk Follower) | Umsatz: 25 € | ...
-  const parsed: WebhookChatter[] = [];
-  for (const line of lines) {
-    if (!line.includes("|")) continue;
-
-    const nameMatch = line.match(/^\[([^\]]+)\]/);
-    const name = nameMatch ? nameMatch[1].trim() : undefined;
-
-    // Extract category (emoji + text after ]: )
-    const catMatch = line.match(/\]:\s*(.+?)\s*\|/);
-    const category = catMatch ? catMatch[1].replace(/^[\p{Emoji}\s]+/u, "").trim() : undefined;
-    const fullCat = catMatch ? catMatch[1].trim() : undefined;
-
-    const segments = line.split("|").map((s) => s.trim());
-
-    let account: string | undefined;
-    let follower: string | undefined;
-    let revenue: string | undefined;
-    let oldestChat: string | undefined;
-    let massDMs: string | undefined;
-    let recommendation: string | undefined;
-
-    for (const seg of segments) {
-      const accMatch = seg.match(/Account:\s*(.+?)(?:\((.+?)\))?$/);
-      if (accMatch) {
-        account = accMatch[1].trim();
-        if (accMatch[2]) follower = accMatch[2].replace(/[Ff]ollower/i, "").trim();
-      }
-      const revMatch = seg.match(/Umsatz:\s*([\d.,]+)/);
-      if (revMatch) revenue = revMatch[1];
-      const chatMatch = seg.match(/Offene Chats:\s*([\d.,]+)/);
-      if (chatMatch) oldestChat = chatMatch[1];
-      const massMatch = seg.match(/Mass\s*DMs?:\s*([\d.,]+)/i);
-      if (massMatch) massDMs = massMatch[1];
-      const recoMatch = seg.match(/Empfehlung:\s*(.+)/i) || seg.match(/Recommendation:\s*(.+)/i);
-      if (recoMatch) recommendation = recoMatch[1].trim();
-    }
-
-    // Last segment without a known key might be the recommendation
-    const lastSeg = segments[segments.length - 1];
-    if (!recommendation && lastSeg && !lastSeg.includes(":")) {
-      recommendation = lastSeg;
-    }
-
-    if (name || account) {
-      parsed.push({
-        name: name || account || "N/A",
-        category: fullCat || category,
-        revenue,
-        oldestChat,
-        massDMs,
-        follower,
-        recommendation,
-      });
-    }
-  }
-
-  return parsed.length > 0 ? parsed : null;
-}
-
-function extractJsonFromResponse(raw: string): unknown {
-  let cleaned = raw.trim();
-  if (!cleaned) throw new Error("Leere Antwort vom Webhook");
-
-  const jsonStart = cleaned.search(/[{[]/);
-  const jsonEnd = Math.max(cleaned.lastIndexOf("]"), cleaned.lastIndexOf("}"));
-  if (jsonStart !== -1 && jsonEnd > jsonStart) {
-    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-  }
-
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    cleaned = cleaned
-      .replace(/,\s*}/g, "}")
-      .replace(/,\s*]/g, "]")
-      .replace(/[\x00-\x1F\x7F]/g, "");
-    try {
-      return JSON.parse(cleaned);
-    } catch {
-      // Not JSON — will be handled by plaintext parser
-      return null;
-    }
-  }
-}
-
-function csvToJsonArray(csvData: string): Record<string, string>[] {
-  const lines = csvData.split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const vals = line.split(",");
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      obj[h] = (vals[i] || "").trim();
-    });
-    return obj;
-  });
-}
-
-interface WebhookChatter {
-  name?: string;
-  category?: string;
-  revenue?: string | number;
-  oldestChat?: string | number;
-  massDMs?: string | number;
-  follower?: string | number;
-  recommendation?: string;
-}
-
-function webhookResponseToAnalysis(items: WebhookChatter[]): AnalysisResult {
-  const catMap = new Map<string, AnalysisCategory>();
-
-  for (const item of items) {
-    const catName = item.category || "Unkategorisiert";
-    if (!catMap.has(catName)) {
-      const emoji = catName.includes("EINBRUCH") ? "⚠️"
-        : catName.includes("ONBOARDING") ? "🔵"
-        : catName.includes("TOP") ? "🟢"
-        : catName.includes("KÜNDIGUNG") || catName.includes("ABWANDERUNG") ? "🔴"
-        : catName.includes("0€") || catName.includes("0 €") ? "📉"
-        : catName.includes("BREAKOUT") ? "🌟"
-        : catName.includes("UPSELL") ? "💰"
-        : catName.includes("WACHSTUM") ? "🚀"
-        : catName.includes("TAUSCH") ? "🔄"
-        : "📊";
-      catMap.set(catName, { emoji, categoryName: catName, chatters: [] });
-    }
-
-    catMap.get(catName)!.chatters.push({
-      name: item.name || "N/A",
-      kpis: {
-        Tagesumsatz: item.revenue != null ? String(item.revenue) : "N/A",
-        "Offene Chats": item.oldestChat != null ? String(item.oldestChat) : "N/A",
-        MassDMs: item.massDMs != null ? String(item.massDMs) : "N/A",
-        Follower: item.follower != null ? String(item.follower) : "N/A",
-      },
-      recommendation: item.recommendation || "N/A",
-    });
-  }
-
-  return { categories: Array.from(catMap.values()) };
-}
-
-function extractWebhookItems(payload: unknown): WebhookChatter[] {
-  if (Array.isArray(payload)) return payload as WebhookChatter[];
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    if (Array.isArray(record.data)) return record.data as WebhookChatter[];
-    if (Array.isArray(record.result)) return record.result as WebhookChatter[];
-    if (Array.isArray(record.chatterData)) return record.chatterData as WebhookChatter[];
-  }
-  return [];
-}
-
-function formatWebhookError(status: number, rawText: string) {
-  const trimmed = rawText.trim();
-  if (!trimmed) return `Error ${status}: Unbekannte Antwort`;
-
-  try {
-    const parsed = JSON.parse(trimmed) as { error?: string; message?: string };
-    const message = parsed.error || parsed.message || trimmed;
-    return `Error ${status}: ${message}`;
-  } catch {
-    return `Error ${status}: ${trimmed.slice(0, 200)}`;
-  }
-}
 
 export default function Dashboard() {
   const { platform } = usePlatform();
@@ -219,11 +46,10 @@ export default function Dashboard() {
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [showCancel, setShowCancel] = useState(false);
   const [animationsReady, setAnimationsReady] = useState(true);
-  const [progress, setProgress] = useState({ current: 0, total: 3, batch: 0, totalBatches: 3 });
+  const [progress, setProgress] = useState({ current: 0, total: 3, step: "" });
 
   const cancelledRef = useRef(false);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const addStatus = useCallback((msg: string) => {
     const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -237,40 +63,27 @@ export default function Dashboard() {
         const parsed = JSON.parse(cached);
         if (parsed.platform === platform && isAnalysisResult(parsed.data)) setResult(parsed.data);
       }
-    } catch {
-    }
+    } catch {}
   }, [platform]);
 
   const handleFile = (f: File) => {
     setFile(f);
     const reader = new FileReader();
-
     reader.onload = (e) => {
       const data = e.target?.result;
       if (!data) return;
-
       try {
         if (/\.(xlsx|xls)$/i.test(f.name)) {
           const wb = XLSX.read(data, { type: "array" });
           const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-          if (csv.startsWith("PK")) {
-            toast.error("Datei konnte nicht konvertiert werden.");
-            return;
-          }
           setCsvData(csv);
         } else {
-          const text = new TextDecoder().decode(data as ArrayBuffer);
-          if (text.startsWith("PK")) {
-            toast.error("Datei konnte nicht konvertiert werden.");
-            return;
-          }
-          setCsvData(text);
+          setCsvData(new TextDecoder().decode(data as ArrayBuffer));
         }
       } catch (err: any) {
         toast.error("Datei konnte nicht gelesen werden: " + (err.message || "Fehler"));
       }
     };
-
     reader.readAsArrayBuffer(f);
   };
 
@@ -288,7 +101,6 @@ export default function Dashboard() {
 
   const cancelAnalysis = () => {
     cancelledRef.current = true;
-    abortRef.current?.abort();
     addStatus("⛔ Analyse abgebrochen.");
     toast.info("Analyse abgebrochen.");
     setLoading(false);
@@ -309,107 +121,72 @@ export default function Dashboard() {
     cancelledRef.current = false;
     cancelTimerRef.current = setTimeout(() => setShowCancel(true), CANCEL_TIMEOUT_MS);
 
-    const abortController = new AbortController();
-    abortRef.current = abortController;
-
     try {
-      addStatus("[Step 1/3] Daten werden bereinigt…");
-      setProgress({ current: 1, total: 3, batch: 1, totalBatches: 3 });
+      addStatus("[Step 1/3] CSV wird vorbereitet…");
+      setProgress({ current: 1, total: 3, step: "Daten vorbereiten" });
 
-      const data = csvToJsonArray(csvData);
-      if (data.length === 0) throw new Error("Keine Daten in der Datei gefunden.");
-      addStatus(`✅ ${data.length} Datensätze extrahiert.`);
-
-      if (cancelledRef.current) return;
-
-      addStatus("[Step 2/3] Kategorien werden berechnet…");
-      setProgress({ current: 2, total: 3, batch: 2, totalBatches: 3 });
-      addStatus(`📤 Sende ${data.length} Datensätze an High-Precision-Pipeline…`);
-
-      const timeoutId = setTimeout(() => abortController.abort(), FETCH_TIMEOUT_MS);
-
-      const MAX_RETRIES = 1;
-      let response: Response | null = null;
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (cancelledRef.current) { clearTimeout(timeoutId); return; }
-        if (attempt > 0) {
-          addStatus(`⏳ Rate-Limit (429) — warte 5s (Versuch ${attempt + 1}/${MAX_RETRIES + 1})…`);
-          await new Promise((r) => setTimeout(r, 5000));
-        }
-        response = await window.fetch(WEBHOOK_URL, {
-          method: "POST",
-          mode: "cors",
-          credentials: "omit",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chatterData: data }),
-          signal: abortController.signal,
-        });
-        if (response.status !== 429) break;
-      }
-      clearTimeout(timeoutId);
-      if (!response) throw new Error("Keine Antwort erhalten.");
-      if (response.status === 429) throw new Error("Error 429: Rate-Limit nach Retry. Bitte warte 1-2 Minuten.");
-
-      const rawResponseText = await response.text();
-
-      if (!response.ok) {
-        throw new Error(formatWebhookError(response.status, rawResponseText));
-      }
-
-      addStatus("✅ Antwort erhalten.");
+      const lines = csvData.split("\n").filter((l) => l.trim());
+      if (lines.length < 2) throw new Error("Keine Daten in der Datei gefunden.");
+      addStatus(`✅ ${lines.length - 1} Datensätze erkannt.`);
 
       if (cancelledRef.current) return;
 
-      addStatus("[Step 3/3] Management-Strategie wird erstellt…");
-      setProgress({ current: 3, total: 3, batch: 3, totalBatches: 3 });
+      addStatus("[Step 2/3] KI-Analyse läuft…");
+      setProgress({ current: 2, total: 3, step: "KI analysiert" });
+      addStatus("🧠 Sende Daten an Lovable AI…");
 
-      // Try JSON first, then plaintext fallback
-      let items: WebhookChatter[] = [];
-      const parsedWebhookData = extractJsonFromResponse(rawResponseText);
-      if (parsedWebhookData) {
-        items = extractWebhookItems(parsedWebhookData);
+      const { data, error } = await supabase.functions.invoke("analyze-csv", {
+        body: { csvData, platform },
+      });
+
+      if (cancelledRef.current) return;
+
+      if (error) {
+        throw new Error(error.message || "Backend-Fehler");
       }
-      if (items.length === 0) {
-        const plainItems = parsePlainTextResponse(rawResponseText);
-        if (plainItems && plainItems.length > 0) {
-          addStatus("📝 Klartext-Antwort erkannt — wird konvertiert…");
-          items = plainItems;
+
+      if (data?.error) {
+        if (data.error.includes("Rate limit") || data.error.includes("429")) {
+          throw new Error("⏳ Rate-Limit erreicht. Bitte warte 1-2 Minuten.");
         }
-      }
-      if (items.length === 0) {
-        throw new Error(`Error ${response.status}: Keine Analyse-Ergebnisse erkannt. Antwort: '${rawResponseText.slice(0, 150)}'`);
+        if (data.error.includes("Credits") || data.error.includes("402")) {
+          throw new Error("💳 AI-Credits aufgebraucht. Bitte Credits aufladen.");
+        }
+        throw new Error(data.error);
       }
 
-      const analysisResult = webhookResponseToAnalysis(items);
+      const analysisResult = data?.result as AnalysisResult | undefined;
+      if (!analysisResult || !Array.isArray(analysisResult.categories)) {
+        throw new Error("Ungültiges Ergebnis von der KI. Bitte erneut versuchen.");
+      }
+
+      addStatus("[Step 3/3] Ergebnisse werden aufbereitet…");
+      setProgress({ current: 3, total: 3, step: "Fertig" });
+
       const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ platform, data: analysisResult, ts: Date.now() }));
-      } catch {
-      }
+      } catch {}
 
       setAnimationsReady(false);
       setResult(analysisResult);
       toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
       setTimeout(() => setAnimationsReady(true), 2000);
     } catch (err: any) {
-      if (err.name === "AbortError") {
-        addStatus("⏳ Timeout nach 120s erreicht. Bitte versuche es später erneut.");
-        toast.error("Timeout: Make.com hat nicht rechtzeitig geantwortet.");
-        return;
-      }
       console.error("[Analyse] Fehler:", err);
-      const msg = err.message || "Network Error: CORS block";
+      const msg = err.message || "Unbekannter Fehler";
       addStatus(`💥 ${msg}`);
       toast.error(msg);
     } finally {
       setLoading(false);
       setShowCancel(false);
-      setProgress({ current: 0, total: 3, batch: 0, totalBatches: 3 });
+      setProgress({ current: 0, total: 3, step: "" });
       if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     }
   };
+
   return (
     <div className="flex h-full min-h-0">
       <div className={`flex-1 min-w-0 overflow-y-auto transition-all duration-500 ${selectedChatter ? "mr-0" : ""}`}>
@@ -497,7 +274,7 @@ export default function Dashboard() {
                 {loading && progress.total > 0 && (
                   <>
                     <div className="flex items-center justify-between text-xs font-light tracking-wider">
-                      <span className="text-primary/70 uppercase">High-Precision-Pipeline — Step {progress.batch} / {progress.totalBatches}</span>
+                      <span className="text-primary/70 uppercase">KI-Pipeline — Step {progress.current} / {progress.total}</span>
                       <span className="text-white/40">{Math.round((progress.current / progress.total) * 100)}%</span>
                     </div>
                     <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
