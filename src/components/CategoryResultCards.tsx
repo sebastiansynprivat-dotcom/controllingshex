@@ -1,4 +1,4 @@
-import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useMemo } from "react";
