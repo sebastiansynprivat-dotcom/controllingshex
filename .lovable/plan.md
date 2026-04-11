@@ -1,32 +1,45 @@
 
 
-## Plan: Mobile-Optimierung — Kein Seitwärts-Scrollen + Filter als Dropdown
+## Plan: Analyse-Vergleich & Zeitverlauf im Dashboard
 
-### Problem
-1. Trotz `overflow-x: hidden` kann man auf Mobile noch horizontal wischen — die Filter-Pills in `CategoryResultCards.tsx` haben `overflow-x-auto` und erzeugen eine scrollbare Zone.
-2. Die Filter-Pills sind auf Mobile unübersichtlich und nehmen zu viel Platz ein.
+### Was sich ändert
 
-### Lösung
+Oberhalb der Chatter-Karten kommt ein neuer Bereich mit zwei Funktionen:
+1. **Analyse-Auswahl**: Dropdown, um zwischen vergangenen Analysen zu wechseln (nicht nur die letzte)
+2. **Trend-Widget**: Kompakte Übersicht, wie sich Gesamtumsatz, Chatter-Anzahl und Warnungen über die letzten Analysen entwickelt haben — mit Mini-Sparklines
 
-**1. Filter-Pills → Dropdown-Select (Mobile)**
-- Die horizontale Pill-Leiste (Zeile 433-456 in `CategoryResultCards.tsx`) wird auf Mobile durch ein `<Select>`-Dropdown ersetzt.
-- Auf Desktop (ab `sm:`) bleiben die Pills sichtbar wie bisher.
-- Das Dropdown zeigt alle Kategorien mit Emoji + Name + Anzahl, mit einer "Alle anzeigen"-Option zum Zurücksetzen.
+### Schritte
 
-**2. Overflow-Locks verschärfen**
-- In `CategoryResultCards.tsx`: `overflow-x-auto` komplett entfernen, da die Pills auf Mobile nicht mehr horizontal scrollen sollen.
-- Alle Container mit potenziell breitem Content bekommen `overflow-hidden` und `w-full max-w-full`.
+**1. Dashboard: Alle Analysen laden**
+- Statt nur `limit(1)` werden alle Analysen für die Platform geladen (Datum + ID + `chatter_count`)
+- Die neueste wird als Default angezeigt
+- Ein `Select`-Dropdown zeigt alle verfügbaren Analysedaten zur Auswahl
+- Bei Auswahl wird die jeweilige `result_json` nachgeladen
+
+**2. Trend-Widget Komponente**
+- Neue Komponente `src/components/TrendWidget.tsx`
+- Zeigt 3-4 KPI-Karten nebeneinander (auf Mobile gestackt):
+  - **Gesamt-Chatter** (Anzahl aus `chatter_count`)
+  - **Warnungen** (Anzahl Chatters in Warn-Kategorien, berechnet aus `result_json`)
+  - **0€-Accounts** (Anzahl aus 0€-Kategorien)
+- Jede Karte zeigt den aktuellen Wert + Trend-Pfeil vs. vorherige Analyse
+- Optional: Mini-Sparkline (via Recharts `<Sparkline>`) über die letzten 5-10 Analysen
+
+**3. KPI-Extraktion aus result_json**
+- Für jede gespeicherte Analyse werden die Aggregat-KPIs direkt aus den Kategorien im `result_json` berechnet (clientseitig)
+- Keine DB-Änderung nötig — alles aus bestehenden Daten ableitbar
 
 ### Dateien
 
 | Datei | Änderung |
 |---|---|
-| `src/components/CategoryResultCards.tsx` | Filter-Pills auf Mobile durch `<Select>`-Dropdown ersetzen; `overflow-x-auto` entfernen |
-| `src/index.css` | Ggf. zusätzliche `touch-action` Regeln |
+| `src/pages/Dashboard.tsx` | Alle Analysen laden, Dropdown zur Auswahl, Trend-Widget einbinden |
+| `src/components/TrendWidget.tsx` | Neu — KPI-Karten mit Trend-Pfeilen und optionalen Sparklines |
 
 ### Technische Details
-- Verwendung der bestehenden `Select`-Komponente aus `src/components/ui/select.tsx`
-- Mobile: Ein einzelnes Dropdown mit allen Kategorien
-- Desktop (`sm:` und größer): Bestehende Pill-Buttons bleiben erhalten
-- Responsive Umschaltung via `hidden sm:flex` / `flex sm:hidden`
+- Recharts ist bereits installiert (via `chart.tsx`) — Sparklines nutzen `<LineChart>` mit minimaler Config
+- Erste Query: `select id, analysis_date, chatter_count, result_json` für alle Reports der Platform
+- Dropdown: `<Select>` mit Datum-Formatierung (`de-DE`)
+- Trend-Berechnung: Vergleich aktuelle vs. vorherige Analyse (Delta + Pfeil)
+- Mobile: KPI-Karten in 2x2 Grid, Dropdown volle Breite
 
