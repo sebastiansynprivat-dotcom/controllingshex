@@ -787,6 +787,26 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
           </div>
         )}
       </div>
+
+      {/* Row 3: Full-width revenue sparkline */}
+      {sparkData.length >= 2 && (
+        <div className="ml-[52px] sm:ml-[60px] mt-3">
+          <div className="rounded-lg bg-white/[0.015] border border-white/[0.04] px-3 py-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] uppercase tracking-[0.15em] text-white/15 font-light">Umsatz (14 Tage)</span>
+              {stats && (
+                <div className="flex items-center gap-1">
+                  <TrendIcon trend={stats.trend} />
+                  <span className={`text-[10px] font-light ${stats.trend === "up" ? "text-primary/60" : stats.trend === "down" ? "text-[#B76E64]/60" : "text-white/20"}`}>
+                    {stats.trend === "up" ? "Aufwärts" : stats.trend === "down" ? "Abwärts" : "Stabil"}
+                  </span>
+                </div>
+              )}
+            </div>
+            <Sparkline data={sparkData} width={280} height={36} showFill />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
