@@ -104,7 +104,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   const [notes, setNotes] = useState<CoachingNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
+  const [assignedLabelIds, setAssignedLabelIds] = useState<Set<string>>(new Set());
+  const [showNewLabel, setShowNewLabel] = useState(false);
+  const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState("#3B82F6");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const LABEL_COLORS = [
+    "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
+    "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
+  ];
 
   // Auto-scroll to top when a new chatter is selected
   useEffect(() => {
