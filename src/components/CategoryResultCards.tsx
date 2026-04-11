@@ -842,7 +842,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 
 function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck, labels }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void; labels?: ChatterLabel[] }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
-  const [nameCopied, setNameCopied] = useState(false);
+  const [kpisExpanded, setKpisExpanded] = useState(false);
   const sparkContainerRef = useRef<HTMLDivElement>(null);
   const [sparkWidth, setSparkWidth] = useState(200);
   const formattedName = toTitleCase(chatter.name || "—");
