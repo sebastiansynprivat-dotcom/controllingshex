@@ -976,27 +976,37 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
         )}
       </div>
 
-      {/* Row 2: KPIs + Recommendation */}
-      <div className="ml-[52px] sm:ml-[60px] mt-3 sm:mt-4 flex flex-col lg:flex-row lg:items-start gap-3 sm:gap-4 min-w-0">
-        {/* Other KPIs */}
-        <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-1.5 sm:gap-y-2 flex-1 min-w-0">
-          {kpiEntries
-            .filter(([, v]) => !isMoneyValue(v))
-            .map(([label, value]) => (
-              <div key={label} className="flex flex-wrap items-baseline gap-1.5 max-w-full">
-                <span className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light break-words">{label}</span>
-                <span className="text-xs font-light text-foreground/60 break-words">{value}</span>
+      {/* Row 2: KPIs toggle + collapsible content */}
+      {(kpiEntries.filter(([, v]) => !isMoneyValue(v)).length > 0 || chatter.recommendation) && (
+        <div className="ml-[52px] sm:ml-[60px] mt-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); setKpisExpanded((v) => !v); }}
+            className="flex items-center gap-1 text-[10px] text-white/25 hover:text-white/40 transition-colors font-light tracking-wider uppercase"
+          >
+            KPIs
+            <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", kpisExpanded && "rotate-180")} />
+          </button>
+          {kpisExpanded && (
+            <div className="mt-2 flex flex-col lg:flex-row lg:items-start gap-3 sm:gap-4 min-w-0 animate-fade-in">
+              <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-1.5 sm:gap-y-2 flex-1 min-w-0">
+                {kpiEntries
+                  .filter(([, v]) => !isMoneyValue(v))
+                  .map(([label, value]) => (
+                    <div key={label} className="flex flex-wrap items-baseline gap-1.5 max-w-full">
+                      <span className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light break-words">{label}</span>
+                      <span className="text-xs font-light text-foreground/60 break-words">{value}</span>
+                    </div>
+                  ))}
               </div>
-            ))}
+              {chatter.recommendation && (
+                <div className="lg:max-w-xs shrink-0 min-w-0 border-l border-primary/15 pl-3 sm:pl-4">
+                  <p className="text-xs leading-relaxed text-white/35 font-light italic break-words">{chatter.recommendation}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* Recommendation */}
-        {chatter.recommendation && (
-          <div className="lg:max-w-xs shrink-0 min-w-0 border-l border-primary/15 pl-3 sm:pl-4">
-            <p className="text-xs leading-relaxed text-white/35 font-light italic break-words">{chatter.recommendation}</p>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Row 3: Inline revenue sparkline — flush, no box */}
       {sparkData.length >= 1 && (
