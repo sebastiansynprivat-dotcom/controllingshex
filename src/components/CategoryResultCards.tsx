@@ -801,7 +801,7 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
 
       {/* Row 3: Full-width revenue sparkline */}
       {sparkData.length >= 2 && (
-        <div className="ml-[52px] sm:ml-[60px] mt-3">
+        <div className="ml-[52px] sm:ml-[60px] mt-3" ref={sparkContainerRef}>
           <div className="rounded-lg bg-white/[0.015] border border-white/[0.04] px-3 py-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[9px] uppercase tracking-[0.15em] text-white/15 font-light">Umsatz (14 Tage)</span>
@@ -814,7 +814,7 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
                 </div>
               )}
             </div>
-            <Sparkline data={sparkData} width={280} height={36} showFill />
+            <Sparkline data={sparkData} width={sparkWidth > 50 ? sparkWidth : 200} height={36} showFill />
           </div>
         </div>
       )}
