@@ -1,4 +1,4 @@
-import { Copy, Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2 } from "lucide-react";
+import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -195,21 +195,6 @@ function calcScore(history: HistoryEntry[]): number {
   return Math.round(revScore + dmScore + delayScore);
 }
 
-function buildClipboardTSV(categories: Category[]): string {
-  const allHeaders = new Set<string>();
-  categories.forEach((cat) =>
-    cat.chatters.forEach((c) => Object.keys(c.kpis || {}).forEach((k) => allHeaders.add(k)))
-  );
-  const kpiCols = Array.from(allHeaders);
-  const header = ["Kategorie", "Chatter", "Startdatum", "Account", ...kpiCols, "Empfehlung"].join("\t");
-  const rows = categories.flatMap((cat) =>
-    cat.chatters.map((c) =>
-      [`${cat.emoji} ${cat.categoryName}`, c.name, c.startDate || "", c.account || "", ...kpiCols.map((k) => c.kpis[k] || ""), c.recommendation || ""].join("\t")
-    )
-  );
-  return [header, ...rows].join("\n");
-}
-
 /* ------------------------------------------------------------------ */
 /*  SPARKLINE (SVG) — minimal, no axes                                 */
 /* ------------------------------------------------------------------ */
@@ -367,7 +352,7 @@ interface CategoryResultCardsProps {
 
 export default function CategoryResultCards({ data, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
-  const [copied, setCopied] = useState(false);
+  
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set());
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
@@ -594,22 +579,12 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return filtered;
   }, [activeFilters, activeLabelFilters, categories, chatterLabelsMap]);
 
-  const copyToClipboard = async () => {
-    const text = categories.length > 0
-      ? buildClipboardTSV(categories)
-      : JSON.stringify(data ?? { categories: [] });
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success("Tabelle kopiert!");
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   if (!data || categories.length === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-light text-foreground/80 tracking-wide">Ergebnis</h2>
-          <CopyButton copied={copied} onClick={copyToClipboard} />
         </div>
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-2xl min-h-40 flex items-center justify-center">
           <p className="text-sm text-white/35 font-light">Keine strukturierte Analyse verfügbar.</p>
@@ -636,7 +611,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             )}
           </p>
         </div>
-        <CopyButton copied={copied} onClick={copyToClipboard} />
+        
       </div>
 
       {/* Mobile Filter Dropdowns */}
@@ -1065,21 +1040,5 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
         </div>
       )}
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  COPY BUTTON                                                        */
-/* ------------------------------------------------------------------ */
-
-function CopyButton({ copied, onClick }: { copied: boolean; onClick: () => void }) {
-  return (
-    <Button
-      onClick={onClick} variant="outline" size="sm"
-      className="bg-white/[0.02] border-white/[0.06] text-white/40 hover:text-white/70 hover:border-white/[0.1] hover:bg-white/[0.03] transition-all duration-500 text-[11px] font-light tracking-wider h-8"
-    >
-      {copied ? <Check className="h-3 w-3 mr-1.5 text-emerald-400/60" /> : <Copy className="h-3 w-3 mr-1.5" />}
-      {copied ? "Kopiert" : "Kopieren"}
-    </Button>
   );
 }
