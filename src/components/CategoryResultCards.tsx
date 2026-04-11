@@ -508,7 +508,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -523,7 +523,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
 const INITIAL_VISIBLE = 10;
 
-function CategoryCard({ category, onChatterClick, chatterStats }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats> }) {
+function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string> }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const visible = category.chatters.slice(0, visibleCount);
   const hasMore = visibleCount < category.chatters.length;
@@ -545,7 +545,7 @@ function CategoryCard({ category, onChatterClick, chatterStats }: { category: Ca
             <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
           </div>
         ) : visible.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} />
+          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} />
         ))}
       </div>
       {hasMore && (
