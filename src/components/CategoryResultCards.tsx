@@ -1,12 +1,13 @@
 import { Copy, Check, Filter, TrendingUp, TrendingDown, Minus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip as RechartsTooltip } from "recharts";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
