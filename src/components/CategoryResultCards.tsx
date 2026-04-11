@@ -615,6 +615,14 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt }: { 
             {chatter.account || "Kein Account zugewiesen"}
             {chatter.startDate && ` · ${chatter.startDate}`}
           </p>
+          {videoCoachingSentAt && (() => {
+            const days = Math.floor((Date.now() - new Date(videoCoachingSentAt).getTime()) / 86400000);
+            return (
+              <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-purple-400/70 font-light tracking-wide">
+                📼 vor {days === 0 ? "heute" : `${days} Tag${days !== 1 ? "en" : ""}`}
+              </span>
+            );
+          })()}
 
           {revenueEntry && (
             <div className="mt-2 flex items-center gap-1.5 sm:hidden min-w-0">
