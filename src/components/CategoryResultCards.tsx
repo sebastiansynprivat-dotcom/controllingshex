@@ -1,4 +1,4 @@
-import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy } from "lucide-react";
+import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -353,8 +353,9 @@ interface CategoryResultCardsProps {
 export default function CategoryResultCards({ data, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
   
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set());
+  const [allCollapsed, setAllCollapsed] = useState(false);
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
@@ -611,7 +612,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             )}
           </p>
         </div>
-        
+        <button
+          onClick={() => setAllCollapsed((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/40 hover:text-white/70 bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200"
+        >
+          {allCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+          {allCollapsed ? "Alle aufklappen" : "Alle einklappen"}
+        </button>
       </div>
 
       {/* Mobile Filter Dropdowns */}
@@ -784,7 +791,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} chatterLabelsMap={chatterLabelsMap} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} chatterLabelsMap={chatterLabelsMap} collapsed={allCollapsed} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -799,7 +806,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
 const INITIAL_VISIBLE = 10;
 
-function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck, chatterLabelsMap }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void; chatterLabelsMap: Record<string, ChatterLabel[]> }) {
+function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck, chatterLabelsMap, collapsed }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void; chatterLabelsMap: Record<string, ChatterLabel[]>; collapsed?: boolean }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const visible = category.chatters.slice(0, visibleCount);
   const hasMore = visibleCount < category.chatters.length;
@@ -815,22 +822,26 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
           {category.chatters.length} {category.chatters.length === 1 ? "Eintrag" : "Einträge"}
         </span>
       </div>
-      <div className="divide-y divide-white/[0.03]">
-        {visible.length === 0 ? (
-          <div className="px-8 py-6 text-center">
-            <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
+      {!collapsed && (
+        <>
+          <div className="divide-y divide-white/[0.03]">
+            {visible.length === 0 ? (
+              <div className="px-8 py-6 text-center">
+                <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
+              </div>
+            ) : visible.map((chatter, i) => (
+              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
+            ))}
           </div>
-        ) : visible.map((chatter, i) => (
-          <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
-        ))}
-      </div>
-      {hasMore && (
-        <button
-          onClick={() => setVisibleCount((v) => v + 20)}
-          className="w-full py-4 text-[11px] text-primary/50 hover:text-primary/80 font-light tracking-wider uppercase transition-colors duration-500 border-t border-white/[0.03]"
-        >
-          Weitere {Math.min(20, category.chatters.length - visibleCount)} von {category.chatters.length - visibleCount} anzeigen
-        </button>
+          {hasMore && (
+            <button
+              onClick={() => setVisibleCount((v) => v + 20)}
+              className="w-full py-4 text-[11px] text-primary/50 hover:text-primary/80 font-light tracking-wider uppercase transition-colors duration-500 border-t border-white/[0.03]"
+            >
+              Weitere {Math.min(20, category.chatters.length - visibleCount)} von {category.chatters.length - visibleCount} anzeigen
+            </button>
+          )}
+        </>
       )}
     </div>
   );
