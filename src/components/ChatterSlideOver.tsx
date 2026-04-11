@@ -30,6 +30,12 @@ interface CoachingNote {
   created_at: string;
 }
 
+interface ChatterLabel {
+  id: string;
+  label_name: string;
+  color: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
