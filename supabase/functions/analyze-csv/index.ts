@@ -263,7 +263,8 @@ Regeln:
     const { header, batches } = splitCsvIntoBatches(csvData, BATCH_SIZE);
     const totalEntries = batches.reduce((s, b) => s + b.length, 0);
     const totalBatches = batches.length;
-    console.log(`[analyze-csv] ${totalEntries} Chatter in ${totalBatches} Batches à ${BATCH_SIZE}`);
+    const nameColIndex = findNameColumn(header);
+    console.log(`[analyze-csv] ${totalEntries} Chatter in ${totalBatches} Batches à ${BATCH_SIZE} (name col: ${nameColIndex})`);
 
     if (totalBatches === 0) {
       return new Response(JSON.stringify({ error: "Keine Daten gefunden." }), {
@@ -271,17 +272,17 @@ Regeln:
       });
     }
 
-    // Process batches sequentially
+    // Process batches sequentially with auto-retry for missing chatters
     const batchResults: any[] = [];
     const errors: string[] = [];
 
     for (let i = 0; i < totalBatches; i++) {
       try {
         console.log(`[analyze-csv] Starte Batch ${i + 1}/${totalBatches} (${batches[i].length} Chatter)…`);
-        const result = await analyzeBatch(lovableApiKey, systemPrompt, header, batches[i], activePlatform, modelsText, i + 1, totalBatches);
+        const result = await analyzeBatchWithRetry(lovableApiKey, systemPrompt, header, batches[i], activePlatform, modelsText, i + 1, totalBatches, nameColIndex);
         batchResults.push(result);
         const chattersInBatch = (result.categories || []).reduce((s: number, c: any) => s + (c.chatters?.length || 0), 0);
-        console.log(`[analyze-csv] Batch ${i + 1} ✓ → ${chattersInBatch} Chatter`);
+        console.log(`[analyze-csv] Batch ${i + 1} ✓ → ${chattersInBatch}/${batches[i].length} Chatter`);
       } catch (err: any) {
         console.error(`[analyze-csv] Batch ${i + 1} failed:`, err.message);
         errors.push(`Batch ${i + 1}: ${err.message}`);
