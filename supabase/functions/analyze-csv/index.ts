@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { csvData, platform } = await req.json();
+    const { csvData, platform, fileName, filePath } = await req.json();
 
     // Extract user_id from JWT
     const authHeader = req.headers.get("Authorization");
@@ -217,6 +217,18 @@ Deno.serve(async (req) => {
     }
     if (!csvData || typeof csvData !== "string") {
       return new Response(JSON.stringify({ error: "csvData is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (fileName !== undefined && typeof fileName !== "string") {
+      return new Response(JSON.stringify({ error: "fileName must be a string" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (filePath !== undefined && typeof filePath !== "string") {
+      return new Response(JSON.stringify({ error: "filePath must be a string" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -405,6 +417,34 @@ Regeln:
       }
     } catch (saveErr) {
       console.error("[analyze-csv] History save error:", saveErr);
+    }
+
+    try {
+      if (filePath) {
+        const total = merged.categories.reduce((sum: number, category: any) => sum + (category.chatters?.length || 0), 0);
+        const today = new Date().toISOString().split("T")[0];
+        const reportPayload = {
+          platform: activePlatform,
+          analysis_date: today,
+          file_name: fileName || `Report_${today}.csv`,
+          file_path: filePath,
+          result_json: merged,
+          chatter_count: total,
+          user_id: userId,
+        };
+
+        const { error: reportError } = await supabase
+          .from("analysis_reports")
+          .upsert(reportPayload, { onConflict: "file_path" });
+
+        if (reportError) {
+          console.error("[analyze-csv] Report save error:", reportError);
+        } else {
+          console.log(`[analyze-csv] Saved report for ${filePath}`);
+        }
+      }
+    } catch (reportSaveErr) {
+      console.error("[analyze-csv] Report save fatal:", reportSaveErr);
     }
 
     return new Response(JSON.stringify({
