@@ -18,6 +18,7 @@ interface ChatterData {
   recommendation?: string;
   categoryEmoji?: string;
   categoryName?: string;
+  startDate?: string;
   revenueHistory?: { date: string; revenue: number }[];
 }
 
@@ -185,6 +186,7 @@ export default function TinderMode() {
             recommendation: ch.recommendation,
             categoryEmoji: finalCategory.emoji,
             categoryName: finalCategory.name,
+            startDate: ch.startDate,
           });
         }
       }

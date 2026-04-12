@@ -9,6 +9,7 @@ interface ChatterData {
   recommendation?: string;
   categoryEmoji?: string;
   categoryName?: string;
+  startDate?: string;
   revenueHistory?: { date: string; revenue: number }[];
 }
 
@@ -197,12 +198,19 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         </>
       )}
 
-      {/* Category badge */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">{chatter.categoryEmoji || "📊"}</span>
-        <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-          {chatter.categoryName || "Unbekannt"}
-        </span>
+      {/* Category badge + start date */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{chatter.categoryEmoji || "📊"}</span>
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+            {chatter.categoryName || "Unbekannt"}
+          </span>
+        </div>
+        {chatter.startDate && (
+          <span className="text-[10px] text-muted-foreground/70 font-medium">
+            seit {chatter.startDate}
+          </span>
+        )}
       </div>
 
       {/* Name — tap to copy */}
