@@ -174,6 +174,10 @@ function toTitleCase(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normalizeChatterName(name: string): string {
+  return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
+
 function calcTrend(history: HistoryEntry[]): "up" | "down" | "stable" {
   if (history.length < 4) return "stable";
   const sorted = [...history].sort((a, b) => a.analysis_date.localeCompare(b.analysis_date));
