@@ -162,7 +162,8 @@ const emojiAccent: Record<string, string> = {
   "🔵": "text-blue-400/70", "🌟": "text-yellow-300/70", "🟢": "text-emerald-400/70",
   "🔄": "text-violet-400/70", "❌": "text-rose-400/70", "🟡": "text-yellow-400/70",
   "💰": "text-emerald-300/70", "🚀": "text-sky-400/70", "🟠": "text-orange-400/70",
-  "📼": "text-purple-400/70", "⚪": "text-white/50",
+  "📼": "text-purple-400/70", "⚪": "text-white/50", "⭐": "text-amber-300/70",
+  "👀": "text-zinc-400/70", "📊": "text-cyan-400/70", "🔼": "text-emerald-400/70",
 };
 
 function isMoneyValue(value: string): boolean {
