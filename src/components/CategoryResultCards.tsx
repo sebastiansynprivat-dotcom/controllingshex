@@ -97,7 +97,7 @@ const ALLOWED_CATEGORIES = [
 ] as const;
 
 const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
-const MITTELFELD = "WEITER SO / MITTELFELD";
+const MITTELFELD = "WEITER SO";
 const MITTELFELD_EMOJI = "⚪";
 
 /** Map an AI-returned category name to the closest whitelisted name */
