@@ -7,7 +7,7 @@ import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Check, X, ChevronUp, RotateCcw } from "lucide-react";
+import { Check, X, ChevronUp, RotateCcw, Undo2 } from "lucide-react";
 
 interface ChatterData {
   name: string;
@@ -40,6 +40,7 @@ export default function TinderMode() {
   const [actionPanel, setActionPanel] = useState(false);
   const [slideOver, setSlideOver] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<{ index: number; action: "right" | "left" }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -141,15 +142,37 @@ export default function TinderMode() {
     setCheckedNames((prev) => new Set(prev).add(name));
   }, [platform]);
 
-  const goNext = useCallback(() => {
+  const goNext = useCallback((action: "right" | "left") => {
+    setHistory((prev) => [...prev, { index: currentIndex, action }]);
     setActionPanel(false);
     setCurrentIndex((i) => Math.min(i + 1, chatters.length));
-  }, [chatters.length]);
+  }, [chatters.length, currentIndex]);
+
+  const handleUndo = useCallback(() => {
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      setCurrentIndex(last.index);
+      // Remove from checked if it was a right swipe
+      if (last.action === "right") {
+        const name = chatters[last.index]?.name;
+        if (name) {
+          setCheckedNames((s) => {
+            const next = new Set(s);
+            next.delete(name);
+            return next;
+          });
+        }
+      }
+      return prev.slice(0, -1);
+    });
+    setActionPanel(false);
+  }, [chatters]);
 
   const handleSwipeRight = useCallback(() => {
     if (!currentChatter) return;
     markChecked(currentChatter.name);
-    goNext();
+    goNext("right");
   }, [currentChatter, markChecked, goNext]);
 
   const handleSwipeLeft = useCallback(() => {
@@ -163,7 +186,7 @@ export default function TinderMode() {
   const handleActionDone = useCallback(() => {
     if (currentChatter) markChecked(currentChatter.name);
     setActionPanel(false);
-    goNext();
+    goNext("left");
   }, [currentChatter, markChecked, goNext]);
 
   const handleReset = () => {
@@ -178,10 +201,11 @@ export default function TinderMode() {
       if (e.key === "ArrowRight") handleSwipeRight();
       if (e.key === "ArrowLeft") handleSwipeLeft();
       if (e.key === "ArrowUp") handleSwipeUp();
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp]);
+  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleUndo]);
 
   if (loading) {
     return (
@@ -276,7 +300,16 @@ export default function TinderMode() {
 
       {/* Bottom buttons (desktop) */}
       {!isDone && currentChatter && (
-        <div className="flex items-center justify-center gap-4 mt-5">
+        <div className="flex items-center justify-center gap-3 mt-5">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className="h-9 w-9 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
