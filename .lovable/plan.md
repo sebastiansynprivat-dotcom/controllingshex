@@ -1,56 +1,23 @@
 
 
-## Tinder Mode für Chatter-Controlling
+## Swipe Mode UI-Verbesserungen
 
-Eine neue Seite/Modus, in der du alle Chatter als Karten-Stack siehst und per Swipe (oder Buttons auf Desktop) schnell durchgehst.
+### Zwei Änderungen:
 
----
+**1. Label & Notizen als runde Buttons in der Action-Leiste**
+Die Label- und Notizen-Buttons werden aus der separaten Zeile entfernt und stattdessen als runde Icon-Buttons (gleicher Stil wie Undo, Like, Dislike, Details) in die Hauptreihe integriert. Beim Klick fährt ein Panel von unten hoch (wie das bestehende SwipeActionPanel), statt sich inline aufzuklappen.
 
-### So funktioniert's
-
-```text
-┌─────────────────────────┐
-│   🔵 ONBOARDING TAG 3   │
-│                         │
-│     chatter_name        │
-│   Revenue: 45,00 €      │
-│   MassDMs: 120          │
-│   Delay: 0 Tage         │
-│                         │
-│   "Guter Start, weiter  │
-│    so monitoren"        │
-│                         │
-└─────────────────────────┘
-  ← AKTION NÖTIG    OK ✓ →
-```
-
-- **Swipe rechts (oder ✓ Button)** → Chatter als "gecheckt" markieren, nächste Karte
-- **Swipe links (oder ✗ Button)** → Öffnet kurzes Action-Panel: Notiz schreiben, Label setzen, oder "Coaching nötig" markieren
-- **Swipe nach oben** → Öffnet das volle ChatterSlideOver mit History/Charts
-- Fortschrittsbalken oben: "12/34 Chatter gecheckt"
-
-### Karten-Inhalt (pro Chatter)
-- Kategorie-Emoji + Name
-- Alle KPIs aus dem aktuellen Report
-- Recommendation-Text
-- Mini-Sparkline (Revenue der letzten 7 Tage aus `chatter_history`)
-
----
+**2. Empfehlung auf der Karte nicht mehr abgeschnitten**
+Die `line-clamp-3` Begrenzung auf der SwipeCard wird entfernt bzw. erweitert, und die Karte wird scrollbar gemacht, damit lange AI-Empfehlungen vollständig lesbar sind.
 
 ### Technische Umsetzung
 
-**Neue Dateien:**
-1. **`src/pages/TinderMode.tsx`** — Hauptseite mit Swipe-Karten-Stack. Nutzt `framer-motion` für drag/swipe-Gesten (`drag="x"`, `onDragEnd` → Richtung erkennen). Lädt Daten aus dem aktuellsten `analysis_reports` Report (gleiche Query wie Dashboard).
+**`src/pages/TinderMode.tsx`:**
+- Label-Button (`Tag` Icon) und Notizen-Button (`StickyNote` Icon) als `h-10 w-10 rounded-full` Buttons links und rechts neben der bestehenden Action-Leiste platzieren (Undo | Label | ✗ | ↑ | ✓ | Notiz)
+- Badge-Counter als kleines absolut positioniertes Element auf den Buttons
+- Die inline-expandierenden Panels (AnimatePresence mit height-Animation) durch Bottom-Sheet-Panels ersetzen (gleicher Stil wie SwipeActionPanel — von unten einfahrend mit Overlay)
 
-2. **`src/components/SwipeCard.tsx`** — Einzelne Chatter-Karte mit allen KPIs, Recommendation, Mini-Chart. Framer-motion `motion.div` mit `drag`, `dragConstraints`, Rotation bei Drag, farbiges Overlay (grün rechts, rot links).
-
-3. **`src/components/SwipeActionPanel.tsx`** — Slide-up Panel bei Links-Swipe: Schnell-Notiz eingeben, Label wählen, speichern → `coaching_notes` / `chatter_labels`.
-
-**Geänderte Dateien:**
-4. **`src/App.tsx`** — Neue Route `/tinder` hinzufügen
-5. **`src/components/AppSidebar.tsx`** — Neuer Nav-Link "Tinder Mode" mit passendem Icon
-
-**Dependencies:** Keine neuen — `framer-motion` ist bereits installiert und bietet `drag`, `useMotionValue`, `useTransform` für die Swipe-Mechanik.
-
-**Mobile-optimiert:** Touch-Swipe funktioniert nativ über framer-motion drag. Desktop bekommt zusätzlich Buttons und Keyboard-Shortcuts (←/→/↑).
+**`src/components/SwipeCard.tsx`:**
+- `line-clamp-3` von der Empfehlung entfernen
+- Die Karte mit `overflow-y-auto` versehen, damit bei langen Inhalten gescrollt werden kann (Touch-scroll muss vom Drag-Gesture getrennt bleiben)
 
