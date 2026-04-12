@@ -353,6 +353,12 @@ export default function TinderMode() {
     setSlideOver(true);
   }, []);
 
+  const handleSwipeDown = useCallback(() => {
+    if (!currentChatter) return;
+    setSkippedNames((prev) => new Set(prev).add(normalizeName(currentChatter.name)));
+    toast("Übersprungen — kommt später wieder", { icon: "⏭️" });
+  }, [currentChatter]);
+
   const handleActionDone = useCallback(() => {
     if (currentChatter) {
       setUndoStack((prev) => [...prev, currentChatter.name]);
