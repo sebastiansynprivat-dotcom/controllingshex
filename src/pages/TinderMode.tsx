@@ -300,7 +300,16 @@ export default function TinderMode() {
 
       {/* Bottom buttons (desktop) */}
       {!isDone && currentChatter && (
-        <div className="flex items-center justify-center gap-4 mt-5">
+        <div className="flex items-center justify-center gap-3 mt-5">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className="h-9 w-9 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
