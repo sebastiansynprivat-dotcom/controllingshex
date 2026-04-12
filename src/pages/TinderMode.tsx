@@ -410,14 +410,65 @@ export default function TinderMode() {
   }
 
   const isDone = uncheckedChatters.length === 0;
+  const allDone = chatters.every((c) => checkedNames.has(normalizeName(c.name)));
+
+  // When category filter is active and all cards in that category are done, find next category
+  useEffect(() => {
+    if (!isDone || !selectedCategory || allDone) return;
+    // Find next category with unchecked chatters
+    const uncheckedAll = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    const remaining = new Map<string, { emoji: string; name: string }>();
+    for (const c of uncheckedAll) {
+      const key = c.categoryName || "WEITER SO";
+      if (key !== selectedCategory && !remaining.has(key)) {
+        remaining.set(key, { emoji: c.categoryEmoji || "⚪", name: key });
+      }
+    }
+    // Pick next by priority
+    const sorted = Array.from(remaining.values()).sort((a, b) => {
+      const ai = CATEGORY_PRIORITY.indexOf(a.name);
+      const bi = CATEGORY_PRIORITY.indexOf(b.name);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    if (sorted.length > 0) {
+      setCategoryDonePrompt(sorted[0].name);
+    }
+  }, [isDone, selectedCategory, allDone, chatters, checkedNames]);
 
   return (
     <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6">
+      {/* Category filter chips */}
+      <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
+        <button
+          onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); }}
+          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
+            !selectedCategory
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
+          }`}
+        >
+          Alle
+        </button>
+        {uniqueCategories.map((cat) => (
+          <button
+            key={cat.name}
+            onClick={() => { setSelectedCategory(cat.name); setCategoryDonePrompt(null); }}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-all font-medium whitespace-nowrap ${
+              selectedCategory === cat.name
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
+            }`}
+          >
+            {cat.emoji} {cat.name} <span className="opacity-60 ml-1">{cat.count}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Progress header */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground font-medium">
-            {checkedCount}/{totalCount} gecheckt
+            {filteredChecked}/{filteredTotal} gecheckt
           </span>
           <span className="text-xs text-muted-foreground">
             {uncheckedChatters.length} übrig
@@ -428,7 +479,7 @@ export default function TinderMode() {
 
       {/* Card stack */}
       <div className="relative flex-1 min-h-0">
-        {isDone ? (
+        {isDone && allDone ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -436,10 +487,44 @@ export default function TinderMode() {
           >
             <div className="text-5xl">🎉</div>
             <p className="text-foreground font-medium">Alle Chatter durchgegangen!</p>
-            <p className="text-sm text-muted-foreground">{checkedCount} von {totalCount} gecheckt</p>
+            <p className="text-sm text-muted-foreground">{checkedNames.size} von {chatters.length} gecheckt</p>
             <Button variant="outline" size="sm" onClick={handleReset}>
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
               Nochmal durchgehen
+            </Button>
+          </motion.div>
+        ) : isDone && categoryDonePrompt ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center h-full gap-5"
+          >
+            <div className="text-4xl">✅</div>
+            <p className="text-foreground font-medium text-center">
+              Alle <span className="text-primary">{selectedCategory}</span> durchgegangen!
+            </p>
+            <p className="text-sm text-muted-foreground text-center">
+              Weiter mit <span className="font-medium text-foreground">{categoryDonePrompt}</span>?
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" size="sm" onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); }}>
+                Übersicht
+              </Button>
+              <Button size="sm" onClick={() => { setSelectedCategory(categoryDonePrompt); setCategoryDonePrompt(null); }}>
+                Ja, weiter
+              </Button>
+            </div>
+          </motion.div>
+        ) : isDone ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center h-full gap-4"
+          >
+            <div className="text-5xl">🎉</div>
+            <p className="text-foreground font-medium">Kategorie fertig!</p>
+            <Button variant="outline" size="sm" onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); }}>
+              Zurück zur Übersicht
             </Button>
           </motion.div>
         ) : (
