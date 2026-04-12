@@ -115,6 +115,7 @@ const CATEGORY_PRIORITY = [
 export default function TinderMode() {
   const { platform } = usePlatform();
   const [chatters, setChatters] = useState<ChatterData[]>([]);
+  const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
   const [slideOver, setSlideOver] = useState(false);
@@ -250,10 +251,15 @@ export default function TinderMode() {
   const uncheckedChatters = useMemo(
     () => {
       const base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
-      if (!selectedCategory) return base;
-      return base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+      const filtered = selectedCategory
+        ? base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory)
+        : base;
+      // Put skipped names at the end
+      const notSkipped = filtered.filter((c) => !skippedNames.has(normalizeName(c.name)));
+      const skipped = filtered.filter((c) => skippedNames.has(normalizeName(c.name)));
+      return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory]
+    [chatters, checkedNames, selectedCategory, skippedNames]
   );
 
   const currentChatter = uncheckedChatters[0];
@@ -347,6 +353,12 @@ export default function TinderMode() {
     setSlideOver(true);
   }, []);
 
+  const handleSwipeDown = useCallback(() => {
+    if (!currentChatter) return;
+    setSkippedNames((prev) => new Set(prev).add(normalizeName(currentChatter.name)));
+    toast("Übersprungen — kommt später wieder", { icon: "⏭️" });
+  }, [currentChatter]);
+
   const handleActionDone = useCallback(() => {
     if (currentChatter) {
       setUndoStack((prev) => [...prev, currentChatter.name]);
@@ -409,11 +421,12 @@ export default function TinderMode() {
       if (e.key === "ArrowRight") handleSwipeRight();
       if (e.key === "ArrowLeft") handleSwipeLeft();
       if (e.key === "ArrowUp") handleSwipeUp();
+      if (e.key === "ArrowDown") { e.preventDefault(); handleSwipeDown(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleUndo]);
+  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleSwipeDown, handleUndo]);
 
   const isDone = uncheckedChatters.length === 0;
   const allDone = chatters.every((c) => checkedNames.has(normalizeName(c.name)));
@@ -569,6 +582,7 @@ export default function TinderMode() {
                 onSwipeRight={handleSwipeRight}
                 onSwipeLeft={handleSwipeLeft}
                 onSwipeUp={handleSwipeUp}
+                onSwipeDown={handleSwipeDown}
                 isTop={true}
               />
             )}
