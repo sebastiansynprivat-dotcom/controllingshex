@@ -521,45 +521,58 @@ export default function TinderMode() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <div className="absolute inset-0 bg-black/40" onClick={() => setLabelPanel(false)} />
                 <motion.div
-                  className="relative w-full max-w-md rounded-t-2xl bg-[hsl(var(--surface-1))] border-t border-border p-5"
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setLabelPanel(false)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                />
+                <motion.div
+                  className="relative w-full max-w-md rounded-t-3xl bg-background border-t border-border/50 px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]"
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  transition={{ type: "spring", damping: 28, stiffness: 320 }}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-medium text-foreground">Labels</h3>
-                    <button onClick={() => setLabelPanel(false)} className="text-muted-foreground hover:text-foreground">
-                      <X className="h-4 w-4" />
-                    </button>
+                  <div className="flex justify-center mb-4">
+                    <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
                   </div>
-                  <div className="flex flex-wrap gap-1.5 mb-3">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Tag className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground">Labels</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {allLabels.map((label) => (
                       <button
                         key={label.id}
                         onClick={() => toggleLabel(label.id)}
-                        className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all duration-200 font-medium ${
                           assignedLabelIds.has(label.id)
-                            ? "border-transparent text-white"
-                            : "border-border text-muted-foreground hover:text-foreground"
+                            ? "border-transparent text-white shadow-md scale-105"
+                            : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
                         }`}
                         style={assignedLabelIds.has(label.id) ? { backgroundColor: label.color } : {}}
                       >
+                        {assignedLabelIds.has(label.id) && <span className="mr-1">✓</span>}
                         {label.label_name}
                       </button>
                     ))}
+                    {allLabels.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Noch keine Labels erstellt</p>
+                    )}
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-2">
                     <Input
                       value={newLabelName}
                       onChange={(e) => setNewLabelName(e.target.value)}
-                      placeholder="Neues Label..."
-                      className="h-8 text-xs bg-secondary border-border"
+                      placeholder="Neues Label erstellen..."
+                      className="h-9 text-xs bg-secondary/50 border-border/50 rounded-xl"
                       onKeyDown={(e) => e.key === "Enter" && createLabel()}
                     />
-                    <Button size="sm" onClick={createLabel} disabled={!newLabelName.trim()} className="h-8 px-3">
+                    <Button size="sm" onClick={createLabel} disabled={!newLabelName.trim()} className="h-9 px-3 rounded-xl">
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -577,38 +590,47 @@ export default function TinderMode() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <div className="absolute inset-0 bg-black/40" onClick={() => setNotePanel(false)} />
                 <motion.div
-                  className="relative w-full max-w-md rounded-t-2xl bg-[hsl(var(--surface-1))] border-t border-border p-5"
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setNotePanel(false)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                />
+                <motion.div
+                  className="relative w-full max-w-md rounded-t-3xl bg-background border-t border-border/50 px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]"
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  transition={{ type: "spring", damping: 28, stiffness: 320 }}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-medium text-foreground">Notizen</h3>
-                    <button onClick={() => setNotePanel(false)} className="text-muted-foreground hover:text-foreground">
-                      <X className="h-4 w-4" />
-                    </button>
+                  <div className="flex justify-center mb-4">
+                    <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
                   </div>
-                  <div className="flex gap-1.5 mb-3">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <StickyNote className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground">Notizen</h3>
+                  </div>
+                  <div className="flex gap-2 mb-4">
                     <Textarea
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
                       placeholder="Notiz hinzufügen..."
-                      className="text-xs bg-secondary border-border resize-none min-h-[60px]"
+                      className="text-xs bg-secondary/50 border-border/50 resize-none min-h-[56px] rounded-xl"
                       rows={2}
                     />
-                    <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-auto px-2 self-end">
+                    <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-auto px-3 self-end rounded-xl">
                       <Send className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {notes.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto space-y-1.5">
+                    <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
                       {notes.map((n) => (
-                        <div key={n.id} className="bg-secondary rounded-lg px-2.5 py-1.5">
-                          <p className="text-[11px] text-foreground/80">{n.note_text}</p>
-                          <p className="text-[9px] text-muted-foreground mt-0.5">
+                        <div key={n.id} className="bg-secondary/50 rounded-xl px-3 py-2 border border-border/30">
+                          <p className="text-[11px] text-foreground/90 leading-relaxed">{n.note_text}</p>
+                          <p className="text-[9px] text-muted-foreground mt-1">
                             {new Date(n.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
