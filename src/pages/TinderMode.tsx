@@ -189,7 +189,7 @@ export default function TinderMode() {
       const lastName = prev[prev.length - 1];
       setCheckedNames((s) => {
         const next = new Set(s);
-        next.delete(lastName);
+        next.delete(normalizeName(lastName));
         return next;
       });
       return prev.slice(0, -1);
