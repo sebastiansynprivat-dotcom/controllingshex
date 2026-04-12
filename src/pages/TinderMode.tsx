@@ -581,6 +581,7 @@ export default function TinderMode() {
                 onSwipeRight={handleSwipeRight}
                 onSwipeLeft={handleSwipeLeft}
                 onSwipeUp={handleSwipeUp}
+                onSwipeDown={handleSwipeDown}
                 isTop={true}
               />
             )}
