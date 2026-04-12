@@ -175,7 +175,7 @@ export default function TinderMode() {
       { onConflict: "user_id,chatter_name,check_date,platform", ignoreDuplicates: true }
     );
 
-    setCheckedNames((prev) => new Set(prev).add(name));
+    setCheckedNames((prev) => new Set(prev).add(normalizeName(name)));
   }, [platform]);
 
   const goNext = useCallback(() => {
