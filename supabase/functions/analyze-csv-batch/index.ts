@@ -144,18 +144,32 @@ Deno.serve(async (req) => {
       .gte("analysis_date", fourteenDaysAgo.toISOString().split("T")[0])
       .order("analysis_date", { ascending: true });
 
+    // Build model lookup for follower counts
+    const modelFollowers = new Map<string, number>();
+    if (models?.length) {
+      for (const m of models) {
+        modelFollowers.set(m.model_name.toLowerCase(), m.follower_count);
+      }
+    }
+
     let historyBlock = "";
     if (historyData && historyData.length > 0) {
-      const byChatter = new Map<string, string[]>();
+      const byChatter = new Map<string, any[]>();
       for (const row of historyData) {
         if (!byChatter.has(row.chatter_name)) byChatter.set(row.chatter_name, []);
-        byChatter.get(row.chatter_name)!.push(`${row.analysis_date}: ${row.revenue_today}€, ${row.mass_dms} DMs, ${row.open_chats} offene Chats${row.category ? `, Kat: ${row.category}` : ""}`);
+        byChatter.get(row.chatter_name)!.push(row);
       }
       const lines: string[] = [];
-      for (const [name, entries] of byChatter) {
-        lines.push(`${name}:\n  ${entries.join("\n  ")}`);
+      for (const [name, rows] of byChatter) {
+        const totalDays = rows.length;
+        const activeDays = rows.filter((r: any) => (r.revenue_today || 0) > 0).length;
+        const activePct = Math.round((activeDays / totalDays) * 100);
+        const avgRevenue = (rows.reduce((s: number, r: any) => s + (r.revenue_today || 0), 0) / totalDays).toFixed(2);
+        const detailLines = rows.map((r: any) => `${r.analysis_date}: ${r.revenue_today}€, ${r.mass_dms} DMs, ${r.open_chats} offene Chats${r.category ? `, Kat: ${r.category}` : ""}`);
+        const summary = `Aktive Tage: ${activeDays}/${totalDays} (${activePct}%), Ø Tagesumsatz: ${avgRevenue}€`;
+        lines.push(`${name} [${summary}]:\n  ${detailLines.join("\n  ")}`);
       }
-      historyBlock = `\n\nHISTORISCHE DATEN (letzte 14 Tage, Plattform: ${activePlatform}):\n${lines.join("\n")}\n\nNutze diese Historie um Trends zu erkennen.`;
+      historyBlock = `\n\nHISTORISCHE DATEN (letzte 14 Tage, Plattform: ${activePlatform}):\n${lines.join("\n")}\n\nNutze diese Historie um Trends zu erkennen. Die Zusammenfassung (Aktive Tage %, Ø Umsatz) hilft bei der Zuverlässigkeitsbewertung.`;
     }
 
     // Load system prompt
