@@ -44,6 +44,53 @@ function cleanAndParseJson(raw: string): any {
   }
 }
 
+function extractNameFromCsvRow(row: string, nameColIndex: number): string {
+  const fields: string[] = [];
+  let current = "", inQuotes = false;
+  for (const ch of row) {
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ""; continue; }
+    current += ch;
+  }
+  fields.push(current.trim());
+  return (fields[nameColIndex] || "").replace(/^[@\s]+/, "").trim();
+}
+
+function findNameColumn(header: string): number {
+  const cols = header.toLowerCase().split(",").map(c => c.trim());
+  const idx = cols.findIndex(c => c === "name" || c === "chatter" || c === "chatter_name");
+  return idx >= 0 ? idx : 1;
+}
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
+}
+
+function getReturnedNames(result: any): Set<string> {
+  const names = new Set<string>();
+  for (const cat of result.categories || []) {
+    for (const ch of cat.chatters || []) {
+      if (ch.name) names.add(normalizeName(ch.name));
+    }
+  }
+  return names;
+}
+
+function mergeResults(results: any[]): any {
+  const categoryMap = new Map<string, any>();
+  for (const result of results) {
+    for (const cat of result.categories || []) {
+      const key = cat.categoryName;
+      if (categoryMap.has(key)) {
+        categoryMap.get(key).chatters.push(...(cat.chatters || []));
+      } else {
+        categoryMap.set(key, { ...cat, chatters: [...(cat.chatters || [])] });
+      }
+    }
+  }
+  return { categories: Array.from(categoryMap.values()) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -210,62 +257,97 @@ Regeln:
 - CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
     const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
-    const batchCsv = [header, ...batchLines].join("\n");
-    const userMessage = `Plattform: ${activePlatform}\nBatch ${batchNum}/${totalBatches} (${batchLines.length} Chatter)\n\nCSV-Daten:\n\n${batchCsv}\n\nModels (${activePlatform}):\n${modelsText}`;
+    const nameColIndex = findNameColumn(header);
 
-    // AI call with retries
-    let result: any = null;
-    let lastError = "";
+    // AI call with missing-chatter retry
+    const allResults: any[] = [];
+    let currentLines = batchLines;
+    const MAX_MISSING_RETRIES = 2;
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    for (let round = 0; round <= MAX_MISSING_RETRIES; round++) {
+      const batchCsv = [header, ...currentLines].join("\n");
+      const userMessage = round === 0
+        ? `Plattform: ${activePlatform}\nBatch ${batchNum}/${totalBatches} (${currentLines.length} Chatter)\n\nCSV-Daten:\n\n${batchCsv}\n\nModels (${activePlatform}):\n${modelsText}`
+        : `NACHLIEFERUNG: Die folgenden ${currentLines.length} Chatter fehlen noch in deiner Antwort. Analysiere sie jetzt!\n\nCSV-Daten:\n\n${batchCsv}\n\nModels (${activePlatform}):\n${modelsText}`;
 
-        const response = await fetch(AI_GATEWAY_URL, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: MODEL_NAME,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userMessage },
-            ],
-            max_tokens: 16384,
-            response_format: { type: "json_object" },
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
+      let result: any = null;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`AI ${response.status}: ${errText.substring(0, 200)}`);
-        }
-
-        const aiResult = await response.json();
-        const resultText = aiResult.choices?.[0]?.message?.content || "";
-        console.log(`[batch] ${batchNum}/${totalBatches}: ${resultText.length} chars, attempt ${attempt + 1}`);
-        result = cleanAndParseJson(resultText);
-        break;
-      } catch (err: any) {
-        lastError = err.message || "Unknown error";
-        console.warn(`[batch] ${batchNum} attempt ${attempt + 1} failed: ${lastError}`);
-        if (attempt === MAX_RETRIES) {
-          return new Response(JSON.stringify({ error: `Batch ${batchNum} failed after ${MAX_RETRIES + 1} attempts: ${lastError}` }), {
-            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          const response = await fetch(AI_GATEWAY_URL, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${lovableApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: MODEL_NAME,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage },
+              ],
+              max_tokens: 16384,
+              response_format: { type: "json_object" },
+            }),
+            signal: controller.signal,
           });
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`AI ${response.status}: ${errText.substring(0, 200)}`);
+          }
+
+          const aiResult = await response.json();
+          const resultText = aiResult.choices?.[0]?.message?.content || "";
+          console.log(`[batch] ${batchNum}/${totalBatches} round ${round + 1}: ${resultText.length} chars, attempt ${attempt + 1}`);
+          result = cleanAndParseJson(resultText);
+          break;
+        } catch (err: any) {
+          const lastError = err.message || "Unknown error";
+          console.warn(`[batch] ${batchNum} round ${round + 1} attempt ${attempt + 1} failed: ${lastError}`);
+          if (attempt === MAX_RETRIES) {
+            if (round === 0 && allResults.length === 0) {
+              return new Response(JSON.stringify({ error: `Batch ${batchNum} failed: ${lastError}` }), {
+                status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+            // If we have partial results from earlier rounds, continue with what we have
+            break;
+          }
         }
+      }
+
+      if (result) allResults.push(result);
+
+      // Check for missing chatters
+      const merged = mergeResults(allResults);
+      const returnedNames = getReturnedNames(merged);
+      const missingLines = currentLines.filter(line => {
+        const csvName = extractNameFromCsvRow(line, nameColIndex);
+        return csvName && !returnedNames.has(normalizeName(csvName));
+      });
+
+      if (missingLines.length === 0) {
+        console.log(`[batch] ${batchNum}: 100% coverage after round ${round + 1}`);
+        break;
+      }
+
+      if (round < MAX_MISSING_RETRIES) {
+        console.log(`[batch] ${batchNum}: ${missingLines.length} missing after round ${round + 1}, retrying…`);
+        currentLines = missingLines;
+      } else {
+        console.warn(`[batch] ${batchNum}: ${missingLines.length} still missing after all rounds`);
       }
     }
 
-    const chattersReturned = (result.categories || []).reduce((s: number, c: any) => s + (c.chatters?.length || 0), 0);
+    const finalResult = mergeResults(allResults);
+    const chattersReturned = (finalResult.categories || []).reduce((s: number, c: any) => s + (c.chatters?.length || 0), 0);
     console.log(`[batch] ${batchNum}/${totalBatches} done: ${chattersReturned}/${batchLines.length} chatters`);
 
-    return new Response(JSON.stringify({ result, chattersReturned, batchNum }), {
+    return new Response(JSON.stringify({ result: finalResult, chattersReturned, batchNum }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
