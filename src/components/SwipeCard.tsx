@@ -19,6 +19,7 @@ interface Props {
   onSwipeUp: () => void;
   onSwipeDown?: () => void;
   isTop: boolean;
+  stackIndex?: number;
 }
 
 function triggerHaptic(style: "light" | "medium" = "light") {
@@ -29,7 +30,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop }: Props) {
+export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
@@ -42,6 +43,11 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const kpiEntries = useMemo(() => {
     return Object.entries(chatter.kpis).filter(([k]) => k !== "Name" && k !== "name");
   }, [chatter.kpis]);
+
+  const gradientId = useMemo(() => `sparkGrad-${chatter.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,[chatter.name]);
+  const stackScale = Math.max(0.82, 1 - stackIndex * 0.04);
+  const stackOffsetY = stackIndex * 12;
+  const stackOpacity = Math.max(0.22, 1 - stackIndex * 0.14);
 
   const flyOff = useCallback(async (direction: "right" | "left" | "up" | "down", callback: () => void) => {
     triggerHaptic("medium");
@@ -76,57 +82,54 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
     }
   }, [flyOff, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, controls]);
 
-  if (!isTop) {
-    return (
-      <motion.div
-        className="absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-6"
-        style={{ scale: 0.95, opacity: 0.5 }}
-      />
-    );
-  }
-
   return (
     <motion.div
-      className="absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 cursor-grab active:cursor-grabbing touch-none select-none flex flex-col"
-      style={{ x, y, rotate }}
-      drag
+      className={`absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 flex flex-col select-none ${
+        isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
+      }`}
+      style={isTop ? { x, y, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: stackOpacity, zIndex: 20 - stackIndex }}
+      drag={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.9}
-      onDragEnd={handleDragEnd}
-      animate={controls}
-      initial={{ scale: 0.95, opacity: 0 }}
-      whileDrag={{ scale: 1.02 }}
+      dragElastic={isTop ? 0.9 : 0}
+      onDragEnd={isTop ? handleDragEnd : undefined}
+      animate={isTop ? controls : undefined}
+      initial={isTop ? { scale: 0.95, opacity: 0 } : false}
+      whileDrag={isTop ? { scale: 1.02 } : undefined}
       onAnimationComplete={() => {
         // Reset motion values after mount animation
         if (x.get() === 0 && y.get() === 0) return;
       }}
     >
-      {/* Swipe overlays */}
-      <motion.div
-        className="absolute inset-0 rounded-2xl border-2 border-green-500/50 bg-green-500/5 flex items-center justify-center pointer-events-none z-10"
-        style={{ opacity: opacityRight }}
-      >
-        <span className="text-green-400 text-4xl font-bold rotate-[-15deg]">✓ OK</span>
-      </motion.div>
-      <motion.div
-        className="absolute inset-0 rounded-2xl border-2 border-red-500/50 bg-red-500/5 flex items-center justify-center pointer-events-none z-10"
-        style={{ opacity: opacityLeft }}
-      >
-        <span className="text-red-400 text-4xl font-bold rotate-[15deg]">✗ AKTION</span>
-      </motion.div>
-      <motion.div
-        className="absolute inset-0 rounded-2xl border-2 border-blue-500/50 bg-blue-500/5 flex items-center justify-center pointer-events-none z-10"
-        style={{ opacity: opacityUp }}
-      >
-        <span className="text-blue-400 text-2xl font-bold">↑ DETAILS</span>
-      </motion.div>
-      {onSwipeDown && (
-        <motion.div
-          className="absolute inset-0 rounded-2xl border-2 border-amber-500/50 bg-amber-500/5 flex items-center justify-center pointer-events-none z-10"
-          style={{ opacity: opacityDown }}
-        >
-          <span className="text-amber-400 text-2xl font-bold">↓ SKIP</span>
-        </motion.div>
+      {isTop && (
+        <>
+          {/* Swipe overlays */}
+          <motion.div
+            className="absolute inset-0 rounded-2xl border-2 border-green-500/50 bg-green-500/5 flex items-center justify-center pointer-events-none z-10"
+            style={{ opacity: opacityRight }}
+          >
+            <span className="text-green-400 text-4xl font-bold rotate-[-15deg]">✓ OK</span>
+          </motion.div>
+          <motion.div
+            className="absolute inset-0 rounded-2xl border-2 border-red-500/50 bg-red-500/5 flex items-center justify-center pointer-events-none z-10"
+            style={{ opacity: opacityLeft }}
+          >
+            <span className="text-red-400 text-4xl font-bold rotate-[15deg]">✗ AKTION</span>
+          </motion.div>
+          <motion.div
+            className="absolute inset-0 rounded-2xl border-2 border-blue-500/50 bg-blue-500/5 flex items-center justify-center pointer-events-none z-10"
+            style={{ opacity: opacityUp }}
+          >
+            <span className="text-blue-400 text-2xl font-bold">↑ DETAILS</span>
+          </motion.div>
+          {onSwipeDown && (
+            <motion.div
+              className="absolute inset-0 rounded-2xl border-2 border-amber-500/50 bg-amber-500/5 flex items-center justify-center pointer-events-none z-10"
+              style={{ opacity: opacityDown }}
+            >
+              <span className="text-amber-400 text-2xl font-bold">↓ SKIP</span>
+            </motion.div>
+          )}
+        </>
       )}
 
       {/* Category badge */}
@@ -139,13 +142,15 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
 
       {/* Name — tap to copy */}
       <h2
-        className="text-xl font-semibold text-foreground mb-4 capitalize cursor-pointer active:text-primary transition-colors"
-        onClick={(e) => {
+        className={`text-xl font-semibold text-foreground mb-4 capitalize transition-colors ${
+          isTop ? "cursor-pointer active:text-primary" : ""
+        }`}
+        onClick={isTop ? (e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
           toast.success("Name kopiert");
-        }}
-        title="Klicken zum Kopieren"
+        } : undefined}
+        title={isTop ? "Klicken zum Kopieren" : undefined}
       >
         {chatter.name.replace(/_/g, " ")}
       </h2>
@@ -166,7 +171,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chatter.revenueHistory}>
               <defs>
-                <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                   <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
@@ -175,7 +180,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
                 type="monotone"
                 dataKey="revenue"
                 stroke="hsl(var(--primary))"
-                fill="url(#sparkGrad)"
+                fill={`url(#${gradientId})`}
                 strokeWidth={1.5}
               />
             </AreaChart>
@@ -185,7 +190,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
 
       {/* Recommendation — scrollable */}
       {chatter.recommendation && (
-        <div className="mt-auto bg-secondary rounded-lg px-3 py-2.5 overflow-y-auto max-h-32" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="mt-auto bg-secondary rounded-lg px-3 py-2.5 overflow-y-auto max-h-32" onPointerDown={isTop ? (e) => e.stopPropagation() : undefined}>
           <p className="text-[11px] text-muted-foreground mb-0.5">Empfehlung</p>
           <p className="text-xs text-foreground/80 leading-relaxed">
             {chatter.recommendation}
