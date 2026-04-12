@@ -463,6 +463,19 @@ export default function TinderMode() {
             <Button
               variant="outline"
               size="icon"
+              onClick={() => { setLabelPanel(true); setNotePanel(false); }}
+              className="relative h-10 w-10 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <Tag className="h-4 w-4" />
+              {assignedLabelIds.size > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
+                  {assignedLabelIds.size}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={handleSwipeLeft}
               className="h-12 w-12 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
             >
@@ -484,110 +497,125 @@ export default function TinderMode() {
             >
               <Check className="h-5 w-5" />
             </Button>
-          </div>
-
-          {/* Label + Note buttons */}
-          <div className="flex items-center justify-center gap-2 mt-3">
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setLabelPanel(!labelPanel); setNotePanel(false); }}
-              className={`text-xs gap-1.5 ${labelPanel ? "text-foreground bg-secondary" : "text-muted-foreground"}`}
+              variant="outline"
+              size="icon"
+              onClick={() => { setNotePanel(true); setLabelPanel(false); }}
+              className="relative h-10 w-10 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
-              <Tag className="h-3.5 w-3.5" />
-              Label
-              {assignedLabelIds.size > 0 && (
-                <span className="ml-0.5 bg-primary/20 text-primary text-[10px] px-1.5 rounded-full">{assignedLabelIds.size}</span>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setNotePanel(!notePanel); setLabelPanel(false); }}
-              className={`text-xs gap-1.5 ${notePanel ? "text-foreground bg-secondary" : "text-muted-foreground"}`}
-            >
-              <StickyNote className="h-3.5 w-3.5" />
-              Notizen
+              <StickyNote className="h-4 w-4" />
               {notes.length > 0 && (
-                <span className="ml-0.5 bg-primary/20 text-primary text-[10px] px-1.5 rounded-full">{notes.length}</span>
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
+                  {notes.length}
+                </span>
               )}
             </Button>
           </div>
 
-          {/* Label Panel */}
+          {/* Label Bottom Sheet */}
           <AnimatePresence>
             {labelPanel && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden mt-2 rounded-xl border border-border bg-[hsl(var(--surface-1))] p-3"
+                className="fixed inset-0 z-40 flex items-end justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {allLabels.map((label) => (
-                    <button
-                      key={label.id}
-                      onClick={() => toggleLabel(label.id)}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
-                        assignedLabelIds.has(label.id)
-                          ? "border-transparent text-white"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                      }`}
-                      style={assignedLabelIds.has(label.id) ? { backgroundColor: label.color } : {}}
-                    >
-                      {label.label_name}
+                <div className="absolute inset-0 bg-black/40" onClick={() => setLabelPanel(false)} />
+                <motion.div
+                  className="relative w-full max-w-md rounded-t-2xl bg-[hsl(var(--surface-1))] border-t border-border p-5"
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-medium text-foreground">Labels</h3>
+                    <button onClick={() => setLabelPanel(false)} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
                     </button>
-                  ))}
-                </div>
-                <div className="flex gap-1.5">
-                  <Input
-                    value={newLabelName}
-                    onChange={(e) => setNewLabelName(e.target.value)}
-                    placeholder="Neues Label..."
-                    className="h-7 text-xs bg-secondary border-border"
-                    onKeyDown={(e) => e.key === "Enter" && createLabel()}
-                  />
-                  <Button size="sm" onClick={createLabel} disabled={!newLabelName.trim()} className="h-7 px-2">
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {allLabels.map((label) => (
+                      <button
+                        key={label.id}
+                        onClick={() => toggleLabel(label.id)}
+                        className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
+                          assignedLabelIds.has(label.id)
+                            ? "border-transparent text-white"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                        style={assignedLabelIds.has(label.id) ? { backgroundColor: label.color } : {}}
+                      >
+                        {label.label_name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      placeholder="Neues Label..."
+                      className="h-8 text-xs bg-secondary border-border"
+                      onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                    />
+                    <Button size="sm" onClick={createLabel} disabled={!newLabelName.trim()} className="h-8 px-3">
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Note Panel */}
+          {/* Note Bottom Sheet */}
           <AnimatePresence>
             {notePanel && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden mt-2 rounded-xl border border-border bg-[hsl(var(--surface-1))] p-3"
+                className="fixed inset-0 z-40 flex items-end justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                <div className="flex gap-1.5 mb-2">
-                  <Textarea
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Notiz hinzufügen..."
-                    className="text-xs bg-secondary border-border resize-none min-h-[60px]"
-                    rows={2}
-                  />
-                  <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-auto px-2 self-end">
-                    <Send className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                {notes.length > 0 && (
-                  <div className="max-h-32 overflow-y-auto space-y-1.5">
-                    {notes.map((n) => (
-                      <div key={n.id} className="bg-secondary rounded-lg px-2.5 py-1.5">
-                        <p className="text-[11px] text-foreground/80">{n.note_text}</p>
-                        <p className="text-[9px] text-muted-foreground mt-0.5">
-                          {new Date(n.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                    ))}
+                <div className="absolute inset-0 bg-black/40" onClick={() => setNotePanel(false)} />
+                <motion.div
+                  className="relative w-full max-w-md rounded-t-2xl bg-[hsl(var(--surface-1))] border-t border-border p-5"
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-medium text-foreground">Notizen</h3>
+                    <button onClick={() => setNotePanel(false)} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                )}
+                  <div className="flex gap-1.5 mb-3">
+                    <Textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Notiz hinzufügen..."
+                      className="text-xs bg-secondary border-border resize-none min-h-[60px]"
+                      rows={2}
+                    />
+                    <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-auto px-2 self-end">
+                      <Send className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  {notes.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto space-y-1.5">
+                      {notes.map((n) => (
+                        <div key={n.id} className="bg-secondary rounded-lg px-2.5 py-1.5">
+                          <p className="text-[11px] text-foreground/80">{n.note_text}</p>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">
+                            {new Date(n.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
