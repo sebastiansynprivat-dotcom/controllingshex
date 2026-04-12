@@ -249,19 +249,28 @@ Zähle aus den HISTORISCHEN DATEN, wie viele aufeinanderfolgende Tage der Chatte
 → 📉 0€ UMSATZ TAG 7+ — 7+ Tage in Folge 0€. Klare Empfehlung zur Kündigung/Austausch!
 WENN 0€ heute UND kein Onboarding → eine der obigen Kategorien verwenden, STOPP.
 
+SCHRITT 5b — COMEBACK prüfen:
+→ 🔄 COMEBACK — Chatter hatte laut Historie 3+ Tage in Folge 0€, hat aber HEUTE wieder Umsatz > 0€.
+  → Empfehlung: "Comeback nach X Tagen Pause. Positiv bestärken und eng begleiten."
+WENN COMEBACK zutrifft → STOPP.
+
 SCHRITT 6 — POSITIVE KATEGORIEN prüfen:
-→ 🌟 BREAKOUT-STAR — Tagesumsatz ist mindestens 3x höher als der historische Durchschnitt (braucht Historie!).
+→ 🌟 BREAKOUT-STAR — Tagesumsatz ist mindestens 2x höher als der historische Durchschnitt (braucht Historie!).
 → 🟢 ACCOUNT UPGRADE (UMSATZ-STREAK) — 5 Tage in Folge >= 30€ laut Historie.
 → 🚀 KURZ VOR UPGRADE — Exakt 4 Tage in Folge >= 30€ laut Historie.
-→ 🟢 ACCOUNT UPGRADE (TRAFFIC TEST) — > 3 MassDMs heute, aber 0€ Umsatz.
+→ 📊 HOHER TRAFFIC / KEINE CONVERSION — > 3 MassDMs heute, aber 0€ Umsatz.
+  → Empfehlung: Coaching zur Conversion-Optimierung. Der Chatter generiert Traffic, schließt aber nicht ab.
 
 SCHRITT 7 — COACHING prüfen:
-→ 📼 VIDEO-COACHING — Seit >= 5 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€.
-→ 🟡 COACHING / ENGERE KONTROLLE — Seit > 5 Tagen aktiv UND insgesamt < 20€ eingenommen.
+→ 📼 VIDEO-COACHING — Seit >= 7 Tagen aktiv UND in den letzten 7 Tagen insgesamt < 20€.
+  Langzeit-Underperformer, braucht Video-Schulung.
+→ 🟡 COACHING / ENGERE KONTROLLE — Seit 5-6 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€.
+  Noch früh genug für engere Begleitung.
 
-SCHRITT 8 — FALLBACK:
-→ ⚪ WEITER SO / MITTELFELD — Alle Chatter, die in KEINE der obigen Kategorien passen.
-  Das ist die STANDARD-Kategorie. Im Zweifel gehört ein Chatter hierher!
+SCHRITT 8 — MITTELFELD segmentieren (Fallback):
+→ ⭐ TOP PERFORMER — Tagesumsatz heute > Ø aller Chatter im Batch. Starke Leistung!
+→ ⚪ WEITER SO — Tagesumsatz > 0€, aber ≤ Batch-Durchschnitt. Solide, aber Luft nach oben.
+→ 👀 UNTER BEOBACHTUNG — Tagesumsatz = 0€ heute, aber kein 0€-Streak (nur 1 Tag). Noch kein Alarm.
 
 WICHTIGE VERBOTE:
 - ACCOUNT-EINBRUCH darf MAXIMAL 10-15% aller Chatter betreffen. Wenn du mehr als ~15 Chatter dort einordnest, hast du die Kriterien zu locker angewandt!
