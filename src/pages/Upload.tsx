@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Upload as UploadIcon, Sparkles, FileSpreadsheet, XCircle, Trash2, Download, Calendar, Clock } from "lucide-react";
+import { Upload as UploadIcon, Sparkles, FileSpreadsheet, XCircle, Trash2, Download, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -53,10 +53,73 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
   return !!value && typeof value === "object" && Array.isArray((value as AnalysisResult).categories);
 }
 
+const BATCH_SIZE = 50;
+const BATCH_RETRIES = 2;
 const CANCEL_TIMEOUT_MS = 120_000;
-const REPORT_RECOVERY_ATTEMPTS = 18;
-const REPORT_RECOVERY_INTERVAL_MS = 5000;
-const ANALYZE_REQUEST_RETRIES = 1;
+
+function splitCsvIntoBatches(csvData: string): { header: string; batches: string[][] } {
+  const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return { header: lines[0] || "", batches: [] };
+  const header = lines[0];
+  const dataLines = lines.slice(1);
+  const batches: string[][] = [];
+  for (let i = 0; i < dataLines.length; i += BATCH_SIZE) {
+    batches.push(dataLines.slice(i, i + BATCH_SIZE));
+  }
+  return { header, batches };
+}
+
+function mergeResults(results: any[]): AnalysisResult {
+  const categoryMap = new Map<string, AnalysisCategory>();
+  for (const result of results) {
+    for (const cat of result.categories || []) {
+      const key = cat.categoryName;
+      if (categoryMap.has(key)) {
+        categoryMap.get(key)!.chatters.push(...(cat.chatters || []));
+      } else {
+        categoryMap.set(key, { ...cat, chatters: [...(cat.chatters || [])] });
+      }
+    }
+  }
+  return { categories: Array.from(categoryMap.values()) };
+}
+
+async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
+  const today = new Date().toISOString().split("T")[0];
+  const rows: any[] = [];
+  for (const cat of merged.categories || []) {
+    for (const chatter of cat.chatters || []) {
+      const name = (chatter.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      const kpis = chatter.kpis || {};
+      let revenue = 0;
+      const revKey = Object.keys(kpis).find((k) => /umsatz|revenue/i.test(k));
+      if (revKey) revenue = parseFloat(kpis[revKey].replace(/[^\d,.\-]/g, "").replace(",", ".")) || 0;
+      let massDms = 0;
+      const dmKey = Object.keys(kpis).find((k) => /mass\s*dm/i.test(k));
+      if (dmKey) massDms = parseInt(kpis[dmKey].replace(/\D/g, ""), 10) || 0;
+      let openChats = 0, responseDelay = 0;
+      const chatKey = Object.keys(kpis).find((k) => /offene?\s*chats?|open\s*chats?/i.test(k));
+      if (chatKey) {
+        const chatVal = kpis[chatKey];
+        const m = chatVal.match(/(\d+)\s*(?:chats?)\s*seit\s*(\d+)/i);
+        if (m) { openChats = parseInt(m[1]) || 0; responseDelay = parseInt(m[2]) || 0; }
+        else { openChats = parseInt((chatVal.match(/(\d+)/) || [])[1] || "0") || 0; }
+      }
+      if (responseDelay > 30) responseDelay = 0;
+      rows.push({
+        chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats,
+        response_delay_days: responseDelay, platform: activePlatform, analysis_date: today,
+        category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId,
+      });
+    }
+  }
+  if (rows.length > 0) {
+    // Insert in chunks of 200 to avoid payload limits
+    for (let i = 0; i < rows.length; i += 200) {
+      await supabase.from("chatter_history").upsert(rows.slice(i, i + 200), { onConflict: "chatter_name,platform,analysis_date" });
+    }
+  }
+}
 
 export default function UploadPage() {
   const { platform } = usePlatform();
@@ -70,7 +133,7 @@ export default function UploadPage() {
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [showCancel, setShowCancel] = useState(false);
   const [animationsReady, setAnimationsReady] = useState(true);
-  const [progress, setProgress] = useState({ current: 0, total: 3, step: "" });
+  const [progress, setProgress] = useState({ current: 0, total: 1, step: "" });
 
   const cancelledRef = useRef(false);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,52 +163,6 @@ export default function UploadPage() {
     setLoadingReports(false);
   }, [platform]);
 
-  const waitForRecoveredReport = useCallback(async (filePath: string, attempts = REPORT_RECOVERY_ATTEMPTS) => {
-    for (let attempt = 0; attempt < attempts; attempt++) {
-      const { data } = await supabase
-        .from("analysis_reports")
-        .select("id, result_json, chatter_count")
-        .eq("platform", platform)
-        .eq("file_path", filePath)
-        .maybeSingle();
-
-      if (data && isAnalysisResult(data.result_json)) {
-        return data;
-      }
-
-      if (attempt < attempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, REPORT_RECOVERY_INTERVAL_MS));
-      }
-    }
-
-    return null;
-  }, [platform]);
-
-  const createPendingReport = useCallback(async (filePath: string, fileName: string) => {
-    const { error } = await supabase.from("analysis_reports").insert({
-      platform,
-      analysis_date: new Date().toISOString().split("T")[0],
-      file_name: fileName,
-      file_path: filePath,
-      result_json: null,
-      chatter_count: 0,
-      user_id: user?.id,
-    });
-
-    if (error) {
-      throw new Error("Report-Vormerkung fehlgeschlagen: " + error.message);
-    }
-  }, [platform, user?.id]);
-
-  const cleanupPendingReport = useCallback(async (filePath: string) => {
-    await supabase
-      .from("analysis_reports")
-      .delete()
-      .eq("platform", platform)
-      .eq("file_path", filePath)
-      .is("result_json", null);
-  }, [platform]);
-
   useEffect(() => {
     fetchReports();
     setResult(null);
@@ -153,38 +170,6 @@ export default function UploadPage() {
     setCsvData("");
     setStatusLog([]);
   }, [platform, fetchReports]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const resumePendingAnalysis = async () => {
-      const { data } = await supabase
-        .from("analysis_reports")
-        .select("file_path, file_name")
-        .eq("platform", platform)
-        .is("result_json", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!data || cancelled) return;
-
-      addStatus(`⏳ Vorherige Analyse wird wiederhergestellt (${data.file_name})…`);
-      const recovered = await waitForRecoveredReport(data.file_path, 12);
-
-      if (cancelled || !recovered || !isAnalysisResult(recovered.result_json)) return;
-
-      setResult(recovered.result_json as unknown as AnalysisResult);
-      fetchReports();
-      toast.success(`Analyse wiederhergestellt: ${recovered.chatter_count} Chatter.`);
-    };
-
-    resumePendingAnalysis();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [addStatus, fetchReports, platform, waitForRecoveredReport]);
 
   const handleFile = (f: File) => {
     setFile(f);
@@ -236,6 +221,42 @@ export default function UploadPage() {
     return path;
   };
 
+  const callBatchFunction = async (
+    header: string, batchLines: string[], batchNum: number, totalBatches: number, accessToken: string
+  ): Promise<{ result: any; chattersReturned: number }> => {
+    for (let attempt = 0; attempt <= BATCH_RETRIES; attempt++) {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-csv-batch`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              "Authorization": `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ header, batchLines, platform, batchNum, totalBatches }),
+            signal: AbortSignal.timeout(150000),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        return { result: data.result, chattersReturned: data.chattersReturned || 0 };
+      } catch (err: any) {
+        const isLastAttempt = attempt === BATCH_RETRIES;
+        if (isLastAttempt) throw err;
+        addStatus(`🔁 Batch ${batchNum} Retry ${attempt + 1}/${BATCH_RETRIES}…`);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+    throw new Error("Unreachable");
+  };
+
   const analyze = async () => {
     if (!csvData || !file) {
       toast.error("Bitte lade zuerst eine Datei hoch.");
@@ -251,119 +272,121 @@ export default function UploadPage() {
     let uploadedFilePath: string | null = null;
 
     try {
-      addStatus("[Step 1/3] CSV wird vorbereitet…");
-      setProgress({ current: 1, total: 3, step: "Daten vorbereiten" });
+      // Step 1: Parse & upload
+      addStatus("[Step 1] CSV wird vorbereitet…");
+      const { header, batches } = splitCsvIntoBatches(csvData);
+      const totalChatters = batches.reduce((s, b) => s + b.length, 0);
+      const totalBatches = batches.length;
 
-      const lines = csvData.split("\n").filter((l) => l.trim());
-      if (lines.length < 2) throw new Error("Keine Daten in der Datei gefunden.");
-      const chatterCount = lines.length - 1;
-      const batchCount = Math.ceil(chatterCount / 50);
-      addStatus(`✅ ${chatterCount} Chatter erkannt → ${batchCount} Batch${batchCount > 1 ? "es" : ""}`);
+      if (totalBatches === 0) throw new Error("Keine Daten in der Datei gefunden.");
+
+      addStatus(`✅ ${totalChatters} Chatter erkannt → ${totalBatches} Batch${totalBatches > 1 ? "es" : ""}`);
+      setProgress({ current: 0, total: totalBatches + 1, step: "Datei sichern" });
+
       addStatus("☁️ Datei wird gesichert…");
       uploadedFilePath = await uploadFileToStorage(file);
-      await createPendingReport(uploadedFilePath, file.name);
       addStatus("✅ Datei gesichert.");
 
       if (cancelledRef.current) return;
 
-      addStatus(`[Step 2/3] KI-Analyse läuft (${batchCount} Batch${batchCount > 1 ? "es" : ""})…`);
-      setProgress({ current: 2, total: 3, step: `KI analysiert (${batchCount} Batches)` });
-      addStatus("🧠 Sende Daten an Lovable AI…");
-
+      // Step 2: Process batches sequentially
       const activeSession = session ?? (await supabase.auth.getSession()).data.session;
-      let response: Response | null = null;
-      let data: any = null;
+      const accessToken = activeSession?.access_token || "";
+      const batchResults: any[] = [];
+      const failedBatches: number[] = [];
+      let chattersTotal = 0;
 
-      for (let attempt = 0; attempt <= ANALYZE_REQUEST_RETRIES; attempt++) {
+      for (let i = 0; i < totalBatches; i++) {
+        if (cancelledRef.current) return;
+
+        const batchNum = i + 1;
+        addStatus(`🧠 Batch ${batchNum}/${totalBatches} (${batches[i].length} Chatter)…`);
+        setProgress({ current: i + 1, total: totalBatches + 1, step: `Batch ${batchNum}/${totalBatches}` });
+
         try {
-          response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-csv`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                "Authorization": `Bearer ${activeSession?.access_token}`,
-              },
-              body: JSON.stringify({ platform, fileName: file.name, filePath: uploadedFilePath }),
-              signal: AbortSignal.timeout(300000),
-            }
+          const { result: batchResult, chattersReturned } = await callBatchFunction(
+            header, batches[i], batchNum, totalBatches, accessToken
           );
-
-          data = await response.json();
-          break;
-        } catch (requestError: any) {
-          if (!/failed to fetch|abort|timeout|networkerror/i.test(requestError?.message || "") || attempt === ANALYZE_REQUEST_RETRIES) {
-            throw requestError;
-          }
-
-          addStatus("🔁 Verbindung unterbrochen – sende Analyse erneut…");
-
-          const recoveredEarly = await waitForRecoveredReport(uploadedFilePath, 3);
-          if (recoveredEarly && isAnalysisResult(recoveredEarly.result_json)) {
-            setResult(recoveredEarly.result_json as unknown as AnalysisResult);
-            toast.success(`Analyse abgeschlossen: ${recoveredEarly.chatter_count} Chatter.`);
-            fetchReports();
-            return;
-          }
+          batchResults.push(batchResult);
+          chattersTotal += chattersReturned;
+          addStatus(`✅ Batch ${batchNum} fertig: ${chattersReturned}/${batches[i].length} Chatter`);
+        } catch (err: any) {
+          failedBatches.push(batchNum);
+          addStatus(`❌ Batch ${batchNum} fehlgeschlagen: ${err.message}`);
         }
       }
 
       if (cancelledRef.current) return;
 
-      if (!response || !response.ok || data?.error) {
-        const errMsg = data?.error || `Fehler (${response.status})`;
-        throw new Error(errMsg);
+      if (batchResults.length === 0) {
+        throw new Error("Alle Batches fehlgeschlagen. Bitte erneut versuchen.");
       }
 
-      const analysisResult = data?.result as AnalysisResult | undefined;
-      if (!analysisResult || !Array.isArray(analysisResult.categories)) {
-        throw new Error("Ungültiges Ergebnis von der KI. Bitte erneut versuchen.");
+      // Step 3: Merge & Save
+      setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
+      addStatus("[Step 3] Ergebnisse werden zusammengeführt…");
+
+      const merged = mergeResults(batchResults);
+      const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
+
+      // Save report to DB
+      const today = new Date().toISOString().split("T")[0];
+      const reportPayload = {
+        platform,
+        analysis_date: today,
+        file_name: file.name,
+        file_path: uploadedFilePath,
+        result_json: merged as any,
+        chatter_count: totalReturned,
+        user_id: user?.id,
+      };
+
+      const { data: existingReport } = await supabase
+        .from("analysis_reports")
+        .select("id")
+        .eq("file_path", uploadedFilePath)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingReport) {
+        await supabase.from("analysis_reports").update(reportPayload).eq("id", existingReport.id);
+      } else {
+        await supabase.from("analysis_reports").insert(reportPayload);
       }
 
-      addStatus("[Step 3/3] Ergebnisse werden gespeichert…");
-      setProgress({ current: 3, total: 3, step: "Speichern" });
-
-      const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
-
-      const bi = data?.batchInfo;
-      if (bi) {
-        addStatus(`📊 ${bi.succeeded}/${bi.total} Batches erfolgreich (${bi.inputRows} Input → ${bi.totalChatters} Output)`);
+      // Save chatter history
+      try {
+        await saveChatterHistory(merged, platform, user?.id);
+        addStatus("✅ Chatter-Historie gespeichert.");
+      } catch (histErr: any) {
+        console.error("History save error:", histErr);
+        addStatus("⚠️ Chatter-Historie konnte nicht gespeichert werden.");
       }
-      addStatus(`🎉 Fertig: ${total} Chatter in ${analysisResult.categories.length} Kategorien`);
-      if (bi && bi.totalChatters === bi.inputRows) {
-        addStatus(`✅ 100% Coverage – alle ${bi.inputRows} Chatter erfasst!`);
+
+      // Summary
+      if (failedBatches.length > 0) {
+        addStatus(`⚠️ ${failedBatches.length} Batch(es) fehlgeschlagen: ${failedBatches.join(", ")}`);
+        toast.warning(`Analyse mit ${totalReturned}/${totalChatters} Chattern abgeschlossen (${failedBatches.length} Batch(es) fehlgeschlagen).`);
+      } else {
+        addStatus(`✅ 100% Coverage — alle ${totalReturned} Chatter erfasst!`);
       }
+
+      addStatus(`🎉 Fertig: ${totalReturned} Chatter in ${merged.categories.length} Kategorien`);
 
       setAnimationsReady(false);
-      setResult(analysisResult);
-      toast.success(`Analyse abgeschlossen: ${total} Chatter.`);
+      setResult(merged);
+      if (failedBatches.length === 0) {
+        toast.success(`Analyse abgeschlossen: ${totalReturned} Chatter.`);
+      }
       setTimeout(() => setAnimationsReady(true), 2000);
       fetchReports();
     } catch (err: any) {
       console.error("[Analyse] Fehler:", err);
       const msg = err.message || "Unbekannter Fehler";
 
-      // If it's a network error (Failed to fetch / timeout), the server may have
-      // finished successfully. Check for a freshly saved report before showing an error.
-      if (/failed to fetch|abort|timeout|networkerror/i.test(msg) && uploadedFilePath) {
-        addStatus("⏳ Verbindung verloren – prüfe ob die Analyse serverseitig abgeschlossen wurde…");
-        const freshReport = await waitForRecoveredReport(uploadedFilePath);
-
-        if (freshReport && isAnalysisResult(freshReport.result_json)) {
-          addStatus(`✅ Analyse war doch erfolgreich! ${freshReport.chatter_count} Chatter gefunden.`);
-          setResult(freshReport.result_json as unknown as AnalysisResult);
-          toast.success(`Analyse abgeschlossen: ${freshReport.chatter_count} Chatter.`);
-          fetchReports();
-          return;
-        }
-      }
-
       if (uploadedFilePath) {
-        await cleanupPendingReport(uploadedFilePath);
-      }
-
-      if (uploadedFilePath && !/failed to fetch|abort|timeout|networkerror/i.test(msg)) {
+        // Clean up pending report
+        await supabase.from("analysis_reports").delete().eq("file_path", uploadedFilePath).is("result_json", null);
         await supabase.storage.from("report-files").remove([uploadedFilePath]);
       }
 
@@ -372,7 +395,7 @@ export default function UploadPage() {
     } finally {
       setLoading(false);
       setShowCancel(false);
-      setProgress({ current: 0, total: 3, step: "" });
+      setProgress({ current: 0, total: 1, step: "" });
       if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     }
   };
@@ -380,7 +403,6 @@ export default function UploadPage() {
   const deleteReport = async (report: ReportRow) => {
     setDeleting(true);
     try {
-      // Delete from chatter_history
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-analysis`,
         {
@@ -396,10 +418,7 @@ export default function UploadPage() {
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || "Fehler beim Löschen");
 
-      // Delete report record
       await supabase.from("analysis_reports").delete().eq("id", report.id);
-
-      // Delete file from storage
       await supabase.storage.from("report-files").remove([report.file_path]);
 
       toast.success(`Analyse vom ${new Date(report.analysis_date).toLocaleDateString("de-DE")} gelöscht.`);
@@ -439,6 +458,8 @@ export default function UploadPage() {
       setResult(report.result_json);
     }
   };
+
+  const progressPercent = progress.total > 1 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <div className="flex h-full min-h-0">
@@ -524,18 +545,18 @@ export default function UploadPage() {
             {/* Status Log */}
             {(loading || statusLog.length > 0) && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] p-6">
-                {loading && progress.total > 0 && (
+                {loading && progress.total > 1 && (
                   <>
                     <div className="flex items-center justify-between text-xs font-light tracking-wider">
-                      <span className="text-primary/70 uppercase">KI-Pipeline — Step {progress.current} / {progress.total}</span>
-                      <span className="text-white/40">{Math.round((progress.current / progress.total) * 100)}%</span>
+                      <span className="text-primary/70 uppercase">{progress.step}</span>
+                      <span className="text-white/40">{progressPercent}%</span>
                     </div>
                     <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.04]">
                       <motion.div
                         className="absolute inset-y-0 left-0 rounded-full"
                         style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.6))" }}
                         initial={{ width: "0%" }}
-                        animate={{ width: `${(progress.current / progress.total) * 100}%` }}
+                        animate={{ width: `${progressPercent}%` }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
                       />
                     </div>
