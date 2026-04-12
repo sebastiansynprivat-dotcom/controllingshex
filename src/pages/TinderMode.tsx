@@ -138,20 +138,6 @@ export default function TinderMode() {
     load();
   }, [platform]);
 
-  // Load labels and notes when chatter changes or panels open
-  useEffect(() => {
-    if (!currentChatterName) return;
-    // Load all labels
-    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
-      .then(({ data }) => { if (data) setAllLabels(data); });
-    // Load assigned labels
-    supabase.from("chatter_label_assignments").select("label_id").eq("chatter_name", currentChatterName).eq("platform", platform)
-      .then(({ data }) => { if (data) setAssignedLabelIds(new Set(data.map((d) => d.label_id))); });
-    // Load notes
-    supabase.from("coaching_notes").select("id, note_text, created_at").eq("chatter_name", currentChatterName).eq("platform", platform).order("created_at", { ascending: false })
-      .then(({ data }) => { if (data) setNotes(data); });
-  }, [currentChatterName, platform, labelPanel, notePanel]);
-
   // Filter out already-checked chatters for swipe stack
   const uncheckedChatters = useMemo(
     () => chatters.filter((c) => !checkedNames.has(c.name)),
@@ -159,9 +145,21 @@ export default function TinderMode() {
   );
 
   const currentChatter = uncheckedChatters[0];
+  const currentChatterName = currentChatter?.name ?? null;
   const totalCount = chatters.length;
   const checkedCount = checkedNames.size;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
+
+  // Load labels and notes when chatter changes or panels open
+  useEffect(() => {
+    if (!currentChatterName) return;
+    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
+      .then(({ data }) => { if (data) setAllLabels(data); });
+    supabase.from("chatter_label_assignments").select("label_id").eq("chatter_name", currentChatterName).eq("platform", platform)
+      .then(({ data }) => { if (data) setAssignedLabelIds(new Set(data.map((d) => d.label_id))); });
+    supabase.from("coaching_notes").select("id, note_text, created_at").eq("chatter_name", currentChatterName).eq("platform", platform).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setNotes(data); });
+  }, [currentChatterName, platform]);
 
   const markChecked = useCallback(async (name: string) => {
     const { data: { user } } = await supabase.auth.getUser();
