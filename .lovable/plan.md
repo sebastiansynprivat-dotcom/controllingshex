@@ -1,77 +1,80 @@
+## Problem
 
+Du hast Chatter, die **konstant aktiv und zuverlässig** sind, aber auf kleinen Accounts (wenig Follower) sitzen. Diese sollen automatisch als "Account Upgrade"-Kandidaten erkannt werden — nicht nur basierend auf Umsatz-Streaks, sondern auch auf **Zuverlässigkeit und Konsistenz**.
 
-## Problem: Warum "Failed to fetch" immer wieder kommt
-
-Die Edge Function `analyze-csv` verarbeitet alle Batches (4 Stück bei ~170 Chattern) in einem einzigen HTTP-Request. Das dauert 2-4 Minuten. Die Verbindung wird nach ~150 Sekunden vom Server gekappt – daher "Failed to fetch". Die Recovery-Polling-Logik wartet dann auf ein fertiges Ergebnis in der Datenbank, aber die Edge Function ist ebenfalls abgestürzt (Log: `connection closed before message completed`), also wird das Ergebnis nie gespeichert.
-
-**Kernproblem:** Ein einzelner HTTP-Request kann nicht 3+ Minuten lang laufen.
+Aktuell erkennt das System nur `ACCOUNT UPGRADE (UMSATZ-STREAK)` wenn jemand 5 Tage ≥30€ macht. Das verpasst zuverlässige Chatter auf kleinen Accounts, die zwar weniger Umsatz machen, aber **jeden Tag da sind und arbeiten**.
 
 ---
 
-## Lösung: Client-seitige Batch-Orchestrierung
+## Lösung: Zuverlässigkeits-Score aus Historie
 
-Statt alle Batches in einem einzigen Edge-Function-Call abzuarbeiten, wird der Client jeden Batch einzeln an eine schlanke Edge Function senden. Jeder Call dauert nur 30-60 Sekunden — weit unter dem Timeout-Limit.
+Die Edge Function bekommt bereits die letzten 14 Tage Historie. Wir ergänzen die Kategorie-Logik um einen neuen Schritt:
 
 ```text
-VORHER (bricht ab):
-Client ──POST──> analyze-csv (4 Batches, 3+ min) ──TIMEOUT──> ❌
+NEU — SCHRITT zwischen 4 und 5:
 
-NACHHER (zuverlässig):
-Client ──POST──> analyze-csv-batch (Batch 1, ~40s) ──OK──> ✅
-Client ──POST──> analyze-csv-batch (Batch 2, ~40s) ──OK──> ✅
-Client ──POST──> analyze-csv-batch (Batch 3, ~40s) ──OK──> ✅
-Client ──POST──> analyze-csv-batch (Batch 4, ~40s) ──OK──> ✅
-Client ──> Merge + Save to DB ──> 🎉
+🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG)
+  Bedingungen (ALLE müssen erfüllt sein):
+  1. Mindestens 5 Tage in der Historie vorhanden
+  2. An mindestens 80% dieser Tage Umsatz > 0€ gemacht
+  4. Kein aktueller Warnung/Einbruch
+  
+  → Empfehlung: Konkreten größeren Account vorschlagen
 ```
 
 ---
 
-## Technische Schritte
+## Technische Umsetzung
 
-### 1. Neue Edge Function `analyze-csv-batch`
-- Nimmt entgegen: `header` (CSV-Kopfzeile), `batchLines` (Array von CSV-Zeilen), `platform`, `batchNum`, `totalBatches`
-- Lädt Models und History aus der DB
-- Lädt System-Prompt aus Settings
-- Macht EINEN AI-Call mit Retry (max 3 Versuche)
-- Gibt das Ergebnis direkt zurück: `{ result: { categories: [...] }, chattersReturned: N }`
-- Keine Report-Speicherung — das macht der Client am Ende
+### 1. Edge Function `analyze-csv-batch` — Prompt erweitern
 
-### 2. Upload.tsx umbauen — Client orchestriert
-- CSV/XLSX wird weiterhin lokal geparsed (ist schon so)
-- CSV wird in Batches à 50 Zeilen gesplittet (client-seitig)
-- Für jeden Batch: `fetch("analyze-csv-batch", { header, batchLines, platform, ... })`
-- Nach jedem Batch: Live-Status-Update im UI ("Batch 2/4 fertig ✅")
-- Wenn ein Batch fehlschlägt: bis zu 2 Retries, dann mit Warnung weitermachen
-- Nach allen Batches: Ergebnisse mergen, Report in `analysis_reports` speichern
-- chatter_history wird per separatem Call an die bestehende `analyze-csv` gespeichert ODER direkt via Supabase-Client
+Neuer Kategorie-Schritt im `formatInstructions` zwischen SCHRITT 4 (MODEL-TAUSCH) und SCHRITT 5 (0€ UMSATZ):
 
-### 3. Bestehende `analyze-csv` Edge Function vereinfachen
-- Wird nur noch als optionaler "save-history" Endpunkt genutzt ODER komplett durch die neue Batch-Funktion ersetzt
-- Kann entfernt oder als Legacy beibehalten werden
+```
+SCHRITT 4b — ACCOUNT UPGRADE (ZUVERLÄSSIG) prüfen:
+→ 🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG) — NUR wenn ALLE Bedingungen erfüllt:
+  1. Chatter hat mindestens 7 Tage in den HISTORISCHEN DATEN
+  2. An mindestens 80% dieser Tage war der Tagesumsatz > 0€
+  3. Der Account hat weniger als 50.000 Follower (siehe Models-Liste)
+  4. Chatter ist NICHT in WARNUNG oder ACCOUNT-EINBRUCH
+  → Empfehlung: "Zuverlässiger Chatter auf kleinem Account. 
+     Upgrade auf [größeren Account] empfohlen."
+```
 
-### 4. Fortschrittsanzeige
-- Progressbar zeigt "Batch 2 von 4" statt nur "Analyse läuft…"
-- Jeder fertige Batch zeigt sofort die Chatter-Anzahl an
-- Bei Fehler in einem Batch: klare Meldung welcher Batch betroffen ist
+### 2. Historie-Block verbessern
 
----
+Den `historyBlock` um eine Zusammenfassung pro Chatter ergänzen, damit die AI die Konsistenz leichter erkennen kann:
 
-## Warum das bulletproof ist
+```
+Max Mustermann (Account: modelXY, 12.000 Follower):
+  Aktive Tage: 10/14 (71%)
+  Ø Tagesumsatz: 25,50€
+  Historie: 2026-04-01: 30€, 2026-04-02: 0€, ...
+```
 
-| Problem | Lösung |
-|---------|--------|
-| HTTP-Timeout nach 150s | Jeder Call dauert max 60s |
-| "Failed to fetch" | Kleine Payloads, kurze Calls |
-| Edge Function crasht → kein DB-Save | Client speichert selbst nach allen Batches |
-| Ein Batch-JSON ist kaputt | Retry pro Batch, Rest geht weiter |
-| Verbindung kurz weg | Nur ein Batch muss wiederholt werden, nicht alles |
-| Chatter fehlen | Client prüft nach jedem Batch die Coverage |
+So muss die AI nicht selbst zählen, sondern bekommt die Zuverlässigkeitsrate direkt geliefert.
+
+### 3. CategoryResultCards — Darstellung
+
+Die neue Kategorie `ACCOUNT UPGRADE (ZUVERLÄSSIG)` mit dem Emoji 🔼 wird automatisch von den bestehenden CategoryResultCards dargestellt — keine UI-Änderung nötig.
 
 ---
 
-## Dateien die geändert/erstellt werden
+## Dateien die geändert werden
 
-1. **`supabase/functions/analyze-csv-batch/index.ts`** — Neue Edge Function (schlank, ein AI-Call)
-2. **`src/pages/Upload.tsx`** — Client-seitige Batch-Orchestrierung, Live-Progress, Merge & Save
-3. **`src/lib/analysis-pipeline.ts`** — Batch-Split-Logik als Helper exportieren (optional)
+1. `**supabase/functions/analyze-csv-batch/index.ts**`
+  - Neue Kategorie `ACCOUNT UPGRADE (ZUVERLÄSSIG)` im Prompt (Schritt 4b)
+  - Historie-Block um Zusammenfassungs-Zeile ergänzen (aktive Tage %, Ø Umsatz, Follower)
+  - Models-Daten in den Historie-Block integrieren, damit die AI Follower pro Account sieht
 
+---
+
+## Schwellenwerte (anpassbar)
+
+
+| Parameter             | Wert   | Begründung                               |
+| --------------------- | ------ | ---------------------------------------- |
+| Min. Tage in Historie | 5      | Genug Daten für Zuverlässigkeits-Aussage |
+| Min. aktive Tage (%)  | 70%    | 4 von 5 Tagen aktiv = zuverlässig        |
+| &nbsp;                | &nbsp; | &nbsp;                                   |
+| Min. Ø Tagesumsatz    | 0€     | Zeigt dass der Chatter Umsatz generiert  |
