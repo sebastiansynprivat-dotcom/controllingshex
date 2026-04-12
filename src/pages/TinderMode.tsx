@@ -392,6 +392,30 @@ export default function TinderMode() {
     return () => window.removeEventListener("keydown", handler);
   }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleUndo]);
 
+  const isDone = uncheckedChatters.length === 0;
+  const allDone = chatters.every((c) => checkedNames.has(normalizeName(c.name)));
+
+  // When category filter is active and all cards done, find next category
+  useEffect(() => {
+    if (!isDone || !selectedCategory || allDone) return;
+    const uncheckedAll = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    const remaining = new Map<string, { emoji: string; name: string }>();
+    for (const c of uncheckedAll) {
+      const key = c.categoryName || "WEITER SO";
+      if (key !== selectedCategory && !remaining.has(key)) {
+        remaining.set(key, { emoji: c.categoryEmoji || "⚪", name: key });
+      }
+    }
+    const sorted = Array.from(remaining.values()).sort((a, b) => {
+      const ai = CATEGORY_PRIORITY.indexOf(a.name);
+      const bi = CATEGORY_PRIORITY.indexOf(b.name);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    if (sorted.length > 0) {
+      setCategoryDonePrompt(sorted[0].name);
+    }
+  }, [isDone, selectedCategory, allDone, chatters, checkedNames]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -408,32 +432,6 @@ export default function TinderMode() {
       </div>
     );
   }
-
-  const isDone = uncheckedChatters.length === 0;
-  const allDone = chatters.every((c) => checkedNames.has(normalizeName(c.name)));
-
-  // When category filter is active and all cards in that category are done, find next category
-  useEffect(() => {
-    if (!isDone || !selectedCategory || allDone) return;
-    // Find next category with unchecked chatters
-    const uncheckedAll = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
-    const remaining = new Map<string, { emoji: string; name: string }>();
-    for (const c of uncheckedAll) {
-      const key = c.categoryName || "WEITER SO";
-      if (key !== selectedCategory && !remaining.has(key)) {
-        remaining.set(key, { emoji: c.categoryEmoji || "⚪", name: key });
-      }
-    }
-    // Pick next by priority
-    const sorted = Array.from(remaining.values()).sort((a, b) => {
-      const ai = CATEGORY_PRIORITY.indexOf(a.name);
-      const bi = CATEGORY_PRIORITY.indexOf(b.name);
-      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-    });
-    if (sorted.length > 0) {
-      setCategoryDonePrompt(sorted[0].name);
-    }
-  }, [isDone, selectedCategory, allDone, chatters, checkedNames]);
 
   return (
     <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6">
