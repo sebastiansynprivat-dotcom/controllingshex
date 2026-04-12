@@ -98,9 +98,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
-          const el = e.currentTarget;
-          el.dataset.copied = "true";
-          setTimeout(() => delete el.dataset.copied, 1000);
+          toast.success("Name kopiert");
         }}
         title="Klicken zum Kopieren"
       >
