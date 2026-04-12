@@ -91,8 +91,18 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         </span>
       </div>
 
-      {/* Name */}
-      <h2 className="text-xl font-semibold text-foreground mb-4 capitalize">
+      {/* Name — tap to copy */}
+      <h2
+        className="text-xl font-semibold text-foreground mb-4 capitalize cursor-pointer active:text-primary transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
+          const el = e.currentTarget;
+          el.dataset.copied = "true";
+          setTimeout(() => delete el.dataset.copied, 1000);
+        }}
+        title="Klicken zum Kopieren"
+      >
         {chatter.name.replace(/_/g, " ")}
       </h2>
 
