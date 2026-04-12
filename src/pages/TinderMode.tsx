@@ -7,7 +7,10 @@ import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Check, X, ChevronUp, RotateCcw, Undo2 } from "lucide-react";
+import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface ChatterData {
   name: string;
@@ -38,8 +41,19 @@ export default function TinderMode() {
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
   const [slideOver, setSlideOver] = useState(false);
+  const [labelPanel, setLabelPanel] = useState(false);
+  const [notePanel, setNotePanel] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
+
+  // Label state
+  const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
+  const [assignedLabelIds, setAssignedLabelIds] = useState<Set<string>>(new Set());
+  const [newLabelName, setNewLabelName] = useState("");
+
+  // Note state
+  const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
+  const [noteText, setNoteText] = useState("");
 
   useEffect(() => {
     const load = async () => {
