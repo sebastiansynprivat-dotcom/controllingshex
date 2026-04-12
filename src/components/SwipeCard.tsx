@@ -60,23 +60,18 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   }, [controls]);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
-    const { offset, velocity } = info;
-    // Velocity-based: lower threshold if swiping fast
-    const velocityThreshold = 300;
-    const distThreshold = 80;
+    const { offset } = info;
+    const distThreshold = 120;
 
-    if (offset.y < -distThreshold || (velocity.y < -velocityThreshold && offset.y < -40)) {
+    if (offset.y < -distThreshold) {
       flyOff("up", onSwipeUp);
-    } else if (offset.y > distThreshold || (velocity.y > velocityThreshold && offset.y > 40)) {
-      if (onSwipeDown) {
-        flyOff("down", onSwipeDown);
-      }
-    } else if (offset.x > distThreshold || (velocity.x > velocityThreshold && offset.x > 40)) {
+    } else if (offset.y > distThreshold && onSwipeDown) {
+      flyOff("down", onSwipeDown);
+    } else if (offset.x > distThreshold) {
       flyOff("right", onSwipeRight);
-    } else if (offset.x < -distThreshold || (velocity.x < -velocityThreshold && offset.x > -40)) {
+    } else if (offset.x < -distThreshold) {
       flyOff("left", onSwipeLeft);
     } else {
-      // Snap back
       controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } });
     }
   }, [flyOff, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, controls]);
