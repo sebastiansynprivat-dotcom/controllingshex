@@ -251,10 +251,15 @@ export default function TinderMode() {
   const uncheckedChatters = useMemo(
     () => {
       const base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
-      if (!selectedCategory) return base;
-      return base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+      const filtered = selectedCategory
+        ? base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory)
+        : base;
+      // Put skipped names at the end
+      const notSkipped = filtered.filter((c) => !skippedNames.has(normalizeName(c.name)));
+      const skipped = filtered.filter((c) => skippedNames.has(normalizeName(c.name)));
+      return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory]
+    [chatters, checkedNames, selectedCategory, skippedNames]
   );
 
   const currentChatter = uncheckedChatters[0];
