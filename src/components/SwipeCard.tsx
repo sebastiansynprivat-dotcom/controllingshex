@@ -36,6 +36,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const controls = useAnimation();
   const didHandleGestureRef = useRef(false);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
   const opacityRight = useTransform(x, [0, 100], [0, 1]);
   const opacityLeft = useTransform(x, [-100, 0], [1, 0]);
   const opacityUp = useTransform(y, [-100, 0], [1, 0]);
@@ -103,6 +104,18 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
     callback();
   }, [controls]);
 
+  const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (didHandleGestureRef.current) return;
+
+    const absX = Math.abs(info.offset.x);
+    const absY = Math.abs(info.offset.y);
+    const isVerticalIntent = absY > absX * 1.1;
+
+    if (info.offset.y < -56 && isVerticalIntent) {
+      openDetails();
+    }
+  }, [openDetails]);
+
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     if (didHandleGestureRef.current) {
       didHandleGestureRef.current = false;
@@ -136,12 +149,13 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       className={`absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 flex flex-col select-none ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
-      style={isTop ? { x, y, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex }}
+      style={isTop ? { x, y: displayY, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex }}
       drag={isTop}
       dragDirectionLock={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={isTop ? 0.2 : 0}
       dragMomentum={false}
+      onDrag={isTop ? handleDrag : undefined}
       onDragEnd={isTop ? handleDragEnd : undefined}
       animate={isTop ? controls : undefined}
       initial={isTop ? { scale: 0.95, opacity: 0 } : false}
