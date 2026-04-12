@@ -527,22 +527,11 @@ export default function TinderMode() {
           </motion.div>
         ) : (
           <>
-            <AnimatePresence mode="popLayout">
-              {/* Show next card behind */}
-              {uncheckedChatters.length > 1 && (
-                <SwipeCard
-                  key={uncheckedChatters[1].name + "-bg"}
-                  chatter={uncheckedChatters[1]}
-                  onSwipeRight={() => {}}
-                  onSwipeLeft={() => {}}
-                  onSwipeUp={() => {}}
-                  isTop={false}
-                />
-              )}
+            <AnimatePresence mode="wait">
               {/* Current card */}
               {currentChatter && (
                 <SwipeCard
-                  key={currentChatter.name + "-top"}
+                  key={currentChatter.name + "-" + (selectedCategory || "all")}
                   chatter={currentChatter}
                   onSwipeRight={handleSwipeRight}
                   onSwipeLeft={handleSwipeLeft}
@@ -551,6 +540,19 @@ export default function TinderMode() {
                 />
               )}
             </AnimatePresence>
+            {/* Show next card behind */}
+            {uncheckedChatters.length > 1 && (
+              <div className="absolute inset-0 -z-10">
+                <SwipeCard
+                  key={uncheckedChatters[1].name + "-bg"}
+                  chatter={uncheckedChatters[1]}
+                  onSwipeRight={() => {}}
+                  onSwipeLeft={() => {}}
+                  onSwipeUp={() => {}}
+                  isTop={false}
+                />
+              </div>
+            )}
 
             {/* Action panel overlay */}
             {currentChatter && (
