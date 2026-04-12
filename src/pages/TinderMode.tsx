@@ -223,6 +223,46 @@ export default function TinderMode() {
     setActionPanel(false);
   };
 
+  // Label toggle
+  const toggleLabel = async (labelId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !currentChatter) return;
+    if (assignedLabelIds.has(labelId)) {
+      await supabase.from("chatter_label_assignments").delete()
+        .eq("label_id", labelId).eq("chatter_name", currentChatter.name).eq("platform", platform).eq("user_id", user.id);
+      setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
+    } else {
+      await supabase.from("chatter_label_assignments").insert({
+        label_id: labelId, chatter_name: currentChatter.name, platform, user_id: user.id,
+      });
+      setAssignedLabelIds((prev) => new Set(prev).add(labelId));
+    }
+  };
+
+  const createLabel = async () => {
+    if (!newLabelName.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const colors = ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
+    const color = colors[allLabels.length % colors.length];
+    const { data } = await supabase.from("chatter_labels")
+      .insert({ user_id: user.id, platform, label_name: newLabelName.trim(), color })
+      .select("id, label_name, color").single();
+    if (data) { setAllLabels((prev) => [...prev, data]); setNewLabelName(""); }
+  };
+
+  // Save note
+  const saveNote = async () => {
+    if (!noteText.trim() || !currentChatter) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase.from("coaching_notes")
+      .insert({ chatter_name: currentChatter.name, note_text: noteText.trim(), platform, user_id: user.id })
+      .select("id, note_text, created_at").single();
+    if (error) { toast.error("Fehler beim Speichern"); return; }
+    if (data) { setNotes((prev) => [data, ...prev]); setNoteText(""); toast.success("Notiz gespeichert"); }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
