@@ -333,19 +333,35 @@ export default function TinderMode() {
 
   const noop = useCallback(() => {}, []);
 
-  const handleUndo = useCallback(() => {
-    setUndoStack((prev) => {
-      if (prev.length === 0) return prev;
-      const lastName = prev[prev.length - 1];
-      setCheckedNames((s) => {
-        const next = new Set(s);
-        next.delete(normalizeName(lastName));
-        return next;
-      });
-      return prev.slice(0, -1);
+  const handleUndo = useCallback(async () => {
+    const stack = [...undoStack];
+    if (stack.length === 0) return;
+    const lastName = stack.pop()!;
+    setUndoStack(stack);
+    setCheckedNames((s) => {
+      const next = new Set(s);
+      next.delete(normalizeName(lastName));
+      return next;
+    });
+    // Also remove the skip flag if it was skipped
+    setSkippedNames((prev) => {
+      const next = new Set(prev);
+      next.delete(normalizeName(lastName));
+      return next;
     });
     setActionPanel(false);
-  }, []);
+
+    // Delete from DB
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    await supabase.from("daily_chatter_checks")
+      .delete()
+      .eq("chatter_name", lastName)
+      .eq("platform", platform)
+      .eq("user_id", user.id)
+      .eq("check_date", today);
+  }, [undoStack, platform]);
 
   const handleSwipeRight = useCallback(() => {
     if (!currentChatter) return;
