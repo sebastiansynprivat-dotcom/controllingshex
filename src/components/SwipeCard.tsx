@@ -129,11 +129,11 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         </div>
       )}
 
-      {/* Recommendation */}
+      {/* Recommendation — scrollable */}
       {chatter.recommendation && (
-        <div className="mt-auto bg-secondary rounded-lg px-3 py-2.5">
+        <div className="mt-auto bg-secondary rounded-lg px-3 py-2.5 overflow-y-auto max-h-32" onPointerDown={(e) => e.stopPropagation()}>
           <p className="text-[11px] text-muted-foreground mb-0.5">Empfehlung</p>
-          <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">
+          <p className="text-xs text-foreground/80 leading-relaxed">
             {chatter.recommendation}
           </p>
         </div>
