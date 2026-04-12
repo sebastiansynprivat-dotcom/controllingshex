@@ -120,6 +120,8 @@ export default function TinderMode() {
   const [slideOver, setSlideOver] = useState(false);
   const [labelPanel, setLabelPanel] = useState(false);
   const [notePanel, setNotePanel] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
 
