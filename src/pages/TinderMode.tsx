@@ -201,10 +201,11 @@ export default function TinderMode() {
       if (e.key === "ArrowRight") handleSwipeRight();
       if (e.key === "ArrowLeft") handleSwipeLeft();
       if (e.key === "ArrowUp") handleSwipeUp();
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp]);
+  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleUndo]);
 
   if (loading) {
     return (
