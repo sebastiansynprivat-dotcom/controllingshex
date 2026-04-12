@@ -421,11 +421,12 @@ export default function TinderMode() {
       if (e.key === "ArrowRight") handleSwipeRight();
       if (e.key === "ArrowLeft") handleSwipeLeft();
       if (e.key === "ArrowUp") handleSwipeUp();
+      if (e.key === "ArrowDown") { e.preventDefault(); handleSwipeDown(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleUndo]);
+  }, [actionPanel, slideOver, handleSwipeRight, handleSwipeLeft, handleSwipeUp, handleSwipeDown, handleUndo]);
 
   const isDone = uncheckedChatters.length === 0;
   const allDone = chatters.every((c) => checkedNames.has(normalizeName(c.name)));
