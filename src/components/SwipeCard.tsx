@@ -90,20 +90,21 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     const { offset } = info;
-    const distThreshold = 120;
+    const horizontalThreshold = 120;
+    const verticalThreshold = 70; // Lower threshold for up/down — feels more natural
 
-    if (offset.y < -distThreshold) {
+    if (offset.y < -verticalThreshold) {
       peekAndReturn("up", onSwipeUp);
-    } else if (offset.y > distThreshold && onSwipeDown) {
+    } else if (offset.y > verticalThreshold && onSwipeDown) {
       flyOff("down", onSwipeDown);
-    } else if (offset.x > distThreshold) {
+    } else if (offset.x > horizontalThreshold) {
       flyOff("right", onSwipeRight);
-    } else if (offset.x < -distThreshold) {
+    } else if (offset.x < -horizontalThreshold) {
       peekAndReturn("left", onSwipeLeft);
     } else {
       snapBack();
     }
-  }, [flyOff, snapBack, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown]);
+  }, [flyOff, snapBack, peekAndReturn, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown]);
 
   return (
     <motion.div
