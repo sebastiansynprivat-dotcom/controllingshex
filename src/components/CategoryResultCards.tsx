@@ -78,7 +78,9 @@ const ALLOWED_CATEGORIES = [
   { emoji: "🌟", name: "BREAKOUT-STAR" },
   { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" },
   { emoji: "🚀", name: "KURZ VOR UPGRADE" },
-  { emoji: "🟢", name: "ACCOUNT UPGRADE (TRAFFIC TEST)" },
+  { emoji: "🔼", name: "ACCOUNT UPGRADE (ZUVERLÄSSIG)" },
+  { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" },
+  { emoji: "🔄", name: "COMEBACK" },
   { emoji: "📉", name: "0€ UMSATZ TAG 1" },
   { emoji: "📉", name: "0€ UMSATZ TAG 2" },
   { emoji: "📉", name: "0€ UMSATZ TAG 3" },
@@ -89,7 +91,9 @@ const ALLOWED_CATEGORIES = [
   { emoji: "🟠", name: "WARNUNG" },
   { emoji: "📼", name: "VIDEO-COACHING" },
   { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" },
-  { emoji: "⚪", name: "WEITER SO / MITTELFELD" },
+  { emoji: "⭐", name: "TOP PERFORMER" },
+  { emoji: "⚪", name: "WEITER SO" },
+  { emoji: "👀", name: "UNTER BEOBACHTUNG" },
 ] as const;
 
 const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
