@@ -45,9 +45,10 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   }, [chatter.kpis]);
 
   const gradientId = useMemo(() => `sparkGrad-${chatter.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,[chatter.name]);
-  const stackScale = Math.max(0.82, 1 - stackIndex * 0.04);
-  const stackOffsetY = stackIndex * 12;
-  const stackOpacity = Math.max(0.22, 1 - stackIndex * 0.14);
+  const isVisible = stackIndex <= 1;
+  const stackScale = stackIndex === 1 ? 0.95 : 1;
+  const stackOffsetY = stackIndex === 1 ? 8 : 0;
+  const stackOpacity = stackIndex === 1 ? 0.5 : 1;
 
   const flyOff = useCallback(async (direction: "right" | "left" | "up" | "down", callback: () => void) => {
     triggerHaptic("medium");
@@ -87,7 +88,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       className={`absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 flex flex-col select-none ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
-      style={isTop ? { x, y, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: stackOpacity, zIndex: 20 - stackIndex }}
+      style={isTop ? { x, y, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex }}
       drag={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={isTop ? 0.9 : 0}
