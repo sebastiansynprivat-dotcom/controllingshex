@@ -278,16 +278,39 @@ export default function TinderMode() {
   }, [currentChatterName, platform]);
 
   const markChecked = useCallback(async (name: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    const normalizedName = normalizeName(name);
 
-    await supabase.from("daily_chatter_checks").upsert(
+    setCheckedNames((prev) => {
+      if (prev.has(normalizedName)) return prev;
+      const next = new Set(prev);
+      next.add(normalizedName);
+      return next;
+    });
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setCheckedNames((prev) => {
+        const next = new Set(prev);
+        next.delete(normalizedName);
+        return next;
+      });
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const { error } = await supabase.from("daily_chatter_checks").upsert(
       { chatter_name: name, platform, user_id: user.id, check_date: today },
       { onConflict: "user_id,chatter_name,check_date,platform", ignoreDuplicates: true }
     );
 
-    setCheckedNames((prev) => new Set(prev).add(normalizeName(name)));
+    if (error) {
+      setCheckedNames((prev) => {
+        const next = new Set(prev);
+        next.delete(normalizedName);
+        return next;
+      });
+      toast.error("Swipe konnte nicht gespeichert werden");
+    }
   }, [platform]);
 
   const goNext = useCallback(() => {
