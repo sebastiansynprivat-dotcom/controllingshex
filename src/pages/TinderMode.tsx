@@ -229,17 +229,42 @@ export default function TinderMode() {
     load();
   }, [platform]);
 
-  // Filter out already-checked chatters for swipe stack
+  // Extract unique categories with counts of unchecked chatters
+  const uniqueCategories = useMemo(() => {
+    const allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    const catMap = new Map<string, { emoji: string; name: string; count: number }>();
+    for (const c of allUnchecked) {
+      const key = c.categoryName || "WEITER SO";
+      if (!catMap.has(key)) catMap.set(key, { emoji: c.categoryEmoji || "⚪", name: key, count: 0 });
+      catMap.get(key)!.count++;
+    }
+    // Sort by priority
+    return Array.from(catMap.values()).sort((a, b) => {
+      const ai = CATEGORY_PRIORITY.indexOf(a.name);
+      const bi = CATEGORY_PRIORITY.indexOf(b.name);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }, [chatters, checkedNames]);
+
+  // Filter unchecked chatters by selected category
   const uncheckedChatters = useMemo(
-    () => chatters.filter((c) => !checkedNames.has(normalizeName(c.name))),
-    [chatters, checkedNames]
+    () => {
+      const base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+      if (!selectedCategory) return base;
+      return base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+    },
+    [chatters, checkedNames, selectedCategory]
   );
 
   const currentChatter = uncheckedChatters[0];
   const currentChatterName = currentChatter?.name ?? null;
-  const totalCount = chatters.length;
-  const checkedCount = checkedNames.size;
-  const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
+  const filteredTotal = selectedCategory
+    ? chatters.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory).length
+    : chatters.length;
+  const filteredChecked = selectedCategory
+    ? chatters.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory && checkedNames.has(normalizeName(c.name))).length
+    : checkedNames.size;
+  const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load labels and notes when chatter changes or panels open
   useEffect(() => {
