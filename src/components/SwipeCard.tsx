@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
 
@@ -34,7 +34,9 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
+  const didHandleGestureRef = useRef(false);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
   const opacityRight = useTransform(x, [0, 100], [0, 1]);
   const opacityLeft = useTransform(x, [-100, 0], [1, 0]);
   const opacityUp = useTransform(y, [-100, 0], [1, 0]);
@@ -74,8 +76,22 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
     });
   }, [controls]);
 
+  const openDetails = useCallback(() => {
+    triggerHaptic("light");
+    didHandleGestureRef.current = true;
+    onSwipeUp();
+    controls.start({
+      x: 0,
+      y: 0,
+      rotate: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 520, damping: 34, mass: 0.7 },
+    });
+  }, [controls, onSwipeUp]);
+
   const flyOff = useCallback(async (direction: "right" | "down", callback: () => void) => {
     triggerHaptic("medium");
+    didHandleGestureRef.current = true;
     const targets = {
       right: { x: 500, y: 0, rotate: 20 },
       down: { x: 0, y: 500, rotate: 0 },
@@ -88,33 +104,58 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
     callback();
   }, [controls]);
 
+  const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (didHandleGestureRef.current) return;
+
+    const absX = Math.abs(info.offset.x);
+    const absY = Math.abs(info.offset.y);
+    const isVerticalIntent = absY > absX * 1.1;
+
+    if (info.offset.y < -56 && isVerticalIntent) {
+      openDetails();
+    }
+  }, [openDetails]);
+
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+    if (didHandleGestureRef.current) {
+      didHandleGestureRef.current = false;
+      return;
+    }
+
     const { offset } = info;
     const horizontalThreshold = 120;
     const verticalThreshold = 70; // Lower threshold for up/down — feels more natural
+    const absX = Math.abs(offset.x);
+    const absY = Math.abs(offset.y);
+    const isVerticalIntent = absY >= absX;
+    const isHorizontalIntent = absX > absY;
 
-    if (offset.y < -verticalThreshold) {
-      peekAndReturn("up", onSwipeUp);
-    } else if (offset.y > verticalThreshold && onSwipeDown) {
+    if (offset.y < -verticalThreshold && isVerticalIntent) {
+      openDetails();
+    } else if (offset.y > verticalThreshold && isVerticalIntent && onSwipeDown) {
       flyOff("down", onSwipeDown);
-    } else if (offset.x > horizontalThreshold) {
+    } else if (offset.x > horizontalThreshold && isHorizontalIntent) {
       flyOff("right", onSwipeRight);
-    } else if (offset.x < -horizontalThreshold) {
+    } else if (offset.x < -horizontalThreshold && isHorizontalIntent) {
+      didHandleGestureRef.current = true;
       peekAndReturn("left", onSwipeLeft);
     } else {
       snapBack();
     }
-  }, [flyOff, snapBack, peekAndReturn, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown]);
+  }, [flyOff, snapBack, peekAndReturn, openDetails, onSwipeRight, onSwipeLeft, onSwipeDown]);
 
   return (
     <motion.div
       className={`absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 flex flex-col select-none ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
-      style={isTop ? { x, y, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex }}
+      style={isTop ? { x, y: displayY, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex }}
       drag={isTop}
+      dragDirectionLock={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={isTop ? 0.9 : 0}
+      dragElastic={isTop ? 0.2 : 0}
+      dragMomentum={false}
+      onDrag={isTop ? handleDrag : undefined}
       onDragEnd={isTop ? handleDragEnd : undefined}
       animate={isTop ? controls : undefined}
       initial={isTop ? { scale: 0.95, opacity: 0 } : false}
