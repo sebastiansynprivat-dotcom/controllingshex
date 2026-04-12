@@ -40,7 +40,7 @@ export default function TinderMode() {
   const [actionPanel, setActionPanel] = useState(false);
   const [slideOver, setSlideOver] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
-  const [history, setHistory] = useState<{ index: number; action: "right" | "left" }[]>([]);
+  const [undoStack, setUndoStack] = useState<string[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -119,6 +119,7 @@ export default function TinderMode() {
 
       setChatters(allChatters);
       setCurrentIndex(0);
+      setUndoStack([]);
       setLoading(false);
     };
     load();
