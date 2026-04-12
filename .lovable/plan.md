@@ -1,80 +1,72 @@
-## Problem
 
-Du hast Chatter, die **konstant aktiv und zuverlässig** sind, aber auf kleinen Accounts (wenig Follower) sitzen. Diese sollen automatisch als "Account Upgrade"-Kandidaten erkannt werden — nicht nur basierend auf Umsatz-Streaks, sondern auch auf **Zuverlässigkeit und Konsistenz**.
 
-Aktuell erkennt das System nur `ACCOUNT UPGRADE (UMSATZ-STREAK)` wenn jemand 5 Tage ≥30€ macht. Das verpasst zuverlässige Chatter auf kleinen Accounts, die zwar weniger Umsatz machen, aber **jeden Tag da sind und arbeiten**.
+## Kategorie-Überarbeitung: Alle 5 Vorschläge umsetzen
 
----
+### Änderungen im Prompt (`supabase/functions/analyze-csv-batch/index.ts`)
 
-## Lösung: Zuverlässigkeits-Score aus Historie
-
-Die Edge Function bekommt bereits die letzten 14 Tage Historie. Wir ergänzen die Kategorie-Logik um einen neuen Schritt:
+**A) Mittelfeld aufteilen** — SCHRITT 8 (Fallback) wird ersetzt:
 
 ```text
-NEU — SCHRITT zwischen 4 und 5:
-
-🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG)
-  Bedingungen (ALLE müssen erfüllt sein):
-  1. Mindestens 5 Tage in der Historie vorhanden
-  2. An mindestens 80% dieser Tage Umsatz > 0€ gemacht
-  4. Kein aktueller Warnung/Einbruch
-  
-  → Empfehlung: Konkreten größeren Account vorschlagen
+SCHRITT 8 — MITTELFELD segmentieren (Fallback):
+→ ⭐ TOP PERFORMER — Tagesumsatz heute > Ø aller Chatter im Batch. Starke Leistung!
+→ ⚪ WEITER SO — Tagesumsatz > 0€, aber ≤ Batch-Durchschnitt. Solide, aber Luft nach oben.
+→ 👀 UNTER BEOBACHTUNG — Tagesumsatz = 0€ heute, aber kein 0€-Streak (nur 1 Tag). Noch kein Alarm.
 ```
 
----
+**B) Comeback-Kategorie** — Neuer SCHRITT 5b (nach 0€-Streak, vor positive Kategorien):
 
-## Technische Umsetzung
-
-### 1. Edge Function `analyze-csv-batch` — Prompt erweitern
-
-Neuer Kategorie-Schritt im `formatInstructions` zwischen SCHRITT 4 (MODEL-TAUSCH) und SCHRITT 5 (0€ UMSATZ):
-
-```
-SCHRITT 4b — ACCOUNT UPGRADE (ZUVERLÄSSIG) prüfen:
-→ 🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG) — NUR wenn ALLE Bedingungen erfüllt:
-  1. Chatter hat mindestens 7 Tage in den HISTORISCHEN DATEN
-  2. An mindestens 80% dieser Tage war der Tagesumsatz > 0€
-  3. Der Account hat weniger als 50.000 Follower (siehe Models-Liste)
-  4. Chatter ist NICHT in WARNUNG oder ACCOUNT-EINBRUCH
-  → Empfehlung: "Zuverlässiger Chatter auf kleinem Account. 
-     Upgrade auf [größeren Account] empfohlen."
+```text
+SCHRITT 5b — COMEBACK prüfen:
+→ 🔄 COMEBACK — Chatter hatte laut Historie 3+ Tage in Folge 0€, hat aber HEUTE wieder Umsatz > 0€.
+  → Empfehlung: "Comeback nach X Tagen Pause. Positiv bestärken und eng begleiten."
 ```
 
-### 2. Historie-Block verbessern
+**C) Traffic Test umwidmen** — In SCHRITT 6 wird `ACCOUNT UPGRADE (TRAFFIC TEST)` ersetzt:
 
-Den `historyBlock` um eine Zusammenfassung pro Chatter ergänzen, damit die AI die Konsistenz leichter erkennen kann:
-
-```
-Max Mustermann (Account: modelXY, 12.000 Follower):
-  Aktive Tage: 10/14 (71%)
-  Ø Tagesumsatz: 25,50€
-  Historie: 2026-04-01: 30€, 2026-04-02: 0€, ...
+```text
+→ 📊 HOHER TRAFFIC / KEINE CONVERSION — > 3 MassDMs heute, aber 0€ Umsatz.
+  → Empfehlung: Coaching zur Conversion-Optimierung statt Account-Upgrade.
 ```
 
-So muss die AI nicht selbst zählen, sondern bekommt die Zuverlässigkeitsrate direkt geliefert.
+**D) Breakout-Schwelle senken** — In SCHRITT 6:
 
-### 3. CategoryResultCards — Darstellung
+```text
+→ 🌟 BREAKOUT-STAR — Tagesumsatz ist mindestens 2x höher als der historische Durchschnitt (braucht Historie!).
+```
+(Von 3x auf 2x gesenkt)
 
-Die neue Kategorie `ACCOUNT UPGRADE (ZUVERLÄSSIG)` mit dem Emoji 🔼 wird automatisch von den bestehenden CategoryResultCards dargestellt — keine UI-Änderung nötig.
+**E) Coaching klarer abgrenzen** — SCHRITT 7 wird präziser:
 
----
+```text
+SCHRITT 7 — COACHING prüfen:
+→ 📼 VIDEO-COACHING — Seit >= 7 Tagen aktiv UND in den letzten 7 Tagen insgesamt < 20€. 
+  Langzeit-Underperformer, braucht Video-Schulung.
+→ 🟡 COACHING / ENGERE KONTROLLE — Seit 5-6 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€. 
+  Noch früh genug für engere Begleitung.
+```
 
-## Dateien die geändert werden
+### Datei die geändert wird
 
-1. `**supabase/functions/analyze-csv-batch/index.ts**`
-  - Neue Kategorie `ACCOUNT UPGRADE (ZUVERLÄSSIG)` im Prompt (Schritt 4b)
-  - Historie-Block um Zusammenfassungs-Zeile ergänzen (aktive Tage %, Ø Umsatz, Follower)
-  - Models-Daten in den Historie-Block integrieren, damit die AI Follower pro Account sieht
+1. **`supabase/functions/analyze-csv-batch/index.ts`** — Nur der `formatInstructions`-String wird aktualisiert (Schritte 5b, 6, 7, 8). Keine Code-Logik-Änderung nötig, alles wird über den Prompt gesteuert.
 
----
+### Zusammenfassung der neuen Kategorie-Hierarchie
 
-## Schwellenwerte (anpassbar)
+```text
+1. ONBOARDING TAG 1-5        (unverändert)
+2. WARNUNG                    (unverändert)
+3. ACCOUNT-EINBRUCH           (unverändert)
+4. MODEL-TAUSCH               (unverändert)
+4b. ACCOUNT UPGRADE (ZUVERLÄSSIG) (unverändert)
+5. 0€ UMSATZ TAG 1-7+        (unverändert)
+5b. COMEBACK                  (NEU — nach 3+ Tagen 0€ wieder aktiv)
+6. BREAKOUT-STAR              (Schwelle 3x → 2x)
+   ACCOUNT UPGRADE (UMSATZ-STREAK) (unverändert)
+   KURZ VOR UPGRADE           (unverändert)
+   HOHER TRAFFIC / KEINE CONVERSION (umgewidmet von Traffic Test)
+7. VIDEO-COACHING             (≥7 Tage, <20€ in 7 Tagen)
+   COACHING / ENGERE KONTROLLE (5-6 Tage, <15€ in 5 Tagen)
+8. TOP PERFORMER              (NEU — über Ø)
+   WEITER SO                  (Umsatz > 0€, unter Ø)
+   UNTER BEOBACHTUNG          (NEU — heute 0€, aber kein Streak)
+```
 
-
-| Parameter             | Wert   | Begründung                               |
-| --------------------- | ------ | ---------------------------------------- |
-| Min. Tage in Historie | 5      | Genug Daten für Zuverlässigkeits-Aussage |
-| Min. aktive Tage (%)  | 70%    | 4 von 5 Tagen aktiv = zuverlässig        |
-| &nbsp;                | &nbsp; | &nbsp;                                   |
-| Min. Ø Tagesumsatz    | 0€     | Zeigt dass der Chatter Umsatz generiert  |
