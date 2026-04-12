@@ -123,8 +123,13 @@ export default function TinderMode() {
     };
     load();
   }, [platform]);
+  // Filter out already-checked chatters for swipe stack
+  const uncheckedChatters = useMemo(
+    () => chatters.filter((c) => !checkedNames.has(c.name)),
+    [chatters, checkedNames]
+  );
 
-  const currentChatter = chatters[currentIndex];
+  const currentChatter = uncheckedChatters[currentIndex];
   const totalCount = chatters.length;
   const checkedCount = checkedNames.size;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
