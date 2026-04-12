@@ -131,7 +131,7 @@ export default function TinderMode() {
         .eq("check_date", today);
 
       if (checks) {
-        setCheckedNames(new Set(checks.map((c) => c.chatter_name)));
+        setCheckedNames(new Set(checks.map((c) => normalizeName(c.chatter_name))));
       }
 
       setChatters(allChatters);
@@ -144,7 +144,7 @@ export default function TinderMode() {
 
   // Filter out already-checked chatters for swipe stack
   const uncheckedChatters = useMemo(
-    () => chatters.filter((c) => !checkedNames.has(c.name)),
+    () => chatters.filter((c) => !checkedNames.has(normalizeName(c.name))),
     [chatters, checkedNames]
   );
 
