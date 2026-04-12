@@ -112,6 +112,8 @@ const CATEGORY_PRIORITY = [
   "TOP PERFORMER", "WEITER SO",
 ];
 
+const PREFETCH_CARD_COUNT = 7;
+
 export default function TinderMode() {
   const { platform } = usePlatform();
   const [chatters, setChatters] = useState<ChatterData[]>([]);
@@ -262,7 +264,12 @@ export default function TinderMode() {
     [chatters, checkedNames, selectedCategory, skippedNames]
   );
 
-  const currentChatter = uncheckedChatters[0];
+  const prefetchedChatters = useMemo(
+    () => uncheckedChatters.slice(0, PREFETCH_CARD_COUNT),
+    [uncheckedChatters]
+  );
+
+  const currentChatter = prefetchedChatters[0];
   const currentChatterName = currentChatter?.name ?? null;
   const filteredTotal = selectedCategory
     ? chatters.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory).length
@@ -323,6 +330,8 @@ export default function TinderMode() {
     setActionPanel(false);
     // uncheckedChatters auto-updates, so index stays at 0 for next card
   }, []);
+
+  const noop = useCallback(() => {}, []);
 
   const handleUndo = useCallback(() => {
     setUndoStack((prev) => {
@@ -563,29 +572,23 @@ export default function TinderMode() {
           </motion.div>
         ) : (
           <>
-            {/* Show next card behind */}
-            {uncheckedChatters.length > 1 && (
-              <SwipeCard
-                key={uncheckedChatters[1].name + "-bg"}
-                chatter={uncheckedChatters[1]}
-                onSwipeRight={() => {}}
-                onSwipeLeft={() => {}}
-                onSwipeUp={() => {}}
-                isTop={false}
-              />
-            )}
-            {/* Current card */}
-            {currentChatter && (
-              <SwipeCard
-                key={currentChatter.name + "-" + (selectedCategory || "all")}
-                chatter={currentChatter}
-                onSwipeRight={handleSwipeRight}
-                onSwipeLeft={handleSwipeLeft}
-                onSwipeUp={handleSwipeUp}
-                onSwipeDown={handleSwipeDown}
-                isTop={true}
-              />
-            )}
+            {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
+              const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
+              const isTopCard = stackIndex === 0;
+
+              return (
+                <SwipeCard
+                  key={normalizeName(chatter.name)}
+                  chatter={chatter}
+                  onSwipeRight={isTopCard ? handleSwipeRight : noop}
+                  onSwipeLeft={isTopCard ? handleSwipeLeft : noop}
+                  onSwipeUp={isTopCard ? handleSwipeUp : noop}
+                  onSwipeDown={isTopCard ? handleSwipeDown : undefined}
+                  isTop={isTopCard}
+                  stackIndex={stackIndex}
+                />
+              );
+            })}
 
             {/* Action panel overlay */}
             {currentChatter && (
