@@ -1,23 +1,22 @@
 
 
-## Swipe Mode UI-Verbesserungen
+## Kategorie-Filter im Swipe Mode
 
-### Zwei Änderungen:
+### Was wird gebaut
 
-**1. Label & Notizen als runde Buttons in der Action-Leiste**
-Die Label- und Notizen-Buttons werden aus der separaten Zeile entfernt und stattdessen als runde Icon-Buttons (gleicher Stil wie Undo, Like, Dislike, Details) in die Hauptreihe integriert. Beim Klick fährt ein Panel von unten hoch (wie das bestehende SwipeActionPanel), statt sich inline aufzuklappen.
+1. **Horizontaler Kategorie-Filter** oberhalb der Progress-Bar — scrollbare Chips mit Emoji + Kategoriename. Ein "Alle"-Chip ist standardmäßig aktiv.
 
-**2. Empfehlung auf der Karte nicht mehr abgeschnitten**
-Die `line-clamp-3` Begrenzung auf der SwipeCard wird entfernt bzw. erweitert, und die Karte wird scrollbar gemacht, damit lange AI-Empfehlungen vollständig lesbar sind.
+2. **Filterlogik** — bei Auswahl einer Kategorie werden nur Karten dieser Kategorie im Swipe-Stack angezeigt. Progress-Anzeige passt sich an (z.B. "3/8 gecheckt" nur für die aktive Kategorie).
+
+3. **"Kategorie fertig"-Prompt** — wenn alle Karten einer Kategorie durchgeswipt sind, erscheint ein Dialog: "Alle [Kategorie] durchgegangen! Mit [nächste Kategorie] weitermachen?" mit Buttons "Ja" und "Zurück zur Übersicht".
 
 ### Technische Umsetzung
 
 **`src/pages/TinderMode.tsx`:**
-- Label-Button (`Tag` Icon) und Notizen-Button (`StickyNote` Icon) als `h-10 w-10 rounded-full` Buttons links und rechts neben der bestehenden Action-Leiste platzieren (Undo | Label | ✗ | ↑ | ✓ | Notiz)
-- Badge-Counter als kleines absolut positioniertes Element auf den Buttons
-- Die inline-expandierenden Panels (AnimatePresence mit height-Animation) durch Bottom-Sheet-Panels ersetzen (gleicher Stil wie SwipeActionPanel — von unten einfahrend mit Overlay)
 
-**`src/components/SwipeCard.tsx`:**
-- `line-clamp-3` von der Empfehlung entfernen
-- Die Karte mit `overflow-y-auto` versehen, damit bei langen Inhalten gescrollt werden kann (Touch-scroll muss vom Drag-Gesture getrennt bleiben)
+- Neuer State: `selectedCategory: string | null` (null = alle)
+- Kategorien aus `chatters` extrahieren via `useMemo` → `uniqueCategories` Array mit `{ emoji, name, count }`
+- `uncheckedChatters` wird zusätzlich nach `selectedCategory` gefiltert
+- Horizontale scrollbare Chip-Leiste mit `overflow-x-auto` zwischen Progress-Bar und Card-Stack
+- Wenn `isDone` für die gefilterte Liste: nächste Kategorie mit unchecked Chattern ermitteln → Dialog mit "Weiter mit [nächste Kategorie]?" anzeigen statt dem finalen 🎉-Screen. Nur wenn wirklich alle fertig sind → finaler Screen.
 
