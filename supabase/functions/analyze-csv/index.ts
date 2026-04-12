@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as XLSX from "npm:xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -265,7 +266,13 @@ Deno.serve(async (req) => {
         throw new Error(`Datei konnte serverseitig nicht geladen werden: ${downloadError?.message || "Unbekannter Fehler"}`);
       }
 
-      resolvedCsvData = await fileData.text();
+      if (/\.(xlsx|xls)$/i.test(filePath)) {
+        const workbook = XLSX.read(await fileData.arrayBuffer(), { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        resolvedCsvData = XLSX.utils.sheet_to_csv(firstSheet);
+      } else {
+        resolvedCsvData = await fileData.text();
+      }
     }
 
     if (!resolvedCsvData || typeof resolvedCsvData !== "string") {
