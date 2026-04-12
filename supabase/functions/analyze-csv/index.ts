@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as XLSX from "npm:xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -231,12 +232,6 @@ Deno.serve(async (req) => {
         userId = payload.sub || null;
       } catch { /* ignore */ }
     }
-    if (!csvData || typeof csvData !== "string") {
-      return new Response(JSON.stringify({ error: "csvData is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     if (fileName !== undefined && typeof fileName !== "string") {
       return new Response(JSON.stringify({ error: "fileName must be a string" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -259,6 +254,32 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    let resolvedCsvData = typeof csvData === "string" ? csvData : "";
+
+    if (!resolvedCsvData && filePath) {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from("report-files")
+        .download(filePath);
+
+      if (downloadError || !fileData) {
+        throw new Error(`Datei konnte serverseitig nicht geladen werden: ${downloadError?.message || "Unbekannter Fehler"}`);
+      }
+
+      if (/\.(xlsx|xls)$/i.test(filePath)) {
+        const workbook = XLSX.read(await fileData.arrayBuffer(), { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        resolvedCsvData = XLSX.utils.sheet_to_csv(firstSheet);
+      } else {
+        resolvedCsvData = await fileData.text();
+      }
+    }
+
+    if (!resolvedCsvData || typeof resolvedCsvData !== "string") {
+      return new Response(JSON.stringify({ error: "csvData oder filePath is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const validPlatforms = ["Maloum", "Brezzels", "FansyMe"];
     const activePlatform = validPlatforms.includes(platform) ? platform : "Maloum";
@@ -361,7 +382,7 @@ Regeln:
     const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
 
     // Split CSV into batches
-    const { header, batches } = splitCsvIntoBatches(csvData, BATCH_SIZE);
+    const { header, batches } = splitCsvIntoBatches(resolvedCsvData, BATCH_SIZE);
     const totalEntries = batches.reduce((s, b) => s + b.length, 0);
     const totalBatches = batches.length;
     const nameColIndex = findNameColumn(header);
