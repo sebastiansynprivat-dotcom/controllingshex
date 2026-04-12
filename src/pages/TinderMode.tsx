@@ -34,6 +34,10 @@ interface AnalysisCategory {
 interface AnalysisResult {
   categories: AnalysisCategory[];
 }
+// Normalize chatter name for comparison: "niklas_la" and "Niklas La" should match
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
 
 export default function TinderMode() {
   const { platform } = usePlatform();
