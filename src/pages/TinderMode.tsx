@@ -115,6 +115,7 @@ const CATEGORY_PRIORITY = [
 export default function TinderMode() {
   const { platform } = usePlatform();
   const [chatters, setChatters] = useState<ChatterData[]>([]);
+  const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
   const [slideOver, setSlideOver] = useState(false);
