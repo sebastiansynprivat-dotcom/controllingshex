@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { useMemo } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
+import { toast } from "sonner";
 
 interface ChatterData {
   name: string;
