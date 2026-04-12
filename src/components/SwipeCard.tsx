@@ -1,5 +1,5 @@
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { useMemo } from "react";
+import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
+import { useMemo, useCallback } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
 
@@ -17,30 +17,69 @@ interface Props {
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
   onSwipeUp: () => void;
+  onSwipeDown?: () => void;
   isTop: boolean;
 }
 
-export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeUp, isTop }: Props) {
+function triggerHaptic(style: "light" | "medium" = "light") {
+  try {
+    if ("vibrate" in navigator) {
+      navigator.vibrate(style === "medium" ? [15, 30, 15] : 10);
+    }
+  } catch {}
+}
+
+export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const controls = useAnimation();
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const opacityRight = useTransform(x, [0, 100], [0, 1]);
   const opacityLeft = useTransform(x, [-100, 0], [1, 0]);
   const opacityUp = useTransform(y, [-100, 0], [1, 0]);
+  const opacityDown = useTransform(y, [0, 100], [0, 1]);
 
   const kpiEntries = useMemo(() => {
     return Object.entries(chatter.kpis).filter(([k]) => k !== "Name" && k !== "name");
   }, [chatter.kpis]);
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    if (info.offset.y < -120) {
-      onSwipeUp();
-    } else if (info.offset.x > 120) {
-      onSwipeRight();
-    } else if (info.offset.x < -120) {
-      onSwipeLeft();
+  const flyOff = useCallback(async (direction: "right" | "left" | "up" | "down", callback: () => void) => {
+    triggerHaptic("medium");
+    const targets: Record<string, { x: number; y: number; rotate: number }> = {
+      right: { x: 500, y: 0, rotate: 20 },
+      left: { x: -500, y: 0, rotate: -20 },
+      up: { x: 0, y: -600, rotate: 0 },
+      down: { x: 0, y: 500, rotate: 0 },
+    };
+    await controls.start({
+      ...targets[direction],
+      opacity: 0,
+      transition: { duration: 0.3, ease: "easeIn" },
+    });
+    callback();
+  }, [controls]);
+
+  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+    const { offset, velocity } = info;
+    // Velocity-based: lower threshold if swiping fast
+    const velocityThreshold = 300;
+    const distThreshold = 80;
+
+    if (offset.y < -distThreshold || (velocity.y < -velocityThreshold && offset.y < -40)) {
+      flyOff("up", onSwipeUp);
+    } else if (offset.y > distThreshold || (velocity.y > velocityThreshold && offset.y > 40)) {
+      if (onSwipeDown) {
+        flyOff("down", onSwipeDown);
+      }
+    } else if (offset.x > distThreshold || (velocity.x > velocityThreshold && offset.x > 40)) {
+      flyOff("right", onSwipeRight);
+    } else if (offset.x < -distThreshold || (velocity.x < -velocityThreshold && offset.x > -40)) {
+      flyOff("left", onSwipeLeft);
+    } else {
+      // Snap back
+      controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } });
     }
-  };
+  }, [flyOff, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, controls]);
 
   if (!isTop) {
     return (
@@ -59,10 +98,13 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={0.9}
       onDragEnd={handleDragEnd}
+      animate={controls}
       initial={{ scale: 0.95, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.2 } }}
       whileDrag={{ scale: 1.02 }}
+      onAnimationComplete={() => {
+        // Reset motion values after mount animation
+        if (x.get() === 0 && y.get() === 0) return;
+      }}
     >
       {/* Swipe overlays */}
       <motion.div
@@ -83,6 +125,14 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       >
         <span className="text-blue-400 text-2xl font-bold">↑ DETAILS</span>
       </motion.div>
+      {onSwipeDown && (
+        <motion.div
+          className="absolute inset-0 rounded-2xl border-2 border-amber-500/50 bg-amber-500/5 flex items-center justify-center pointer-events-none z-10"
+          style={{ opacity: opacityDown }}
+        >
+          <span className="text-amber-400 text-2xl font-bold">↓ SKIP</span>
+        </motion.div>
+      )}
 
       {/* Category badge */}
       <div className="flex items-center gap-2 mb-3">
