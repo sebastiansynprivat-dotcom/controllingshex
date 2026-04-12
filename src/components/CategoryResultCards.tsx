@@ -78,7 +78,9 @@ const ALLOWED_CATEGORIES = [
   { emoji: "🌟", name: "BREAKOUT-STAR" },
   { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" },
   { emoji: "🚀", name: "KURZ VOR UPGRADE" },
-  { emoji: "🟢", name: "ACCOUNT UPGRADE (TRAFFIC TEST)" },
+  { emoji: "🔼", name: "ACCOUNT UPGRADE (ZUVERLÄSSIG)" },
+  { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" },
+  { emoji: "🔄", name: "COMEBACK" },
   { emoji: "📉", name: "0€ UMSATZ TAG 1" },
   { emoji: "📉", name: "0€ UMSATZ TAG 2" },
   { emoji: "📉", name: "0€ UMSATZ TAG 3" },
@@ -89,11 +91,13 @@ const ALLOWED_CATEGORIES = [
   { emoji: "🟠", name: "WARNUNG" },
   { emoji: "📼", name: "VIDEO-COACHING" },
   { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" },
-  { emoji: "⚪", name: "WEITER SO / MITTELFELD" },
+  { emoji: "⭐", name: "TOP PERFORMER" },
+  { emoji: "⚪", name: "WEITER SO" },
+  { emoji: "👀", name: "UNTER BEOBACHTUNG" },
 ] as const;
 
 const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
-const MITTELFELD = "WEITER SO / MITTELFELD";
+const MITTELFELD = "WEITER SO";
 const MITTELFELD_EMOJI = "⚪";
 
 /** Map an AI-returned category name to the closest whitelisted name */
@@ -111,10 +115,15 @@ function mapToAllowed(rawName: string): { emoji: string; name: string } {
   if (/BREAKOUT/i.test(rawName)) return { emoji: "🌟", name: "BREAKOUT-STAR" };
   if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" };
   if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "KURZ VOR UPGRADE" };
-  if (/TRAFFIC.?TEST/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (TRAFFIC TEST)" };
+  if (/UPGRADE.*ZUVERL|ZUVERL.*UPGRADE/i.test(rawName)) return { emoji: "🔼", name: "ACCOUNT UPGRADE (ZUVERLÄSSIG)" };
+  if (/TRAFFIC.*CONVERSION|CONVERSION|TRAFFIC.*KEINE/i.test(rawName)) return { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" };
+  if (/TRAFFIC.?TEST/i.test(rawName)) return { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" };
+  if (/COMEBACK/i.test(rawName)) return { emoji: "🔄", name: "COMEBACK" };
   if (/COACHING.*KONTROLLE|ENGERE/i.test(rawName)) return { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" };
   if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "📼", name: "VIDEO-COACHING" };
   if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
+  if (/TOP.?PERFORMER/i.test(rawName)) return { emoji: "⭐", name: "TOP PERFORMER" };
+  if (/UNTER.?BEOBACHTUNG/i.test(rawName)) return { emoji: "👀", name: "UNTER BEOBACHTUNG" };
   if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: MITTELFELD };
 
   // 0€ Umsatz with day number
@@ -153,7 +162,8 @@ const emojiAccent: Record<string, string> = {
   "🔵": "text-blue-400/70", "🌟": "text-yellow-300/70", "🟢": "text-emerald-400/70",
   "🔄": "text-violet-400/70", "❌": "text-rose-400/70", "🟡": "text-yellow-400/70",
   "💰": "text-emerald-300/70", "🚀": "text-sky-400/70", "🟠": "text-orange-400/70",
-  "📼": "text-purple-400/70", "⚪": "text-white/50",
+  "📼": "text-purple-400/70", "⚪": "text-white/50", "⭐": "text-amber-300/70",
+  "👀": "text-zinc-400/70", "📊": "text-cyan-400/70", "🔼": "text-emerald-400/70",
 };
 
 function isMoneyValue(value: string): boolean {
