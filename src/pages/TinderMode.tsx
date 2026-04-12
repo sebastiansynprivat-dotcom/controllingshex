@@ -130,7 +130,7 @@ export default function TinderMode() {
     [chatters, checkedNames]
   );
 
-  const currentChatter = uncheckedChatters[currentIndex];
+  const currentChatter = uncheckedChatters[0];
   const totalCount = chatters.length;
   const checkedCount = checkedNames.size;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
@@ -226,7 +226,7 @@ export default function TinderMode() {
     );
   }
 
-  const isDone = currentIndex >= chatters.length;
+  const isDone = uncheckedChatters.length === 0;
 
   return (
     <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6">
@@ -237,7 +237,7 @@ export default function TinderMode() {
             {checkedCount}/{totalCount} gecheckt
           </span>
           <span className="text-xs text-muted-foreground">
-            {currentIndex + 1 > totalCount ? totalCount : currentIndex + 1} von {totalCount}
+            {uncheckedChatters.length} übrig
           </span>
         </div>
         <Progress value={progress} className="h-1.5" />
@@ -263,10 +263,10 @@ export default function TinderMode() {
           <>
             <AnimatePresence mode="popLayout">
               {/* Show next card behind */}
-              {currentIndex + 1 < chatters.length && (
+              {uncheckedChatters.length > 1 && (
                 <SwipeCard
-                  key={chatters[currentIndex + 1].name + "-bg"}
-                  chatter={chatters[currentIndex + 1]}
+                  key={uncheckedChatters[1].name + "-bg"}
+                  chatter={uncheckedChatters[1]}
                   onSwipeRight={() => {}}
                   onSwipeLeft={() => {}}
                   onSwipeUp={() => {}}
@@ -276,7 +276,7 @@ export default function TinderMode() {
               {/* Current card */}
               {currentChatter && (
                 <SwipeCard
-                  key={currentChatter.name + "-" + currentIndex}
+                  key={currentChatter.name + "-top"}
                   chatter={currentChatter}
                   onSwipeRight={handleSwipeRight}
                   onSwipeLeft={handleSwipeLeft}
@@ -307,7 +307,7 @@ export default function TinderMode() {
             variant="outline"
             size="icon"
             onClick={handleUndo}
-            disabled={history.length === 0}
+            disabled={undoStack.length === 0}
             className="h-9 w-9 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
           >
             <Undo2 className="h-4 w-4" />
