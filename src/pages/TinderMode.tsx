@@ -367,43 +367,151 @@ export default function TinderMode() {
         )}
       </div>
 
-      {/* Bottom buttons (desktop) */}
+      {/* Bottom buttons */}
       {!isDone && currentChatter && (
-        <div className="flex items-center justify-center gap-3 mt-5">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleUndo}
-            disabled={undoStack.length === 0}
-            className="h-9 w-9 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSwipeLeft}
-            className="h-12 w-12 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSwipeUp}
-            className="h-10 w-10 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
-          >
-            <ChevronUp className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSwipeRight}
-            className="h-12 w-12 rounded-full border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
-          >
-            <Check className="h-5 w-5" />
-          </Button>
-        </div>
+        <>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              className="h-9 w-9 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSwipeLeft}
+              className="h-12 w-12 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSwipeUp}
+              className="h-10 w-10 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+            >
+              <ChevronUp className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSwipeRight}
+              className="h-12 w-12 rounded-full border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+            >
+              <Check className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Label + Note buttons */}
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setLabelPanel(!labelPanel); setNotePanel(false); }}
+              className={`text-xs gap-1.5 ${labelPanel ? "text-foreground bg-secondary" : "text-muted-foreground"}`}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              Label
+              {assignedLabelIds.size > 0 && (
+                <span className="ml-0.5 bg-primary/20 text-primary text-[10px] px-1.5 rounded-full">{assignedLabelIds.size}</span>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setNotePanel(!notePanel); setLabelPanel(false); }}
+              className={`text-xs gap-1.5 ${notePanel ? "text-foreground bg-secondary" : "text-muted-foreground"}`}
+            >
+              <StickyNote className="h-3.5 w-3.5" />
+              Notizen
+              {notes.length > 0 && (
+                <span className="ml-0.5 bg-primary/20 text-primary text-[10px] px-1.5 rounded-full">{notes.length}</span>
+              )}
+            </Button>
+          </div>
+
+          {/* Label Panel */}
+          <AnimatePresence>
+            {labelPanel && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mt-2 rounded-xl border border-border bg-[hsl(var(--surface-1))] p-3"
+              >
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {allLabels.map((label) => (
+                    <button
+                      key={label.id}
+                      onClick={() => toggleLabel(label.id)}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
+                        assignedLabelIds.has(label.id)
+                          ? "border-transparent text-white"
+                          : "border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                      style={assignedLabelIds.has(label.id) ? { backgroundColor: label.color } : {}}
+                    >
+                      {label.label_name}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={newLabelName}
+                    onChange={(e) => setNewLabelName(e.target.value)}
+                    placeholder="Neues Label..."
+                    className="h-7 text-xs bg-secondary border-border"
+                    onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                  />
+                  <Button size="sm" onClick={createLabel} disabled={!newLabelName.trim()} className="h-7 px-2">
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Note Panel */}
+          <AnimatePresence>
+            {notePanel && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mt-2 rounded-xl border border-border bg-[hsl(var(--surface-1))] p-3"
+              >
+                <div className="flex gap-1.5 mb-2">
+                  <Textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Notiz hinzufügen..."
+                    className="text-xs bg-secondary border-border resize-none min-h-[60px]"
+                    rows={2}
+                  />
+                  <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-auto px-2 self-end">
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                {notes.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto space-y-1.5">
+                    {notes.map((n) => (
+                      <div key={n.id} className="bg-secondary rounded-lg px-2.5 py-1.5">
+                        <p className="text-[11px] text-foreground/80">{n.note_text}</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                          {new Date(n.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
 
       {/* Chatter SlideOver */}
