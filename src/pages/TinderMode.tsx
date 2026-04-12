@@ -470,7 +470,7 @@ export default function TinderMode() {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6">
+    <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6 overflow-hidden touch-none" style={{ maxHeight: '100dvh' }}>
       {/* Category filter chips */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
         <button
