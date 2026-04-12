@@ -117,7 +117,7 @@ export default function TinderMode() {
       }
 
       setChatters(allChatters);
-      setCurrentIndex(0);
+      
       setUndoStack([]);
       setLoading(false);
     };
@@ -191,7 +191,8 @@ export default function TinderMode() {
   }, [currentChatter, markChecked, goNext]);
 
   const handleReset = () => {
-    setCurrentIndex(0);
+    setCheckedNames(new Set());
+    setUndoStack([]);
     setActionPanel(false);
   };
 
