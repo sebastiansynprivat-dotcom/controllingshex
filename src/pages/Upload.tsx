@@ -54,6 +54,8 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 }
 
 const CANCEL_TIMEOUT_MS = 120_000;
+const REPORT_RECOVERY_ATTEMPTS = 18;
+const REPORT_RECOVERY_INTERVAL_MS = 5000;
 
 export default function UploadPage() {
   const { platform } = usePlatform();
@@ -94,6 +96,27 @@ export default function UploadPage() {
       .limit(50);
     setReports((data as unknown as ReportRow[] | null) ?? []);
     setLoadingReports(false);
+  }, [platform]);
+
+  const waitForRecoveredReport = useCallback(async (filePath: string) => {
+    for (let attempt = 0; attempt < REPORT_RECOVERY_ATTEMPTS; attempt++) {
+      const { data } = await supabase
+        .from("analysis_reports")
+        .select("id, result_json, chatter_count")
+        .eq("platform", platform)
+        .eq("file_path", filePath)
+        .maybeSingle();
+
+      if (data && isAnalysisResult(data.result_json)) {
+        return data;
+      }
+
+      if (attempt < REPORT_RECOVERY_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, REPORT_RECOVERY_INTERVAL_MS));
+      }
+    }
+
+    return null;
   }, [platform]);
 
   useEffect(() => {
@@ -166,6 +189,7 @@ export default function UploadPage() {
     setShowCancel(false);
     cancelledRef.current = false;
     cancelTimerRef.current = setTimeout(() => setShowCancel(true), CANCEL_TIMEOUT_MS);
+    let uploadedFilePath: string | null = null;
 
     try {
       addStatus("[Step 1/3] CSV wird vorbereitet…");
@@ -176,6 +200,9 @@ export default function UploadPage() {
       const chatterCount = lines.length - 1;
       const batchCount = Math.ceil(chatterCount / 50);
       addStatus(`✅ ${chatterCount} Chatter erkannt → ${batchCount} Batch${batchCount > 1 ? "es" : ""}`);
+      addStatus("☁️ Datei wird gesichert…");
+      uploadedFilePath = await uploadFileToStorage(file);
+      addStatus("✅ Datei gesichert.");
 
       if (cancelledRef.current) return;
 
@@ -192,7 +219,7 @@ export default function UploadPage() {
             "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           },
-          body: JSON.stringify({ csvData, platform }),
+          body: JSON.stringify({ csvData, platform, fileName: file.name, filePath: uploadedFilePath }),
           signal: AbortSignal.timeout(300000),
         }
       );
@@ -214,25 +241,7 @@ export default function UploadPage() {
       addStatus("[Step 3/3] Ergebnisse werden gespeichert…");
       setProgress({ current: 3, total: 3, step: "Speichern" });
 
-      // Upload file to storage
-      const filePath = await uploadFileToStorage(file);
-
       const total = analysisResult.categories.reduce((s, c) => s + c.chatters.length, 0);
-
-      // Save report to database
-      const { error: insertError } = await supabase.from("analysis_reports").insert({
-        platform,
-        analysis_date: new Date().toISOString().split("T")[0],
-        file_name: file.name,
-        file_path: filePath,
-        result_json: analysisResult as any,
-        chatter_count: total,
-        user_id: user?.id,
-      });
-      if (insertError) {
-        console.error("Report save error:", insertError);
-        addStatus("⚠️ Report konnte nicht gespeichert werden.");
-      }
 
       const bi = data?.batchInfo;
       if (bi) {
@@ -254,19 +263,9 @@ export default function UploadPage() {
 
       // If it's a network error (Failed to fetch / timeout), the server may have
       // finished successfully. Check for a freshly saved report before showing an error.
-      if (/failed to fetch|abort|timeout|networkerror/i.test(msg)) {
+      if (/failed to fetch|abort|timeout|networkerror/i.test(msg) && uploadedFilePath) {
         addStatus("⏳ Verbindung verloren – prüfe ob die Analyse serverseitig abgeschlossen wurde…");
-        // Wait a moment for the server to finish saving
-        await new Promise((r) => setTimeout(r, 5000));
-        const today = new Date().toISOString().split("T")[0];
-        const { data: freshReport } = await supabase
-          .from("analysis_reports")
-          .select("id, result_json, chatter_count")
-          .eq("platform", platform)
-          .eq("analysis_date", today)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+        const freshReport = await waitForRecoveredReport(uploadedFilePath);
 
         if (freshReport && isAnalysisResult(freshReport.result_json)) {
           addStatus(`✅ Analyse war doch erfolgreich! ${freshReport.chatter_count} Chatter gefunden.`);
@@ -275,6 +274,10 @@ export default function UploadPage() {
           fetchReports();
           return;
         }
+      }
+
+      if (uploadedFilePath && !/failed to fetch|abort|timeout|networkerror/i.test(msg)) {
+        await supabase.storage.from("report-files").remove([uploadedFilePath]);
       }
 
       addStatus(`💥 ${msg}`);
