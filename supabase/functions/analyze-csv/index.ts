@@ -435,7 +435,7 @@ Regeln:
 
         const { error: reportError } = await supabase
           .from("analysis_reports")
-          .upsert(reportPayload, { onConflict: "file_path" });
+          .insert(reportPayload);
 
         if (reportError) {
           console.error("[analyze-csv] Report save error:", reportError);
