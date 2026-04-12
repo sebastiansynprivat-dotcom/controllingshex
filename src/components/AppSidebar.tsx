@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Video, Trophy, StickyNote } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Video, Trophy, StickyNote, Flame } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,7 @@ const items = [
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
   { title: "Upload", url: "/upload", icon: Upload },
   { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
+  { title: "Tinder Mode", url: "/tinder", icon: Flame },
   { title: "Notizen", url: "/notes", icon: StickyNote },
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Einstellungen", url: "/settings", icon: Settings },
