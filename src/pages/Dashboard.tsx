@@ -61,6 +61,7 @@ export default function Dashboard() {
         .from("analysis_reports")
         .select("id, analysis_date, chatter_count, result_json")
         .eq("platform", platform)
+        .not("result_json", "is", null)
         .order("analysis_date", { ascending: false });
 
       if (data && data.length > 0) {

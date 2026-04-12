@@ -56,6 +56,7 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 const CANCEL_TIMEOUT_MS = 120_000;
 const REPORT_RECOVERY_ATTEMPTS = 18;
 const REPORT_RECOVERY_INTERVAL_MS = 5000;
+const ANALYZE_REQUEST_RETRIES = 1;
 
 export default function UploadPage() {
   const { platform } = usePlatform();
@@ -92,14 +93,15 @@ export default function UploadPage() {
       .from("analysis_reports")
       .select("*")
       .eq("platform", platform)
+      .not("result_json", "is", null)
       .order("analysis_date", { ascending: false })
       .limit(50);
     setReports((data as unknown as ReportRow[] | null) ?? []);
     setLoadingReports(false);
   }, [platform]);
 
-  const waitForRecoveredReport = useCallback(async (filePath: string) => {
-    for (let attempt = 0; attempt < REPORT_RECOVERY_ATTEMPTS; attempt++) {
+  const waitForRecoveredReport = useCallback(async (filePath: string, attempts = REPORT_RECOVERY_ATTEMPTS) => {
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const { data } = await supabase
         .from("analysis_reports")
         .select("id, result_json, chatter_count")
@@ -111,12 +113,37 @@ export default function UploadPage() {
         return data;
       }
 
-      if (attempt < REPORT_RECOVERY_ATTEMPTS - 1) {
+      if (attempt < attempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, REPORT_RECOVERY_INTERVAL_MS));
       }
     }
 
     return null;
+  }, [platform]);
+
+  const createPendingReport = useCallback(async (filePath: string, fileName: string) => {
+    const { error } = await supabase.from("analysis_reports").insert({
+      platform,
+      analysis_date: new Date().toISOString().split("T")[0],
+      file_name: fileName,
+      file_path: filePath,
+      result_json: null,
+      chatter_count: 0,
+      user_id: user?.id,
+    });
+
+    if (error) {
+      throw new Error("Report-Vormerkung fehlgeschlagen: " + error.message);
+    }
+  }, [platform, user?.id]);
+
+  const cleanupPendingReport = useCallback(async (filePath: string) => {
+    await supabase
+      .from("analysis_reports")
+      .delete()
+      .eq("platform", platform)
+      .eq("file_path", filePath)
+      .is("result_json", null);
   }, [platform]);
 
   useEffect(() => {
@@ -126,6 +153,38 @@ export default function UploadPage() {
     setCsvData("");
     setStatusLog([]);
   }, [platform, fetchReports]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resumePendingAnalysis = async () => {
+      const { data } = await supabase
+        .from("analysis_reports")
+        .select("file_path, file_name")
+        .eq("platform", platform)
+        .is("result_json", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!data || cancelled) return;
+
+      addStatus(`⏳ Vorherige Analyse wird wiederhergestellt (${data.file_name})…`);
+      const recovered = await waitForRecoveredReport(data.file_path, 12);
+
+      if (cancelled || !recovered || !isAnalysisResult(recovered.result_json)) return;
+
+      setResult(recovered.result_json as unknown as AnalysisResult);
+      fetchReports();
+      toast.success(`Analyse wiederhergestellt: ${recovered.chatter_count} Chatter.`);
+    };
+
+    resumePendingAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addStatus, fetchReports, platform, waitForRecoveredReport]);
 
   const handleFile = (f: File) => {
     setFile(f);
@@ -202,6 +261,7 @@ export default function UploadPage() {
       addStatus(`✅ ${chatterCount} Chatter erkannt → ${batchCount} Batch${batchCount > 1 ? "es" : ""}`);
       addStatus("☁️ Datei wird gesichert…");
       uploadedFilePath = await uploadFileToStorage(file);
+      await createPendingReport(uploadedFilePath, file.name);
       addStatus("✅ Datei gesichert.");
 
       if (cancelledRef.current) return;
@@ -210,25 +270,48 @@ export default function UploadPage() {
       setProgress({ current: 2, total: 3, step: `KI analysiert (${batchCount} Batches)` });
       addStatus("🧠 Sende Daten an Lovable AI…");
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-csv`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          },
-          body: JSON.stringify({ csvData, platform, fileName: file.name, filePath: uploadedFilePath }),
-          signal: AbortSignal.timeout(300000),
-        }
-      );
+      const session = (await supabase.auth.getSession()).data.session;
+      let response: Response | null = null;
+      let data: any = null;
 
-      const data = await response.json();
+      for (let attempt = 0; attempt <= ANALYZE_REQUEST_RETRIES; attempt++) {
+        try {
+          response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-csv`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                "Authorization": `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({ csvData, platform, fileName: file.name, filePath: uploadedFilePath }),
+              signal: AbortSignal.timeout(300000),
+            }
+          );
+
+          data = await response.json();
+          break;
+        } catch (requestError: any) {
+          if (!/failed to fetch|abort|timeout|networkerror/i.test(requestError?.message || "") || attempt === ANALYZE_REQUEST_RETRIES) {
+            throw requestError;
+          }
+
+          addStatus("🔁 Verbindung unterbrochen – sende Analyse erneut…");
+
+          const recoveredEarly = await waitForRecoveredReport(uploadedFilePath, 3);
+          if (recoveredEarly && isAnalysisResult(recoveredEarly.result_json)) {
+            setResult(recoveredEarly.result_json as unknown as AnalysisResult);
+            toast.success(`Analyse abgeschlossen: ${recoveredEarly.chatter_count} Chatter.`);
+            fetchReports();
+            return;
+          }
+        }
+      }
 
       if (cancelledRef.current) return;
 
-      if (!response.ok || data?.error) {
+      if (!response || !response.ok || data?.error) {
         const errMsg = data?.error || `Fehler (${response.status})`;
         throw new Error(errMsg);
       }
@@ -274,6 +357,10 @@ export default function UploadPage() {
           fetchReports();
           return;
         }
+      }
+
+      if (uploadedFilePath) {
+        await cleanupPendingReport(uploadedFilePath);
       }
 
       if (uploadedFilePath && !/failed to fetch|abort|timeout|networkerror/i.test(msg)) {

@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -433,9 +434,21 @@ Regeln:
           user_id: userId,
         };
 
-        const { error: reportError } = await supabase
+        const { data: existingReport } = await supabase
           .from("analysis_reports")
-          .insert(reportPayload);
+          .select("id")
+          .eq("file_path", filePath)
+          .limit(1)
+          .maybeSingle();
+
+        const reportError = existingReport
+          ? (await supabase
+              .from("analysis_reports")
+              .update(reportPayload)
+              .eq("id", existingReport.id)).error
+          : (await supabase
+              .from("analysis_reports")
+              .insert(reportPayload)).error;
 
         if (reportError) {
           console.error("[analyze-csv] Report save error:", reportError);
