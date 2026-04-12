@@ -174,6 +174,10 @@ function toTitleCase(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normalizeChatterName(name: string): string {
+  return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
+
 function calcTrend(history: HistoryEntry[]): "up" | "down" | "stable" {
   if (history.length < 4) return "stable";
   const sorted = [...history].sort((a, b) => a.analysis_date.localeCompare(b.analysis_date));
@@ -484,7 +488,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       .eq("check_date", new Date().toISOString().slice(0, 10))
       .then(({ data: rows }) => {
         if (!rows) return;
-        setDailyChecks(new Set((rows as any[]).map((r) => r.chatter_name)));
+        setDailyChecks(new Set((rows as any[]).map((r) => normalizeChatterName(r.chatter_name))));
       });
 
     // Load labels and assignments
@@ -506,9 +510,10 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   }, [categories, platform]);
 
   const toggleDailyCheck = useCallback(async (chatterName: string) => {
-    const isChecked = dailyChecks.has(chatterName);
+    const normalizedName = normalizeChatterName(chatterName);
+    const isChecked = dailyChecks.has(normalizedName);
     if (isChecked) {
-      setDailyChecks((prev) => { const next = new Set(prev); next.delete(chatterName); return next; });
+      setDailyChecks((prev) => { const next = new Set(prev); next.delete(normalizedName); return next; });
       await supabase
         .from("daily_chatter_checks")
         .delete()
@@ -516,7 +521,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         .eq("platform", platform)
         .eq("check_date", todayStr);
     } else {
-      setDailyChecks((prev) => new Set(prev).add(chatterName));
+      setDailyChecks((prev) => new Set(prev).add(normalizedName));
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       await supabase
@@ -856,7 +861,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
                 <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
               </div>
             ) : visible.map((chatter, i) => (
-              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(toTitleCase(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
+              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(normalizeChatterName(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
             ))}
           </div>
           {hasMore && (
