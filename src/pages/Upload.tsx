@@ -69,19 +69,33 @@ function splitCsvIntoBatches(csvData: string): { header: string; batches: string
   return { header, batches };
 }
 
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
+}
+
 function mergeResults(results: any[]): AnalysisResult {
   const categoryMap = new Map<string, AnalysisCategory>();
+  const seenNames = new Set<string>();
+
   for (const result of results) {
     for (const cat of result.categories || []) {
       const key = cat.categoryName;
-      if (categoryMap.has(key)) {
-        categoryMap.get(key)!.chatters.push(...(cat.chatters || []));
-      } else {
-        categoryMap.set(key, { ...cat, chatters: [...(cat.chatters || [])] });
+      if (!categoryMap.has(key)) {
+        categoryMap.set(key, { ...cat, chatters: [] });
+      }
+      for (const chatter of cat.chatters || []) {
+        const normalized = normalizeName(chatter.name || "");
+        if (normalized && !seenNames.has(normalized)) {
+          seenNames.add(normalized);
+          categoryMap.get(key)!.chatters.push(chatter);
+        }
       }
     }
   }
-  return { categories: Array.from(categoryMap.values()) };
+
+  // Remove empty categories
+  const categories = Array.from(categoryMap.values()).filter(c => c.chatters.length > 0);
+  return { categories };
 }
 
 async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
