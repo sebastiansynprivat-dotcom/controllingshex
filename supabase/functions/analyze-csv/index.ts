@@ -152,12 +152,27 @@ async function analyzeBatchWithRetry(
   totalBatches: number,
   nameColIndex: number,
 ): Promise<any> {
-  const MAX_RETRIES = 2;
+  const MAX_RETRIES = 3;
   let currentLines = batchLines;
   const allResults: any[] = [];
+  let parseFailures = 0;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const result = await analyzeBatch(lovableApiKey, systemPrompt, header, currentLines, activePlatform, modelsText, batchNum, totalBatches);
+    let result: any;
+    try {
+      result = await analyzeBatch(lovableApiKey, systemPrompt, header, currentLines, activePlatform, modelsText, batchNum, totalBatches);
+    } catch (err: any) {
+      parseFailures++;
+      console.warn(`[analyze-csv] Batch ${batchNum} attempt ${attempt + 1} error: ${err.message}`);
+      if (attempt < MAX_RETRIES) {
+        console.log(`[analyze-csv] Batch ${batchNum}: retrying after error (attempt ${attempt + 2})…`);
+        // Keep currentLines the same for a full retry
+        continue;
+      }
+      // Last attempt also failed - throw so caller knows
+      throw err;
+    }
+
     allResults.push(result);
 
     // Check which names from the CSV are missing in the result
