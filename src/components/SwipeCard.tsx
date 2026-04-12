@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { useMemo } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
+import { toast } from "sonner";
 
 interface ChatterData {
   name: string;
@@ -91,8 +92,16 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         </span>
       </div>
 
-      {/* Name */}
-      <h2 className="text-xl font-semibold text-foreground mb-4 capitalize">
+      {/* Name — tap to copy */}
+      <h2
+        className="text-xl font-semibold text-foreground mb-4 capitalize cursor-pointer active:text-primary transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
+          toast.success("Name kopiert");
+        }}
+        title="Klicken zum Kopieren"
+      >
         {chatter.name.replace(/_/g, " ")}
       </h2>
 
