@@ -44,6 +44,53 @@ function cleanAndParseJson(raw: string): any {
   }
 }
 
+function extractNameFromCsvRow(row: string, nameColIndex: number): string {
+  const fields: string[] = [];
+  let current = "", inQuotes = false;
+  for (const ch of row) {
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ""; continue; }
+    current += ch;
+  }
+  fields.push(current.trim());
+  return (fields[nameColIndex] || "").replace(/^[@\s]+/, "").trim();
+}
+
+function findNameColumn(header: string): number {
+  const cols = header.toLowerCase().split(",").map(c => c.trim());
+  const idx = cols.findIndex(c => c === "name" || c === "chatter" || c === "chatter_name");
+  return idx >= 0 ? idx : 1;
+}
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
+}
+
+function getReturnedNames(result: any): Set<string> {
+  const names = new Set<string>();
+  for (const cat of result.categories || []) {
+    for (const ch of cat.chatters || []) {
+      if (ch.name) names.add(normalizeName(ch.name));
+    }
+  }
+  return names;
+}
+
+function mergeResults(results: any[]): any {
+  const categoryMap = new Map<string, any>();
+  for (const result of results) {
+    for (const cat of result.categories || []) {
+      const key = cat.categoryName;
+      if (categoryMap.has(key)) {
+        categoryMap.get(key).chatters.push(...(cat.chatters || []));
+      } else {
+        categoryMap.set(key, { ...cat, chatters: [...(cat.chatters || [])] });
+      }
+    }
+  }
+  return { categories: Array.from(categoryMap.values()) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
