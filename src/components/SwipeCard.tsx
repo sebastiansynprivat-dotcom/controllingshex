@@ -50,12 +50,14 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const stackOffsetY = stackIndex === 1 ? 8 : 0;
   const stackOpacity = stackIndex === 1 ? 0.5 : 1;
 
-  const flyOff = useCallback(async (direction: "right" | "left" | "up" | "down", callback: () => void) => {
+  const snapBack = useCallback(() => {
+    controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } });
+  }, [controls]);
+
+  const flyOff = useCallback(async (direction: "right" | "down", callback: () => void) => {
     triggerHaptic("medium");
-    const targets: Record<string, { x: number; y: number; rotate: number }> = {
+    const targets = {
       right: { x: 500, y: 0, rotate: 20 },
-      left: { x: -500, y: 0, rotate: -20 },
-      up: { x: 0, y: -600, rotate: 0 },
       down: { x: 0, y: 500, rotate: 0 },
     };
     await controls.start({
@@ -71,17 +73,23 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
     const distThreshold = 120;
 
     if (offset.y < -distThreshold) {
-      flyOff("up", onSwipeUp);
+      // Details: snap back, then open panel
+      triggerHaptic("light");
+      snapBack();
+      onSwipeUp();
     } else if (offset.y > distThreshold && onSwipeDown) {
       flyOff("down", onSwipeDown);
     } else if (offset.x > distThreshold) {
       flyOff("right", onSwipeRight);
     } else if (offset.x < -distThreshold) {
-      flyOff("left", onSwipeLeft);
+      // Action: snap back, then open panel
+      triggerHaptic("light");
+      snapBack();
+      onSwipeLeft();
     } else {
-      controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } });
+      snapBack();
     }
-  }, [flyOff, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, controls]);
+  }, [flyOff, snapBack, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown]);
 
   return (
     <motion.div
