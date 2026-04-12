@@ -35,12 +35,11 @@ interface AnalysisResult {
 export default function TinderMode() {
   const { platform } = usePlatform();
   const [chatters, setChatters] = useState<ChatterData[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
   const [slideOver, setSlideOver] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
-  const [history, setHistory] = useState<{ index: number; action: "right" | "left" }[]>([]);
+  const [undoStack, setUndoStack] = useState<string[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -118,13 +117,19 @@ export default function TinderMode() {
       }
 
       setChatters(allChatters);
-      setCurrentIndex(0);
+      
+      setUndoStack([]);
       setLoading(false);
     };
     load();
   }, [platform]);
+  // Filter out already-checked chatters for swipe stack
+  const uncheckedChatters = useMemo(
+    () => chatters.filter((c) => !checkedNames.has(c.name)),
+    [chatters, checkedNames]
+  );
 
-  const currentChatter = chatters[currentIndex];
+  const currentChatter = uncheckedChatters[0];
   const totalCount = chatters.length;
   const checkedCount = checkedNames.size;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
@@ -142,37 +147,30 @@ export default function TinderMode() {
     setCheckedNames((prev) => new Set(prev).add(name));
   }, [platform]);
 
-  const goNext = useCallback((action: "right" | "left") => {
-    setHistory((prev) => [...prev, { index: currentIndex, action }]);
+  const goNext = useCallback(() => {
     setActionPanel(false);
-    setCurrentIndex((i) => Math.min(i + 1, chatters.length));
-  }, [chatters.length, currentIndex]);
+    // uncheckedChatters auto-updates, so index stays at 0 for next card
+  }, []);
 
   const handleUndo = useCallback(() => {
-    setHistory((prev) => {
+    setUndoStack((prev) => {
       if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      setCurrentIndex(last.index);
-      // Remove from checked if it was a right swipe
-      if (last.action === "right") {
-        const name = chatters[last.index]?.name;
-        if (name) {
-          setCheckedNames((s) => {
-            const next = new Set(s);
-            next.delete(name);
-            return next;
-          });
-        }
-      }
+      const lastName = prev[prev.length - 1];
+      setCheckedNames((s) => {
+        const next = new Set(s);
+        next.delete(lastName);
+        return next;
+      });
       return prev.slice(0, -1);
     });
     setActionPanel(false);
-  }, [chatters]);
+  }, []);
 
   const handleSwipeRight = useCallback(() => {
     if (!currentChatter) return;
+    setUndoStack((prev) => [...prev, currentChatter.name]);
     markChecked(currentChatter.name);
-    goNext("right");
+    goNext();
   }, [currentChatter, markChecked, goNext]);
 
   const handleSwipeLeft = useCallback(() => {
@@ -184,13 +182,17 @@ export default function TinderMode() {
   }, []);
 
   const handleActionDone = useCallback(() => {
-    if (currentChatter) markChecked(currentChatter.name);
+    if (currentChatter) {
+      setUndoStack((prev) => [...prev, currentChatter.name]);
+      markChecked(currentChatter.name);
+    }
     setActionPanel(false);
-    goNext("left");
+    goNext();
   }, [currentChatter, markChecked, goNext]);
 
   const handleReset = () => {
-    setCurrentIndex(0);
+    setCheckedNames(new Set());
+    setUndoStack([]);
     setActionPanel(false);
   };
 
@@ -224,7 +226,7 @@ export default function TinderMode() {
     );
   }
 
-  const isDone = currentIndex >= chatters.length;
+  const isDone = uncheckedChatters.length === 0;
 
   return (
     <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6">
@@ -235,7 +237,7 @@ export default function TinderMode() {
             {checkedCount}/{totalCount} gecheckt
           </span>
           <span className="text-xs text-muted-foreground">
-            {currentIndex + 1 > totalCount ? totalCount : currentIndex + 1} von {totalCount}
+            {uncheckedChatters.length} übrig
           </span>
         </div>
         <Progress value={progress} className="h-1.5" />
@@ -261,10 +263,10 @@ export default function TinderMode() {
           <>
             <AnimatePresence mode="popLayout">
               {/* Show next card behind */}
-              {currentIndex + 1 < chatters.length && (
+              {uncheckedChatters.length > 1 && (
                 <SwipeCard
-                  key={chatters[currentIndex + 1].name + "-bg"}
-                  chatter={chatters[currentIndex + 1]}
+                  key={uncheckedChatters[1].name + "-bg"}
+                  chatter={uncheckedChatters[1]}
                   onSwipeRight={() => {}}
                   onSwipeLeft={() => {}}
                   onSwipeUp={() => {}}
@@ -274,7 +276,7 @@ export default function TinderMode() {
               {/* Current card */}
               {currentChatter && (
                 <SwipeCard
-                  key={currentChatter.name + "-" + currentIndex}
+                  key={currentChatter.name + "-top"}
                   chatter={currentChatter}
                   onSwipeRight={handleSwipeRight}
                   onSwipeLeft={handleSwipeLeft}
@@ -305,7 +307,7 @@ export default function TinderMode() {
             variant="outline"
             size="icon"
             onClick={handleUndo}
-            disabled={history.length === 0}
+            disabled={undoStack.length === 0}
             className="h-9 w-9 rounded-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
           >
             <Undo2 className="h-4 w-4" />
