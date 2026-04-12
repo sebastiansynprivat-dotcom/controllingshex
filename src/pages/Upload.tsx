@@ -251,6 +251,32 @@ export default function UploadPage() {
     } catch (err: any) {
       console.error("[Analyse] Fehler:", err);
       const msg = err.message || "Unbekannter Fehler";
+
+      // If it's a network error (Failed to fetch / timeout), the server may have
+      // finished successfully. Check for a freshly saved report before showing an error.
+      if (/failed to fetch|abort|timeout|networkerror/i.test(msg)) {
+        addStatus("⏳ Verbindung verloren – prüfe ob die Analyse serverseitig abgeschlossen wurde…");
+        // Wait a moment for the server to finish saving
+        await new Promise((r) => setTimeout(r, 5000));
+        const today = new Date().toISOString().split("T")[0];
+        const { data: freshReport } = await supabase
+          .from("analysis_reports")
+          .select("id, result_json, chatter_count")
+          .eq("platform", platform)
+          .eq("analysis_date", today)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (freshReport && isAnalysisResult(freshReport.result_json)) {
+          addStatus(`✅ Analyse war doch erfolgreich! ${freshReport.chatter_count} Chatter gefunden.`);
+          setResult(freshReport.result_json as unknown as AnalysisResult);
+          toast.success(`Analyse abgeschlossen: ${freshReport.chatter_count} Chatter.`);
+          fetchReports();
+          return;
+        }
+      }
+
       addStatus(`💥 ${msg}`);
       toast.error(msg);
     } finally {
