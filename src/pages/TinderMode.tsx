@@ -34,6 +34,10 @@ interface AnalysisCategory {
 interface AnalysisResult {
   categories: AnalysisCategory[];
 }
+// Normalize chatter name for comparison: "niklas_la" and "Niklas La" should match
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
 
 export default function TinderMode() {
   const { platform } = usePlatform();
@@ -127,7 +131,7 @@ export default function TinderMode() {
         .eq("check_date", today);
 
       if (checks) {
-        setCheckedNames(new Set(checks.map((c) => c.chatter_name)));
+        setCheckedNames(new Set(checks.map((c) => normalizeName(c.chatter_name))));
       }
 
       setChatters(allChatters);
@@ -140,7 +144,7 @@ export default function TinderMode() {
 
   // Filter out already-checked chatters for swipe stack
   const uncheckedChatters = useMemo(
-    () => chatters.filter((c) => !checkedNames.has(c.name)),
+    () => chatters.filter((c) => !checkedNames.has(normalizeName(c.name))),
     [chatters, checkedNames]
   );
 
@@ -171,7 +175,7 @@ export default function TinderMode() {
       { onConflict: "user_id,chatter_name,check_date,platform", ignoreDuplicates: true }
     );
 
-    setCheckedNames((prev) => new Set(prev).add(name));
+    setCheckedNames((prev) => new Set(prev).add(normalizeName(name)));
   }, [platform]);
 
   const goNext = useCallback(() => {
@@ -185,7 +189,7 @@ export default function TinderMode() {
       const lastName = prev[prev.length - 1];
       setCheckedNames((s) => {
         const next = new Set(s);
-        next.delete(lastName);
+        next.delete(normalizeName(lastName));
         return next;
       });
       return prev.slice(0, -1);
