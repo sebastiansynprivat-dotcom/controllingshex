@@ -229,6 +229,15 @@ SCHRITT 3 — ACCOUNT-EINBRUCH prüfen (SEHR RESTRIKTIV!):
 SCHRITT 4 — MODEL-TAUSCH prüfen:
 → 🔄 MODEL-TAUSCH — Chatter ist deutlich zu groß/klein für den Account (Follower vs. Performance-Mismatch). Konkreten Wechsel-Vorschlag machen.
 
+SCHRITT 4b — ACCOUNT UPGRADE (ZUVERLÄSSIG) prüfen:
+→ 🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG) — NUR wenn ALLE Bedingungen erfüllt sind:
+  1. Chatter hat mindestens 5 Tage in den HISTORISCHEN DATEN
+  2. An mindestens 70% dieser Tage war der Tagesumsatz > 0€ (siehe "Aktive Tage" in der Zusammenfassung)
+  3. Chatter ist NICHT bereits in WARNUNG oder ACCOUNT-EINBRUCH
+  → Empfehlung: "Zuverlässiger Chatter (X% aktive Tage, Ø Y€). Upgrade auf größeren Account empfohlen."
+  WICHTIG: Nutze die vorberechnete Zusammenfassung "Aktive Tage: X/Y (Z%)" aus den HISTORISCHEN DATEN!
+WENN ACCOUNT UPGRADE (ZUVERLÄSSIG) zutrifft → STOPP.
+
 SCHRITT 5 — 0€ UMSATZ-STREAK prüfen (nur wenn Tagesumsatz = 0€ UND kein Onboarding):
 Zähle aus den HISTORISCHEN DATEN, wie viele aufeinanderfolgende Tage der Chatter 0€ hatte (inklusive heute).
 → 📉 0€ UMSATZ TAG 1 — Heute erster Tag 0€.
