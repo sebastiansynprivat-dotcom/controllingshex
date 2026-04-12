@@ -60,7 +60,7 @@ const ANALYZE_REQUEST_RETRIES = 1;
 
 export default function UploadPage() {
   const { platform } = usePlatform();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string>("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -270,7 +270,7 @@ export default function UploadPage() {
       setProgress({ current: 2, total: 3, step: `KI analysiert (${batchCount} Batches)` });
       addStatus("🧠 Sende Daten an Lovable AI…");
 
-      const session = (await supabase.auth.getSession()).data.session;
+      const activeSession = session ?? (await supabase.auth.getSession()).data.session;
       let response: Response | null = null;
       let data: any = null;
 
@@ -283,9 +283,9 @@ export default function UploadPage() {
               headers: {
                 "Content-Type": "application/json",
                 "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                "Authorization": `Bearer ${session?.access_token}`,
+                "Authorization": `Bearer ${activeSession?.access_token}`,
               },
-              body: JSON.stringify({ csvData, platform, fileName: file.name, filePath: uploadedFilePath }),
+              body: JSON.stringify({ platform, fileName: file.name, filePath: uploadedFilePath }),
               signal: AbortSignal.timeout(300000),
             }
           );
