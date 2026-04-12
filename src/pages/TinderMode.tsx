@@ -103,6 +103,15 @@ function mapToSwipeCategory(rawName: string): { emoji: string; name: string } {
   return { emoji: "⚪", name: "WEITER SO" };
 }
 
+// Category priority order for sequential navigation
+const CATEGORY_PRIORITY = [
+  "ACCOUNT-EINBRUCH", "MODEL-TAUSCH", "BREAKOUT-STAR", "WARNUNG",
+  "COACHING / ENGERE KONTROLLE", "VIDEO-COACHING", "KURZ VOR UPGRADE",
+  "ACCOUNT UPGRADE (UMSATZ-STREAK)", "ACCOUNT UPGRADE (ZUVERLÄSSIG)",
+  "HOHER TRAFFIC / KEINE CONVERSION", "COMEBACK", "UNTER BEOBACHTUNG",
+  "TOP PERFORMER", "WEITER SO",
+];
+
 export default function TinderMode() {
   const { platform } = usePlatform();
   const [chatters, setChatters] = useState<ChatterData[]>([]);
