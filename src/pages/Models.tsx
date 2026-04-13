@@ -175,6 +175,7 @@ export default function Models() {
   const earningCount = models.filter((m) => modelRevenues[m.model_name]?.totalRevenue > 0).length;
 
   return (
+    <>
     <AnimatePresence mode="wait">
       <motion.div
         key={platform}
