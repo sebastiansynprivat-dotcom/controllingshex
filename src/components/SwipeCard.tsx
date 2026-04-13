@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
-import { useMemo, useCallback, useRef } from "react";
+import { useMemo, useCallback, useRef, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
 
@@ -36,6 +36,9 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const y = useMotionValue(0);
   const controls = useAnimation();
   const didHandleGestureRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const lastTapRef = useRef<number>(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
   const opacityRight = useTransform(x, [0, 100], [0, 1]);
@@ -106,6 +109,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   }, [controls]);
 
   const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    isDraggingRef.current = true;
     if (didHandleGestureRef.current) return;
 
     const absX = Math.abs(info.offset.x);
@@ -117,9 +121,39 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
     }
   }, [openDetails]);
 
+  const handleCardTap = useCallback(() => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double-tap → Details
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+      triggerHaptic("medium");
+      onSwipeUp();
+    } else {
+      // Single-tap → nach 300ms Name kopieren
+      tapTimerRef.current = setTimeout(() => {
+        navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
+        toast.success("Name kopiert");
+        triggerHaptic("light");
+      }, 300);
+    }
+    lastTapRef.current = now;
+  }, [chatter.name, onSwipeUp]);
+
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    };
+  }, []);
+
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     if (didHandleGestureRef.current) {
       didHandleGestureRef.current = false;
+      isDraggingRef.current = false;
       return;
     }
 
@@ -161,8 +195,8 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       animate={isTop ? controls : undefined}
       initial={isTop ? { scale: 0.95, opacity: 0 } : false}
       whileDrag={isTop ? { scale: 1.02 } : undefined}
+      onClick={isTop ? handleCardTap : undefined}
       onAnimationComplete={() => {
-        // Reset motion values after mount animation
         if (x.get() === 0 && y.get() === 0) return;
       }}
     >
@@ -213,17 +247,9 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         )}
       </div>
 
-      {/* Name — tap to copy */}
+      {/* Name */}
       <h2
-        className={`text-xl font-semibold text-foreground mb-4 capitalize transition-colors ${
-          isTop ? "cursor-pointer active:text-primary" : ""
-        }`}
-        onClick={isTop ? (e) => {
-          e.stopPropagation();
-          navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
-          toast.success("Name kopiert");
-        } : undefined}
-        title={isTop ? "Klicken zum Kopieren" : undefined}
+        className="text-xl font-semibold text-foreground mb-4 capitalize"
       >
         {chatter.name.replace(/_/g, " ")}
       </h2>
