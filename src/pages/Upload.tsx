@@ -481,14 +481,17 @@ export default function UploadPage() {
         }
       }
 
-      // Retry failed batches in additional rounds
-      for (let round = 1; round <= FAILED_BATCH_ROUNDS && failedBatches.length > 0; round++) {
+      // Retry failed batches until ALL succeed (or user cancels)
+      let retryRound = 0;
+      while (failedBatches.length > 0) {
+        retryRound++;
         if (cancelledRef.current) return;
 
         const retryIndices = [...failedBatches];
         failedBatches.length = 0;
-        addStatus(`🔄 Retry-Runde ${round}: ${retryIndices.length} fehlgeschlagene Batch(es)…`);
-        await new Promise(r => setTimeout(r, 3000 * round));
+        const waitSec = Math.min(retryRound * 5, 30);
+        addStatus(`🔄 Retry-Runde ${retryRound}: ${retryIndices.length} Batch(es) — warte ${waitSec}s…`);
+        await new Promise(r => setTimeout(r, waitSec * 1000));
 
         for (const idx of retryIndices) {
           if (cancelledRef.current) return;
@@ -504,23 +507,16 @@ export default function UploadPage() {
             addStatus(`✅ Retry Batch ${batchNum} erfolgreich: ${chattersReturned}/${batches[idx].length} Chatter`);
           } catch (err: any) {
             failedBatches.push(idx);
-            addStatus(`❌ Retry Batch ${batchNum} erneut fehlgeschlagen: ${err.message}`);
+            addStatus(`❌ Retry Batch ${batchNum} fehlgeschlagen (Runde ${retryRound}): ${err.message}`);
           }
+        }
+
+        if (retryRound >= MAX_RETRY_ROUNDS && failedBatches.length > 0) {
+          addStatus(`⚠️ ${MAX_RETRY_ROUNDS} Retry-Runden erreicht, versuche weiter…`);
         }
       }
 
       if (cancelledRef.current) return;
-
-      // Block save if ANY batch still failed
-      if (failedBatches.length > 0) {
-        const failedNums = failedBatches.map(i => i + 1).join(", ");
-        addStatus(`❌ ${failedBatches.length} Batch(es) endgültig fehlgeschlagen: ${failedNums}`);
-        addStatus("⛔ Report wird NICHT gespeichert — alle Batches müssen erfolgreich sein.");
-        toast.error(`Analyse abgebrochen: Batch ${failedNums} konnte nicht verarbeitet werden. Bitte erneut versuchen.`);
-        setLoading(false);
-        if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-        return;
-      }
 
       const validResults = batchResults.filter(Boolean);
 
