@@ -57,6 +57,16 @@ const BATCH_SIZE = 50;
 const BATCH_RETRIES = 2;
 const CANCEL_TIMEOUT_MS = 120_000;
 
+interface CsvChatterMetrics {
+  name: string;
+  startDate: string;
+  account: string;
+  revenueToday: number;
+  massDms: number;
+  openChats: number;
+  responseDelayDays: number;
+}
+
 function splitCsvIntoBatches(csvData: string): { header: string; batches: string[][] } {
   const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return { header: lines[0] || "", batches: [] };
@@ -71,6 +81,148 @@ function splitCsvIntoBatches(csvData: string): { header: string; batches: string
 
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
+}
+
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      fields.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  fields.push(current.trim());
+  return fields;
+}
+
+function findColumnIndex(headers: string[], patterns: RegExp[]): number {
+  return headers.findIndex((header) => patterns.some((pattern) => pattern.test(header)));
+}
+
+function parseDecimal(value: string | undefined): number {
+  if (!value) return 0;
+
+  const cleaned = value.replace(/[^\d,.-]/g, "").trim();
+  if (!cleaned) return 0;
+
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  let normalized = cleaned;
+  if (hasComma && hasDot) {
+    normalized = cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")
+      ? cleaned.replace(/\./g, "").replace(",", ".")
+      : cleaned.replace(/,/g, "");
+  } else if (hasComma) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else {
+    normalized = cleaned.replace(/,/g, "");
+  }
+
+  return Number.parseFloat(normalized) || 0;
+}
+
+function parseInteger(value: string | undefined): number {
+  if (!value) return 0;
+  return Number.parseInt(value.replace(/\D/g, ""), 10) || 0;
+}
+
+function buildCsvMetricMap(csvData: string): Map<string, CsvChatterMetrics> {
+  const lines = csvData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const metrics = new Map<string, CsvChatterMetrics>();
+
+  if (lines.length < 2) return metrics;
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase().trim());
+  const nameIndex = findColumnIndex(headers, [/^name$/, /chatter/i, /mitarbeiter/i]);
+  const startDateIndex = findColumnIndex(headers, [/start\s*dat/i, /beginn/i, /onboard/i]);
+  const accountIndex = findColumnIndex(headers, [/account/i, /model/i, /konto/i]);
+  const revenueIndex = findColumnIndex(headers, [/tages\s*umsatz/i, /umsatz.*heute/i, /revenue\s*today/i, /daily.*rev/i, /^umsatz$/i, /^revenue$/i]);
+  const openChatsIndex = findColumnIndex(headers, [/offene?\s*chats?/i, /open\s*chats?/i]);
+  const oldestChatIndex = findColumnIndex(headers, [/oldest\s*chat/i, /älteste.*chat/i, /chat.*alter/i, /verzug/i, /delay/i]);
+  const massDmsIndex = findColumnIndex(headers, [/mass\s*dm/i, /massdm/i]);
+
+  if (nameIndex === -1) return metrics;
+
+  for (const line of lines.slice(1)) {
+    const values = parseCsvLine(line);
+    const rawName = (values[nameIndex] || "").replace(/^[@\s]+/, "").trim();
+    if (!rawName) continue;
+
+    const openChatsRaw = openChatsIndex !== -1 ? values[openChatsIndex] : "";
+    const oldestChatRaw = oldestChatIndex !== -1 ? values[oldestChatIndex] : openChatsRaw;
+    const openChats = parseInteger(openChatsRaw);
+    let responseDelayDays = parseInteger(oldestChatRaw);
+
+    if (!responseDelayDays) {
+      const match = openChatsRaw?.match(/seit\s*(\d+)/i);
+      responseDelayDays = match ? Number.parseInt(match[1], 10) || 0 : 0;
+    }
+
+    if (responseDelayDays > 30) responseDelayDays = 0;
+
+    metrics.set(normalizeName(rawName), {
+      name: rawName.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
+      startDate: startDateIndex !== -1 ? values[startDateIndex] || "" : "",
+      account: accountIndex !== -1 ? values[accountIndex] || "" : "",
+      revenueToday: revenueIndex !== -1 ? parseDecimal(values[revenueIndex]) : 0,
+      massDms: massDmsIndex !== -1 ? parseInteger(values[massDmsIndex]) : 0,
+      openChats,
+      responseDelayDays,
+    });
+  }
+
+  return metrics;
+}
+
+function formatEuro(value: number): string {
+  return `${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+}
+
+function hydrateResultWithCsvMetrics(result: AnalysisResult, csvData: string): AnalysisResult {
+  const csvMetrics = buildCsvMetricMap(csvData);
+
+  return {
+    categories: result.categories.map((category) => ({
+      ...category,
+      chatters: category.chatters.map((chatter) => {
+        const metrics = csvMetrics.get(normalizeName(chatter.name || ""));
+        if (!metrics) return chatter;
+
+        return {
+          ...chatter,
+          name: metrics.name,
+          startDate: metrics.startDate || chatter.startDate,
+          account: metrics.account || chatter.account,
+          kpis: {
+            ...chatter.kpis,
+            Tagesumsatz: formatEuro(metrics.revenueToday),
+            "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
+            MassDMs: String(metrics.massDms),
+          },
+        };
+      }),
+    })),
+  };
 }
 
 function mergeResults(results: any[]): AnalysisResult {
@@ -93,7 +245,6 @@ function mergeResults(results: any[]): AnalysisResult {
     }
   }
 
-  // Remove empty categories
   const categories = Array.from(categoryMap.values()).filter(c => c.chatters.length > 0);
   return { categories };
 }
@@ -107,10 +258,10 @@ async function saveChatterHistory(merged: AnalysisResult, activePlatform: string
       const kpis = chatter.kpis || {};
       let revenue = 0;
       const revKey = Object.keys(kpis).find((k) => /umsatz|revenue/i.test(k));
-      if (revKey) revenue = parseFloat(kpis[revKey].replace(/[^\d,.\-]/g, "").replace(",", ".")) || 0;
+      if (revKey) revenue = parseDecimal(kpis[revKey]);
       let massDms = 0;
       const dmKey = Object.keys(kpis).find((k) => /mass\s*dm/i.test(k));
-      if (dmKey) massDms = parseInt(kpis[dmKey].replace(/\D/g, ""), 10) || 0;
+      if (dmKey) massDms = parseInteger(kpis[dmKey]);
       let openChats = 0, responseDelay = 0;
       const chatKey = Object.keys(kpis).find((k) => /offene?\s*chats?|open\s*chats?/i.test(k));
       if (chatKey) {
@@ -128,7 +279,6 @@ async function saveChatterHistory(merged: AnalysisResult, activePlatform: string
     }
   }
   if (rows.length > 0) {
-    // Insert in chunks of 200 to avoid payload limits
     for (let i = 0; i < rows.length; i += 200) {
       await supabase.from("chatter_history").upsert(rows.slice(i, i + 200), { onConflict: "chatter_name,platform,analysis_date" });
     }
@@ -340,7 +490,7 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt…");
 
-      const merged = mergeResults(batchResults);
+      const merged = hydrateResultWithCsvMetrics(mergeResults(batchResults), csvData);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
 
       // Save report to DB
@@ -354,20 +504,7 @@ export default function UploadPage() {
         chatter_count: totalReturned,
         user_id: user?.id,
       };
-
-      const { data: existingReport } = await supabase
-        .from("analysis_reports")
-        .select("id")
-        .eq("file_path", uploadedFilePath)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingReport) {
-        await supabase.from("analysis_reports").update(reportPayload).eq("id", existingReport.id);
-      } else {
-        await supabase.from("analysis_reports").insert(reportPayload);
-      }
-
+...
       // Save chatter history
       try {
         await saveChatterHistory(merged, platform, user?.id);
