@@ -1,55 +1,29 @@
 
 
-## Plan: Model-Performance-Tracking pro Chatter
+## Plan: Kategorisierung fixen — 0€-Umsatz und bessere Regeln
 
-### Was du willst
-- Direkt auf der Chatter-Karte sehen: welches Model, wie viele Follower, und ob die Performance passt
-- Historisches Tracking: wenn ein Model von Chatter A zu Chatter B wechselt, bleibt die alte Performance gespeichert
-- Warnung, wenn ein Chatter schlechter performt als der vorherige Chatter auf demselben Model
+### Das Problem
+Die `step2_categorize`-Funktion hat aktuell nur 4 Regeln, und keine davon fängt den Fall ab, dass ein Chatter **0€ Tagesumsatz** hat. Solche Chatters landen pauschal in "WEITER SO / MITTELFELD", was irreführend ist.
 
-### Schritt 1: Datenbank erweitern
+### Die Lösung: Neue Kategorie + überarbeitete Prioritäten
 
-**`chatter_history` bekommt eine neue Spalte `account`** (text, nullable), damit bei jedem Upload gespeichert wird, welcher Chatter welches Model hatte.
+Die Kategorisierung in `src/lib/analysis-pipeline.ts` wird um eine **"NULL EURO TAG"**-Kategorie erweitert und die Reihenfolge wird angepasst:
 
-```sql
-ALTER TABLE chatter_history ADD COLUMN account text;
-```
+| Priorität | Regel | Kategorie | Emoji |
+|---|---|---|---|
+| 1 | Oldest Chat > 3 Tage | WARNUNG | 🟠 |
+| 2 | Onboarding ≤ 5 Tage | ONBOARDING TAG X | 🔵 |
+| **3 (NEU)** | **Tagesumsatz = 0€** | **NULL EURO TAG** | **🔴** |
+| 4 | All-Time > 500€ & Oldest Chat ≤ 2 | ACCOUNT UPGRADE | 🟢 |
+| 5 | Rest | WEITER SO / MITTELFELD | ⚪ |
 
-Das ermöglicht: "Zeig mir alle Chatters, die jemals Model X hatten, und deren Umsätze."
+So wird jeder Chatter mit 0€ Tagesumsatz (der kein Newcomer ist und keine Chat-Warnung hat) sofort rot markiert und separat angezeigt.
 
-### Schritt 2: Upload-Logik anpassen
-
-In `src/pages/Upload.tsx` und `supabase/functions/analyze-csv/index.ts` wird beim Speichern in `chatter_history` das `account`-Feld mitgespeichert (kommt bereits aus der Pipeline).
-
-### Schritt 3: Model-Performance-Vergleich berechnen
-
-Neue Hilfsfunktion, die pro Model:
-1. Alle Chatters findet, die dieses Model jemals hatten (aus `chatter_history`)
-2. Deren Durchschnittsumsatz berechnet
-3. Den aktuellen Chatter mit dem vorherigen vergleicht
-4. Status zurückgibt: `besser` / `schlechter` / `gleich` + Prozent-Differenz
-
-### Schritt 4: Chatter-Karte (Dashboard + Swipe Mode) erweitern
-
-Jede Karte zeigt:
-- **Model-Badge**: Account-Name + Follower-Anzahl (z.B. `ModelXY · 45K`)
-- **Performance-Indikator**: Farbiger Dot oder kleines Badge
-  - Grün: performt besser als der vorherige Chatter auf diesem Model
-  - Rot: performt schlechter (mit %-Angabe, z.B. "−32% vs. Vorgänger")
-  - Grau: erster Chatter auf diesem Model oder keine Vergleichsdaten
-
-### Schritt 5: Warnungs-Kategorie in Pipeline
-
-In `analysis-pipeline.ts` (`step2_categorize`): Wenn Vergleichsdaten zeigen, dass der aktuelle Chatter deutlich schlechter performt (z.B. >30% weniger Umsatz als der Vorgänger auf demselben Model), wird eine spezielle Warnung generiert.
-
-### Dateien die geändert werden
+### Dateien
 
 | Datei | Änderung |
 |---|---|
-| Migration (SQL) | `account`-Spalte zu `chatter_history` |
-| `src/pages/Upload.tsx` | `account` beim Speichern mitsenden |
-| `supabase/functions/analyze-csv/index.ts` | `account` in History-Rows |
-| `src/components/CategoryResultCards.tsx` | Model-Badge + Performance-Vergleich auf Karte |
-| `src/components/SwipeCard.tsx` | Model-Badge + Performance-Indikator |
-| `src/pages/TinderMode.tsx` | Vergleichsdaten laden und an SwipeCard übergeben |
+| `src/lib/analysis-pipeline.ts` | Neue Regel in `step2_categorize` zwischen Onboarding und Top-Performer einfügen |
+
+Nur eine Datei, eine Änderung — alles andere (Karten, Dashboard, Swipe) nutzt bereits die Kategorie-Daten und zeigt die neue Kategorie automatisch an.
 
