@@ -580,7 +580,29 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt (CSV = Quelle)…");
 
-      const merged = buildResultFromCsv(csvData, validResults);
+      // Load chatter history for 0€ streak detection
+      const csvMetricsForNames = buildCsvMetricMap(csvData);
+      const chatterNames = Array.from(csvMetricsForNames.values()).map(m => m.name);
+      let historyMap: Map<string, { revenueToday: number; date: string }[]> | undefined;
+      if (chatterNames.length > 0) {
+        const { data: histData } = await supabase
+          .from("chatter_history")
+          .select("chatter_name, analysis_date, revenue_today")
+          .eq("platform", platform)
+          .in("chatter_name", chatterNames.slice(0, 500))
+          .order("analysis_date", { ascending: false })
+          .limit(1000);
+        if (histData && histData.length > 0) {
+          historyMap = new Map();
+          for (const row of histData) {
+            const key = normalizeName(row.chatter_name);
+            if (!historyMap.has(key)) historyMap.set(key, []);
+            historyMap.get(key)!.push({ revenueToday: Number(row.revenue_today) || 0, date: row.analysis_date });
+          }
+        }
+      }
+
+      const merged = buildResultFromCsv(csvData, validResults, historyMap);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
