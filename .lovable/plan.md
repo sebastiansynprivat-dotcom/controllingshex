@@ -1,23 +1,29 @@
 
 
-## Analyse: Was passiert mit gekündigten Chattern?
+## Plan: Single-Tap → Name kopieren, Double-Tap → Details öffnen
 
-### Aktueller Stand
+### Aktuell
+- Tap auf den **Namen** kopiert den Namen
+- Swipe nach oben öffnet Details
+- Kein Double-Tap
 
-**Swipe-Modus & Dashboard**: Laden aus dem **neuesten Report** (`analysis_reports.result_json`). Wenn ein Chatter im neuen CSV nicht mehr drin ist → wird er dort **nicht mehr angezeigt**. ✅ Funktioniert bereits korrekt.
+### Änderung in `src/components/SwipeCard.tsx`
 
-**Leaderboard, History-Charts, Chatter-Details**: Laden aus der **`chatter_history`**-Tabelle, die historische Daten sammelt. Gekündigte Chatter bleiben dort **für immer sichtbar**, auch wenn sie seit Wochen keinen Report mehr haben. ❌ Problem.
+1. **Double-Tap-Detection** auf der gesamten Karte einbauen:
+   - `useRef` für den letzten Tap-Zeitstempel
+   - Im `onClick`-Handler der Karte: Wenn der letzte Tap < 300ms her ist → `onSwipeUp()` (Details öffnen). Sonst → Timer starten, der nach 300ms den Namen kopiert (Single-Tap).
+   - Bei Double-Tap den Single-Tap-Timer canceln (`clearTimeout`)
 
-### Plan
+2. **Name-Kopieren vom `<h2>` auf die Karte verschieben**:
+   - Der bisherige `onClick` auf dem Namen-Element wird entfernt
+   - Stattdessen wird der Single-Tap auf der Karte den Namen kopieren + Toast zeigen
 
-1. **Leaderboard filtern**: Nur Chatter anzeigen, die auch im **aktuellsten Report** vorkommen. Dazu den neuesten `analysis_reports.result_json` laden, die Namen extrahieren, und das Leaderboard-Query auf diese Namen einschränken.
+3. **Drag vs. Tap unterscheiden**:
+   - Ein `isDraggingRef` trackt, ob ein Drag stattgefunden hat (setzen in `onDrag`, prüfen in `onClick`)
+   - Nur wenn kein Drag → Tap-Logik ausführen
 
-2. **History/Details unverändert lassen**: Die Detail-Ansicht (ChatterSlideOver) und Trend-Charts zeigen historische Daten — das ist gewollt, solange der Chatter noch aktiv ist. Da sie nur über Klick auf aktive Chatter erreichbar sind, filtern sie sich automatisch.
-
-3. **Runtime-Error fixen**: `normalizeChatterName is not defined` in `CategoryResultCards.tsx` — eine fehlende Funktion wird referenziert, die gefixt werden muss.
-
-### Technische Details
-
-- **Leaderboard.tsx**: Nach dem Query auf `chatter_history` die Ergebnisse gegen die Chatter-Namen des neuesten Reports filtern (ein zusätzliches Query auf `analysis_reports` für die aktive Namensliste).
-- **CategoryResultCards.tsx**: Die Referenz auf `normalizeChatterName` an der fehlerhaften Stelle prüfen und sicherstellen, dass die Funktion dort erreichbar ist (vermutlich Scope-Problem durch Code-Refactoring).
+### Resultat
+- **1x Tap** irgendwo auf die Karte → Name wird kopiert
+- **2x schnell Tap** → Detailansicht öffnet sich
+- **Swipe** bleibt unverändert (hoch/rechts/links/runter)
 
