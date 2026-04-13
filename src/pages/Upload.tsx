@@ -520,7 +520,7 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt…");
 
-      const merged = hydrateResultWithCsvMetrics(mergeResults(batchResults), csvData);
+      const merged = hydrateResultWithCsvMetrics(mergeResults(validResults), csvData);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
 
       // Save report to DB
