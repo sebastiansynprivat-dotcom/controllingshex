@@ -978,6 +978,29 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
             {chatter.account || "Kein Account zugewiesen"}
             {chatter.startDate && ` · ${chatter.startDate}`}
           </p>
+          {modelPerf && modelPerf.followers > 0 && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="inline-flex items-center gap-1 text-[10px] text-white/30 font-light">
+                <Users className="h-3 w-3 text-white/20" />
+                {formatFollowers(modelPerf.followers)}
+              </span>
+              {modelPerf.status !== "first" && modelPerf.percentChange !== null && (
+                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  modelPerf.status === "better"
+                    ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20"
+                    : modelPerf.status === "worse"
+                    ? "bg-red-500/10 text-red-400/80 border border-red-500/20"
+                    : "bg-white/[0.04] text-white/30 border border-white/[0.06]"
+                }`}>
+                  {modelPerf.status === "better" ? "↑" : modelPerf.status === "worse" ? "↓" : "→"}
+                  {modelPerf.percentChange > 0 ? "+" : ""}{modelPerf.percentChange}% vs. {modelPerf.previousChatterName}
+                </span>
+              )}
+              {modelPerf.status === "first" && (
+                <span className="text-[10px] text-white/15 font-light">Erster Chatter</span>
+              )}
+            </div>
+          )}
           {videoCoachingSentAt && (() => {
             const days = Math.floor((Date.now() - new Date(videoCoachingSentAt).getTime()) / 86400000);
             return (
