@@ -511,7 +511,8 @@ export default function UploadPage() {
 
       if (cancelledRef.current) return;
 
-      if (batchResults.length === 0) {
+      const validResults = batchResults.filter(Boolean);
+      if (validResults.length === 0) {
         throw new Error("Alle Batches fehlgeschlagen. Bitte erneut versuchen.");
       }
 
