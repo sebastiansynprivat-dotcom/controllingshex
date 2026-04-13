@@ -287,6 +287,7 @@ async function saveChatterHistory(merged: AnalysisResult, activePlatform: string
         chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats,
         response_delay_days: responseDelay, platform: activePlatform, analysis_date: today,
         category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId,
+        account: chatter.account || null,
       });
     }
   }

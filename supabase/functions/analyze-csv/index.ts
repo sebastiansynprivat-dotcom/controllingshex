@@ -575,7 +575,7 @@ Regeln:
             else { openChats = parseInt((chatVal.match(/(\d+)/) || [])[1] || "0") || 0; }
           }
           if (responseDelay > 30) responseDelay = 0;
-          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId });
+          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId, account: chatter.account || null });
         }
       }
       if (rows.length > 0) {
