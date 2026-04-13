@@ -511,10 +511,18 @@ export default function UploadPage() {
 
       if (cancelledRef.current) return;
 
-      const validResults = batchResults.filter(Boolean);
-      if (validResults.length === 0) {
-        throw new Error("Alle Batches fehlgeschlagen. Bitte erneut versuchen.");
+      // Block save if ANY batch still failed
+      if (failedBatches.length > 0) {
+        const failedNums = failedBatches.map(i => i + 1).join(", ");
+        addStatus(`❌ ${failedBatches.length} Batch(es) endgültig fehlgeschlagen: ${failedNums}`);
+        addStatus("⛔ Report wird NICHT gespeichert — alle Batches müssen erfolgreich sein.");
+        toast.error(`Analyse abgebrochen: Batch ${failedNums} konnte nicht verarbeitet werden. Bitte erneut versuchen.`);
+        setLoading(false);
+        if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+        return;
       }
+
+      const validResults = batchResults.filter(Boolean);
 
       // Step 3: Merge & Save
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
@@ -558,12 +566,7 @@ export default function UploadPage() {
       }
 
       // Summary
-      if (failedBatches.length > 0) {
-        addStatus(`⚠️ ${failedBatches.length} Batch(es) fehlgeschlagen: ${failedBatches.join(", ")}`);
-        toast.warning(`Analyse mit ${totalReturned}/${totalChatters} Chattern abgeschlossen (${failedBatches.length} Batch(es) fehlgeschlagen).`);
-      } else {
-        addStatus(`✅ 100% Coverage — alle ${totalReturned} Chatter erfasst!`);
-      }
+      addStatus(`✅ 100% Coverage — alle ${totalReturned} Chatter erfasst!`);
 
       addStatus(`🎉 Fertig: ${totalReturned} Chatter in ${merged.categories.length} Kategorien`);
 
