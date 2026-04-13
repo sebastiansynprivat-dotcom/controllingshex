@@ -54,8 +54,9 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 }
 
 const BATCH_SIZE = 50;
-const BATCH_RETRIES = 2;
-const CANCEL_TIMEOUT_MS = 120_000;
+const BATCH_RETRIES = 3;
+const CANCEL_TIMEOUT_MS = 180_000;
+const FAILED_BATCH_ROUNDS = 2;
 
 interface CsvChatterMetrics {
   name: string;
