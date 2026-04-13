@@ -590,23 +590,25 @@ export default function TinderMode() {
           </motion.div>
         ) : (
           <>
-            {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
-              const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
-              const isTopCard = stackIndex === 0;
+            <AnimatePresence mode="popLayout">
+              {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
+                const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
+                const isTopCard = stackIndex === 0;
 
-              return (
-                <SwipeCard
-                  key={normalizeName(chatter.name)}
-                  chatter={chatter}
-                  onSwipeRight={isTopCard ? handleSwipeRight : noop}
-                  onSwipeLeft={isTopCard ? handleSwipeLeft : noop}
-                  onSwipeUp={isTopCard ? handleSwipeUp : noop}
-                  onSwipeDown={isTopCard ? handleSwipeDown : undefined}
-                  isTop={isTopCard}
-                  stackIndex={stackIndex}
-                />
-              );
-            })}
+                return (
+                  <SwipeCard
+                    key={normalizeName(chatter.name)}
+                    chatter={chatter}
+                    onSwipeRight={isTopCard ? handleSwipeRight : noop}
+                    onSwipeLeft={isTopCard ? handleSwipeLeft : noop}
+                    onSwipeUp={isTopCard ? handleSwipeUp : noop}
+                    onSwipeDown={isTopCard ? handleSwipeDown : undefined}
+                    isTop={isTopCard}
+                    stackIndex={stackIndex}
+                  />
+                );
+              })}
+            </AnimatePresence>
 
             {/* Action panel overlay */}
             {currentChatter && (
