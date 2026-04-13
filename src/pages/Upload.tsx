@@ -228,9 +228,16 @@ function buildAiLookup(results: any[]): Map<string, { category: string; emoji: s
  * AI only contributes: category, emoji, recommendation.
  * KPIs come from the CSV directly.
  */
+/** Categories that are impossible when revenue is 0€ */
+const POSITIVE_CATEGORIES = new Set([
+  "ACCOUNT UPGRADE (UMSATZ-STREAK)", "ACCOUNT UPGRADE (ZUVERLÄSSIG)",
+  "BREAKOUT-STAR", "TOP PERFORMER", "KURZ VOR UPGRADE", "COMEBACK",
+]);
+
 function buildResultFromCsv(
   csvData: string,
-  aiResults: any[]
+  aiResults: any[],
+  historyMap?: Map<string, { revenueToday: number; date: string }[]>
 ): AnalysisResult {
   const csvMetrics = buildCsvMetricMap(csvData);
   const aiLookup = buildAiLookup(aiResults);
@@ -238,8 +245,45 @@ function buildResultFromCsv(
 
   for (const [normalizedName, metrics] of csvMetrics) {
     const ai = aiLookup.get(normalizedName);
-    const category = ai?.category || "WEITER SO";
-    const emoji = ai?.emoji || "⚪";
+    let category = ai?.category || "WEITER SO";
+    let emoji = ai?.emoji || "⚪";
+
+    // === SAFETY OVERRIDE: 0€ revenue cannot be in positive categories ===
+    if (metrics.revenueToday === 0) {
+      const isOnboarding = /ONBOARDING/i.test(category);
+      const isWarnung = /WARNUNG/i.test(category);
+
+      if (!isOnboarding && !isWarnung) {
+        // Count consecutive 0€ days from history
+        let streak = 1; // today counts as day 1
+        const hist = historyMap?.get(normalizedName);
+        if (hist && hist.length > 0) {
+          const sorted = [...hist].sort((a, b) => b.date.localeCompare(a.date));
+          for (const entry of sorted) {
+            if (entry.revenueToday === 0) streak++;
+            else break;
+          }
+        }
+
+        // Allow ACCOUNT-EINBRUCH only if chatter had significant past revenue
+        const isEinbruch = /EINBRUCH/i.test(category);
+        if (isEinbruch && hist && hist.length > 0) {
+          const avgPastRevenue = hist.reduce((s, h) => s + h.revenueToday, 0) / hist.length;
+          if (avgPastRevenue >= 20) {
+            // Genuine drop-off — keep EINBRUCH
+          } else {
+            // Not a real Einbruch, just a 0€ chatter
+            const tagLabel = streak >= 7 ? "7+" : String(streak);
+            category = `0€ UMSATZ TAG ${tagLabel}`;
+            emoji = "📉";
+          }
+        } else if (POSITIVE_CATEGORIES.has(category) || /WEITER\s*SO|MITTELFELD/i.test(category)) {
+          const tagLabel = streak >= 7 ? "7+" : String(streak);
+          category = `0€ UMSATZ TAG ${tagLabel}`;
+          emoji = "📉";
+        }
+      }
+    }
 
     if (!categoryMap.has(category)) {
       categoryMap.set(category, { emoji, categoryName: category, chatters: [] });
@@ -536,7 +580,29 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt (CSV = Quelle)…");
 
-      const merged = buildResultFromCsv(csvData, validResults);
+      // Load chatter history for 0€ streak detection
+      const csvMetricsForNames = buildCsvMetricMap(csvData);
+      const chatterNames = Array.from(csvMetricsForNames.values()).map(m => m.name);
+      let historyMap: Map<string, { revenueToday: number; date: string }[]> | undefined;
+      if (chatterNames.length > 0) {
+        const { data: histData } = await supabase
+          .from("chatter_history")
+          .select("chatter_name, analysis_date, revenue_today")
+          .eq("platform", platform)
+          .in("chatter_name", chatterNames.slice(0, 500))
+          .order("analysis_date", { ascending: false })
+          .limit(1000);
+        if (histData && histData.length > 0) {
+          historyMap = new Map();
+          for (const row of histData) {
+            const key = normalizeName(row.chatter_name);
+            if (!historyMap.has(key)) historyMap.set(key, []);
+            historyMap.get(key)!.push({ revenueToday: Number(row.revenue_today) || 0, date: row.analysis_date });
+          }
+        }
+      }
+
+      const merged = buildResultFromCsv(csvData, validResults, historyMap);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 

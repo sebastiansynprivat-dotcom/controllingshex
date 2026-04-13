@@ -86,6 +86,7 @@ function mapToSwipeCategory(rawName: string): { emoji: string; name: string } {
   if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
   if (/TOP.?PERFORMER/i.test(rawName)) return { emoji: "⭐", name: "TOP PERFORMER" };
   if (/UNTER.?BEOBACHTUNG/i.test(rawName)) return { emoji: "👀", name: "UNTER BEOBACHTUNG" };
+  if (/NULL\s*EURO\s*TAG/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ TAG 1" };
   if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: "WEITER SO" };
 
   const zeroMatch = rawName.match(/0\s*€.*?TAG\s*(\d+\+?)/i);
@@ -110,6 +111,8 @@ function mapToSwipeCategory(rawName: string): { emoji: string; name: string } {
 // Category priority order for sequential navigation
 const CATEGORY_PRIORITY = [
   "ACCOUNT-EINBRUCH", "MODEL-TAUSCH", "BREAKOUT-STAR", "WARNUNG",
+  "0€ UMSATZ TAG 7+", "0€ UMSATZ TAG 6", "0€ UMSATZ TAG 5", "0€ UMSATZ TAG 4",
+  "0€ UMSATZ TAG 3", "0€ UMSATZ TAG 2", "0€ UMSATZ TAG 1",
   "COACHING / ENGERE KONTROLLE", "VIDEO-COACHING", "KURZ VOR UPGRADE",
   "ACCOUNT UPGRADE (UMSATZ-STREAK)", "ACCOUNT UPGRADE (ZUVERLÄSSIG)",
   "HOHER TRAFFIC / KEINE CONVERSION", "COMEBACK", "UNTER BEOBACHTUNG",
