@@ -320,7 +320,7 @@ Regeln:
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage },
               ],
-              max_tokens: 16384,
+              max_tokens: 32768,
               response_format: { type: "json_object" },
             }),
             signal: controller.signal,
