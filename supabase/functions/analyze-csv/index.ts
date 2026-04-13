@@ -57,23 +57,49 @@ function splitCsvIntoBatches(csvData: string, batchSize: number): { header: stri
   return { header, batches };
 }
 
-function extractNameFromCsvRow(row: string, nameColIndex: number): string {
-  // Handle quoted CSV fields
+function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
-  let current = "", inQuotes = false;
-  for (const ch of row) {
-    if (ch === '"') { inQuotes = !inQuotes; continue; }
-    if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ""; continue; }
-    current += ch;
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      fields.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
   }
+
   fields.push(current.trim());
-  return (fields[nameColIndex] || "").replace(/^[@\s]+/, "").trim();
+  return fields;
+}
+
+function extractNameFromCsvRow(row: string, nameColIndex: number): string {
+  return (parseCsvLine(row)[nameColIndex] || "").replace(/^[@\s]+/, "").trim();
+}
+
+function findColumnIndex(headers: string[], patterns: RegExp[]): number {
+  return headers.findIndex((header) => patterns.some((pattern) => pattern.test(header)));
 }
 
 function findNameColumn(header: string): number {
-  const cols = header.toLowerCase().split(",").map(c => c.trim());
+  const cols = parseCsvLine(header).map((col) => col.toLowerCase().trim());
   const idx = cols.findIndex(c => c === "name" || c === "chatter" || c === "chatter_name");
-  return idx >= 0 ? idx : 1; // fallback to column index 1 (Name is usually 2nd)
+  return idx >= 0 ? idx : 1;
 }
 
 function getReturnedNames(result: any): Set<string> {
@@ -88,6 +114,113 @@ function getReturnedNames(result: any): Set<string> {
 
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
+}
+
+function parseDecimal(value: string | undefined): number {
+  if (!value) return 0;
+
+  const cleaned = value.replace(/[^\d,.-]/g, "").trim();
+  if (!cleaned) return 0;
+
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  let normalized = cleaned;
+  if (hasComma && hasDot) {
+    normalized = cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")
+      ? cleaned.replace(/\./g, "").replace(",", ".")
+      : cleaned.replace(/,/g, "");
+  } else if (hasComma) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else {
+    normalized = cleaned.replace(/,/g, "");
+  }
+
+  return Number.parseFloat(normalized) || 0;
+}
+
+function parseInteger(value: string | undefined): number {
+  if (!value) return 0;
+  return Number.parseInt(value.replace(/\D/g, ""), 10) || 0;
+}
+
+function buildCsvMetricMap(csvData: string): Map<string, { name: string; startDate: string; account: string; revenueToday: number; massDms: number; openChats: number; responseDelayDays: number; }> {
+  const lines = csvData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const metrics = new Map<string, { name: string; startDate: string; account: string; revenueToday: number; massDms: number; openChats: number; responseDelayDays: number; }>();
+
+  if (lines.length < 2) return metrics;
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase().trim());
+  const nameIndex = findColumnIndex(headers, [/^name$/, /chatter/i, /mitarbeiter/i]);
+  const startDateIndex = findColumnIndex(headers, [/start\s*dat/i, /beginn/i, /onboard/i]);
+  const accountIndex = findColumnIndex(headers, [/account/i, /model/i, /konto/i]);
+  const revenueIndex = findColumnIndex(headers, [/tages\s*umsatz/i, /umsatz.*heute/i, /revenue\s*today/i, /daily.*rev/i, /^umsatz$/i, /^revenue$/i]);
+  const openChatsIndex = findColumnIndex(headers, [/offene?\s*chats?/i, /open\s*chats?/i]);
+  const oldestChatIndex = findColumnIndex(headers, [/oldest\s*chat/i, /älteste.*chat/i, /chat.*alter/i, /verzug/i, /delay/i]);
+  const massDmsIndex = findColumnIndex(headers, [/mass\s*dm/i, /massdm/i]);
+
+  if (nameIndex === -1) return metrics;
+
+  for (const line of lines.slice(1)) {
+    const values = parseCsvLine(line);
+    const rawName = (values[nameIndex] || "").replace(/^[@\s]+/, "").trim();
+    if (!rawName) continue;
+
+    const openChatsRaw = openChatsIndex !== -1 ? values[openChatsIndex] : "";
+    const oldestChatRaw = oldestChatIndex !== -1 ? values[oldestChatIndex] : openChatsRaw;
+    const openChats = parseInteger(openChatsRaw);
+    let responseDelayDays = parseInteger(oldestChatRaw);
+
+    if (!responseDelayDays) {
+      const match = openChatsRaw?.match(/seit\s*(\d+)/i);
+      responseDelayDays = match ? Number.parseInt(match[1], 10) || 0 : 0;
+    }
+
+    if (responseDelayDays > 30) responseDelayDays = 0;
+
+    metrics.set(normalizeName(rawName), {
+      name: rawName.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
+      startDate: startDateIndex !== -1 ? values[startDateIndex] || "" : "",
+      account: accountIndex !== -1 ? values[accountIndex] || "" : "",
+      revenueToday: revenueIndex !== -1 ? parseDecimal(values[revenueIndex]) : 0,
+      massDms: massDmsIndex !== -1 ? parseInteger(values[massDmsIndex]) : 0,
+      openChats,
+      responseDelayDays,
+    });
+  }
+
+  return metrics;
+}
+
+function formatEuro(value: number): string {
+  return `${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+}
+
+function hydrateResultWithCsvMetrics(result: any, csvData: string): any {
+  const csvMetrics = buildCsvMetricMap(csvData);
+
+  return {
+    categories: (result.categories || []).map((category: any) => ({
+      ...category,
+      chatters: (category.chatters || []).map((chatter: any) => {
+        const metrics = csvMetrics.get(normalizeName(chatter.name || ""));
+        if (!metrics) return chatter;
+
+        return {
+          ...chatter,
+          name: metrics.name,
+          startDate: metrics.startDate || chatter.startDate,
+          account: metrics.account || chatter.account,
+          kpis: {
+            ...chatter.kpis,
+            Tagesumsatz: formatEuro(metrics.revenueToday),
+            "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
+            MassDMs: String(metrics.massDms),
+          },
+        };
+      }),
+    })),
+  };
 }
 
 async function analyzeBatch(
@@ -167,16 +300,13 @@ async function analyzeBatchWithRetry(
       console.warn(`[analyze-csv] Batch ${batchNum} attempt ${attempt + 1} error: ${err.message}`);
       if (attempt < MAX_RETRIES) {
         console.log(`[analyze-csv] Batch ${batchNum}: retrying after error (attempt ${attempt + 2})…`);
-        // Keep currentLines the same for a full retry
         continue;
       }
-      // Last attempt also failed - throw so caller knows
       throw err;
     }
 
     allResults.push(result);
 
-    // Check which names from the CSV are missing in the result
     const returnedNames = getReturnedNames(mergeResults(allResults));
     const missingLines = currentLines.filter(line => {
       const csvName = extractNameFromCsvRow(line, nameColIndex);
@@ -417,8 +547,8 @@ Regeln:
       });
     }
 
-    // Merge all batch results
-    const merged = mergeResults(batchResults);
+    // Merge all batch results and overwrite KPI values with the raw CSV metrics
+    const merged = hydrateResultWithCsvMetrics(mergeResults(batchResults), resolvedCsvData);
     const totalChatters = merged.categories.reduce((s: number, c: any) => s + c.chatters.length, 0);
     console.log(`[analyze-csv] Merged: ${totalChatters} Chatter in ${merged.categories.length} Kategorien (${errors.length} Batch-Fehler)`);
 
