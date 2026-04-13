@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Pencil, Trash2, Save, X, CalendarIcon, DollarSign } from "lucide-react";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +9,9 @@ import { toast } from "sonner";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Model {
   id: string;
@@ -14,6 +19,25 @@ interface Model {
   follower_count: number;
   platform: string;
   created_at: string;
+}
+
+interface ModelRevenue {
+  totalRevenue: number;
+  days: number;
+}
+
+type PeriodKey = "7" | "14" | "30" | "90" | "custom";
+
+const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
+  { key: "7", label: "7 Tage" },
+  { key: "14", label: "14 Tage" },
+  { key: "30", label: "30 Tage" },
+  { key: "90", label: "90 Tage" },
+  { key: "custom", label: "Custom" },
+];
+
+function formatEur(v: number) {
+  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
 export default function Models() {
@@ -26,6 +50,29 @@ export default function Models() {
   const [editName, setEditName] = useState("");
   const [editFollowers, setEditFollowers] = useState("");
 
+  // Revenue filter state
+  const [period, setPeriod] = useState<PeriodKey>("30");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+  const [revenueFilter, setRevenueFilter] = useState<"all" | "earning" | "zero">("all");
+  const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
+
+  const dateRange = useMemo(() => {
+    if (period === "custom") {
+      return {
+        from: customFrom ? customFrom.toISOString().split("T")[0] : null,
+        to: customTo ? customTo.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      };
+    }
+    const days = parseInt(period);
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    return {
+      from: from.toISOString().split("T")[0],
+      to: new Date().toISOString().split("T")[0],
+    };
+  }, [period, customFrom, customTo]);
+
   const fetchModels = async () => {
     const { data } = await supabase
       .from("models")
@@ -35,10 +82,53 @@ export default function Models() {
     if (data) setModels(data);
   };
 
+  // Load revenue data from chatter_history grouped by account
+  useEffect(() => {
+    if (models.length === 0 || !dateRange.from) {
+      setModelRevenues({});
+      return;
+    }
+
+    const modelNames = models.map((m) => m.model_name);
+
+    const loadRevenues = async () => {
+      const { data } = await supabase
+        .from("chatter_history")
+        .select("account, revenue_today, analysis_date")
+        .eq("platform", platform)
+        .in("account", modelNames)
+        .gte("analysis_date", dateRange.from!)
+        .lte("analysis_date", dateRange.to);
+
+      const revMap: Record<string, ModelRevenue> = {};
+      if (data) {
+        for (const row of data) {
+          const acc = (row.account || "").trim();
+          if (!acc) continue;
+          if (!revMap[acc]) revMap[acc] = { totalRevenue: 0, days: 0 };
+          revMap[acc].totalRevenue += Number(row.revenue_today) || 0;
+          revMap[acc].days++;
+        }
+      }
+      setModelRevenues(revMap);
+    };
+
+    loadRevenues();
+  }, [models, platform, dateRange]);
+
   useEffect(() => {
     fetchModels();
     setEditId(null);
   }, [platform]);
+
+  const filteredModels = useMemo(() => {
+    if (revenueFilter === "all") return models;
+    return models.filter((m) => {
+      const rev = modelRevenues[m.model_name];
+      if (revenueFilter === "earning") return rev && rev.totalRevenue > 0;
+      return !rev || rev.totalRevenue === 0;
+    });
+  }, [models, revenueFilter, modelRevenues]);
 
   const addModel = async () => {
     if (!newName.trim()) return;
@@ -73,6 +163,9 @@ export default function Models() {
     toast.success("Gelöscht");
     fetchModels();
   };
+
+  const totalRevAll = Object.values(modelRevenues).reduce((s, r) => s + r.totalRevenue, 0);
+  const earningCount = models.filter((m) => modelRevenues[m.model_name]?.totalRevenue > 0).length;
 
   return (
     <AnimatePresence mode="wait">
@@ -120,6 +213,121 @@ export default function Models() {
           </div>
         </div>
 
+        {/* Revenue Filter Bar */}
+        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4 sm:p-6 backdrop-blur-2xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-3.5 w-3.5 text-white/20" />
+              <span className="text-[11px] text-white/40 font-medium tracking-wider uppercase">Umsatz-Filter</span>
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-light gold-text">{formatEur(totalRevAll)}</span>
+              <span className="text-[10px] text-white/20 ml-2">{earningCount}/{models.length} aktiv</span>
+            </div>
+          </div>
+
+          {/* Period Pills */}
+          <div className="flex flex-wrap gap-2">
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setPeriod(opt.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap",
+                  period === opt.key
+                    ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_-3px] shadow-primary/30"
+                    : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/70 hover:bg-white/[0.05]"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Date Range */}
+          {period === "custom" && (
+            <div className="flex flex-wrap gap-3 items-center">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "h-9 px-3 text-xs font-light bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]",
+                      !customFrom && "text-white/30"
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-2 text-white/25" />
+                    {customFrom ? format(customFrom, "dd.MM.yyyy") : "Von"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customFrom}
+                    onSelect={setCustomFrom}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-white/20 text-xs">–</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "h-9 px-3 text-xs font-light bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]",
+                      !customTo && "text-white/30"
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-2 text-white/25" />
+                    {customTo ? format(customTo, "dd.MM.yyyy") : "Bis"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customTo}
+                    onSelect={setCustomTo}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Earning Status Filter */}
+          <div className="flex gap-2">
+            {([
+              { key: "all" as const, label: "Alle" },
+              { key: "earning" as const, label: "Mit Umsatz" },
+              { key: "zero" as const, label: "Ohne Umsatz" },
+            ]).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setRevenueFilter(opt.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap",
+                  revenueFilter === opt.key
+                    ? opt.key === "earning"
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                      : opt.key === "zero"
+                      ? "bg-red-500/10 border-red-500/30 text-red-400"
+                      : "bg-white/[0.06] border-white/[0.12] text-white/70"
+                    : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:text-white/60 hover:bg-white/[0.05]"
+                )}
+              >
+                {opt.label}
+                {opt.key === "earning" && <span className="ml-1 text-[10px] opacity-60">{earningCount}</span>}
+                {opt.key === "zero" && <span className="ml-1 text-[10px] opacity-60">{models.length - earningCount}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Table */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-2xl">
           <table className="w-full text-sm">
@@ -127,52 +335,71 @@ export default function Models() {
               <tr className="border-b border-white/[0.04]">
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Model</th>
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Follower</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Umsatz</th>
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em] hidden sm:table-cell">Hinzugefügt</th>
                 <th className="text-right py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Aktionen</th>
               </tr>
             </thead>
             <tbody>
-              {models.length === 0 && (
+              {filteredModels.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-16 text-white/20 font-light text-sm">
-                    Keine Models
+                  <td colSpan={5} className="text-center py-16 text-white/20 font-light text-sm">
+                    {models.length === 0 ? "Keine Models" : "Keine Models für diesen Filter"}
                   </td>
                 </tr>
               )}
-              {models.map((m) => (
-                <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors duration-500">
-                  {editId === m.id ? (
-                    <>
-                      <td className="py-3 sm:py-4 px-4 sm:px-8">
-                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-4 sm:px-8">
-                        <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-4 sm:px-8 hidden sm:table-cell text-white/20 text-xs font-light">
-                        {new Date(m.created_at).toLocaleDateString("de-DE")}
-                      </td>
-                      <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1">
-                        <Button size="sm" variant="ghost" onClick={saveEdit} className="text-primary/60 hover:text-primary hover:bg-primary/5 h-7 w-7 p-0"><Save className="h-3.5 w-3.5" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="text-white/25 hover:text-white/50 h-7 w-7 p-0"><X className="h-3.5 w-3.5" /></Button>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="py-4 sm:py-5 px-4 sm:px-8">
-                        <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
-                        <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
-                      </td>
-                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
-                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
-                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
-                        <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => deleteModel(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+              {filteredModels.map((m) => {
+                const rev = modelRevenues[m.model_name];
+                const hasRevenue = rev && rev.totalRevenue > 0;
+
+                return (
+                  <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors duration-500">
+                    {editId === m.id ? (
+                      <>
+                        <td className="py-3 sm:py-4 px-4 sm:px-8">
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
+                        </td>
+                        <td className="py-3 sm:py-4 px-4 sm:px-8">
+                          <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
+                        </td>
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-white/20 text-xs font-light">
+                          {hasRevenue ? formatEur(rev.totalRevenue) : "–"}
+                        </td>
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 hidden sm:table-cell text-white/20 text-xs font-light">
+                          {new Date(m.created_at).toLocaleDateString("de-DE")}
+                        </td>
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1">
+                          <Button size="sm" variant="ghost" onClick={saveEdit} className="text-primary/60 hover:text-primary hover:bg-primary/5 h-7 w-7 p-0"><Save className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="text-white/25 hover:text-white/50 h-7 w-7 p-0"><X className="h-3.5 w-3.5" /></Button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8">
+                          <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
+                          <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
+                        </td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8">
+                          {hasRevenue ? (
+                            <div>
+                              <span className="text-sm font-light gold-text">{formatEur(rev.totalRevenue)}</span>
+                              <span className="block text-[10px] text-white/20 font-light mt-0.5">{rev.days} Einträge</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-white/15 font-light">Kein Umsatz</span>
+                          )}
+                        </td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
+                          <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => deleteModel(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
