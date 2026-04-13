@@ -12,6 +12,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Model {
   id: string;
@@ -408,5 +412,21 @@ export default function Models() {
         </div>
       </motion.div>
     </AnimatePresence>
+
+    <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialogContent className="bg-[#141414] border-white/5">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-foreground/85">Model löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Das Model wird unwiderruflich gelöscht. Bist du sicher?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="border-white/10 text-foreground/60">Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-red-500/80 hover:bg-red-500 text-white">Löschen</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
