@@ -11,6 +11,7 @@ import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus } fr
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
 
 interface ChatterData {
   name: string;
