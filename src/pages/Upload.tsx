@@ -472,12 +472,40 @@ export default function UploadPage() {
           const { result: batchResult, chattersReturned } = await callBatchFunction(
             header, batches[i], batchNum, totalBatches, accessToken
           );
-          batchResults.push(batchResult);
+          batchResults[i] = batchResult;
           chattersTotal += chattersReturned;
           addStatus(`✅ Batch ${batchNum} fertig: ${chattersReturned}/${batches[i].length} Chatter`);
         } catch (err: any) {
-          failedBatches.push(batchNum);
+          failedBatches.push(i);
           addStatus(`❌ Batch ${batchNum} fehlgeschlagen: ${err.message}`);
+        }
+      }
+
+      // Retry failed batches in additional rounds
+      for (let round = 1; round <= FAILED_BATCH_ROUNDS && failedBatches.length > 0; round++) {
+        if (cancelledRef.current) return;
+
+        const retryIndices = [...failedBatches];
+        failedBatches.length = 0;
+        addStatus(`🔄 Retry-Runde ${round}: ${retryIndices.length} fehlgeschlagene Batch(es)…`);
+        await new Promise(r => setTimeout(r, 3000 * round));
+
+        for (const idx of retryIndices) {
+          if (cancelledRef.current) return;
+          const batchNum = idx + 1;
+          addStatus(`🔁 Retry Batch ${batchNum}/${totalBatches}…`);
+
+          try {
+            const { result: batchResult, chattersReturned } = await callBatchFunction(
+              header, batches[idx], batchNum, totalBatches, accessToken
+            );
+            batchResults[idx] = batchResult;
+            chattersTotal += chattersReturned;
+            addStatus(`✅ Retry Batch ${batchNum} erfolgreich: ${chattersReturned}/${batches[idx].length} Chatter`);
+          } catch (err: any) {
+            failedBatches.push(idx);
+            addStatus(`❌ Retry Batch ${batchNum} erneut fehlgeschlagen: ${err.message}`);
+          }
         }
       }
 
