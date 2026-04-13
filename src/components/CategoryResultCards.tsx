@@ -509,6 +509,21 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       .then(({ data: rows }) => {
         if (rows) setLabelAssignments(rows as LabelAssignment[]);
       });
+
+    // Load model performance comparisons
+    const allChattersForModels = categories.flatMap((c) =>
+      c.chatters.map((ch) => ({ name: toTitleCase(ch.name), account: ch.account }))
+    );
+    supabase
+      .from("models")
+      .select("model_name, follower_count")
+      .eq("platform", platform)
+      .then(async ({ data: models }) => {
+        if (models && allChattersForModels.length > 0) {
+          const perfs = await loadModelPerformances(platform, allChattersForModels, models as ModelInfo[]);
+          setModelPerformances(perfs);
+        }
+      });
   }, [categories, platform]);
 
   const toggleDailyCheck = useCallback(async (chatterName: string) => {
