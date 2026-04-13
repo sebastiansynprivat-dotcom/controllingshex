@@ -15,12 +15,14 @@ import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/
 
 interface ChatterData {
   name: string;
+  account?: string;
   kpis: Record<string, string>;
   recommendation?: string;
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
   revenueHistory?: { date: string; revenue: number }[];
+  modelPerf?: ModelPerformance;
 }
 
 interface AnalysisCategory {
