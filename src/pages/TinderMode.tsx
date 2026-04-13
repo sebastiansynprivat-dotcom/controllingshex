@@ -185,6 +185,7 @@ export default function TinderMode() {
 
           allChatters.push({
             name: toTitleCase(ch.name),
+            account: ch.account,
             kpis: ch.kpis,
             recommendation: ch.recommendation,
             categoryEmoji: finalCategory.emoji,
