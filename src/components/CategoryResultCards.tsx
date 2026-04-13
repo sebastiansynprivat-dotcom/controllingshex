@@ -376,6 +376,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
   const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
   const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
+  const [modelPerformances, setModelPerformances] = useState<Record<string, ModelPerformance>>({});
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
