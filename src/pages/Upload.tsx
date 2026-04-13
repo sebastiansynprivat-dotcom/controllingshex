@@ -557,12 +557,13 @@ export default function UploadPage() {
 
       const validResults = batchResults.filter(Boolean);
 
-      // Step 3: Merge & Save
+      // Step 3: Merge & Save — CSV is the SINGLE source of truth
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
-      addStatus("[Step 3] Ergebnisse werden zusammengeführt…");
+      addStatus("[Step 3] Ergebnisse werden zusammengeführt (CSV = Quelle)…");
 
-      const merged = hydrateResultWithCsvMetrics(mergeResults(validResults), csvData);
+      const merged = buildResultFromCsv(csvData, validResults);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
+      addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
       // Save report to DB
       const today = new Date().toISOString().split("T")[0];
