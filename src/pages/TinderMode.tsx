@@ -501,7 +501,7 @@ export default function TinderMode() {
       {/* Category filter chips */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
         <button
-          onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); }}
+          onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
           className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
             !selectedCategory
               ? "bg-primary text-primary-foreground border-primary"
@@ -513,7 +513,7 @@ export default function TinderMode() {
         {uniqueCategories.map((cat) => (
           <button
             key={cat.name}
-            onClick={() => { setSelectedCategory(cat.name); setCategoryDonePrompt(null); }}
+            onClick={() => { setSelectedCategory(cat.name); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
             className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-all font-medium whitespace-nowrap ${
               selectedCategory === cat.name
                 ? "bg-primary text-primary-foreground border-primary"
@@ -539,7 +539,7 @@ export default function TinderMode() {
       </div>
 
       {/* Card stack */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-0" key={`stack-${selectedCategory ?? 'all'}`}>
         {isDone && allDone ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
