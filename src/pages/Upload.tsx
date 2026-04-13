@@ -504,7 +504,20 @@ export default function UploadPage() {
         chatter_count: totalReturned,
         user_id: user?.id,
       };
-...
+
+      const { data: existingReport } = await supabase
+        .from("analysis_reports")
+        .select("id")
+        .eq("file_path", uploadedFilePath)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingReport) {
+        await supabase.from("analysis_reports").update(reportPayload).eq("id", existingReport.id);
+      } else {
+        await supabase.from("analysis_reports").insert(reportPayload);
+      }
+
       // Save chatter history
       try {
         await saveChatterHistory(merged, platform, user?.id);

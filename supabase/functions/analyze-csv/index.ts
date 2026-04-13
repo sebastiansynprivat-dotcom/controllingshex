@@ -233,7 +233,102 @@ async function analyzeBatch(
   batchNum: number,
   totalBatches: number,
 ): Promise<any> {
-...
+  const batchCsv = [header, ...batchLines].join("\n");
+  const userMessage = `Plattform: ${activePlatform}\nBatch ${batchNum}/${totalBatches} (${batchLines.length} Chatter)\n\nCSV-Daten:\n\n${batchCsv}\n\nModels (${activePlatform}):\n${modelsText}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 16384,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`AI error ${response.status}: ${errText.substring(0, 200)}`);
+    }
+
+    const aiResult = await response.json();
+    const resultText = aiResult.choices?.[0]?.message?.content || "";
+    console.log(`[analyze-csv] Batch ${batchNum}/${totalBatches}: ${resultText.length} chars`);
+    return cleanAndParseJson(resultText);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") throw new Error(`Batch ${batchNum} timeout`);
+    throw err;
+  }
+}
+
+async function analyzeBatchWithRetry(
+  lovableApiKey: string,
+  systemPrompt: string,
+  header: string,
+  batchLines: string[],
+  activePlatform: string,
+  modelsText: string,
+  batchNum: number,
+  totalBatches: number,
+  nameColIndex: number,
+): Promise<any> {
+  const MAX_RETRIES = 3;
+  let currentLines = batchLines;
+  const allResults: any[] = [];
+  let parseFailures = 0;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let result: any;
+    try {
+      result = await analyzeBatch(lovableApiKey, systemPrompt, header, currentLines, activePlatform, modelsText, batchNum, totalBatches);
+    } catch (err: any) {
+      parseFailures++;
+      console.warn(`[analyze-csv] Batch ${batchNum} attempt ${attempt + 1} error: ${err.message}`);
+      if (attempt < MAX_RETRIES) {
+        console.log(`[analyze-csv] Batch ${batchNum}: retrying after error (attempt ${attempt + 2})…`);
+        continue;
+      }
+      throw err;
+    }
+
+    allResults.push(result);
+
+    const returnedNames = getReturnedNames(mergeResults(allResults));
+    const missingLines = currentLines.filter(line => {
+      const csvName = extractNameFromCsvRow(line, nameColIndex);
+      return csvName && !returnedNames.has(normalizeName(csvName));
+    });
+
+    if (missingLines.length === 0) {
+      console.log(`[analyze-csv] Batch ${batchNum}: 100% coverage after attempt ${attempt + 1}`);
+      break;
+    }
+
+    if (attempt < MAX_RETRIES) {
+      console.log(`[analyze-csv] Batch ${batchNum}: ${missingLines.length} missing, retry ${attempt + 1}…`);
+      currentLines = missingLines;
+    } else {
+      console.warn(`[analyze-csv] Batch ${batchNum}: ${missingLines.length} still missing after ${MAX_RETRIES + 1} attempts`);
+    }
+  }
+
+  return mergeResults(allResults);
+}
+
 function mergeResults(results: any[]): any {
   const categoryMap = new Map<string, any>();
   for (const result of results) {
