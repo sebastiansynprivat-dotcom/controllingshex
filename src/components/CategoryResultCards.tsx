@@ -902,7 +902,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 /*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck, labels }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void; labels?: ChatterLabel[] }) {
+function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck, labels, modelPerf }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void; labels?: ChatterLabel[]; modelPerf?: ModelPerformance }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const sparkContainerRef = useRef<HTMLDivElement>(null);
