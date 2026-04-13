@@ -159,7 +159,10 @@ export default function Models() {
                     </>
                   ) : (
                     <>
-                      <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</td>
+                      <td className="py-4 sm:py-5 px-4 sm:px-8">
+                        <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
+                        <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
+                      </td>
                       <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
                       <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
                       <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
