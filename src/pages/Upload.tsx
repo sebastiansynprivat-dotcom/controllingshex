@@ -199,32 +199,6 @@ function formatEuro(value: number): string {
   return `${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 }
 
-function hydrateResultWithCsvMetrics(result: AnalysisResult, csvData: string): AnalysisResult {
-  const csvMetrics = buildCsvMetricMap(csvData);
-
-  return {
-    categories: result.categories.map((category) => ({
-      ...category,
-      chatters: category.chatters.map((chatter) => {
-        const metrics = csvMetrics.get(normalizeName(chatter.name || ""));
-        if (!metrics) return chatter;
-
-        return {
-          ...chatter,
-          name: metrics.name,
-          startDate: metrics.startDate || chatter.startDate,
-          account: metrics.account || chatter.account,
-          kpis: {
-            ...chatter.kpis,
-            Tagesumsatz: formatEuro(metrics.revenueToday),
-            "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
-            MassDMs: String(metrics.massDms),
-          },
-        };
-      }),
-    })),
-  };
-}
 
 /**
  * Build AI lookup: normalized name → { category, emoji, recommendation, kpis }
