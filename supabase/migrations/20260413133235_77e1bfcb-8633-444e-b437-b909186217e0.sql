@@ -1,0 +1,1 @@
+ALTER TABLE public.chatter_history ADD COLUMN account text;
