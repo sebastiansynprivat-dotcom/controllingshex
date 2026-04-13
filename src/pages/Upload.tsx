@@ -199,55 +199,66 @@ function formatEuro(value: number): string {
   return `${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 }
 
-function hydrateResultWithCsvMetrics(result: AnalysisResult, csvData: string): AnalysisResult {
-  const csvMetrics = buildCsvMetricMap(csvData);
 
-  return {
-    categories: result.categories.map((category) => ({
-      ...category,
-      chatters: category.chatters.map((chatter) => {
-        const metrics = csvMetrics.get(normalizeName(chatter.name || ""));
-        if (!metrics) return chatter;
-
-        return {
-          ...chatter,
-          name: metrics.name,
-          startDate: metrics.startDate || chatter.startDate,
-          account: metrics.account || chatter.account,
-          kpis: {
-            ...chatter.kpis,
-            Tagesumsatz: formatEuro(metrics.revenueToday),
-            "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
-            MassDMs: String(metrics.massDms),
-          },
-        };
-      }),
-    })),
-  };
-}
-
-function mergeResults(results: any[]): AnalysisResult {
-  const categoryMap = new Map<string, AnalysisCategory>();
-  const seenNames = new Set<string>();
-
+/**
+ * Build AI lookup: normalized name → { category, emoji, recommendation, kpis }
+ */
+function buildAiLookup(results: any[]): Map<string, { category: string; emoji: string; recommendation: string; kpis: Record<string, string> }> {
+  const lookup = new Map<string, { category: string; emoji: string; recommendation: string; kpis: Record<string, string> }>();
   for (const result of results) {
     for (const cat of result.categories || []) {
-      const key = cat.categoryName;
-      if (!categoryMap.has(key)) {
-        categoryMap.set(key, { ...cat, chatters: [] });
-      }
       for (const chatter of cat.chatters || []) {
-        const normalized = normalizeName(chatter.name || "");
-        if (normalized && !seenNames.has(normalized)) {
-          seenNames.add(normalized);
-          categoryMap.get(key)!.chatters.push(chatter);
+        const key = normalizeName(chatter.name || "");
+        if (key && !lookup.has(key)) {
+          lookup.set(key, {
+            category: cat.categoryName || "WEITER SO",
+            emoji: cat.emoji || "⚪",
+            recommendation: chatter.recommendation || "",
+            kpis: chatter.kpis || {},
+          });
         }
       }
     }
   }
+  return lookup;
+}
 
-  const categories = Array.from(categoryMap.values()).filter(c => c.chatters.length > 0);
-  return { categories };
+/**
+ * CSV is the SINGLE source of truth for the chatter list.
+ * AI only contributes: category, emoji, recommendation.
+ * KPIs come from the CSV directly.
+ */
+function buildResultFromCsv(
+  csvData: string,
+  aiResults: any[]
+): AnalysisResult {
+  const csvMetrics = buildCsvMetricMap(csvData);
+  const aiLookup = buildAiLookup(aiResults);
+  const categoryMap = new Map<string, AnalysisCategory>();
+
+  for (const [normalizedName, metrics] of csvMetrics) {
+    const ai = aiLookup.get(normalizedName);
+    const category = ai?.category || "WEITER SO";
+    const emoji = ai?.emoji || "⚪";
+
+    if (!categoryMap.has(category)) {
+      categoryMap.set(category, { emoji, categoryName: category, chatters: [] });
+    }
+
+    categoryMap.get(category)!.chatters.push({
+      name: metrics.name,
+      startDate: metrics.startDate,
+      account: metrics.account,
+      kpis: {
+        Tagesumsatz: formatEuro(metrics.revenueToday),
+        "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
+        MassDMs: String(metrics.massDms),
+      },
+      recommendation: ai?.recommendation || "Keine Empfehlung verfügbar.",
+    });
+  }
+
+  return { categories: Array.from(categoryMap.values()).filter(c => c.chatters.length > 0) };
 }
 
 async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
@@ -520,12 +531,13 @@ export default function UploadPage() {
 
       const validResults = batchResults.filter(Boolean);
 
-      // Step 3: Merge & Save
+      // Step 3: Merge & Save — CSV is the SINGLE source of truth
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
-      addStatus("[Step 3] Ergebnisse werden zusammengeführt…");
+      addStatus("[Step 3] Ergebnisse werden zusammengeführt (CSV = Quelle)…");
 
-      const merged = hydrateResultWithCsvMetrics(mergeResults(validResults), csvData);
+      const merged = buildResultFromCsv(csvData, validResults);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
+      addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
       // Save report to DB
       const today = new Date().toISOString().split("T")[0];
