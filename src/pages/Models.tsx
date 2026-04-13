@@ -13,6 +13,7 @@ interface Model {
   model_name: string;
   follower_count: number;
   platform: string;
+  created_at: string;
 }
 
 export default function Models() {
@@ -126,13 +127,14 @@ export default function Models() {
               <tr className="border-b border-white/[0.04]">
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Model</th>
                 <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Follower</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em] hidden sm:table-cell">Hinzugefügt</th>
                 <th className="text-right py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Aktionen</th>
               </tr>
             </thead>
             <tbody>
               {models.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="text-center py-16 text-white/20 font-light text-sm">
+                  <td colSpan={4} className="text-center py-16 text-white/20 font-light text-sm">
                     Keine Models
                   </td>
                 </tr>
