@@ -12,6 +12,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Model {
   id: string;
@@ -48,6 +52,7 @@ export default function Models() {
   const [newFollowers, setNewFollowers] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editFollowers, setEditFollowers] = useState("");
 
   // Revenue filter state
@@ -157,10 +162,12 @@ export default function Models() {
     fetchModels();
   };
 
-  const deleteModel = async (id: string) => {
-    const { error } = await supabase.from("models").delete().eq("id", id);
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    const { error } = await supabase.from("models").delete().eq("id", deleteConfirmId);
     if (error) { toast.error("Fehler beim Löschen"); return; }
     toast.success("Gelöscht");
+    setDeleteConfirmId(null);
     fetchModels();
   };
 
@@ -168,6 +175,7 @@ export default function Models() {
   const earningCount = models.filter((m) => modelRevenues[m.model_name]?.totalRevenue > 0).length;
 
   return (
+    <>
     <AnimatePresence mode="wait">
       <motion.div
         key={platform}
@@ -393,7 +401,7 @@ export default function Models() {
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
                           <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="ghost" onClick={() => deleteModel(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => setDeleteConfirmId(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </td>
                       </>
                     )}
@@ -405,5 +413,21 @@ export default function Models() {
         </div>
       </motion.div>
     </AnimatePresence>
+
+    <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialogContent className="bg-[#141414] border-white/5">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-foreground/85">Model löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Das Model wird unwiderruflich gelöscht. Bist du sicher?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="border-white/10 text-foreground/60">Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-red-500/80 hover:bg-red-500 text-white">Löschen</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
