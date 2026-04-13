@@ -2,6 +2,8 @@ import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "fra
 import { useMemo, useCallback, useRef, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
+import { Users } from "lucide-react";
+import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 
 interface ChatterData {
   name: string;
@@ -11,6 +13,7 @@ interface ChatterData {
   categoryName?: string;
   startDate?: string;
   revenueHistory?: { date: string; revenue: number }[];
+  modelPerf?: ModelPerformance;
 }
 
 interface Props {
