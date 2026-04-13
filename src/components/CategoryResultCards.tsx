@@ -551,8 +551,10 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     for (const a of labelAssignments) {
       const label = labelMap.get(a.label_id);
       if (label) {
-        if (!map[a.chatter_name]) map[a.chatter_name] = [];
-        map[a.chatter_name].push(label);
+        // Store under normalized key for reliable lookup
+        const key = normalizeChatterName(a.chatter_name);
+        if (!map[key]) map[key] = [];
+        map[key].push(label);
       }
     }
     return map;
@@ -585,7 +587,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         .map((cat) => ({
           ...cat,
           chatters: cat.chatters.filter((ch) => {
-            const labels = chatterLabelsMap[toTitleCase(ch.name)] || [];
+            const key = normalizeChatterName(ch.name);
+            const labels = chatterLabelsMap[key] || [];
             return labels.some((l) => activeLabelFilters.has(l.id));
           }),
         }))
@@ -666,7 +669,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             value={activeLabelFilters.size === 1 ? [...activeLabelFilters][0] : "all-labels"}
             onValueChange={(val) => {
               if (val === "all-labels") { setActiveLabelFilters(new Set()); }
-              else { toggleLabelFilter(val); }
+              else { setActiveLabelFilters(new Set([val])); }
             }}
           >
             <SelectTrigger className="flex-1 bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
@@ -861,7 +864,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
                 <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
               </div>
             ) : visible.map((chatter, i) => (
-              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(normalizeChatterName(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[toTitleCase(chatter.name)]} />
+              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(normalizeChatterName(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[normalizeChatterName(chatter.name)]} />
             ))}
           </div>
           {hasMore && (
