@@ -551,8 +551,10 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     for (const a of labelAssignments) {
       const label = labelMap.get(a.label_id);
       if (label) {
-        if (!map[a.chatter_name]) map[a.chatter_name] = [];
-        map[a.chatter_name].push(label);
+        // Store under normalized key for reliable lookup
+        const key = normalizeChatterName(a.chatter_name);
+        if (!map[key]) map[key] = [];
+        map[key].push(label);
       }
     }
     return map;
@@ -585,7 +587,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         .map((cat) => ({
           ...cat,
           chatters: cat.chatters.filter((ch) => {
-            const labels = chatterLabelsMap[toTitleCase(ch.name)] || [];
+            const key = normalizeChatterName(ch.name);
+            const labels = chatterLabelsMap[key] || [];
             return labels.some((l) => activeLabelFilters.has(l.id));
           }),
         }))
