@@ -218,6 +218,22 @@ export default function TinderMode() {
         }
       }
 
+      // Load model performances
+      const { data: models } = await supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("platform", platform);
+
+      if (models && allChatters.length > 0) {
+        const perfs = await loadModelPerformances(
+          platform,
+          allChatters.map((c) => ({ name: c.name, account: c.account })),
+          models as ModelInfo[]
+        );
+        for (const ch of allChatters) {
+          if (perfs[ch.name]) ch.modelPerf = perfs[ch.name];
+        }
+      }
       // Load today's checks
       const today = new Date().toISOString().split("T")[0];
       const { data: checks } = await supabase
