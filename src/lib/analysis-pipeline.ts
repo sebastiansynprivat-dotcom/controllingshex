@@ -198,12 +198,17 @@ export function step2_categorize(chatters: CleanedChatter[]): CategorizedChatter
       };
     }
 
-    // Priority 3: 🟩 GRÜN — Top-Performer (All-Time > 500€ AND Oldest Chat ≤ 2)
+    // Priority 3: 🔴 ROT — Null Euro Tag (Tagesumsatz = 0€)
+    if (ch.revenueToday === 0) {
+      return { ...ch, category: "NULL EURO TAG", emoji: "🔴" };
+    }
+
+    // Priority 4: 🟩 GRÜN — Top-Performer (All-Time > 500€ AND Oldest Chat ≤ 2)
     if (ch.revenueAllTime > 500 && ch.oldestChatDays <= 2) {
       return { ...ch, category: "ACCOUNT UPGRADE (UMSATZ-STREAK)", emoji: "🟢" };
     }
 
-    // Priority 4: 🟧 ORANGE — Mittelfeld (alle anderen)
+    // Priority 5: ⚪ Mittelfeld (alle anderen)
     return { ...ch, category: "WEITER SO / MITTELFELD", emoji: "⚪" };
   });
 }
