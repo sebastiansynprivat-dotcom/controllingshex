@@ -401,7 +401,7 @@ export default function UploadPage() {
               "Authorization": `Bearer ${accessToken}`,
             },
             body: JSON.stringify({ header, batchLines, platform, batchNum, totalBatches }),
-            signal: AbortSignal.timeout(150000),
+            signal: AbortSignal.timeout(180000),
           }
         );
 
@@ -416,7 +416,7 @@ export default function UploadPage() {
         const isLastAttempt = attempt === BATCH_RETRIES;
         if (isLastAttempt) throw err;
         addStatus(`🔁 Batch ${batchNum} Retry ${attempt + 1}/${BATCH_RETRIES}…`);
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
       }
     }
     throw new Error("Unreachable");
