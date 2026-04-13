@@ -125,6 +125,7 @@ function mapToAllowed(rawName: string): { emoji: string; name: string } {
   if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
   if (/TOP.?PERFORMER/i.test(rawName)) return { emoji: "⭐", name: "TOP PERFORMER" };
   if (/UNTER.?BEOBACHTUNG/i.test(rawName)) return { emoji: "👀", name: "UNTER BEOBACHTUNG" };
+  if (/NULL\s*EURO\s*TAG/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ TAG 1" };
   if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: MITTELFELD };
 
   // 0€ Umsatz with day number

@@ -475,7 +475,7 @@ Das JSON muss exakt dieses Schema haben:
 
 KATEGORIE-DEFINITIONEN (nutze NUR diese categoryName-Werte!):
 
-⚠️ ACCOUNT-EINBRUCH — Account war historisch stark, bricht plötzlich massiv ein ODER neuer Chatter performt viel schlechter als Vorgänger. PRIORISIERE DIES!
+⚠️ ACCOUNT-EINBRUCH — NUR wenn der Chatter in den letzten 7-14 Tagen einen Durchschnitt von mindestens 20€/Tag hatte und JETZT plötzlich 0€ macht. Wenn der Chatter NIE signifikanten Umsatz hatte (Durchschnitt < 20€), ist es KEIN Einbruch sondern eine 0€-Kategorie! Prüfe die historischen Daten genau.
 🔄 MODEL-TAUSCH — Chatter ist zu groß/klein für den Account. Mache einen konkreten Wechsel-Vorschlag mit einem freien Account.
 🔵 ONBOARDING TAG 1 — Seit gestern aktiv. Fokus: Ist er fleißig angefangen?
 🔵 ONBOARDING TAG 2 — Seit 2 Tagen aktiv. Fokus: Baut er Rückstände auf?

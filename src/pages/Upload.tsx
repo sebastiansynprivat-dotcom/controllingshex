@@ -228,9 +228,16 @@ function buildAiLookup(results: any[]): Map<string, { category: string; emoji: s
  * AI only contributes: category, emoji, recommendation.
  * KPIs come from the CSV directly.
  */
+/** Categories that are impossible when revenue is 0€ */
+const POSITIVE_CATEGORIES = new Set([
+  "ACCOUNT UPGRADE (UMSATZ-STREAK)", "ACCOUNT UPGRADE (ZUVERLÄSSIG)",
+  "BREAKOUT-STAR", "TOP PERFORMER", "KURZ VOR UPGRADE", "COMEBACK",
+]);
+
 function buildResultFromCsv(
   csvData: string,
-  aiResults: any[]
+  aiResults: any[],
+  historyMap?: Map<string, { revenueToday: number; date: string }[]>
 ): AnalysisResult {
   const csvMetrics = buildCsvMetricMap(csvData);
   const aiLookup = buildAiLookup(aiResults);
@@ -238,8 +245,45 @@ function buildResultFromCsv(
 
   for (const [normalizedName, metrics] of csvMetrics) {
     const ai = aiLookup.get(normalizedName);
-    const category = ai?.category || "WEITER SO";
-    const emoji = ai?.emoji || "⚪";
+    let category = ai?.category || "WEITER SO";
+    let emoji = ai?.emoji || "⚪";
+
+    // === SAFETY OVERRIDE: 0€ revenue cannot be in positive categories ===
+    if (metrics.revenueToday === 0) {
+      const isOnboarding = /ONBOARDING/i.test(category);
+      const isWarnung = /WARNUNG/i.test(category);
+
+      if (!isOnboarding && !isWarnung) {
+        // Count consecutive 0€ days from history
+        let streak = 1; // today counts as day 1
+        const hist = historyMap?.get(normalizedName);
+        if (hist && hist.length > 0) {
+          const sorted = [...hist].sort((a, b) => b.date.localeCompare(a.date));
+          for (const entry of sorted) {
+            if (entry.revenueToday === 0) streak++;
+            else break;
+          }
+        }
+
+        // Allow ACCOUNT-EINBRUCH only if chatter had significant past revenue
+        const isEinbruch = /EINBRUCH/i.test(category);
+        if (isEinbruch && hist && hist.length > 0) {
+          const avgPastRevenue = hist.reduce((s, h) => s + h.revenueToday, 0) / hist.length;
+          if (avgPastRevenue >= 20) {
+            // Genuine drop-off — keep EINBRUCH
+          } else {
+            // Not a real Einbruch, just a 0€ chatter
+            const tagLabel = streak >= 7 ? "7+" : String(streak);
+            category = `0€ UMSATZ TAG ${tagLabel}`;
+            emoji = "📉";
+          }
+        } else if (POSITIVE_CATEGORIES.has(category) || /WEITER\s*SO|MITTELFELD/i.test(category)) {
+          const tagLabel = streak >= 7 ? "7+" : String(streak);
+          category = `0€ UMSATZ TAG ${tagLabel}`;
+          emoji = "📉";
+        }
+      }
+    }
 
     if (!categoryMap.has(category)) {
       categoryMap.set(category, { emoji, categoryName: category, chatters: [] });
