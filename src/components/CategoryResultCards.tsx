@@ -669,7 +669,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             value={activeLabelFilters.size === 1 ? [...activeLabelFilters][0] : "all-labels"}
             onValueChange={(val) => {
               if (val === "all-labels") { setActiveLabelFilters(new Set()); }
-              else { toggleLabelFilter(val); }
+              else { setActiveLabelFilters(new Set([val])); }
             }}
           >
             <SelectTrigger className="flex-1 bg-white/[0.02] border-white/[0.06] text-white/60 text-xs h-9">
