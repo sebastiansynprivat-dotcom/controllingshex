@@ -36,6 +36,9 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const y = useMotionValue(0);
   const controls = useAnimation();
   const didHandleGestureRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const lastTapRef = useRef<number>(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
   const opacityRight = useTransform(x, [0, 100], [0, 1]);
