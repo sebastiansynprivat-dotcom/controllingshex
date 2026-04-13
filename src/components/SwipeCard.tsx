@@ -109,6 +109,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   }, [controls]);
 
   const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    isDraggingRef.current = true;
     if (didHandleGestureRef.current) return;
 
     const absX = Math.abs(info.offset.x);
@@ -119,6 +120,35 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       openDetails();
     }
   }, [openDetails]);
+
+  const handleCardTap = useCallback(() => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double-tap → Details
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+      triggerHaptic("medium");
+      onSwipeUp();
+    } else {
+      // Single-tap → nach 300ms Name kopieren
+      tapTimerRef.current = setTimeout(() => {
+        navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
+        toast.success("Name kopiert");
+        triggerHaptic("light");
+      }, 300);
+    }
+    lastTapRef.current = now;
+  }, [chatter.name, onSwipeUp]);
+
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    };
+  }, []);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     if (didHandleGestureRef.current) {
