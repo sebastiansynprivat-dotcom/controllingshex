@@ -196,7 +196,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       initial={isTop ? { scale: 0.95, opacity: 0 } : false}
       whileDrag={isTop ? { scale: 1.02 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
-        // Reset motion values after mount animation
+      onAnimationComplete={() => {
         if (x.get() === 0 && y.get() === 0) return;
       }}
     >
