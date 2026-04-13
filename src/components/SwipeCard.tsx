@@ -153,6 +153,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     if (didHandleGestureRef.current) {
       didHandleGestureRef.current = false;
+      isDraggingRef.current = false;
       return;
     }
 
@@ -194,7 +195,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       animate={isTop ? controls : undefined}
       initial={isTop ? { scale: 0.95, opacity: 0 } : false}
       whileDrag={isTop ? { scale: 1.02 } : undefined}
-      onAnimationComplete={() => {
+      onClick={isTop ? handleCardTap : undefined}
         // Reset motion values after mount animation
         if (x.get() === 0 && y.get() === 0) return;
       }}
@@ -246,17 +247,9 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         )}
       </div>
 
-      {/* Name — tap to copy */}
+      {/* Name */}
       <h2
-        className={`text-xl font-semibold text-foreground mb-4 capitalize transition-colors ${
-          isTop ? "cursor-pointer active:text-primary" : ""
-        }`}
-        onClick={isTop ? (e) => {
-          e.stopPropagation();
-          navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
-          toast.success("Name kopiert");
-        } : undefined}
-        title={isTop ? "Klicken zum Kopieren" : undefined}
+        className="text-xl font-semibold text-foreground mb-4 capitalize"
       >
         {chatter.name.replace(/_/g, " ")}
       </h2>
