@@ -11,15 +11,18 @@ import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus } fr
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
 
 interface ChatterData {
   name: string;
+  account?: string;
   kpis: Record<string, string>;
   recommendation?: string;
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
   revenueHistory?: { date: string; revenue: number }[];
+  modelPerf?: ModelPerformance;
 }
 
 interface AnalysisCategory {
@@ -182,6 +185,7 @@ export default function TinderMode() {
 
           allChatters.push({
             name: toTitleCase(ch.name),
+            account: ch.account,
             kpis: ch.kpis,
             recommendation: ch.recommendation,
             categoryEmoji: finalCategory.emoji,
@@ -214,6 +218,22 @@ export default function TinderMode() {
         }
       }
 
+      // Load model performances
+      const { data: models } = await supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("platform", platform);
+
+      if (models && allChatters.length > 0) {
+        const perfs = await loadModelPerformances(
+          platform,
+          allChatters.map((c) => ({ name: c.name, account: c.account })),
+          models as ModelInfo[]
+        );
+        for (const ch of allChatters) {
+          if (perfs[ch.name]) ch.modelPerf = perfs[ch.name];
+        }
+      }
       // Load today's checks
       const today = new Date().toISOString().split("T")[0];
       const { data: checks } = await supabase

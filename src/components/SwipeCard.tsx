@@ -2,6 +2,8 @@ import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "fra
 import { useMemo, useCallback, useRef, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
+import { Users } from "lucide-react";
+import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 
 interface ChatterData {
   name: string;
@@ -11,6 +13,7 @@ interface ChatterData {
   categoryName?: string;
   startDate?: string;
   revenueHistory?: { date: string; revenue: number }[];
+  modelPerf?: ModelPerformance;
 }
 
 interface Props {
@@ -249,10 +252,35 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
 
       {/* Name */}
       <h2
-        className="text-xl font-semibold text-foreground mb-4 capitalize"
+        className="text-xl font-semibold text-foreground mb-1 capitalize"
       >
         {chatter.name.replace(/_/g, " ")}
       </h2>
+
+      {/* Model Performance Badge */}
+      {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+            <Users className="h-3 w-3" />
+            {formatFollowers(chatter.modelPerf.followers)}
+          </span>
+          {chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
+            <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
+              chatter.modelPerf.status === "better"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : chatter.modelPerf.status === "worse"
+                ? "bg-red-500/10 text-red-400"
+                : "bg-secondary text-muted-foreground"
+            }`}>
+              {chatter.modelPerf.percentChange > 0 ? "+" : ""}{chatter.modelPerf.percentChange}% vs. Vorgänger
+            </span>
+          )}
+          {chatter.modelPerf.status === "first" && (
+            <span className="text-[10px] text-muted-foreground/40">Erster Chatter</span>
+          )}
+        </div>
+      )}
+      {(!chatter.modelPerf || !chatter.modelPerf.followers) && <div className="mb-3" />}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-2.5 mb-4">

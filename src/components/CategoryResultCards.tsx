@@ -1,4 +1,4 @@
-import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Filter, Tag, TrendingUp, TrendingDown, Minus, CheckCircle2, Copy, ChevronDown, ChevronUp, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip as RechartsTooltip } from "recharts";
+import { loadModelPerformances, formatFollowers, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
@@ -375,6 +376,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [dailyChecks, setDailyChecks] = useState<Set<string>>(new Set());
   const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
   const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
+  const [modelPerformances, setModelPerformances] = useState<Record<string, ModelPerformance>>({});
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -506,6 +508,21 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       .eq("platform", platform)
       .then(({ data: rows }) => {
         if (rows) setLabelAssignments(rows as LabelAssignment[]);
+      });
+
+    // Load model performance comparisons
+    const allChattersForModels = categories.flatMap((c) =>
+      c.chatters.map((ch) => ({ name: toTitleCase(ch.name), account: ch.account }))
+    );
+    supabase
+      .from("models")
+      .select("model_name, follower_count")
+      .eq("platform", platform)
+      .then(async ({ data: models }) => {
+        if (models && allChattersForModels.length > 0) {
+          const perfs = await loadModelPerformances(platform, allChattersForModels, models as ModelInfo[]);
+          setModelPerformances(perfs);
+        }
       });
   }, [categories, platform]);
 
@@ -809,7 +826,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.45, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
-              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} chatterLabelsMap={chatterLabelsMap} collapsed={allCollapsed} />
+              <CategoryCard category={cat} onChatterClick={onChatterSelect} chatterStats={chatterStats} videoCoachings={videoCoachings} dailyChecks={dailyChecks} onToggleCheck={toggleDailyCheck} chatterLabelsMap={chatterLabelsMap} collapsed={allCollapsed} modelPerformances={modelPerformances} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -824,7 +841,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
 const INITIAL_VISIBLE = 10;
 
-function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck, chatterLabelsMap, collapsed }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void; chatterLabelsMap: Record<string, ChatterLabel[]>; collapsed?: boolean }) {
+function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, dailyChecks, onToggleCheck, chatterLabelsMap, collapsed, modelPerformances }: { category: Category; onChatterClick: (name: string) => void; chatterStats: Record<string, ChatterStats>; videoCoachings: Record<string, string>; dailyChecks: Set<string>; onToggleCheck: (name: string) => void; chatterLabelsMap: Record<string, ChatterLabel[]>; collapsed?: boolean; modelPerformances?: Record<string, ModelPerformance> }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [localOpen, setLocalOpen] = useState(false);
   const visible = category.chatters.slice(0, visibleCount);
@@ -864,7 +881,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
                 <p className="text-[11px] text-white/20 font-light tracking-wider">Keine Chatter in dieser Kategorie</p>
               </div>
             ) : visible.map((chatter, i) => (
-              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(normalizeChatterName(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[normalizeChatterName(chatter.name)]} />
+              <ChatterItem key={i} chatter={chatter} onChatterClick={onChatterClick} stats={chatterStats[toTitleCase(chatter.name)]} videoCoachingSentAt={videoCoachings[toTitleCase(chatter.name)]} isChecked={dailyChecks.has(normalizeChatterName(chatter.name))} onToggleCheck={() => onToggleCheck(toTitleCase(chatter.name))} labels={chatterLabelsMap[normalizeChatterName(chatter.name)]} modelPerf={modelPerformances?.[toTitleCase(chatter.name)]} />
             ))}
           </div>
           {hasMore && (
@@ -885,7 +902,7 @@ function CategoryCard({ category, onChatterClick, chatterStats, videoCoachings, 
 /*  CHATTER ITEM — Clean grid layout                                   */
 /* ------------------------------------------------------------------ */
 
-function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck, labels }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void; labels?: ChatterLabel[] }) {
+function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isChecked, onToggleCheck, labels, modelPerf }: { chatter: Chatter; onChatterClick: (name: string) => void; stats?: ChatterStats; videoCoachingSentAt?: string; isChecked?: boolean; onToggleCheck?: () => void; labels?: ChatterLabel[]; modelPerf?: ModelPerformance }) {
   const kpiEntries = Object.entries(chatter.kpis || {});
   const [nameCopied, setNameCopied] = useState(false);
   const sparkContainerRef = useRef<HTMLDivElement>(null);
@@ -961,6 +978,29 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
             {chatter.account || "Kein Account zugewiesen"}
             {chatter.startDate && ` · ${chatter.startDate}`}
           </p>
+          {modelPerf && modelPerf.followers > 0 && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="inline-flex items-center gap-1 text-[10px] text-white/30 font-light">
+                <Users className="h-3 w-3 text-white/20" />
+                {formatFollowers(modelPerf.followers)}
+              </span>
+              {modelPerf.status !== "first" && modelPerf.percentChange !== null && (
+                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  modelPerf.status === "better"
+                    ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20"
+                    : modelPerf.status === "worse"
+                    ? "bg-red-500/10 text-red-400/80 border border-red-500/20"
+                    : "bg-white/[0.04] text-white/30 border border-white/[0.06]"
+                }`}>
+                  {modelPerf.status === "better" ? "↑" : modelPerf.status === "worse" ? "↓" : "→"}
+                  {modelPerf.percentChange > 0 ? "+" : ""}{modelPerf.percentChange}% vs. {modelPerf.previousChatterName}
+                </span>
+              )}
+              {modelPerf.status === "first" && (
+                <span className="text-[10px] text-white/15 font-light">Erster Chatter</span>
+              )}
+            </div>
+          )}
           {videoCoachingSentAt && (() => {
             const days = Math.floor((Date.now() - new Date(videoCoachingSentAt).getTime()) / 86400000);
             return (
