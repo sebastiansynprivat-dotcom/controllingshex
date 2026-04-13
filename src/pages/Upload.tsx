@@ -226,28 +226,65 @@ function hydrateResultWithCsvMetrics(result: AnalysisResult, csvData: string): A
   };
 }
 
-function mergeResults(results: any[]): AnalysisResult {
-  const categoryMap = new Map<string, AnalysisCategory>();
-  const seenNames = new Set<string>();
-
+/**
+ * Build AI lookup: normalized name → { category, emoji, recommendation, kpis }
+ */
+function buildAiLookup(results: any[]): Map<string, { category: string; emoji: string; recommendation: string; kpis: Record<string, string> }> {
+  const lookup = new Map<string, { category: string; emoji: string; recommendation: string; kpis: Record<string, string> }>();
   for (const result of results) {
     for (const cat of result.categories || []) {
-      const key = cat.categoryName;
-      if (!categoryMap.has(key)) {
-        categoryMap.set(key, { ...cat, chatters: [] });
-      }
       for (const chatter of cat.chatters || []) {
-        const normalized = normalizeName(chatter.name || "");
-        if (normalized && !seenNames.has(normalized)) {
-          seenNames.add(normalized);
-          categoryMap.get(key)!.chatters.push(chatter);
+        const key = normalizeName(chatter.name || "");
+        if (key && !lookup.has(key)) {
+          lookup.set(key, {
+            category: cat.categoryName || "WEITER SO",
+            emoji: cat.emoji || "⚪",
+            recommendation: chatter.recommendation || "",
+            kpis: chatter.kpis || {},
+          });
         }
       }
     }
   }
+  return lookup;
+}
 
-  const categories = Array.from(categoryMap.values()).filter(c => c.chatters.length > 0);
-  return { categories };
+/**
+ * CSV is the SINGLE source of truth for the chatter list.
+ * AI only contributes: category, emoji, recommendation.
+ * KPIs come from the CSV directly.
+ */
+function buildResultFromCsv(
+  csvData: string,
+  aiResults: any[]
+): AnalysisResult {
+  const csvMetrics = buildCsvMetricMap(csvData);
+  const aiLookup = buildAiLookup(aiResults);
+  const categoryMap = new Map<string, AnalysisCategory>();
+
+  for (const [normalizedName, metrics] of csvMetrics) {
+    const ai = aiLookup.get(normalizedName);
+    const category = ai?.category || "WEITER SO";
+    const emoji = ai?.emoji || "⚪";
+
+    if (!categoryMap.has(category)) {
+      categoryMap.set(category, { emoji, categoryName: category, chatters: [] });
+    }
+
+    categoryMap.get(category)!.chatters.push({
+      name: metrics.name,
+      startDate: metrics.startDate,
+      account: metrics.account,
+      kpis: {
+        Tagesumsatz: formatEuro(metrics.revenueToday),
+        "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
+        MassDMs: String(metrics.massDms),
+      },
+      recommendation: ai?.recommendation || "Keine Empfehlung verfügbar.",
+    });
+  }
+
+  return { categories: Array.from(categoryMap.values()).filter(c => c.chatters.length > 0) };
 }
 
 async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
