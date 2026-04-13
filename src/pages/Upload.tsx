@@ -54,8 +54,9 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 }
 
 const BATCH_SIZE = 50;
-const BATCH_RETRIES = 2;
-const CANCEL_TIMEOUT_MS = 120_000;
+const BATCH_RETRIES = 3;
+const CANCEL_TIMEOUT_MS = 180_000;
+const FAILED_BATCH_ROUNDS = 2;
 
 interface CsvChatterMetrics {
   name: string;
@@ -400,7 +401,7 @@ export default function UploadPage() {
               "Authorization": `Bearer ${accessToken}`,
             },
             body: JSON.stringify({ header, batchLines, platform, batchNum, totalBatches }),
-            signal: AbortSignal.timeout(150000),
+            signal: AbortSignal.timeout(180000),
           }
         );
 
@@ -415,7 +416,7 @@ export default function UploadPage() {
         const isLastAttempt = attempt === BATCH_RETRIES;
         if (isLastAttempt) throw err;
         addStatus(`🔁 Batch ${batchNum} Retry ${attempt + 1}/${BATCH_RETRIES}…`);
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
       }
     }
     throw new Error("Unreachable");
@@ -471,18 +472,47 @@ export default function UploadPage() {
           const { result: batchResult, chattersReturned } = await callBatchFunction(
             header, batches[i], batchNum, totalBatches, accessToken
           );
-          batchResults.push(batchResult);
+          batchResults[i] = batchResult;
           chattersTotal += chattersReturned;
           addStatus(`✅ Batch ${batchNum} fertig: ${chattersReturned}/${batches[i].length} Chatter`);
         } catch (err: any) {
-          failedBatches.push(batchNum);
+          failedBatches.push(i);
           addStatus(`❌ Batch ${batchNum} fehlgeschlagen: ${err.message}`);
+        }
+      }
+
+      // Retry failed batches in additional rounds
+      for (let round = 1; round <= FAILED_BATCH_ROUNDS && failedBatches.length > 0; round++) {
+        if (cancelledRef.current) return;
+
+        const retryIndices = [...failedBatches];
+        failedBatches.length = 0;
+        addStatus(`🔄 Retry-Runde ${round}: ${retryIndices.length} fehlgeschlagene Batch(es)…`);
+        await new Promise(r => setTimeout(r, 3000 * round));
+
+        for (const idx of retryIndices) {
+          if (cancelledRef.current) return;
+          const batchNum = idx + 1;
+          addStatus(`🔁 Retry Batch ${batchNum}/${totalBatches}…`);
+
+          try {
+            const { result: batchResult, chattersReturned } = await callBatchFunction(
+              header, batches[idx], batchNum, totalBatches, accessToken
+            );
+            batchResults[idx] = batchResult;
+            chattersTotal += chattersReturned;
+            addStatus(`✅ Retry Batch ${batchNum} erfolgreich: ${chattersReturned}/${batches[idx].length} Chatter`);
+          } catch (err: any) {
+            failedBatches.push(idx);
+            addStatus(`❌ Retry Batch ${batchNum} erneut fehlgeschlagen: ${err.message}`);
+          }
         }
       }
 
       if (cancelledRef.current) return;
 
-      if (batchResults.length === 0) {
+      const validResults = batchResults.filter(Boolean);
+      if (validResults.length === 0) {
         throw new Error("Alle Batches fehlgeschlagen. Bitte erneut versuchen.");
       }
 
@@ -490,7 +520,7 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt…");
 
-      const merged = hydrateResultWithCsvMetrics(mergeResults(batchResults), csvData);
+      const merged = hydrateResultWithCsvMetrics(mergeResults(validResults), csvData);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
 
       // Save report to DB

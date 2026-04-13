@@ -8,8 +8,8 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL_NAME = "google/gemini-2.5-flash";
-const TIMEOUT_MS = 120000;
-const MAX_RETRIES = 2;
+const TIMEOUT_MS = 150000;
+const MAX_RETRIES = 3;
 
 function repairJsonString(value: string): string {
   let s = value.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "").replace(/,\s*$/, "");
@@ -320,7 +320,7 @@ Regeln:
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage },
               ],
-              max_tokens: 16384,
+              max_tokens: 32768,
               response_format: { type: "json_object" },
             }),
             signal: controller.signal,
