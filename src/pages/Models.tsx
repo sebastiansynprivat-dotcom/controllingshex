@@ -48,6 +48,7 @@ export default function Models() {
   const [newFollowers, setNewFollowers] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editFollowers, setEditFollowers] = useState("");
 
   // Revenue filter state
@@ -157,10 +158,12 @@ export default function Models() {
     fetchModels();
   };
 
-  const deleteModel = async (id: string) => {
-    const { error } = await supabase.from("models").delete().eq("id", id);
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    const { error } = await supabase.from("models").delete().eq("id", deleteConfirmId);
     if (error) { toast.error("Fehler beim Löschen"); return; }
     toast.success("Gelöscht");
+    setDeleteConfirmId(null);
     fetchModels();
   };
 
@@ -393,7 +396,7 @@ export default function Models() {
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
                           <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="ghost" onClick={() => deleteModel(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => setDeleteConfirmId(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </td>
                       </>
                     )}
