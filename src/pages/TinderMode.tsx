@@ -576,7 +576,37 @@ export default function TinderMode() {
         <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       </div>
 
-      {/* Progress header */}
+      {/* Label filter chips */}
+      {allLabels.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 lg:gap-2 mb-2">
+          <button
+            onClick={() => setSelectedLabelFilter(null)}
+            className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium flex items-center gap-1 ${
+              !selectedLabelFilter
+                ? "bg-white/[0.08] text-foreground border border-white/[0.12]"
+                : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
+            }`}
+          >
+            <Tag className="h-3 w-3" /> Alle Labels
+          </button>
+          {allLabels.map((label) => (
+            <button
+              key={label.id}
+              onClick={() => setSelectedLabelFilter(selectedLabelFilter === label.id ? null : label.id)}
+              className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium whitespace-nowrap border ${
+                selectedLabelFilter === label.id
+                  ? "text-white shadow-md"
+                  : "border-white/[0.06] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+              }`}
+              style={selectedLabelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}
+            >
+              {label.label_name}
+            </button>
+          ))}
+        </div>
+      )}
+
+
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground font-medium">
