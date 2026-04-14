@@ -522,7 +522,9 @@ export default function TinderMode() {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-md lg:max-w-2xl mx-auto px-4 py-6 overflow-hidden overscroll-none" style={{ maxHeight: '100dvh', touchAction: 'none' }}>
+    <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
+      {/* Left: Card area */}
+      <div className={`flex flex-col px-4 py-6 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
       {/* Category filter chips */}
       <div className="relative mb-2">
         <div className="flex flex-wrap gap-1.5 lg:gap-2 pb-2 max-h-[4.5rem] lg:max-h-[7rem] overflow-y-auto scrollbar-none">
