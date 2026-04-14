@@ -140,7 +140,7 @@ export default function TinderMode() {
   const [notePanel, setNotePanel] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
-  const [labelChatterNames, setLabelChatterNames] = useState<Set<string> | null>(null);
+  const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -154,21 +154,38 @@ export default function TinderMode() {
   const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
   const [noteText, setNoteText] = useState("");
 
-  // Load all labels on mount for filter chips
+  // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
-    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
-      .then(({ data }) => { if (data) setAllLabels(data); });
+    Promise.all([
+      supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform),
+      supabase.from("chatter_label_assignments").select("label_id, chatter_name").eq("platform", platform),
+    ]).then(([labelsRes, assignRes]) => {
+      if (labelsRes.data) setAllLabels(labelsRes.data);
+      if (assignRes.data) setAllLabelAssignments(assignRes.data);
+    });
   }, [platform]);
 
-  // When a label filter is selected, fetch chatter names with that label
-  useEffect(() => {
-    if (!selectedLabelFilter) { setLabelChatterNames(null); return; }
-    supabase.from("chatter_label_assignments").select("chatter_name").eq("label_id", selectedLabelFilter).eq("platform", platform)
-      .then(({ data }) => {
-        if (data) setLabelChatterNames(new Set(data.map((d) => normalizeName(d.chatter_name))));
-        else setLabelChatterNames(new Set());
-      });
-  }, [selectedLabelFilter, platform]);
+  // Derive label filter set from allLabelAssignments
+  const labelChatterNames = useMemo(() => {
+    if (!selectedLabelFilter) return null;
+    return new Set(
+      allLabelAssignments
+        .filter((a) => a.label_id === selectedLabelFilter)
+        .map((a) => normalizeName(a.chatter_name))
+    );
+  }, [selectedLabelFilter, allLabelAssignments]);
+
+  // Count chatters per label (only unchecked ones from current data)
+  const labelCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const chatterNorms = new Set(chatters.map((c) => normalizeName(c.name)));
+    for (const a of allLabelAssignments) {
+      if (chatterNorms.has(normalizeName(a.chatter_name))) {
+        counts.set(a.label_id, (counts.get(a.label_id) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [allLabelAssignments, chatters]);
 
   useEffect(() => {
     const load = async () => {
@@ -453,11 +470,13 @@ export default function TinderMode() {
       await supabase.from("chatter_label_assignments").delete()
         .eq("label_id", labelId).eq("chatter_name", currentChatter.name).eq("platform", platform).eq("user_id", user.id);
       setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
+      setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(currentChatter.name))));
     } else {
       await supabase.from("chatter_label_assignments").insert({
         label_id: labelId, chatter_name: currentChatter.name, platform, user_id: user.id,
       });
       setAssignedLabelIds((prev) => new Set(prev).add(labelId));
+      setAllLabelAssignments((prev) => [...prev, { label_id: labelId, chatter_name: currentChatter.name }]);
     }
   };
 
@@ -601,6 +620,9 @@ export default function TinderMode() {
               style={selectedLabelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}
             >
               {label.label_name}
+              {(labelCounts.get(label.id) || 0) > 0 && (
+                <span className="ml-1.5 text-[10px] opacity-50">{labelCounts.get(label.id)}</span>
+              )}
             </button>
           ))}
         </div>
