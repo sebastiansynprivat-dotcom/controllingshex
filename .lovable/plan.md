@@ -1,54 +1,59 @@
 
 
-## Plan: Kategorisierung bullet-proof machen — 0€ Override lückenlos
+## Plan: Swipe Mode flüssiger machen
 
-### Problem
-Der Safety-Override in `buildResultFromCsv` hat Lücken. Er fängt nur diese Kategorien ab:
-- `POSITIVE_CATEGORIES`: UPGRADE, BREAKOUT, KURZ VOR, COMEBACK
-- Regex: WEITER SO / MITTELFELD
+### Probleme identifiziert
 
-**Nicht abgefangen** werden 0€-Chatters in:
-- `TOP PERFORMER` (fehlt in POSITIVE_CATEGORIES)
-- `ACCOUNT UPGRADE (ZUVERLÄSSIG)` (fehlt)
-- `VIDEO-COACHING`, `COACHING / ENGERE KONTROLLE`
-- `HOHER TRAFFIC / KEINE CONVERSION`
-- `UNTER BEOBACHTUNG`
-- Jede andere Kategorie, die die KI erfindet
+1. **Langsamer Initial Load**: 4 sequenzielle Supabase-Queries (report → history → models → checks) blockieren sich gegenseitig
+2. **Zu viele Karten im Stack**: `PREFETCH_CARD_COUNT = 7` — jede Karte rendert ein Recharts-SVG mit `ResponsiveContainer`, das ist teuer
+3. **Recharts in jeder Karte**: `ResponsiveContainer` + `AreaChart` pro Karte = massive DOM-Last und Re-Renders
+4. **AnimatePresence `mode="popLayout"`**: Erzwingt Layout-Neuberechnung bei jedem Kartenwechsel
+5. **Labels/Notes laden bei jedem Kartenwechsel**: 3 Supabase-Queries pro Karte (Labels, Assignments, Notes) — auch wenn Panels geschlossen sind
+6. **Kein `layoutId` / kein stabiler Key-Übergang**: Karten-Animationen können flackern
 
-### Lösung: Whitelist-Ansatz statt Blacklist
+### Änderungen
 
-Statt einzelne "verbotene" Kategorien aufzulisten, wird die Logik umgedreht: **Nur explizit erlaubte Kategorien dürfen bei 0€ bleiben.** Alles andere wird überschrieben.
-
-Erlaubte Kategorien bei 0€ Tagesumsatz:
-- `ONBOARDING TAG X` (1-5)
-- `WARNUNG`
-- `0€ UMSATZ TAG X` (bereits korrekt)
-- `ACCOUNT-EINBRUCH` (nur mit History-Beweis ≥ 20€ Ø)
-- `HOHER TRAFFIC / KEINE CONVERSION` (0€ ist Teil der Definition)
-
-Alles andere bei 0€ → Override zu `0€ UMSATZ TAG X`.
-
-Zusätzlich: `Gesamtumsatz` als KPI hinzufügen (fehlt aktuell).
-
-### Dateien
-
-| Datei | Änderung |
+| Datei | Was |
 |---|---|
-| `src/pages/Upload.tsx` | `buildResultFromCsv`: Whitelist statt Blacklist. Nur erlaubte Kategorien dürfen bei 0€ bestehen bleiben. `Gesamtumsatz` KPI aus chatter_history laden und anzeigen. |
+| `src/pages/TinderMode.tsx` | Queries parallelisieren (`Promise.all`), `PREFETCH_CARD_COUNT` auf 3 reduzieren, Labels/Notes lazy laden (nur wenn Panel offen), `AnimatePresence` mode auf `"wait"` ändern |
+| `src/components/SwipeCard.tsx` | Sparkline nur für `isTop`-Karte rendern (Stack-Karten zeigen kein Chart), `will-change: transform` auf Top-Karte setzen für GPU-Beschleunigung |
 
 ### Technisches Detail
 
-```text
-VORHER (Blacklist):
-  if (revenueToday === 0)
-    if (POSITIVE_CATEGORIES.has(cat) || /WEITER SO/.test(cat))
-      → override
-
-NACHHER (Whitelist):
-  if (revenueToday === 0)
-    if (!ALLOWED_ZERO_CATEGORIES.has(cat))  // ONBOARDING, WARNUNG, 0€ TAG, TRAFFIC, EINBRUCH(mit Beweis)
-      → override zu 0€ UMSATZ TAG X
+**1. Parallele Queries beim Load**
+```typescript
+const [report, checks] = await Promise.all([
+  supabase.from("analysis_reports")...,
+  supabase.from("daily_chatter_checks")...
+]);
+// Dann history + models parallel:
+const [history, models] = await Promise.all([...]);
 ```
 
-Eine Datei, eine Änderung — schließt alle Lücken.
+**2. Stack auf 3 Karten reduzieren**
+```typescript
+const PREFETCH_CARD_COUNT = 3;
+```
+
+**3. Sparkline nur für Top-Karte**
+```typescript
+{isTop && chatter.revenueHistory?.length > 1 && (
+  <div className="h-14 mb-3">
+    <ResponsiveContainer>...</ResponsiveContainer>
+  </div>
+)}
+```
+
+**4. Labels/Notes lazy laden**
+```typescript
+useEffect(() => {
+  if (!currentChatterName || (!labelPanel && !notePanel)) return;
+  // ... queries nur wenn Panel offen
+}, [currentChatterName, labelPanel, notePanel]);
+```
+
+**5. GPU-Hint für flüssigere Animationen**
+```typescript
+style={{ willChange: isTop ? "transform" : "auto" }}
+```
 
