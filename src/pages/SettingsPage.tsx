@@ -104,10 +104,10 @@ export default function SettingsPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8 sm:space-y-10 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extralight tracking-tight text-foreground">
+        <h1 className="text-2xl lg:text-3xl font-extralight tracking-tight text-foreground">
           Einstellungen
         </h1>
-        <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider uppercase">
+        <p className="text-xs lg:text-sm text-white/25 mt-1.5 font-light tracking-wider uppercase">
           KI-Prompt & API-Zugang
         </p>
       </div>
@@ -116,11 +116,11 @@ export default function SettingsPage() {
       {isOAuthOnly && (
         <div className="bg-white/[0.02] border border-primary/10 rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
           <div>
-            <h2 className="text-[13px] font-medium text-foreground/70 tracking-wide flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5 text-primary/60" />
+            <h2 className="text-sm lg:text-base font-medium text-foreground/70 tracking-wide flex items-center gap-2">
+              <Lock className="h-4 w-4 text-primary/60" />
               Login-Daten hinzufügen
             </h2>
-            <p className="text-[11px] text-white/20 mt-0.5 font-light">
+            <p className="text-xs lg:text-sm text-white/25 mt-0.5 font-light">
               Füge eine E-Mail und ein Passwort hinzu, um dich auch ohne Google einloggen zu können
             </p>
           </div>
@@ -177,8 +177,8 @@ export default function SettingsPage() {
       {/* System Prompt */}
       <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
         <div>
-          <h2 className="text-[13px] font-medium text-foreground/70 tracking-wide">System-Prompt</h2>
-          <p className="text-[11px] text-white/20 mt-0.5 font-light">Das Gehirn deiner KI-Analyse</p>
+          <h2 className="text-sm lg:text-base font-medium text-foreground/70 tracking-wide">System-Prompt</h2>
+          <p className="text-xs lg:text-sm text-white/25 mt-0.5 font-light">Das Gehirn deiner KI-Analyse</p>
         </div>
         <Textarea
           value={systemPrompt}
@@ -200,8 +200,8 @@ export default function SettingsPage() {
       {/* API Key */}
       <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
         <div>
-          <h2 className="text-[13px] font-medium text-foreground/70 tracking-wide">Anthropic API-Key</h2>
-          <p className="text-[11px] text-white/20 mt-0.5 font-light">Wird sicher im Backend gespeichert</p>
+          <h2 className="text-sm lg:text-base font-medium text-foreground/70 tracking-wide">Anthropic API-Key</h2>
+          <p className="text-xs lg:text-sm text-white/25 mt-0.5 font-light">Wird sicher im Backend gespeichert</p>
         </div>
         <div className="flex gap-3">
           <div className="relative flex-1">
