@@ -139,6 +139,8 @@ export default function TinderMode() {
   const [labelPanel, setLabelPanel] = useState(false);
   const [notePanel, setNotePanel] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
+  const [labelChatterNames, setLabelChatterNames] = useState<Set<string> | null>(null);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -151,6 +153,22 @@ export default function TinderMode() {
   // Note state
   const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
   const [noteText, setNoteText] = useState("");
+
+  // Load all labels on mount for filter chips
+  useEffect(() => {
+    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
+      .then(({ data }) => { if (data) setAllLabels(data); });
+  }, [platform]);
+
+  // When a label filter is selected, fetch chatter names with that label
+  useEffect(() => {
+    if (!selectedLabelFilter) { setLabelChatterNames(null); return; }
+    supabase.from("chatter_label_assignments").select("chatter_name").eq("label_id", selectedLabelFilter).eq("platform", platform)
+      .then(({ data }) => {
+        if (data) setLabelChatterNames(new Set(data.map((d) => normalizeName(d.chatter_name))));
+        else setLabelChatterNames(new Set());
+      });
+  }, [selectedLabelFilter, platform]);
 
   useEffect(() => {
     const load = async () => {
@@ -271,19 +289,22 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
-  // Filter unchecked chatters by selected category
+  // Filter unchecked chatters by selected category and label
   const uncheckedChatters = useMemo(
     () => {
-      const base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
-      const filtered = selectedCategory
-        ? base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory)
-        : base;
+      let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+      if (selectedCategory) {
+        base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+      }
+      if (labelChatterNames) {
+        base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+      }
       // Put skipped names at the end
-      const notSkipped = filtered.filter((c) => !skippedNames.has(normalizeName(c.name)));
-      const skipped = filtered.filter((c) => skippedNames.has(normalizeName(c.name)));
+      const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
+      const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, skippedNames]
+    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames]
   );
 
   const prefetchedChatters = useMemo(
@@ -301,12 +322,10 @@ export default function TinderMode() {
     : checkedNames.size;
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
-  // Load labels and notes lazily — only when panel is open
+  // Load label assignments lazily — only when panel is open
   useEffect(() => {
     if (!currentChatterName) return;
     if (!labelPanel) return;
-    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
-      .then(({ data }) => { if (data) setAllLabels(data); });
     supabase.from("chatter_label_assignments").select("label_id").eq("chatter_name", currentChatterName).eq("platform", platform)
       .then(({ data }) => { if (data) setAssignedLabelIds(new Set(data.map((d) => d.label_id))); });
   }, [currentChatterName, platform, labelPanel]);
@@ -557,7 +576,37 @@ export default function TinderMode() {
         <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       </div>
 
-      {/* Progress header */}
+      {/* Label filter chips */}
+      {allLabels.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 lg:gap-2 mb-2">
+          <button
+            onClick={() => setSelectedLabelFilter(null)}
+            className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium flex items-center gap-1 ${
+              !selectedLabelFilter
+                ? "bg-white/[0.08] text-foreground border border-white/[0.12]"
+                : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
+            }`}
+          >
+            <Tag className="h-3 w-3" /> Alle Labels
+          </button>
+          {allLabels.map((label) => (
+            <button
+              key={label.id}
+              onClick={() => setSelectedLabelFilter(selectedLabelFilter === label.id ? null : label.id)}
+              className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium whitespace-nowrap border ${
+                selectedLabelFilter === label.id
+                  ? "text-white shadow-md"
+                  : "border-white/[0.06] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+              }`}
+              style={selectedLabelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}
+            >
+              {label.label_name}
+            </button>
+          ))}
+        </div>
+      )}
+
+
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground font-medium">
