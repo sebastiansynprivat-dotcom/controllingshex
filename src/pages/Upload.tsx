@@ -119,6 +119,11 @@ function findColumnIndex(headers: string[], patterns: RegExp[]): number {
   return headers.findIndex((header) => patterns.some((pattern) => pattern.test(header)));
 }
 
+function ensureRequiredColumn(index: number, label: string, headers: string[]) {
+  if (index !== -1) return;
+  throw new Error(`Spalte für ${label} nicht gefunden. Erkannte Spalten: ${headers.join(", ")}`);
+}
+
 function parseDecimal(value: string | undefined): number {
   if (!value) return 0;
 
@@ -156,13 +161,25 @@ function buildCsvMetricMap(csvData: string): Map<string, CsvChatterMetrics> {
   const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase().trim());
   const nameIndex = findColumnIndex(headers, [/^name$/, /chatter/i, /mitarbeiter/i]);
   const startDateIndex = findColumnIndex(headers, [/start\s*dat/i, /beginn/i, /onboard/i]);
-  const accountIndex = findColumnIndex(headers, [/account/i, /model/i, /konto/i]);
-  const revenueIndex = findColumnIndex(headers, [/tages\s*umsatz/i, /umsatz.*heute/i, /revenue\s*today/i, /daily.*rev/i, /^umsatz$/i, /^revenue$/i]);
-  const openChatsIndex = findColumnIndex(headers, [/offene?\s*chats?/i, /open\s*chats?/i]);
+  const accountIndex = findColumnIndex(headers, [/account/i, /models?/i, /konto/i]);
+  const revenueIndex = findColumnIndex(headers, [
+    /tages\s*umsatz/i,
+    /umsatz.*heute/i,
+    /umsatz.*gestern/i,
+    /revenue\s*today/i,
+    /today.*revenue/i,
+    /yesterday\s*revenue/i,
+    /revenue\s*yesterday/i,
+    /daily.*rev/i,
+    /^umsatz$/i,
+    /^revenue$/i,
+  ]);
+  const openChatsIndex = findColumnIndex(headers, [/offene?\s*chats?/i, /open\s*chats?/i, /unread\s*chats?/i]);
   const oldestChatIndex = findColumnIndex(headers, [/oldest\s*chat/i, /älteste.*chat/i, /chat.*alter/i, /verzug/i, /delay/i]);
-  const massDmsIndex = findColumnIndex(headers, [/mass\s*dm/i, /massdm/i]);
+  const massDmsIndex = findColumnIndex(headers, [/mass\s*dm(s)?/i, /massdm/i]);
 
-  if (nameIndex === -1) return metrics;
+  ensureRequiredColumn(nameIndex, "Name", headers);
+  ensureRequiredColumn(revenueIndex, "Tagesumsatz", headers);
 
   for (const line of lines.slice(1)) {
     const values = parseCsvLine(line);
