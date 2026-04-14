@@ -164,18 +164,34 @@ export function step1_cleanData(csvData: string, models: ModelInfo[]): CleanedCh
 function getDaysSinceStart(startDate: string): number {
   if (!startDate) return 999;
 
+  let year: number, month: number, day: number;
+
   // Try DD.MM.YYYY
   const dotParts = startDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (dotParts) {
-    const d = new Date(`${dotParts[3]}-${dotParts[2].padStart(2, "0")}-${dotParts[1].padStart(2, "0")}`);
-    if (!isNaN(d.getTime())) return Math.floor((Date.now() - d.getTime()) / 86400000);
+    day = parseInt(dotParts[1], 10);
+    month = parseInt(dotParts[2], 10);
+    year = parseInt(dotParts[3], 10);
+  } else {
+    // Try YYYY-MM-DD
+    const iso = startDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      year = parseInt(iso[1], 10);
+      month = parseInt(iso[2], 10);
+      day = parseInt(iso[3], 10);
+    } else {
+      return 999;
+    }
   }
 
-  // Try YYYY-MM-DD
-  const d = new Date(startDate);
-  if (!isNaN(d.getTime())) return Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return 999;
 
-  return 999;
+  const startUtc = Date.UTC(year, month - 1, day);
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diff = Math.floor((todayUtc - startUtc) / 86400000);
+  return diff >= 0 ? diff : 999;
 }
 
 export function step2_categorize(chatters: CleanedChatter[]): CategorizedChatter[] {
