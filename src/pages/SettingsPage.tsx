@@ -17,7 +17,6 @@ export default function SettingsPage() {
 
   // Link password state
   const [linkPassword, setLinkPassword] = useState("");
-  const [linkPassword, setLinkPassword] = useState("");
   const [linkConfirm, setLinkConfirm] = useState("");
   const [showLinkPw, setShowLinkPw] = useState(false);
   const [savingLink, setSavingLink] = useState(false);
