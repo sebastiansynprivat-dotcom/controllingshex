@@ -63,8 +63,8 @@ export default function SettingsPage() {
   };
 
   const handleLinkCredentials = async () => {
-    if (!linkEmail.trim() || !linkPassword.trim()) {
-      toast.error("Bitte E-Mail und Passwort eingeben");
+    if (!linkPassword.trim()) {
+      toast.error("Bitte Passwort eingeben");
       return;
     }
     if (linkPassword !== linkConfirm) {
@@ -78,25 +78,20 @@ export default function SettingsPage() {
 
     setSavingLink(true);
     try {
+      // Only set password — email stays the same as the OAuth email
       const { error } = await supabase.auth.updateUser({
-        email: linkEmail.trim(),
         password: linkPassword,
       });
 
       if (error) {
-        if (error.message.includes("already")) {
-          toast.error("Diese E-Mail wird bereits verwendet");
-        } else {
-          toast.error(error.message);
-        }
+        toast.error(error.message);
       } else {
-        toast.success("Login-Daten hinzugefügt! Prüfe dein E-Mail-Postfach zur Bestätigung.");
-        setLinkEmail("");
+        toast.success("Passwort hinzugefügt! Du kannst dich jetzt auch mit E-Mail & Passwort einloggen.");
         setLinkPassword("");
         setLinkConfirm("");
       }
     } catch {
-      toast.error("Fehler beim Verknüpfen");
+      toast.error("Fehler beim Speichern");
     }
     setSavingLink(false);
   };
