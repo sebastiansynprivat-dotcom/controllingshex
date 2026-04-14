@@ -154,21 +154,38 @@ export default function TinderMode() {
   const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
   const [noteText, setNoteText] = useState("");
 
-  // Load all labels on mount for filter chips
+  // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
-    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
-      .then(({ data }) => { if (data) setAllLabels(data); });
+    Promise.all([
+      supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform),
+      supabase.from("chatter_label_assignments").select("label_id, chatter_name").eq("platform", platform),
+    ]).then(([labelsRes, assignRes]) => {
+      if (labelsRes.data) setAllLabels(labelsRes.data);
+      if (assignRes.data) setAllLabelAssignments(assignRes.data);
+    });
   }, [platform]);
 
-  // When a label filter is selected, fetch chatter names with that label
-  useEffect(() => {
-    if (!selectedLabelFilter) { setLabelChatterNames(null); return; }
-    supabase.from("chatter_label_assignments").select("chatter_name").eq("label_id", selectedLabelFilter).eq("platform", platform)
-      .then(({ data }) => {
-        if (data) setLabelChatterNames(new Set(data.map((d) => normalizeName(d.chatter_name))));
-        else setLabelChatterNames(new Set());
-      });
-  }, [selectedLabelFilter, platform]);
+  // Derive label filter set from allLabelAssignments
+  const labelChatterNames = useMemo(() => {
+    if (!selectedLabelFilter) return null;
+    return new Set(
+      allLabelAssignments
+        .filter((a) => a.label_id === selectedLabelFilter)
+        .map((a) => normalizeName(a.chatter_name))
+    );
+  }, [selectedLabelFilter, allLabelAssignments]);
+
+  // Count chatters per label (only unchecked ones from current data)
+  const labelCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const chatterNorms = new Set(chatters.map((c) => normalizeName(c.name)));
+    for (const a of allLabelAssignments) {
+      if (chatterNorms.has(normalizeName(a.chatter_name))) {
+        counts.set(a.label_id, (counts.get(a.label_id) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [allLabelAssignments, chatters]);
 
   useEffect(() => {
     const load = async () => {
