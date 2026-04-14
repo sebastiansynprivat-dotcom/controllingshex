@@ -607,7 +607,7 @@ export default function TinderMode() {
           </motion.div>
         ) : (
           <>
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
                 const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
                 const isTopCard = stackIndex === 0;

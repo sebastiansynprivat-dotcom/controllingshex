@@ -199,7 +199,7 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       onDrag={isTop ? handleDrag : undefined}
       onDragEnd={isTop ? handleDragEnd : undefined}
       animate={isTop ? controls : undefined}
-      initial={isTop ? { scale: 0.95, opacity: 0 } : false}
+      initial={false}
       whileDrag={isTop ? { scale: 1.02 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
     >
