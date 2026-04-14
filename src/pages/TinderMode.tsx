@@ -140,7 +140,7 @@ export default function TinderMode() {
   const [notePanel, setNotePanel] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
-  const [labelChatterNames, setLabelChatterNames] = useState<Set<string> | null>(null);
+  const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
