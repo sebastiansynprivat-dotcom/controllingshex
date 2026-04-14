@@ -54,10 +54,10 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
   }, [chatter.kpis]);
 
   const gradientId = useMemo(() => `sparkGrad-${chatter.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,[chatter.name]);
-  const isVisible = stackIndex <= 1;
-  const stackScale = stackIndex === 1 ? 0.95 : 1;
-  const stackOffsetY = stackIndex === 1 ? 8 : 0;
-  const stackOpacity = stackIndex === 1 ? 0.5 : 1;
+  const isVisible = stackIndex === 0;
+  const stackScale = 1;
+  const stackOffsetY = 0;
+  const stackOpacity = stackIndex === 0 ? 1 : 0;
 
   const snapBack = useCallback(() => {
     controls.start({
