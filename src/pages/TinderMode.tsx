@@ -119,7 +119,7 @@ const CATEGORY_PRIORITY = [
   "TOP PERFORMER", "WEITER SO",
 ];
 
-const PREFETCH_CARD_COUNT = 7;
+const PREFETCH_CARD_COUNT = 3;
 
 export default function TinderMode() {
   const { platform } = usePlatform();
