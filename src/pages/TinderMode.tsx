@@ -123,6 +123,14 @@ const PREFETCH_CARD_COUNT = 3;
 
 export default function TinderMode() {
   const { platform } = usePlatform();
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsDesktop(mql.matches);
+    mql.addEventListener("change", onChange);
+    setIsDesktop(mql.matches);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
   const [chatters, setChatters] = useState<ChatterData[]>([]);
   const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -514,7 +522,9 @@ export default function TinderMode() {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-md lg:max-w-2xl mx-auto px-4 py-6 overflow-hidden overscroll-none" style={{ maxHeight: '100dvh', touchAction: 'none' }}>
+    <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
+      {/* Left: Card area */}
+      <div className={`flex flex-col px-4 py-6 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
       {/* Category filter chips */}
       <div className="relative mb-2">
         <div className="flex flex-wrap gap-1.5 lg:gap-2 pb-2 max-h-[4.5rem] lg:max-h-[7rem] overflow-y-auto scrollbar-none">
@@ -843,14 +853,28 @@ export default function TinderMode() {
         </>
       )}
 
-      {/* Chatter SlideOver */}
-      {currentChatter && (
+      {/* Chatter SlideOver (mobile: portal overlay) */}
+      {!isDesktop && currentChatter && (
         <ChatterSlideOver
           open={slideOver}
           onClose={() => setSlideOver(false)}
           chatterName={currentChatter.name}
           platform={platform}
         />
+      )}
+      </div>
+
+      {/* Right: Inline performance panel (desktop only) */}
+      {isDesktop && currentChatter && (
+        <div className="w-1/2 h-full overflow-hidden">
+          <ChatterSlideOver
+            open={true}
+            onClose={() => {}}
+            chatterName={currentChatter.name}
+            platform={platform}
+            inline
+          />
+        </div>
       )}
     </div>
   );

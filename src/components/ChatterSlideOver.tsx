@@ -41,6 +41,7 @@ interface Props {
   onClose: () => void;
   chatterName: string;
   platform: string;
+  inline?: boolean;
 }
 
 function toTitleCase(name: string): string {
@@ -98,7 +99,7 @@ function sanitizeDelay(raw: number, revenue: number): number {
   return val;
 }
 
-export default function ChatterSlideOver({ open, onClose, chatterName, platform }: Props) {
+export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
@@ -308,6 +309,152 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform 
   ];
 
   const displayName = toTitleCase(chatterName);
+
+  if (inline) {
+    // Inline mode: render directly without portal/overlay
+    return (
+      <div className="h-full flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl">
+        {/* ── Sticky Header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
+          <div className="min-w-0">
+            <h2
+              onClick={() => { navigator.clipboard.writeText(displayName); toast.success("Name kopiert"); }}
+              className="text-lg font-light tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+              title="Klicken zum Kopieren"
+            >
+              {displayName}
+            </h2>
+            <p className="text-[10px] text-white/20 mt-0.5 font-light tracking-[0.15em] uppercase">{platform} · Performance-Profil</p>
+          </div>
+        </div>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none">
+          <div className="p-6 pb-16 space-y-8">
+            {loading ? (
+              <div className="flex items-center justify-center py-24">
+                <span className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+              </div>
+            ) : history.length === 0 ? (
+              <p className="text-center text-white/20 font-light py-20 text-sm tracking-wide">Noch keine historischen Daten vorhanden.</p>
+            ) : (
+              <>
+                {/* KPI Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {kpis.map((kpi) => (
+                    <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">{kpi.label}</p>
+                      <p className={`text-lg font-light mt-2 ${kpi.gold ? "gold-text" : "text-foreground/70"}`}>{kpi.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Labels */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
+                      <Tag className="h-3 w-3" /> Labels
+                    </p>
+                    <button onClick={() => setShowNewLabel(!showNewLabel)} className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1">
+                      <Plus className="h-3 w-3" /> Neu
+                    </button>
+                  </div>
+                  {showNewLabel && (
+                    <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
+                      <input value={newLabelName} onChange={(e) => setNewLabelName(e.target.value)} placeholder="Label-Name" className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors" onKeyDown={(e) => e.key === "Enter" && createLabel()} />
+                      <div className="flex gap-2">
+                        {LABEL_COLORS.map((c) => (
+                          <button key={c} onClick={() => setNewLabelColor(c)} className={`w-5 h-5 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`} style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                      <button onClick={createLabel} disabled={!newLabelName.trim()} className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed">Erstellen</button>
+                    </div>
+                  )}
+                  {allLabels.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {allLabels.map((label) => {
+                        const isAssigned = assignedLabelIds.has(label.id);
+                        return (
+                          <button key={label.id} onClick={() => toggleLabel(label.id)} onContextMenu={(e) => { e.preventDefault(); deleteLabel(label.id); }}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${isAssigned ? "border-white/20 text-white shadow-sm" : "border-white/[0.06] text-white/30 hover:text-white/50"}`}
+                            style={isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}}
+                            title="Rechtsklick zum Löschen"
+                          >
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                            {label.label_name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {allLabels.length === 0 && !showNewLabel && <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>}
+                </div>
+
+                {/* 30-Tage-Trend */}
+                {last30.length >= 4 && (
+                  <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5 relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">30-Tage-Trend</p>
+                      <span className={`text-xs font-medium px-3 py-1 rounded-full ${trend30.direction === "up" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : trend30.direction === "down" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-white/[0.04] text-white/40 border border-white/[0.06]"}`}>
+                        {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"} {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
+                      </span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <AreaChart data={last30}>
+                        <defs>
+                          <linearGradient id="trend30FillInline" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.2} />
+                            <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
+                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+                        <Area type="monotone" dataKey="revenue_today" stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"} strokeWidth={1.5} fill="url(#trend30FillInline)" dot={false} activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.1)", strokeWidth: 4 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Revenue Chart */}
+                <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-5">Umsatzverlauf</p>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={enrichedHistory}>
+                      <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
+                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.15)" }} />
+                      {noteDates.map((date) => <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.3)" strokeDasharray="3 3" />)}
+                      <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.3)", strokeWidth: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
+                  <div className="flex gap-2">
+                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Was wurde heute besprochen?" rows={2} className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300" />
+                    <button onClick={saveNote} disabled={savingNote || !noteText.trim()} className="self-end px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed">
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {notes.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {notes.map((n) => (
+                        <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-3 py-2.5">
+                          <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
+                          <p className="text-[10px] text-white/20 font-light mt-1.5">{formatDateTime(n.created_at)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const slideOverContent = (
     <AnimatePresence>

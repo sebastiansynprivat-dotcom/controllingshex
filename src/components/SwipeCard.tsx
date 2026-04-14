@@ -184,13 +184,19 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
 
   return (
     <motion.div
-      className={`absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 flex flex-col select-none ${
+      className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
-      style={isTop
-        ? { x, y: displayY, rotate, zIndex: 20, willChange: "transform" }
-        : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex, willChange: "auto" }
-      }
+      style={{
+        ...(isTop
+          ? { x, y: displayY, rotate, zIndex: 20, willChange: "transform" }
+          : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex, willChange: "auto" }
+        ),
+        background: "linear-gradient(165deg, hsl(0 0% 100% / 0.04) 0%, hsl(240 6% 5%) 40%, hsl(240 6% 4%) 100%)",
+        boxShadow: isTop
+          ? "0 8px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)"
+          : "0 4px 20px -8px rgba(0,0,0,0.4)",
+      }}
       drag={isTop}
       dragDirectionLock={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
