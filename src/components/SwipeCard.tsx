@@ -187,7 +187,10 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       className={`absolute inset-0 rounded-2xl border border-border bg-[hsl(var(--surface-1))] p-5 flex flex-col select-none ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
-      style={isTop ? { x, y: displayY, rotate, zIndex: 20 } : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex }}
+      style={isTop
+        ? { x, y: displayY, rotate, zIndex: 20, willChange: "transform" }
+        : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex, willChange: "auto" }
+      }
       drag={isTop}
       dragDirectionLock={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
@@ -199,9 +202,6 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
       initial={isTop ? { scale: 0.95, opacity: 0 } : false}
       whileDrag={isTop ? { scale: 1.02 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
-      onAnimationComplete={() => {
-        if (x.get() === 0 && y.get() === 0) return;
-      }}
     >
       {isTop && (
         <>
@@ -292,8 +292,8 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
         ))}
       </div>
 
-      {/* Mini sparkline */}
-      {chatter.revenueHistory && chatter.revenueHistory.length > 1 && (
+      {/* Mini sparkline — only render for top card */}
+      {isTop && chatter.revenueHistory && chatter.revenueHistory.length > 1 && (
         <div className="h-14 mb-3">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chatter.revenueHistory}>
@@ -313,6 +313,9 @@ export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeU
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      )}
+      {!isTop && chatter.revenueHistory && chatter.revenueHistory.length > 1 && (
+        <div className="h-14 mb-3" />
       )}
 
       {/* Recommendation — scrollable */}
