@@ -487,7 +487,7 @@ SCHRITT 2 — WARNUNG prüfen (Antwortzeit):
 → 🟠 WARNUNG — NUR wenn "Offene Chats seit X Tagen" und X > 2. Prüfe den Verzug-Wert aus den CSV-Daten.
 WENN Warnung zutrifft → STOPP.
 
-SCHRITT 3 — ACCOUNT-EINBRUCH prüfen (EXTREM RESTRIKTIV!):
+SCHRITT 3 — ACCOUNT-EINBRUCH prüfen (streng logikbasiert!):
 → ⚠️ ACCOUNT-EINBRUCH — NUR verwenden wenn ALLE diese Bedingungen GLEICHZEITIG erfüllt sind:
   1. Es gibt historische Daten für diesen Chatter in den HISTORISCHEN DATEN
   2. Der historische Ø-Tagesumsatz war mindestens 20€/Tag
@@ -496,8 +496,6 @@ SCHRITT 3 — ACCOUNT-EINBRUCH prüfen (EXTREM RESTRIKTIV!):
   OHNE historische Daten → NIEMALS "ACCOUNT-EINBRUCH" verwenden!
   Chatter mit positivem Tagesumsatz der ÜBER oder NAH am historischen Schnitt liegt → KEIN EINBRUCH!
   Chatter mit 0€ Umsatz → gehört in 0€-UMSATZ-Kategorien, NICHT in ACCOUNT-EINBRUCH!
-  ACCOUNT-EINBRUCH darf MAXIMAL 5-10% aller Chatter betreffen!
-  Bei JEDEM Zweifel → NICHT "ACCOUNT-EINBRUCH", sondern weiter prüfen.
 
 SCHRITT 4 — MODEL-TAUSCH prüfen:
 → 🔄 MODEL-TAUSCH — Chatter ist deutlich zu groß/klein für den Account (Follower vs. Performance-Mismatch). Konkreten Wechsel-Vorschlag machen.
@@ -540,7 +538,6 @@ SCHRITT 8 — MITTELFELD segmentieren (Fallback):
 → 👀 UNTER BEOBACHTUNG — Tagesumsatz = 0€ heute, aber kein 0€-Streak (nur 1 Tag).
 
 WICHTIGE VERBOTE:
-- ACCOUNT-EINBRUCH darf MAXIMAL 5-10% aller Chatter betreffen!
 - Ein Chatter mit positivem Tagesumsatz (> 0€) UND ohne klaren historischen Einbruchsnachweis gehört NICHT in ACCOUNT-EINBRUCH.
 - Ein Chatter mit 0€ Umsatz gehört in die 0€-UMSATZ-Kategorien, NICHT in ACCOUNT-EINBRUCH.
 

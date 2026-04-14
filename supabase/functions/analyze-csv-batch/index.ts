@@ -273,7 +273,6 @@ SCHRITT 8 — MITTELFELD segmentieren (Fallback):
 → 👀 UNTER BEOBACHTUNG — Tagesumsatz = 0€ heute, aber kein 0€-Streak (nur 1 Tag). Noch kein Alarm.
 
 WICHTIGE VERBOTE:
-- ACCOUNT-EINBRUCH darf MAXIMAL 10-15% aller Chatter betreffen. Wenn du mehr als ~15 Chatter dort einordnest, hast du die Kriterien zu locker angewandt!
 - Ein Chatter mit positivem Tagesumsatz (> 0€) UND ohne klaren historischen Einbruchsnachweis gehört NICHT in ACCOUNT-EINBRUCH.
 - Ein Chatter mit 0€ Umsatz gehört in die 0€-UMSATZ-Kategorien, NICHT in ACCOUNT-EINBRUCH.
 
