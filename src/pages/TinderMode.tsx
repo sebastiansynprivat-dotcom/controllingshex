@@ -470,11 +470,13 @@ export default function TinderMode() {
       await supabase.from("chatter_label_assignments").delete()
         .eq("label_id", labelId).eq("chatter_name", currentChatter.name).eq("platform", platform).eq("user_id", user.id);
       setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
+      setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(currentChatter.name))));
     } else {
       await supabase.from("chatter_label_assignments").insert({
         label_id: labelId, chatter_name: currentChatter.name, platform, user_id: user.id,
       });
       setAssignedLabelIds((prev) => new Set(prev).add(labelId));
+      setAllLabelAssignments((prev) => [...prev, { label_id: labelId, chatter_name: currentChatter.name }]);
     }
   };
 
