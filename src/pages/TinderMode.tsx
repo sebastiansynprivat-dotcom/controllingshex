@@ -514,32 +514,37 @@ export default function TinderMode() {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6 overflow-hidden overscroll-none" style={{ maxHeight: '100dvh', touchAction: 'none' }}>
+    <div className="flex flex-col h-full max-w-md lg:max-w-2xl mx-auto px-4 py-6 overflow-hidden overscroll-none" style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Category filter chips */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
-        <button
-          onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
-          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
-            !selectedCategory
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
-          }`}
-        >
-          Alle
-        </button>
-        {uniqueCategories.map((cat) => (
+      <div className="relative mb-2">
+        <div className="flex flex-wrap gap-1.5 lg:gap-2 pb-2 max-h-[4.5rem] lg:max-h-[7rem] overflow-y-auto scrollbar-none">
           <button
-            key={cat.name}
-            onClick={() => { setSelectedCategory(cat.name); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-all font-medium whitespace-nowrap ${
-              selectedCategory === cat.name
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
+            onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
+            className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium ${
+              !selectedCategory
+                ? "gold-gradient text-primary-foreground shadow-[0_0_12px_hsl(40_45%_55%/0.25)]"
+                : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
             }`}
           >
-            {cat.emoji} {cat.name} <span className="opacity-60 ml-1">{cat.count}</span>
+            Alle
           </button>
-        ))}
+          {uniqueCategories.map((cat) => (
+            <button
+              key={cat.name}
+              onClick={() => { setSelectedCategory(cat.name); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
+              className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium whitespace-nowrap ${
+                selectedCategory === cat.name
+                  ? "gold-gradient text-primary-foreground shadow-[0_0_12px_hsl(40_45%_55%/0.25)]"
+                  : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
+              }`}
+            >
+              {cat.emoji} {cat.name}
+              <span className="ml-1.5 text-[10px] opacity-50">{cat.count}</span>
+            </button>
+          ))}
+        </div>
+        {/* Fade edge at bottom when content overflows */}
+        <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       </div>
 
       {/* Progress header */}
