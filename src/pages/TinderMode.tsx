@@ -147,23 +147,36 @@ export default function TinderMode() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      // Get latest report
-      const { data: report } = await supabase
-        .from("analysis_reports")
-        .select("result_json")
-        .eq("platform", platform)
-        .not("result_json", "is", null)
-        .order("analysis_date", { ascending: false })
-        .limit(1)
-        .single();
 
-      if (!report?.result_json) {
+      // Parallel: report + today's checks
+      const today = new Date().toISOString().split("T")[0];
+      const [reportRes, checksRes] = await Promise.all([
+        supabase
+          .from("analysis_reports")
+          .select("result_json")
+          .eq("platform", platform)
+          .not("result_json", "is", null)
+          .order("analysis_date", { ascending: false })
+          .limit(1)
+          .single(),
+        supabase
+          .from("daily_chatter_checks")
+          .select("chatter_name")
+          .eq("platform", platform)
+          .eq("check_date", today),
+      ]);
+
+      if (checksRes.data) {
+        setCheckedNames(new Set(checksRes.data.map((c) => normalizeName(c.chatter_name))));
+      }
+
+      if (!reportRes.data?.result_json) {
         setChatters([]);
         setLoading(false);
         return;
       }
 
-      const result = report.result_json as unknown as AnalysisResult;
+      const result = reportRes.data.result_json as unknown as AnalysisResult;
       if (!result?.categories) {
         setChatters([]);
         setLoading(false);
@@ -173,7 +186,6 @@ export default function TinderMode() {
       const allChatters: ChatterData[] = [];
       for (const cat of result.categories) {
         const mapped = mapToSwipeCategory(cat.categoryName);
-
         for (const ch of cat.chatters) {
           allChatters.push({
             name: toTitleCase(ch.name),
@@ -187,18 +199,24 @@ export default function TinderMode() {
         }
       }
 
-      // Load revenue history for sparklines
+      // Parallel: history + models
       const names = allChatters.map((c) => c.name);
-      const { data: history } = await supabase
-        .from("chatter_history")
-        .select("chatter_name, analysis_date, revenue_today")
-        .eq("platform", platform)
-        .in("chatter_name", names)
-        .order("analysis_date", { ascending: true });
+      const [historyRes, modelsRes] = await Promise.all([
+        supabase
+          .from("chatter_history")
+          .select("chatter_name, analysis_date, revenue_today")
+          .eq("platform", platform)
+          .in("chatter_name", names)
+          .order("analysis_date", { ascending: true }),
+        supabase
+          .from("models")
+          .select("model_name, follower_count")
+          .eq("platform", platform),
+      ]);
 
-      if (history) {
+      if (historyRes.data) {
         const histMap = new Map<string, { date: string; revenue: number }[]>();
-        for (const h of history) {
+        for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
             date: h.analysis_date,
@@ -210,36 +228,18 @@ export default function TinderMode() {
         }
       }
 
-      // Load model performances
-      const { data: models } = await supabase
-        .from("models")
-        .select("model_name, follower_count")
-        .eq("platform", platform);
-
-      if (models && allChatters.length > 0) {
+      if (modelsRes.data && allChatters.length > 0) {
         const perfs = await loadModelPerformances(
           platform,
           allChatters.map((c) => ({ name: c.name, account: c.account })),
-          models as ModelInfo[]
+          modelsRes.data as ModelInfo[]
         );
         for (const ch of allChatters) {
           if (perfs[ch.name]) ch.modelPerf = perfs[ch.name];
         }
       }
-      // Load today's checks
-      const today = new Date().toISOString().split("T")[0];
-      const { data: checks } = await supabase
-        .from("daily_chatter_checks")
-        .select("chatter_name")
-        .eq("platform", platform)
-        .eq("check_date", today);
-
-      if (checks) {
-        setCheckedNames(new Set(checks.map((c) => normalizeName(c.chatter_name))));
-      }
 
       setChatters(allChatters);
-      
       setUndoStack([]);
       setLoading(false);
     };
