@@ -220,39 +220,179 @@ function formatEuro(value: number): string {
 /**
  * Build AI lookup: normalized name → { category, emoji, recommendation, kpis }
  */
+interface HistoryEntry {
+  revenueToday: number;
+  date: string;
+}
+
 function buildAiLookup(results: any[]): Map<string, { category: string; emoji: string; recommendation: string; kpis: Record<string, string> }> {
   const lookup = new Map<string, { category: string; emoji: string; recommendation: string; kpis: Record<string, string> }>();
   for (const result of results) {
     for (const cat of result.categories || []) {
       for (const chatter of cat.chatters || []) {
         const key = normalizeName(chatter.name || "");
-        if (key && !lookup.has(key)) {
-          lookup.set(key, {
-            category: cat.categoryName || "WEITER SO",
-            emoji: cat.emoji || "⚪",
-            recommendation: chatter.recommendation || "",
-            kpis: chatter.kpis || {},
-          });
-        }
+        if (!key) continue;
+        lookup.set(key, {
+          category: cat.categoryName || "WEITER SO",
+          emoji: cat.emoji || "⚪",
+          recommendation: chatter.recommendation || "",
+          kpis: chatter.kpis || {},
+        });
       }
     }
   }
   return lookup;
 }
 
-/**
- * CSV is the SINGLE source of truth for the chatter list.
- * AI only contributes: category, emoji, recommendation.
- * KPIs come from the CSV directly.
- */
-/** Whitelist: only these categories are allowed when revenue is 0€ */
-function isAllowedAtZeroRevenue(cat: string): boolean {
-  if (/ONBOARDING/i.test(cat)) return true;
-  if (/WARNUNG/i.test(cat)) return true;
-  if (/0€\s*UMSATZ/i.test(cat)) return true;
-  if (/NULL\s*EURO/i.test(cat)) return true;
-  if (/HOHER\s*TRAFFIC/i.test(cat)) return true;
-  if (/EINBRUCH/i.test(cat)) return true; // handled separately below
+function parseStartDate(value: string): Date | null {
+  if (!value) return null;
+
+  const dotParts = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dotParts) {
+    const day = Number.parseInt(dotParts[1], 10);
+    const month = Number.parseInt(dotParts[2], 10);
+    const year = Number.parseInt(dotParts[3], 10);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day) {
+      return parsed;
+    }
+    return null;
+  }
+
+  const isoParts = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoParts) {
+    const year = Number.parseInt(isoParts[1], 10);
+    const month = Number.parseInt(isoParts[2], 10);
+    const day = Number.parseInt(isoParts[3], 10);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function getDaysSinceStart(startDate: string): number | null {
+  const parsed = parseStartDate(startDate);
+  if (!parsed) return null;
+
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((todayUtc - parsed.getTime()) / 86400000);
+}
+
+function getRelevantHistory(entries?: HistoryEntry[]): HistoryEntry[] {
+  if (!entries?.length) return [];
+
+  const today = new Date().toISOString().split("T")[0];
+  const uniqueByDate = new Map<string, HistoryEntry>();
+
+  for (const entry of entries) {
+    if (!entry?.date || entry.date === today || uniqueByDate.has(entry.date)) continue;
+    uniqueByDate.set(entry.date, entry);
+  }
+
+  return Array.from(uniqueByDate.values()).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function getZeroRevenueStreak(currentRevenue: number, history: HistoryEntry[]): number {
+  if (currentRevenue > 0) return 0;
+  let streak = 1;
+  for (const entry of history) {
+    if (entry.revenueToday === 0) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function getPreviousZeroRevenueStreak(history: HistoryEntry[]): number {
+  let streak = 0;
+  for (const entry of history) {
+    if (entry.revenueToday === 0) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function qualifiesAccountEinbruch(metrics: CsvChatterMetrics, history: HistoryEntry[]): boolean {
+  if (metrics.revenueToday <= 0 || history.length < 2) return false;
+
+  const avgPastRevenue = history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length;
+  if (avgPastRevenue < 20) return false;
+  if (metrics.revenueToday >= avgPastRevenue * 0.5) return false;
+
+  const lastTwoDays = history.slice(0, 2);
+  return lastTwoDays.length === 2 && lastTwoDays.every((entry) => entry.revenueToday < avgPastRevenue * 0.75);
+}
+
+function isZeroRevenueOnlyCategory(category: string): boolean {
+  return /0€\s*UMSATZ|NULL\s*EURO|HOHER\s*TRAFFIC|UNTER\s*BEOBACHTUNG/i.test(category);
+}
+
+function getFallbackPositiveCategory(metrics: CsvChatterMetrics, batchAverageRevenue: number): { category: string; emoji: string } {
+  if (metrics.revenueToday > batchAverageRevenue) {
+    return { category: "TOP PERFORMER", emoji: "⭐" };
+  }
+
+  return { category: "WEITER SO", emoji: "⚪" };
+}
+
+function buildFallbackRecommendation(
+  category: string,
+  metrics: CsvChatterMetrics,
+  options: { daysSinceStart: number | null; zeroRevenueStreak: number; avgPastRevenue: number }
+): string {
+  if (/ONBOARDING/i.test(category)) {
+    const day = category.match(/(\d+)/)?.[1] || "1";
+    return `Onboarding Tag ${day}: heute ${formatEuro(metrics.revenueToday)} Umsatz. Aktivität, Follow-ups und Closings eng begleiten.`;
+  }
+
+  if (/WARNUNG/i.test(category)) {
+    return `${metrics.openChats} offene Chats mit ${metrics.responseDelayDays} Tagen Verzug. Erst Rückstände abbauen, dann Performance neu bewerten.`;
+  }
+
+  if (/ACCOUNT-EINBRUCH/i.test(category)) {
+    return `Heute ${formatEuro(metrics.revenueToday)} bei einem klaren Rückgang zum historischen Schnitt von ${formatEuro(options.avgPastRevenue)}. Verlauf der letzten Tage prüfen und direkt gegensteuern.`;
+  }
+
+  if (/COMEBACK/i.test(category)) {
+    return `Heute wieder ${formatEuro(metrics.revenueToday)} Umsatz nach mehreren Null-Euro-Tagen. Momentum sichern und eng begleiten.`;
+  }
+
+  if (/0€\s*UMSATZ/i.test(category)) {
+    const label = options.zeroRevenueStreak >= 7 ? "7+" : String(options.zeroRevenueStreak);
+    return `Heute 0,00 € Umsatz (Tag ${label} der Null-Euro-Phase). Ursache prüfen und ein klares Aktivitätsziel für heute setzen.`;
+  }
+
+  if (/HOHER\s*TRAFFIC/i.test(category)) {
+    return `${metrics.massDms} MassDMs bei 0,00 € Umsatz. Conversion-Script prüfen und Closings gezielt nachfassen.`;
+  }
+
+  if (/TOP PERFORMER/i.test(category)) {
+    return `Heute ${formatEuro(metrics.revenueToday)} Umsatz. Starke Leistung – Best Practice sichern und Potenzial für größere Accounts prüfen.`;
+  }
+
+  return `Heute ${formatEuro(metrics.revenueToday)} Umsatz. Stabil weiterarbeiten und die Conversion weiter verbessern.`;
+}
+
+function shouldReplaceRecommendation(
+  recommendation: string | undefined,
+  metrics: CsvChatterMetrics,
+  resolvedCategory: string,
+  aiCategory?: string
+): boolean {
+  if (!recommendation?.trim()) return true;
+  if (resolvedCategory !== (aiCategory || resolvedCategory)) return true;
+
+  if (metrics.revenueToday > 0 && /(0\s*€|0\s*euro|null\s*euro|kein(?:en|e)?\s*umsatz|ohne\s*umsatz)/i.test(recommendation)) {
+    return true;
+  }
+
+  if (!/ACCOUNT-EINBRUCH/i.test(resolvedCategory) && /einbruch/i.test(recommendation)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -264,47 +404,71 @@ function buildResultFromCsv(
   const csvMetrics = buildCsvMetricMap(csvData);
   const aiLookup = buildAiLookup(aiResults);
   const categoryMap = new Map<string, AnalysisCategory>();
+  const batchAverageRevenue = csvMetrics.size > 0
+    ? Array.from(csvMetrics.values()).reduce((sum, chatter) => sum + chatter.revenueToday, 0) / csvMetrics.size
+    : 0;
 
   for (const [normalizedName, metrics] of csvMetrics) {
     const ai = aiLookup.get(normalizedName);
-    let category = ai?.category || "WEITER SO";
-    let emoji = ai?.emoji || "⚪";
+    const history = getRelevantHistory(historyMap?.get(normalizedName));
+    const daysSinceStart = getDaysSinceStart(metrics.startDate);
+    const avgPastRevenue = history.length > 0
+      ? history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length
+      : 0;
+    const zeroRevenueStreak = getZeroRevenueStreak(metrics.revenueToday, history);
+    const previousZeroRevenueStreak = getPreviousZeroRevenueStreak(history);
 
-    // === SAFETY OVERRIDE: 0€ revenue — whitelist approach ===
-    if (metrics.revenueToday === 0) {
-      // Count consecutive 0€ days from history
-      let streak = 1; // today counts as day 1
-      const hist = historyMap?.get(normalizedName);
-      if (hist && hist.length > 0) {
-        const sorted = [...hist].sort((a, b) => b.date.localeCompare(a.date));
-        for (const entry of sorted) {
-          if (entry.revenueToday === 0) streak++;
-          else break;
-        }
-      }
-      const tagLabel = streak >= 7 ? "7+" : String(streak);
+    let category = ai?.category || "";
+    let emoji = ai?.emoji || "";
 
-      // EINBRUCH: only keep if chatter had significant past revenue (≥20€ avg)
-      const isEinbruch = /EINBRUCH/i.test(category);
-      if (isEinbruch) {
-        const avgPastRevenue = hist && hist.length > 0
-          ? hist.reduce((s, h) => s + h.revenueToday, 0) / hist.length
-          : 0;
-        if (avgPastRevenue < 20) {
-          category = `0€ UMSATZ TAG ${tagLabel}`;
-          emoji = "📉";
-        }
-        // else: genuine Einbruch — keep
-      } else if (!isAllowedAtZeroRevenue(category)) {
-        // Any non-whitelisted category at 0€ → override
-        category = `0€ UMSATZ TAG ${tagLabel}`;
+    if (daysSinceStart !== null && daysSinceStart >= 0 && daysSinceStart <= 5) {
+      category = `ONBOARDING TAG ${Math.min(Math.max(daysSinceStart, 1), 5)}`;
+      emoji = "🔵";
+    } else if (metrics.responseDelayDays > 2) {
+      category = "WARNUNG";
+      emoji = "🟠";
+    } else if (metrics.revenueToday === 0) {
+      const aiCategoryAllowed = category && !/ACCOUNT-EINBRUCH/i.test(category) && (
+        /ONBOARDING/i.test(category) ||
+        /WARNUNG/i.test(category) ||
+        /HOHER\s*TRAFFIC/i.test(category) ||
+        /0€\s*UMSATZ/i.test(category) ||
+        /NULL\s*EURO/i.test(category)
+      );
+
+      if (!aiCategoryAllowed) {
+        category = `0€ UMSATZ TAG ${zeroRevenueStreak >= 7 ? "7+" : zeroRevenueStreak}`;
         emoji = "📉";
+      }
+    } else if (previousZeroRevenueStreak >= 3) {
+      category = "COMEBACK";
+      emoji = "🔄";
+    } else if (qualifiesAccountEinbruch(metrics, history)) {
+      category = "ACCOUNT-EINBRUCH";
+      emoji = "⚠️";
+    } else {
+      const invalidAiCategory =
+        !category ||
+        /ACCOUNT-EINBRUCH/i.test(category) ||
+        isZeroRevenueOnlyCategory(category) ||
+        (/COMEBACK/i.test(category) && previousZeroRevenueStreak < 3) ||
+        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 0 || daysSinceStart > 5)) ||
+        (/WARNUNG/i.test(category) && metrics.responseDelayDays <= 2);
+
+      if (invalidAiCategory) {
+        const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
+        category = fallback.category;
+        emoji = fallback.emoji;
       }
     }
 
     if (!categoryMap.has(category)) {
-      categoryMap.set(category, { emoji, categoryName: category, chatters: [] });
+      categoryMap.set(category, { emoji: emoji || "⚪", categoryName: category, chatters: [] });
     }
+
+    const recommendation = shouldReplaceRecommendation(ai?.recommendation, metrics, category, ai?.category)
+      ? buildFallbackRecommendation(category, metrics, { daysSinceStart, zeroRevenueStreak, avgPastRevenue })
+      : ai?.recommendation || "Keine Empfehlung verfügbar.";
 
     categoryMap.get(category)!.chatters.push({
       name: metrics.name,
@@ -313,18 +477,17 @@ function buildResultFromCsv(
       kpis: {
         Tagesumsatz: formatEuro(metrics.revenueToday),
         Gesamtumsatz: (() => {
-          const hist = historyMap?.get(normalizedName);
-          const total = (hist ? hist.reduce((s, h) => s + h.revenueToday, 0) : 0) + metrics.revenueToday;
+          const total = history.reduce((sum, entry) => sum + entry.revenueToday, 0) + metrics.revenueToday;
           return formatEuro(total);
         })(),
         "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
         MassDMs: String(metrics.massDms),
       },
-      recommendation: ai?.recommendation || "Keine Empfehlung verfügbar.",
+      recommendation,
     });
   }
 
-  return { categories: Array.from(categoryMap.values()).filter(c => c.chatters.length > 0) };
+  return { categories: Array.from(categoryMap.values()).filter((category) => category.chatters.length > 0) };
 }
 
 async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
