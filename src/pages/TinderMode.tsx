@@ -853,14 +853,28 @@ export default function TinderMode() {
         </>
       )}
 
-      {/* Chatter SlideOver */}
-      {currentChatter && (
+      {/* Chatter SlideOver (mobile: portal overlay) */}
+      {!isDesktop && currentChatter && (
         <ChatterSlideOver
           open={slideOver}
           onClose={() => setSlideOver(false)}
           chatterName={currentChatter.name}
           platform={platform}
         />
+      )}
+      </div>
+
+      {/* Right: Inline performance panel (desktop only) */}
+      {isDesktop && currentChatter && (
+        <div className="w-1/2 h-full overflow-hidden">
+          <ChatterSlideOver
+            open={true}
+            onClose={() => {}}
+            chatterName={currentChatter.name}
+            platform={platform}
+            inline
+          />
+        </div>
       )}
     </div>
   );
