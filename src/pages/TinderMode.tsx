@@ -322,12 +322,10 @@ export default function TinderMode() {
     : checkedNames.size;
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
-  // Load labels and notes lazily — only when panel is open
+  // Load label assignments lazily — only when panel is open
   useEffect(() => {
     if (!currentChatterName) return;
     if (!labelPanel) return;
-    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
-      .then(({ data }) => { if (data) setAllLabels(data); });
     supabase.from("chatter_label_assignments").select("label_id").eq("chatter_name", currentChatterName).eq("platform", platform)
       .then(({ data }) => { if (data) setAssignedLabelIds(new Set(data.map((d) => d.label_id))); });
   }, [currentChatterName, platform, labelPanel]);
