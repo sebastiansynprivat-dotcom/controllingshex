@@ -331,12 +331,18 @@ export default function TinderMode() {
 
   const currentChatter = prefetchedChatters[0];
   const currentChatterName = currentChatter?.name ?? null;
-  const filteredTotal = selectedCategory
-    ? chatters.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory).length
-    : chatters.length;
-  const filteredChecked = selectedCategory
-    ? chatters.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory && checkedNames.has(normalizeName(c.name))).length
-    : checkedNames.size;
+  const filteredTotal = useMemo(() => {
+    let base = chatters;
+    if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+    if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+    return base.length;
+  }, [chatters, selectedCategory, labelChatterNames]);
+  const filteredChecked = useMemo(() => {
+    let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
+    if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+    if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+    return base.length;
+  }, [chatters, checkedNames, selectedCategory, labelChatterNames]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
