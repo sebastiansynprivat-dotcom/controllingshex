@@ -386,25 +386,12 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     const raw = data?.categories ?? [];
     if (raw.length === 0) return raw;
 
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-
     // Map all AI categories to whitelisted names and merge into a single map
     const catMap = new Map<string, Category>();
 
     for (const cat of raw) {
       for (const ch of cat.chatters) {
-        let mapped = mapToAllowed(cat.categoryName);
-
-        // Onboarding hard-cap: if startDate > 5 days ago → Mittelfeld
-        if (mapped.name.startsWith("ONBOARDING")) {
-          if (ch.startDate) {
-            const start = new Date(ch.startDate.split(".").reverse().join("-"));
-            if (!isNaN(start.getTime()) && start < fiveDaysAgo) {
-              mapped = { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
-            }
-          }
-        }
+        const mapped = mapToAllowed(cat.categoryName);
 
         const key = mapped.name;
         if (!catMap.has(key)) {

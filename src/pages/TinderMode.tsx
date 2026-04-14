@@ -170,29 +170,18 @@ export default function TinderMode() {
         return;
       }
 
-      const fiveDaysAgo = new Date();
-      fiveDaysAgo.setUTCDate(fiveDaysAgo.getUTCDate() - 5);
-
       const allChatters: ChatterData[] = [];
       for (const cat of result.categories) {
         const mapped = mapToSwipeCategory(cat.categoryName);
 
         for (const ch of cat.chatters) {
-          let finalCategory = mapped;
-          if (mapped.name.startsWith("ONBOARDING")) {
-            const start = parseLooseDate(ch.startDate);
-            if (start && start < fiveDaysAgo) {
-              finalCategory = { emoji: "⚪", name: "WEITER SO" };
-            }
-          }
-
           allChatters.push({
             name: toTitleCase(ch.name),
             account: ch.account,
             kpis: ch.kpis,
             recommendation: ch.recommendation,
-            categoryEmoji: finalCategory.emoji,
-            categoryName: finalCategory.name,
+            categoryEmoji: mapped.emoji,
+            categoryName: mapped.name,
             startDate: ch.startDate,
           });
         }

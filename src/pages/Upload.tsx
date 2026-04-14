@@ -270,28 +270,6 @@ function buildResultFromCsv(
     let category = ai?.category || "WEITER SO";
     let emoji = ai?.emoji || "⚪";
 
-    // === ONBOARDING: recalculate tag from actual startDate ===
-    if (/ONBOARDING/i.test(category) && metrics.startDate) {
-      const parts = metrics.startDate.match(/(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})/);
-      if (parts) {
-        const day = parseInt(parts[1], 10);
-        const month = parseInt(parts[2], 10);
-        let year = parseInt(parts[3], 10);
-        if (year < 100) year += 2000;
-        const startDate = new Date(year, month - 1, day);
-        const today = new Date();
-        const diffDays = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        if (diffDays > 5) {
-          // Not onboarding anymore → Mittelfeld
-          category = "WEITER SO";
-          emoji = "⚪";
-        } else {
-          category = `ONBOARDING TAG ${diffDays}`;
-          emoji = "🔵";
-        }
-      }
-    }
-
     // === SAFETY OVERRIDE: 0€ revenue — whitelist approach ===
     if (metrics.revenueToday === 0) {
       // Count consecutive 0€ days from history
