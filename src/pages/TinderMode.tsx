@@ -618,6 +618,9 @@ export default function TinderMode() {
               style={selectedLabelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}
             >
               {label.label_name}
+              {(labelCounts.get(label.id) || 0) > 0 && (
+                <span className="ml-1.5 text-[10px] opacity-50">{labelCounts.get(label.id)}</span>
+              )}
             </button>
           ))}
         </div>
