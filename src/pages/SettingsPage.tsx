@@ -15,8 +15,8 @@ export default function SettingsPage() {
   const [savingKey, setSavingKey] = useState(false);
   const { user } = useAuth();
 
-  // Link email/password state
-  const [linkEmail, setLinkEmail] = useState("");
+  // Link password state
+  const [linkPassword, setLinkPassword] = useState("");
   const [linkPassword, setLinkPassword] = useState("");
   const [linkConfirm, setLinkConfirm] = useState("");
   const [showLinkPw, setShowLinkPw] = useState(false);
@@ -116,20 +116,10 @@ export default function SettingsPage() {
               Login-Daten hinzufügen
             </h2>
             <p className="text-xs lg:text-sm text-white/25 mt-0.5 font-light">
-              Füge eine E-Mail und ein Passwort hinzu, um dich auch ohne Google einloggen zu können
+              Setze ein Passwort, um dich auch mit <span className="text-white/40">{user?.email}</span> ohne Google einloggen zu können
             </p>
           </div>
           <div className="space-y-3">
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
-              <Input
-                type="email"
-                value={linkEmail}
-                onChange={(e) => setLinkEmail(e.target.value)}
-                placeholder="E-Mail-Adresse"
-                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 placeholder:text-white/15 pl-9 font-light text-sm"
-              />
-            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
               <Input
@@ -160,7 +150,7 @@ export default function SettingsPage() {
           </div>
           <Button
             onClick={handleLinkCredentials}
-            disabled={savingLink || !linkEmail.trim() || !linkPassword.trim() || !linkConfirm.trim()}
+            disabled={savingLink || !linkPassword.trim() || !linkConfirm.trim()}
             className="bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20 hover:border-primary/30 font-light text-[12px] tracking-wider transition-all duration-500"
           >
             <Save className="h-3.5 w-3.5 mr-1.5" />
