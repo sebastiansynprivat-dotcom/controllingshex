@@ -289,19 +289,22 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
-  // Filter unchecked chatters by selected category
+  // Filter unchecked chatters by selected category and label
   const uncheckedChatters = useMemo(
     () => {
-      const base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
-      const filtered = selectedCategory
-        ? base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory)
-        : base;
+      let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+      if (selectedCategory) {
+        base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+      }
+      if (labelChatterNames) {
+        base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+      }
       // Put skipped names at the end
-      const notSkipped = filtered.filter((c) => !skippedNames.has(normalizeName(c.name)));
-      const skipped = filtered.filter((c) => skippedNames.has(normalizeName(c.name)));
+      const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
+      const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, skippedNames]
+    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames]
   );
 
   const prefetchedChatters = useMemo(
