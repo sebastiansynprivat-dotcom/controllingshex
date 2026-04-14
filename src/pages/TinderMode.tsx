@@ -293,16 +293,21 @@ export default function TinderMode() {
     : checkedNames.size;
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
-  // Load labels and notes when chatter changes or panels open
+  // Load labels and notes lazily — only when panel is open
   useEffect(() => {
     if (!currentChatterName) return;
+    if (!labelPanel) return;
     supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
       .then(({ data }) => { if (data) setAllLabels(data); });
     supabase.from("chatter_label_assignments").select("label_id").eq("chatter_name", currentChatterName).eq("platform", platform)
       .then(({ data }) => { if (data) setAssignedLabelIds(new Set(data.map((d) => d.label_id))); });
+  }, [currentChatterName, platform, labelPanel]);
+
+  useEffect(() => {
+    if (!currentChatterName || !notePanel) return;
     supabase.from("coaching_notes").select("id, note_text, created_at").eq("chatter_name", currentChatterName).eq("platform", platform).order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setNotes(data); });
-  }, [currentChatterName, platform]);
+  }, [currentChatterName, platform, notePanel]);
 
   const markChecked = useCallback(async (name: string) => {
     const normalizedName = normalizeName(name);
