@@ -124,7 +124,14 @@ const PREFETCH_CARD_COUNT = 3;
 
 export default function TinderMode() {
   const { platform } = usePlatform();
-  const isMobile = useIsMobile();
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsDesktop(mql.matches);
+    mql.addEventListener("change", onChange);
+    setIsDesktop(mql.matches);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
   const [chatters, setChatters] = useState<ChatterData[]>([]);
   const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
