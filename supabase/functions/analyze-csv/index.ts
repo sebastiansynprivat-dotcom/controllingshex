@@ -473,34 +473,80 @@ Das JSON muss exakt dieses Schema haben:
   ]
 }
 
-KATEGORIE-DEFINITIONEN (nutze NUR diese categoryName-Werte!):
+KATEGORIE-ZUORDNUNG — STRIKTE ENTSCHEIDUNGSLOGIK (prüfe von oben nach unten, ERSTE zutreffende Kategorie gewinnt!):
 
-⚠️ ACCOUNT-EINBRUCH — NUR wenn der Chatter in den letzten 7-14 Tagen einen Durchschnitt von mindestens 20€/Tag hatte und JETZT plötzlich 0€ macht. Wenn der Chatter NIE signifikanten Umsatz hatte (Durchschnitt < 20€), ist es KEIN Einbruch sondern eine 0€-Kategorie! Prüfe die historischen Daten genau.
-🔄 MODEL-TAUSCH — Chatter ist zu groß/klein für den Account. Mache einen konkreten Wechsel-Vorschlag mit einem freien Account.
-🔵 ONBOARDING TAG 1 — Seit gestern aktiv. Fokus: Ist er fleißig angefangen?
-🔵 ONBOARDING TAG 2 — Seit 2 Tagen aktiv. Fokus: Baut er Rückstände auf?
-🔵 ONBOARDING TAG 3 — Seit 3 Tagen aktiv. Fokus: Kommen die ersten Abschlüsse?
-🔵 ONBOARDING TAG 4 — Seit 4 Tagen aktiv. Fokus: Woran hakt es, wenn noch 0€?
-🔵 ONBOARDING TAG 5 — Seit 5 Tagen aktiv. Letzter Tag vor den harten Metriken.
-🌟 BREAKOUT-STAR — Tagesumsatz extrem viel höher als bisher.
-🟢 ACCOUNT UPGRADE (UMSATZ-STREAK) — 5 Tage in Folge >= 30€.
-🚀 KURZ VOR UPGRADE — Exakt 4 Tage in Folge >= 30€.
-🟢 ACCOUNT UPGRADE (TRAFFIC TEST) — > 3 MassDMs/Tag, aber 0€ Umsatz. Verbrennt er Traffic oder ist der Account zu klein?
-📉 0€ UMSATZ TAG 1 — Heute erster Tag 0€ (außerhalb Onboarding).
-📉 0€ UMSATZ TAG 2 — 2 Tage in Folge 0€.
-📉 0€ UMSATZ TAG 3 — 3 Tage in Folge 0€. Scharfer Warnschuss nötig!
-📉 0€ UMSATZ TAG 4 — 4 Tage in Folge 0€.
-📉 0€ UMSATZ TAG 5 — 5 Tage in Folge 0€.
-📉 0€ UMSATZ TAG 6 — 6 Tage in Folge 0€.
-📉 0€ UMSATZ TAG 7+ — 7+ Tage in Folge 0€. Klare Empfehlung zur Kündigung/Austausch!
-🟠 WARNUNG — Chats offen, die älter als 2 Tage sind.
-📼 VIDEO-COACHING — Seit >= 5 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€.
-🟡 COACHING / ENGERE KONTROLLE — Seit > 5 Tagen aktiv UND insgesamt < 20€ eingenommen.
-⚪ WEITER SO / MITTELFELD — Restliche Chatter, die in keine andere Kategorie passen.
+SCHRITT 1 — ONBOARDING prüfen (Startdatum ≤ 5 Tage her):
+→ 🔵 ONBOARDING TAG 1 — Seit gestern aktiv. Fokus: Ist er fleißig angefangen?
+→ 🔵 ONBOARDING TAG 2 — Seit 2 Tagen aktiv. Fokus: Baut er Rückstände auf?
+→ 🔵 ONBOARDING TAG 3 — Seit 3 Tagen aktiv. Fokus: Kommen die ersten Abschlüsse?
+→ 🔵 ONBOARDING TAG 4 — Seit 4 Tagen aktiv. Fokus: Woran hakt es, wenn noch 0€?
+→ 🔵 ONBOARDING TAG 5 — Seit 5 Tagen aktiv. Letzter Tag vor den harten Metriken.
+WENN Onboarding zutrifft → STOPP, diese Kategorie verwenden. Nicht weiter prüfen!
+
+SCHRITT 2 — WARNUNG prüfen (Antwortzeit):
+→ 🟠 WARNUNG — NUR wenn "Offene Chats seit X Tagen" und X > 2. Prüfe den Verzug-Wert aus den CSV-Daten.
+WENN Warnung zutrifft → STOPP.
+
+SCHRITT 3 — ACCOUNT-EINBRUCH prüfen (EXTREM RESTRIKTIV!):
+→ ⚠️ ACCOUNT-EINBRUCH — NUR verwenden wenn ALLE diese Bedingungen GLEICHZEITIG erfüllt sind:
+  1. Es gibt historische Daten für diesen Chatter in den HISTORISCHEN DATEN
+  2. Der historische Ø-Tagesumsatz war mindestens 20€/Tag
+  3. Der AKTUELLE Tagesumsatz ist mindestens 50% NIEDRIGER als der historische Durchschnitt
+  4. Der Einbruch ist über mindestens 2-3 Tage sichtbar (kein einzelner schlechter Tag)
+  OHNE historische Daten → NIEMALS "ACCOUNT-EINBRUCH" verwenden!
+  Chatter mit positivem Tagesumsatz der ÜBER oder NAH am historischen Schnitt liegt → KEIN EINBRUCH!
+  Chatter mit 0€ Umsatz → gehört in 0€-UMSATZ-Kategorien, NICHT in ACCOUNT-EINBRUCH!
+  ACCOUNT-EINBRUCH darf MAXIMAL 5-10% aller Chatter betreffen!
+  Bei JEDEM Zweifel → NICHT "ACCOUNT-EINBRUCH", sondern weiter prüfen.
+
+SCHRITT 4 — MODEL-TAUSCH prüfen:
+→ 🔄 MODEL-TAUSCH — Chatter ist deutlich zu groß/klein für den Account (Follower vs. Performance-Mismatch). Konkreten Wechsel-Vorschlag machen.
+
+SCHRITT 4b — ACCOUNT UPGRADE (ZUVERLÄSSIG) prüfen:
+→ 🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG) — NUR wenn ALLE Bedingungen erfüllt sind:
+  1. Chatter hat mindestens 5 Tage in den HISTORISCHEN DATEN
+  2. An mindestens 70% dieser Tage war der Tagesumsatz > 0€
+  3. Chatter ist NICHT bereits in WARNUNG oder ACCOUNT-EINBRUCH
+WENN ACCOUNT UPGRADE (ZUVERLÄSSIG) zutrifft → STOPP.
+
+SCHRITT 5 — 0€ UMSATZ-STREAK prüfen (nur wenn Tagesumsatz = 0€ UND kein Onboarding):
+Zähle aus den HISTORISCHEN DATEN, wie viele aufeinanderfolgende Tage der Chatter 0€ hatte (inklusive heute).
+→ 📉 0€ UMSATZ TAG 1 — Heute erster Tag 0€.
+→ 📉 0€ UMSATZ TAG 2 — 2 Tage in Folge 0€.
+→ 📉 0€ UMSATZ TAG 3 — 3 Tage in Folge 0€. Scharfer Warnschuss nötig!
+→ 📉 0€ UMSATZ TAG 4 — 4 Tage in Folge 0€.
+→ 📉 0€ UMSATZ TAG 5 — 5 Tage in Folge 0€.
+→ 📉 0€ UMSATZ TAG 6 — 6 Tage in Folge 0€.
+→ 📉 0€ UMSATZ TAG 7+ — 7+ Tage in Folge 0€. Klare Empfehlung zur Kündigung/Austausch!
+WENN 0€ heute UND kein Onboarding → eine der obigen Kategorien verwenden, STOPP.
+
+SCHRITT 5b — COMEBACK prüfen:
+→ 🔄 COMEBACK — Chatter hatte laut Historie 3+ Tage in Folge 0€, hat aber HEUTE wieder Umsatz > 0€.
+WENN COMEBACK zutrifft → STOPP.
+
+SCHRITT 6 — POSITIVE KATEGORIEN prüfen:
+→ 🌟 BREAKOUT-STAR — Tagesumsatz ist mindestens 2x höher als der historische Durchschnitt (braucht Historie!).
+→ 🟢 ACCOUNT UPGRADE (UMSATZ-STREAK) — 5 Tage in Folge >= 30€ laut Historie.
+→ 🚀 KURZ VOR UPGRADE — Exakt 4 Tage in Folge >= 30€ laut Historie.
+→ 📊 HOHER TRAFFIC / KEINE CONVERSION — > 3 MassDMs heute, aber 0€ Umsatz.
+
+SCHRITT 7 — COACHING prüfen:
+→ 📼 VIDEO-COACHING — Seit >= 7 Tagen aktiv UND in den letzten 7 Tagen insgesamt < 20€.
+→ 🟡 COACHING / ENGERE KONTROLLE — Seit 5-6 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€.
+
+SCHRITT 8 — MITTELFELD segmentieren (Fallback):
+→ ⭐ TOP PERFORMER — Tagesumsatz heute > Ø aller Chatter im Batch. Starke Leistung!
+→ ⚪ WEITER SO — Tagesumsatz > 0€, aber ≤ Batch-Durchschnitt. Solide, aber Luft nach oben.
+→ 👀 UNTER BEOBACHTUNG — Tagesumsatz = 0€ heute, aber kein 0€-Streak (nur 1 Tag).
+
+WICHTIGE VERBOTE:
+- ACCOUNT-EINBRUCH darf MAXIMAL 5-10% aller Chatter betreffen!
+- Ein Chatter mit positivem Tagesumsatz (> 0€) UND ohne klaren historischen Einbruchsnachweis gehört NICHT in ACCOUNT-EINBRUCH.
+- Ein Chatter mit 0€ Umsatz gehört in die 0€-UMSATZ-Kategorien, NICHT in ACCOUNT-EINBRUCH.
 
 Regeln:
 - Nutze NUR die oben genannten categoryName-Werte exakt wie geschrieben.
-- Jeder Chatter gehört in GENAU EINE Kategorie (die wichtigste/dringendste).
+- Jeder Chatter gehört in GENAU EINE Kategorie (die ERSTE zutreffende von oben nach unten).
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Geldbeträge mit € formatieren.
 - WICHTIG: Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein.
 - Gib das JSON kompakt aus.
