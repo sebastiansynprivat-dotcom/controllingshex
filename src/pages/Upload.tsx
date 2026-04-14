@@ -428,8 +428,8 @@ function buildResultFromCsv(
     let category = ai?.category || "";
     let emoji = ai?.emoji || "";
 
-    if (daysSinceStart !== null && daysSinceStart >= 0 && daysSinceStart <= 5) {
-      category = `ONBOARDING TAG ${Math.min(Math.max(daysSinceStart, 1), 5)}`;
+    if (daysSinceStart !== null && daysSinceStart > 0 && daysSinceStart <= 5) {
+      category = `ONBOARDING TAG ${daysSinceStart}`;
       emoji = "🔵";
     } else if (metrics.responseDelayDays > 2) {
       category = "WARNUNG";
@@ -467,6 +467,13 @@ function buildResultFromCsv(
         category = fallback.category;
         emoji = fallback.emoji;
       }
+    }
+
+    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override
+    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart > 5)) {
+      const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
+      category = fallback.category;
+      emoji = fallback.emoji;
     }
 
     if (!categoryMap.has(category)) {
