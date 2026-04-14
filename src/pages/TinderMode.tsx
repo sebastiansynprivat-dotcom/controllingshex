@@ -154,8 +154,23 @@ export default function TinderMode() {
   const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
   const [noteText, setNoteText] = useState("");
 
+  // Load all labels on mount for filter chips
   useEffect(() => {
-    const load = async () => {
+    supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
+      .then(({ data }) => { if (data) setAllLabels(data); });
+  }, [platform]);
+
+  // When a label filter is selected, fetch chatter names with that label
+  useEffect(() => {
+    if (!selectedLabelFilter) { setLabelChatterNames(null); return; }
+    supabase.from("chatter_label_assignments").select("chatter_name").eq("label_id", selectedLabelFilter).eq("platform", platform)
+      .then(({ data }) => {
+        if (data) setLabelChatterNames(new Set(data.map((d) => normalizeName(d.chatter_name))));
+        else setLabelChatterNames(new Set());
+      });
+  }, [selectedLabelFilter, platform]);
+
+  useEffect(() => {
       setLoading(true);
 
       // Parallel: report + today's checks
