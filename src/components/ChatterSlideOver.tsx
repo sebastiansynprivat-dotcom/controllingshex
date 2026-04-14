@@ -41,6 +41,7 @@ interface Props {
   onClose: () => void;
   chatterName: string;
   platform: string;
+  inline?: boolean;
 }
 
 function toTitleCase(name: string): string {
@@ -98,7 +99,7 @@ function sanitizeDelay(raw: number, revenue: number): number {
   return val;
 }
 
-export default function ChatterSlideOver({ open, onClose, chatterName, platform }: Props) {
+export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
