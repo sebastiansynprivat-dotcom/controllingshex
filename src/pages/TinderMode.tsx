@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
@@ -123,6 +124,7 @@ const PREFETCH_CARD_COUNT = 3;
 
 export default function TinderMode() {
   const { platform } = usePlatform();
+  const isMobile = useIsMobile();
   const [chatters, setChatters] = useState<ChatterData[]>([]);
   const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
