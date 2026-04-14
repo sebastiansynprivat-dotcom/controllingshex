@@ -295,6 +295,11 @@ function buildResultFromCsv(
       account: metrics.account,
       kpis: {
         Tagesumsatz: formatEuro(metrics.revenueToday),
+        Gesamtumsatz: (() => {
+          const hist = historyMap?.get(normalizedName);
+          const total = (hist ? hist.reduce((s, h) => s + h.revenueToday, 0) : 0) + metrics.revenueToday;
+          return formatEuro(total);
+        })(),
         "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
         MassDMs: String(metrics.massDms),
       },
