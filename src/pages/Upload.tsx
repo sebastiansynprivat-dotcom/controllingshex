@@ -228,11 +228,16 @@ function buildAiLookup(results: any[]): Map<string, { category: string; emoji: s
  * AI only contributes: category, emoji, recommendation.
  * KPIs come from the CSV directly.
  */
-/** Categories that are impossible when revenue is 0€ */
-const POSITIVE_CATEGORIES = new Set([
-  "ACCOUNT UPGRADE (UMSATZ-STREAK)", "ACCOUNT UPGRADE (ZUVERLÄSSIG)",
-  "BREAKOUT-STAR", "TOP PERFORMER", "KURZ VOR UPGRADE", "COMEBACK",
-]);
+/** Whitelist: only these categories are allowed when revenue is 0€ */
+function isAllowedAtZeroRevenue(cat: string): boolean {
+  if (/ONBOARDING/i.test(cat)) return true;
+  if (/WARNUNG/i.test(cat)) return true;
+  if (/0€\s*UMSATZ/i.test(cat)) return true;
+  if (/NULL\s*EURO/i.test(cat)) return true;
+  if (/HOHER\s*TRAFFIC/i.test(cat)) return true;
+  if (/EINBRUCH/i.test(cat)) return true; // handled separately below
+  return false;
+}
 
 function buildResultFromCsv(
   csvData: string,
@@ -248,40 +253,35 @@ function buildResultFromCsv(
     let category = ai?.category || "WEITER SO";
     let emoji = ai?.emoji || "⚪";
 
-    // === SAFETY OVERRIDE: 0€ revenue cannot be in positive categories ===
+    // === SAFETY OVERRIDE: 0€ revenue — whitelist approach ===
     if (metrics.revenueToday === 0) {
-      const isOnboarding = /ONBOARDING/i.test(category);
-      const isWarnung = /WARNUNG/i.test(category);
-
-      if (!isOnboarding && !isWarnung) {
-        // Count consecutive 0€ days from history
-        let streak = 1; // today counts as day 1
-        const hist = historyMap?.get(normalizedName);
-        if (hist && hist.length > 0) {
-          const sorted = [...hist].sort((a, b) => b.date.localeCompare(a.date));
-          for (const entry of sorted) {
-            if (entry.revenueToday === 0) streak++;
-            else break;
-          }
+      // Count consecutive 0€ days from history
+      let streak = 1; // today counts as day 1
+      const hist = historyMap?.get(normalizedName);
+      if (hist && hist.length > 0) {
+        const sorted = [...hist].sort((a, b) => b.date.localeCompare(a.date));
+        for (const entry of sorted) {
+          if (entry.revenueToday === 0) streak++;
+          else break;
         }
+      }
+      const tagLabel = streak >= 7 ? "7+" : String(streak);
 
-        // Allow ACCOUNT-EINBRUCH only if chatter had significant past revenue
-        const isEinbruch = /EINBRUCH/i.test(category);
-        if (isEinbruch && hist && hist.length > 0) {
-          const avgPastRevenue = hist.reduce((s, h) => s + h.revenueToday, 0) / hist.length;
-          if (avgPastRevenue >= 20) {
-            // Genuine drop-off — keep EINBRUCH
-          } else {
-            // Not a real Einbruch, just a 0€ chatter
-            const tagLabel = streak >= 7 ? "7+" : String(streak);
-            category = `0€ UMSATZ TAG ${tagLabel}`;
-            emoji = "📉";
-          }
-        } else if (POSITIVE_CATEGORIES.has(category) || /WEITER\s*SO|MITTELFELD/i.test(category)) {
-          const tagLabel = streak >= 7 ? "7+" : String(streak);
+      // EINBRUCH: only keep if chatter had significant past revenue (≥20€ avg)
+      const isEinbruch = /EINBRUCH/i.test(category);
+      if (isEinbruch) {
+        const avgPastRevenue = hist && hist.length > 0
+          ? hist.reduce((s, h) => s + h.revenueToday, 0) / hist.length
+          : 0;
+        if (avgPastRevenue < 20) {
           category = `0€ UMSATZ TAG ${tagLabel}`;
           emoji = "📉";
         }
+        // else: genuine Einbruch — keep
+      } else if (!isAllowedAtZeroRevenue(category)) {
+        // Any non-whitelisted category at 0€ → override
+        category = `0€ UMSATZ TAG ${tagLabel}`;
+        emoji = "📉";
       }
     }
 
@@ -295,6 +295,11 @@ function buildResultFromCsv(
       account: metrics.account,
       kpis: {
         Tagesumsatz: formatEuro(metrics.revenueToday),
+        Gesamtumsatz: (() => {
+          const hist = historyMap?.get(normalizedName);
+          const total = (hist ? hist.reduce((s, h) => s + h.revenueToday, 0) : 0) + metrics.revenueToday;
+          return formatEuro(total);
+        })(),
         "Offene Chats": `${metrics.openChats} Chats seit ${metrics.responseDelayDays} Tagen`,
         MassDMs: String(metrics.massDms),
       },
