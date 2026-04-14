@@ -469,6 +469,13 @@ function buildResultFromCsv(
       }
     }
 
+    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override
+    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart > 5)) {
+      const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
+      category = fallback.category;
+      emoji = fallback.emoji;
+    }
+
     if (!categoryMap.has(category)) {
       categoryMap.set(category, { emoji: emoji || "⚪", categoryName: category, chatters: [] });
     }

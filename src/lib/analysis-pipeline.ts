@@ -209,14 +209,13 @@ export function step2_categorize(chatters: CleanedChatter[]): CategorizedChatter
       return { ...ch, category: "WARNUNG", emoji: "🟠" };
     }
 
-    // Priority 2: 🟦 BLAU — Newcomer (Start Date ≤ 5 Tage)
-    if (daysSinceStart >= 0 && daysSinceStart <= 5) {
-      const day = Math.max(1, daysSinceStart);
+    // Priority 2: 🟦 BLAU — Newcomer (Start Date 1–5 Tage, NOT today=0)
+    if (daysSinceStart > 0 && daysSinceStart <= 5) {
       return {
         ...ch,
-        category: `ONBOARDING TAG ${Math.min(day, 5)}`,
+        category: `ONBOARDING TAG ${daysSinceStart}`,
         emoji: "🔵",
-        onboardingDay: day,
+        onboardingDay: daysSinceStart,
       };
     }
 
