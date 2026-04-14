@@ -171,6 +171,7 @@ export default function TinderMode() {
   }, [selectedLabelFilter, platform]);
 
   useEffect(() => {
+    const load = async () => {
       setLoading(true);
 
       // Parallel: report + today's checks
