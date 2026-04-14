@@ -246,12 +246,16 @@ function buildAiLookup(results: any[]): Map<string, { category: string; emoji: s
 
 function parseStartDate(value: string): Date | null {
   if (!value) return null;
+  const trimmed = value.trim().replace(/\s+/g, " ");
 
-  const dotParts = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (dotParts) {
-    const day = Number.parseInt(dotParts[1], 10);
-    const month = Number.parseInt(dotParts[2], 10);
-    const year = Number.parseInt(dotParts[3], 10);
+  // DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY (1 or 2 digit day/month, 2 or 4 digit year)
+  const dmy = trimmed.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2,4})$/);
+  if (dmy) {
+    const day = Number.parseInt(dmy[1], 10);
+    const month = Number.parseInt(dmy[2], 10);
+    let year = Number.parseInt(dmy[3], 10);
+    if (year < 100) year += 2000;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
     const parsed = new Date(Date.UTC(year, month - 1, day));
     if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day) {
       return parsed;
@@ -259,11 +263,13 @@ function parseStartDate(value: string): Date | null {
     return null;
   }
 
-  const isoParts = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoParts) {
-    const year = Number.parseInt(isoParts[1], 10);
-    const month = Number.parseInt(isoParts[2], 10);
-    const day = Number.parseInt(isoParts[3], 10);
+  // YYYY-MM-DD (ISO)
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const year = Number.parseInt(iso[1], 10);
+    const month = Number.parseInt(iso[2], 10);
+    const day = Number.parseInt(iso[3], 10);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
     const parsed = new Date(Date.UTC(year, month - 1, day));
     if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day) {
       return parsed;
@@ -279,7 +285,8 @@ function getDaysSinceStart(startDate: string): number | null {
 
   const now = new Date();
   const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.floor((todayUtc - parsed.getTime()) / 86400000);
+  const diff = Math.floor((todayUtc - parsed.getTime()) / 86400000);
+  return diff >= 0 ? diff : null;
 }
 
 function getRelevantHistory(entries?: HistoryEntry[]): HistoryEntry[] {

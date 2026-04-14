@@ -163,18 +163,20 @@ export function step1_cleanData(csvData: string, models: ModelInfo[]): CleanedCh
 
 function getDaysSinceStart(startDate: string): number {
   if (!startDate) return 999;
+  const trimmed = startDate.trim().replace(/\s+/g, " ");
 
   let year: number, month: number, day: number;
 
-  // Try DD.MM.YYYY
-  const dotParts = startDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (dotParts) {
-    day = parseInt(dotParts[1], 10);
-    month = parseInt(dotParts[2], 10);
-    year = parseInt(dotParts[3], 10);
+  // DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY (1-2 digit day/month, 2-4 digit year)
+  const dmy = trimmed.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2,4})$/);
+  if (dmy) {
+    day = parseInt(dmy[1], 10);
+    month = parseInt(dmy[2], 10);
+    year = parseInt(dmy[3], 10);
+    if (year < 100) year += 2000;
   } else {
-    // Try YYYY-MM-DD
-    const iso = startDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    // YYYY-MM-DD (ISO)
+    const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (iso) {
       year = parseInt(iso[1], 10);
       month = parseInt(iso[2], 10);
@@ -186,11 +188,15 @@ function getDaysSinceStart(startDate: string): number {
 
   if (month < 1 || month > 12 || day < 1 || day > 31) return 999;
 
-  const startUtc = Date.UTC(year, month - 1, day);
+  // Validate date is real (e.g. not Feb 31)
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
+    return 999;
+  }
+
   const now = new Date();
   const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const diff = Math.floor((todayUtc - startUtc) / 86400000);
+  const diff = Math.floor((todayUtc - parsed.getTime()) / 86400000);
   return diff >= 0 ? diff : 999;
 }
 
