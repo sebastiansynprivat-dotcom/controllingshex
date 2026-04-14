@@ -119,7 +119,7 @@ const CATEGORY_PRIORITY = [
   "TOP PERFORMER", "WEITER SO",
 ];
 
-const PREFETCH_CARD_COUNT = 7;
+const PREFETCH_CARD_COUNT = 3;
 
 export default function TinderMode() {
   const { platform } = usePlatform();
@@ -147,23 +147,36 @@ export default function TinderMode() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      // Get latest report
-      const { data: report } = await supabase
-        .from("analysis_reports")
-        .select("result_json")
-        .eq("platform", platform)
-        .not("result_json", "is", null)
-        .order("analysis_date", { ascending: false })
-        .limit(1)
-        .single();
 
-      if (!report?.result_json) {
+      // Parallel: report + today's checks
+      const today = new Date().toISOString().split("T")[0];
+      const [reportRes, checksRes] = await Promise.all([
+        supabase
+          .from("analysis_reports")
+          .select("result_json")
+          .eq("platform", platform)
+          .not("result_json", "is", null)
+          .order("analysis_date", { ascending: false })
+          .limit(1)
+          .single(),
+        supabase
+          .from("daily_chatter_checks")
+          .select("chatter_name")
+          .eq("platform", platform)
+          .eq("check_date", today),
+      ]);
+
+      if (checksRes.data) {
+        setCheckedNames(new Set(checksRes.data.map((c) => normalizeName(c.chatter_name))));
+      }
+
+      if (!reportRes.data?.result_json) {
         setChatters([]);
         setLoading(false);
         return;
       }
 
-      const result = report.result_json as unknown as AnalysisResult;
+      const result = reportRes.data.result_json as unknown as AnalysisResult;
       if (!result?.categories) {
         setChatters([]);
         setLoading(false);
@@ -173,7 +186,6 @@ export default function TinderMode() {
       const allChatters: ChatterData[] = [];
       for (const cat of result.categories) {
         const mapped = mapToSwipeCategory(cat.categoryName);
-
         for (const ch of cat.chatters) {
           allChatters.push({
             name: toTitleCase(ch.name),
@@ -187,18 +199,24 @@ export default function TinderMode() {
         }
       }
 
-      // Load revenue history for sparklines
+      // Parallel: history + models
       const names = allChatters.map((c) => c.name);
-      const { data: history } = await supabase
-        .from("chatter_history")
-        .select("chatter_name, analysis_date, revenue_today")
-        .eq("platform", platform)
-        .in("chatter_name", names)
-        .order("analysis_date", { ascending: true });
+      const [historyRes, modelsRes] = await Promise.all([
+        supabase
+          .from("chatter_history")
+          .select("chatter_name, analysis_date, revenue_today")
+          .eq("platform", platform)
+          .in("chatter_name", names)
+          .order("analysis_date", { ascending: true }),
+        supabase
+          .from("models")
+          .select("model_name, follower_count")
+          .eq("platform", platform),
+      ]);
 
-      if (history) {
+      if (historyRes.data) {
         const histMap = new Map<string, { date: string; revenue: number }[]>();
-        for (const h of history) {
+        for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
             date: h.analysis_date,
@@ -210,36 +228,18 @@ export default function TinderMode() {
         }
       }
 
-      // Load model performances
-      const { data: models } = await supabase
-        .from("models")
-        .select("model_name, follower_count")
-        .eq("platform", platform);
-
-      if (models && allChatters.length > 0) {
+      if (modelsRes.data && allChatters.length > 0) {
         const perfs = await loadModelPerformances(
           platform,
           allChatters.map((c) => ({ name: c.name, account: c.account })),
-          models as ModelInfo[]
+          modelsRes.data as ModelInfo[]
         );
         for (const ch of allChatters) {
           if (perfs[ch.name]) ch.modelPerf = perfs[ch.name];
         }
       }
-      // Load today's checks
-      const today = new Date().toISOString().split("T")[0];
-      const { data: checks } = await supabase
-        .from("daily_chatter_checks")
-        .select("chatter_name")
-        .eq("platform", platform)
-        .eq("check_date", today);
-
-      if (checks) {
-        setCheckedNames(new Set(checks.map((c) => normalizeName(c.chatter_name))));
-      }
 
       setChatters(allChatters);
-      
       setUndoStack([]);
       setLoading(false);
     };
@@ -293,16 +293,21 @@ export default function TinderMode() {
     : checkedNames.size;
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
-  // Load labels and notes when chatter changes or panels open
+  // Load labels and notes lazily — only when panel is open
   useEffect(() => {
     if (!currentChatterName) return;
+    if (!labelPanel) return;
     supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform)
       .then(({ data }) => { if (data) setAllLabels(data); });
     supabase.from("chatter_label_assignments").select("label_id").eq("chatter_name", currentChatterName).eq("platform", platform)
       .then(({ data }) => { if (data) setAssignedLabelIds(new Set(data.map((d) => d.label_id))); });
+  }, [currentChatterName, platform, labelPanel]);
+
+  useEffect(() => {
+    if (!currentChatterName || !notePanel) return;
     supabase.from("coaching_notes").select("id, note_text, created_at").eq("chatter_name", currentChatterName).eq("platform", platform).order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setNotes(data); });
-  }, [currentChatterName, platform]);
+  }, [currentChatterName, platform, notePanel]);
 
   const markChecked = useCallback(async (name: string) => {
     const normalizedName = normalizeName(name);
@@ -602,7 +607,7 @@ export default function TinderMode() {
           </motion.div>
         ) : (
           <>
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="wait">
               {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
                 const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
                 const isTopCard = stackIndex === 0;
