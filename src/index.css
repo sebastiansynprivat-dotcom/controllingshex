@@ -68,6 +68,13 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    font-size: 16px;
+  }
+
+  @media (min-width: 1024px) {
+    html {
+      font-size: 17px;
+    }
   }
 
   body {

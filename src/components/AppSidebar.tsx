@@ -61,8 +61,8 @@ export function AppSidebar() {
                       }`}
                       activeClassName="text-white/90 bg-white/[0.04]"
                     >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="text-[13px] font-light tracking-wide">{item.title}</span>}
+                      <item.icon className="h-[18px] w-[18px] shrink-0" />
+                      {!collapsed && <span className="text-sm font-light tracking-wide">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -75,7 +75,7 @@ export function AppSidebar() {
         <div className="mt-auto pb-6">
           {!collapsed && user && (
             <div className="px-3 mb-3">
-              <p className="text-[11px] text-white/20 font-light truncate">{user.email}</p>
+              <p className="text-xs text-white/25 font-light truncate">{user.email}</p>
             </div>
           )}
           <button
@@ -84,8 +84,8 @@ export function AppSidebar() {
               collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5 w-full"
             }`}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span className="text-[13px] font-light tracking-wide">Abmelden</span>}
+            <LogOut className="h-[18px] w-[18px] shrink-0" />
+            {!collapsed && <span className="text-sm font-light tracking-wide">Abmelden</span>}
           </button>
         </div>
       </SidebarContent>
