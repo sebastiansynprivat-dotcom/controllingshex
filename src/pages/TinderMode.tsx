@@ -157,13 +157,13 @@ export default function TinderMode() {
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
     Promise.all([
-      supabase.from("chatter_labels").select("id, label_name, color"),
-      supabase.from("chatter_label_assignments").select("label_id, chatter_name"),
+      supabase.from("chatter_labels").select("id, label_name, color").eq("platform", platform),
+      supabase.from("chatter_label_assignments").select("label_id, chatter_name").eq("platform", platform),
     ]).then(([labelsRes, assignRes]) => {
       if (labelsRes.data) setAllLabels(labelsRes.data);
       if (assignRes.data) setAllLabelAssignments(assignRes.data);
     });
-  }, []);
+  }, [platform]);
 
   // Derive label filter set from allLabelAssignments
   const labelChatterNames = useMemo(() => {
