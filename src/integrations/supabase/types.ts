@@ -304,27 +304,33 @@ export type Database = {
       models: {
         Row: {
           created_at: string
+          email: string | null
           follower_count: number
           id: string
           model_name: string
+          password: string | null
           platform: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          email?: string | null
           follower_count?: number
           id?: string
           model_name: string
+          password?: string | null
           platform?: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          email?: string | null
           follower_count?: number
           id?: string
           model_name?: string
+          password?: string | null
           platform?: string
           updated_at?: string
           user_id?: string | null
