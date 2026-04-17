@@ -1,72 +1,178 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, Flame, Eye, X } from "lucide-react";
+import { MessageCircle, Flame, Eye, SkipForward, Check } from "lucide-react";
+import { useMemo } from "react";
 
 interface Props {
   open: boolean;
   chatterName: string;
+  categoryEmoji?: string;
+  categoryName?: string;
   onPick: (type: "verbal" | "praise" | "observed") => void;
   onSkip: () => void;
 }
 
-const OPTIONS: { type: "verbal" | "praise" | "observed"; icon: React.ComponentType<any>; label: string; hint: string; hue: string }[] = [
-  { type: "verbal", icon: MessageCircle, label: "Input gegeben", hint: "Coaching / Feedback", hue: "212 90% 60%" },
+const OPTIONS: {
+  type: "verbal" | "praise" | "observed";
+  icon: React.ComponentType<any>;
+  label: string;
+  hint: string;
+  hue: string;
+}[] = [
+  { type: "verbal", icon: MessageCircle, label: "Input gegeben", hint: "Coaching, Feedback, Korrektur", hue: "212 90% 60%" },
   { type: "praise", icon: Flame, label: "Lob", hint: "Positive Verstärkung", hue: "25 95% 55%" },
-  { type: "observed", icon: Eye, label: "Nur beobachtet", hint: "Kein Input nötig", hue: "240 5% 60%" },
+  { type: "observed", icon: Eye, label: "Nur beobachtet", hint: "Heute kein Input nötig", hue: "240 5% 60%" },
 ];
 
-export default function QuickInputPrompt({ open, chatterName, onPick, onSkip }: Props) {
+function getInitials(name: string): string {
+  const clean = name.replace(/_/g, " ").trim();
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export default function QuickInputPrompt({ open, chatterName, categoryEmoji, categoryName, onPick, onSkip }: Props) {
+  const initials = useMemo(() => getInitials(chatterName), [chatterName]);
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none px-3 pb-3"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          transition={{ type: "spring", stiffness: 380, damping: 28 }}
+          className="absolute inset-0 z-30 flex items-stretch justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
         >
+          {/* Card */}
           <motion.div
-            className="pointer-events-auto w-full max-w-md rounded-2xl px-3 py-2.5 overflow-hidden"
+            className="relative w-full rounded-2xl p-5 flex flex-col overflow-hidden"
             style={{
-              background: `linear-gradient(180deg, hsl(240 6% 9% / 0.96) 0%, hsl(240 6% 5% / 0.96) 100%)`,
-              border: "1px solid hsl(0 0% 100% / 0.08)",
-              boxShadow: "0 20px 60px -10px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)",
-              backdropFilter: "blur(20px)",
+              background: `
+                radial-gradient(130% 70% at 0% 0%, hsl(152 70% 45% / 0.16) 0%, transparent 55%),
+                radial-gradient(110% 80% at 100% 100%, hsl(212 90% 60% / 0.12) 0%, transparent 60%),
+                linear-gradient(165deg, hsl(0 0% 100% / 0.05) 0%, hsl(240 6% 5%) 38%, hsl(240 8% 3%) 100%)
+              `,
+              border: "1px solid hsl(152 70% 45% / 0.25)",
+              boxShadow:
+                "0 18px 60px -16px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.07), 0 0 32px -8px hsl(152 70% 45% / 0.25)",
             }}
+            initial={{ scale: 0.92, y: 14, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.94, y: 8, opacity: 0 }}
+            transition={{ type: "spring", damping: 26, stiffness: 360, mass: 0.7 }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-white/45 font-medium truncate">
-                <span className="text-white/70 capitalize">{chatterName.replace(/_/g, " ")}</span>
-                <span className="ml-1.5">— Was war's?</span>
-              </p>
-              <button
-                onClick={onSkip}
-                className="h-6 w-6 -mr-1 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors shrink-0"
-                aria-label="Nur swipen, nichts tracken"
+            {/* Top accent line */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-6 right-6 h-px rounded-full"
+              style={{
+                background: "linear-gradient(to right, transparent 0%, hsl(152 70% 45% / 0.7) 50%, transparent 100%)",
+                boxShadow: "0 0 14px hsl(152 70% 45% / 0.5)",
+              }}
+            />
+
+            {/* Header chip — "Eintrag tracken" */}
+            <div className="flex items-center justify-between mb-3">
+              <div
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
+                style={{
+                  borderColor: "hsl(152 70% 45% / 0.3)",
+                  background: "hsl(152 70% 45% / 0.10)",
+                }}
               >
-                <X className="h-3.5 w-3.5" />
-              </button>
+                <Check className="h-3 w-3" style={{ color: "hsl(152 70% 65%)" }} strokeWidth={3} />
+                <span className="text-[9.5px] uppercase tracking-wider font-semibold" style={{ color: "hsl(152 70% 75%)" }}>
+                  Geswipt — Input tracken?
+                </span>
+              </div>
+              {categoryEmoji && (
+                <span className="text-[18px] leading-none opacity-60">{categoryEmoji}</span>
+              )}
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {OPTIONS.map(({ type, icon: Icon, label, hint, hue }) => (
+
+            {/* Avatar + Name */}
+            <div className="flex items-center gap-3 mb-1">
+              <motion.div
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-bold tracking-wide"
+                style={{
+                  background: "linear-gradient(135deg, hsl(152 70% 45% / 0.25) 0%, hsl(152 70% 45% / 0.06) 100%)",
+                  color: "hsl(152 70% 75%)",
+                  border: "1px solid hsl(152 70% 45% / 0.22)",
+                }}
+                initial={{ scale: 0.7, rotate: -8 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", damping: 18, stiffness: 360, delay: 0.05 }}
+              >
+                {initials}
+              </motion.div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Was hast du</p>
+                <h2 className="text-xl font-semibold text-foreground capitalize leading-tight truncate mt-1">
+                  {chatterName.replace(/_/g, " ")}
+                </h2>
+                <p className="text-[11px] text-white/55 font-light mt-0.5">heute gegeben?</p>
+              </div>
+            </div>
+
+            <div className="h-px bg-white/[0.06] my-4" />
+
+            {/* Options — large, tappable */}
+            <div className="flex-1 flex flex-col gap-2.5">
+              {OPTIONS.map(({ type, icon: Icon, label, hint, hue }, i) => (
                 <motion.button
                   key={type}
-                  onClick={() => { try { (navigator as any).vibrate?.(10); } catch {} onPick(type); }}
-                  whileTap={{ scale: 0.94 }}
-                  className="flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-xl border transition-colors"
+                  onClick={() => {
+                    try { (navigator as any).vibrate?.(12); } catch {}
+                    onPick(type);
+                  }}
+                  whileTap={{ scale: 0.97 }}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.08 + i * 0.05, type: "spring", damping: 24, stiffness: 320 }}
+                  className="group flex items-center gap-3 w-full py-3.5 px-4 rounded-2xl border text-left transition-all hover:translate-x-0.5"
                   style={{
                     background: `linear-gradient(135deg, hsl(${hue} / 0.10), hsl(${hue} / 0.03))`,
-                    borderColor: `hsl(${hue} / 0.22)`,
+                    borderColor: `hsl(${hue} / 0.25)`,
+                    boxShadow: `inset 0 1px 0 hsl(${hue} / 0.08)`,
                   }}
                 >
-                  <Icon className="h-4 w-4" style={{ color: `hsl(${hue} / 0.95)` }} />
-                  <span className="text-[10px] font-semibold leading-tight text-center" style={{ color: `hsl(${hue} / 0.95)` }}>
-                    {label}
-                  </span>
-                  <span className="text-[8.5px] text-white/35 font-light leading-tight text-center">{hint}</span>
+                  <div
+                    className="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center"
+                    style={{
+                      background: `linear-gradient(135deg, hsl(${hue} / 0.22), hsl(${hue} / 0.06))`,
+                      border: `1px solid hsl(${hue} / 0.25)`,
+                    }}
+                  >
+                    <Icon className="h-4.5 w-4.5" style={{ color: `hsl(${hue} / 0.95)` }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-tight" style={{ color: `hsl(${hue} / 0.98)` }}>
+                      {label}
+                    </p>
+                    <p className="text-[11px] text-white/45 font-light leading-tight mt-0.5">{hint}</p>
+                  </div>
+                  <div
+                    className="text-white/30 group-hover:text-white/60 transition-colors text-lg leading-none"
+                    aria-hidden
+                  >
+                    →
+                  </div>
                 </motion.button>
               ))}
             </div>
+
+            {/* Skip — secondary, subtle */}
+            <motion.button
+              onClick={onSkip}
+              whileTap={{ scale: 0.97 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.28 }}
+              className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.03] transition-colors"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              <span className="font-medium">Nichts tracken — weiter</span>
+            </motion.button>
           </motion.div>
         </motion.div>
       )}
