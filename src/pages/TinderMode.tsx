@@ -22,7 +22,7 @@ interface ChatterData {
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
-  revenueHistory?: { date: string; revenue: number }[];
+  history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
 }
 
