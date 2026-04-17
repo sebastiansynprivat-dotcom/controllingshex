@@ -293,7 +293,37 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
         {chatter.name.replace(/_/g, " ")}
       </h2>
 
-      {/* Model Performance Badge */}
+      {/* Auto-Alert Banner — zeigt warum dieser Chatter Aufmerksamkeit braucht */}
+      {alerts.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          {alerts.slice(0, 3).map((a, i) => {
+            const Icon = ALERT_ICONS[a.alert_type] ?? AlertTriangle;
+            const colorClass = SEVERITY_COLOR[a.severity] ?? SEVERITY_COLOR.medium;
+            return (
+              <div
+                key={i}
+                className={`flex items-start gap-2 rounded-lg border-l-2 px-2.5 py-1.5 ${colorClass}`}
+              >
+                <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-80" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wider font-semibold opacity-90">
+                      {ALERT_LABELS[a.alert_type] ?? a.alert_type}
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-snug opacity-90">{a.message}</p>
+                </div>
+              </div>
+            );
+          })}
+          {alerts.length > 3 && (
+            <p className="text-[10px] text-muted-foreground/60 text-center">
+              +{alerts.length - 3} weitere Auffälligkeiten
+            </p>
+          )}
+        </div>
+      )}
+
       {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
         <div className="flex items-center gap-2 mb-3">
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
