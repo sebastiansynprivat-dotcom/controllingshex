@@ -225,7 +225,7 @@ export default function Models() {
         {/* Add New */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 backdrop-blur-2xl">
           <h2 className="text-[13px] font-medium text-foreground/70 mb-4 sm:mb-5 tracking-wide">Neues Model</h2>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               placeholder="Name"
               value={newName}
@@ -237,8 +237,26 @@ export default function Models() {
               type="number"
               value={newFollowers}
               onChange={(e) => setNewFollowers(e.target.value)}
-              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm sm:w-40"
+              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
             />
+            <Input
+              placeholder="E-Mail (optional)"
+              type="email"
+              autoComplete="off"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
+            />
+            <Input
+              placeholder="Passwort (optional)"
+              type="text"
+              autoComplete="off"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
+            />
+          </div>
+          <div className="flex justify-end mt-4">
             <Button
               onClick={addModel}
               className="bg-white/[0.04] hover:bg-white/[0.06] text-foreground/70 border border-white/[0.06] hover:border-primary/15 font-light text-[12px] tracking-wider transition-all duration-500 shrink-0"
