@@ -137,13 +137,21 @@ export default function Models() {
 
   const addModel = async () => {
     if (!newName.trim()) return;
+    if (!user?.id) {
+      toast.error("Nicht eingeloggt");
+      return;
+    }
     const { error } = await supabase.from("models").insert({
       model_name: newName.trim(),
       follower_count: parseInt(newFollowers) || 0,
       platform,
-      user_id: user?.id,
+      user_id: user.id,
     });
-    if (error) { toast.error("Fehler beim Hinzufügen"); return; }
+    if (error) {
+      console.error("[addModel] insert error:", error);
+      toast.error(`Fehler: ${error.message}`);
+      return;
+    }
     toast.success(`Model hinzugefügt`);
     setNewName("");
     setNewFollowers("");
