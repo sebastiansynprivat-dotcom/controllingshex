@@ -545,6 +545,14 @@ export default function TinderMode() {
     if (data) { setNotes((prev) => [data, ...prev]); setNoteText(""); toast.success("Notiz gespeichert"); }
   };
 
+  const deleteNote = async (noteId: string) => {
+    const prev = notes;
+    setNotes((p) => p.filter((n) => n.id !== noteId));
+    const { error } = await supabase.from("coaching_notes").delete().eq("id", noteId);
+    if (error) { setNotes(prev); toast.error("Fehler beim Löschen"); return; }
+    toast.success("Notiz gelöscht");
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
