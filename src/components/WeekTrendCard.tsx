@@ -245,7 +245,7 @@ export default function WeekTrendCard({ history, compact = false, fillHeight = f
   const visibleInsights = compact ? insights.slice(0, 1) : insights;
 
   return (
-    <div className={`rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"}`}>
+    <div className={`rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"} ${fillHeight ? "flex-1 flex flex-col w-full" : ""}`}>
       <div className="flex items-center justify-between">
         <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">7-Tage-Trend</p>
         <span className="text-[9px] text-white/25 font-light">
