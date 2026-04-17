@@ -621,12 +621,27 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 <>
                   {/* ── 2. KPI Grid (2×2) ── */}
                   <div className="grid grid-cols-2 gap-4">
-                    {kpis.map((kpi) => (
-                      <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">{kpi.label}</p>
-                        <p className={`text-xl font-light mt-2.5 ${kpi.gold ? "gold-text" : "text-foreground/70"}`}>{kpi.value}</p>
-                      </div>
-                    ))}
+                    {kpis.map((kpi) => {
+                      const Icon = kpi.icon;
+                      return (
+                        <div
+                          key={kpi.label}
+                          className="relative rounded-xl border p-5 overflow-hidden"
+                          style={{
+                            borderColor: `hsl(${kpi.accent} / 0.18)`,
+                            background: `linear-gradient(135deg, hsl(${kpi.accent} / 0.10) 0%, hsl(${kpi.accent} / 0.02) 100%)`,
+                            boxShadow: `0 0 28px -12px hsl(${kpi.accent} / 0.5)`,
+                          }}
+                        >
+                          <div aria-hidden className="absolute -top-8 -right-8 h-20 w-20 rounded-full opacity-30 blur-2xl" style={{ background: `hsl(${kpi.accent} / 0.6)` }} />
+                          <div className="flex items-center gap-1.5 relative z-[1]">
+                            <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.85)` }} />
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-medium">{kpi.label}</p>
+                          </div>
+                          <p className={`text-xl font-light mt-2.5 relative z-[1] ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* ── Labels ── */}
