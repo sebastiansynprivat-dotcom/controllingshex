@@ -319,13 +319,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   }, [history]);
 
   const kpis = [
-    { label: "Ø Tagesumsatz", value: formatCurrency(avgRevenue), gold: true },
-    { label: "Höchster Umsatz", value: formatCurrency(maxRevenue), gold: true },
-    { label: "Ø MassDMs / Tag", value: String(avgDMs), gold: false },
-    { label: "Ø Antwort-Verzug", value: `${avgDelay} Tage`, gold: false },
+    { label: "Ø Tagesumsatz", value: formatCurrency(avgRevenue), icon: Coins, accent: "45 75% 55%", gold: true },
+    { label: "Höchster Umsatz", value: formatCurrency(maxRevenue), icon: Trophy, accent: "45 75% 55%", gold: true },
+    { label: "Ø MassDMs / Tag", value: String(avgDMs), icon: MessageSquare, accent: "212 90% 60%", gold: false },
+    { label: "Ø Antwort-Verzug", value: `${avgDelay} Tage`, icon: Clock, accent: "0 84% 60%", gold: false },
   ];
 
   const displayName = toTitleCase(chatterName);
+  const initials = useMemo(() => getInitials(chatterName), [chatterName]);
+  const trendAccent = trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
   if (inline) {
     // Inline mode: render directly without portal/overlay
