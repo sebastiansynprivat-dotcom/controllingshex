@@ -185,16 +185,18 @@ Das JSON muss exakt dieses Schema haben:
 {
   "categories": [
     {
-      "emoji": "⚠️",
-      "categoryName": "ACCOUNT-EINBRUCH",
+      "emoji": "🆘",
+      "categoryName": "SOFORT EINGREIFEN",
       "chatters": [
         {
           "name": "Max Mustermann",
           "startDate": "01.04.2026",
           "account": "modelname",
+          "subTag": "Verzug 7+ Tage",
+          "trend": "declining",
           "kpis": {
-            "Tagesumsatz": "151,19 €",
-            "Offene Chats": "12 Chats seit 3 Tagen",
+            "Tagesumsatz": "0,00 €",
+            "Offene Chats": "12 Chats seit 8 Tagen",
             "MassDMs": "5"
           },
           "recommendation": "Konkrete Handlungsempfehlung hier"
@@ -204,87 +206,93 @@ Das JSON muss exakt dieses Schema haben:
   ]
 }
 
-KATEGORIE-ZUORDNUNG — STRIKTE ENTSCHEIDUNGSLOGIK (prüfe von oben nach unten, ERSTE zutreffende Kategorie gewinnt!):
+==============================================================
+NEUES KATEGORIE-SYSTEM — 6 ACTION-KATEGORIEN (strikte Prio!)
+==============================================================
+Jeder Chatter gehört in GENAU EINE der 6 Haupt-Kategorien.
+Prüfe von oben nach unten — die ERSTE zutreffende gewinnt, dann STOPP.
+Zusätzlich vergibst du einen "subTag" (kurzer beschreibender Text) und einen "trend" ("rising" | "declining" | "stable" | "volatile" | "unknown").
 
-SCHRITT 1 — ONBOARDING prüfen (Startdatum ≤ 5 Tage her):
-→ 🔵 ONBOARDING TAG 1 — Seit gestern aktiv. Fokus: Ist er fleißig angefangen?
-→ 🔵 ONBOARDING TAG 2 — Seit 2 Tagen aktiv. Fokus: Baut er Rückstände auf?
-→ 🔵 ONBOARDING TAG 3 — Seit 3 Tagen aktiv. Fokus: Kommen die ersten Abschlüsse?
-→ 🔵 ONBOARDING TAG 4 — Seit 4 Tagen aktiv. Fokus: Woran hakt es, wenn noch 0€?
-→ 🔵 ONBOARDING TAG 5 — Seit 5 Tagen aktiv. Letzter Tag vor den harten Metriken.
-WENN Onboarding zutrifft → STOPP, diese Kategorie verwenden. Nicht weiter prüfen!
+──────────────────────────────────────────────
+🆘 SOFORT EINGREIFEN  (categoryName: "SOFORT EINGREIFEN", emoji: "🆘")
+──────────────────────────────────────────────
+Trifft zu wenn EINE dieser Bedingungen erfüllt ist:
+- Antwortverzug ≥ 7 Tage ("Offene Chats seit X Tagen", X ≥ 7)
+- 5 oder mehr Tage in Folge 0€ Tagesumsatz (laut Historie)
+- Account-Einbruch: aktueller Tagesumsatz ≥ 70% niedriger als historischer Schnitt UND mind. 3 Tage sichtbar
+subTag-Beispiele: "Verzug 8 Tage", "0€ seit 6 Tagen", "Einbruch -85%"
 
-SCHRITT 2 — WARNUNG prüfen (Antwortzeit):
-→ 🟠 WARNUNG — NUR wenn "Offene Chats seit X Tagen" und X > 2. Prüfe den Verzug-Wert aus den CSV-Daten.
-WENN Warnung zutrifft → STOPP.
+──────────────────────────────────────────────
+💬 COACHING NÖTIG  (categoryName: "COACHING NÖTIG", emoji: "💬")
+──────────────────────────────────────────────
+Trifft zu wenn EINE dieser Bedingungen erfüllt ist (und SOFORT EINGREIFEN NICHT zutrifft):
+- Antwortverzug 4-6 Tage
+- 2-4 Tage in Folge 0€ Tagesumsatz
+- Trend abwärts: 7-Tage-Schnitt mind. 30% niedriger als 14-Tage-Schnitt (war-Top-jetzt-Mid)
+- Hoher Traffic, keine Conversion: > 3 MassDMs heute, aber 0€ Umsatz
+- Seit ≥ 7 Tagen aktiv UND in den letzten 7 Tagen insgesamt < 20€
+subTag-Beispiele: "Trend ↓ 35%", "0€ seit 3 Tagen", "Verzug 5 Tage", "Traffic ohne Conversion"
 
-SCHRITT 3 — ACCOUNT-EINBRUCH prüfen (SEHR RESTRIKTIV!):
-→ ⚠️ ACCOUNT-EINBRUCH — NUR verwenden wenn ALLE diese Bedingungen erfüllt sind:
-  1. Es gibt historische Daten für diesen Account/Chatter in den HISTORISCHEN DATEN
-  2. Der aktuelle Tagesumsatz ist mindestens 50% NIEDRIGER als der historische Durchschnitt dieses Accounts
-  3. Der Einbruch ist über mindestens 2-3 Tage sichtbar (kein einzelner schlechter Tag)
-  OHNE historische Daten → NIEMALS "ACCOUNT-EINBRUCH" verwenden!
-  Bei Zweifel → NICHT "ACCOUNT-EINBRUCH", sondern weiter prüfen.
+──────────────────────────────────────────────
+🚀 PUSHEN  (categoryName: "PUSHEN", emoji: "🚀")
+──────────────────────────────────────────────
+Trifft zu wenn EINE dieser Bedingungen erfüllt ist:
+- Onboarding Tag 1-5 (Startdatum ≤ 5 Tage her)
+- Rocket Start: Onboarding (Tag 1-5) UND Tagesumsatz heute > 100€
+- Kurz vor Upgrade: exakt 4 Tage in Folge ≥ 30€ laut Historie
+- Comeback: hatte 3+ Tage in Folge 0€, hat HEUTE wieder Umsatz > 0€
+subTag-Beispiele: "Onboarding Tag 3", "🔥 Rocket Start", "Kurz vor Upgrade", "Comeback nach 4 Tagen"
 
-SCHRITT 4 — MODEL-TAUSCH prüfen:
-→ 🔄 MODEL-TAUSCH — Chatter ist deutlich zu groß/klein für den Account (Follower vs. Performance-Mismatch). Konkreten Wechsel-Vorschlag machen.
+──────────────────────────────────────────────
+🎉 BELOHNEN  (categoryName: "BELOHNEN", emoji: "🎉")
+──────────────────────────────────────────────
+Trifft zu für Top-Performer (KEIN Verzug > 2 Tage). Differenziere im subTag:
+- 👑 WHALE: Tagesumsatz heute ≥ 300€ ODER 7-Tage-Summe ≥ 2000€
+- 💎 STAR: Tagesumsatz heute ≥ 100€ ODER 7-Tage-Summe ≥ 700€
+- 🟢 SOLID: Tagesumsatz heute ≥ 30€ UND mindestens 5 aktive Tage (>0€) in letzten 7 Tagen
+- 🌟 BREAKOUT: Tagesumsatz heute mind. 2x höher als historischer Durchschnitt
+- 📈 RISING: 7-Tage-Schnitt mind. 30% höher als 14-Tage-Schnitt
+subTag MUSS exakt einer der obigen Tags sein (z.B. "💎 Star — 850€ heute", "📈 Rising +42%").
 
-SCHRITT 4b — ACCOUNT UPGRADE (ZUVERLÄSSIG) prüfen:
-→ 🔼 ACCOUNT UPGRADE (ZUVERLÄSSIG) — NUR wenn ALLE Bedingungen erfüllt sind:
-  1. Chatter hat mindestens 5 Tage in den HISTORISCHEN DATEN
-  2. An mindestens 70% dieser Tage war der Tagesumsatz > 0€ (siehe "Aktive Tage" in der Zusammenfassung)
-  3. Chatter ist NICHT bereits in WARNUNG oder ACCOUNT-EINBRUCH
-  → Empfehlung: "Zuverlässiger Chatter (X% aktive Tage, Ø Y€). Upgrade auf größeren Account empfohlen."
-  WICHTIG: Nutze die vorberechnete Zusammenfassung "Aktive Tage: X/Y (Z%)" aus den HISTORISCHEN DATEN!
-WENN ACCOUNT UPGRADE (ZUVERLÄSSIG) zutrifft → STOPP.
+──────────────────────────────────────────────
+📊 RE-ASSIGNEN  (categoryName: "RE-ASSIGNEN", emoji: "📊")
+──────────────────────────────────────────────
+Trifft zu wenn der Chatter offensichtlich auf dem falschen Account sitzt (nur wenn KEINE der höheren Kategorien zutrifft):
+- Großer Account (Follower > 20k) UND Chatter macht konstant < 50€/Tag über mind. 5 Tage
+- Kleiner Account (Follower < 5k) UND Chatter generiert > 200€/Tag konstant (zu groß für den Account)
+- Klarer Follower vs. Performance Mismatch
+subTag-Beispiele: "Account zu groß (50k Follower, Ø 35€)", "Account zu klein für Performance"
 
-SCHRITT 5 — 0€ UMSATZ-STREAK prüfen (nur wenn Tagesumsatz = 0€ UND kein Onboarding):
-Zähle aus den HISTORISCHEN DATEN, wie viele aufeinanderfolgende Tage der Chatter 0€ hatte (inklusive heute).
-→ 📉 0€ UMSATZ TAG 1 — Heute erster Tag 0€.
-→ 📉 0€ UMSATZ TAG 2 — 2 Tage in Folge 0€.
-→ 📉 0€ UMSATZ TAG 3 — 3 Tage in Folge 0€. Scharfer Warnschuss nötig!
-→ 📉 0€ UMSATZ TAG 4 — 4 Tage in Folge 0€.
-→ 📉 0€ UMSATZ TAG 5 — 5 Tage in Folge 0€.
-→ 📉 0€ UMSATZ TAG 6 — 6 Tage in Folge 0€.
-→ 📉 0€ UMSATZ TAG 7+ — 7+ Tage in Folge 0€. Klare Empfehlung zur Kündigung/Austausch!
-WENN 0€ heute UND kein Onboarding → eine der obigen Kategorien verwenden, STOPP.
+──────────────────────────────────────────────
+👀 BEOBACHTEN  (categoryName: "BEOBACHTEN", emoji: "👀")
+──────────────────────────────────────────────
+Auffangkorb für ALLE die in keine der obigen passen — stabil, kein Eingriff nötig.
+- Solide Mittelfeld-Performance (5-30€/Tag)
+- Heute 0€ aber gestern Umsatz (nur 1 Tag pause, kein Streak)
+- Noch zu wenig Daten für Trend-Aussage
+subTag-Beispiele: "Stabil", "Slow Day (gestern 45€)", "Zu wenig Daten"
 
-SCHRITT 5b — COMEBACK prüfen:
-→ 🔄 COMEBACK — Chatter hatte laut Historie 3+ Tage in Folge 0€, hat aber HEUTE wieder Umsatz > 0€.
-  → Empfehlung: "Comeback nach X Tagen Pause. Positiv bestärken und eng begleiten."
-WENN COMEBACK zutrifft → STOPP.
+==============================================================
+ZUSÄTZLICHE FELDER (PFLICHT pro Chatter)
+==============================================================
+- "subTag": Kurzer beschreibender Text (max 40 Zeichen) — gibt den spezifischen Grund
+- "trend": Genau einer dieser Werte:
+  - "rising"    → 7-Tage-Schnitt > 14-Tage-Schnitt (mind. +20%)
+  - "declining" → 7-Tage-Schnitt < 14-Tage-Schnitt (mind. -20%)
+  - "stable"    → 7-Tage-Schnitt ≈ 14-Tage-Schnitt (±20%)
+  - "volatile"  → extreme Tagesschwankungen (Std-Abw > Schnitt)
+  - "unknown"   → zu wenig Historie (< 5 Tage)
 
-SCHRITT 6 — POSITIVE KATEGORIEN prüfen:
-→ 🌟 BREAKOUT-STAR — Tagesumsatz ist mindestens 2x höher als der historische Durchschnitt (braucht Historie!).
-→ 🟢 ACCOUNT UPGRADE (UMSATZ-STREAK) — 5 Tage in Folge >= 30€ laut Historie.
-→ 🚀 KURZ VOR UPGRADE — Exakt 4 Tage in Folge >= 30€ laut Historie.
-→ 📊 HOHER TRAFFIC / KEINE CONVERSION — > 3 MassDMs heute, aber 0€ Umsatz.
-  → Empfehlung: Coaching zur Conversion-Optimierung. Der Chatter generiert Traffic, schließt aber nicht ab.
-
-SCHRITT 7 — COACHING prüfen:
-→ 📼 VIDEO-COACHING — Seit >= 7 Tagen aktiv UND in den letzten 7 Tagen insgesamt < 20€.
-  Langzeit-Underperformer, braucht Video-Schulung.
-→ 🟡 COACHING / ENGERE KONTROLLE — Seit 5-6 Tagen aktiv UND in den letzten 5 Tagen insgesamt < 15€.
-  Noch früh genug für engere Begleitung.
-
-SCHRITT 8 — MITTELFELD segmentieren (Fallback):
-→ ⭐ TOP PERFORMER — Tagesumsatz heute > Ø aller Chatter im Batch. Starke Leistung!
-→ ⚪ WEITER SO — Tagesumsatz > 0€, aber ≤ Batch-Durchschnitt. Solide, aber Luft nach oben.
-→ 👀 UNTER BEOBACHTUNG — Tagesumsatz = 0€ heute, aber kein 0€-Streak (nur 1 Tag). Noch kein Alarm.
-
-WICHTIGE VERBOTE:
-- Ein Chatter mit positivem Tagesumsatz (> 0€) UND ohne klaren historischen Einbruchsnachweis gehört NICHT in ACCOUNT-EINBRUCH.
-- Ein Chatter mit 0€ Umsatz gehört in die 0€-UMSATZ-Kategorien, NICHT in ACCOUNT-EINBRUCH.
-
-Regeln:
-- Nutze NUR die oben genannten categoryName-Werte exakt wie geschrieben.
+==============================================================
+WICHTIGE REGELN
+==============================================================
+- Nutze NUR die 6 categoryName-Werte exakt: "SOFORT EINGREIFEN", "COACHING NÖTIG", "PUSHEN", "BELOHNEN", "RE-ASSIGNEN", "BEOBACHTEN"
 - Jeder Chatter gehört in GENAU EINE Kategorie (die ERSTE zutreffende von oben nach unten).
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Geldbeträge mit € formatieren.
-- WICHTIG: Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein.
+- Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein.
 - Gib das JSON kompakt aus.
 - "recommendation" ist die konkrete Handlungsempfehlung nach der Formel: [Daten-Fakt] + [Insight] + [Konkretes To-Do].
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
-- Antworte mit NICHTS außer dem JSON.
 - CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
     const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
