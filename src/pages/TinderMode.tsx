@@ -7,7 +7,7 @@ import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus } from "lucide-react";
+import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus, AlertTriangle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -141,6 +141,8 @@ export default function TinderMode() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
   const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
+  const [alertChatterNames, setAlertChatterNames] = useState<Set<string>>(new Set());
+  const [alertFilterActive, setAlertFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -163,6 +165,22 @@ export default function TinderMode() {
       if (labelsRes.data) setAllLabels(labelsRes.data);
       if (assignRes.data) setAllLabelAssignments(assignRes.data);
     });
+  }, [platform]);
+
+  // Load active anomaly alerts for the active workspace
+  useEffect(() => {
+    const nowIso = new Date().toISOString();
+    supabase
+      .from("anomaly_alerts")
+      .select("chatter_name, snoozed_until, status")
+      .eq("platform", platform)
+      .in("status", ["new", "seen", "snoozed"])
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
+      .then(({ data }) => {
+        const set = new Set<string>();
+        (data || []).forEach((a: any) => set.add(normalizeName(a.chatter_name)));
+        setAlertChatterNames(set);
+      });
   }, [platform]);
 
   // Derive label filter set from allLabelAssignments
@@ -306,7 +324,7 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
-  // Filter unchecked chatters by selected category and label
+  // Filter unchecked chatters by selected category, label, and alerts
   const uncheckedChatters = useMemo(
     () => {
       let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
@@ -316,12 +334,15 @@ export default function TinderMode() {
       if (labelChatterNames) {
         base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
       }
+      if (alertFilterActive) {
+        base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+      }
       // Put skipped names at the end
       const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames]
+    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
   );
 
   const prefetchedChatters = useMemo(
@@ -335,14 +356,16 @@ export default function TinderMode() {
     let base = chatters;
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+    if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, labelChatterNames]);
+  }, [chatters, selectedCategory, labelChatterNames, alertFilterActive, alertChatterNames]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+    if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, labelChatterNames]);
+  }, [chatters, checkedNames, selectedCategory, labelChatterNames, alertFilterActive, alertChatterNames]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
@@ -601,36 +624,60 @@ export default function TinderMode() {
         <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       </div>
 
-      {/* Label filter chips */}
-      {allLabels.length > 0 && (
+      {/* Alert + Label filter chips */}
+      {(allLabels.length > 0 || alertChatterNames.size > 0) && (
         <div className="flex flex-wrap gap-1.5 lg:gap-2 mb-2">
-          <button
-            onClick={() => setSelectedLabelFilter(null)}
-            className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium flex items-center gap-1 ${
-              !selectedLabelFilter
-                ? "bg-white/[0.08] text-foreground border border-white/[0.12]"
-                : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
-            }`}
-          >
-            <Tag className="h-3 w-3" /> Alle Labels
-          </button>
-          {allLabels.map((label) => (
-            <button
-              key={label.id}
-              onClick={() => setSelectedLabelFilter(selectedLabelFilter === label.id ? null : label.id)}
-              className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium whitespace-nowrap border ${
-                selectedLabelFilter === label.id
-                  ? "text-white shadow-md"
-                  : "border-white/[0.06] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
-              }`}
-              style={selectedLabelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}
-            >
-              {label.label_name}
-              {(labelCounts.get(label.id) || 0) > 0 && (
-                <span className="ml-1.5 text-[10px] opacity-50">{labelCounts.get(label.id)}</span>
-              )}
-            </button>
-          ))}
+          {alertChatterNames.size > 0 && (() => {
+            const alertCount = chatters.filter(
+              (c) => !checkedNames.has(normalizeName(c.name)) && alertChatterNames.has(normalizeName(c.name))
+            ).length;
+            return (
+              <button
+                onClick={() => setAlertFilterActive((v) => !v)}
+                className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium flex items-center gap-1 border ${
+                  alertFilterActive
+                    ? "bg-red-500/15 text-red-300 border-red-500/40 shadow-md"
+                    : "bg-red-500/[0.04] text-red-300/70 border-red-500/20 hover:bg-red-500/[0.08] hover:text-red-300"
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" /> Alerts
+                {alertCount > 0 && (
+                  <span className="ml-1 text-[10px] opacity-70">{alertCount}</span>
+                )}
+              </button>
+            );
+          })()}
+          {allLabels.length > 0 && (
+            <>
+              <button
+                onClick={() => setSelectedLabelFilter(null)}
+                className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium flex items-center gap-1 ${
+                  !selectedLabelFilter
+                    ? "bg-white/[0.08] text-foreground border border-white/[0.12]"
+                    : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
+                }`}
+              >
+                <Tag className="h-3 w-3" /> Alle Labels
+              </button>
+              {allLabels.map((label) => (
+                <button
+                  key={label.id}
+                  onClick={() => setSelectedLabelFilter(selectedLabelFilter === label.id ? null : label.id)}
+                  className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium whitespace-nowrap border ${
+                    selectedLabelFilter === label.id
+                      ? "text-white shadow-md"
+                      : "border-white/[0.06] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                  }`}
+                  style={selectedLabelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}
+                >
+                  {label.label_name}
+                  {(labelCounts.get(label.id) || 0) > 0 && (
+                    <span className="ml-1.5 text-[10px] opacity-50">{labelCounts.get(label.id)}</span>
+                  )}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
