@@ -122,10 +122,10 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
   const initials = useMemo(() => getInitials(chatter.name), [chatter.name]);
   const hasCritical = useMemo(() => alerts.some((a) => a.severity === "critical" || a.severity === "high"), [alerts]);
 
-  // Stack visuals — show 2 cards behind the top one
-  const stackScale = stackIndex === 0 ? 1 : 1 - stackIndex * 0.04;
-  const stackOffsetY = stackIndex === 0 ? 0 : stackIndex * 12;
-  const stackOpacity = stackIndex === 0 ? 1 : stackIndex === 1 ? 0.55 : 0.25;
+  // Only top card visible — hintere Karten unsichtbar (werden nur preloaded)
+  const stackScale = 1;
+  const stackOffsetY = 0;
+  const stackOpacity = stackIndex === 0 ? 1 : 0;
 
   const snapBack = useCallback(() => {
     controls.start({
