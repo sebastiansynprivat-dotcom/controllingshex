@@ -404,10 +404,9 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
           <div
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
             style={{
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.35) 0%, hsl(${accent.hue} / 0.12) 100%)`,
-              color: `hsl(${accent.hue} / 0.95)`,
-              border: `1px solid hsl(${accent.hue} / 0.25)`,
-              boxShadow: `0 2px 12px -2px hsl(${accent.hue} / 0.35)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.22) 0%, hsl(${accent.hue} / 0.06) 100%)`,
+              color: `hsl(${accent.hue} / 0.9)`,
+              border: `1px solid hsl(${accent.hue} / 0.18)`,
             }}
           >
             {initials}
