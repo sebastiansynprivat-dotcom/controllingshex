@@ -332,25 +332,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   if (inline) {
     // Inline mode: render directly without portal/overlay
     return (
-      <div className="h-full flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl relative">
-        {/* Aurora background accent */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-60"
-          style={{
-            background: `radial-gradient(80% 100% at 20% 0%, hsl(${trendAccent} / 0.18) 0%, transparent 60%), radial-gradient(60% 80% at 80% 0%, hsl(45 75% 55% / 0.10) 0%, transparent 70%)`,
-          }}
-        />
+      <div className="h-full flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl">
         {/* ── Hero Header ── */}
-        <div className="relative flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-zinc-950/60 z-10 shrink-0 backdrop-blur-xl">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
-            style={{
-              background: `linear-gradient(135deg, hsl(${trendAccent} / 0.35) 0%, hsl(${trendAccent} / 0.10) 100%)`,
-              color: `hsl(${trendAccent} / 0.95)`,
-              border: `1px solid hsl(${trendAccent} / 0.25)`,
-              boxShadow: `0 2px 16px -2px hsl(${trendAccent} / 0.45)`,
-            }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-medium tracking-wide bg-white/[0.04] border border-white/[0.08] text-white/70"
           >
             {initials}
           </div>
@@ -365,8 +351,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-[10px] text-white/30 font-light tracking-[0.15em] uppercase">{platform} · Profil</p>
               {trend30.direction !== "stable" && (
-                <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                  trend30.direction === "up" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+                <span className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded ${
+                  trend30.direction === "up" ? "text-emerald-400/80" : "text-red-400/80"
                 }`}>
                   {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                   {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
@@ -390,21 +376,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   {kpis.map((kpi) => {
                     const Icon = kpi.icon;
                     return (
-                      <div
-                        key={kpi.label}
-                        className="relative rounded-xl border p-4 overflow-hidden"
-                        style={{
-                          borderColor: `hsl(${kpi.accent} / 0.18)`,
-                          background: `linear-gradient(135deg, hsl(${kpi.accent} / 0.08) 0%, hsl(${kpi.accent} / 0.02) 100%)`,
-                          boxShadow: `0 0 20px -10px hsl(${kpi.accent} / 0.4)`,
-                        }}
-                      >
-                        <div aria-hidden className="absolute -top-6 -right-6 h-16 w-16 rounded-full opacity-30 blur-2xl" style={{ background: `hsl(${kpi.accent} / 0.6)` }} />
-                        <div className="flex items-center gap-1.5 relative z-[1]">
-                          <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.8)` }} />
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-medium">{kpi.label}</p>
+                      <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
+                        <div className="flex items-center gap-1.5">
+                          <Icon className="h-3 w-3 text-white/30" />
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light">{kpi.label}</p>
                         </div>
-                        <p className={`text-lg font-light mt-2 relative z-[1] ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
+                        <p className={`text-lg font-light mt-2 ${kpi.gold ? "gold-text" : "text-foreground/75"}`}>{kpi.value}</p>
                       </div>
                     );
                   })}
@@ -551,28 +528,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           onPointerDown={handleDoubleTapClose}
           className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
         >
-          {/* Aurora background accent */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-72 opacity-70"
-            style={{
-              background: `radial-gradient(70% 100% at 15% 0%, hsl(${trendAccent} / 0.20) 0%, transparent 60%), radial-gradient(60% 80% at 85% 0%, hsl(45 75% 55% / 0.12) 0%, transparent 70%)`,
-            }}
-          />
           {/* ── Hero Header ── */}
           <div
-            className="relative flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950/60 backdrop-blur-xl z-10 shrink-0"
+            className="flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0"
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
-            <div
-              className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-bold tracking-wide"
-              style={{
-                background: `linear-gradient(135deg, hsl(${trendAccent} / 0.35) 0%, hsl(${trendAccent} / 0.10) 100%)`,
-                color: `hsl(${trendAccent} / 0.95)`,
-                border: `1px solid hsl(${trendAccent} / 0.25)`,
-                boxShadow: `0 4px 20px -4px hsl(${trendAccent} / 0.5)`,
-              }}
-            >
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-medium tracking-wide bg-white/[0.04] border border-white/[0.08] text-white/70">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
@@ -589,8 +550,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-[11px] text-white/30 font-light tracking-[0.15em] uppercase">{platform} · Profil</p>
                 {trend30.direction !== "stable" && (
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                    trend30.direction === "up" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    trend30.direction === "up" ? "text-emerald-400/80" : "text-red-400/80"
                   }`}>
                     {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                     {trend30.pct > 0 ? "+" : ""}{trend30.pct}% / 30T
@@ -624,21 +585,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     {kpis.map((kpi) => {
                       const Icon = kpi.icon;
                       return (
-                        <div
-                          key={kpi.label}
-                          className="relative rounded-xl border p-5 overflow-hidden"
-                          style={{
-                            borderColor: `hsl(${kpi.accent} / 0.18)`,
-                            background: `linear-gradient(135deg, hsl(${kpi.accent} / 0.10) 0%, hsl(${kpi.accent} / 0.02) 100%)`,
-                            boxShadow: `0 0 28px -12px hsl(${kpi.accent} / 0.5)`,
-                          }}
-                        >
-                          <div aria-hidden className="absolute -top-8 -right-8 h-20 w-20 rounded-full opacity-30 blur-2xl" style={{ background: `hsl(${kpi.accent} / 0.6)` }} />
-                          <div className="flex items-center gap-1.5 relative z-[1]">
-                            <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.85)` }} />
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-medium">{kpi.label}</p>
+                        <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
+                          <div className="flex items-center gap-1.5">
+                            <Icon className="h-3.5 w-3.5 text-white/30" />
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light">{kpi.label}</p>
                           </div>
-                          <p className={`text-xl font-light mt-2.5 relative z-[1] ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
+                          <p className={`text-xl font-light mt-2.5 ${kpi.gold ? "gold-text" : "text-foreground/75"}`}>{kpi.value}</p>
                         </div>
                       );
                     })}
