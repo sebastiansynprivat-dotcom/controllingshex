@@ -921,7 +921,7 @@ export default function TinderMode() {
             </Button>
           </div>
 
-          {/* Label Bottom Sheet */}
+          {/* Label Bottom Sheet — Premium */}
           <AnimatePresence>
             {labelPanel && (
               <motion.div
@@ -929,59 +929,115 @@ export default function TinderMode() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
               >
                 <motion.div
-                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  className="absolute inset-0 bg-black/60 backdrop-blur-md"
                   onClick={() => setLabelPanel(false)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
                 />
                 <motion.div
-                  className="relative w-full max-w-md rounded-t-3xl bg-background border-t border-border/50 px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]"
+                  className="relative w-full max-w-md rounded-t-3xl px-5 pb-7 pt-3 overflow-hidden"
+                  style={{
+                    background: `radial-gradient(120% 60% at 50% 0%, hsl(40 45% 55% / 0.10) 0%, transparent 55%), linear-gradient(180deg, hsl(240 6% 7%) 0%, hsl(240 6% 4%) 100%)`,
+                    borderTop: "1px solid hsl(0 0% 100% / 0.08)",
+                    boxShadow: "0 -20px 60px -10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  }}
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                  transition={{ type: "spring", damping: 30, stiffness: 340 }}
                 >
-                  <div className="flex justify-center mb-4">
-                    <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+                  <div
+                    aria-hidden
+                    className="absolute top-0 left-12 right-12 h-px rounded-full"
+                    style={{
+                      background: "linear-gradient(to right, transparent, hsl(40 45% 55% / 0.5), transparent)",
+                      boxShadow: "0 0 12px hsl(40 45% 55% / 0.4)",
+                    }}
+                  />
+                  <div className="flex justify-center mb-3">
+                    <div className="w-10 h-1 rounded-full bg-white/10" />
                   </div>
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Tag className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div
+                      className="h-9 w-9 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: "linear-gradient(135deg, hsl(40 45% 55% / 0.2), hsl(40 45% 55% / 0.06))",
+                        border: "1px solid hsl(40 45% 55% / 0.2)",
+                      }}
+                    >
+                      <Tag className="h-4 w-4" style={{ color: "hsl(40 50% 65%)" }} />
                     </div>
-                    <h3 className="text-sm font-semibold text-foreground">Labels</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {allLabels.map((label) => (
-                      <button
-                        key={label.id}
-                        onClick={() => toggleLabel(label.id)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all duration-200 font-medium ${
-                          assignedLabelIds.has(label.id)
-                            ? "border-transparent text-white shadow-md scale-105"
-                            : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
-                        }`}
-                        style={assignedLabelIds.has(label.id) ? { backgroundColor: label.color } : {}}
-                      >
-                        {assignedLabelIds.has(label.id) && <span className="mr-1">✓</span>}
-                        {label.label_name}
-                      </button>
-                    ))}
-                    {allLabels.length === 0 && (
-                      <p className="text-xs text-muted-foreground">Noch keine Labels erstellt</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Labels für</p>
+                      <h3 className="text-sm font-semibold text-foreground capitalize truncate mt-0.5">
+                        {currentChatter.name.replace(/_/g, " ")}
+                      </h3>
+                    </div>
+                    {assignedLabelIds.size > 0 && (
+                      <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/20">
+                        {assignedLabelIds.size} aktiv
+                      </span>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="h-px bg-white/[0.06] my-4" />
+                  {allLabels.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 mb-5">
+                      {allLabels.map((label) => {
+                        const active = assignedLabelIds.has(label.id);
+                        return (
+                          <motion.button
+                            key={label.id}
+                            onClick={() => { try { (navigator as any).vibrate?.(10); } catch {} toggleLabel(label.id); }}
+                            whileTap={{ scale: 0.92 }}
+                            animate={active ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                            transition={{ duration: 0.25 }}
+                            className="text-xs px-3.5 py-2 rounded-full font-medium border transition-colors duration-200 inline-flex items-center gap-1.5"
+                            style={
+                              active
+                                ? {
+                                    backgroundColor: label.color,
+                                    borderColor: label.color,
+                                    color: "white",
+                                    boxShadow: `0 4px 16px -4px ${label.color}80, 0 0 0 1px ${label.color}40`,
+                                  }
+                                : {
+                                    backgroundColor: "hsl(0 0% 100% / 0.03)",
+                                    borderColor: "hsl(0 0% 100% / 0.08)",
+                                    color: "hsl(0 0% 75%)",
+                                  }
+                            }
+                          >
+                            <span
+                              className="inline-block h-1.5 w-1.5 rounded-full"
+                              style={{ backgroundColor: active ? "rgba(255,255,255,0.95)" : label.color }}
+                            />
+                            {label.label_name}
+                            {active && <Check className="h-3 w-3 ml-0.5" strokeWidth={3} />}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 mb-3 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.015]">
+                      <Sparkles className="h-5 w-5 text-white/25 mb-2" />
+                      <p className="text-xs text-white/40 font-light">Noch keine Labels — leg dein erstes an</p>
+                    </div>
+                  )}
+                  <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-1.5 flex gap-1.5 items-center">
                     <Input
                       value={newLabelName}
                       onChange={(e) => setNewLabelName(e.target.value)}
-                      placeholder="Neues Label erstellen..."
-                      className="h-9 text-xs bg-secondary/50 border-border/50 rounded-xl"
+                      placeholder="Neues Label…"
+                      className="h-9 text-xs bg-transparent border-0 text-foreground placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 px-3"
                       onKeyDown={(e) => e.key === "Enter" && createLabel()}
                     />
-                    <Button size="sm" onClick={createLabel} disabled={!newLabelName.trim()} className="h-9 px-3 rounded-xl">
+                    <Button
+                      size="sm"
+                      onClick={createLabel}
+                      disabled={!newLabelName.trim()}
+                      className="h-8 px-3 rounded-xl shrink-0"
+                    >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
