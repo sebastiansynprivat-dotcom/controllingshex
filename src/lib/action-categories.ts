@@ -67,8 +67,21 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
   if (!rawName) return { name: "BEOBACHTEN", emoji: "👀" };
   const text = rawName.trim();
 
-  // 1. Direct match on new names (incl. case-variations)
   const upper = text.replace(/^[^\w]*/, "").trim().toUpperCase();
+
+  // 0. Onboarding (höchste Priorität) — extrahiere Tag-Nummer
+  const onboardingMatch = upper.match(/ONBOARDING\s*TAG\s*(\d)/);
+  if (onboardingMatch) {
+    const day = parseInt(onboardingMatch[1], 10);
+    if (day >= 1 && day <= 5) {
+      return { name: `ONBOARDING TAG ${day}` as ActionCategoryName, emoji: "🔵" };
+    }
+  }
+  if (/^ONBOARDING$/.test(upper) || /\bONBOARDING\b/.test(upper)) {
+    return { name: "ONBOARDING TAG 1", emoji: "🔵" };
+  }
+
+  // 1. Direct match on new names
   for (const cat of ACTION_CATEGORIES) {
     if (upper === cat.name || upper.includes(cat.name)) return { name: cat.name, emoji: cat.emoji };
   }
@@ -82,7 +95,6 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
   if (/BEOBACHTEN/i.test(text)) return { name: "BEOBACHTEN", emoji: "👀" };
 
   // 3. Legacy → Action mapping (highest severity first)
-  // SOFORT EINGREIFEN
   if (/EINBRUCH/i.test(text)) return { name: "SOFORT EINGREIFEN", emoji: "🆘" };
   const zeroMatch = text.match(/0\s*€.*?TAG\s*(\d+\+?)/i) || text.match(/NULL\s*EURO\s*TAG\s*(\d+\+?)?/i);
   if (zeroMatch) {
@@ -93,27 +105,21 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
   }
   if (/0\s*€.*FOLGE|FOLGE.*0\s*€|KÜNDIGUNG/i.test(text)) return { name: "SOFORT EINGREIFEN", emoji: "🆘" };
 
-  // COACHING NÖTIG
   if (/WARNUNG/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
   if (/VIDEO.?COACHING/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
   if (/COACHING.*KONTROLLE|ENGERE/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
   if (/TRAFFIC.*CONVERSION|CONVERSION|TRAFFIC.*KEINE|TRAFFIC.?TEST/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
 
-  // PUSHEN
-  if (/ONBOARDING/i.test(text)) return { name: "PUSHEN", emoji: "🚀" };
   if (/KURZ.*UPGRADE/i.test(text)) return { name: "PUSHEN", emoji: "🚀" };
   if (/COMEBACK/i.test(text)) return { name: "PUSHEN", emoji: "🚀" };
 
-  // BELOHNEN
   if (/BREAKOUT/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
   if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
   if (/UPGRADE.*ZUVERL|ZUVERL.*UPGRADE/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
   if (/TOP.?PERFORMER/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
 
-  // RE-ASSIGNEN
   if (/MODEL.?TAUSCH/i.test(text)) return { name: "RE-ASSIGNEN", emoji: "📊" };
 
-  // BEOBACHTEN (Auffangkorb)
   if (/UNTER.?BEOBACHTUNG|MITTELFELD|WEITER\s*SO/i.test(text)) return { name: "BEOBACHTEN", emoji: "👀" };
 
   return { name: "BEOBACHTEN", emoji: "👀" };
