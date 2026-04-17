@@ -49,6 +49,22 @@ function toTitleCase(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function getInitials(name: string): string {
+  const clean = name.replace(/_/g, " ").trim();
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function SectionHeader({ children, accent = "240 5% 60%" }: { children: React.ReactNode; accent?: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="h-3 w-[2px] rounded-full" style={{ background: `hsl(${accent} / 0.7)`, boxShadow: `0 0 8px hsl(${accent} / 0.5)` }} />
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-medium">{children}</p>
+    </div>
+  );
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
