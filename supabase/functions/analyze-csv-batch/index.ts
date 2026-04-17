@@ -424,6 +424,21 @@ Deno.serve(async (req) => {
       historyBlock = `\n\nHISTORISCHE DATEN (letzte 14 Tage, Plattform: ${activePlatform}):\n${lines.join("\n")}\n\nNutze diese Historie um Trends zu erkennen. Die Zusammenfassung (Aktive Tage %, Ø Umsatz) hilft bei der Zuverlässigkeitsbewertung.`;
     }
 
+    // Build benchmark bundle (peer-clusters + per-account-baseline) — vollautomatisch
+    const benchmarkBundle = await buildBenchmarkBundle(supabase, activePlatform, 30);
+
+    // Extract account values from this batch's CSV lines (for targeted benchmark block)
+    const accountColIdx = findAccountColumn(header);
+    const csvAccountSet = new Set<string>();
+    if (accountColIdx >= 0) {
+      for (const line of batchLines) {
+        const acc = extractFieldFromCsvRow(line, accountColIdx);
+        if (acc) csvAccountSet.add(acc);
+      }
+    }
+    const benchmarkBlock = buildPerAccountBenchmarkBlock(benchmarkBundle, csvAccountSet, modelFollowers);
+    console.log(`[batch] ${batchNum} benchmarks: ${benchmarkBundle.totalAccounts} accounts, ${benchmarkBundle.totalDataPoints} datapoints, ${benchmarkBundle.clusters.length} clusters, global confidence: ${benchmarkBundle.globalConfidence}`);
+
     // Load system prompt
     const { data: promptData } = await supabase.from("settings").select("value").eq("key", "system_prompt").eq("user_id", userId).single();
     const userSystemPrompt = promptData?.value || "Du bist ein hilfreicher Assistent für Datenanalyse.";
