@@ -410,19 +410,21 @@ export default function Models() {
                   <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors duration-500">
                     {editId === m.id ? (
                       <>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8">
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 space-y-1.5">
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
+                          <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-Mail" type="email" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
+                          <Input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Passwort" type="text" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 align-top">
                           <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-white/20 text-xs font-light">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-white/20 text-xs font-light align-top">
                           {hasRevenue ? formatEur(rev.totalRevenue) : "–"}
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8 hidden sm:table-cell text-white/20 text-xs font-light">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 hidden sm:table-cell text-white/20 text-xs font-light align-top">
                           {new Date(m.created_at).toLocaleDateString("de-DE")}
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1 align-top">
                           <Button size="sm" variant="ghost" onClick={saveEdit} className="text-primary/60 hover:text-primary hover:bg-primary/5 h-7 w-7 p-0"><Save className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="text-white/25 hover:text-white/50 h-7 w-7 p-0"><X className="h-3.5 w-3.5" /></Button>
                         </td>
@@ -431,10 +433,28 @@ export default function Models() {
                       <>
                         <td className="py-4 sm:py-5 px-4 sm:px-8">
                           <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
+                          {m.email && (
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(m.email!); toast.success("E-Mail kopiert"); }}
+                              className="block text-[10px] text-white/35 font-light mt-0.5 hover:text-white/60 transition-colors text-left"
+                              title="E-Mail kopieren"
+                            >
+                              ✉ {m.email}
+                            </button>
+                          )}
+                          {m.password && (
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(m.password!); toast.success("Passwort kopiert"); }}
+                              className="block text-[10px] text-white/30 font-light mt-0.5 hover:text-white/60 transition-colors text-left"
+                              title="Passwort kopieren"
+                            >
+                              🔑 {"•".repeat(Math.min(m.password.length, 10))}
+                            </button>
+                          )}
                           <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
                         </td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8">
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight align-top">{m.follower_count.toLocaleString()}</td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 align-top">
                           {hasRevenue ? (
                             <div>
                               <span className="text-sm font-light gold-text">{formatEur(rev.totalRevenue)}</span>
@@ -444,9 +464,9 @@ export default function Models() {
                             <span className="text-xs text-white/15 font-light">Kein Umsatz</span>
                           )}
                         </td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
-                          <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell align-top">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1 align-top">
+                          <Button size="sm" variant="ghost" onClick={() => startEdit(m)} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" variant="ghost" onClick={() => setDeleteConfirmId(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </td>
                       </>
