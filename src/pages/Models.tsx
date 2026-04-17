@@ -240,7 +240,7 @@ export default function Models() {
               className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
             />
             <Input
-              placeholder="E-Mail (optional)"
+              placeholder="E-Mail"
               type="email"
               autoComplete="off"
               value={newEmail}
@@ -248,7 +248,7 @@ export default function Models() {
               className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
             />
             <Input
-              placeholder="Passwort (optional)"
+              placeholder="Passwort"
               type="text"
               autoComplete="off"
               value={newPassword}
