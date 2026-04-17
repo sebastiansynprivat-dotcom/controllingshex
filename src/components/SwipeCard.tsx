@@ -44,6 +44,7 @@ interface Props {
   onSwipeDown?: () => void;
   isTop: boolean;
   stackIndex?: number;
+  accountLogins?: AccountLogin[];
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
