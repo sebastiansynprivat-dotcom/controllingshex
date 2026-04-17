@@ -121,7 +121,7 @@ interface SparkConfig {
   gradientId: string;
 }
 
-export default function WeekTrendCard({ history, compact = false }: Props) {
+export default function WeekTrendCard({ history, compact = false, fillHeight = false }: Props) {
   const last7 = useMemo(() => history.slice(-7), [history]);
 
   const configs = useMemo<SparkConfig[]>(() => {
