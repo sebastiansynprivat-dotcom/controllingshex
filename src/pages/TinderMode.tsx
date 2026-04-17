@@ -603,7 +603,7 @@ export default function TinderMode() {
   return (
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
-      <div className={`flex flex-col px-4 py-6 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
+      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
       {/* Category filter — Dropdown wie im Dashboard */}
       <div className="mb-2">
         <Select
@@ -707,16 +707,16 @@ export default function TinderMode() {
       })()}
 
 
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground font-medium">
+      <div className="mb-2">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-muted-foreground font-medium">
             {filteredChecked}/{filteredTotal} gecheckt
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] text-muted-foreground">
             {uncheckedChatters.length} übrig
           </span>
         </div>
-        <Progress value={progress} className="h-1.5" />
+        <Progress value={progress} className="h-1" />
       </div>
 
       {/* Card stack */}
