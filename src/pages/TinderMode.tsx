@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { toast } from "sonner";
 import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
+import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatter-inputs";
+import QuickInputPrompt from "@/components/QuickInputPrompt";
+import InputHistorySheet from "@/components/InputHistorySheet";
 
 interface ChatterData {
   name: string;
@@ -156,6 +159,11 @@ export default function TinderMode() {
   // Note state
   const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
   const [noteText, setNoteText] = useState("");
+
+  // Input tracking
+  const [inputsMap, setInputsMap] = useState<Map<string, LastInputInfo>>(new Map());
+  const [historyChatter, setHistoryChatter] = useState<string | null>(null);
+  const [quickPromptName, setQuickPromptName] = useState<string | null>(null);
 
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
