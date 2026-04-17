@@ -213,7 +213,7 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
 
   return (
     <motion.div
-      className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-5 flex flex-col select-none overflow-hidden ${
+      className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
