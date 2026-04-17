@@ -562,7 +562,7 @@ WICHTIGE REGELN
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
 - CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
-    const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
+    const systemPrompt = userSystemPrompt + formatInstructions + historyBlock + benchmarkBlock;
     const nameColIndex = findNameColumn(header);
 
     // AI call with missing-chatter retry
