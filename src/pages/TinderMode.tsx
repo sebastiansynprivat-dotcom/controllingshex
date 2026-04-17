@@ -910,6 +910,9 @@ export default function TinderMode() {
                     key={normalizeName(chatter.name)}
                     chatter={chatter}
                     alerts={alertsByChatter.get(normalizeName(chatter.name)) || []}
+                    lastInputAt={inputsMap.get(normalizeName(chatter.name))?.lastAt ?? null}
+                    lastInputSource={inputsMap.get(normalizeName(chatter.name))?.lastSource ?? null}
+                    onLastInputClick={isTopCard ? () => setHistoryChatter(chatter.name) : undefined}
                     onSwipeRight={isTopCard ? handleSwipeRight : noop}
                     onSwipeLeft={isTopCard ? handleSwipeLeft : noop}
                     onSwipeUp={isTopCard ? handleSwipeUp : noop}
