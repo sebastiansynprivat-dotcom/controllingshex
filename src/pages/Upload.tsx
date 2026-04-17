@@ -476,8 +476,13 @@ function buildResultFromCsv(
       emoji = fallback.emoji;
     }
 
+    // Map legacy/AI category to one of the 6 strict Action-Categories
+    const action = mapToActionCategory(category);
+    category = action.name;
+    emoji = action.emoji;
+
     if (!categoryMap.has(category)) {
-      categoryMap.set(category, { emoji: emoji || "⚪", categoryName: category, chatters: [] });
+      categoryMap.set(category, { emoji: emoji || "👀", categoryName: category, chatters: [] });
     }
 
     const recommendation = shouldReplaceRecommendation(ai?.recommendation, metrics, category, ai?.category)
