@@ -23,6 +23,8 @@ interface Model {
   follower_count: number;
   platform: string;
   created_at: string;
+  email?: string | null;
+  password?: string | null;
 }
 
 interface ModelRevenue {
@@ -50,10 +52,14 @@ export default function Models() {
   const [models, setModels] = useState<Model[]>([]);
   const [newName, setNewName] = useState("");
   const [newFollowers, setNewFollowers] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editFollowers, setEditFollowers] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
 
   // Revenue filter state
   const [period, setPeriod] = useState<PeriodKey>("30");
@@ -146,6 +152,8 @@ export default function Models() {
       follower_count: parseInt(newFollowers) || 0,
       platform,
       user_id: user.id,
+      email: newEmail.trim() || null,
+      password: newPassword.trim() || null,
     });
     if (error) {
       console.error("[addModel] insert error:", error);
@@ -155,7 +163,17 @@ export default function Models() {
     toast.success(`Model hinzugefügt`);
     setNewName("");
     setNewFollowers("");
+    setNewEmail("");
+    setNewPassword("");
     fetchModels();
+  };
+
+  const startEdit = (m: Model) => {
+    setEditId(m.id);
+    setEditName(m.model_name);
+    setEditFollowers(String(m.follower_count));
+    setEditEmail(m.email || "");
+    setEditPassword(m.password || "");
   };
 
   const saveEdit = async () => {
@@ -163,6 +181,8 @@ export default function Models() {
     const { error } = await supabase.from("models").update({
       model_name: editName.trim(),
       follower_count: parseInt(editFollowers) || 0,
+      email: editEmail.trim() || null,
+      password: editPassword.trim() || null,
     }).eq("id", editId);
     if (error) { toast.error("Fehler beim Speichern"); return; }
     toast.success("Aktualisiert");
@@ -205,7 +225,7 @@ export default function Models() {
         {/* Add New */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 backdrop-blur-2xl">
           <h2 className="text-[13px] font-medium text-foreground/70 mb-4 sm:mb-5 tracking-wide">Neues Model</h2>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               placeholder="Name"
               value={newName}
@@ -217,8 +237,26 @@ export default function Models() {
               type="number"
               value={newFollowers}
               onChange={(e) => setNewFollowers(e.target.value)}
-              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm sm:w-40"
+              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
             />
+            <Input
+              placeholder="E-Mail (optional)"
+              type="email"
+              autoComplete="off"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
+            />
+            <Input
+              placeholder="Passwort (optional)"
+              type="text"
+              autoComplete="off"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
+            />
+          </div>
+          <div className="flex justify-end mt-4">
             <Button
               onClick={addModel}
               className="bg-white/[0.04] hover:bg-white/[0.06] text-foreground/70 border border-white/[0.06] hover:border-primary/15 font-light text-[12px] tracking-wider transition-all duration-500 shrink-0"
@@ -372,19 +410,21 @@ export default function Models() {
                   <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors duration-500">
                     {editId === m.id ? (
                       <>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8">
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 space-y-1.5">
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
+                          <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-Mail" type="email" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
+                          <Input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Passwort" type="text" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 align-top">
                           <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-white/20 text-xs font-light">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-white/20 text-xs font-light align-top">
                           {hasRevenue ? formatEur(rev.totalRevenue) : "–"}
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8 hidden sm:table-cell text-white/20 text-xs font-light">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 hidden sm:table-cell text-white/20 text-xs font-light align-top">
                           {new Date(m.created_at).toLocaleDateString("de-DE")}
                         </td>
-                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1">
+                        <td className="py-3 sm:py-4 px-4 sm:px-8 text-right space-x-1 align-top">
                           <Button size="sm" variant="ghost" onClick={saveEdit} className="text-primary/60 hover:text-primary hover:bg-primary/5 h-7 w-7 p-0"><Save className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="text-white/25 hover:text-white/50 h-7 w-7 p-0"><X className="h-3.5 w-3.5" /></Button>
                         </td>
@@ -393,10 +433,28 @@ export default function Models() {
                       <>
                         <td className="py-4 sm:py-5 px-4 sm:px-8">
                           <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
+                          {m.email && (
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(m.email!); toast.success("E-Mail kopiert"); }}
+                              className="block text-[10px] text-white/35 font-light mt-0.5 hover:text-white/60 transition-colors text-left"
+                              title="E-Mail kopieren"
+                            >
+                              ✉ {m.email}
+                            </button>
+                          )}
+                          {m.password && (
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(m.password!); toast.success("Passwort kopiert"); }}
+                              className="block text-[10px] text-white/30 font-light mt-0.5 hover:text-white/60 transition-colors text-left"
+                              title="Passwort kopieren"
+                            >
+                              🔑 {"•".repeat(Math.min(m.password.length, 10))}
+                            </button>
+                          )}
                           <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
                         </td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight">{m.follower_count.toLocaleString()}</td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8">
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight align-top">{m.follower_count.toLocaleString()}</td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 align-top">
                           {hasRevenue ? (
                             <div>
                               <span className="text-sm font-light gold-text">{formatEur(rev.totalRevenue)}</span>
@@ -406,9 +464,9 @@ export default function Models() {
                             <span className="text-xs text-white/15 font-light">Kein Umsatz</span>
                           )}
                         </td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
-                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1">
-                          <Button size="sm" variant="ghost" onClick={() => { setEditId(m.id); setEditName(m.model_name); setEditFollowers(String(m.follower_count)); }} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell align-top">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
+                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-right space-x-1 align-top">
+                          <Button size="sm" variant="ghost" onClick={() => startEdit(m)} className="text-white/15 hover:text-white/50 hover:bg-white/[0.03] h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" variant="ghost" onClick={() => setDeleteConfirmId(m.id)} className="text-white/15 hover:text-red-400/60 hover:bg-red-400/5 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </td>
                       </>
