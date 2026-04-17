@@ -50,6 +50,63 @@ export type Database = {
         }
         Relationships: []
       }
+      anomaly_alerts: {
+        Row: {
+          alert_type: string
+          baseline_value: number | null
+          chatter_name: string
+          created_at: string
+          delta_pct: number | null
+          detection_date: string
+          id: string
+          message: string
+          metric_value: number | null
+          platform: string
+          resolved_at: string | null
+          severity: string
+          snoozed_until: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          baseline_value?: number | null
+          chatter_name: string
+          created_at?: string
+          delta_pct?: number | null
+          detection_date?: string
+          id?: string
+          message: string
+          metric_value?: number | null
+          platform?: string
+          resolved_at?: string | null
+          severity?: string
+          snoozed_until?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          baseline_value?: number | null
+          chatter_name?: string
+          created_at?: string
+          delta_pct?: number | null
+          detection_date?: string
+          id?: string
+          message?: string
+          metric_value?: number | null
+          platform?: string
+          resolved_at?: string | null
+          severity?: string
+          snoozed_until?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_history: {
         Row: {
           account: string | null
