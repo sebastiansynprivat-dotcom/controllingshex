@@ -1,9 +1,9 @@
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
 import { useMemo, useCallback, useRef, useEffect } from "react";
-import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
 import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
+import WeekTrendCard from "@/components/WeekTrendCard";
 
 interface ChatterData {
   name: string;
@@ -12,7 +12,7 @@ interface ChatterData {
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
-  revenueHistory?: { date: string; revenue: number }[];
+  history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
 }
 
