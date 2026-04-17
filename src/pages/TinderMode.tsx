@@ -503,22 +503,43 @@ export default function TinderMode() {
     setActionPanel(false);
   };
 
-  // Label toggle
-  const toggleLabel = async (labelId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !currentChatter) return;
-    if (assignedLabelIds.has(labelId)) {
-      await supabase.from("chatter_label_assignments").delete()
-        .eq("label_id", labelId).eq("chatter_name", currentChatter.name).eq("platform", platform).eq("user_id", user.id);
+  // Label toggle — optimistic, no awaiting before UI update
+  const toggleLabel = (labelId: string) => {
+    if (!currentChatter) return;
+    const chatterName = currentChatter.name;
+    const wasActive = assignedLabelIds.has(labelId);
+
+    // 1) Update UI immediately (optimistic)
+    if (wasActive) {
       setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
-      setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(currentChatter.name))));
+      setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(chatterName))));
     } else {
-      await supabase.from("chatter_label_assignments").insert({
-        label_id: labelId, chatter_name: currentChatter.name, platform, user_id: user.id,
-      });
       setAssignedLabelIds((prev) => new Set(prev).add(labelId));
-      setAllLabelAssignments((prev) => [...prev, { label_id: labelId, chatter_name: currentChatter.name }]);
+      setAllLabelAssignments((prev) => [...prev, { label_id: labelId, chatter_name: chatterName }]);
     }
+
+    // 2) Persist in background, rollback on failure
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const op = wasActive
+        ? supabase.from("chatter_label_assignments").delete()
+            .eq("label_id", labelId).eq("chatter_name", chatterName).eq("platform", platform).eq("user_id", user.id)
+        : supabase.from("chatter_label_assignments").insert({
+            label_id: labelId, chatter_name: chatterName, platform, user_id: user.id,
+          });
+      const { error } = await op;
+      if (error) {
+        // rollback
+        if (wasActive) {
+          setAssignedLabelIds((prev) => new Set(prev).add(labelId));
+          setAllLabelAssignments((prev) => [...prev, { label_id: labelId, chatter_name: chatterName }]);
+        } else {
+          setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
+          setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(chatterName))));
+        }
+      }
+    })();
   };
 
   const createLabel = async () => {
@@ -988,11 +1009,10 @@ export default function TinderMode() {
                         return (
                           <motion.button
                             key={label.id}
-                            onClick={() => { try { (navigator as any).vibrate?.(10); } catch {} toggleLabel(label.id); }}
-                            whileTap={{ scale: 0.92 }}
-                            animate={active ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                            transition={{ duration: 0.25 }}
-                            className="text-xs px-3.5 py-2 rounded-full font-medium border transition-colors duration-200 inline-flex items-center gap-1.5"
+                            onClick={() => { try { (navigator as any).vibrate?.(8); } catch {} toggleLabel(label.id); }}
+                            whileTap={{ scale: 0.94 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30, mass: 0.5 }}
+                            className="text-xs px-3.5 py-2 rounded-full font-medium border transition-all duration-150 ease-out inline-flex items-center gap-1.5 active:duration-75 touch-manipulation select-none"
                             style={
                               active
                                 ? {
