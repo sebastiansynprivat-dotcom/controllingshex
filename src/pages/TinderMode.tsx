@@ -492,27 +492,24 @@ export default function TinderMode() {
       .eq("check_date", today);
   }, [undoStack, platform]);
 
+  // Swipe-right: pause and show input prompt — DON'T advance yet
   const handleSwipeRight = useCallback(() => {
     if (!currentChatter) return;
-    const name = currentChatter.name;
+    setQuickPromptName(currentChatter.name);
+  }, [currentChatter]);
+
+  // Confirm advance after user picks input type or skips
+  const advanceAfterPrompt = useCallback((name: string) => {
     setUndoStack((prev) => [...prev, name]);
     markChecked(name);
-    // Show quick input prompt — non-blocking, user can ignore (auto-dismisses or X)
-    setQuickPromptName(name);
+    setQuickPromptName(null);
     goNext();
-  }, [currentChatter, markChecked, goNext]);
-
-  // Auto-dismiss quick prompt after a few seconds
-  useEffect(() => {
-    if (!quickPromptName) return;
-    const t = setTimeout(() => setQuickPromptName(null), 4500);
-    return () => clearTimeout(t);
-  }, [quickPromptName]);
+  }, [markChecked, goNext]);
 
   const handleQuickInputPick = useCallback(async (type: "verbal" | "praise" | "observed") => {
     const name = quickPromptName;
     if (!name) return;
-    setQuickPromptName(null);
+    advanceAfterPrompt(name);
     const ok = await logManualInput(platform, name, type);
     if (ok) {
       refreshInputForChatter(name);
@@ -521,7 +518,13 @@ export default function TinderMode() {
     } else {
       toast.error("Konnte nicht gespeichert werden");
     }
-  }, [quickPromptName, platform, refreshInputForChatter]);
+  }, [quickPromptName, platform, refreshInputForChatter, advanceAfterPrompt]);
+
+  const handleQuickInputSkip = useCallback(() => {
+    const name = quickPromptName;
+    if (!name) return;
+    advanceAfterPrompt(name);
+  }, [quickPromptName, advanceAfterPrompt]);
 
   const handleSwipeLeft = useCallback(() => {
     setActionPanel(true);
