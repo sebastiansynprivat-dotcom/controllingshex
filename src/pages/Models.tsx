@@ -152,6 +152,8 @@ export default function Models() {
       follower_count: parseInt(newFollowers) || 0,
       platform,
       user_id: user.id,
+      email: newEmail.trim() || null,
+      password: newPassword.trim() || null,
     });
     if (error) {
       console.error("[addModel] insert error:", error);
@@ -161,7 +163,17 @@ export default function Models() {
     toast.success(`Model hinzugefügt`);
     setNewName("");
     setNewFollowers("");
+    setNewEmail("");
+    setNewPassword("");
     fetchModels();
+  };
+
+  const startEdit = (m: Model) => {
+    setEditId(m.id);
+    setEditName(m.model_name);
+    setEditFollowers(String(m.follower_count));
+    setEditEmail(m.email || "");
+    setEditPassword(m.password || "");
   };
 
   const saveEdit = async () => {
@@ -169,6 +181,8 @@ export default function Models() {
     const { error } = await supabase.from("models").update({
       model_name: editName.trim(),
       follower_count: parseInt(editFollowers) || 0,
+      email: editEmail.trim() || null,
+      password: editPassword.trim() || null,
     }).eq("id", editId);
     if (error) { toast.error("Fehler beim Speichern"); return; }
     toast.success("Aktualisiert");
