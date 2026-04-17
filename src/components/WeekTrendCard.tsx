@@ -245,9 +245,26 @@ export default function WeekTrendCard({ history, compact = false, fillHeight = f
   const visibleInsights = compact ? insights.slice(0, 1) : insights;
 
   return (
-    <div className={`rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"} ${fillHeight ? "flex-1 flex flex-col w-full" : ""}`}>
+    <div className={`relative rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"} ${fillHeight ? "flex-1 flex flex-col w-full" : ""}`}>
+      {/* Gradient top divider */}
+      <div aria-hidden className="absolute -top-px left-3 right-3 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
       <div className="flex items-center justify-between">
-        <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">7-Tage-Trend</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium">7-Tage-Trend</p>
+          {(() => {
+            const rev = stats.find((s) => s.config.key === "revenue");
+            if (!rev || rev.stat.direction === "stable") return null;
+            const isGood = rev.stat.direction === "up";
+            return (
+              <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                isGood ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+              }`}>
+                {isGood ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                {rev.stat.delta > 0 ? "+" : ""}{Math.abs(rev.stat.delta) >= 999 ? "∞" : rev.stat.delta}%
+              </span>
+            );
+          })()}
+        </div>
         <span className="text-[9px] text-white/25 font-light">
           {formatDateShort(last7[0].analysis_date)} → {formatDateShort(last7[last7.length - 1].analysis_date)}
         </span>
