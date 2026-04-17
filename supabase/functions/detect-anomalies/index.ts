@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // SENSIBLE Schwellen — der User möchte alles sehen was auffällt
 const THRESHOLDS = {
-  verzug_spike: { absoluteMin: 2, deltaDays: 1 },           // heute >= Ø + 1 Tag UND mind. 2 Tage Verzug
+  verzug_spike: { absoluteMin: 3, deltaDays: 1 },           // heute >= Ø + 1 Tag UND mind. 3 Tage Verzug (länger als 2 Tage offen)
   mass_dm_drop: { dropPct: 30, minBaseline: 3 },            // Mass-DMs -30% UND Baseline >= 3
   chat_jam: { multiplier: 1.25, minAbsolute: 30 },          // open_chats > 1.25× Ø UND >= 30 absolut
   revenue_drop: { dropPct: 30, minBaseline: 50 },           // Revenue -30% UND Baseline >= 50€
