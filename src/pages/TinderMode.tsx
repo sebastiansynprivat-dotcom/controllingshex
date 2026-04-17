@@ -132,6 +132,7 @@ export default function TinderMode() {
   const [inputsMap, setInputsMap] = useState<Map<string, LastInputInfo>>(new Map());
   const [historyChatter, setHistoryChatter] = useState<string | null>(null);
   const [quickPromptName, setQuickPromptName] = useState<string | null>(null);
+  const [accountLoginsMap, setAccountLoginsMap] = useState<Map<string, AccountLogin[]>>(new Map());
 
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
