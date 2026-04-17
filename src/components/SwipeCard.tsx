@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 import WeekTrendCard from "@/components/WeekTrendCard";
+import LastInputBadge from "@/components/LastInputBadge";
+import type { InputSource } from "@/lib/chatter-inputs";
 
 interface ChatterData {
   name: string;
@@ -25,6 +27,9 @@ interface AnomalyAlertInfo {
 interface Props {
   chatter: ChatterData;
   alerts?: AnomalyAlertInfo[];
+  lastInputAt?: string | null;
+  lastInputSource?: InputSource | null;
+  onLastInputClick?: () => void;
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
   onSwipeUp: () => void;
@@ -93,7 +98,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
+export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
