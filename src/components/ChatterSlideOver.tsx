@@ -592,6 +592,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     )}
                   </div>
 
+                  {/* ── 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) ── */}
+                  <WeekTrendCard history={history} />
+
                   {/* ── 30-Tage-Trend ── */}
                   {last30.length >= 4 && (
                     <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7 relative">
