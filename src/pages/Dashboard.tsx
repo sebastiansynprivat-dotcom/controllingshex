@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import TrendWidget from "@/components/TrendWidget";
+import AlertCockpit from "@/components/AlertCockpit";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
@@ -251,7 +252,10 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Alerts */}
+            {/* Auto-Anomaly Cockpit (datengetrieben aus chatter_history) */}
+            <AlertCockpit platform={platform} onChatterSelect={setSelectedChatter} />
+
+            {/* Statische Kategorie-Alerts (aus aktuellem Report) */}
             {alerts.length > 0 && (
               <div className="space-y-2">
                 {visibleAlerts.map((alert, i) => {
