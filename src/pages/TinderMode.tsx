@@ -946,6 +946,7 @@ export default function TinderMode() {
                     onSwipeDown={isTopCard ? handleSwipeDown : undefined}
                     isTop={isTopCard}
                     stackIndex={stackIndex}
+                    accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
                   />
                 );
               })}
