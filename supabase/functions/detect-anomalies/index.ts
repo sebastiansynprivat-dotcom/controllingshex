@@ -112,24 +112,7 @@ Deno.serve(async (req) => {
       const todayEntry = entries.find((e) => e.analysis_date === latestDate);
       const historical = entries.filter((e) => e.analysis_date !== latestDate);
 
-      // INACTIVITY — chatter not in latest report
-      if (!todayEntry && historical.length > 0) {
-        const lastSeen = historical[0].analysis_date;
-        const daysAgo = Math.floor((today.getTime() - new Date(lastSeen).getTime()) / 86400000);
-        if (daysAgo >= THRESHOLDS.inactivity.daysGap) {
-          alerts.push({
-            chatter_name: name,
-            alert_type: "inactivity",
-            severity: "medium",
-            metric_value: daysAgo,
-            baseline_value: 0,
-            delta_pct: 0,
-            message: `${name} taucht seit ${daysAgo} Tagen nicht mehr in Reports auf.`,
-          });
-        }
-        continue;
-      }
-
+      // Chatter nicht im aktuellen Report → gekündigt, kein Alert
       if (!todayEntry || historical.length < 2) continue;
 
       // VERZUG SPIKE
