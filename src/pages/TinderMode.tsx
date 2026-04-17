@@ -76,44 +76,7 @@ function parseLooseDate(dateStr?: string): Date | null {
 }
 
 function mapToSwipeCategory(rawName: string): { emoji: string; name: string } {
-  const upper = rawName.replace(/^[^\w]*/, "").trim().toUpperCase();
-
-  // New 6 Action-Categories (primary)
-  if (/SOFORT.*EINGREIFEN|EINGREIFEN/i.test(rawName)) return { emoji: "🆘", name: "SOFORT EINGREIFEN" };
-  if (/COACHING.*N(Ö|OE)TIG|COACHING\s+NEEDED/i.test(rawName)) return { emoji: "💬", name: "COACHING NÖTIG" };
-  if (/^PUSHEN$|\bPUSHEN\b/i.test(rawName)) return { emoji: "🚀", name: "PUSHEN" };
-  if (/BELOHNEN/i.test(rawName)) return { emoji: "🎉", name: "BELOHNEN" };
-  if (/RE.?ASSIGN/i.test(rawName)) return { emoji: "📊", name: "RE-ASSIGNEN" };
-  if (/BEOBACHTEN/i.test(rawName)) return { emoji: "👀", name: "BEOBACHTEN" };
-
-  // Legacy fallbacks (for existing reports before migration)
-  if (/EINBRUCH/i.test(rawName)) return { emoji: "🆘", name: "SOFORT EINGREIFEN" };
-  if (/MODEL.?TAUSCH/i.test(rawName)) return { emoji: "📊", name: "RE-ASSIGNEN" };
-  if (/BREAKOUT/i.test(rawName)) return { emoji: "🎉", name: "BELOHNEN" };
-  if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🎉", name: "BELOHNEN" };
-  if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "PUSHEN" };
-  if (/UPGRADE.*ZUVERL|ZUVERL.*UPGRADE/i.test(rawName)) return { emoji: "🎉", name: "BELOHNEN" };
-  if (/TRAFFIC.*CONVERSION|CONVERSION|TRAFFIC.*KEINE/i.test(rawName)) return { emoji: "💬", name: "COACHING NÖTIG" };
-  if (/COMEBACK/i.test(rawName)) return { emoji: "🚀", name: "PUSHEN" };
-  if (/COACHING.*KONTROLLE|ENGERE/i.test(rawName)) return { emoji: "💬", name: "COACHING NÖTIG" };
-  if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "💬", name: "COACHING NÖTIG" };
-  if (/WARNUNG/i.test(rawName)) return { emoji: "💬", name: "COACHING NÖTIG" };
-  if (/TOP.?PERFORMER/i.test(rawName)) return { emoji: "🎉", name: "BELOHNEN" };
-  if (/UNTER.?BEOBACHTUNG/i.test(rawName)) return { emoji: "👀", name: "BEOBACHTEN" };
-
-  const zeroMatch = rawName.match(/0\s*€.*?TAG\s*(\d+\+?)/i) || rawName.match(/NULL\s*EURO\s*TAG\s*(\d+\+?)?/i);
-  if (zeroMatch) {
-    const tag = zeroMatch[1] || "1";
-    if (tag.includes("+") || parseInt(tag, 10) >= 5) return { emoji: "🆘", name: "SOFORT EINGREIFEN" };
-    if (parseInt(tag, 10) >= 2) return { emoji: "💬", name: "COACHING NÖTIG" };
-    return { emoji: "👀", name: "BEOBACHTEN" };
-  }
-
-  if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "👀", name: "BEOBACHTEN" };
-
-  if (/ONBOARDING/i.test(upper)) return { emoji: "🚀", name: "PUSHEN" };
-
-  return { emoji: "👀", name: "BEOBACHTEN" };
+  return mapToActionCategory(rawName);
 }
 
 // Category priority order for sequential navigation (strict, top-down)
