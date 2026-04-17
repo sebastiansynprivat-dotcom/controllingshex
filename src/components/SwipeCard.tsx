@@ -259,7 +259,7 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
 
   return (
     <motion.div
-      className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-3.5 flex flex-col select-none overflow-hidden ${
+      className={`absolute inset-0 rounded-2xl p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
@@ -268,11 +268,12 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
           : { scale: stackScale, y: stackOffsetY, opacity: stackOpacity, zIndex: 20 - stackIndex, willChange: "auto" }
         ),
         background: `
-          radial-gradient(120% 60% at 0% 0%, ${accent.tint} 0%, transparent 55%),
-          radial-gradient(100% 80% at 100% 100%, hsl(${accent.hue} / 0.10) 0%, transparent 60%),
-          linear-gradient(165deg, hsl(0 0% 100% / 0.04) 0%, hsl(240 6% 5%) 40%, hsl(240 6% 4%) 100%)
+          radial-gradient(130% 70% at 0% 0%, ${accent.tint} 0%, transparent 55%),
+          radial-gradient(110% 80% at 100% 100%, hsl(${accent.hue} / 0.12) 0%, transparent 60%),
+          linear-gradient(165deg, hsl(0 0% 100% / 0.05) 0%, hsl(240 6% 5%) 38%, hsl(240 8% 3%) 100%)
         `,
         boxShadow: baseShadow,
+        border: "1px solid transparent",
       }}
       drag={isTop}
       dragDirectionLock={isTop}
@@ -286,16 +287,68 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
       whileDrag={isTop ? { scale: 1.02 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
     >
+      {/* Animated conic gradient border (top card) */}
+      {isTop && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          style={{
+            padding: 1,
+            background: `conic-gradient(from var(--angle, 0deg), hsl(${accent.hue} / 0.55) 0%, hsl(${accent.hue} / 0.05) 25%, hsl(${accent.hue} / 0.05) 60%, hsl(${accent.hue} / 0.45) 80%, hsl(${accent.hue} / 0.55) 100%)`,
+            WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+            ["--angle" as any]: "0deg",
+          } as any}
+          animate={{ ["--angle" as any]: "360deg" } as any}
+          transition={{ duration: 8, ease: "linear", repeat: Infinity }}
+        />
+      )}
+
+      {/* Static fallback border */}
+      {!isTop && (
+        <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/[0.08]" />
+      )}
+
+      {/* Aurora drift — slowly moving radial light (top card) */}
+      {isTop && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute -inset-10 rounded-2xl opacity-60"
+          style={{
+            background: `radial-gradient(40% 35% at 30% 30%, hsl(${accent.hue} / 0.22) 0%, transparent 70%)`,
+          }}
+          animate={{
+            x: [0, 30, -20, 0],
+            y: [0, -25, 20, 0],
+          }}
+          transition={{ duration: 14, ease: "easeInOut", repeat: Infinity }}
+        />
+      )}
+
+      {/* Severity pulse — only when critical alerts present */}
+      {isTop && hasCritical && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          animate={{ opacity: [0.25, 0.55, 0.25] }}
+          transition={{ duration: 2.4, ease: "easeInOut", repeat: Infinity }}
+          style={{
+            boxShadow: "inset 0 0 0 1px rgba(239,68,68,0.35), inset 0 0 30px rgba(239,68,68,0.18)",
+          }}
+        />
+      )}
+
       {/* Subtle entrance shimmer (top card only) */}
       {isTop && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-2xl"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0.6, 0] }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
+          initial={{ opacity: 0, x: "-100%" }}
+          animate={{ opacity: [0, 0.7, 0], x: ["-100%", "100%", "100%"] }}
+          transition={{ duration: 1.4, ease: "easeOut" }}
           style={{
-            background: `linear-gradient(115deg, transparent 35%, hsl(${accent.hue} / 0.15) 50%, transparent 65%)`,
+            background: `linear-gradient(115deg, transparent 35%, hsl(${accent.hue} / 0.22) 50%, transparent 65%)`,
           }}
         />
       )}
@@ -450,22 +503,38 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
         {/* Hero KPI */}
         {hero && (
           <div
-            className="rounded-xl px-3 py-2 border relative overflow-hidden"
+            className="rounded-xl px-3 py-2.5 border relative overflow-hidden"
             style={{
-              borderColor: `hsl(${accent.hue} / 0.25)`,
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.04) 100%)`,
-              boxShadow: `0 0 24px -8px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+              borderColor: `hsl(${accent.hue} / 0.3)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.18) 0%, hsl(${accent.hue} / 0.05) 100%)`,
+              boxShadow: `0 0 32px -8px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.07)`,
             }}
           >
-            <div
+            {/* Pulsing orb */}
+            <motion.div
               aria-hidden
-              className="absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-40 blur-2xl"
-              style={{ background: `hsl(${accent.hue} / 0.5)` }}
+              className="absolute -top-10 -right-10 h-28 w-28 rounded-full blur-2xl"
+              style={{ background: `hsl(${accent.hue} / 0.55)` }}
+              animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.1, 1] }}
+              transition={{ duration: 3.5, ease: "easeInOut", repeat: Infinity }}
             />
-            <p className="text-[9px] uppercase tracking-[0.18em] font-medium relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
+            {/* Diagonal shine sweep */}
+            {isTop && (
+              <motion.div
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                initial={{ x: "-120%" }}
+                animate={{ x: "120%" }}
+                transition={{ duration: 2.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 3.5 }}
+                style={{
+                  background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.14) 50%, transparent 60%)",
+                }}
+              />
+            )}
+            <p className="text-[9px] uppercase tracking-[0.2em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.95)` }}>
               {hero.key}
             </p>
-            <p className="text-2xl font-bold text-foreground leading-tight relative z-[1] mt-0.5">
+            <p className="text-[26px] font-bold text-foreground leading-none relative z-[1] mt-1 tracking-tight" style={{ textShadow: `0 0 24px hsl(${accent.hue} / 0.35)` }}>
               {hero.value}
             </p>
           </div>
