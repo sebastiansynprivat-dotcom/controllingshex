@@ -376,21 +376,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   {kpis.map((kpi) => {
                     const Icon = kpi.icon;
                     return (
-                      <div
-                        key={kpi.label}
-                        className="relative rounded-xl border p-4 overflow-hidden"
-                        style={{
-                          borderColor: `hsl(${kpi.accent} / 0.18)`,
-                          background: `linear-gradient(135deg, hsl(${kpi.accent} / 0.08) 0%, hsl(${kpi.accent} / 0.02) 100%)`,
-                          boxShadow: `0 0 20px -10px hsl(${kpi.accent} / 0.4)`,
-                        }}
-                      >
-                        <div aria-hidden className="absolute -top-6 -right-6 h-16 w-16 rounded-full opacity-30 blur-2xl" style={{ background: `hsl(${kpi.accent} / 0.6)` }} />
-                        <div className="flex items-center gap-1.5 relative z-[1]">
-                          <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.8)` }} />
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-medium">{kpi.label}</p>
+                      <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
+                        <div className="flex items-center gap-1.5">
+                          <Icon className="h-3 w-3 text-white/30" />
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light">{kpi.label}</p>
                         </div>
-                        <p className={`text-lg font-light mt-2 relative z-[1] ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
+                        <p className={`text-lg font-light mt-2 ${kpi.gold ? "gold-text" : "text-foreground/75"}`}>{kpi.value}</p>
                       </div>
                     );
                   })}
