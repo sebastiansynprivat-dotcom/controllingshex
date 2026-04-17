@@ -278,6 +278,43 @@ export default function TinderMode() {
         }
       }
 
+      // Build per-chatter account-login map (account name → email/password from models)
+      if (historyRes.data && modelsRes.data) {
+        const modelLookup = new Map<string, { email?: string | null; password?: string | null }>();
+        for (const m of modelsRes.data as Array<{ model_name: string; email?: string | null; password?: string | null }>) {
+          const key = (m.model_name || "").toLowerCase().trim();
+          if (key) modelLookup.set(key, { email: m.email, password: m.password });
+        }
+        const acctsByChatter = new Map<string, Set<string>>();
+        for (const h of historyRes.data as Array<{ chatter_name: string; account?: string | null }>) {
+          const acc = (h.account || "").trim();
+          if (!acc) continue;
+          const key = normalizeName(h.chatter_name);
+          if (!acctsByChatter.has(key)) acctsByChatter.set(key, new Set());
+          acctsByChatter.get(key)!.add(acc);
+        }
+        // Also include the account from today's KPI data
+        for (const ch of allChatters) {
+          const acc = (ch.account || "").trim();
+          if (!acc) continue;
+          const key = normalizeName(ch.name);
+          if (!acctsByChatter.has(key)) acctsByChatter.set(key, new Set());
+          acctsByChatter.get(key)!.add(acc);
+        }
+        const loginMap = new Map<string, AccountLogin[]>();
+        for (const [chKey, accSet] of acctsByChatter.entries()) {
+          const logins: AccountLogin[] = [];
+          for (const account of accSet) {
+            const m = modelLookup.get(account.toLowerCase());
+            if (m && (m.email || m.password)) {
+              logins.push({ account, email: m.email, password: m.password });
+            }
+          }
+          if (logins.length > 0) loginMap.set(chKey, logins);
+        }
+        setAccountLoginsMap(loginMap);
+      }
+
       if (modelsRes.data && allChatters.length > 0) {
         const perfs = await loadModelPerformances(
           platform,
