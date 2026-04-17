@@ -13,6 +13,8 @@ interface Props {
   history: WeekTrendRow[];
   /** "lower-is-better" metrics flip color logic. Default fields handled internally. */
   compact?: boolean;
+  /** When true, the card stretches vertically and the sparklines grow to fill space. */
+  fillHeight?: boolean;
 }
 
 type Direction = "up" | "down" | "stable";
@@ -119,7 +121,7 @@ interface SparkConfig {
   gradientId: string;
 }
 
-export default function WeekTrendCard({ history, compact = false }: Props) {
+export default function WeekTrendCard({ history, compact = false, fillHeight = false }: Props) {
   const last7 = useMemo(() => history.slice(-7), [history]);
 
   const configs = useMemo<SparkConfig[]>(() => {
@@ -243,7 +245,7 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
   const visibleInsights = compact ? insights.slice(0, 1) : insights;
 
   return (
-    <div className={`rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"}`}>
+    <div className={`rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"} ${fillHeight ? "flex-1 flex flex-col w-full" : ""}`}>
       <div className="flex items-center justify-between">
         <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">7-Tage-Trend</p>
         <span className="text-[9px] text-white/25 font-light">
@@ -251,19 +253,19 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className={`grid grid-cols-3 gap-1.5 ${fillHeight ? "flex-1 min-h-0" : ""}`}>
         {stats.map(({ config, stat }) => {
           const color = strokeColor(stat);
           return (
             <div
               key={config.key}
-              className="rounded-lg bg-white/[0.015] border border-white/[0.04] p-1.5 flex flex-col gap-1"
+              className="rounded-lg bg-white/[0.015] border border-white/[0.04] p-1.5 flex flex-col gap-1 min-h-0"
             >
               <p className="text-[9px] uppercase tracking-[0.08em] text-white/55 font-medium leading-tight">
                 {config.label}
               </p>
 
-              <div className={compact ? "h-6 -mx-1" : "h-9 -mx-1"}>
+              <div className={fillHeight ? "flex-1 min-h-0 -mx-1" : compact ? "h-6 -mx-1" : "h-9 -mx-1"}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={config.data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                     <defs>
