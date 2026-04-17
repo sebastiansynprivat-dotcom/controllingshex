@@ -15,6 +15,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
+import WeekTrendCard from "@/components/WeekTrendCard";
 
 interface HistoryRow {
   analysis_date: string;
