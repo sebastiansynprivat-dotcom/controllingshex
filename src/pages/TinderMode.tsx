@@ -603,7 +603,7 @@ export default function TinderMode() {
   return (
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
-      <div className={`flex flex-col px-4 py-6 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
+      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
       {/* Category filter — Dropdown wie im Dashboard */}
       <div className="mb-2">
         <Select
