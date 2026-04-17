@@ -460,6 +460,24 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     );
   }
 
+  // Doppel-Tipp irgendwo im Slide-Over schließt es
+  const lastTapRef = useRef<number>(0);
+  const handleDoubleTapClose = (e: React.PointerEvent) => {
+    // Ignoriere Tipps auf interaktive Elemente (Buttons, Inputs, Links)
+    const target = e.target as HTMLElement;
+    if (target.closest("button, input, textarea, select, a, [role='button'], [contenteditable='true']")) {
+      lastTapRef.current = 0;
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      onClose();
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
   const slideOverContent = (
     <AnimatePresence>
       {open && (
@@ -468,6 +486,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          onPointerDown={handleDoubleTapClose}
           className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
         >
           {/* ── Sticky Header ── */}
