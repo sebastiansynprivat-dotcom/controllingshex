@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Clock, ChevronDown, AlertTriangle, TrendingDown, TrendingUp, Inbox, MessageSquareOff, UserX, Sparkles } from "lucide-react";
+import { Check, Clock, ChevronDown, AlertTriangle, TrendingDown, Inbox, MessageSquareOff, Sparkles } from "lucide-react";
 
 type Severity = "critical" | "high" | "medium" | "info";
 type Status = "new" | "seen" | "resolved" | "snoozed";
@@ -30,7 +30,6 @@ const TYPE_META: Record<string, { icon: typeof AlertTriangle; label: string }> =
   mass_dm_drop: { icon: MessageSquareOff, label: "Mass-DMs" },
   chat_jam: { icon: Inbox, label: "Chat-Stau" },
   revenue_drop: { icon: TrendingDown, label: "Umsatz" },
-  inactivity: { icon: UserX, label: "Inaktiv" },
   positive_outlier: { icon: Sparkles, label: "Top" },
 };
 
