@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus, AlertTriangle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
 
@@ -601,36 +602,38 @@ export default function TinderMode() {
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
       <div className={`flex flex-col px-4 py-6 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
-      {/* Category filter chips */}
-      <div className="relative mb-2">
-        <div className="flex flex-wrap gap-1.5 lg:gap-2 pb-2 max-h-[4.5rem] lg:max-h-[7rem] overflow-y-auto scrollbar-none">
-          <button
-            onClick={() => { setSelectedCategory(null); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
-            className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium ${
-              !selectedCategory
-                ? "gold-gradient text-primary-foreground shadow-[0_0_12px_hsl(40_45%_55%/0.25)]"
-                : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
-            }`}
-          >
-            Alle
-          </button>
-          {uniqueCategories.map((cat) => (
-            <button
-              key={cat.name}
-              onClick={() => { setSelectedCategory(cat.name); setCategoryDonePrompt(null); setActionPanel(false); setSlideOver(false); setLabelPanel(false); setNotePanel(false); }}
-              className={`text-[11px] lg:text-xs px-3 py-1.5 rounded-lg transition-all duration-200 font-medium whitespace-nowrap ${
-                selectedCategory === cat.name
-                  ? "gold-gradient text-primary-foreground shadow-[0_0_12px_hsl(40_45%_55%/0.25)]"
-                  : "bg-white/[0.03] text-muted-foreground border border-white/[0.06] hover:bg-white/[0.06] hover:text-foreground"
-              }`}
-            >
-              {cat.emoji} {cat.name}
-              <span className="ml-1.5 text-[10px] opacity-50">{cat.count}</span>
-            </button>
-          ))}
-        </div>
-        {/* Fade edge at bottom when content overflows */}
-        <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      {/* Category filter — Dropdown wie im Dashboard */}
+      <div className="mb-2">
+        <Select
+          value={selectedCategory ?? "__all__"}
+          onValueChange={(value) => {
+            const next = value === "__all__" ? null : value;
+            setSelectedCategory(next);
+            setCategoryDonePrompt(null);
+            setActionPanel(false);
+            setSlideOver(false);
+            setLabelPanel(false);
+            setNotePanel(false);
+          }}
+        >
+          <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
+            <SelectValue placeholder="Kategorie wählen…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">
+              Alle Kategorien
+              <span className="ml-1.5 text-[10px] opacity-50">
+                {chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length}
+              </span>
+            </SelectItem>
+            {uniqueCategories.map((cat) => (
+              <SelectItem key={cat.name} value={cat.name}>
+                {cat.emoji} {cat.name}
+                <span className="ml-1.5 text-[10px] opacity-50">{cat.count}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Alert + Label filter chips */}
