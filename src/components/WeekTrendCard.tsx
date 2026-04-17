@@ -13,6 +13,8 @@ interface Props {
   history: WeekTrendRow[];
   /** "lower-is-better" metrics flip color logic. Default fields handled internally. */
   compact?: boolean;
+  /** When true, the card stretches vertically and the sparklines grow to fill space. */
+  fillHeight?: boolean;
 }
 
 type Direction = "up" | "down" | "stable";
