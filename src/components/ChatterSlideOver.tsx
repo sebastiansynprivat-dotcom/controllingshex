@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Send, Plus, Tag } from "lucide-react";
+import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
