@@ -592,6 +592,64 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
           </div>
         )}
       </div>
+
+      {/* Login picker — for chatters with multiple accounts */}
+      <AnimatePresence>
+        {loginPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-sm rounded-2xl p-3"
+            onClick={(e) => { e.stopPropagation(); setLoginPicker(null); }}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+              className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-card/95 backdrop-blur-xl p-3 space-y-2 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 px-1 pb-1">
+                {loginPicker === "email" ? <Mail className="h-3.5 w-3.5 text-muted-foreground" /> : <Key className="h-3.5 w-3.5 text-muted-foreground" />}
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                  {loginPicker === "email" ? "E-Mail kopieren" : "Passwort kopieren"} — Account wählen
+                </p>
+              </div>
+              {accountLogins
+                .filter((a) => (loginPicker === "email" ? a.email : a.password))
+                .map((a) => {
+                  const value = (loginPicker === "email" ? a.email : a.password) || "";
+                  return (
+                    <button
+                      key={a.account}
+                      onClick={() => {
+                        navigator.clipboard.writeText(value);
+                        toast.success(`${loginPicker === "email" ? "E-Mail" : "Passwort"} kopiert · ${a.account}`);
+                        triggerHaptic("medium");
+                        setLoginPicker(null);
+                      }}
+                      className="w-full text-left rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] px-3 py-2 transition-colors"
+                    >
+                      <p className="text-[13px] font-medium text-foreground">{a.account}</p>
+                      <p className="text-[10px] text-muted-foreground/70 truncate">
+                        {loginPicker === "email" ? value : "•".repeat(Math.min(value.length, 12))}
+                      </p>
+                    </button>
+                  );
+                })}
+              <button
+                onClick={() => setLoginPicker(null)}
+                className="w-full text-[11px] text-muted-foreground/60 hover:text-muted-foreground py-2"
+              >
+                Abbrechen
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
