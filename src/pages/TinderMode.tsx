@@ -324,7 +324,7 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
-  // Filter unchecked chatters by selected category and label
+  // Filter unchecked chatters by selected category, label, and alerts
   const uncheckedChatters = useMemo(
     () => {
       let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
@@ -334,12 +334,15 @@ export default function TinderMode() {
       if (labelChatterNames) {
         base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
       }
+      if (alertFilterActive) {
+        base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+      }
       // Put skipped names at the end
       const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames]
+    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
   );
 
   const prefetchedChatters = useMemo(
@@ -353,14 +356,16 @@ export default function TinderMode() {
     let base = chatters;
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+    if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, labelChatterNames]);
+  }, [chatters, selectedCategory, labelChatterNames, alertFilterActive, alertChatterNames]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
+    if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, labelChatterNames]);
+  }, [chatters, checkedNames, selectedCategory, labelChatterNames, alertFilterActive, alertChatterNames]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
