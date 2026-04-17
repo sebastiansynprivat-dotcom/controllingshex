@@ -252,13 +252,13 @@ export default function TinderMode() {
       const [historyRes, modelsRes] = await Promise.all([
         supabase
           .from("chatter_history")
-          .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
+          .select("chatter_name, account, analysis_date, revenue_today, mass_dms, response_delay_days")
           .eq("platform", platform)
           .in("chatter_name", names)
           .order("analysis_date", { ascending: true }),
         supabase
           .from("models")
-          .select("model_name, follower_count")
+          .select("model_name, follower_count, email, password")
           .eq("platform", platform),
       ]);
 
