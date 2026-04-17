@@ -240,28 +240,30 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
     }
   };
 
+  const visibleInsights = compact ? insights.slice(0, 1) : insights;
+
   return (
-    <div className={`rounded-2xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-3" : "p-7"} ${compact ? "space-y-3" : "space-y-5"}`}>
+    <div className={`rounded-xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-2 space-y-2" : "p-7 space-y-5"}`}>
       <div className="flex items-center justify-between">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">7-Tage-Trend</p>
-        <span className="text-[10px] text-white/25 font-light">
+        <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">7-Tage-Trend</p>
+        <span className="text-[9px] text-white/25 font-light">
           {formatDateShort(last7[0].analysis_date)} → {formatDateShort(last7[last7.length - 1].analysis_date)}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1.5">
         {stats.map(({ config, stat }) => {
           const color = strokeColor(stat);
           return (
             <div
               key={config.key}
-              className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-2.5 flex flex-col gap-1.5"
+              className="rounded-lg bg-white/[0.015] border border-white/[0.04] p-1.5 flex flex-col gap-1"
             >
-              <p className="text-[10px] uppercase tracking-[0.1em] text-white/55 font-medium leading-tight">
+              <p className="text-[9px] uppercase tracking-[0.08em] text-white/55 font-medium leading-tight">
                 {config.label}
               </p>
 
-              <div className="h-9 -mx-1">
+              <div className={compact ? "h-6 -mx-1" : "h-9 -mx-1"}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={config.data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                     <defs>
@@ -290,11 +292,11 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
               </div>
 
               <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-medium text-white/85 truncate" title={`${config.formatter(stat.start)} → ${config.formatter(stat.end)}`}>
+                <span className="text-[11px] font-medium text-white/85 truncate" title={`${config.formatter(stat.start)} → ${config.formatter(stat.end)}`}>
                   {config.formatter(stat.end)}
                 </span>
                 <span
-                  className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border ${deltaColorClass(stat)}`}
+                  className={`inline-flex items-center gap-0.5 text-[8.5px] font-medium px-1 py-0.5 rounded border ${deltaColorClass(stat)}`}
                   title={`${config.formatter(stat.start)} → ${config.formatter(stat.end)}`}
                 >
                   <DirectionIcon direction={stat.direction} />
@@ -307,14 +309,14 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
       </div>
 
       {/* Smart Insights */}
-      <div className="space-y-1.5">
-        {insights.map((ins, i) => (
+      <div className="space-y-1">
+        {visibleInsights.map((ins, i) => (
           <div
             key={i}
-            className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 ${insightToneClass(ins.tone)}`}
+            className={`flex items-start gap-1.5 rounded-md border px-2 py-1 ${insightToneClass(ins.tone)}`}
           >
             <span className="mt-0.5">{insightIcon(ins.tone)}</span>
-            <p className="text-[11px] leading-snug font-light">{ins.text}</p>
+            <p className="text-[10.5px] leading-snug font-light line-clamp-2">{ins.text}</p>
           </div>
         ))}
       </div>
