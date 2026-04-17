@@ -275,7 +275,7 @@ export default function TinderMode() {
       const [historyRes, modelsRes] = await Promise.all([
         supabase
           .from("chatter_history")
-          .select("chatter_name, analysis_date, revenue_today")
+          .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
           .eq("platform", platform)
           .in("chatter_name", names)
           .order("analysis_date", { ascending: true }),
@@ -286,16 +286,18 @@ export default function TinderMode() {
       ]);
 
       if (historyRes.data) {
-        const histMap = new Map<string, { date: string; revenue: number }[]>();
+        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[]>();
         for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
-            date: h.analysis_date,
-            revenue: Number(h.revenue_today) || 0,
+            analysis_date: h.analysis_date,
+            revenue_today: Number(h.revenue_today) || 0,
+            mass_dms: Number(h.mass_dms) || 0,
+            response_delay_days: Number(h.response_delay_days) || 0,
           });
         }
         for (const ch of allChatters) {
-          ch.revenueHistory = histMap.get(ch.name)?.slice(-7);
+          ch.history = histMap.get(ch.name)?.slice(-7);
         }
       }
 
