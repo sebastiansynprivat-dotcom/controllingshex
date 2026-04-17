@@ -397,11 +397,14 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               {chatter.categoryName || "Unbekannt"}
             </span>
           </div>
-          {chatter.startDate && (
-            <span className="text-[10px] text-muted-foreground/70 font-medium">
-              seit {chatter.startDate}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <LastInputBadge lastAt={lastInputAt} lastSource={lastInputSource} onClick={onLastInputClick} />
+            {chatter.startDate && (
+              <span className="text-[10px] text-muted-foreground/70 font-medium">
+                seit {chatter.startDate}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Avatar + Name */}
