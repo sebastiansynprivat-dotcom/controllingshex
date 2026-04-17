@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
-import SwipeCard from "@/components/SwipeCard";
+import SwipeCard, { type AccountLogin } from "@/components/SwipeCard";
 import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Progress } from "@/components/ui/progress";
@@ -132,6 +132,7 @@ export default function TinderMode() {
   const [inputsMap, setInputsMap] = useState<Map<string, LastInputInfo>>(new Map());
   const [historyChatter, setHistoryChatter] = useState<string | null>(null);
   const [quickPromptName, setQuickPromptName] = useState<string | null>(null);
+  const [accountLoginsMap, setAccountLoginsMap] = useState<Map<string, AccountLogin[]>>(new Map());
 
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
@@ -251,13 +252,13 @@ export default function TinderMode() {
       const [historyRes, modelsRes] = await Promise.all([
         supabase
           .from("chatter_history")
-          .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
+          .select("chatter_name, account, analysis_date, revenue_today, mass_dms, response_delay_days")
           .eq("platform", platform)
           .in("chatter_name", names)
           .order("analysis_date", { ascending: true }),
         supabase
           .from("models")
-          .select("model_name, follower_count")
+          .select("model_name, follower_count, email, password")
           .eq("platform", platform),
       ]);
 
@@ -275,6 +276,43 @@ export default function TinderMode() {
         for (const ch of allChatters) {
           ch.history = histMap.get(ch.name)?.slice(-7);
         }
+      }
+
+      // Build per-chatter account-login map (account name → email/password from models)
+      if (historyRes.data && modelsRes.data) {
+        const modelLookup = new Map<string, { email?: string | null; password?: string | null }>();
+        for (const m of modelsRes.data as Array<{ model_name: string; email?: string | null; password?: string | null }>) {
+          const key = (m.model_name || "").toLowerCase().trim();
+          if (key) modelLookup.set(key, { email: m.email, password: m.password });
+        }
+        const acctsByChatter = new Map<string, Set<string>>();
+        for (const h of historyRes.data as Array<{ chatter_name: string; account?: string | null }>) {
+          const acc = (h.account || "").trim();
+          if (!acc) continue;
+          const key = normalizeName(h.chatter_name);
+          if (!acctsByChatter.has(key)) acctsByChatter.set(key, new Set());
+          acctsByChatter.get(key)!.add(acc);
+        }
+        // Also include the account from today's KPI data
+        for (const ch of allChatters) {
+          const acc = (ch.account || "").trim();
+          if (!acc) continue;
+          const key = normalizeName(ch.name);
+          if (!acctsByChatter.has(key)) acctsByChatter.set(key, new Set());
+          acctsByChatter.get(key)!.add(acc);
+        }
+        const loginMap = new Map<string, AccountLogin[]>();
+        for (const [chKey, accSet] of acctsByChatter.entries()) {
+          const logins: AccountLogin[] = [];
+          for (const account of accSet) {
+            const m = modelLookup.get(account.toLowerCase());
+            if (m && (m.email || m.password)) {
+              logins.push({ account, email: m.email, password: m.password });
+            }
+          }
+          if (logins.length > 0) loginMap.set(chKey, logins);
+        }
+        setAccountLoginsMap(loginMap);
       }
 
       if (modelsRes.data && allChatters.length > 0) {
@@ -908,6 +946,7 @@ export default function TinderMode() {
                     onSwipeDown={isTopCard ? handleSwipeDown : undefined}
                     isTop={isTopCard}
                     stackIndex={stackIndex}
+                    accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
                   />
                 );
               })}

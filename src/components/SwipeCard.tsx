@@ -1,12 +1,18 @@
-import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
-import { useMemo, useCallback, useRef, useEffect } from "react";
+import { motion, useMotionValue, useTransform, useAnimation, PanInfo, AnimatePresence } from "framer-motion";
+import { useMemo, useCallback, useRef, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
+import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles, Mail, Key } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import LastInputBadge from "@/components/LastInputBadge";
 import type { InputSource } from "@/lib/chatter-inputs";
 import { type ChatterBenchmark, formatBenchmarkLabel, getBenchmarkTone } from "@/lib/peer-benchmarks";
+
+export interface AccountLogin {
+  account: string;
+  email?: string | null;
+  password?: string | null;
+}
 
 interface ChatterData {
   name: string;
@@ -38,6 +44,7 @@ interface Props {
   onSwipeDown?: () => void;
   isTop: boolean;
   stackIndex?: number;
+  accountLogins?: AccountLogin[];
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
@@ -100,14 +107,16 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
+export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [] }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
   const didHandleGestureRef = useRef(false);
   const isDraggingRef = useRef(false);
-  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef<number>(0);
+  const lastTapTimeRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [loginPicker, setLoginPicker] = useState<null | "email" | "password">(null);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
 
@@ -199,26 +208,55 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     }
   }, [openDetails]);
 
+  const copyLogin = useCallback((field: "email" | "password") => {
+    const valid = accountLogins.filter((a) => (field === "email" ? a.email : a.password));
+    if (valid.length === 0) {
+      toast.error(field === "email" ? "Keine E-Mail hinterlegt" : "Kein Passwort hinterlegt");
+      return;
+    }
+    if (valid.length === 1) {
+      const value = (field === "email" ? valid[0].email : valid[0].password) || "";
+      navigator.clipboard.writeText(value);
+      toast.success(`${field === "email" ? "E-Mail" : "Passwort"} kopiert · ${valid[0].account}`);
+      triggerHaptic("medium");
+      return;
+    }
+    setLoginPicker(field);
+    triggerHaptic("light");
+  }, [accountLogins]);
+
   const handleCardTap = useCallback(() => {
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       return;
     }
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    const within = now - lastTapTimeRef.current < 320;
+    tapCountRef.current = within ? tapCountRef.current + 1 : 1;
+    lastTapTimeRef.current = now;
+
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+
+    // Resolve after short window so we know how many taps came in
+    tapTimerRef.current = setTimeout(() => {
+      const count = tapCountRef.current;
+      tapCountRef.current = 0;
       tapTimerRef.current = null;
-      triggerHaptic("medium");
-      onSwipeUp();
-    } else {
-      tapTimerRef.current = setTimeout(() => {
+
+      if (count >= 4) {
+        copyLogin("password");
+      } else if (count === 3) {
+        copyLogin("email");
+      } else if (count === 2) {
+        triggerHaptic("medium");
+        onSwipeUp();
+      } else {
         navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
         toast.success("Name kopiert");
         triggerHaptic("light");
-      }, 300);
-    }
-    lastTapRef.current = now;
-  }, [chatter.name, onSwipeUp]);
+      }
+    }, 340);
+  }, [chatter.name, onSwipeUp, copyLogin]);
 
   useEffect(() => {
     return () => {
@@ -554,6 +592,64 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
           </div>
         )}
       </div>
+
+      {/* Login picker — for chatters with multiple accounts */}
+      <AnimatePresence>
+        {loginPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-sm rounded-2xl p-3"
+            onClick={(e) => { e.stopPropagation(); setLoginPicker(null); }}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+              className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-card/95 backdrop-blur-xl p-3 space-y-2 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 px-1 pb-1">
+                {loginPicker === "email" ? <Mail className="h-3.5 w-3.5 text-muted-foreground" /> : <Key className="h-3.5 w-3.5 text-muted-foreground" />}
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                  {loginPicker === "email" ? "E-Mail kopieren" : "Passwort kopieren"} — Account wählen
+                </p>
+              </div>
+              {accountLogins
+                .filter((a) => (loginPicker === "email" ? a.email : a.password))
+                .map((a) => {
+                  const value = (loginPicker === "email" ? a.email : a.password) || "";
+                  return (
+                    <button
+                      key={a.account}
+                      onClick={() => {
+                        navigator.clipboard.writeText(value);
+                        toast.success(`${loginPicker === "email" ? "E-Mail" : "Passwort"} kopiert · ${a.account}`);
+                        triggerHaptic("medium");
+                        setLoginPicker(null);
+                      }}
+                      className="w-full text-left rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] px-3 py-2 transition-colors"
+                    >
+                      <p className="text-[13px] font-medium text-foreground">{a.account}</p>
+                      <p className="text-[10px] text-muted-foreground/70 truncate">
+                        {loginPicker === "email" ? value : "•".repeat(Math.min(value.length, 12))}
+                      </p>
+                    </button>
+                  );
+                })}
+              <button
+                onClick={() => setLoginPicker(null)}
+                className="w-full text-[11px] text-muted-foreground/60 hover:text-muted-foreground py-2"
+              >
+                Abbrechen
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
