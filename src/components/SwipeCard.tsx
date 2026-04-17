@@ -6,6 +6,7 @@ import { type ModelPerformance, formatFollowers } from "@/lib/model-performance"
 import WeekTrendCard from "@/components/WeekTrendCard";
 import LastInputBadge from "@/components/LastInputBadge";
 import type { InputSource } from "@/lib/chatter-inputs";
+import { type ChatterBenchmark, formatBenchmarkLabel, getBenchmarkTone } from "@/lib/peer-benchmarks";
 
 interface ChatterData {
   name: string;
@@ -16,6 +17,7 @@ interface ChatterData {
   startDate?: string;
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
+  peerBm?: ChatterBenchmark;
 }
 
 interface AnomalyAlertInfo {
