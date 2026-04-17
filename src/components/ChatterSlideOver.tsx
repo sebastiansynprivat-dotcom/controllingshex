@@ -332,25 +332,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   if (inline) {
     // Inline mode: render directly without portal/overlay
     return (
-      <div className="h-full flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl relative">
-        {/* Aurora background accent */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-60"
-          style={{
-            background: `radial-gradient(80% 100% at 20% 0%, hsl(${trendAccent} / 0.18) 0%, transparent 60%), radial-gradient(60% 80% at 80% 0%, hsl(45 75% 55% / 0.10) 0%, transparent 70%)`,
-          }}
-        />
+      <div className="h-full flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl">
         {/* ── Hero Header ── */}
-        <div className="relative flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-zinc-950/60 z-10 shrink-0 backdrop-blur-xl">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
-            style={{
-              background: `linear-gradient(135deg, hsl(${trendAccent} / 0.35) 0%, hsl(${trendAccent} / 0.10) 100%)`,
-              color: `hsl(${trendAccent} / 0.95)`,
-              border: `1px solid hsl(${trendAccent} / 0.25)`,
-              boxShadow: `0 2px 16px -2px hsl(${trendAccent} / 0.45)`,
-            }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-medium tracking-wide bg-white/[0.04] border border-white/[0.08] text-white/70"
           >
             {initials}
           </div>
@@ -365,8 +351,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-[10px] text-white/30 font-light tracking-[0.15em] uppercase">{platform} · Profil</p>
               {trend30.direction !== "stable" && (
-                <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                  trend30.direction === "up" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+                <span className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded ${
+                  trend30.direction === "up" ? "text-emerald-400/80" : "text-red-400/80"
                 }`}>
                   {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                   {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
