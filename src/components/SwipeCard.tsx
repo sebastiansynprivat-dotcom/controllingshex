@@ -2,7 +2,7 @@ import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "fra
 import { useMemo, useCallback, useRef, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
-import { Users } from "lucide-react";
+import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 
 interface ChatterData {
@@ -16,8 +16,15 @@ interface ChatterData {
   modelPerf?: ModelPerformance;
 }
 
+interface AnomalyAlertInfo {
+  alert_type: string;
+  severity: string;
+  message: string;
+}
+
 interface Props {
   chatter: ChatterData;
+  alerts?: AnomalyAlertInfo[];
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
   onSwipeUp: () => void;
@@ -25,6 +32,29 @@ interface Props {
   isTop: boolean;
   stackIndex?: number;
 }
+
+const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
+  verzug_spike: AlertTriangle,
+  mass_dm_drop: MessageSquareOff,
+  chat_jam: Inbox,
+  revenue_drop: TrendingDown,
+  positive_outlier: Sparkles,
+};
+
+const ALERT_LABELS: Record<string, string> = {
+  verzug_spike: "Verzug",
+  mass_dm_drop: "Mass-DMs",
+  chat_jam: "Chat-Stau",
+  revenue_drop: "Umsatz",
+  positive_outlier: "Top",
+};
+
+const SEVERITY_COLOR: Record<string, string> = {
+  critical: "border-red-500/50 bg-red-500/[0.08] text-red-300",
+  high: "border-orange-400/50 bg-orange-400/[0.08] text-orange-300",
+  medium: "border-yellow-400/50 bg-yellow-400/[0.06] text-yellow-200",
+  info: "border-emerald-400/50 bg-emerald-400/[0.06] text-emerald-300",
+};
 
 function triggerHaptic(style: "light" | "medium" = "light") {
   try {
@@ -34,7 +64,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
+export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
