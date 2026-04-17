@@ -551,12 +551,31 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           onPointerDown={handleDoubleTapClose}
           className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
         >
-          {/* ── Sticky Header ── */}
+          {/* Aurora background accent */}
           <div
-            className="flex items-center justify-between px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0"
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-72 opacity-70"
+            style={{
+              background: `radial-gradient(70% 100% at 15% 0%, hsl(${trendAccent} / 0.20) 0%, transparent 60%), radial-gradient(60% 80% at 85% 0%, hsl(45 75% 55% / 0.12) 0%, transparent 70%)`,
+            }}
+          />
+          {/* ── Hero Header ── */}
+          <div
+            className="relative flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950/60 backdrop-blur-xl z-10 shrink-0"
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
-            <div className="min-w-0">
+            <div
+              className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-bold tracking-wide"
+              style={{
+                background: `linear-gradient(135deg, hsl(${trendAccent} / 0.35) 0%, hsl(${trendAccent} / 0.10) 100%)`,
+                color: `hsl(${trendAccent} / 0.95)`,
+                border: `1px solid hsl(${trendAccent} / 0.25)`,
+                boxShadow: `0 4px 20px -4px hsl(${trendAccent} / 0.5)`,
+              }}
+            >
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
               <h2
                 onClick={() => {
                   navigator.clipboard.writeText(displayName);
@@ -567,11 +586,21 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               >
                 {displayName}
               </h2>
-              <p className="text-[11px] text-white/20 mt-1 font-light tracking-[0.15em] uppercase">{platform} · Performance-Profil</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-[11px] text-white/30 font-light tracking-[0.15em] uppercase">{platform} · Profil</p>
+                {trend30.direction !== "stable" && (
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                    trend30.direction === "up" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+                  }`}>
+                    {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                    {trend30.pct > 0 ? "+" : ""}{trend30.pct}% / 30T
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2.5 rounded-xl hover:bg-white/[0.04] text-white/25 hover:text-white/50 transition-colors duration-300 shrink-0 ml-4"
+              className="p-2.5 rounded-xl hover:bg-white/[0.04] text-white/25 hover:text-white/50 transition-colors duration-300 shrink-0"
             >
               <X className="h-5 w-5" />
             </button>
