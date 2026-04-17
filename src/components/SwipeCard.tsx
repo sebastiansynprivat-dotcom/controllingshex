@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 import WeekTrendCard from "@/components/WeekTrendCard";
+import LastInputBadge from "@/components/LastInputBadge";
+import type { InputSource } from "@/lib/chatter-inputs";
 
 interface ChatterData {
   name: string;
@@ -25,6 +27,9 @@ interface AnomalyAlertInfo {
 interface Props {
   chatter: ChatterData;
   alerts?: AnomalyAlertInfo[];
+  lastInputAt?: string | null;
+  lastInputSource?: InputSource | null;
+  onLastInputClick?: () => void;
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
   onSwipeUp: () => void;
@@ -93,7 +98,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
+export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0 }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
@@ -392,11 +397,14 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
               {chatter.categoryName || "Unbekannt"}
             </span>
           </div>
-          {chatter.startDate && (
-            <span className="text-[10px] text-muted-foreground/70 font-medium">
-              seit {chatter.startDate}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <LastInputBadge lastAt={lastInputAt} lastSource={lastInputSource} onClick={onLastInputClick} />
+            {chatter.startDate && (
+              <span className="text-[10px] text-muted-foreground/70 font-medium">
+                seit {chatter.startDate}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Avatar + Name */}

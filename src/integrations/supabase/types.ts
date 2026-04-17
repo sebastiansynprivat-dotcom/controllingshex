@@ -155,6 +155,36 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_inputs: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          id: string
+          input_type: string
+          note: string | null
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          id?: string
+          input_type: string
+          note?: string | null
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          input_type?: string
+          note?: string | null
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_label_assignments: {
         Row: {
           chatter_name: string

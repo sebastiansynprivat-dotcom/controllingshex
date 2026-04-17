@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { toast } from "sonner";
 import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
+import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatter-inputs";
+import QuickInputPrompt from "@/components/QuickInputPrompt";
+import InputHistorySheet from "@/components/InputHistorySheet";
 
 interface ChatterData {
   name: string;
@@ -156,6 +159,11 @@ export default function TinderMode() {
   // Note state
   const [notes, setNotes] = useState<{ id: string; note_text: string; created_at: string }[]>([]);
   const [noteText, setNoteText] = useState("");
+
+  // Input tracking
+  const [inputsMap, setInputsMap] = useState<Map<string, LastInputInfo>>(new Map());
+  const [historyChatter, setHistoryChatter] = useState<string | null>(null);
+  const [quickPromptName, setQuickPromptName] = useState<string | null>(null);
 
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
@@ -315,8 +323,25 @@ export default function TinderMode() {
       setChatters(allChatters);
       setUndoStack([]);
       setLoading(false);
+
+      // Load last-input info per chatter (parallel, doesn't block UI)
+      if (allChatters.length > 0) {
+        loadLastInputs(platform, allChatters.map((c) => c.name)).then(setInputsMap);
+      }
     };
     load();
+  }, [platform]);
+
+  // Refresh a single chatter's input info after a logged event
+  const refreshInputForChatter = useCallback(async (chatterName: string) => {
+    const fresh = await loadLastInputs(platform, [chatterName]);
+    setInputsMap((prev) => {
+      const next = new Map(prev);
+      const key = normalizeName(chatterName);
+      const info = fresh.get(key);
+      if (info) next.set(key, info);
+      return next;
+    });
   }, [platform]);
 
   // Extract unique categories with counts of unchecked chatters
@@ -469,10 +494,34 @@ export default function TinderMode() {
 
   const handleSwipeRight = useCallback(() => {
     if (!currentChatter) return;
-    setUndoStack((prev) => [...prev, currentChatter.name]);
-    markChecked(currentChatter.name);
+    const name = currentChatter.name;
+    setUndoStack((prev) => [...prev, name]);
+    markChecked(name);
+    // Show quick input prompt — non-blocking, user can ignore (auto-dismisses or X)
+    setQuickPromptName(name);
     goNext();
   }, [currentChatter, markChecked, goNext]);
+
+  // Auto-dismiss quick prompt after a few seconds
+  useEffect(() => {
+    if (!quickPromptName) return;
+    const t = setTimeout(() => setQuickPromptName(null), 4500);
+    return () => clearTimeout(t);
+  }, [quickPromptName]);
+
+  const handleQuickInputPick = useCallback(async (type: "verbal" | "praise" | "observed") => {
+    const name = quickPromptName;
+    if (!name) return;
+    setQuickPromptName(null);
+    const ok = await logManualInput(platform, name, type);
+    if (ok) {
+      refreshInputForChatter(name);
+      const labels = { verbal: "💬 Input", praise: "🔥 Lob", observed: "👀 Beobachtet" };
+      toast.success(`${labels[type]} getrackt`);
+    } else {
+      toast.error("Konnte nicht gespeichert werden");
+    }
+  }, [quickPromptName, platform, refreshInputForChatter]);
 
   const handleSwipeLeft = useCallback(() => {
     setActionPanel(true);
@@ -538,6 +587,9 @@ export default function TinderMode() {
           setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
           setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(chatterName))));
         }
+      } else if (!wasActive) {
+        // Successfully added a label → counts as input
+        refreshInputForChatter(chatterName);
       }
     })();
   };
@@ -557,13 +609,19 @@ export default function TinderMode() {
   // Save note
   const saveNote = async () => {
     if (!noteText.trim() || !currentChatter) return;
+    const chatterName = currentChatter.name;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data, error } = await supabase.from("coaching_notes")
-      .insert({ chatter_name: currentChatter.name, note_text: noteText.trim(), platform, user_id: user.id })
+      .insert({ chatter_name: chatterName, note_text: noteText.trim(), platform, user_id: user.id })
       .select("id, note_text, created_at").single();
     if (error) { toast.error("Fehler beim Speichern"); return; }
-    if (data) { setNotes((prev) => [data, ...prev]); setNoteText(""); toast.success("Notiz gespeichert"); }
+    if (data) {
+      setNotes((prev) => [data, ...prev]);
+      setNoteText("");
+      toast.success("Notiz gespeichert");
+      refreshInputForChatter(chatterName);
+    }
   };
 
   const deleteNote = async (noteId: string) => {
@@ -852,6 +910,9 @@ export default function TinderMode() {
                     key={normalizeName(chatter.name)}
                     chatter={chatter}
                     alerts={alertsByChatter.get(normalizeName(chatter.name)) || []}
+                    lastInputAt={inputsMap.get(normalizeName(chatter.name))?.lastAt ?? null}
+                    lastInputSource={inputsMap.get(normalizeName(chatter.name))?.lastSource ?? null}
+                    onLastInputClick={isTopCard ? () => setHistoryChatter(chatter.name) : undefined}
                     onSwipeRight={isTopCard ? handleSwipeRight : noop}
                     onSwipeLeft={isTopCard ? handleSwipeLeft : noop}
                     onSwipeUp={isTopCard ? handleSwipeUp : noop}
@@ -1180,6 +1241,22 @@ export default function TinderMode() {
           </AnimatePresence>
         </>
       )}
+
+      {/* Quick-Input Prompt — shown briefly after swipe-right */}
+      <QuickInputPrompt
+        open={!!quickPromptName}
+        chatterName={quickPromptName || ""}
+        onPick={handleQuickInputPick}
+        onSkip={() => setQuickPromptName(null)}
+      />
+
+      {/* Input History Sheet — opened via badge tap */}
+      <InputHistorySheet
+        open={!!historyChatter}
+        onClose={() => setHistoryChatter(null)}
+        chatterName={historyChatter || ""}
+        events={historyChatter ? (inputsMap.get(normalizeName(historyChatter))?.events || []) : []}
+      />
 
       {/* Chatter SlideOver (mobile: portal overlay) */}
       {!isDesktop && currentChatter && (
