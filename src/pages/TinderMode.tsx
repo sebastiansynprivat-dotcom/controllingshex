@@ -17,6 +17,7 @@ import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatte
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark } from "@/lib/peer-benchmarks";
 
 interface ChatterData {
   name: string;
@@ -28,6 +29,7 @@ interface ChatterData {
   startDate?: string;
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
+  peerBm?: ChatterBenchmark;
 }
 
 interface AnalysisCategory {
@@ -283,6 +285,24 @@ export default function TinderMode() {
         );
         for (const ch of allChatters) {
           if (perfs[ch.name]) ch.modelPerf = perfs[ch.name];
+        }
+
+        // Peer-Benchmarks: vollautomatisch aus History + Models
+        try {
+          const bundle = await loadBenchmarks(platform, 30);
+          const followerLookup = new Map<string, number>();
+          for (const m of modelsRes.data) followerLookup.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+          for (const ch of allChatters) {
+            const acc = (ch.account || "").trim();
+            if (!acc) continue;
+            const followers = followerLookup.get(acc.toLowerCase()) || 0;
+            const revKey = Object.keys(ch.kpis).find((k) => /umsatz|revenue/i.test(k));
+            const revStr = revKey ? ch.kpis[revKey] : "0";
+            const rev = parseFloat(revStr.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+            ch.peerBm = getChatterBenchmark(bundle, acc, followers, rev);
+          }
+        } catch (err) {
+          console.warn("Peer-benchmark load failed:", err);
         }
       }
 

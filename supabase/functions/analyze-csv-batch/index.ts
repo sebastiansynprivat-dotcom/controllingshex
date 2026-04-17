@@ -62,6 +62,24 @@ function findNameColumn(header: string): number {
   return idx >= 0 ? idx : 1;
 }
 
+function findAccountColumn(header: string): number {
+  const cols = header.toLowerCase().split(",").map(c => c.trim());
+  return cols.findIndex(c => /account|model|konto/i.test(c));
+}
+
+function extractFieldFromCsvRow(row: string, colIndex: number): string {
+  if (colIndex < 0) return "";
+  const fields: string[] = [];
+  let current = "", inQuotes = false;
+  for (const ch of row) {
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ""; continue; }
+    current += ch;
+  }
+  fields.push(current.trim());
+  return (fields[colIndex] || "").replace(/^[@\s]+/, "").trim();
+}
+
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
 }
@@ -89,6 +107,240 @@ function mergeResults(results: any[]): any {
     }
   }
   return { categories: Array.from(categoryMap.values()) };
+}
+
+/* ------------------------------------------------------------------ */
+/*  PEER-BENCHMARK ENGINE (Deno-Port von src/lib/peer-benchmarks.ts)   */
+/* ------------------------------------------------------------------ */
+
+type Confidence = "low" | "medium" | "high";
+
+interface PeerCluster {
+  minFollowers: number;
+  maxFollowers: number;
+  p25: number;
+  median: number;
+  p75: number;
+  sampleSize: number;
+  accountCount: number;
+  confidence: Confidence;
+  label: string;
+}
+
+interface AccountBaseline {
+  account: string;
+  avgRevenue: number;
+  dayCount: number;
+  followers: number;
+}
+
+interface BenchmarkBundle {
+  clusters: PeerCluster[];
+  accountBaselines: Map<string, AccountBaseline>;
+  globalMedian: number;
+  globalP25: number;
+  globalP75: number;
+  globalConfidence: Confidence;
+  totalAccounts: number;
+  totalDataPoints: number;
+}
+
+function quantile(sorted: number[], q: number): number {
+  if (sorted.length === 0) return 0;
+  if (sorted.length === 1) return sorted[0];
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sorted[base + 1] !== undefined) return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+  return sorted[base];
+}
+
+function confidenceFor(sampleSize: number): Confidence {
+  if (sampleSize >= 16) return "high";
+  if (sampleSize >= 6) return "medium";
+  return "low";
+}
+
+function formatFollowerRange(min: number, max: number): string {
+  const fmt = (n: number) => {
+    if (n === Infinity) return "∞";
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${Math.round(n / 1000)}K`;
+    return String(n);
+  };
+  return `${fmt(min)}–${fmt(max)} Follower`;
+}
+
+async function buildBenchmarkBundle(
+  supabase: any,
+  platform: string,
+  historyDays: number = 30
+): Promise<BenchmarkBundle> {
+  const { data: models } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("platform", platform);
+
+  const followerMap = new Map<string, number>();
+  for (const m of models || []) {
+    followerMap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+  }
+
+  const since = new Date();
+  since.setDate(since.getDate() - historyDays);
+  const sinceStr = since.toISOString().split("T")[0];
+
+  const { data: historyRows } = await supabase
+    .from("chatter_history")
+    .select("account, revenue_today, analysis_date")
+    .eq("platform", platform)
+    .gte("analysis_date", sinceStr)
+    .not("account", "is", null);
+
+  const byAccount = new Map<string, number[]>();
+  for (const row of historyRows || []) {
+    const acc = (row.account || "").toLowerCase().trim();
+    if (!acc) continue;
+    const rev = Number(row.revenue_today) || 0;
+    if (!byAccount.has(acc)) byAccount.set(acc, []);
+    byAccount.get(acc)!.push(rev);
+  }
+
+  const accountBaselines = new Map<string, AccountBaseline>();
+  const accountStats: Array<{ account: string; followers: number; revenues: number[] }> = [];
+  for (const [acc, revenues] of byAccount) {
+    const followers = followerMap.get(acc) || 0;
+    const avg = revenues.length > 0 ? revenues.reduce((s, v) => s + v, 0) / revenues.length : 0;
+    accountBaselines.set(acc, { account: acc, avgRevenue: avg, dayCount: revenues.length, followers });
+    if (followers > 0) accountStats.push({ account: acc, followers, revenues });
+  }
+
+  // Clustering
+  const valid = accountStats.filter(a => a.revenues.length > 0);
+  valid.sort((a, b) => a.followers - b.followers);
+  let clusterCount: number;
+  if (valid.length < 10) clusterCount = 1;
+  else if (valid.length < 30) clusterCount = 3;
+  else clusterCount = 5;
+
+  const clusters: PeerCluster[] = [];
+  if (valid.length > 0) {
+    const followerVals = valid.map(a => a.followers);
+    const cutoffs: number[] = [];
+    for (let i = 1; i < clusterCount; i++) cutoffs.push(quantile(followerVals, i / clusterCount));
+    const buckets: typeof valid[] = Array.from({ length: clusterCount }, () => []);
+    for (const acc of valid) {
+      let bucketIdx = 0;
+      for (let i = 0; i < cutoffs.length; i++) if (acc.followers > cutoffs[i]) bucketIdx = i + 1;
+      buckets[bucketIdx].push(acc);
+    }
+    for (let i = 0; i < buckets.length; i++) {
+      const bucket = buckets[i];
+      if (bucket.length === 0) continue;
+      const allRevs: number[] = [];
+      for (const acc of bucket) allRevs.push(...acc.revenues);
+      allRevs.sort((a, b) => a - b);
+      const minF = bucket[0].followers;
+      const maxF = i === buckets.length - 1 ? Infinity : (buckets[i + 1]?.[0]?.followers ?? Infinity);
+      clusters.push({
+        minFollowers: minF, maxFollowers: maxF,
+        p25: quantile(allRevs, 0.25), median: quantile(allRevs, 0.5), p75: quantile(allRevs, 0.75),
+        sampleSize: allRevs.length, accountCount: bucket.length,
+        confidence: confidenceFor(allRevs.length),
+        label: formatFollowerRange(minF, maxF),
+      });
+    }
+  }
+
+  const allRevs: number[] = [];
+  for (const [, revs] of byAccount) allRevs.push(...revs);
+  allRevs.sort((a, b) => a - b);
+
+  return {
+    clusters, accountBaselines,
+    globalMedian: quantile(allRevs, 0.5),
+    globalP25: quantile(allRevs, 0.25),
+    globalP75: quantile(allRevs, 0.75),
+    globalConfidence: confidenceFor(allRevs.length),
+    totalAccounts: byAccount.size,
+    totalDataPoints: allRevs.length,
+  };
+}
+
+function findCluster(bundle: BenchmarkBundle, followers: number): PeerCluster | null {
+  for (const c of bundle.clusters) {
+    if (followers >= c.minFollowers && followers < c.maxFollowers) return c;
+  }
+  return null;
+}
+
+/**
+ * Erzeugt für jeden Account-Eintrag in der CSV einen kompakten Benchmark-String,
+ * den die AI im Prompt sieht.
+ */
+function buildPerAccountBenchmarkBlock(
+  bundle: BenchmarkBundle,
+  csvAccountSet: Set<string>,
+  followerLookup: Map<string, number>,
+): string {
+  if (bundle.totalDataPoints === 0) {
+    return "\n\n⚠️ KEINE HISTORISCHEN BENCHMARKS verfügbar (Cold-Start). Nutze absolute Schwellen-Heuristiken.";
+  }
+
+  const lines: string[] = [];
+  lines.push(`\n\n==============================================================`);
+  lines.push(`PEER-BENCHMARKS (lebend, aus deinen letzten 30 Tagen)`);
+  lines.push(`==============================================================`);
+  lines.push(`Datenbasis: ${bundle.totalAccounts} Accounts, ${bundle.totalDataPoints} Tagesdatenpunkte. Confidence global: ${bundle.globalConfidence}.`);
+  lines.push(`Globaler Median: ${bundle.globalMedian.toFixed(0)}€ | P25: ${bundle.globalP25.toFixed(0)}€ | P75: ${bundle.globalP75.toFixed(0)}€`);
+
+  if (bundle.clusters.length > 0) {
+    lines.push(`\nCluster (dynamisch nach Follower-Größe):`);
+    for (const c of bundle.clusters) {
+      lines.push(`  • ${c.label}: Median ${c.median.toFixed(0)}€ | P25 ${c.p25.toFixed(0)}€ | P75 ${c.p75.toFixed(0)}€ (${c.accountCount} Accounts, ${c.sampleSize} Datenpunkte, confidence: ${c.confidence})`);
+    }
+  }
+
+  // Per-Account-Übersicht für die im Batch vorkommenden Accounts
+  const accLines: string[] = [];
+  for (const accRaw of csvAccountSet) {
+    const acc = accRaw.toLowerCase().trim();
+    if (!acc) continue;
+    const followers = followerLookup.get(acc) || 0;
+    const baseline = bundle.accountBaselines.get(acc);
+    const cluster = findCluster(bundle, followers);
+
+    const parts: string[] = [`"${accRaw}"`];
+    if (followers > 0) parts.push(`${followers} Follower`);
+    else parts.push(`Follower unbekannt`);
+
+    if (baseline && baseline.dayCount >= 7) {
+      parts.push(`Account-Ø: ${baseline.avgRevenue.toFixed(0)}€/Tag (${baseline.dayCount} Tage History) → PRIMÄRER BENCHMARK`);
+    } else if (cluster && cluster.confidence !== "low") {
+      parts.push(`Peer-Cluster: ${cluster.label} → Median ${cluster.median.toFixed(0)}€, P25 ${cluster.p25.toFixed(0)}€, P75 ${cluster.p75.toFixed(0)}€ (${cluster.confidence})`);
+    } else if (bundle.globalConfidence !== "low") {
+      parts.push(`nur globaler Median nutzbar: ${bundle.globalMedian.toFixed(0)}€`);
+    } else {
+      parts.push(`zu wenig Daten → absolute Schwellen nutzen`);
+    }
+    accLines.push(`  - ${parts.join(" | ")}`);
+  }
+
+  if (accLines.length > 0) {
+    lines.push(`\nAccount-spezifisch (nur die in diesem Batch vorkommenden):`);
+    lines.push(...accLines);
+  }
+
+  lines.push(`\n→ Klassifiziere RELATIV zu diesen Werten, nicht absolut:`);
+  lines.push(`   • Tagesumsatz < 40% des P25 (oder < 30% vom Account-Ø) → starker Underperformer-Indikator (SOFORT EINGREIFEN / COACHING NÖTIG)`);
+  lines.push(`   • 40–80% des Median → COACHING NÖTIG`);
+  lines.push(`   • 80–120% des Median → BEOBACHTEN (im Schnitt)`);
+  lines.push(`   • > P75 → BELOHNEN`);
+  lines.push(`   • > 150% des P75 (oder > 200% vom Account-Ø) → BELOHNEN + subTag "🌟 Outlier"`);
+  lines.push(`   • Bei confidence=low → Fallback auf absolute €-Schwellen + subTag-Hinweis "Benchmark unsicher"`);
+  lines.push(`   • Account-Baseline (wenn vorhanden, ≥7 Tage) ÜBERSTIMMT Peer-Cluster.`);
+
+  return lines.join("\n");
 }
 
 Deno.serve(async (req) => {
@@ -171,6 +423,21 @@ Deno.serve(async (req) => {
       }
       historyBlock = `\n\nHISTORISCHE DATEN (letzte 14 Tage, Plattform: ${activePlatform}):\n${lines.join("\n")}\n\nNutze diese Historie um Trends zu erkennen. Die Zusammenfassung (Aktive Tage %, Ø Umsatz) hilft bei der Zuverlässigkeitsbewertung.`;
     }
+
+    // Build benchmark bundle (peer-clusters + per-account-baseline) — vollautomatisch
+    const benchmarkBundle = await buildBenchmarkBundle(supabase, activePlatform, 30);
+
+    // Extract account values from this batch's CSV lines (for targeted benchmark block)
+    const accountColIdx = findAccountColumn(header);
+    const csvAccountSet = new Set<string>();
+    if (accountColIdx >= 0) {
+      for (const line of batchLines) {
+        const acc = extractFieldFromCsvRow(line, accountColIdx);
+        if (acc) csvAccountSet.add(acc);
+      }
+    }
+    const benchmarkBlock = buildPerAccountBenchmarkBlock(benchmarkBundle, csvAccountSet, modelFollowers);
+    console.log(`[batch] ${batchNum} benchmarks: ${benchmarkBundle.totalAccounts} accounts, ${benchmarkBundle.totalDataPoints} datapoints, ${benchmarkBundle.clusters.length} clusters, global confidence: ${benchmarkBundle.globalConfidence}`);
 
     // Load system prompt
     const { data: promptData } = await supabase.from("settings").select("value").eq("key", "system_prompt").eq("user_id", userId).single();
@@ -295,7 +562,7 @@ WICHTIGE REGELN
 - KEINE Einleitung, KEINE Zusammenfassung – NUR das JSON-Objekt.
 - CRITICAL: Include EVERY SINGLE CHATTER from the CSV. DO NOT skip anyone. Each row = one chatter.`;
 
-    const systemPrompt = userSystemPrompt + formatInstructions + historyBlock;
+    const systemPrompt = userSystemPrompt + formatInstructions + historyBlock + benchmarkBlock;
     const nameColIndex = findNameColumn(header);
 
     // AI call with missing-chatter retry

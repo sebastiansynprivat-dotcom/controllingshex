@@ -6,6 +6,7 @@ import { type ModelPerformance, formatFollowers } from "@/lib/model-performance"
 import WeekTrendCard from "@/components/WeekTrendCard";
 import LastInputBadge from "@/components/LastInputBadge";
 import type { InputSource } from "@/lib/chatter-inputs";
+import { type ChatterBenchmark, formatBenchmarkLabel, getBenchmarkTone } from "@/lib/peer-benchmarks";
 
 interface ChatterData {
   name: string;
@@ -16,6 +17,7 @@ interface ChatterData {
   startDate?: string;
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
+  peerBm?: ChatterBenchmark;
 }
 
 interface AnomalyAlertInfo {
@@ -423,13 +425,15 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
             <h2 className="text-lg font-semibold text-foreground capitalize leading-tight truncate">
               {chatter.name.replace(/_/g, " ")}
             </h2>
-            {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
-                  <Users className="h-3 w-3" />
-                  {formatFollowers(chatter.modelPerf.followers)}
-                </span>
-                {chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
+            {(chatter.modelPerf?.followers || chatter.peerBm) && (
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                    <Users className="h-3 w-3" />
+                    {formatFollowers(chatter.modelPerf.followers)}
+                  </span>
+                )}
+                {chatter.modelPerf && chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                     chatter.modelPerf.status === "better"
                       ? "bg-emerald-500/10 text-emerald-400"
@@ -440,6 +444,31 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                     {chatter.modelPerf.percentChange > 0 ? "+" : ""}{chatter.modelPerf.percentChange}%
                   </span>
                 )}
+                {chatter.peerBm && (() => {
+                  const label = formatBenchmarkLabel(chatter.peerBm);
+                  if (!label) return null;
+                  const tone = getBenchmarkTone(chatter.peerBm);
+                  const toneCls =
+                    tone === "positive" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : tone === "negative" ? "bg-red-500/10 text-red-400 border-red-500/20"
+                    : tone === "neutral" ? "bg-secondary text-muted-foreground border-border/40"
+                    : "bg-muted/40 text-muted-foreground/70 border-border/30";
+                  const icon = chatter.peerBm.source === "account-baseline" ? "📈" : "📊";
+                  const tooltip = chatter.peerBm.source === "account-baseline" && chatter.peerBm.baseline
+                    ? `Account-Ø: ${chatter.peerBm.baseline.avgRevenue.toFixed(0)}€/Tag (${chatter.peerBm.baseline.dayCount} Tage)`
+                    : chatter.peerBm.cluster
+                    ? `${chatter.peerBm.cluster.label} • Median ${chatter.peerBm.cluster.median.toFixed(0)}€ • ${chatter.peerBm.cluster.accountCount} Accounts`
+                    : "Globaler Schnitt";
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded border ${toneCls}`}
+                      title={tooltip}
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </span>
+                  );
+                })()}
               </div>
             )}
           </div>
