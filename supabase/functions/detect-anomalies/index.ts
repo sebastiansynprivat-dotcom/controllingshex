@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         alerts.push({
           chatter_name: name,
           alert_type: "verzug_spike",
-          severity: todayDelay >= 4 ? "critical" : "high",
+          severity: todayDelay >= 5 ? "critical" : "high",
           metric_value: todayDelay,
           baseline_value: baseDelay,
           delta_pct: Math.round(delta),
