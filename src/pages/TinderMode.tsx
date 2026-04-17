@@ -323,8 +323,25 @@ export default function TinderMode() {
       setChatters(allChatters);
       setUndoStack([]);
       setLoading(false);
+
+      // Load last-input info per chatter (parallel, doesn't block UI)
+      if (allChatters.length > 0) {
+        loadLastInputs(platform, allChatters.map((c) => c.name)).then(setInputsMap);
+      }
     };
     load();
+  }, [platform]);
+
+  // Refresh a single chatter's input info after a logged event
+  const refreshInputForChatter = useCallback(async (chatterName: string) => {
+    const fresh = await loadLastInputs(platform, [chatterName]);
+    setInputsMap((prev) => {
+      const next = new Map(prev);
+      const key = normalizeName(chatterName);
+      const info = fresh.get(key);
+      if (info) next.set(key, info);
+      return next;
+    });
   }, [platform]);
 
   // Extract unique categories with counts of unchecked chatters
