@@ -937,6 +937,23 @@ export default function TinderMode() {
                 onDone={handleActionDone}
               />
             )}
+
+            {/* Quick-Input Prompt — overlays the stack so the next chatter is hidden */}
+            {(() => {
+              const promptChatter = quickPromptName
+                ? chatters.find((c) => normalizeName(c.name) === normalizeName(quickPromptName))
+                : null;
+              return (
+                <QuickInputPrompt
+                  open={!!quickPromptName}
+                  chatterName={quickPromptName || ""}
+                  categoryEmoji={promptChatter?.categoryEmoji}
+                  categoryName={promptChatter?.categoryName}
+                  onPick={handleQuickInputPick}
+                  onSkip={handleQuickInputSkip}
+                />
+              );
+            })()}
           </>
         )}
       </div>
@@ -1244,14 +1261,6 @@ export default function TinderMode() {
           </AnimatePresence>
         </>
       )}
-
-      {/* Quick-Input Prompt — shown briefly after swipe-right */}
-      <QuickInputPrompt
-        open={!!quickPromptName}
-        chatterName={quickPromptName || ""}
-        onPick={handleQuickInputPick}
-        onSkip={() => setQuickPromptName(null)}
-      />
 
       {/* Input History Sheet — opened via badge tap */}
       <InputHistorySheet
