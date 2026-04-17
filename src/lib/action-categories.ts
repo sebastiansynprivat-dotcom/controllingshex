@@ -11,6 +11,11 @@
  */
 
 export type ActionCategoryName =
+  | "ONBOARDING TAG 1"
+  | "ONBOARDING TAG 2"
+  | "ONBOARDING TAG 3"
+  | "ONBOARDING TAG 4"
+  | "ONBOARDING TAG 5"
   | "SOFORT EINGREIFEN"
   | "COACHING NÖTIG"
   | "PUSHEN"
@@ -21,19 +26,24 @@ export type ActionCategoryName =
 export interface ActionCategory {
   name: ActionCategoryName;
   emoji: string;
-  /** Numeric priority (1 = highest, 6 = lowest) */
+  /** Numeric priority (1 = highest) */
   priority: number;
   /** Short German description shown in tooltips/hints */
   description: string;
 }
 
 export const ACTION_CATEGORIES: readonly ActionCategory[] = [
-  { name: "SOFORT EINGREIFEN", emoji: "🆘", priority: 1, description: "Kritisch — heute eingreifen" },
-  { name: "COACHING NÖTIG",    emoji: "💬", priority: 2, description: "Performance fällt — Coaching nötig" },
-  { name: "PUSHEN",            emoji: "🚀", priority: 3, description: "Onboarding / Potenzial pushen" },
-  { name: "BELOHNEN",          emoji: "🎉", priority: 4, description: "Top-Performer — anerkennen" },
-  { name: "RE-ASSIGNEN",       emoji: "📊", priority: 5, description: "Account passt nicht — re-assignen" },
-  { name: "BEOBACHTEN",        emoji: "👀", priority: 6, description: "Stabil — beobachten" },
+  { name: "ONBOARDING TAG 1",  emoji: "🔵", priority: 1, description: "Onboarding Tag 1 — frisch gestartet" },
+  { name: "ONBOARDING TAG 2",  emoji: "🔵", priority: 1, description: "Onboarding Tag 2" },
+  { name: "ONBOARDING TAG 3",  emoji: "🔵", priority: 1, description: "Onboarding Tag 3" },
+  { name: "ONBOARDING TAG 4",  emoji: "🔵", priority: 1, description: "Onboarding Tag 4" },
+  { name: "ONBOARDING TAG 5",  emoji: "🔵", priority: 1, description: "Onboarding Tag 5" },
+  { name: "SOFORT EINGREIFEN", emoji: "🆘", priority: 2, description: "Kritisch — heute eingreifen" },
+  { name: "COACHING NÖTIG",    emoji: "💬", priority: 3, description: "Performance fällt — Coaching nötig" },
+  { name: "PUSHEN",            emoji: "🚀", priority: 4, description: "Potenzial pushen" },
+  { name: "BELOHNEN",          emoji: "🎉", priority: 5, description: "Top-Performer — anerkennen" },
+  { name: "RE-ASSIGNEN",       emoji: "📊", priority: 6, description: "Account passt nicht — re-assignen" },
+  { name: "BEOBACHTEN",        emoji: "👀", priority: 7, description: "Stabil — beobachten" },
 ] as const;
 
 export const ACTION_CATEGORY_NAMES = ACTION_CATEGORIES.map((c) => c.name) as readonly ActionCategoryName[];
@@ -57,8 +67,21 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
   if (!rawName) return { name: "BEOBACHTEN", emoji: "👀" };
   const text = rawName.trim();
 
-  // 1. Direct match on new names (incl. case-variations)
   const upper = text.replace(/^[^\w]*/, "").trim().toUpperCase();
+
+  // 0. Onboarding (höchste Priorität) — extrahiere Tag-Nummer
+  const onboardingMatch = upper.match(/ONBOARDING\s*TAG\s*(\d)/);
+  if (onboardingMatch) {
+    const day = parseInt(onboardingMatch[1], 10);
+    if (day >= 1 && day <= 5) {
+      return { name: `ONBOARDING TAG ${day}` as ActionCategoryName, emoji: "🔵" };
+    }
+  }
+  if (/^ONBOARDING$/.test(upper) || /\bONBOARDING\b/.test(upper)) {
+    return { name: "ONBOARDING TAG 1", emoji: "🔵" };
+  }
+
+  // 1. Direct match on new names
   for (const cat of ACTION_CATEGORIES) {
     if (upper === cat.name || upper.includes(cat.name)) return { name: cat.name, emoji: cat.emoji };
   }
@@ -72,7 +95,6 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
   if (/BEOBACHTEN/i.test(text)) return { name: "BEOBACHTEN", emoji: "👀" };
 
   // 3. Legacy → Action mapping (highest severity first)
-  // SOFORT EINGREIFEN
   if (/EINBRUCH/i.test(text)) return { name: "SOFORT EINGREIFEN", emoji: "🆘" };
   const zeroMatch = text.match(/0\s*€.*?TAG\s*(\d+\+?)/i) || text.match(/NULL\s*EURO\s*TAG\s*(\d+\+?)?/i);
   if (zeroMatch) {
@@ -83,27 +105,21 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
   }
   if (/0\s*€.*FOLGE|FOLGE.*0\s*€|KÜNDIGUNG/i.test(text)) return { name: "SOFORT EINGREIFEN", emoji: "🆘" };
 
-  // COACHING NÖTIG
   if (/WARNUNG/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
   if (/VIDEO.?COACHING/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
   if (/COACHING.*KONTROLLE|ENGERE/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
   if (/TRAFFIC.*CONVERSION|CONVERSION|TRAFFIC.*KEINE|TRAFFIC.?TEST/i.test(text)) return { name: "COACHING NÖTIG", emoji: "💬" };
 
-  // PUSHEN
-  if (/ONBOARDING/i.test(text)) return { name: "PUSHEN", emoji: "🚀" };
   if (/KURZ.*UPGRADE/i.test(text)) return { name: "PUSHEN", emoji: "🚀" };
   if (/COMEBACK/i.test(text)) return { name: "PUSHEN", emoji: "🚀" };
 
-  // BELOHNEN
   if (/BREAKOUT/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
   if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
   if (/UPGRADE.*ZUVERL|ZUVERL.*UPGRADE/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
   if (/TOP.?PERFORMER/i.test(text)) return { name: "BELOHNEN", emoji: "🎉" };
 
-  // RE-ASSIGNEN
   if (/MODEL.?TAUSCH/i.test(text)) return { name: "RE-ASSIGNEN", emoji: "📊" };
 
-  // BEOBACHTEN (Auffangkorb)
   if (/UNTER.?BEOBACHTUNG|MITTELFELD|WEITER\s*SO/i.test(text)) return { name: "BEOBACHTEN", emoji: "👀" };
 
   return { name: "BEOBACHTEN", emoji: "👀" };
