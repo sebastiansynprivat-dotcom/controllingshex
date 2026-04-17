@@ -167,6 +167,22 @@ export default function TinderMode() {
     });
   }, [platform]);
 
+  // Load active anomaly alerts for the active workspace
+  useEffect(() => {
+    const nowIso = new Date().toISOString();
+    supabase
+      .from("anomaly_alerts")
+      .select("chatter_name, snoozed_until, status")
+      .eq("platform", platform)
+      .in("status", ["new", "seen", "snoozed"])
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
+      .then(({ data }) => {
+        const set = new Set<string>();
+        (data || []).forEach((a: any) => set.add(normalizeName(a.chatter_name)));
+        setAlertChatterNames(set);
+      });
+  }, [platform]);
+
   // Derive label filter set from allLabelAssignments
   const labelChatterNames = useMemo(() => {
     if (!selectedLabelFilter) return null;
