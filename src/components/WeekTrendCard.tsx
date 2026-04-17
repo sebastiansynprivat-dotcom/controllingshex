@@ -241,7 +241,7 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
   };
 
   return (
-    <div className={`rounded-2xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-5" : "p-7"} space-y-5`}>
+    <div className={`rounded-2xl bg-white/[0.02] border border-white/[0.05] ${compact ? "p-3" : "p-7"} ${compact ? "space-y-3" : "space-y-5"}`}>
       <div className="flex items-center justify-between">
         <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">7-Tage-Trend</p>
         <span className="text-[10px] text-white/25 font-light">
