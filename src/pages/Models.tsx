@@ -52,10 +52,14 @@ export default function Models() {
   const [models, setModels] = useState<Model[]>([]);
   const [newName, setNewName] = useState("");
   const [newFollowers, setNewFollowers] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editFollowers, setEditFollowers] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
 
   // Revenue filter state
   const [period, setPeriod] = useState<PeriodKey>("30");
