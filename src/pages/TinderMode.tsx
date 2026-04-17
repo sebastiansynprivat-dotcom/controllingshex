@@ -7,7 +7,7 @@ import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus } from "lucide-react";
+import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus, AlertTriangle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
