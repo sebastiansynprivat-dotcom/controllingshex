@@ -23,6 +23,8 @@ interface Model {
   follower_count: number;
   platform: string;
   created_at: string;
+  email?: string | null;
+  password?: string | null;
 }
 
 interface ModelRevenue {
