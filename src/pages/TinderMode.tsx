@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
-import SwipeCard from "@/components/SwipeCard";
+import SwipeCard, { type AccountLogin } from "@/components/SwipeCard";
 import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Progress } from "@/components/ui/progress";
