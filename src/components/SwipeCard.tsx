@@ -351,9 +351,11 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
           ))}
         </div>
 
-        {/* 7-Tage-Trend */}
+        {/* 7-Tage-Trend — füllt verbleibenden Raum */}
         {isTop && chatter.history && chatter.history.length > 1 && (
-          <WeekTrendCard history={chatter.history} compact />
+          <div className="flex-1 min-h-0 flex">
+            <WeekTrendCard history={chatter.history} compact fillHeight />
+          </div>
         )}
       </div>
     </motion.div>
