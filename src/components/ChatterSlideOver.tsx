@@ -15,6 +15,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
+import WeekTrendCard from "@/components/WeekTrendCard";
 
 interface HistoryRow {
   analysis_date: string;
@@ -388,6 +389,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   {allLabels.length === 0 && !showNewLabel && <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>}
                 </div>
 
+                {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
+                <WeekTrendCard history={history} compact />
+
                 {/* 30-Tage-Trend */}
                 {last30.length >= 4 && (
                   <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5 relative">
@@ -587,6 +591,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
                     )}
                   </div>
+
+                  {/* ── 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) ── */}
+                  <WeekTrendCard history={history} />
 
                   {/* ── 30-Tage-Trend ── */}
                   {last30.length >= 4 && (
