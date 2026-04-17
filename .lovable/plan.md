@@ -1,59 +1,56 @@
 
+Der User will den Swipe Mode visuell aufwerten. Ich kenne SwipeCard.tsx schon gut. Lass mich kurz checken, wie der Rest der Page aussieht, um eine kohärente Vision zu entwickeln.
 
-## Plan: Swipe Mode flüssiger machen
+Aktueller Stand:
+- Karte: dunkler Gradient, KPI-Grid 2x3, Alerts, Trend
+- Funktional sauber, aber visuell etwas "flat" und uniform — alle KPIs gleich, kein Hero-Element, Hintergrund statisch
 
-### Probleme identifiziert
+## Visuelle Verbesserungen — Vorschlag
 
-1. **Langsamer Initial Load**: 4 sequenzielle Supabase-Queries (report → history → models → checks) blockieren sich gegenseitig
-2. **Zu viele Karten im Stack**: `PREFETCH_CARD_COUNT = 7` — jede Karte rendert ein Recharts-SVG mit `ResponsiveContainer`, das ist teuer
-3. **Recharts in jeder Karte**: `ResponsiveContainer` + `AreaChart` pro Karte = massive DOM-Last und Re-Renders
-4. **AnimatePresence `mode="popLayout"`**: Erzwingt Layout-Neuberechnung bei jedem Kartenwechsel
-5. **Labels/Notes laden bei jedem Kartenwechsel**: 3 Supabase-Queries pro Karte (Labels, Assignments, Notes) — auch wenn Panels geschlossen sind
-6. **Kein `layoutId` / kein stabiler Key-Übergang**: Karten-Animationen können flackern
+### 1. Hero-KPI mit Glow
+- Top-KPI (z.B. "Umsatz heute") groß als Hero anzeigen mit subtilem Farb-Glow
+- Restliche KPIs kleiner darunter im 2x2 Grid statt 2x3
+- Schafft visuelle Hierarchie statt "Wand aus Zahlen"
 
-### Änderungen
+### 2. Lebendiger Karten-Hintergrund
+- Aurora/Mesh-Gradient passend zur Kategorie (z.B. grün für Top-Performer, amber für Risk)
+- Subtiler animierter Schimmer beim Erscheinen
+- Statt aktuellem statischen Gradient
 
-| Datei | Was |
-|---|---|
-| `src/pages/TinderMode.tsx` | Queries parallelisieren (`Promise.all`), `PREFETCH_CARD_COUNT` auf 3 reduzieren, Labels/Notes lazy laden (nur wenn Panel offen), `AnimatePresence` mode auf `"wait"` ändern |
-| `src/components/SwipeCard.tsx` | Sparkline nur für `isTop`-Karte rendern (Stack-Karten zeigen kein Chart), `will-change: transform` auf Top-Karte setzen für GPU-Beschleunigung |
+### 3. Avatar/Initial-Badge
+- Großer Initial-Kreis links neben dem Namen mit Kategorie-Farbe
+- Macht jede Karte einzigartiger erkennbar
 
-### Technisches Detail
+### 4. Bessere Swipe-Indikatoren
+- Aktuell: Vollflächige Overlay-Boxen mit Riesen-Text — wirkt grob
+- Neu: Edge-Glow (leuchtende Kante in Richtung Swipe) + kleiner Icon-Hint in der Ecke
+- Eleganter, weniger aufdringlich
 
-**1. Parallele Queries beim Load**
-```typescript
-const [report, checks] = await Promise.all([
-  supabase.from("analysis_reports")...,
-  supabase.from("daily_chatter_checks")...
-]);
-// Dann history + models parallel:
-const [history, models] = await Promise.all([...]);
-```
+### 5. Trend-Karte aufgewertet
+- Mini-Header mit Trend-Pfeil (↗ +12% diese Woche) statt nur Sparklines
+- Trennlinie oben mit Gradient statt harter Border
 
-**2. Stack auf 3 Karten reduzieren**
-```typescript
-const PREFETCH_CARD_COUNT = 3;
-```
+### 6. Stack-Effekt sichtbar machen
+- Aktuell sind hintere Karten unsichtbar (opacity 0)
+- Zeig 1-2 Karten dahinter leicht versetzt + skaliert → "Tinder-Feel"
 
-**3. Sparkline nur für Top-Karte**
-```typescript
-{isTop && chatter.revenueHistory?.length > 1 && (
-  <div className="h-14 mb-3">
-    <ResponsiveContainer>...</ResponsiveContainer>
-  </div>
-)}
-```
+### 7. Card-Border mit Severity
+- Wenn kritischer Alert vorhanden: subtiler roter Glow am Karten-Rand
+- Macht dringende Karten sofort erkennbar ohne extra Text
 
-**4. Labels/Notes lazy laden**
-```typescript
-useEffect(() => {
-  if (!currentChatterName || (!labelPanel && !notePanel)) return;
-  // ... queries nur wenn Panel offen
-}, [currentChatterName, labelPanel, notePanel]);
-```
+## Vorgehen
+Ich würde **alle 7** zusammen umsetzen — sie greifen ineinander und ergeben gemeinsam den "Premium-Feel". Einzeln wirkt jede Änderung nur marginal.
 
-**5. GPU-Hint für flüssigere Animationen**
-```typescript
-style={{ willChange: isTop ? "transform" : "auto" }}
-```
+## Betroffene Dateien
+- `src/components/SwipeCard.tsx` (Haupt-Refactor: Hero-KPI, Avatar, Background, Edge-Indikatoren, Severity-Glow, Stack)
+- `src/components/WeekTrendCard.tsx` (Mini-Trend-Header mit Delta)
+- `src/pages/TinderMode.tsx` (Stack-Rendering: 2 Karten dahinter sichtbar machen)
 
+## Frage an dich
+
+<lov-actions>
+<lov-suggestion message="Setz alle 7 visuellen Verbesserungen um (Hero-KPI, Avatar, lebendiger Background, Edge-Glow Swipe-Indikatoren, Trend-Header, sichtbarer Stack, Severity-Glow)">Alle 7 umsetzen — full Premium-Look</lov-suggestion>
+<lov-suggestion message="Setz nur die Top 3 um: Hero-KPI mit Glow, sichtbarer Karten-Stack dahinter, und elegantere Edge-Glow Swipe-Indikatoren">Nur Top 3 (Hero + Stack + Edge-Glow)</lov-suggestion>
+<lov-suggestion message="Mach erst mal nur den Karten-Stack sichtbar (1-2 Karten dahinter versetzt) — das ist der größte 'Wow'-Effekt">Nur Stack-Effekt (Tinder-Feel)</lov-suggestion>
+<lov-suggestion message="Zeig mir erst Mockups/Prototypen der Optionen bevor wir was umsetzen">Erst Prototypen zeigen</lov-suggestion>
+</lov-actions>
