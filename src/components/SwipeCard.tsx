@@ -213,7 +213,7 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
 
   return (
     <motion.div
-      className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-5 flex flex-col select-none overflow-hidden ${
+      className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
@@ -270,17 +270,13 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
         </>
       )}
 
-      {/* Scrollbarer Inhaltsbereich — damit Trend-Karte nicht abgeschnitten wird */}
-      <div
-        className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1"
-        onPointerDown={isTop ? (e) => e.stopPropagation() : undefined}
-        style={{ touchAction: isTop ? "pan-y" : "none" }}
-      >
+      {/* Inhaltsbereich — alles ohne Scrollen sichtbar */}
+      <div className="flex-1 min-h-0 flex flex-col gap-2">
         {/* Category badge + start date */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{chatter.categoryEmoji || "📊"}</span>
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-base">{chatter.categoryEmoji || "📊"}</span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
               {chatter.categoryName || "Unbekannt"}
             </span>
           </div>
@@ -292,49 +288,47 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
         </div>
 
         {/* Name */}
-        <h2 className="text-xl font-semibold text-foreground mb-1 capitalize">
+        <h2 className="text-lg font-semibold text-foreground capitalize leading-tight">
           {chatter.name.replace(/_/g, " ")}
         </h2>
 
-        {/* Auto-Alert Banner */}
+        {/* Auto-Alert Banner — kompakt, max 2 */}
         {alerts.length > 0 && (
-          <div className="space-y-1.5 mb-3 mt-2">
-            {alerts.slice(0, 3).map((a, i) => {
+          <div className="space-y-1">
+            {alerts.slice(0, 2).map((a, i) => {
               const Icon = ALERT_ICONS[a.alert_type] ?? AlertTriangle;
               const colorClass = SEVERITY_COLOR[a.severity] ?? SEVERITY_COLOR.medium;
               return (
                 <div
                   key={i}
-                  className={`flex items-start gap-2 rounded-lg border-l-2 px-2.5 py-1.5 ${colorClass}`}
+                  className={`flex items-start gap-1.5 rounded-md border-l-2 px-2 py-1 ${colorClass}`}
                 >
-                  <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-80" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[10px] uppercase tracking-wider font-semibold opacity-90">
-                        {ALERT_LABELS[a.alert_type] ?? a.alert_type}
-                      </span>
-                    </div>
-                    <p className="text-[11px] leading-snug opacity-90">{a.message}</p>
-                  </div>
+                  <Icon className="h-3 w-3 mt-0.5 shrink-0 opacity-80" />
+                  <p className="text-[10.5px] leading-snug opacity-90 line-clamp-2 min-w-0 flex-1">
+                    <span className="font-semibold uppercase tracking-wider mr-1">
+                      {ALERT_LABELS[a.alert_type] ?? a.alert_type}:
+                    </span>
+                    {a.message}
+                  </p>
                 </div>
               );
             })}
-            {alerts.length > 3 && (
-              <p className="text-[10px] text-muted-foreground/60 text-center">
-                +{alerts.length - 3} weitere Auffälligkeiten
+            {alerts.length > 2 && (
+              <p className="text-[9px] text-muted-foreground/60 text-center">
+                +{alerts.length - 2} weitere
               </p>
             )}
           </div>
         )}
 
         {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60">
               <Users className="h-3 w-3" />
               {formatFollowers(chatter.modelPerf.followers)}
             </span>
             {chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
-              <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                 chatter.modelPerf.status === "better"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : chatter.modelPerf.status === "worse"
@@ -344,23 +338,20 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
                 {chatter.modelPerf.percentChange > 0 ? "+" : ""}{chatter.modelPerf.percentChange}% vs. Vorgänger
               </span>
             )}
-            {chatter.modelPerf.status === "first" && (
-              <span className="text-[10px] text-muted-foreground/40">Erster Chatter</span>
-            )}
           </div>
         )}
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 gap-2.5 mb-3">
+        {/* KPIs — kompakter */}
+        <div className="grid grid-cols-2 gap-1.5">
           {kpiEntries.slice(0, 6).map(([key, value]) => (
-            <div key={key} className="bg-secondary rounded-lg px-3 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{key}</p>
-              <p className="text-sm font-medium text-foreground">{value}</p>
+            <div key={key} className="bg-secondary rounded-md px-2 py-1.5">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{key}</p>
+              <p className="text-[13px] font-medium text-foreground leading-tight">{value}</p>
             </div>
           ))}
         </div>
 
-        {/* 7-Tage-Trend (nur Top-Karte rendert Charts, andere zeigen Platzhalter) */}
+        {/* 7-Tage-Trend */}
         {isTop && chatter.history && chatter.history.length > 1 && (
           <WeekTrendCard history={chatter.history} compact />
         )}
