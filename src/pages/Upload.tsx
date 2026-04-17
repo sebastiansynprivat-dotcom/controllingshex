@@ -10,6 +10,7 @@ import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { mapToActionCategory } from "@/lib/action-categories";
 import {
   Dialog,
   DialogContent,
@@ -476,8 +477,13 @@ function buildResultFromCsv(
       emoji = fallback.emoji;
     }
 
+    // Map legacy/AI category to one of the 6 strict Action-Categories
+    const action = mapToActionCategory(category);
+    category = action.name;
+    emoji = action.emoji;
+
     if (!categoryMap.has(category)) {
-      categoryMap.set(category, { emoji: emoji || "⚪", categoryName: category, chatters: [] });
+      categoryMap.set(category, { emoji: emoji || "👀", categoryName: category, chatters: [] });
     }
 
     const recommendation = shouldReplaceRecommendation(ai?.recommendation, metrics, category, ai?.category)

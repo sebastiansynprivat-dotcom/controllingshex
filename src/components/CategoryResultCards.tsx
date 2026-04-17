@@ -10,6 +10,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip as RechartsTooltip } from "recharts";
 import { loadModelPerformances, formatFollowers, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
+import { mapToActionCategory } from "@/lib/action-categories";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
@@ -69,86 +70,21 @@ interface LabelAssignment {
 /* ------------------------------------------------------------------ */
 
 const ALLOWED_CATEGORIES = [
-  { emoji: "🔵", name: "ONBOARDING TAG 1" },
-  { emoji: "🔵", name: "ONBOARDING TAG 2" },
-  { emoji: "🔵", name: "ONBOARDING TAG 3" },
-  { emoji: "🔵", name: "ONBOARDING TAG 4" },
-  { emoji: "🔵", name: "ONBOARDING TAG 5" },
-  { emoji: "🟠", name: "WARNUNG" },
-  { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" },
-  { emoji: "🔄", name: "MODEL-TAUSCH" },
-  { emoji: "🔼", name: "ACCOUNT UPGRADE (ZUVERLÄSSIG)" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 1" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 2" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 3" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 4" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 5" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 6" },
-  { emoji: "📉", name: "0€ UMSATZ TAG 7+" },
-  { emoji: "🔄", name: "COMEBACK" },
-  { emoji: "🌟", name: "BREAKOUT-STAR" },
-  { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" },
-  { emoji: "🚀", name: "KURZ VOR UPGRADE" },
-  { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" },
-  { emoji: "📼", name: "VIDEO-COACHING" },
-  { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" },
-  { emoji: "⭐", name: "TOP PERFORMER" },
-  { emoji: "⚪", name: "WEITER SO" },
-  { emoji: "👀", name: "UNTER BEOBACHTUNG" },
+  { emoji: "🆘", name: "SOFORT EINGREIFEN" },
+  { emoji: "💬", name: "COACHING NÖTIG" },
+  { emoji: "🚀", name: "PUSHEN" },
+  { emoji: "🎉", name: "BELOHNEN" },
+  { emoji: "📊", name: "RE-ASSIGNEN" },
+  { emoji: "👀", name: "BEOBACHTEN" },
 ] as const;
 
 const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
-const MITTELFELD = "WEITER SO";
-const MITTELFELD_EMOJI = "⚪";
+const MITTELFELD = "BEOBACHTEN";
+const MITTELFELD_EMOJI = "👀";
 
-/** Map an AI-returned category name to the closest whitelisted name */
+/** Map any AI-returned category name to one of the 6 Action-Categories */
 function mapToAllowed(rawName: string): { emoji: string; name: string } {
-  const upper = rawName.replace(/^[^\w]*/, "").trim().toUpperCase();
-
-  // Direct match
-  for (const ac of ALLOWED_CATEGORIES) {
-    if (upper === ac.name || upper.includes(ac.name)) return { emoji: ac.emoji, name: ac.name };
-  }
-
-  // Fuzzy keyword matching
-  if (/EINBRUCH/i.test(rawName)) return { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" };
-  if (/MODEL.?TAUSCH/i.test(rawName)) return { emoji: "🔄", name: "MODEL-TAUSCH" };
-  if (/BREAKOUT/i.test(rawName)) return { emoji: "🌟", name: "BREAKOUT-STAR" };
-  if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" };
-  if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "KURZ VOR UPGRADE" };
-  if (/UPGRADE.*ZUVERL|ZUVERL.*UPGRADE/i.test(rawName)) return { emoji: "🔼", name: "ACCOUNT UPGRADE (ZUVERLÄSSIG)" };
-  if (/TRAFFIC.*CONVERSION|CONVERSION|TRAFFIC.*KEINE/i.test(rawName)) return { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" };
-  if (/TRAFFIC.?TEST/i.test(rawName)) return { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" };
-  if (/COMEBACK/i.test(rawName)) return { emoji: "🔄", name: "COMEBACK" };
-  if (/COACHING.*KONTROLLE|ENGERE/i.test(rawName)) return { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" };
-  if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "📼", name: "VIDEO-COACHING" };
-  if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
-  if (/TOP.?PERFORMER/i.test(rawName)) return { emoji: "⭐", name: "TOP PERFORMER" };
-  if (/UNTER.?BEOBACHTUNG/i.test(rawName)) return { emoji: "👀", name: "UNTER BEOBACHTUNG" };
-  if (/NULL\s*EURO\s*TAG/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ TAG 1" };
-  if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: MITTELFELD };
-
-  // 0€ Umsatz with day number
-  const zeroMatch = rawName.match(/0\s*€.*?TAG\s*(\d+\+?)/i);
-  if (zeroMatch) {
-    const tag = zeroMatch[1];
-    if (tag.includes("+") || parseInt(tag) >= 7) return { emoji: "📉", name: "0€ UMSATZ TAG 7+" };
-    const num = parseInt(tag);
-    if (num >= 1 && num <= 6) return { emoji: "📉", name: `0€ UMSATZ TAG ${num}` };
-  }
-  if (/0\s*€.*FOLGE|FOLGE.*0\s*€|KÜNDIGUNG/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ TAG 7+" };
-
-  // Onboarding with tag number
-  const onboardingMatch = rawName.match(/ONBOARDING.*?TAG\s*(\d+)/i);
-  if (onboardingMatch) {
-    const tag = parseInt(onboardingMatch[1], 10);
-    if (tag >= 1 && tag <= 5) return { emoji: "🔵", name: `ONBOARDING TAG ${tag}` };
-    return { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
-  }
-  if (/ONBOARDING/i.test(rawName)) return { emoji: "🔵", name: "ONBOARDING TAG 1" };
-
-  // Fallback
-  return { emoji: MITTELFELD_EMOJI, name: MITTELFELD };
+  return mapToActionCategory(rawName);
 }
 
 /** Sanitize delay: anything > 100 is a parsing error */

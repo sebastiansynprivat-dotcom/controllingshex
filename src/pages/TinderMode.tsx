@@ -16,6 +16,7 @@ import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/
 import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatter-inputs";
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
+import { mapToActionCategory } from "@/lib/action-categories";
 
 interface ChatterData {
   name: string;
@@ -75,52 +76,17 @@ function parseLooseDate(dateStr?: string): Date | null {
 }
 
 function mapToSwipeCategory(rawName: string): { emoji: string; name: string } {
-  const upper = rawName.replace(/^[^\w]*/, "").trim().toUpperCase();
-
-  if (/EINBRUCH/i.test(rawName)) return { emoji: "⚠️", name: "ACCOUNT-EINBRUCH" };
-  if (/MODEL.?TAUSCH/i.test(rawName)) return { emoji: "🔄", name: "MODEL-TAUSCH" };
-  if (/BREAKOUT/i.test(rawName)) return { emoji: "🌟", name: "BREAKOUT-STAR" };
-  if (/UPGRADE.*STREAK|STREAK.*UPGRADE/i.test(rawName)) return { emoji: "🟢", name: "ACCOUNT UPGRADE (UMSATZ-STREAK)" };
-  if (/KURZ.*UPGRADE/i.test(rawName)) return { emoji: "🚀", name: "KURZ VOR UPGRADE" };
-  if (/UPGRADE.*ZUVERL|ZUVERL.*UPGRADE/i.test(rawName)) return { emoji: "🔼", name: "ACCOUNT UPGRADE (ZUVERLÄSSIG)" };
-  if (/TRAFFIC.*CONVERSION|CONVERSION|TRAFFIC.*KEINE/i.test(rawName)) return { emoji: "📊", name: "HOHER TRAFFIC / KEINE CONVERSION" };
-  if (/COMEBACK/i.test(rawName)) return { emoji: "🔄", name: "COMEBACK" };
-  if (/COACHING.*KONTROLLE|ENGERE/i.test(rawName)) return { emoji: "🟡", name: "COACHING / ENGERE KONTROLLE" };
-  if (/VIDEO.?COACHING/i.test(rawName)) return { emoji: "📼", name: "VIDEO-COACHING" };
-  if (/WARNUNG/i.test(rawName)) return { emoji: "🟠", name: "WARNUNG" };
-  if (/TOP.?PERFORMER/i.test(rawName)) return { emoji: "⭐", name: "TOP PERFORMER" };
-  if (/UNTER.?BEOBACHTUNG/i.test(rawName)) return { emoji: "👀", name: "UNTER BEOBACHTUNG" };
-  if (/NULL\s*EURO\s*TAG/i.test(rawName)) return { emoji: "📉", name: "0€ UMSATZ TAG 1" };
-  if (/MITTELFELD|WEITER\s*SO/i.test(rawName)) return { emoji: "⚪", name: "WEITER SO" };
-
-  const zeroMatch = rawName.match(/0\s*€.*?TAG\s*(\d+\+?)/i);
-  if (zeroMatch) {
-    const tag = zeroMatch[1];
-    if (tag.includes("+") || parseInt(tag, 10) >= 7) return { emoji: "📉", name: "0€ UMSATZ TAG 7+" };
-    const num = parseInt(tag, 10);
-    if (num >= 1 && num <= 6) return { emoji: "📉", name: `0€ UMSATZ TAG ${num}` };
-  }
-
-  const onboardingMatch = rawName.match(/ONBOARDING.*?TAG\s*(\d+)/i);
-  if (onboardingMatch) {
-    const tag = parseInt(onboardingMatch[1], 10);
-    if (tag >= 1 && tag <= 5) return { emoji: "🔵", name: `ONBOARDING TAG ${tag}` };
-    return { emoji: "⚪", name: "WEITER SO" };
-  }
-
-  if (/ONBOARDING/i.test(upper)) return { emoji: "🔵", name: "ONBOARDING TAG 1" };
-  return { emoji: "⚪", name: "WEITER SO" };
+  return mapToActionCategory(rawName);
 }
 
-// Category priority order for sequential navigation
+// Category priority order for sequential navigation (strict, top-down)
 const CATEGORY_PRIORITY = [
-  "ACCOUNT-EINBRUCH", "MODEL-TAUSCH", "BREAKOUT-STAR", "WARNUNG",
-  "0€ UMSATZ TAG 7+", "0€ UMSATZ TAG 6", "0€ UMSATZ TAG 5", "0€ UMSATZ TAG 4",
-  "0€ UMSATZ TAG 3", "0€ UMSATZ TAG 2", "0€ UMSATZ TAG 1",
-  "COACHING / ENGERE KONTROLLE", "VIDEO-COACHING", "KURZ VOR UPGRADE",
-  "ACCOUNT UPGRADE (UMSATZ-STREAK)", "ACCOUNT UPGRADE (ZUVERLÄSSIG)",
-  "HOHER TRAFFIC / KEINE CONVERSION", "COMEBACK", "UNTER BEOBACHTUNG",
-  "TOP PERFORMER", "WEITER SO",
+  "SOFORT EINGREIFEN",
+  "COACHING NÖTIG",
+  "PUSHEN",
+  "BELOHNEN",
+  "RE-ASSIGNEN",
+  "BEOBACHTEN",
 ];
 
 const PREFETCH_CARD_COUNT = 3;
