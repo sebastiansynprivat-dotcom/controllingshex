@@ -208,26 +208,55 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     }
   }, [openDetails]);
 
+  const copyLogin = useCallback((field: "email" | "password") => {
+    const valid = accountLogins.filter((a) => (field === "email" ? a.email : a.password));
+    if (valid.length === 0) {
+      toast.error(field === "email" ? "Keine E-Mail hinterlegt" : "Kein Passwort hinterlegt");
+      return;
+    }
+    if (valid.length === 1) {
+      const value = (field === "email" ? valid[0].email : valid[0].password) || "";
+      navigator.clipboard.writeText(value);
+      toast.success(`${field === "email" ? "E-Mail" : "Passwort"} kopiert · ${valid[0].account}`);
+      triggerHaptic("medium");
+      return;
+    }
+    setLoginPicker(field);
+    triggerHaptic("light");
+  }, [accountLogins]);
+
   const handleCardTap = useCallback(() => {
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       return;
     }
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    const within = now - lastTapTimeRef.current < 320;
+    tapCountRef.current = within ? tapCountRef.current + 1 : 1;
+    lastTapTimeRef.current = now;
+
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+
+    // Resolve after short window so we know how many taps came in
+    tapTimerRef.current = setTimeout(() => {
+      const count = tapCountRef.current;
+      tapCountRef.current = 0;
       tapTimerRef.current = null;
-      triggerHaptic("medium");
-      onSwipeUp();
-    } else {
-      tapTimerRef.current = setTimeout(() => {
+
+      if (count >= 4) {
+        copyLogin("password");
+      } else if (count === 3) {
+        copyLogin("email");
+      } else if (count === 2) {
+        triggerHaptic("medium");
+        onSwipeUp();
+      } else {
         navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
         toast.success("Name kopiert");
         triggerHaptic("light");
-      }, 300);
-    }
-    lastTapRef.current = now;
-  }, [chatter.name, onSwipeUp]);
+      }
+    }, 340);
+  }, [chatter.name, onSwipeUp, copyLogin]);
 
   useEffect(() => {
     return () => {
