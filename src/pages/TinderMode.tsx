@@ -604,107 +604,149 @@ export default function TinderMode() {
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
       <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
-      {/* Category filter — Dropdown wie im Dashboard */}
-      <div className="mb-2">
-        <Select
-          value={selectedCategory ?? "__all__"}
-          onValueChange={(value) => {
-            const next = value === "__all__" ? null : value;
-            setSelectedCategory(next);
-            setCategoryDonePrompt(null);
-            setActionPanel(false);
-            setSlideOver(false);
-            setLabelPanel(false);
-            setNotePanel(false);
-          }}
-        >
-          <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
-            <SelectValue placeholder="Kategorie wählen…" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">
-              Alle Kategorien
-              <span className="ml-1.5 text-[10px] opacity-50">
-                {chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length}
-              </span>
-            </SelectItem>
-            {uniqueCategories.map((cat) => (
-              <SelectItem key={cat.name} value={cat.name}>
-                {cat.emoji} {cat.name}
-                <span className="ml-1.5 text-[10px] opacity-50">{cat.count}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Label filter — Dropdown wie Kategorie, Alerts ganz oben */}
-      {(allLabels.length > 0 || alertChatterNames.size > 0) && (() => {
+      {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
+      {(() => {
         const alertCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && alertChatterNames.has(normalizeName(c.name))
         ).length;
+        const allUncheckedCount = chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length;
+
         const currentValue = alertFilterActive
           ? "__alerts__"
-          : selectedLabelFilter ?? "__all__";
+          : selectedLabelFilter
+          ? `label:${selectedLabelFilter}`
+          : selectedCategory
+          ? `cat:${selectedCategory}`
+          : "__all__";
+
+        // Active filter label for trigger
+        let triggerLabel: React.ReactNode = (
+          <span className="text-foreground/60">Alle Chatter <span className="ml-1 text-[10px] opacity-50">{allUncheckedCount}</span></span>
+        );
+        if (alertFilterActive) {
+          triggerLabel = (
+            <span className="inline-flex items-center gap-1.5 text-red-400">
+              <AlertTriangle className="h-3 w-3" /> Alerts
+              <span className="ml-1 text-[10px] opacity-60">{alertCount}</span>
+            </span>
+          );
+        } else if (selectedLabelFilter) {
+          const lbl = allLabels.find((l) => l.id === selectedLabelFilter);
+          if (lbl) {
+            triggerLabel = (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: lbl.color }} />
+                {lbl.label_name}
+                <span className="ml-1 text-[10px] opacity-50">{labelCounts.get(lbl.id) || 0}</span>
+              </span>
+            );
+          }
+        } else if (selectedCategory) {
+          const cat = uniqueCategories.find((c) => c.name === selectedCategory);
+          triggerLabel = (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{cat?.emoji || "📊"}</span>
+              <span className="truncate">{selectedCategory}</span>
+              {cat && <span className="ml-1 text-[10px] opacity-50">{cat.count}</span>}
+            </span>
+          );
+        }
+
+        const handleChange = (value: string) => {
+          setActionPanel(false);
+          setSlideOver(false);
+          setLabelPanel(false);
+          setNotePanel(false);
+          setCategoryDonePrompt(null);
+
+          if (value === "__all__") {
+            setAlertFilterActive(false);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(null);
+          } else if (value === "__alerts__") {
+            setAlertFilterActive(true);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(null);
+          } else if (value.startsWith("label:")) {
+            setAlertFilterActive(false);
+            setSelectedCategory(null);
+            setSelectedLabelFilter(value.slice(6));
+          } else if (value.startsWith("cat:")) {
+            setAlertFilterActive(false);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(value.slice(4));
+          }
+        };
+
         return (
-          <div className="mb-2">
-            <Select
-              value={currentValue}
-              onValueChange={(value) => {
-                if (value === "__alerts__") {
-                  setAlertFilterActive(true);
-                  setSelectedLabelFilter(null);
-                } else if (value === "__all__") {
-                  setAlertFilterActive(false);
-                  setSelectedLabelFilter(null);
-                } else {
-                  setAlertFilterActive(false);
-                  setSelectedLabelFilter(value);
-                }
-                setActionPanel(false);
-                setSlideOver(false);
-                setLabelPanel(false);
-                setNotePanel(false);
-              }}
-            >
-              <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
-                <SelectValue placeholder="Label wählen…" />
+          <div className="mb-3">
+            <Select value={currentValue} onValueChange={handleChange}>
+              <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-sm h-10">
+                <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
-              <SelectContent>
-                {alertChatterNames.size > 0 && (
-                  <SelectItem value="__alerts__">
-                    <span className="inline-flex items-center gap-1.5 text-red-400">
-                      <AlertTriangle className="h-3 w-3" /> Alerts
-                    </span>
-                    {alertCount > 0 && (
-                      <span className="ml-1.5 text-[10px] opacity-50">{alertCount}</span>
-                    )}
-                  </SelectItem>
-                )}
+              <SelectContent className="max-h-[60vh]">
                 <SelectItem value="__all__">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Tag className="h-3 w-3" /> Alle Labels
-                  </span>
+                  Alle Chatter
+                  <span className="ml-1.5 text-[10px] opacity-50">{allUncheckedCount}</span>
                 </SelectItem>
-                {allLabels.map((label) => (
-                  <SelectItem key={label.id} value={label.id}>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className="inline-block h-2 w-2 rounded-full"
-                        style={{ backgroundColor: label.color }}
-                      />
-                      {label.label_name}
-                    </span>
-                    {(labelCounts.get(label.id) || 0) > 0 && (
-                      <span className="ml-1.5 text-[10px] opacity-50">{labelCounts.get(label.id)}</span>
-                    )}
-                  </SelectItem>
-                ))}
+
+                {alertChatterNames.size > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectItem value="__alerts__">
+                      <span className="inline-flex items-center gap-1.5 text-red-400">
+                        <AlertTriangle className="h-3 w-3" /> Alerts
+                      </span>
+                      {alertCount > 0 && (
+                        <span className="ml-1.5 text-[10px] opacity-50">{alertCount}</span>
+                      )}
+                    </SelectItem>
+                  </>
+                )}
+
+                {allLabels.length > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Labels</SelectLabel>
+                      {allLabels.map((label) => (
+                        <SelectItem key={label.id} value={`label:${label.id}`}>
+                          <span className="inline-flex items-center gap-1.5">
+                            <span
+                              className="inline-block h-2 w-2 rounded-full"
+                              style={{ backgroundColor: label.color }}
+                            />
+                            {label.label_name}
+                          </span>
+                          {(labelCounts.get(label.id) || 0) > 0 && (
+                            <span className="ml-1.5 text-[10px] opacity-50">{labelCounts.get(label.id)}</span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </>
+                )}
+
+                {uniqueCategories.length > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Kategorien</SelectLabel>
+                      {uniqueCategories.map((cat) => (
+                        <SelectItem key={cat.name} value={`cat:${cat.name}`}>
+                          {cat.emoji} {cat.name}
+                          <span className="ml-1.5 text-[10px] opacity-50">{cat.count}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
         );
       })()}
+
 
 
       <div className="mb-2">
