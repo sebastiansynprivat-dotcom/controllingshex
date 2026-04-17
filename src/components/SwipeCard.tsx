@@ -503,22 +503,38 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
         {/* Hero KPI */}
         {hero && (
           <div
-            className="rounded-xl px-3 py-2 border relative overflow-hidden"
+            className="rounded-xl px-3 py-2.5 border relative overflow-hidden"
             style={{
-              borderColor: `hsl(${accent.hue} / 0.25)`,
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.04) 100%)`,
-              boxShadow: `0 0 24px -8px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+              borderColor: `hsl(${accent.hue} / 0.3)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.18) 0%, hsl(${accent.hue} / 0.05) 100%)`,
+              boxShadow: `0 0 32px -8px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.07)`,
             }}
           >
-            <div
+            {/* Pulsing orb */}
+            <motion.div
               aria-hidden
-              className="absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-40 blur-2xl"
-              style={{ background: `hsl(${accent.hue} / 0.5)` }}
+              className="absolute -top-10 -right-10 h-28 w-28 rounded-full blur-2xl"
+              style={{ background: `hsl(${accent.hue} / 0.55)` }}
+              animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.1, 1] }}
+              transition={{ duration: 3.5, ease: "easeInOut", repeat: Infinity }}
             />
-            <p className="text-[9px] uppercase tracking-[0.18em] font-medium relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
+            {/* Diagonal shine sweep */}
+            {isTop && (
+              <motion.div
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                initial={{ x: "-120%" }}
+                animate={{ x: "120%" }}
+                transition={{ duration: 2.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 3.5 }}
+                style={{
+                  background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.14) 50%, transparent 60%)",
+                }}
+              />
+            )}
+            <p className="text-[9px] uppercase tracking-[0.2em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.95)` }}>
               {hero.key}
             </p>
-            <p className="text-2xl font-bold text-foreground leading-tight relative z-[1] mt-0.5">
+            <p className="text-[26px] font-bold text-foreground leading-none relative z-[1] mt-1 tracking-tight" style={{ textShadow: `0 0 24px hsl(${accent.hue} / 0.35)` }}>
               {hero.value}
             </p>
           </div>
