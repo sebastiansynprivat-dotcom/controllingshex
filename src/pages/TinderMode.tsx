@@ -1046,7 +1046,7 @@ export default function TinderMode() {
             )}
           </AnimatePresence>
 
-          {/* Note Bottom Sheet */}
+          {/* Note Bottom Sheet — Premium */}
           <AnimatePresence>
             {notePanel && (
               <motion.div
@@ -1054,52 +1054,104 @@ export default function TinderMode() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
               >
                 <motion.div
-                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  className="absolute inset-0 bg-black/60 backdrop-blur-md"
                   onClick={() => setNotePanel(false)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
                 />
                 <motion.div
-                  className="relative w-full max-w-md rounded-t-3xl bg-background border-t border-border/50 px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]"
+                  className="relative w-full max-w-md rounded-t-3xl px-5 pb-7 pt-3 overflow-hidden"
+                  style={{
+                    background: `radial-gradient(120% 60% at 50% 0%, hsl(212 90% 60% / 0.10) 0%, transparent 55%), linear-gradient(180deg, hsl(240 6% 7%) 0%, hsl(240 6% 4%) 100%)`,
+                    borderTop: "1px solid hsl(0 0% 100% / 0.08)",
+                    boxShadow: "0 -20px 60px -10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  }}
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                  transition={{ type: "spring", damping: 30, stiffness: 340 }}
                 >
-                  <div className="flex justify-center mb-4">
-                    <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+                  <div
+                    aria-hidden
+                    className="absolute top-0 left-12 right-12 h-px rounded-full"
+                    style={{
+                      background: "linear-gradient(to right, transparent, hsl(212 90% 60% / 0.5), transparent)",
+                      boxShadow: "0 0 12px hsl(212 90% 60% / 0.4)",
+                    }}
+                  />
+                  <div className="flex justify-center mb-3">
+                    <div className="w-10 h-1 rounded-full bg-white/10" />
                   </div>
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <StickyNote className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div
+                      className="h-9 w-9 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: "linear-gradient(135deg, hsl(212 90% 60% / 0.2), hsl(212 90% 60% / 0.06))",
+                        border: "1px solid hsl(212 90% 60% / 0.2)",
+                      }}
+                    >
+                      <StickyNote className="h-4 w-4" style={{ color: "hsl(212 90% 70%)" }} />
                     </div>
-                    <h3 className="text-sm font-semibold text-foreground">Notizen</h3>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Notizen für</p>
+                      <h3 className="text-sm font-semibold text-foreground capitalize truncate mt-0.5">
+                        {currentChatter.name.replace(/_/g, " ")}
+                      </h3>
+                    </div>
+                    {notes.length > 0 && (
+                      <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20">
+                        {notes.length}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex gap-2 mb-4">
+                  <div className="h-px bg-white/[0.06] my-4" />
+                  <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-2 flex gap-2 mb-4 focus-within:border-blue-500/30 transition-colors">
                     <Textarea
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Notiz hinzufügen..."
-                      className="text-xs bg-secondary/50 border-border/50 resize-none min-h-[56px] rounded-xl"
+                      placeholder="Was ist heute aufgefallen?"
+                      className="text-xs bg-transparent border-0 resize-none min-h-[56px] text-foreground placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-1.5"
                       rows={2}
                     />
-                    <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-auto px-3 self-end rounded-xl">
+                    <Button size="sm" onClick={saveNote} disabled={!noteText.trim()} className="h-9 px-3 self-end rounded-xl shrink-0">
                       <Send className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  {notes.length > 0 && (
-                    <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
-                      {notes.map((n) => (
-                        <div key={n.id} className="bg-secondary/50 rounded-xl px-3 py-2 border border-border/30">
-                          <p className="text-[11px] text-foreground/90 leading-relaxed">{n.note_text}</p>
-                          <p className="text-[9px] text-muted-foreground mt-1">
-                            {new Date(n.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </div>
-                      ))}
+                  {notes.length > 0 ? (
+                    <div className="max-h-52 overflow-y-auto space-y-2 pr-1 -mr-1">
+                      <AnimatePresence initial={false}>
+                        {notes.map((n) => (
+                          <motion.div
+                            key={n.id}
+                            layout
+                            initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                            transition={{ duration: 0.18 }}
+                            className="group rounded-xl bg-white/[0.025] border border-white/[0.05] px-3 py-2.5 relative"
+                          >
+                            <p className="text-[11.5px] text-foreground/85 leading-relaxed pr-6 whitespace-pre-wrap">{n.note_text}</p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <p className="text-[9px] text-white/35 font-light tracking-wide">
+                                {new Date(n.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                              <button
+                                onClick={() => deleteNote(n.id)}
+                                className="opacity-50 hover:opacity-100 transition-opacity text-white/50 hover:text-red-400 p-1 -m-1"
+                                aria-label="Notiz löschen"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.015]">
+                      <StickyNote className="h-5 w-5 text-white/25 mb-2" />
+                      <p className="text-xs text-white/40 font-light">Noch keine Notizen</p>
                     </div>
                   )}
                 </motion.div>
