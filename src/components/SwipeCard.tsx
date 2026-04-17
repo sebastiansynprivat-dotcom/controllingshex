@@ -1,12 +1,18 @@
-import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
-import { useMemo, useCallback, useRef, useEffect } from "react";
+import { motion, useMotionValue, useTransform, useAnimation, PanInfo, AnimatePresence } from "framer-motion";
+import { useMemo, useCallback, useRef, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
+import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles, Mail, Key } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import LastInputBadge from "@/components/LastInputBadge";
 import type { InputSource } from "@/lib/chatter-inputs";
 import { type ChatterBenchmark, formatBenchmarkLabel, getBenchmarkTone } from "@/lib/peer-benchmarks";
+
+export interface AccountLogin {
+  account: string;
+  email?: string | null;
+  password?: string | null;
+}
 
 interface ChatterData {
   name: string;
