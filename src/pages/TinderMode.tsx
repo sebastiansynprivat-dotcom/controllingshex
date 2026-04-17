@@ -16,6 +16,7 @@ import { loadModelPerformances, type ModelPerformance, type ModelInfo } from "@/
 import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatter-inputs";
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
+import { mapToActionCategory } from "@/lib/action-categories";
 
 interface ChatterData {
   name: string;

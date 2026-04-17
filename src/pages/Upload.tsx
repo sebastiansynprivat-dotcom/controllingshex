@@ -10,6 +10,7 @@ import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { mapToActionCategory } from "@/lib/action-categories";
 import {
   Dialog,
   DialogContent,

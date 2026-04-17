@@ -10,6 +10,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip as RechartsTooltip } from "recharts";
 import { loadModelPerformances, formatFollowers, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
+import { mapToActionCategory } from "@/lib/action-categories";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
