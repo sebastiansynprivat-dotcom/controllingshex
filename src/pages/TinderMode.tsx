@@ -1242,6 +1242,22 @@ export default function TinderMode() {
         </>
       )}
 
+      {/* Quick-Input Prompt — shown briefly after swipe-right */}
+      <QuickInputPrompt
+        open={!!quickPromptName}
+        chatterName={quickPromptName || ""}
+        onPick={handleQuickInputPick}
+        onSkip={() => setQuickPromptName(null)}
+      />
+
+      {/* Input History Sheet — opened via badge tap */}
+      <InputHistorySheet
+        open={!!historyChatter}
+        onClose={() => setHistoryChatter(null)}
+        chatterName={historyChatter || ""}
+        events={historyChatter ? (inputsMap.get(normalizeName(historyChatter))?.events || []) : []}
+      />
+
       {/* Chatter SlideOver (mobile: portal overlay) */}
       {!isDesktop && currentChatter && (
         <ChatterSlideOver
