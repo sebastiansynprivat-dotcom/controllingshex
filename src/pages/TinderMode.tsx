@@ -587,6 +587,9 @@ export default function TinderMode() {
           setAssignedLabelIds((prev) => { const n = new Set(prev); n.delete(labelId); return n; });
           setAllLabelAssignments((prev) => prev.filter((a) => !(a.label_id === labelId && normalizeName(a.chatter_name) === normalizeName(chatterName))));
         }
+      } else if (!wasActive) {
+        // Successfully added a label → counts as input
+        refreshInputForChatter(chatterName);
       }
     })();
   };
@@ -606,13 +609,19 @@ export default function TinderMode() {
   // Save note
   const saveNote = async () => {
     if (!noteText.trim() || !currentChatter) return;
+    const chatterName = currentChatter.name;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data, error } = await supabase.from("coaching_notes")
-      .insert({ chatter_name: currentChatter.name, note_text: noteText.trim(), platform, user_id: user.id })
+      .insert({ chatter_name: chatterName, note_text: noteText.trim(), platform, user_id: user.id })
       .select("id, note_text, created_at").single();
     if (error) { toast.error("Fehler beim Speichern"); return; }
-    if (data) { setNotes((prev) => [data, ...prev]); setNoteText(""); toast.success("Notiz gespeichert"); }
+    if (data) {
+      setNotes((prev) => [data, ...prev]);
+      setNoteText("");
+      toast.success("Notiz gespeichert");
+      refreshInputForChatter(chatterName);
+    }
   };
 
   const deleteNote = async (noteId: string) => {
