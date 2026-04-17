@@ -62,6 +62,24 @@ function findNameColumn(header: string): number {
   return idx >= 0 ? idx : 1;
 }
 
+function findAccountColumn(header: string): number {
+  const cols = header.toLowerCase().split(",").map(c => c.trim());
+  return cols.findIndex(c => /account|model|konto/i.test(c));
+}
+
+function extractFieldFromCsvRow(row: string, colIndex: number): string {
+  if (colIndex < 0) return "";
+  const fields: string[] = [];
+  let current = "", inQuotes = false;
+  for (const ch of row) {
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ""; continue; }
+    current += ch;
+  }
+  fields.push(current.trim());
+  return (fields[colIndex] || "").replace(/^[@\s]+/, "").trim();
+}
+
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_\s]+/g, " ").trim();
 }
