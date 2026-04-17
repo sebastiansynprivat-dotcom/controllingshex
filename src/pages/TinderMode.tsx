@@ -494,10 +494,34 @@ export default function TinderMode() {
 
   const handleSwipeRight = useCallback(() => {
     if (!currentChatter) return;
-    setUndoStack((prev) => [...prev, currentChatter.name]);
-    markChecked(currentChatter.name);
+    const name = currentChatter.name;
+    setUndoStack((prev) => [...prev, name]);
+    markChecked(name);
+    // Show quick input prompt — non-blocking, user can ignore (auto-dismisses or X)
+    setQuickPromptName(name);
     goNext();
   }, [currentChatter, markChecked, goNext]);
+
+  // Auto-dismiss quick prompt after a few seconds
+  useEffect(() => {
+    if (!quickPromptName) return;
+    const t = setTimeout(() => setQuickPromptName(null), 4500);
+    return () => clearTimeout(t);
+  }, [quickPromptName]);
+
+  const handleQuickInputPick = useCallback(async (type: "verbal" | "praise" | "observed") => {
+    const name = quickPromptName;
+    if (!name) return;
+    setQuickPromptName(null);
+    const ok = await logManualInput(platform, name, type);
+    if (ok) {
+      refreshInputForChatter(name);
+      const labels = { verbal: "💬 Input", praise: "🔥 Lob", observed: "👀 Beobachtet" };
+      toast.success(`${labels[type]} getrackt`);
+    } else {
+      toast.error("Konnte nicht gespeichert werden");
+    }
+  }, [quickPromptName, platform, refreshInputForChatter]);
 
   const handleSwipeLeft = useCallback(() => {
     setActionPanel(true);
