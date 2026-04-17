@@ -11,6 +11,11 @@
  */
 
 export type ActionCategoryName =
+  | "ONBOARDING TAG 1"
+  | "ONBOARDING TAG 2"
+  | "ONBOARDING TAG 3"
+  | "ONBOARDING TAG 4"
+  | "ONBOARDING TAG 5"
   | "SOFORT EINGREIFEN"
   | "COACHING NÖTIG"
   | "PUSHEN"
@@ -21,19 +26,24 @@ export type ActionCategoryName =
 export interface ActionCategory {
   name: ActionCategoryName;
   emoji: string;
-  /** Numeric priority (1 = highest, 6 = lowest) */
+  /** Numeric priority (1 = highest) */
   priority: number;
   /** Short German description shown in tooltips/hints */
   description: string;
 }
 
 export const ACTION_CATEGORIES: readonly ActionCategory[] = [
-  { name: "SOFORT EINGREIFEN", emoji: "🆘", priority: 1, description: "Kritisch — heute eingreifen" },
-  { name: "COACHING NÖTIG",    emoji: "💬", priority: 2, description: "Performance fällt — Coaching nötig" },
-  { name: "PUSHEN",            emoji: "🚀", priority: 3, description: "Onboarding / Potenzial pushen" },
-  { name: "BELOHNEN",          emoji: "🎉", priority: 4, description: "Top-Performer — anerkennen" },
-  { name: "RE-ASSIGNEN",       emoji: "📊", priority: 5, description: "Account passt nicht — re-assignen" },
-  { name: "BEOBACHTEN",        emoji: "👀", priority: 6, description: "Stabil — beobachten" },
+  { name: "ONBOARDING TAG 1",  emoji: "🔵", priority: 1, description: "Onboarding Tag 1 — frisch gestartet" },
+  { name: "ONBOARDING TAG 2",  emoji: "🔵", priority: 1, description: "Onboarding Tag 2" },
+  { name: "ONBOARDING TAG 3",  emoji: "🔵", priority: 1, description: "Onboarding Tag 3" },
+  { name: "ONBOARDING TAG 4",  emoji: "🔵", priority: 1, description: "Onboarding Tag 4" },
+  { name: "ONBOARDING TAG 5",  emoji: "🔵", priority: 1, description: "Onboarding Tag 5" },
+  { name: "SOFORT EINGREIFEN", emoji: "🆘", priority: 2, description: "Kritisch — heute eingreifen" },
+  { name: "COACHING NÖTIG",    emoji: "💬", priority: 3, description: "Performance fällt — Coaching nötig" },
+  { name: "PUSHEN",            emoji: "🚀", priority: 4, description: "Potenzial pushen" },
+  { name: "BELOHNEN",          emoji: "🎉", priority: 5, description: "Top-Performer — anerkennen" },
+  { name: "RE-ASSIGNEN",       emoji: "📊", priority: 6, description: "Account passt nicht — re-assignen" },
+  { name: "BEOBACHTEN",        emoji: "👀", priority: 7, description: "Stabil — beobachten" },
 ] as const;
 
 export const ACTION_CATEGORY_NAMES = ACTION_CATEGORIES.map((c) => c.name) as readonly ActionCategoryName[];
