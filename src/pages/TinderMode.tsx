@@ -167,19 +167,28 @@ export default function TinderMode() {
     });
   }, [platform]);
 
-  // Load active anomaly alerts for the active workspace
+  // Load active anomaly alerts for the active workspace (with messages)
+  const [alertsByChatter, setAlertsByChatter] = useState<Map<string, { alert_type: string; severity: string; message: string }[]>>(new Map());
   useEffect(() => {
     const nowIso = new Date().toISOString();
     supabase
       .from("anomaly_alerts")
-      .select("chatter_name, snoozed_until, status")
+      .select("chatter_name, alert_type, severity, message, snoozed_until, status")
       .eq("platform", platform)
       .in("status", ["new", "seen", "snoozed"])
       .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
       .then(({ data }) => {
         const set = new Set<string>();
-        (data || []).forEach((a: any) => set.add(normalizeName(a.chatter_name)));
+        const map = new Map<string, { alert_type: string; severity: string; message: string }[]>();
+        (data || []).forEach((a: any) => {
+          const key = normalizeName(a.chatter_name);
+          set.add(key);
+          const list = map.get(key) || [];
+          list.push({ alert_type: a.alert_type, severity: a.severity, message: a.message });
+          map.set(key, list);
+        });
         setAlertChatterNames(set);
+        setAlertsByChatter(map);
       });
   }, [platform]);
 
@@ -755,6 +764,7 @@ export default function TinderMode() {
                   <SwipeCard
                     key={normalizeName(chatter.name)}
                     chatter={chatter}
+                    alerts={alertsByChatter.get(normalizeName(chatter.name)) || []}
                     onSwipeRight={isTopCard ? handleSwipeRight : noop}
                     onSwipeLeft={isTopCard ? handleSwipeLeft : noop}
                     onSwipeUp={isTopCard ? handleSwipeUp : noop}
