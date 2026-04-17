@@ -249,28 +249,19 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         {stats.map(({ config, stat }) => {
           const color = strokeColor(stat);
           return (
             <div
               key={config.key}
-              className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-3 flex flex-col gap-2"
+              className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-2.5 flex flex-col gap-1.5"
             >
-              <div className="flex items-center justify-between gap-1">
-                <p className="text-[9px] uppercase tracking-[0.15em] text-white/35 font-light truncate">
-                  {config.label}
-                </p>
-                <span
-                  className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full border ${deltaColorClass(stat)}`}
-                  title={`${config.formatter(stat.start)} → ${config.formatter(stat.end)}`}
-                >
-                  <DirectionIcon direction={stat.direction} />
-                  {stat.direction === "stable" ? "0%" : `${stat.delta > 0 ? "+" : ""}${Math.abs(stat.delta) >= 999 ? "∞" : stat.delta}%`}
-                </span>
-              </div>
+              <p className="text-[10px] uppercase tracking-[0.1em] text-white/55 font-medium leading-tight">
+                {config.label}
+              </p>
 
-              <div className="h-10 -mx-1">
+              <div className="h-9 -mx-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={config.data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                     <defs>
@@ -298,12 +289,16 @@ export default function WeekTrendCard({ history, compact = false }: Props) {
                 </ResponsiveContainer>
               </div>
 
-              <div className="flex items-baseline justify-between gap-1">
-                <span className="text-[10px] text-white/30 font-light truncate">
-                  {config.formatter(stat.start)}
-                </span>
-                <span className="text-xs font-medium text-white/80 truncate">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-medium text-white/85 truncate" title={`${config.formatter(stat.start)} → ${config.formatter(stat.end)}`}>
                   {config.formatter(stat.end)}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border ${deltaColorClass(stat)}`}
+                  title={`${config.formatter(stat.start)} → ${config.formatter(stat.end)}`}
+                >
+                  <DirectionIcon direction={stat.direction} />
+                  {stat.direction === "stable" ? "0%" : `${stat.delta > 0 ? "+" : ""}${Math.abs(stat.delta) >= 999 ? "∞" : stat.delta}%`}
                 </span>
               </div>
             </div>
