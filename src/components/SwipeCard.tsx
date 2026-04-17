@@ -1,9 +1,9 @@
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
 import { useMemo, useCallback, useRef, useEffect } from "react";
-import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { toast } from "sonner";
 import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
+import WeekTrendCard from "@/components/WeekTrendCard";
 
 interface ChatterData {
   name: string;
@@ -12,7 +12,7 @@ interface ChatterData {
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
-  revenueHistory?: { date: string; revenue: number }[];
+  history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
 }
 
@@ -83,7 +83,6 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
     return Object.entries(chatter.kpis).filter(([k]) => k !== "Name" && k !== "name");
   }, [chatter.kpis]);
 
-  const gradientId = useMemo(() => `sparkGrad-${chatter.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,[chatter.name]);
   const isVisible = stackIndex === 0;
   const stackScale = 1;
   const stackOffsetY = 0;
@@ -358,40 +357,17 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
         ))}
       </div>
 
-      {/* Mini sparkline — only render for top card */}
-      {isTop && chatter.revenueHistory && chatter.revenueHistory.length > 1 && (
-        <div className="h-14 mb-3">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chatter.revenueHistory}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="hsl(var(--primary))"
-                fill={`url(#${gradientId})`}
-                strokeWidth={1.5}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+      {/* 7-Tage-Trend ersetzt Sparkline + AI-Empfehlung */}
+      {isTop && chatter.history && chatter.history.length > 1 && (
+        <div
+          className="mt-auto overflow-y-auto max-h-[280px]"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <WeekTrendCard history={chatter.history} compact />
         </div>
       )}
-      {!isTop && chatter.revenueHistory && chatter.revenueHistory.length > 1 && (
-        <div className="h-14 mb-3" />
-      )}
-
-      {/* Recommendation — scrollable */}
-      {chatter.recommendation && (
-        <div className="mt-auto bg-secondary rounded-lg px-3 py-2.5 overflow-y-auto max-h-32" onPointerDown={isTop ? (e) => e.stopPropagation() : undefined}>
-          <p className="text-[11px] text-muted-foreground mb-0.5">Empfehlung</p>
-          <p className="text-xs text-foreground/80 leading-relaxed">
-            {chatter.recommendation}
-          </p>
-        </div>
+      {!isTop && chatter.history && chatter.history.length > 1 && (
+        <div className="mt-auto h-[200px]" />
       )}
     </motion.div>
   );
