@@ -56,6 +56,35 @@ const SEVERITY_COLOR: Record<string, string> = {
   info: "border-emerald-400/50 bg-emerald-400/[0.06] text-emerald-300",
 };
 
+// Map category to a thematic accent color (HSL tuples for tailwind arbitrary values)
+function categoryAccent(name?: string): { hue: string; ring: string; tint: string; glow: string } {
+  const n = (name || "").toUpperCase();
+  if (/EINBRUCH|WARNUNG|0€/.test(n)) return { hue: "0 84% 60%", ring: "from-red-500/40", tint: "rgba(239,68,68,0.18)", glow: "rgba(239,68,68,0.35)" };
+  if (/COACHING|ENGERE|VIDEO/.test(n)) return { hue: "38 92% 55%", ring: "from-amber-500/40", tint: "rgba(245,158,11,0.16)", glow: "rgba(245,158,11,0.30)" };
+  if (/UPGRADE|BREAKOUT|TOP/.test(n)) return { hue: "152 70% 45%", ring: "from-emerald-500/40", tint: "rgba(16,185,129,0.18)", glow: "rgba(16,185,129,0.32)" };
+  if (/ONBOARDING|COMEBACK|MODEL/.test(n)) return { hue: "212 90% 60%", ring: "from-blue-500/40", tint: "rgba(59,130,246,0.16)", glow: "rgba(59,130,246,0.30)" };
+  if (/TRAFFIC|CONVERSION|BEOBACHT/.test(n)) return { hue: "270 80% 65%", ring: "from-violet-500/40", tint: "rgba(168,85,247,0.16)", glow: "rgba(168,85,247,0.30)" };
+  return { hue: "240 5% 60%", ring: "from-zinc-400/30", tint: "rgba(161,161,170,0.10)", glow: "rgba(161,161,170,0.20)" };
+}
+
+function pickHeroKpi(kpis: Record<string, string>): { key: string; value: string } | null {
+  const keys = Object.keys(kpis).filter((k) => k !== "Name" && k !== "name");
+  if (keys.length === 0) return null;
+  const priority = ["Umsatz", "umsatz", "Revenue", "revenue", "Umsatz heute", "Umsatz Heute"];
+  for (const p of priority) {
+    const found = keys.find((k) => k.toLowerCase().includes(p.toLowerCase()));
+    if (found) return { key: found, value: kpis[found] };
+  }
+  return { key: keys[0], value: kpis[keys[0]] };
+}
+
+function getInitials(name: string): string {
+  const clean = name.replace(/_/g, " ").trim();
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function triggerHaptic(style: "light" | "medium" = "light") {
   try {
     if ("vibrate" in navigator) {
@@ -74,19 +103,29 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
-  const opacityRight = useTransform(x, [0, 100], [0, 1]);
-  const opacityLeft = useTransform(x, [-100, 0], [1, 0]);
-  const opacityUp = useTransform(y, [-100, 0], [1, 0]);
-  const opacityDown = useTransform(y, [0, 100], [0, 1]);
+
+  // Edge-glow opacities (replaces the big overlay text)
+  const edgeRight = useTransform(x, [0, 140], [0, 1]);
+  const edgeLeft = useTransform(x, [-140, 0], [1, 0]);
+  const edgeUp = useTransform(y, [-140, 0], [1, 0]);
+  const edgeDown = useTransform(y, [0, 140], [0, 1]);
+
+  const accent = useMemo(() => categoryAccent(chatter.categoryName), [chatter.categoryName]);
+  const hero = useMemo(() => pickHeroKpi(chatter.kpis), [chatter.kpis]);
 
   const kpiEntries = useMemo(() => {
-    return Object.entries(chatter.kpis).filter(([k]) => k !== "Name" && k !== "name");
-  }, [chatter.kpis]);
+    const entries = Object.entries(chatter.kpis).filter(([k]) => k !== "Name" && k !== "name");
+    if (hero) return entries.filter(([k]) => k !== hero.key);
+    return entries;
+  }, [chatter.kpis, hero]);
 
-  const isVisible = stackIndex === 0;
-  const stackScale = 1;
-  const stackOffsetY = 0;
-  const stackOpacity = stackIndex === 0 ? 1 : 0;
+  const initials = useMemo(() => getInitials(chatter.name), [chatter.name]);
+  const hasCritical = useMemo(() => alerts.some((a) => a.severity === "critical" || a.severity === "high"), [alerts]);
+
+  // Stack visuals — show 2 cards behind the top one
+  const stackScale = stackIndex === 0 ? 1 : 1 - stackIndex * 0.04;
+  const stackOffsetY = stackIndex === 0 ? 0 : stackIndex * 12;
+  const stackOpacity = stackIndex === 0 ? 1 : stackIndex === 1 ? 0.55 : 0.25;
 
   const snapBack = useCallback(() => {
     controls.start({
@@ -160,13 +199,11 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
     }
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double-tap → Details
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = null;
       triggerHaptic("medium");
       onSwipeUp();
     } else {
-      // Single-tap → nach 300ms Name kopieren
       tapTimerRef.current = setTimeout(() => {
         navigator.clipboard.writeText(chatter.name.replace(/_/g, " "));
         toast.success("Name kopiert");
@@ -191,7 +228,7 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
 
     const { offset } = info;
     const horizontalThreshold = 120;
-    const verticalThreshold = 70; // Lower threshold for up/down — feels more natural
+    const verticalThreshold = 70;
     const absX = Math.abs(offset.x);
     const absY = Math.abs(offset.y);
     const isVerticalIntent = absY >= absX;
@@ -211,6 +248,15 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
     }
   }, [flyOff, snapBack, peekAndReturn, openDetails, onSwipeRight, onSwipeLeft, onSwipeDown]);
 
+  // Severity-based outer ring shadow
+  const severityRing = hasCritical
+    ? "0 0 0 1px rgba(239,68,68,0.25), 0 0 28px -4px rgba(239,68,68,0.35)"
+    : "";
+
+  const baseShadow = isTop
+    ? `0 14px 50px -14px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.07)${severityRing ? `, ${severityRing}` : ""}`
+    : "0 4px 20px -8px rgba(0,0,0,0.4)";
+
   return (
     <motion.div
       className={`absolute inset-0 rounded-2xl border border-white/[0.08] p-3.5 flex flex-col select-none overflow-hidden ${
@@ -219,12 +265,14 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
       style={{
         ...(isTop
           ? { x, y: displayY, rotate, zIndex: 20, willChange: "transform" }
-          : { scale: stackScale, y: stackOffsetY, opacity: isVisible ? stackOpacity : 0, zIndex: 20 - stackIndex, willChange: "auto" }
+          : { scale: stackScale, y: stackOffsetY, opacity: stackOpacity, zIndex: 20 - stackIndex, willChange: "auto" }
         ),
-        background: "linear-gradient(165deg, hsl(0 0% 100% / 0.04) 0%, hsl(240 6% 5%) 40%, hsl(240 6% 4%) 100%)",
-        boxShadow: isTop
-          ? "0 8px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)"
-          : "0 4px 20px -8px rgba(0,0,0,0.4)",
+        background: `
+          radial-gradient(120% 60% at 0% 0%, ${accent.tint} 0%, transparent 55%),
+          radial-gradient(100% 80% at 100% 100%, hsl(${accent.hue} / 0.10) 0%, transparent 60%),
+          linear-gradient(165deg, hsl(0 0% 100% / 0.04) 0%, hsl(240 6% 5%) 40%, hsl(240 6% 4%) 100%)
+        `,
+        boxShadow: baseShadow,
       }}
       drag={isTop}
       dragDirectionLock={isTop}
@@ -238,45 +286,89 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
       whileDrag={isTop ? { scale: 1.02 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
     >
+      {/* Subtle entrance shimmer (top card only) */}
+      {isTop && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.6, 0] }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          style={{
+            background: `linear-gradient(115deg, transparent 35%, hsl(${accent.hue} / 0.15) 50%, transparent 65%)`,
+          }}
+        />
+      )}
+
       {isTop && (
         <>
-          {/* Swipe overlays */}
+          {/* Edge-glow swipe indicators — elegant alternative to overlay text */}
           <motion.div
-            className="absolute inset-0 rounded-2xl border-2 border-green-500/50 bg-green-500/5 flex items-center justify-center pointer-events-none z-10"
-            style={{ opacity: opacityRight }}
+            className="absolute inset-y-0 right-0 w-20 rounded-r-2xl pointer-events-none z-10"
+            style={{
+              opacity: edgeRight,
+              background: "linear-gradient(to left, rgba(16,185,129,0.55) 0%, rgba(16,185,129,0.18) 40%, transparent 100%)",
+              boxShadow: "inset -1px 0 0 rgba(16,185,129,0.6)",
+            }}
           >
-            <span className="text-green-400 text-4xl font-bold rotate-[-15deg]">✓ OK</span>
+            <motion.div className="absolute top-3 right-3 text-emerald-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeRight }}>
+              ✓ OK
+            </motion.div>
           </motion.div>
           <motion.div
-            className="absolute inset-0 rounded-2xl border-2 border-red-500/50 bg-red-500/5 flex items-center justify-center pointer-events-none z-10"
-            style={{ opacity: opacityLeft }}
+            className="absolute inset-y-0 left-0 w-20 rounded-l-2xl pointer-events-none z-10"
+            style={{
+              opacity: edgeLeft,
+              background: "linear-gradient(to right, rgba(239,68,68,0.55) 0%, rgba(239,68,68,0.18) 40%, transparent 100%)",
+              boxShadow: "inset 1px 0 0 rgba(239,68,68,0.6)",
+            }}
           >
-            <span className="text-red-400 text-4xl font-bold rotate-[15deg]">✗ AKTION</span>
+            <motion.div className="absolute top-3 left-3 text-red-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeLeft }}>
+              ✗ Aktion
+            </motion.div>
           </motion.div>
           <motion.div
-            className="absolute inset-0 rounded-2xl border-2 border-blue-500/50 bg-blue-500/5 flex items-center justify-center pointer-events-none z-10"
-            style={{ opacity: opacityUp }}
+            className="absolute inset-x-0 top-0 h-16 rounded-t-2xl pointer-events-none z-10"
+            style={{
+              opacity: edgeUp,
+              background: "linear-gradient(to bottom, rgba(59,130,246,0.5) 0%, rgba(59,130,246,0.15) 50%, transparent 100%)",
+              boxShadow: "inset 0 1px 0 rgba(59,130,246,0.6)",
+            }}
           >
-            <span className="text-blue-400 text-2xl font-bold">↑ DETAILS</span>
+            <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-blue-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeUp }}>
+              ↑ Details
+            </motion.div>
           </motion.div>
           {onSwipeDown && (
             <motion.div
-              className="absolute inset-0 rounded-2xl border-2 border-amber-500/50 bg-amber-500/5 flex items-center justify-center pointer-events-none z-10"
-              style={{ opacity: opacityDown }}
+              className="absolute inset-x-0 bottom-0 h-16 rounded-b-2xl pointer-events-none z-10"
+              style={{
+                opacity: edgeDown,
+                background: "linear-gradient(to top, rgba(245,158,11,0.5) 0%, rgba(245,158,11,0.15) 50%, transparent 100%)",
+                boxShadow: "inset 0 -1px 0 rgba(245,158,11,0.6)",
+              }}
             >
-              <span className="text-amber-400 text-2xl font-bold">↓ SKIP</span>
+              <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-amber-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeDown }}>
+                ↓ Skip
+              </motion.div>
             </motion.div>
           )}
         </>
       )}
 
-      {/* Inhaltsbereich — alles ohne Scrollen sichtbar */}
-      <div className="flex-1 min-h-0 flex flex-col gap-2">
+      {/* Content */}
+      <div className="flex-1 min-h-0 flex flex-col gap-2 relative z-[1]">
         {/* Category badge + start date */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="text-base">{chatter.categoryEmoji || "📊"}</span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          <div
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
+            style={{
+              borderColor: `hsl(${accent.hue} / 0.25)`,
+              background: `hsl(${accent.hue} / 0.08)`,
+            }}
+          >
+            <span className="text-[11px] leading-none">{chatter.categoryEmoji || "📊"}</span>
+            <span className="text-[9.5px] uppercase tracking-wider font-semibold" style={{ color: `hsl(${accent.hue} / 0.95)` }}>
               {chatter.categoryName || "Unbekannt"}
             </span>
           </div>
@@ -287,10 +379,44 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
           )}
         </div>
 
-        {/* Name */}
-        <h2 className="text-lg font-semibold text-foreground capitalize leading-tight">
-          {chatter.name.replace(/_/g, " ")}
-        </h2>
+        {/* Avatar + Name */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
+            style={{
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.35) 0%, hsl(${accent.hue} / 0.12) 100%)`,
+              color: `hsl(${accent.hue} / 0.95)`,
+              border: `1px solid hsl(${accent.hue} / 0.25)`,
+              boxShadow: `0 2px 12px -2px hsl(${accent.hue} / 0.35)`,
+            }}
+          >
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold text-foreground capitalize leading-tight truncate">
+              {chatter.name.replace(/_/g, " ")}
+            </h2>
+            {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                  <Users className="h-3 w-3" />
+                  {formatFollowers(chatter.modelPerf.followers)}
+                </span>
+                {chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    chatter.modelPerf.status === "better"
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : chatter.modelPerf.status === "worse"
+                      ? "bg-red-500/10 text-red-400"
+                      : "bg-secondary text-muted-foreground"
+                  }`}>
+                    {chatter.modelPerf.percentChange > 0 ? "+" : ""}{chatter.modelPerf.percentChange}%
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Auto-Alert Banner — kompakt, max 2 */}
         {alerts.length > 0 && (
@@ -321,35 +447,41 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
           </div>
         )}
 
-        {chatter.modelPerf && chatter.modelPerf.followers > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60">
-              <Users className="h-3 w-3" />
-              {formatFollowers(chatter.modelPerf.followers)}
-            </span>
-            {chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                chatter.modelPerf.status === "better"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : chatter.modelPerf.status === "worse"
-                  ? "bg-red-500/10 text-red-400"
-                  : "bg-secondary text-muted-foreground"
-              }`}>
-                {chatter.modelPerf.percentChange > 0 ? "+" : ""}{chatter.modelPerf.percentChange}% vs. Vorgänger
-              </span>
-            )}
+        {/* Hero KPI */}
+        {hero && (
+          <div
+            className="rounded-xl px-3 py-2 border relative overflow-hidden"
+            style={{
+              borderColor: `hsl(${accent.hue} / 0.25)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.04) 100%)`,
+              boxShadow: `0 0 24px -8px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+            }}
+          >
+            <div
+              aria-hidden
+              className="absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-40 blur-2xl"
+              style={{ background: `hsl(${accent.hue} / 0.5)` }}
+            />
+            <p className="text-[9px] uppercase tracking-[0.18em] font-medium relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
+              {hero.key}
+            </p>
+            <p className="text-2xl font-bold text-foreground leading-tight relative z-[1] mt-0.5">
+              {hero.value}
+            </p>
           </div>
         )}
 
-        {/* KPIs — kompakter */}
-        <div className="grid grid-cols-2 gap-1.5">
-          {kpiEntries.slice(0, 6).map(([key, value]) => (
-            <div key={key} className="bg-secondary rounded-md px-2 py-1.5">
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{key}</p>
-              <p className="text-[13px] font-medium text-foreground leading-tight">{value}</p>
-            </div>
-          ))}
-        </div>
+        {/* KPIs — 2x2 grid */}
+        {kpiEntries.length > 0 && (
+          <div className="grid grid-cols-2 gap-1.5">
+            {kpiEntries.slice(0, 4).map(([key, value]) => (
+              <div key={key} className="bg-white/[0.025] border border-white/[0.04] rounded-md px-2 py-1.5">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{key}</p>
+                <p className="text-[13px] font-medium text-foreground leading-tight">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 7-Tage-Trend — füllt verbleibenden Raum */}
         {isTop && chatter.history && chatter.history.length > 1 && (
