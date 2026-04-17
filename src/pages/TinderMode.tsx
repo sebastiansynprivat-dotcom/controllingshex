@@ -17,6 +17,7 @@ import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatte
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark } from "@/lib/peer-benchmarks";
 
 interface ChatterData {
   name: string;
@@ -28,6 +29,7 @@ interface ChatterData {
   startDate?: string;
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
+  peerBm?: ChatterBenchmark;
 }
 
 interface AnalysisCategory {
