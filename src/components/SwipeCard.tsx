@@ -83,7 +83,6 @@ export default function SwipeCard({ chatter, alerts = [], onSwipeRight, onSwipeL
     return Object.entries(chatter.kpis).filter(([k]) => k !== "Name" && k !== "name");
   }, [chatter.kpis]);
 
-  const gradientId = useMemo(() => `sparkGrad-${chatter.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,[chatter.name]);
   const isVisible = stackIndex === 0;
   const stackScale = 1;
   const stackOffsetY = 0;
