@@ -764,17 +764,28 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     <div className="flex flex-col h-full overflow-hidden relative">
 
       <div className="flex flex-col h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
+        {manualBanner}
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
           <div className="flex items-baseline gap-2 lg:gap-3 shrink-0">
             <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
-              Wechsel-Vorschlag
+              {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
             </span>
             <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
               {pairIdx + 1} <span className="text-white/20">/ {allPairs.length}</span>
             </span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setManualPickerOpen(true)}
+              className="h-8 text-[11px] border-white/10 text-white/70 hover:text-white hover:bg-white/5"
+              title="Chatter manuell auswählen"
+            >
+              <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+              {isManualMode ? "Anderen wählen" : "Manuell wählen"}
+            </Button>
             <span
               className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full border bg-white/[0.02]"
               style={{
