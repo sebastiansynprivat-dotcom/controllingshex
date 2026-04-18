@@ -742,7 +742,7 @@ export default function TinderMode() {
   return (
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
-      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
+      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? (mode === "swap" ? "w-full" : "w-1/2 max-w-xl") : "w-full max-w-md mx-auto"}`}>
       {/* Mode Toggle: Swipe vs Wechsel */}
       <div className="mb-3 flex p-0.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
         <button
