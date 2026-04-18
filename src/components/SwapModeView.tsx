@@ -99,15 +99,19 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
       onClick={handleClick}
       animate={controls}
       style={{ x, y, rotate, touchAction: "none" }}
-      className="relative w-full rounded-3xl overflow-hidden border select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full rounded-3xl overflow-hidden select-none cursor-grab active:cursor-grabbing"
     >
+      {/* dünner Akzent-Streifen oben statt farbiger Box */}
       <div
-        className="p-5 lg:p-7"
+        className="absolute inset-x-0 top-0 h-[2px] z-10"
+        style={{ background: `linear-gradient(90deg, transparent, hsl(${accentHsl} / 0.7), transparent)` }}
+      />
+      <div
+        className="p-5 lg:p-7 border border-white/[0.06] rounded-3xl"
         style={{
-          background: `radial-gradient(120% 80% at 50% 0%, hsl(${accentHsl} / 0.22) 0%, transparent 60%), linear-gradient(180deg, hsl(240 6% 9%) 0%, hsl(240 6% 4%) 100%)`,
-          borderColor: `hsl(${accentHsl} / 0.28)`,
+          background: `radial-gradient(140% 100% at 50% -20%, hsl(${accentHsl} / 0.07) 0%, transparent 55%), linear-gradient(180deg, hsl(240 6% 8%) 0%, hsl(240 6% 5%) 100%)`,
           minHeight: 320,
-          boxShadow: `0 20px 60px -20px hsl(${accentHsl} / 0.35), inset 0 1px 0 hsl(${accentHsl} / 0.12)`,
+          boxShadow: `0 24px 60px -24px hsl(240 10% 0% / 0.7), inset 0 1px 0 hsl(0 0% 100% / 0.04)`,
         }}
       >
         <div className="flex items-center justify-between mb-3">
