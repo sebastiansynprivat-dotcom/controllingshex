@@ -162,7 +162,7 @@ export default function Models() {
       return;
     }
     const { error } = await supabase.from("models").insert({
-      model_name: newName.trim(),
+      model_name: capitalizeName(newName),
       follower_count: parseInt(newFollowers) || 0,
       platform,
       user_id: user.id,
