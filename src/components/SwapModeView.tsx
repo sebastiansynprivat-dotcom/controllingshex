@@ -73,12 +73,20 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onC
     [controls, onSwipeLeft, onSwipeRight, onSwipeUp]
   );
 
+  const handleClick = useCallback(() => {
+    // only treat as click if no significant drag occurred
+    if (Math.abs(x.get()) < 6 && Math.abs(y.get()) < 6) {
+      onClick?.();
+    }
+  }, [x, y, onClick]);
+
   return (
     <motion.div
       drag
       dragElastic={0.18}
       dragMomentum={false}
       onDragEnd={handleDragEnd}
+      onClick={handleClick}
       animate={controls}
       style={{ x, y, rotate, touchAction: "none" }}
       className="relative w-full rounded-3xl overflow-hidden border select-none cursor-grab active:cursor-grabbing"
