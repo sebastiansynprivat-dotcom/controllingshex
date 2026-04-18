@@ -233,7 +233,7 @@ export default function Models() {
             <Input
               placeholder="Name"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(e) => setNewName(capitalizeName(e.target.value))}
               className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
             />
             <Input
