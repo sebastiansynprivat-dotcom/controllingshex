@@ -46,6 +46,20 @@ function formatEur(v: number) {
   return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
+function capitalizeName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  // Erster Buchstabe groß, Rest klein (pro Wort, falls mehrere)
+  return trimmed
+    .split(/(\s+)/)
+    .map((part) =>
+      /^\s+$/.test(part)
+        ? part
+        : part.charAt(0).toLocaleUpperCase("de-DE") + part.slice(1).toLocaleLowerCase("de-DE")
+    )
+    .join("");
+}
+
 export default function Models() {
   const { platform } = usePlatform();
   const { user } = useAuth();
@@ -148,7 +162,7 @@ export default function Models() {
       return;
     }
     const { error } = await supabase.from("models").insert({
-      model_name: newName.trim(),
+      model_name: capitalizeName(newName),
       follower_count: parseInt(newFollowers) || 0,
       platform,
       user_id: user.id,
@@ -179,7 +193,7 @@ export default function Models() {
   const saveEdit = async () => {
     if (!editId || !editName.trim()) return;
     const { error } = await supabase.from("models").update({
-      model_name: editName.trim(),
+      model_name: capitalizeName(editName),
       follower_count: parseInt(editFollowers) || 0,
       email: editEmail.trim() || null,
       password: editPassword.trim() || null,
