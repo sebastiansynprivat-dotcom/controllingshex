@@ -208,7 +208,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
         </div>
 
         <div className="mt-3 lg:mt-4 text-[10px] lg:text-[11px] text-white/35 text-center">
-          ← anderer Kandidat &nbsp;·&nbsp; ↑ nur diese Karte tauschen &nbsp;·&nbsp; → genehmigen
+          Wische in jede Richtung &nbsp;·&nbsp; nur diese Karte tauschen
         </div>
       </div>
     </motion.div>
@@ -844,7 +844,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 chatter={visibleLeft}
                 side="left"
                 onSwipeLeft={cycleLeftAlt}
-                onSwipeRight={approveSwap}
+                onSwipeRight={cycleLeftAlt}
                 onSwipeUp={cycleLeftAlt}
                 onSingleClick={() => copyChatterName(visibleLeft.name)}
                 onDoubleClick={() => setProfileOpen(true)}
@@ -890,7 +890,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 chatter={visibleRight}
                 side="right"
                 onSwipeLeft={cycleRightAlt}
-                onSwipeRight={approveSwap}
+                onSwipeRight={cycleRightAlt}
                 onSwipeUp={cycleRightAlt}
                 onSingleClick={() => copyChatterName(visibleRight.name)}
                 onDoubleClick={() => setProfileOpen(true)}
