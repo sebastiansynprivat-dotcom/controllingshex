@@ -590,7 +590,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           <Button
             variant="outline"
             size="icon"
-            onClick={rejectSwap}
+            onClick={openRejectModal}
             className="h-12 w-12 lg:h-14 lg:w-14 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
             title="Pairing verwerfen"
           >
