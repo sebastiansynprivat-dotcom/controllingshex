@@ -29,7 +29,7 @@ interface ChatterData {
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
-  history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
+  history?: { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
   peerBm?: ChatterBenchmark;
 }
@@ -259,7 +259,7 @@ export default function TinderMode() {
       const [historyRes, modelsRes] = await Promise.all([
         supabase
           .from("chatter_history")
-          .select("chatter_name, account, analysis_date, revenue_today, mass_dms, response_delay_days")
+          .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
           .eq("platform", platform)
           .in("chatter_name", names)
           .order("analysis_date", { ascending: true }),
