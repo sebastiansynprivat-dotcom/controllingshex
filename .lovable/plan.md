@@ -1,56 +1,84 @@
 
-Der User will den Swipe Mode visuell aufwerten. Ich kenne SwipeCard.tsx schon gut. Lass mich kurz checken, wie der Rest der Page aussieht, um eine kohärente Vision zu entwickeln.
 
-Aktueller Stand:
-- Karte: dunkler Gradient, KPI-Grid 2x3, Alerts, Trend
-- Funktional sauber, aber visuell etwas "flat" und uniform — alle KPIs gleich, kein Hero-Element, Hintergrund statisch
+## Was du willst
 
-## Visuelle Verbesserungen — Vorschlag
+Im `/swipe` Modus zwei Modi per Toggle:
+1. **Swipe-Mode** (aktuell, unverändert) — einzelne Karten durchwischen
+2. **Wechsel-Mode** (neu) — Tausch-Vorschläge zwischen zwei Chattern, die auf falschen Models sitzen
 
-### 1. Hero-KPI mit Glow
-- Top-KPI (z.B. "Umsatz heute") groß als Hero anzeigen mit subtilem Farb-Glow
-- Restliche KPIs kleiner darunter im 2x2 Grid statt 2x3
-- Schafft visuelle Hierarchie statt "Wand aus Zahlen"
+## Wechsel-Mode Logik
 
-### 2. Lebendiger Karten-Hintergrund
-- Aurora/Mesh-Gradient passend zur Kategorie (z.B. grün für Top-Performer, amber für Risk)
-- Subtiler animierter Schimmer beim Erscheinen
-- Statt aktuellem statischen Gradient
+**Idee**: Ein Chatter performt stark relativ zu seinen Followern (hohe Revenue/Follower-Ratio), sitzt aber auf einem schwachen Model. Ein anderer Chatter sitzt auf einem starken Model, performt dort aber schwach. → Tausch vorschlagen.
 
-### 3. Avatar/Initial-Badge
-- Großer Initial-Kreis links neben dem Namen mit Kategorie-Farbe
-- Macht jede Karte einzigartiger erkennbar
+**Score-Berechnung pro Chatter**:
+- `efficiency = currentAvgRevenue / followers` (Revenue pro Follower)
+- Hoch-Effizienz auf Low-Follower-Model = "Underplaced" (verdient Upgrade)
+- Niedrig-Effizienz auf High-Follower-Model = "Overplaced" (verschwendet Potenzial)
 
-### 4. Bessere Swipe-Indikatoren
-- Aktuell: Vollflächige Overlay-Boxen mit Riesen-Text — wirkt grob
-- Neu: Edge-Glow (leuchtende Kante in Richtung Swipe) + kleiner Icon-Hint in der Ecke
-- Eleganter, weniger aufdringlich
+**Pairing-Algorithmus**:
+1. Sortiere Chatter nach Effizienz absteigend
+2. Top-Performer auf Low-Follower-Models → "Upgrade-Kandidaten"
+3. Bottom-Performer auf High-Follower-Models → "Downgrade-Kandidaten"
+4. Pair Top mit Bottom, wo Follower-Differenz signifikant ist (z.B. >2x)
+5. Berechne **Swap-Impact**: prognostizierter Revenue-Gain wenn Top-Chatter die Effizienz auf das große Model überträgt
 
-### 5. Trend-Karte aufgewertet
-- Mini-Header mit Trend-Pfeil (↗ +12% diese Woche) statt nur Sparklines
-- Trennlinie oben mit Gradient statt harter Border
+**Sortiere alle Vorschläge nach Impact absteigend.**
 
-### 6. Stack-Effekt sichtbar machen
-- Aktuell sind hintere Karten unsichtbar (opacity 0)
-- Zeig 1-2 Karten dahinter leicht versetzt + skaliert → "Tinder-Feel"
+## UI
 
-### 7. Card-Border mit Severity
-- Wenn kritischer Alert vorhanden: subtiler roter Glow am Karten-Rand
-- Macht dringende Karten sofort erkennbar ohne extra Text
+```text
+┌─────────────────────────────────────────┐
+│  [Swipe-Mode] [Wechsel-Mode]   ← Toggle │
+├─────────────────────────────────────────┤
+│                                         │
+│   ┌──────────┐   ⇄   ┌──────────┐      │
+│   │ Chatter A│ TAUSCH│ Chatter B│      │
+│   │ Model X  │       │ Model Y  │      │
+│   │ 10K Foll │       │ 80K Foll │      │
+│   │ 500€/Tag │       │ 800€/Tag │      │
+│   │ Eff: 5%  │       │ Eff: 1%  │      │
+│   └──────────┘       └──────────┘      │
+│                                         │
+│   Erwarteter Gain: +2.400€/Tag          │
+│                                         │
+│   ← wischen für andere Pairings →       │
+│                                         │
+│   [✗ Verwerfen]  [✓ Genehmigen]         │
+└─────────────────────────────────────────┘
+```
 
-## Vorgehen
-Ich würde **alle 7** zusammen umsetzen — sie greifen ineinander und ergeben gemeinsam den "Premium-Feel". Einzeln wirkt jede Änderung nur marginal.
+**Swipe-Verhalten** (gemäß deiner Memory: nur 120px Distanz, keine Velocity):
+- **Links wischen auf linker Karte** → ersetzt linken Chatter durch nächst-besten Underplaced-Kandidaten (rechte bleibt fix)
+- **Links wischen auf rechter Karte** → ersetzt rechten Chatter durch nächst-besten Overplaced-Kandidaten (linke bleibt fix)
+- **Rechts wischen** auf einer Karte → "Tausch genehmigen" (markiert Pair als angenommen)
+- **Hoch wischen** → ganzes Pairing verwerfen, nächstes Top-Pairing zeigen
 
-## Betroffene Dateien
-- `src/components/SwipeCard.tsx` (Haupt-Refactor: Hero-KPI, Avatar, Background, Edge-Indikatoren, Severity-Glow, Stack)
-- `src/components/WeekTrendCard.tsx` (Mini-Trend-Header mit Delta)
-- `src/pages/TinderMode.tsx` (Stack-Rendering: 2 Karten dahinter sichtbar machen)
+So kannst du frei iterieren: linke Karte fix lassen, rechts durchprobieren, oder umgekehrt.
 
-## Frage an dich
+## Was gebaut wird
+
+**Neue Datei**: `src/lib/swap-suggestions.ts`
+- `computeSwapCandidates(chatters, models, history)` → liefert sortierte Liste von `SwapPair[]`
+- Jeder `SwapPair` enthält: `left` (underplaced), `right` (overplaced), `expectedGain`, plus Pools `leftAlternatives[]` und `rightAlternatives[]` zum Durchwischen
+
+**Neue Komponente**: `src/components/SwapModeView.tsx`
+- Rendert zwei Karten nebeneinander (Desktop) bzw. gestackt (Mobile)
+- Eigene Swipe-Handler pro Karte (wiederverwendet Framer-Motion-Logik aus SwipeCard)
+- "Genehmigen" → speichert in neuer Tabelle `swap_decisions` (chatter_a, chatter_b, status, created_at)
+
+**Erweitert**: `src/pages/TinderMode.tsx`
+- Mode-Toggle oben (`useState<"swipe" | "swap">`)
+- Bei `"swap"` rendert `<SwapModeView>` statt der normalen Stack-Logik
+- Filter/Kategorien werden im Wechsel-Mode ausgeblendet (irrelevant)
+
+**Datenbank**: neue Tabelle `swap_decisions` mit RLS (workspace-scoped wie deine anderen Tabellen)
+
+## Offene Frage
+
+Eine kurze Klärung zur Effizienz-Formel:
 
 <lov-actions>
-<lov-suggestion message="Setz alle 7 visuellen Verbesserungen um (Hero-KPI, Avatar, lebendiger Background, Edge-Glow Swipe-Indikatoren, Trend-Header, sichtbarer Stack, Severity-Glow)">Alle 7 umsetzen — full Premium-Look</lov-suggestion>
-<lov-suggestion message="Setz nur die Top 3 um: Hero-KPI mit Glow, sichtbarer Karten-Stack dahinter, und elegantere Edge-Glow Swipe-Indikatoren">Nur Top 3 (Hero + Stack + Edge-Glow)</lov-suggestion>
-<lov-suggestion message="Mach erst mal nur den Karten-Stack sichtbar (1-2 Karten dahinter versetzt) — das ist der größte 'Wow'-Effekt">Nur Stack-Effekt (Tinder-Feel)</lov-suggestion>
-<lov-suggestion message="Zeig mir erst Mockups/Prototypen der Optionen bevor wir was umsetzen">Erst Prototypen zeigen</lov-suggestion>
+<lov-suggestion message="Nutz die einfache Formel: revenue/followers. Tausch wird vorgeschlagen wenn der Underplaced mindestens 3x effizienter ist als der Overplaced UND das Ziel-Model mindestens 2x mehr Follower hat. Bau das so.">Einfache Formel (rev/followers, 3x & 2x Schwellen)</lov-suggestion>
+<lov-suggestion message="Nutz statt einfacher revenue/followers eine Benchmark-basierte Formel: vergleiche jeden Chatter gegen den Peer-Benchmark seiner Follower-Klasse (loadBenchmarks gibt's schon). Tausch nur vorschlagen wenn beide signifikant über/unter ihrem Peer-Median sind.">Benchmark-basiert (peer-bm Vergleich)</lov-suggestion>
+<lov-suggestion message="Lass mich die Schwellen selbst einstellen: bau ein kleines Settings-Panel im Wechsel-Mode mit Slidern für Mindest-Effizienz-Differenz und Mindest-Follower-Differenz">Mit Settings-Panel (Slider für Schwellen)</lov-suggestion>
 </lov-actions>
