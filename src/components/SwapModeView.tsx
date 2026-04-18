@@ -144,10 +144,21 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           {chatter.name.replace(/_/g, " ")}
         </h3>
         <p className="text-xs lg:text-sm text-white/45 mb-1 truncate">@ {chatter.account}</p>
-        <p className="text-[10px] lg:text-xs text-white/40 mb-3 lg:mb-5 inline-flex items-center gap-1">
-          <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
-          {formatFollowers(chatter.followers)} Follower
-        </p>
+        <div className="flex items-center gap-3 mb-3 lg:mb-5 flex-wrap">
+          <p className="text-[10px] lg:text-xs text-white/40 inline-flex items-center gap-1">
+            <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+            {formatFollowers(chatter.followers)} Follower
+          </p>
+          {chatter.firstSeen && (
+            <p
+              className="text-[10px] lg:text-xs text-white/40 inline-flex items-center gap-1"
+              title={`Erster Eintrag: ${chatter.firstSeen}`}
+            >
+              <CalendarDays className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+              seit {formatStartDate(chatter.firstSeen)}
+            </p>
+          )}
+        </div>
 
         {/* Skill-Score Bar */}
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 lg:p-4 mb-2.5 lg:mb-4">
