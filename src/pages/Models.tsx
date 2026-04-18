@@ -47,17 +47,7 @@ function formatEur(v: number) {
 }
 
 function capitalizeName(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return "";
-  // Erster Buchstabe groß, Rest klein (pro Wort, falls mehrere)
-  return trimmed
-    .split(/(\s+)/)
-    .map((part) =>
-      /^\s+$/.test(part)
-        ? part
-        : part.charAt(0).toLocaleUpperCase("de-DE") + part.slice(1).toLocaleLowerCase("de-DE")
-    )
-    .join("");
+  return raw.toLocaleLowerCase("de-DE");
 }
 
 export default function Models() {
@@ -243,7 +233,7 @@ export default function Models() {
             <Input
               placeholder="Name"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(e) => setNewName(capitalizeName(e.target.value))}
               className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
             />
             <Input
@@ -425,7 +415,7 @@ export default function Models() {
                     {editId === m.id ? (
                       <>
                         <td className="py-3 sm:py-4 px-4 sm:px-8 space-y-1.5">
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
+                          <Input value={editName} onChange={(e) => setEditName(capitalizeName(e.target.value))} placeholder="Name" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
                           <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-Mail" type="email" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                           <Input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Passwort" type="text" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                         </td>
