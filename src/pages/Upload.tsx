@@ -69,8 +69,48 @@ interface CsvChatterMetrics {
   responseDelayDays: number;
 }
 
+/**
+ * Quote-aware splitter: respects CSV quoted fields (which may contain newlines & commas)
+ * so a "Note" or "Account" cell with a line break does NOT shatter the batch.
+ */
+function splitCsvIntoLogicalLines(csvData: string): string[] {
+  const lines: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < csvData.length; i++) {
+    const char = csvData[i];
+
+    if (char === '"') {
+      if (inQuotes && csvData[i + 1] === '"') {
+        current += '""';
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      current += char;
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      // handle \r\n
+      if (char === "\r" && csvData[i + 1] === "\n") i++;
+      const trimmed = current.trim();
+      if (trimmed) lines.push(trimmed);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const last = current.trim();
+  if (last) lines.push(last);
+  return lines;
+}
+
 function splitCsvIntoBatches(csvData: string): { header: string; batches: string[][] } {
-  const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
+  const lines = splitCsvIntoLogicalLines(csvData);
   if (lines.length < 2) return { header: lines[0] || "", batches: [] };
   const header = lines[0];
   const dataLines = lines.slice(1);
