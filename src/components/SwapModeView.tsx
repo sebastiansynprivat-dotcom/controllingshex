@@ -354,21 +354,33 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   return (
     <div className="flex flex-col h-full px-2 pt-1 pb-3 overflow-hidden">
       {/* Header: pair counter & gain */}
-      <div className="flex items-center justify-between mb-3 px-2">
-        <span className="text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between mb-3 px-2 gap-2">
+        <span className="text-[10px] text-muted-foreground shrink-0">
           Pair {pairIdx + 1} / {allPairs.length}
         </span>
-        <span
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border"
-          style={{
-            color: visibleGain > 0 ? "hsl(152 70% 55%)" : "hsl(0 0% 60%)",
-            borderColor: visibleGain > 0 ? "hsl(152 70% 45% / 0.35)" : "hsl(0 0% 100% / 0.1)",
-            background: visibleGain > 0 ? "hsl(152 70% 45% / 0.08)" : "transparent",
-          }}
-        >
-          <TrendingUp className="h-3 w-3" />
-          +{formatEur(visibleGain)}/Tag
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="text-[9px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border bg-white/[0.02]"
+            style={{
+              color: "hsl(40 50% 70%)",
+              borderColor: "hsl(40 45% 55% / 0.3)",
+            }}
+            title="Tier-Sprung beim Tausch"
+          >
+            +{currentPair.tierJump} Tier
+          </span>
+          <span
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border"
+            style={{
+              color: visibleGain > 0 ? "hsl(152 70% 55%)" : "hsl(0 0% 60%)",
+              borderColor: visibleGain > 0 ? "hsl(152 70% 45% / 0.35)" : "hsl(0 0% 100% / 0.1)",
+              background: visibleGain > 0 ? "hsl(152 70% 45% / 0.08)" : "transparent",
+            }}
+          >
+            <TrendingUp className="h-3 w-3" />
+            +{formatEur(visibleGain)}/Tag
+          </span>
+        </div>
       </div>
 
       {/* Two cards side-by-side */}
