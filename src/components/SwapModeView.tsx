@@ -133,26 +133,26 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           </span>
         </div>
 
-        <h3 className="text-lg font-semibold text-foreground capitalize truncate mb-0.5">
+        <h3 className="text-lg lg:text-2xl font-semibold text-foreground capitalize truncate mb-0.5">
           {chatter.name.replace(/_/g, " ")}
         </h3>
-        <p className="text-xs text-white/40 mb-1 truncate">@ {chatter.account}</p>
-        <p className="text-[10px] text-white/35 mb-3 inline-flex items-center gap-1">
-          <Users className="h-3 w-3" />
+        <p className="text-xs lg:text-sm text-white/45 mb-1 truncate">@ {chatter.account}</p>
+        <p className="text-[10px] lg:text-xs text-white/40 mb-3 lg:mb-5 inline-flex items-center gap-1">
+          <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
           {formatFollowers(chatter.followers)} Follower
         </p>
 
         {/* Skill-Score Bar */}
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 mb-2.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[9px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
-              <Zap className="h-2.5 w-2.5" /> Skill-Score
+        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 lg:p-4 mb-2.5 lg:mb-4">
+          <div className="flex items-center justify-between mb-1.5 lg:mb-2">
+            <span className="text-[9px] lg:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
+              <Zap className="h-2.5 w-2.5 lg:h-3 lg:w-3" /> Skill-Score
             </span>
-            <span className="text-sm font-bold" style={{ color: `hsl(${accentHsl})` }}>
+            <span className="text-sm lg:text-lg font-bold tabular-nums" style={{ color: `hsl(${accentHsl})` }}>
               {formatSkill(chatter.skillScore)}
             </span>
           </div>
-          <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+          <div className="h-1.5 lg:h-2 rounded-full bg-white/[0.05] overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -164,25 +164,25 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
         </div>
 
         {/* Skill-Breakdown Mini-Icons */}
-        <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+        <div className="grid grid-cols-4 gap-1.5 lg:gap-2 mb-2.5 lg:mb-4">
           <SkillPill icon={MessageSquare} label="DMs" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
           <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
           <SkillPill icon={Inbox} label="Chat" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
           <SkillPill icon={TrendingUp} label="€/F" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2">
-            <p className="text-[8px] uppercase tracking-wider text-white/40">7T-Ø</p>
-            <p className="text-xs font-semibold text-foreground">{formatEur(chatter.avgRevenue)}</p>
+        <div className="grid grid-cols-2 gap-2 lg:gap-3">
+          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2 lg:p-3">
+            <p className="text-[8px] lg:text-[10px] uppercase tracking-wider text-white/40">7T-Ø</p>
+            <p className="text-xs lg:text-base font-semibold text-foreground tabular-nums">{formatEur(chatter.avgRevenue)}</p>
           </div>
-          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2">
-            <p className="text-[8px] uppercase tracking-wider text-white/40">Heute</p>
-            <p className="text-xs font-semibold text-foreground">{formatEur(chatter.currentRevenue)}</p>
+          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2 lg:p-3">
+            <p className="text-[8px] lg:text-[10px] uppercase tracking-wider text-white/40">Heute</p>
+            <p className="text-xs lg:text-base font-semibold text-foreground tabular-nums">{formatEur(chatter.currentRevenue)}</p>
           </div>
         </div>
 
-        <div className="mt-3 text-[10px] text-white/35 text-center">
+        <div className="mt-3 lg:mt-4 text-[10px] lg:text-[11px] text-white/35 text-center">
           ← anderer Kandidat &nbsp;·&nbsp; ↑ verwerfen &nbsp;·&nbsp; → genehmigen
         </div>
       </div>
