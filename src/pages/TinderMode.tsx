@@ -19,7 +19,7 @@ import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatte
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
-import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark } from "@/lib/peer-benchmarks";
+import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 
 interface ChatterData {
   name: string;
@@ -29,7 +29,7 @@ interface ChatterData {
   categoryEmoji?: string;
   categoryName?: string;
   startDate?: string;
-  history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
+  history?: { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
   peerBm?: ChatterBenchmark;
 }
@@ -124,6 +124,7 @@ export default function TinderMode() {
   // Mode toggle: classic Swipe-Mode vs new Wechsel-Mode
   const [mode, setMode] = useState<"swipe" | "swap">("swipe");
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
+  const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
 
   // Label state
   const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
@@ -258,7 +259,7 @@ export default function TinderMode() {
       const [historyRes, modelsRes] = await Promise.all([
         supabase
           .from("chatter_history")
-          .select("chatter_name, account, analysis_date, revenue_today, mass_dms, response_delay_days")
+          .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
           .eq("platform", platform)
           .in("chatter_name", names)
           .order("analysis_date", { ascending: true }),
@@ -269,13 +270,14 @@ export default function TinderMode() {
       ]);
 
       if (historyRes.data) {
-        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[]>();
+        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[]>();
         for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
             analysis_date: h.analysis_date,
             revenue_today: Number(h.revenue_today) || 0,
             mass_dms: Number(h.mass_dms) || 0,
+            open_chats: Number((h as any).open_chats) || 0,
             response_delay_days: Number(h.response_delay_days) || 0,
           });
         }
@@ -335,6 +337,7 @@ export default function TinderMode() {
         // Peer-Benchmarks: vollautomatisch aus History + Models
         try {
           const bundle = await loadBenchmarks(platform, 30);
+          setBenchmarkBundle(bundle);
           const followerLookup = new Map<string, number>();
           for (const m of modelsRes.data) followerLookup.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
           for (const ch of allChatters) {
@@ -392,13 +395,18 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
-  // Build SwapInputs from current chatters (extract today's revenue from KPIs)
+  // Build SwapInputs from current chatters (extract today's revenue from KPIs + history)
   const swapInputs = useMemo<SwapInput[]>(() => {
     return chatters.map((c) => {
       const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
       const revStr = revKey ? c.kpis[revKey] : "0";
       const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
-      return { name: c.name, account: c.account, currentRevenue: rev };
+      return {
+        name: c.name,
+        account: c.account,
+        currentRevenue: rev,
+        history: c.history,
+      };
     });
   }, [chatters]);
 
@@ -762,7 +770,7 @@ export default function TinderMode() {
       </div>
 
       {mode === "swap" ? (
-        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} />
+        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} benchmarks={benchmarkBundle} />
       ) : (
       <>
       {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
