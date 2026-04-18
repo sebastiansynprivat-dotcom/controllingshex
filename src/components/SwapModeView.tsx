@@ -454,7 +454,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               onSwipeLeft={cycleRightAlt}
               onSwipeRight={approveSwap}
               onSwipeUp={dismissCurrentPair}
-              onClick={() => setProfileOpen(true)}
+              onSingleClick={() => copyChatterName(visibleRight.name)}
+              onDoubleClick={() => setProfileOpen(true)}
             />
           </motion.div>
         </AnimatePresence>
