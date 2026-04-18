@@ -595,8 +595,13 @@ async function saveChatterHistory(merged: AnalysisResult, activePlatform: string
     }
   }
   if (rows.length > 0) {
-    for (let i = 0; i < rows.length; i += 200) {
-      await supabase.from("chatter_history").upsert(rows.slice(i, i + 200), { onConflict: "chatter_name,platform,analysis_date" });
+    // Normalize account to "" so the unique index (COALESCE(account,'')) matches reliably
+    const normalizedRows = rows.map((r: any) => ({ ...r, account: r.account ?? "" }));
+    for (let i = 0; i < normalizedRows.length; i += 200) {
+      await supabase.from("chatter_history").upsert(
+        normalizedRows.slice(i, i + 200),
+        { onConflict: "chatter_name,account,platform,analysis_date" }
+      );
     }
   }
 }
