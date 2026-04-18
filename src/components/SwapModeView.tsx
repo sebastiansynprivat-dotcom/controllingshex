@@ -383,116 +383,140 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }
 
   return (
-    <div className="flex flex-col h-full px-2 pt-1 pb-3 overflow-hidden">
-      {/* Header: pair counter & gain */}
-      <div className="flex items-center justify-between mb-3 px-2 gap-2">
-        <span className="text-[10px] text-muted-foreground shrink-0">
-          Pair {pairIdx + 1} / {allPairs.length}
-        </span>
-        <div className="flex items-center gap-1.5">
-          <span
-            className="text-[9px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border bg-white/[0.02]"
-            style={{
-              color: "hsl(200 60% 70%)",
-              borderColor: "hsl(200 55% 55% / 0.3)",
-            }}
-            title="Wieviel mehr Follower der Ziel-Account hat"
-          >
-            {currentPair.followerRatio.toFixed(1)}× Follower
-          </span>
-          <span
-            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border"
-            style={{
-              color: visibleGain > 0 ? "hsl(152 70% 55%)" : "hsl(0 0% 60%)",
-              borderColor: visibleGain > 0 ? "hsl(152 70% 45% / 0.35)" : "hsl(0 0% 100% / 0.1)",
-              background: visibleGain > 0 ? "hsl(152 70% 45% / 0.08)" : "transparent",
-            }}
-          >
-            <TrendingUp className="h-3 w-3" />
-            +{formatEur(visibleGain)}/Tag
-          </span>
-        </div>
-      </div>
-
-      {/* Two cards side-by-side */}
-      <div className="flex-1 min-h-0 grid grid-cols-2 gap-3 items-start relative">
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={`L-${currentPair.left.key}-${leftAltIdx}`}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-          >
-            <SwapMiniCard
-              chatter={visibleLeft}
-              side="left"
-              onSwipeLeft={cycleLeftAlt}
-              onSwipeRight={approveSwap}
-              onSwipeUp={dismissCurrentPair}
-              onSingleClick={() => copyChatterName(visibleLeft.name)}
-              onDoubleClick={() => setProfileOpen(true)}
-            />
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Center swap icon (absolutely positioned, doesn't take grid space when small) */}
-        <div className="pointer-events-none absolute left-1/2 top-12 -translate-x-1/2 z-10">
-          <div
-            className="h-10 w-10 rounded-full flex items-center justify-center border"
-            style={{
-              background: "linear-gradient(135deg, hsl(40 45% 55% / 0.25), hsl(40 45% 55% / 0.08))",
-              borderColor: "hsl(40 45% 55% / 0.35)",
-              boxShadow: "0 4px 18px -4px hsl(40 45% 55% / 0.4)",
-            }}
-          >
-            <ArrowLeftRight className="h-4 w-4" style={{ color: "hsl(40 50% 70%)" }} />
+    <div
+      className="flex flex-col h-full overflow-hidden relative"
+      style={{
+        background:
+          "radial-gradient(60% 50% at 50% 0%, hsl(40 35% 35% / 0.10) 0%, transparent 70%), radial-gradient(40% 60% at 0% 100%, hsl(152 60% 30% / 0.08) 0%, transparent 60%), radial-gradient(40% 60% at 100% 100%, hsl(0 60% 30% / 0.08) 0%, transparent 60%)",
+      }}
+    >
+      <div className="flex flex-col h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
+          <div className="flex items-baseline gap-2 lg:gap-3 shrink-0">
+            <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
+              Wechsel-Vorschlag
+            </span>
+            <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
+              {pairIdx + 1} <span className="text-white/20">/ {allPairs.length}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 lg:gap-3">
+            <span
+              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full border bg-white/[0.02]"
+              style={{
+                color: "hsl(200 60% 70%)",
+                borderColor: "hsl(200 55% 55% / 0.3)",
+              }}
+              title="Wieviel mehr Follower der Ziel-Account hat"
+            >
+              {currentPair.followerRatio.toFixed(1)}× Follower
+            </span>
+            <span
+              className="inline-flex items-center gap-1.5 lg:gap-2 text-xs lg:text-sm font-bold px-3 lg:px-4 py-1.5 lg:py-2 rounded-full border tabular-nums"
+              style={{
+                color: visibleGain > 0 ? "hsl(152 70% 60%)" : "hsl(0 0% 60%)",
+                borderColor: visibleGain > 0 ? "hsl(152 70% 45% / 0.45)" : "hsl(0 0% 100% / 0.1)",
+                background: visibleGain > 0 ? "hsl(152 70% 45% / 0.10)" : "transparent",
+                boxShadow: visibleGain > 0 ? "0 4px 22px -8px hsl(152 70% 45% / 0.6)" : "none",
+              }}
+            >
+              <TrendingUp className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+              +{formatEur(visibleGain)} / Tag
+            </span>
           </div>
         </div>
 
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={`R-${currentPair.right.key}-${rightAltIdx}`}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-          >
-            <SwapMiniCard
-              chatter={visibleRight}
-              side="right"
-              onSwipeLeft={cycleRightAlt}
-              onSwipeRight={approveSwap}
-              onSwipeUp={dismissCurrentPair}
-              onSingleClick={() => copyChatterName(visibleRight.name)}
-              onDoubleClick={() => setProfileOpen(true)}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </div>
+        {/* Cards stage */}
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-4 lg:gap-10 items-center relative">
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={`L-${currentPair.left.key}-${leftAltIdx}`}
+              initial={{ opacity: 0, scale: 0.96, x: -24 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.22 }}
+              className="w-full max-w-[520px] justify-self-end"
+            >
+              <SwapMiniCard
+                chatter={visibleLeft}
+                side="left"
+                onSwipeLeft={cycleLeftAlt}
+                onSwipeRight={approveSwap}
+                onSwipeUp={dismissCurrentPair}
+                onSingleClick={() => copyChatterName(visibleLeft.name)}
+                onDoubleClick={() => setProfileOpen(true)}
+              />
+            </motion.div>
+          </AnimatePresence>
 
-      {/* Action buttons */}
-      <div className="flex items-center justify-center gap-3 mt-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={rejectSwap}
-          className="h-12 w-12 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-          title="Pairing verwerfen"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={dismissCurrentPair}
-          className="h-10 w-10 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
-          title="Überspringen"
-        >
-          <ChevronUp className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="outline"
+          {/* Center swap badge with arrow + gain */}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2">
+            <div
+              className="h-12 w-12 lg:h-16 lg:w-16 rounded-full flex items-center justify-center border-2"
+              style={{
+                background:
+                  "radial-gradient(circle at 30% 30%, hsl(40 60% 60% / 0.35) 0%, hsl(40 45% 40% / 0.18) 60%, hsl(40 30% 20% / 0.05) 100%)",
+                borderColor: "hsl(40 55% 55% / 0.45)",
+                boxShadow:
+                  "0 0 0 6px hsl(240 6% 6% / 0.85), 0 8px 30px -6px hsl(40 55% 50% / 0.55), inset 0 1px 0 hsl(40 80% 80% / 0.15)",
+              }}
+            >
+              <ArrowLeftRight className="h-5 w-5 lg:h-7 lg:w-7" style={{ color: "hsl(40 70% 75%)" }} />
+            </div>
+            <span
+              className="hidden lg:block text-[10px] uppercase tracking-[0.22em] font-semibold px-2 py-0.5 rounded-full bg-zinc-950/80 border"
+              style={{
+                color: "hsl(40 55% 70%)",
+                borderColor: "hsl(40 45% 55% / 0.3)",
+              }}
+            >
+              Tausch
+            </span>
+          </div>
+
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={`R-${currentPair.right.key}-${rightAltIdx}`}
+              initial={{ opacity: 0, scale: 0.96, x: 24 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              transition={{ duration: 0.22 }}
+              className="w-full max-w-[520px] justify-self-start"
+            >
+              <SwapMiniCard
+                chatter={visibleRight}
+                side="right"
+                onSwipeLeft={cycleRightAlt}
+                onSwipeRight={approveSwap}
+                onSwipeUp={dismissCurrentPair}
+                onSingleClick={() => copyChatterName(visibleRight.name)}
+                onDoubleClick={() => setProfileOpen(true)}
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Hint row */}
+        <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · Swipe oder Buttons unten
+          </span>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-center gap-3 lg:gap-5 mt-4 lg:mt-5">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={rejectSwap}
+            className="h-12 w-12 lg:h-14 lg:w-14 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            title="Pairing verwerfen"
+          >
+            <X className="h-5 w-5 lg:h-6 lg:w-6" />
+          </Button>
+          <Button
+            variant="outline"
           size="icon"
           onClick={approveSwap}
           className="h-12 w-12 rounded-full border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
