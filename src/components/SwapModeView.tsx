@@ -208,7 +208,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
         </div>
 
         <div className="mt-3 lg:mt-4 text-[10px] lg:text-[11px] text-white/35 text-center">
-          ← anderer Kandidat &nbsp;·&nbsp; ↑ verwerfen &nbsp;·&nbsp; → genehmigen
+          ← anderer Kandidat &nbsp;·&nbsp; ↑ nur diese Karte tauschen &nbsp;·&nbsp; → genehmigen
         </div>
       </div>
     </motion.div>
@@ -845,7 +845,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 side="left"
                 onSwipeLeft={cycleLeftAlt}
                 onSwipeRight={approveSwap}
-                onSwipeUp={skipPair}
+                onSwipeUp={cycleLeftAlt}
                 onSingleClick={() => copyChatterName(visibleLeft.name)}
                 onDoubleClick={() => setProfileOpen(true)}
               />
@@ -891,7 +891,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 side="right"
                 onSwipeLeft={cycleRightAlt}
                 onSwipeRight={approveSwap}
-                onSwipeUp={skipPair}
+                onSwipeUp={cycleRightAlt}
                 onSingleClick={() => copyChatterName(visibleRight.name)}
                 onDoubleClick={() => setProfileOpen(true)}
               />
@@ -902,7 +902,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {/* Hint row */}
         <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
-            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen · ✓ Genehmigen · ↩ Rückgängig
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ nur diese Karte tauschen · ↑-Button Pair skippen · X Verwerfen · ✓ Genehmigen · ↩ Rückgängig
           </span>
         </div>
 
