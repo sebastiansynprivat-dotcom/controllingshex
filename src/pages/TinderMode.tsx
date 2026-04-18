@@ -5,8 +5,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import SwipeCard, { type AccountLogin } from "@/components/SwipeCard";
 import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import SwapModeView from "@/components/SwapModeView";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import type { SwapInput, SwapModelInfo } from "@/lib/swap-suggestions";
 import { Check, X, ChevronUp, RotateCcw, Undo2, Tag, StickyNote, Send, Plus, AlertTriangle, Trash2, Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -118,6 +120,10 @@ export default function TinderMode() {
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
+
+  // Mode toggle: classic Swipe-Mode vs new Wechsel-Mode
+  const [mode, setMode] = useState<"swipe" | "swap">("swipe");
+  const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
 
   // Label state
   const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
@@ -316,6 +322,7 @@ export default function TinderMode() {
       }
 
       if (modelsRes.data && allChatters.length > 0) {
+        setModelsList(modelsRes.data as SwapModelInfo[]);
         const perfs = await loadModelPerformances(
           platform,
           allChatters.map((c) => ({ name: c.name, account: c.account })),
@@ -384,6 +391,16 @@ export default function TinderMode() {
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
   }, [chatters, checkedNames]);
+
+  // Build SwapInputs from current chatters (extract today's revenue from KPIs)
+  const swapInputs = useMemo<SwapInput[]>(() => {
+    return chatters.map((c) => {
+      const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
+      const revStr = revKey ? c.kpis[revKey] : "0";
+      const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+      return { name: c.name, account: c.account, currentRevenue: rev };
+    });
+  }, [chatters]);
 
   // Filter unchecked chatters by selected category, label, and alerts
   const uncheckedChatters = useMemo(
@@ -718,6 +735,36 @@ export default function TinderMode() {
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
       <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? "w-1/2 max-w-xl" : "w-full max-w-md mx-auto"}`}>
+      {/* Mode Toggle: Swipe vs Wechsel */}
+      <div className="mb-3 flex p-0.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
+        <button
+          type="button"
+          onClick={() => setMode("swipe")}
+          className={`flex-1 text-xs font-medium py-1.5 rounded-full transition-all ${
+            mode === "swipe"
+              ? "bg-white/[0.08] text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Swipe-Mode
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("swap")}
+          className={`flex-1 text-xs font-medium py-1.5 rounded-full transition-all ${
+            mode === "swap"
+              ? "bg-white/[0.08] text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Wechsel-Mode
+        </button>
+      </div>
+
+      {mode === "swap" ? (
+        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} />
+      ) : (
+      <>
       {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
       {(() => {
         const alertCount = chatters.filter(
@@ -1303,6 +1350,8 @@ export default function TinderMode() {
           chatterName={currentChatter.name}
           platform={platform}
         />
+      )}
+      </>
       )}
       </div>
 

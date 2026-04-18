@@ -364,6 +364,42 @@ export type Database = {
         }
         Relationships: []
       }
+      swap_decisions: {
+        Row: {
+          chatter_a: string
+          chatter_b: string
+          created_at: string
+          id: string
+          model_a: string | null
+          model_b: string | null
+          platform: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          chatter_a: string
+          chatter_b: string
+          created_at?: string
+          id?: string
+          model_a?: string | null
+          model_b?: string | null
+          platform?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          chatter_a?: string
+          chatter_b?: string
+          created_at?: string
+          id?: string
+          model_a?: string | null
+          model_b?: string | null
+          platform?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       todos: {
         Row: {
           created_at: string
