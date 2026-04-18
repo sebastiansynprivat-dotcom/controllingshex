@@ -196,6 +196,7 @@ function buildEnriched(
     avgOpenChats: number;
     avgResponseDelay: number;
     currentRevenue: number;
+    firstSeen: string | null;
   };
   const chatterAggs: ChatterAgg[] = [];
   for (const c of chatters) {
@@ -211,6 +212,12 @@ function buildEnriched(
     ) {
       continue;
     }
+    // Frühestes analysis_date aus gesamter History (nicht nur 7 Tage)
+    const dates = (c.history || [])
+      .map((r) => r.analysis_date)
+      .filter((d): d is string => typeof d === "string" && d.length > 0)
+      .sort();
+    const firstSeen = dates[0] ?? null;
     chatterAggs.push({
       name: c.name,
       accounts,
@@ -219,6 +226,7 @@ function buildEnriched(
       avgOpenChats: agg.avgOpenChats,
       avgResponseDelay: agg.avgResponseDelay,
       currentRevenue: c.currentRevenue,
+      firstSeen,
     });
   }
   if (chatterAggs.length === 0) return [];
