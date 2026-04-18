@@ -377,24 +377,24 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setRightAltIdx((i) => (i + 1) % total);
   }, [currentPair]);
 
-  /** Persistiert eine Decision in der DB und aktualisiert den lokalen Block-Cache */
+  /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
     async (
       left: SwapChatter,
       right: SwapChatter,
       status: "approved" | "rejected" | "snoozed",
       snoozeDays: number | null
-    ) => {
+    ): Promise<string | null> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Nicht angemeldet");
-        return false;
+        return null;
       }
       const snoozedUntil =
         snoozeDays !== null
           ? new Date(Date.now() + snoozeDays * 24 * 60 * 60 * 1000).toISOString()
           : null;
-      const { error } = await supabase.from("swap_decisions").insert({
+      const { data, error } = await supabase.from("swap_decisions").insert({
         user_id: user.id,
         platform,
         chatter_a: left.name,
@@ -403,10 +403,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         model_b: right.account,
         status,
         snoozed_until: snoozedUntil,
-      });
-      if (error) {
+      }).select("id").single();
+      if (error || !data) {
         toast.error("Konnte Entscheidung nicht speichern");
-        return false;
+        return null;
       }
       // Lokal cachen damit es sofort weg ist
       const keys = pairKeyVariants(left.name, left.account, right.name, right.account);
@@ -415,18 +415,36 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         for (const k of keys) n.add(k);
         return n;
       });
-      return true;
+      return data.id;
     },
     [platform, pairKeyVariants]
   );
 
+  const pushHistory = useCallback(
+    (entry: HistoryEntry) => {
+      setHistory((prev) => [...prev, entry].slice(-20));
+    },
+    []
+  );
+
   const approveSwap = useCallback(async () => {
     if (!visibleLeft || !visibleRight) return;
-    const ok = await persistDecision(visibleLeft, visibleRight, "approved", null);
-    if (!ok) return;
+    const decisionId = await persistDecision(visibleLeft, visibleRight, "approved", null);
+    if (!decisionId) return;
+    pushHistory({
+      decisionId,
+      pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
+      sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "approved",
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+    });
     toast.success(`Tausch gespeichert: +${formatEur(visibleGain)}/Tag`);
     advancePair();
-  }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision]);
+  }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Skip (↑ swipe) → automatisch 1 Tag snoozen */
   const skipPair = useCallback(async () => {
