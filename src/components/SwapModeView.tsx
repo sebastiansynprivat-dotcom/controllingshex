@@ -285,6 +285,16 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     advancePair();
   }, [currentPair, advancePair]);
 
+  const copyChatterName = useCallback(async (name: string) => {
+    const display = name.replace(/_/g, " ");
+    try {
+      await navigator.clipboard.writeText(display);
+      toast.success(`"${display}" kopiert`);
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
+    }
+  }, []);
+
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair) return;
     const total = 1 + currentPair.leftAlternatives.length;
