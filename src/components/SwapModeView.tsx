@@ -324,6 +324,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setRightAltIdx(0);
   }, [pairIdx]);
 
+  // Reset pair index + history when manual mode toggles
+  useEffect(() => {
+    setPairIdx(0);
+    setLeftAltIdx(0);
+    setRightAltIdx(0);
+  }, [manualChatterName]);
+
   const currentPair: SwapPair | undefined = useMemo(() => {
     let i = pairIdx;
     while (i < allPairs.length) {
