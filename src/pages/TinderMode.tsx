@@ -322,6 +322,7 @@ export default function TinderMode() {
       }
 
       if (modelsRes.data && allChatters.length > 0) {
+        setModelsList(modelsRes.data as SwapModelInfo[]);
         const perfs = await loadModelPerformances(
           platform,
           allChatters.map((c) => ({ name: c.name, account: c.account })),
