@@ -19,7 +19,7 @@ import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatte
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
-import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark } from "@/lib/peer-benchmarks";
+import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 
 interface ChatterData {
   name: string;
@@ -124,6 +124,7 @@ export default function TinderMode() {
   // Mode toggle: classic Swipe-Mode vs new Wechsel-Mode
   const [mode, setMode] = useState<"swipe" | "swap">("swipe");
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
+  const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
 
   // Label state
   const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
@@ -335,6 +336,7 @@ export default function TinderMode() {
         // Peer-Benchmarks: vollautomatisch aus History + Models
         try {
           const bundle = await loadBenchmarks(platform, 30);
+          setBenchmarkBundle(bundle);
           const followerLookup = new Map<string, number>();
           for (const m of modelsRes.data) followerLookup.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
           for (const ch of allChatters) {
@@ -392,13 +394,18 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
-  // Build SwapInputs from current chatters (extract today's revenue from KPIs)
+  // Build SwapInputs from current chatters (extract today's revenue from KPIs + history)
   const swapInputs = useMemo<SwapInput[]>(() => {
     return chatters.map((c) => {
       const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
       const revStr = revKey ? c.kpis[revKey] : "0";
       const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
-      return { name: c.name, account: c.account, currentRevenue: rev };
+      return {
+        name: c.name,
+        account: c.account,
+        currentRevenue: rev,
+        history: c.history,
+      };
     });
   }, [chatters]);
 
@@ -762,7 +769,7 @@ export default function TinderMode() {
       </div>
 
       {mode === "swap" ? (
-        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} />
+        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} benchmarks={benchmarkBundle} />
       ) : (
       <>
       {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
