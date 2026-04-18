@@ -599,7 +599,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           <Button
             variant="outline"
             size="icon"
-            onClick={dismissCurrentPair}
+            onClick={skipPair}
             className="h-10 w-10 lg:h-12 lg:w-12 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
             title="Überspringen"
           >
