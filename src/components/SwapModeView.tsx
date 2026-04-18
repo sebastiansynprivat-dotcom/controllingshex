@@ -591,13 +591,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }
 
   return (
-    <div
-      className="flex flex-col h-full overflow-hidden relative"
-      style={{
-        background:
-          "radial-gradient(60% 50% at 50% 0%, hsl(40 35% 35% / 0.10) 0%, transparent 70%), radial-gradient(40% 60% at 0% 100%, hsl(152 60% 30% / 0.08) 0%, transparent 60%), radial-gradient(40% 60% at 100% 100%, hsl(0 60% 30% / 0.08) 0%, transparent 60%)",
-      }}
-    >
+    <div className="flex flex-col h-full overflow-hidden relative">
+
       <div className="flex flex-col h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
