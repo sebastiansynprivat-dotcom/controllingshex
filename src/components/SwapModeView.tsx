@@ -374,7 +374,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         pairIdxBefore: pairIdx,
         leftAltIdxBefore: leftAltIdx,
         rightAltIdxBefore: rightAltIdx,
-        action: "alt-left",
+        action: "alt-left" as const,
         leftName: visibleLeft.name,
         rightName: visibleRight.name,
       },
