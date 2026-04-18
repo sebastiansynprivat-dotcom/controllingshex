@@ -36,14 +36,16 @@ interface MiniCardProps {
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   onSwipeUp: () => void;
-  onClick?: () => void;
+  onSingleClick?: () => void;
+  onDoubleClick?: () => void;
 }
 
-function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onClick }: MiniCardProps) {
+function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onSingleClick, onDoubleClick }: MiniCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 0, 200], [-8, 0, 8]);
   const controls = useAnimation();
+  const clickTimerRef = useState<{ t: ReturnType<typeof setTimeout> | null }>({ t: null })[0];
 
   const accentHsl = side === "left" ? "152 70% 45%" : "0 84% 60%";
   const tag = side === "left" ? "Underplaced" : "Overplaced";
@@ -74,11 +76,19 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onC
   );
 
   const handleClick = useCallback(() => {
-    // only treat as click if no significant drag occurred
-    if (Math.abs(x.get()) < 6 && Math.abs(y.get()) < 6) {
-      onClick?.();
+    // ignore if drag occurred
+    if (Math.abs(x.get()) >= 6 || Math.abs(y.get()) >= 6) return;
+    if (clickTimerRef.t) {
+      clearTimeout(clickTimerRef.t);
+      clickTimerRef.t = null;
+      onDoubleClick?.();
+      return;
     }
-  }, [x, y, onClick]);
+    clickTimerRef.t = setTimeout(() => {
+      clickTimerRef.t = null;
+      onSingleClick?.();
+    }, 240);
+  }, [x, y, onSingleClick, onDoubleClick, clickTimerRef]);
 
   return (
     <motion.div
@@ -275,6 +285,16 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     advancePair();
   }, [currentPair, advancePair]);
 
+  const copyChatterName = useCallback(async (name: string) => {
+    const display = name.replace(/_/g, " ");
+    try {
+      await navigator.clipboard.writeText(display);
+      toast.success(`"${display}" kopiert`);
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
+    }
+  }, []);
+
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair) return;
     const total = 1 + currentPair.leftAlternatives.length;
@@ -410,7 +430,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               onSwipeLeft={cycleLeftAlt}
               onSwipeRight={approveSwap}
               onSwipeUp={dismissCurrentPair}
-              onClick={() => setProfileOpen(true)}
+              onSingleClick={() => copyChatterName(visibleLeft.name)}
+              onDoubleClick={() => setProfileOpen(true)}
             />
           </motion.div>
         </AnimatePresence>
@@ -443,7 +464,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               onSwipeLeft={cycleRightAlt}
               onSwipeRight={approveSwap}
               onSwipeUp={dismissCurrentPair}
-              onClick={() => setProfileOpen(true)}
+              onSingleClick={() => copyChatterName(visibleRight.name)}
+              onDoubleClick={() => setProfileOpen(true)}
             />
           </motion.div>
         </AnimatePresence>
