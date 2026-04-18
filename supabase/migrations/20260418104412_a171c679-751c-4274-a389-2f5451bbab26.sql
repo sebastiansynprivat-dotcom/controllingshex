@@ -1,0 +1,2 @@
+ALTER TABLE public.chatter_history DROP CONSTRAINT IF EXISTS unique_chatter_day;
+CREATE UNIQUE INDEX IF NOT EXISTS unique_chatter_day_account ON public.chatter_history (chatter_name, COALESCE(account, ''), platform, analysis_date);
