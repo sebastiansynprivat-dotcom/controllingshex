@@ -208,7 +208,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
         </div>
 
         <div className="mt-3 lg:mt-4 text-[10px] lg:text-[11px] text-white/35 text-center">
-          ← anderer Kandidat &nbsp;·&nbsp; ↑ nur diese Karte tauschen &nbsp;·&nbsp; → genehmigen
+          Wische in jede Richtung &nbsp;·&nbsp; nur diese Karte tauschen
         </div>
       </div>
     </motion.div>
