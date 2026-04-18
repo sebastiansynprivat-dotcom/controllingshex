@@ -70,6 +70,11 @@ interface LabelAssignment {
 /* ------------------------------------------------------------------ */
 
 const ALLOWED_CATEGORIES = [
+  { emoji: "🔵", name: "ONBOARDING TAG 1" },
+  { emoji: "🔵", name: "ONBOARDING TAG 2" },
+  { emoji: "🔵", name: "ONBOARDING TAG 3" },
+  { emoji: "🔵", name: "ONBOARDING TAG 4" },
+  { emoji: "🔵", name: "ONBOARDING TAG 5" },
   { emoji: "🆘", name: "SOFORT EINGREIFEN" },
   { emoji: "💬", name: "COACHING NÖTIG" },
   { emoji: "🚀", name: "PUSHEN" },
