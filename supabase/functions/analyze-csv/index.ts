@@ -618,11 +618,11 @@ Regeln:
             else { openChats = parseInt((chatVal.match(/(\d+)/) || [])[1] || "0") || 0; }
           }
           if (responseDelay > 30) responseDelay = 0;
-          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId, account: chatter.account || null });
+          rows.push({ chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats, response_delay_days: responseDelay, platform: activePlatform, analysis_date: today, category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId, account: chatter.account || "" });
         }
       }
       if (rows.length > 0) {
-        await supabase.from("chatter_history").upsert(rows, { onConflict: "chatter_name,platform,analysis_date" });
+        await supabase.from("chatter_history").upsert(rows, { onConflict: "chatter_name,account,platform,analysis_date" });
         console.log(`[analyze-csv] Saved ${rows.length} records`);
       }
     } catch (saveErr) {
