@@ -42,7 +42,7 @@ export interface HistoryRow {
   analysis_date: string;
   revenue_today: number;
   mass_dms: number;
-  open_chats: number;
+  open_chats?: number;
   response_delay_days: number;
 }
 
