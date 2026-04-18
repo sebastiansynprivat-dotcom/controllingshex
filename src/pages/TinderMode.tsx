@@ -270,13 +270,14 @@ export default function TinderMode() {
       ]);
 
       if (historyRes.data) {
-        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[]>();
+        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[]>();
         for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
             analysis_date: h.analysis_date,
             revenue_today: Number(h.revenue_today) || 0,
             mass_dms: Number(h.mass_dms) || 0,
+            open_chats: Number((h as any).open_chats) || 0,
             response_delay_days: Number(h.response_delay_days) || 0,
           });
         }
