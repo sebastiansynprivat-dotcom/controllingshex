@@ -449,10 +449,22 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   /** Skip (↑ swipe) → automatisch 1 Tag snoozen */
   const skipPair = useCallback(async () => {
     if (!visibleLeft || !visibleRight) return;
-    await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
+    const decisionId = await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
+    if (!decisionId) return;
+    pushHistory({
+      decisionId,
+      pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
+      sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "snoozed",
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+    });
     toast("Für 1 Tag ausgeblendet", { icon: "🕒" });
     removeFromStack(visibleLeft, visibleRight);
-  }, [visibleLeft, visibleRight, persistDecision, removeFromStack]);
+  }, [visibleLeft, visibleRight, persistDecision, removeFromStack, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Roter X → öffnet Modal mit 1/7/30 Tage Auswahl */
   const openRejectModal = useCallback(() => {
@@ -463,14 +475,65 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const confirmReject = useCallback(
     async (days: number) => {
       if (!visibleLeft || !visibleRight) return;
-      await persistDecision(visibleLeft, visibleRight, "rejected", days);
+      const decisionId = await persistDecision(visibleLeft, visibleRight, "rejected", days);
+      if (!decisionId) {
+        setRejectModalOpen(false);
+        return;
+      }
+      pushHistory({
+        decisionId,
+        pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
+        sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+        pairIdxBefore: pairIdx,
+        leftAltIdxBefore: leftAltIdx,
+        rightAltIdxBefore: rightAltIdx,
+        action: "rejected",
+        leftName: visibleLeft.name,
+        rightName: visibleRight.name,
+      });
       const label = days === 1 ? "1 Tag" : `${days} Tage`;
       toast(`Verworfen für ${label}`, { icon: "✗" });
       setRejectModalOpen(false);
       removeFromStack(visibleLeft, visibleRight);
     },
-    [visibleLeft, visibleRight, persistDecision, removeFromStack]
+    [visibleLeft, visibleRight, persistDecision, removeFromStack, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]
   );
+
+  /** Macht den letzten Swipe rückgängig: löscht DB-Eintrag + restored Index/Dismissed/Block-Cache */
+  const undoLast = useCallback(async () => {
+    if (history.length === 0) {
+      toast("Nichts zum Rückgängig-Machen", { icon: "ℹ️" });
+      return;
+    }
+    const last = history[history.length - 1];
+    // DB-Eintrag löschen
+    if (last.decisionId) {
+      const { error } = await supabase.from("swap_decisions").delete().eq("id", last.decisionId);
+      if (error) {
+        toast.error("Konnte nicht rückgängig machen");
+        return;
+      }
+    }
+    // State zurücksetzen
+    setPersistedBlocked((prev) => {
+      const n = new Set(prev);
+      for (const k of last.pairKeys) n.delete(k);
+      return n;
+    });
+    setDismissed((prev) => {
+      const n = new Set(prev);
+      n.delete(last.sessionKey);
+      return n;
+    });
+    setPairIdx(last.pairIdxBefore);
+    setLeftAltIdx(last.leftAltIdxBefore);
+    setRightAltIdx(last.rightAltIdxBefore);
+    setHistory((prev) => prev.slice(0, -1));
+    const display = last.leftName.replace(/_/g, " ") + " ↔ " + last.rightName.replace(/_/g, " ");
+    toast.success(`Rückgängig: ${display}`, { icon: "↩️" });
+  }, [history]);
+
+
 
 
   if (allPairs.length === 0) {
