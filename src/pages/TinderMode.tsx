@@ -1351,6 +1351,8 @@ export default function TinderMode() {
           platform={platform}
         />
       )}
+      </>
+      )}
       </div>
 
       {/* Right: Inline performance panel (desktop only) */}
