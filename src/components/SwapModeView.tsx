@@ -219,13 +219,58 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   );
 
   const [pairIdx, setPairIdx] = useState(0);
-  // Override of left/right chatter within current pair (when user swipes one side)
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
+  /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  /** Pair-Keys die in der DB aktiv geblockt sind (snoozed_until > now ODER status=approved) */
+  const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
-  // Reset when pair changes
+  /** Pair-Key beider Richtungen — Tausch ist symmetrisch */
+  const pairKeyVariants = useCallback((aName: string, aAcc: string, bName: string, bAcc: string) => {
+    const k1 = `${aName}::${aAcc}::${bName}::${bAcc}`;
+    const k2 = `${bName}::${bAcc}::${aName}::${aAcc}`;
+    return [k1, k2];
+  }, []);
+
+  const buildKey = useCallback(
+    (left?: SwapChatter, right?: SwapChatter) => {
+      if (!left || !right) return "";
+      return `${left.name}::${left.account}::${right.name}::${right.account}`;
+    },
+    []
+  );
+
+  // Lade aktive Block-Einträge aus swap_decisions
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("swap_decisions")
+        .select("chatter_a, chatter_b, model_a, model_b, status, snoozed_until")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .or(`status.eq.approved,snoozed_until.gt.${nowIso}`);
+      if (cancelled || error || !data) return;
+      const blocked = new Set<string>();
+      for (const row of data) {
+        const aName = row.chatter_a || "";
+        const bName = row.chatter_b || "";
+        const aAcc = row.model_a || "";
+        const bAcc = row.model_b || "";
+        for (const k of pairKeyVariants(aName, aAcc, bName, bAcc)) blocked.add(k);
+      }
+      setPersistedBlocked(blocked);
+    })();
+    return () => { cancelled = true; };
+  }, [platform, pairKeyVariants]);
+
+  // Reset alt-overrides when pair index changes
   useEffect(() => {
     setLeftAltIdx(0);
     setRightAltIdx(0);
@@ -235,14 +280,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     let i = pairIdx;
     while (i < allPairs.length) {
       const p = allPairs[i];
-      const key = `${p.left.key}::${p.right.key}`;
-      if (!dismissed.has(key)) return p;
+      const sessionKey = `${p.left.key}::${p.right.key}`;
+      const dbKey = buildKey(p.left, p.right);
+      if (!dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
       i++;
     }
     return undefined;
-  }, [allPairs, pairIdx, dismissed]);
+  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey]);
 
-  // Resolve current visible left/right with overrides
   const visibleLeft: SwapChatter | undefined = useMemo(() => {
     if (!currentPair) return undefined;
     if (leftAltIdx === 0) return currentPair.left;
@@ -255,7 +300,6 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     return currentPair.rightAlternatives[rightAltIdx - 1] || currentPair.right;
   }, [currentPair, rightAltIdx]);
 
-  // Recompute expected gain for the current visible combination using peer-cluster median × skill-factor
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
     const skillFactor = Math.max(0.3, visibleLeft.skillScore / 0.5);
@@ -275,16 +319,16 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setPairIdx((i) => i + 1);
   }, []);
 
-  const dismissCurrentPair = useCallback(() => {
-    if (!currentPair) return;
-    const key = `${currentPair.left.key}::${currentPair.right.key}`;
+  /** Lokal aus dem Stack entfernen (für visuellen Wechsel zur nächsten Karte) */
+  const removeFromStack = useCallback((left: SwapChatter, right: SwapChatter) => {
+    const sessionKey = `${left.key}::${right.key}`;
     setDismissed((prev) => {
       const n = new Set(prev);
-      n.add(key);
+      n.add(sessionKey);
       return n;
     });
     advancePair();
-  }, [currentPair, advancePair]);
+  }, [advancePair]);
 
   const copyChatterName = useCallback(async (name: string) => {
     const display = name.replace(/_/g, " ");
@@ -316,47 +360,83 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setRightAltIdx((i) => (i + 1) % total);
   }, [currentPair]);
 
-  const approveSwap = useCallback(async () => {
-    if (!visibleLeft || !visibleRight) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("Nicht angemeldet");
-      return;
-    }
-    const { error } = await supabase.from("swap_decisions").insert({
-      user_id: user.id,
-      platform,
-      chatter_a: visibleLeft.name,
-      chatter_b: visibleRight.name,
-      model_a: visibleLeft.account,
-      model_b: visibleRight.account,
-      status: "approved",
-    });
-    if (error) {
-      toast.error("Konnte Tausch nicht speichern");
-      return;
-    }
-    toast.success(`Tausch gespeichert: +${formatEur(visibleGain)}/Tag`);
-    advancePair();
-  }, [visibleLeft, visibleRight, platform, visibleGain, advancePair]);
-
-  const rejectSwap = useCallback(async () => {
-    if (!visibleLeft || !visibleRight) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("swap_decisions").insert({
+  /** Persistiert eine Decision in der DB und aktualisiert den lokalen Block-Cache */
+  const persistDecision = useCallback(
+    async (
+      left: SwapChatter,
+      right: SwapChatter,
+      status: "approved" | "rejected" | "snoozed",
+      snoozeDays: number | null
+    ) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Nicht angemeldet");
+        return false;
+      }
+      const snoozedUntil =
+        snoozeDays !== null
+          ? new Date(Date.now() + snoozeDays * 24 * 60 * 60 * 1000).toISOString()
+          : null;
+      const { error } = await supabase.from("swap_decisions").insert({
         user_id: user.id,
         platform,
-        chatter_a: visibleLeft.name,
-        chatter_b: visibleRight.name,
-        model_a: visibleLeft.account,
-        model_b: visibleRight.account,
-        status: "rejected",
+        chatter_a: left.name,
+        chatter_b: right.name,
+        model_a: left.account,
+        model_b: right.account,
+        status,
+        snoozed_until: snoozedUntil,
       });
-    }
-    toast("Verworfen", { icon: "✗" });
-    dismissCurrentPair();
-  }, [visibleLeft, visibleRight, platform, dismissCurrentPair]);
+      if (error) {
+        toast.error("Konnte Entscheidung nicht speichern");
+        return false;
+      }
+      // Lokal cachen damit es sofort weg ist
+      const keys = pairKeyVariants(left.name, left.account, right.name, right.account);
+      setPersistedBlocked((prev) => {
+        const n = new Set(prev);
+        for (const k of keys) n.add(k);
+        return n;
+      });
+      return true;
+    },
+    [platform, pairKeyVariants]
+  );
+
+  const approveSwap = useCallback(async () => {
+    if (!visibleLeft || !visibleRight) return;
+    const ok = await persistDecision(visibleLeft, visibleRight, "approved", null);
+    if (!ok) return;
+    toast.success(`Tausch gespeichert: +${formatEur(visibleGain)}/Tag`);
+    advancePair();
+  }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision]);
+
+  /** Skip (↑ swipe) → automatisch 1 Tag snoozen */
+  const skipPair = useCallback(async () => {
+    if (!visibleLeft || !visibleRight) return;
+    await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
+    toast("Für 1 Tag ausgeblendet", { icon: "🕒" });
+    removeFromStack(visibleLeft, visibleRight);
+  }, [visibleLeft, visibleRight, persistDecision, removeFromStack]);
+
+  /** Roter X → öffnet Modal mit 1/7/30 Tage Auswahl */
+  const openRejectModal = useCallback(() => {
+    if (!visibleLeft || !visibleRight) return;
+    setRejectModalOpen(true);
+  }, [visibleLeft, visibleRight]);
+
+  const confirmReject = useCallback(
+    async (days: number) => {
+      if (!visibleLeft || !visibleRight) return;
+      await persistDecision(visibleLeft, visibleRight, "rejected", days);
+      const label = days === 1 ? "1 Tag" : `${days} Tage`;
+      toast(`Verworfen für ${label}`, { icon: "✗" });
+      setRejectModalOpen(false);
+      removeFromStack(visibleLeft, visibleRight);
+    },
+    [visibleLeft, visibleRight, persistDecision, removeFromStack]
+  );
+
 
   if (allPairs.length === 0) {
     return (
@@ -444,7 +524,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 side="left"
                 onSwipeLeft={cycleLeftAlt}
                 onSwipeRight={approveSwap}
-                onSwipeUp={dismissCurrentPair}
+                onSwipeUp={skipPair}
                 onSingleClick={() => copyChatterName(visibleLeft.name)}
                 onDoubleClick={() => setProfileOpen(true)}
               />
@@ -490,7 +570,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 side="right"
                 onSwipeLeft={cycleRightAlt}
                 onSwipeRight={approveSwap}
-                onSwipeUp={dismissCurrentPair}
+                onSwipeUp={skipPair}
                 onSingleClick={() => copyChatterName(visibleRight.name)}
                 onDoubleClick={() => setProfileOpen(true)}
               />
@@ -501,7 +581,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {/* Hint row */}
         <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
-            Klick = Name kopieren · Doppelklick = Profil-Vergleich · Swipe oder Buttons unten
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen (Dauer wählen) · ✓ Genehmigen
           </span>
         </div>
 
@@ -510,7 +590,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           <Button
             variant="outline"
             size="icon"
-            onClick={rejectSwap}
+            onClick={openRejectModal}
             className="h-12 w-12 lg:h-14 lg:w-14 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
             title="Pairing verwerfen"
           >
@@ -519,7 +599,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           <Button
             variant="outline"
             size="icon"
-            onClick={dismissCurrentPair}
+            onClick={skipPair}
             className="h-10 w-10 lg:h-12 lg:w-12 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
             title="Überspringen"
           >
@@ -614,6 +694,61 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                   />
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reject Modal — choose snooze duration */}
+      <AnimatePresence>
+        {rejectModalOpen && (
+          <motion.div
+            key="reject-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setRejectModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 20, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-zinc-950 p-5 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <X className="h-4 w-4 text-red-400" />
+                <h3 className="text-sm font-semibold text-foreground">Pairing verwerfen</h3>
+              </div>
+              <p className="text-xs text-white/55 mb-4">
+                Wie lange soll dieses Pairing nicht mehr vorgeschlagen werden?
+              </p>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[
+                  { days: 1, label: "1 Tag" },
+                  { days: 7, label: "7 Tage" },
+                  { days: 30, label: "30 Tage" },
+                ].map((opt) => (
+                  <button
+                    key={opt.days}
+                    onClick={() => confirmReject(opt.days)}
+                    className="rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-300 transition-colors py-3 px-2 text-sm font-medium text-foreground"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRejectModalOpen(false)}
+                className="w-full text-xs text-white/50 hover:text-white"
+              >
+                Abbrechen
+              </Button>
             </motion.div>
           </motion.div>
         )}

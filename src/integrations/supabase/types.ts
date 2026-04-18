@@ -373,6 +373,7 @@ export type Database = {
           model_a: string | null
           model_b: string | null
           platform: string
+          snoozed_until: string | null
           status: string
           user_id: string
         }
@@ -384,6 +385,7 @@ export type Database = {
           model_a?: string | null
           model_b?: string | null
           platform?: string
+          snoozed_until?: string | null
           status?: string
           user_id: string
         }
@@ -395,6 +397,7 @@ export type Database = {
           model_a?: string | null
           model_b?: string | null
           platform?: string
+          snoozed_until?: string | null
           status?: string
           user_id?: string
         }
