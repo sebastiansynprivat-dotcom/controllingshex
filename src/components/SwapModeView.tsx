@@ -517,13 +517,23 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           </Button>
           <Button
             variant="outline"
-          size="icon"
-          onClick={approveSwap}
-          className="h-12 w-12 rounded-full border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
-          title="Tausch genehmigen"
-        >
-          <Check className="h-5 w-5" />
-        </Button>
+            size="icon"
+            onClick={dismissCurrentPair}
+            className="h-10 w-10 lg:h-12 lg:w-12 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+            title="Überspringen"
+          >
+            <ChevronUp className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={approveSwap}
+            className="h-12 w-12 lg:h-14 lg:w-14 rounded-full border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+            title="Tausch genehmigen"
+          >
+            <Check className="h-5 w-5 lg:h-6 lg:w-6" />
+          </Button>
+        </div>
       </div>
 
       {/* Split-View Performance Profile Overlay */}
