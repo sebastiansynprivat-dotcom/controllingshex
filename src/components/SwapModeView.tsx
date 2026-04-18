@@ -698,6 +698,61 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Reject Modal — choose snooze duration */}
+      <AnimatePresence>
+        {rejectModalOpen && (
+          <motion.div
+            key="reject-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setRejectModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 20, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-zinc-950 p-5 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <X className="h-4 w-4 text-red-400" />
+                <h3 className="text-sm font-semibold text-foreground">Pairing verwerfen</h3>
+              </div>
+              <p className="text-xs text-white/55 mb-4">
+                Wie lange soll dieses Pairing nicht mehr vorgeschlagen werden?
+              </p>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[
+                  { days: 1, label: "1 Tag" },
+                  { days: 7, label: "7 Tage" },
+                  { days: 30, label: "30 Tage" },
+                ].map((opt) => (
+                  <button
+                    key={opt.days}
+                    onClick={() => confirmReject(opt.days)}
+                    className="rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-300 transition-colors py-3 px-2 text-sm font-medium text-foreground"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRejectModalOpen(false)}
+                className="w-full text-xs text-white/50 hover:text-white"
+              >
+                Abbrechen
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
