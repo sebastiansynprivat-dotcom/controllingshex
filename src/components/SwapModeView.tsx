@@ -1,24 +1,28 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence, type PanInfo } from "framer-motion";
-import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles } from "lucide-react";
+import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   computeSwapCandidates,
   formatEur,
-  formatEfficiency,
+  formatSkill,
+  tierColor,
   type SwapPair,
   type SwapChatter,
   type SwapInput,
   type SwapModelInfo,
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
+import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
+import { findCluster } from "@/lib/peer-benchmarks";
 
 interface Props {
   platform: string;
   chatters: SwapInput[];
   models: SwapModelInfo[];
+  benchmarks?: BenchmarkBundle | null;
 }
 
 const SWIPE_THRESHOLD = 120; // gemäß Memory: nur Distanz, keine velocity
@@ -82,7 +86,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp }: M
         style={{
           background: `radial-gradient(120% 80% at 50% 0%, hsl(${accentHsl} / 0.18) 0%, transparent 60%), linear-gradient(180deg, hsl(240 6% 8%) 0%, hsl(240 6% 4%) 100%)`,
           borderColor: `hsl(${accentHsl} / 0.25)`,
-          minHeight: 280,
+          minHeight: 320,
         }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -96,35 +100,94 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp }: M
           >
             {tag}
           </span>
-          <div className="flex items-center gap-1 text-[10px] text-white/40">
-            <Users className="h-3 w-3" />
-            {formatFollowers(chatter.followers)}
-          </div>
+          <span
+            className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md border"
+            style={{
+              color: `hsl(${tierColor(chatter.tier)})`,
+              borderColor: `hsl(${tierColor(chatter.tier)} / 0.35)`,
+              background: `hsl(${tierColor(chatter.tier)} / 0.08)`,
+            }}
+          >
+            {chatter.tier}
+          </span>
         </div>
 
         <h3 className="text-lg font-semibold text-foreground capitalize truncate mb-0.5">
           {chatter.name.replace(/_/g, " ")}
         </h3>
-        <p className="text-xs text-white/40 mb-4 truncate">@ {chatter.account}</p>
+        <p className="text-xs text-white/40 mb-1 truncate">@ {chatter.account}</p>
+        <p className="text-[10px] text-white/35 mb-3 inline-flex items-center gap-1">
+          <Users className="h-3 w-3" />
+          {formatFollowers(chatter.followers)} Follower
+        </p>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-[9px] uppercase tracking-wider text-white/40 mb-1">Heute</p>
-            <p className="text-base font-bold text-foreground">{formatEur(chatter.currentRevenue)}</p>
+        {/* Skill-Score Bar */}
+        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 mb-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
+              <Zap className="h-2.5 w-2.5" /> Skill-Score
+            </span>
+            <span className="text-sm font-bold" style={{ color: `hsl(${accentHsl})` }}>
+              {formatSkill(chatter.skillScore)}
+            </span>
           </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-[9px] uppercase tracking-wider text-white/40 mb-1">Effizienz</p>
-            <p className="text-base font-bold" style={{ color: `hsl(${accentHsl})` }}>
-              {formatEfficiency(chatter.efficiency)}
-            </p>
+          <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.round(chatter.skillScore * 100)}%`,
+                background: `linear-gradient(90deg, hsl(${accentHsl} / 0.6), hsl(${accentHsl}))`,
+              }}
+            />
           </div>
         </div>
 
-        <div className="mt-4 text-[10px] text-white/35 text-center">
+        {/* Skill-Breakdown Mini-Icons */}
+        <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+          <SkillPill icon={MessageSquare} label="DMs" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
+          <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
+          <SkillPill icon={Inbox} label="Chat" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
+          <SkillPill icon={TrendingUp} label="€/F" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2">
+            <p className="text-[8px] uppercase tracking-wider text-white/40">7T-Ø</p>
+            <p className="text-xs font-semibold text-foreground">{formatEur(chatter.avgRevenue)}</p>
+          </div>
+          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2">
+            <p className="text-[8px] uppercase tracking-wider text-white/40">Heute</p>
+            <p className="text-xs font-semibold text-foreground">{formatEur(chatter.currentRevenue)}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 text-[10px] text-white/35 text-center">
           ← anderer Kandidat &nbsp;·&nbsp; ↑ verwerfen &nbsp;·&nbsp; → genehmigen
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function SkillPill({
+  icon: Icon,
+  label,
+  value,
+  accentHsl,
+}: {
+  icon: typeof Zap;
+  label: string;
+  value: number;
+  accentHsl: string;
+}) {
+  return (
+    <div className="rounded-md bg-white/[0.02] border border-white/[0.05] py-1.5 px-1 flex flex-col items-center">
+      <Icon className="h-2.5 w-2.5 text-white/45 mb-0.5" />
+      <span className="text-[8px] uppercase tracking-wider text-white/35">{label}</span>
+      <span className="text-[10px] font-semibold mt-0.5" style={{ color: `hsl(${accentHsl})` }}>
+        {Math.round(value * 100)}
+      </span>
+    </div>
   );
 }
 
