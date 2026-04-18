@@ -193,7 +193,7 @@ export default function Models() {
   const saveEdit = async () => {
     if (!editId || !editName.trim()) return;
     const { error } = await supabase.from("models").update({
-      model_name: editName.trim(),
+      model_name: capitalizeName(editName),
       follower_count: parseInt(editFollowers) || 0,
       email: editEmail.trim() || null,
       password: editPassword.trim() || null,
