@@ -305,6 +305,7 @@ function buildEnriched(
         avgOpenChats: b.avgOpenChats * share,
         avgResponseDelay: b.avgResponseDelay, // Chatter-weit
         skillScore: skillEntry.skill,
+        firstSeen: b.firstSeen,
         scoreBreakdown: skillEntry.breakdown,
       });
     });
