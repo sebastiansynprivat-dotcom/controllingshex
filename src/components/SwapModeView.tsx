@@ -220,10 +220,37 @@ function SkillPill({
 }
 
 export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
-  const allPairs = useMemo(
+  const autoPairs = useMemo(
     () => computeSwapCandidates(chatters, models, benchmarks ?? null),
     [chatters, models, benchmarks]
   );
+
+  /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
+  const [manualChatterName, setManualChatterName] = useState<string | null>(null);
+  const [manualPickerOpen, setManualPickerOpen] = useState(false);
+  const [manualSearch, setManualSearch] = useState("");
+
+  const allChatterOptions = useMemo(
+    () => listAllSwapChatters(chatters, models),
+    [chatters, models]
+  );
+  /** Pro Chatter-Name nur 1 Eintrag (mit höchstem Skill) für Auswahl */
+  const uniqueChatterOptions = useMemo(() => {
+    const map = new Map<string, SwapChatter>();
+    for (const c of allChatterOptions) {
+      const existing = map.get(c.name);
+      if (!existing || c.skillScore > existing.skillScore) map.set(c.name, c);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allChatterOptions]);
+
+  const manualPairs = useMemo(() => {
+    if (!manualChatterName) return null;
+    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8);
+  }, [manualChatterName, chatters, models, benchmarks]);
+
+  const allPairs = manualPairs ?? autoPairs;
+  const isManualMode = manualPairs !== null;
 
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
