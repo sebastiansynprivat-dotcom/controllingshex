@@ -102,11 +102,12 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
       className="relative w-full rounded-3xl overflow-hidden border select-none cursor-grab active:cursor-grabbing"
     >
       <div
-        className="p-5"
+        className="p-5 lg:p-7"
         style={{
-          background: `radial-gradient(120% 80% at 50% 0%, hsl(${accentHsl} / 0.18) 0%, transparent 60%), linear-gradient(180deg, hsl(240 6% 8%) 0%, hsl(240 6% 4%) 100%)`,
-          borderColor: `hsl(${accentHsl} / 0.25)`,
+          background: `radial-gradient(120% 80% at 50% 0%, hsl(${accentHsl} / 0.22) 0%, transparent 60%), linear-gradient(180deg, hsl(240 6% 9%) 0%, hsl(240 6% 4%) 100%)`,
+          borderColor: `hsl(${accentHsl} / 0.28)`,
           minHeight: 320,
+          boxShadow: `0 20px 60px -20px hsl(${accentHsl} / 0.35), inset 0 1px 0 hsl(${accentHsl} / 0.12)`,
         }}
       >
         <div className="flex items-center justify-between mb-3">
