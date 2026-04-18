@@ -1066,6 +1066,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           </motion.div>
         )}
       </AnimatePresence>
+
+      {renderManualPicker()}
     </div>
   );
 }
