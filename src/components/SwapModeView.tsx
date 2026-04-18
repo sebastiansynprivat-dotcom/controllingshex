@@ -233,13 +233,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   /** Stack der letzten Aktionen für Undo (max 20) */
   type HistoryEntry = {
+    /** DB-ID falls eine Decision persistiert wurde (sonst null bei Alt-Cycle) */
     decisionId: string | null;
     pairKeys: string[];
     sessionKey: string;
     pairIdxBefore: number;
     leftAltIdxBefore: number;
     rightAltIdxBefore: number;
-    action: "approved" | "rejected" | "snoozed";
+    action: "approved" | "rejected" | "snoozed" | "alt-left" | "alt-right";
     leftName: string;
     rightName: string;
   };
@@ -358,24 +359,52 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }, []);
 
   const cycleLeftAlt = useCallback(() => {
-    if (!currentPair) return;
+    if (!currentPair || !visibleLeft || !visibleRight) return;
     const total = 1 + currentPair.leftAlternatives.length;
     if (total <= 1) {
       toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
       return;
     }
+    setHistory((prev) => [
+      ...prev,
+      {
+        decisionId: null,
+        pairKeys: [],
+        sessionKey: "",
+        pairIdxBefore: pairIdx,
+        leftAltIdxBefore: leftAltIdx,
+        rightAltIdxBefore: rightAltIdx,
+        action: "alt-left" as const,
+        leftName: visibleLeft.name,
+        rightName: visibleRight.name,
+      },
+    ].slice(-20));
     setLeftAltIdx((i) => (i + 1) % total);
-  }, [currentPair]);
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
 
   const cycleRightAlt = useCallback(() => {
-    if (!currentPair) return;
+    if (!currentPair || !visibleLeft || !visibleRight) return;
     const total = 1 + currentPair.rightAlternatives.length;
     if (total <= 1) {
       toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
       return;
     }
+    setHistory((prev) => [
+      ...prev,
+      {
+        decisionId: null,
+        pairKeys: [],
+        sessionKey: "",
+        pairIdxBefore: pairIdx,
+        leftAltIdxBefore: leftAltIdx,
+        rightAltIdxBefore: rightAltIdx,
+        action: "alt-right" as const,
+        leftName: visibleLeft.name,
+        rightName: visibleRight.name,
+      },
+    ].slice(-20));
     setRightAltIdx((i) => (i + 1) % total);
-  }, [currentPair]);
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
