@@ -479,6 +479,88 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           <Check className="h-5 w-5" />
         </Button>
       </div>
+
+      {/* Split-View Performance Profile Overlay */}
+      <AnimatePresence>
+        {profileOpen && (
+          <motion.div
+            key="swap-profile-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-stretch justify-center p-2 sm:p-4"
+            onClick={() => setProfileOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 30, scale: 0.98, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-[1400px] h-full bg-zinc-950 rounded-2xl border border-white/[0.08] shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-zinc-900/60">
+                <div className="flex items-center gap-2">
+                  <ArrowLeftRight className="h-4 w-4" style={{ color: "hsl(40 50% 70%)" }} />
+                  <span className="text-xs uppercase tracking-wider text-white/55 font-medium">Performance-Vergleich</span>
+                </div>
+                <button
+                  onClick={() => setProfileOpen(false)}
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  aria-label="Schließen"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.06] overflow-hidden">
+                <div className="min-h-0 overflow-y-auto relative">
+                  <div className="sticky top-0 z-10 px-4 py-2 bg-zinc-950/90 backdrop-blur border-b border-white/[0.06]">
+                    <span
+                      className="text-[9px] uppercase tracking-[0.18em] font-semibold px-2 py-1 rounded-full border"
+                      style={{
+                        color: "hsl(152 70% 55%)",
+                        borderColor: "hsl(152 70% 45% / 0.35)",
+                        background: "hsl(152 70% 45% / 0.08)",
+                      }}
+                    >
+                      Underplaced · {visibleLeft.name.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                  <ChatterSlideOver
+                    open={profileOpen}
+                    onClose={() => setProfileOpen(false)}
+                    chatterName={visibleLeft.name}
+                    platform={platform}
+                    inline
+                  />
+                </div>
+                <div className="min-h-0 overflow-y-auto relative">
+                  <div className="sticky top-0 z-10 px-4 py-2 bg-zinc-950/90 backdrop-blur border-b border-white/[0.06]">
+                    <span
+                      className="text-[9px] uppercase tracking-[0.18em] font-semibold px-2 py-1 rounded-full border"
+                      style={{
+                        color: "hsl(0 84% 65%)",
+                        borderColor: "hsl(0 84% 60% / 0.35)",
+                        background: "hsl(0 84% 60% / 0.08)",
+                      }}
+                    >
+                      Overplaced · {visibleRight.name.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                  <ChatterSlideOver
+                    open={profileOpen}
+                    onClose={() => setProfileOpen(false)}
+                    chatterName={visibleRight.name}
+                    platform={platform}
+                    inline
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
