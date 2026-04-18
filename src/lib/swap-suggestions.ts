@@ -95,7 +95,9 @@ export interface SwapPair {
   right: SwapChatter; // overplaced (sitzt auf zu starkem Account)
   /** Erwarteter Mehr-Umsatz pro Tag wenn left auf rights Account wechselt */
   expectedGain: number;
-  /** Tier-Sprung-Distanz (1 = nur 1 Tier rauf, 2 = 2 Tier rauf) */
+  /** Follower-Verhältnis right/left (kontinuierlich, z.B. 2.4 = 2.4× mehr Follower) */
+  followerRatio: number;
+  /** Tier-Sprung — nur noch fürs visuelle Label, nicht mehr als Filter */
   tierJump: number;
   leftAlternatives: SwapChatter[];
   rightAlternatives: SwapChatter[];
@@ -328,10 +330,14 @@ function computeExpectedGain(
 }
 
 export interface ComputeOptions {
-  /** Maximaler Tier-Sprung nach oben (default: 2) */
-  maxTierJump?: number;
-  /** Minimaler Skill-Differenz für Pairing (default: 0.20) */
+  /** Minimales Follower-Verhältnis right/left (default: 1.5 = Ziel hat mind. 50% mehr Follower) */
+  minFollowerRatio?: number;
+  /** Maximales Follower-Verhältnis (Sicherheits-Cap, default: 50 = niemand kriegt 50× größeren Account) */
+  maxFollowerRatio?: number;
+  /** Minimaler Skill-Differenz für Pairing (default: 0.13) */
   minSkillDiff?: number;
+  /** Anteil Top/Bottom des Skill-Pools für Kandidaten-Auswahl (default: 0.4 = Top/Bottom 40%) */
+  poolFraction?: number;
 }
 
 export function computeSwapCandidates(
@@ -340,8 +346,10 @@ export function computeSwapCandidates(
   bundle: BenchmarkBundle | null = null,
   opts: ComputeOptions = {}
 ): SwapPair[] {
-  const maxTierJump = opts.maxTierJump ?? 2;
-  const minSkillDiff = opts.minSkillDiff ?? 0.20;
+  const minFollowerRatio = opts.minFollowerRatio ?? 1.5;
+  const maxFollowerRatio = opts.maxFollowerRatio ?? 50;
+  const minSkillDiff = opts.minSkillDiff ?? 0.13;
+  const poolFraction = opts.poolFraction ?? 0.4;
 
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
@@ -349,12 +357,10 @@ export function computeSwapCandidates(
   const sortedBySkill = [...enriched].sort((a, b) => b.skillScore - a.skillScore);
   const n = sortedBySkill.length;
 
-  // Top-30% Skill = Underplaced-Kandidaten
-  // Bottom-30% Skill = Overplaced-Kandidaten
-  const topCount = Math.max(1, Math.ceil(n * 0.3));
-  const bottomCount = Math.max(1, Math.ceil(n * 0.3));
+  const topCount = Math.max(1, Math.ceil(n * poolFraction));
+  const bottomCount = Math.max(1, Math.ceil(n * poolFraction));
   const underplacedPool = sortedBySkill.slice(0, topCount);
-  const overplacedPool = sortedBySkill.slice(-bottomCount).reverse(); // niedrigster Skill zuerst
+  const overplacedPool = sortedBySkill.slice(-bottomCount).reverse();
 
   const pairs: SwapPair[] = [];
   const usedRight = new Set<string>();
@@ -362,52 +368,53 @@ export function computeSwapCandidates(
 
   for (const u of underplacedPool) {
     if (usedLeft.has(u.key)) continue;
-    const uTierIdx = tierIndex(u.tier);
 
-    let best: { right: SwapChatter; gain: number; jump: number } | null = null;
+    let best: { right: SwapChatter; gain: number; ratio: number } | null = null;
     for (const o of overplacedPool) {
       if (usedRight.has(o.key)) continue;
-      if (o.name === u.name) continue; // kein Self-Pairing zwischen Accounts desselben Chatters
-      const oTierIdx = tierIndex(o.tier);
-      const jump = oTierIdx - uTierIdx;
-      if (jump < 1) continue;
-      if (jump > maxTierJump) continue;
+      if (o.name === u.name) continue;
+      const uFollowers = Math.max(u.followers, 1);
+      const ratio = o.followers / uFollowers;
+      if (ratio < minFollowerRatio) continue;
+      if (ratio > maxFollowerRatio) continue;
       if (u.skillScore - o.skillScore < minSkillDiff) continue;
 
       const gain = computeExpectedGain(u, o, bundle);
       if (gain <= 0) continue;
-      if (!best || gain > best.gain) best = { right: o, gain, jump };
+      if (!best || gain > best.gain) best = { right: o, gain, ratio };
     }
     if (!best) continue;
     usedRight.add(best.right.key);
     usedLeft.add(u.key);
 
-    // Alternativen für rechte Karte
+    const uFollowers = Math.max(u.followers, 1);
     const rightAlts = overplacedPool.filter((o) => {
       if (o.key === best!.right.key) return false;
       if (o.name === u.name) return false;
-      const j = tierIndex(o.tier) - uTierIdx;
-      if (j < 1 || j > maxTierJump) return false;
+      const r = o.followers / uFollowers;
+      if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (u.skillScore - o.skillScore < minSkillDiff) return false;
       return computeExpectedGain(u, o, bundle) > 0;
     });
 
-    // Alternativen für linke Karte
-    const rightTierIdx = tierIndex(best.right.tier);
+    const rightFollowers = Math.max(best.right.followers, 1);
     const leftAlts = underplacedPool.filter((alt) => {
       if (alt.key === u.key) return false;
       if (alt.name === best!.right.name) return false;
-      const j = rightTierIdx - tierIndex(alt.tier);
-      if (j < 1 || j > maxTierJump) return false;
+      const r = rightFollowers / Math.max(alt.followers, 1);
+      if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (alt.skillScore - best!.right.skillScore < minSkillDiff) return false;
       return computeExpectedGain(alt, best!.right, bundle) > 0;
     });
+
+    const tierJump = Math.max(0, tierIndex(best.right.tier) - tierIndex(u.tier));
 
     pairs.push({
       left: u,
       right: best.right,
       expectedGain: best.gain,
-      tierJump: best.jump,
+      followerRatio: best.ratio,
+      tierJump,
       leftAlternatives: leftAlts,
       rightAlternatives: rightAlts,
     });

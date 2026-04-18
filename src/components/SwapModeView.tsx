@@ -373,12 +373,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           <span
             className="text-[9px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border bg-white/[0.02]"
             style={{
-              color: "hsl(40 50% 70%)",
-              borderColor: "hsl(40 45% 55% / 0.3)",
+              color: "hsl(200 60% 70%)",
+              borderColor: "hsl(200 55% 55% / 0.3)",
             }}
-            title="Tier-Sprung beim Tausch"
+            title="Wieviel mehr Follower der Ziel-Account hat"
           >
-            +{currentPair.tierJump} Tier
+            {currentPair.followerRatio.toFixed(1)}× Follower
           </span>
           <span
             className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border"
