@@ -224,7 +224,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     let i = pairIdx;
     while (i < allPairs.length) {
       const p = allPairs[i];
-      const key = `${p.left.name}::${p.right.name}`;
+      const key = `${p.left.key}::${p.right.key}`;
       if (!dismissed.has(key)) return p;
       i++;
     }
@@ -266,7 +266,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const dismissCurrentPair = useCallback(() => {
     if (!currentPair) return;
-    const key = `${currentPair.left.name}::${currentPair.right.name}`;
+    const key = `${currentPair.left.key}::${currentPair.right.key}`;
     setDismissed((prev) => {
       const n = new Set(prev);
       n.add(key);
@@ -398,7 +398,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       <div className="flex-1 min-h-0 grid grid-cols-2 gap-3 items-start relative">
         <AnimatePresence mode="popLayout">
           <motion.div
-            key={`L-${currentPair.left.name}-${leftAltIdx}`}
+            key={`L-${currentPair.left.key}-${leftAltIdx}`}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
@@ -431,7 +431,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
         <AnimatePresence mode="popLayout">
           <motion.div
-            key={`R-${currentPair.right.name}-${rightAltIdx}`}
+            key={`R-${currentPair.right.key}-${rightAltIdx}`}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
