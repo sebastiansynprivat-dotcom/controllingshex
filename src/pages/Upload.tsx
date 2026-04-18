@@ -468,9 +468,11 @@ function buildResultFromCsv(
     ? Array.from(csvMetrics.values()).reduce((sum, chatter) => sum + chatter.revenueToday, 0) / csvMetrics.size
     : 0;
 
-  for (const [normalizedName, metrics] of csvMetrics) {
-    const ai = aiLookup.get(normalizedName);
-    const history = getRelevantHistory(historyMap?.get(normalizedName));
+  for (const [compositeKey, metrics] of csvMetrics) {
+    // Composite key is `name::account[#n]` — strip suffix to look up AI/history by base name
+    const baseName = compositeKey.split("::")[0].split("#")[0];
+    const ai = aiLookup.get(baseName) || aiLookup.get(compositeKey);
+    const history = getRelevantHistory(historyMap?.get(baseName) || historyMap?.get(compositeKey));
     const daysSinceStart = getDaysSinceStart(metrics.startDate);
     const avgPastRevenue = history.length > 0
       ? history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length
