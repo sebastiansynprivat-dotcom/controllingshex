@@ -46,6 +46,20 @@ function formatEur(v: number) {
   return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
+function capitalizeName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  // Erster Buchstabe groß, Rest klein (pro Wort, falls mehrere)
+  return trimmed
+    .split(/(\s+)/)
+    .map((part) =>
+      /^\s+$/.test(part)
+        ? part
+        : part.charAt(0).toLocaleUpperCase("de-DE") + part.slice(1).toLocaleLowerCase("de-DE")
+    )
+    .join("");
+}
+
 export default function Models() {
   const { platform } = usePlatform();
   const { user } = useAuth();
