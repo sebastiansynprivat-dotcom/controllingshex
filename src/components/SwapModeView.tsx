@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence, type PanInfo } from "framer-motion";
-import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2 } from "lucide-react";
+import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2, UserPlus, Search } from "lucide-react";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   computeSwapCandidates,
+  computeManualSwapCandidates,
+  listAllSwapChatters,
   formatEur,
   formatSkill,
   tierColor,
@@ -217,10 +220,37 @@ function SkillPill({
 }
 
 export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
-  const allPairs = useMemo(
+  const autoPairs = useMemo(
     () => computeSwapCandidates(chatters, models, benchmarks ?? null),
     [chatters, models, benchmarks]
   );
+
+  /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
+  const [manualChatterName, setManualChatterName] = useState<string | null>(null);
+  const [manualPickerOpen, setManualPickerOpen] = useState(false);
+  const [manualSearch, setManualSearch] = useState("");
+
+  const allChatterOptions = useMemo(
+    () => listAllSwapChatters(chatters, models),
+    [chatters, models]
+  );
+  /** Pro Chatter-Name nur 1 Eintrag (mit höchstem Skill) für Auswahl */
+  const uniqueChatterOptions = useMemo(() => {
+    const map = new Map<string, SwapChatter>();
+    for (const c of allChatterOptions) {
+      const existing = map.get(c.name);
+      if (!existing || c.skillScore > existing.skillScore) map.set(c.name, c);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allChatterOptions]);
+
+  const manualPairs = useMemo(() => {
+    if (!manualChatterName) return null;
+    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8);
+  }, [manualChatterName, chatters, models, benchmarks]);
+
+  const allPairs = manualPairs ?? autoPairs;
+  const isManualMode = manualPairs !== null;
 
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
@@ -293,6 +323,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setLeftAltIdx(0);
     setRightAltIdx(0);
   }, [pairIdx]);
+
+  // Reset pair index + history when manual mode toggles
+  useEffect(() => {
+    setPairIdx(0);
+    setLeftAltIdx(0);
+    setRightAltIdx(0);
+  }, [manualChatterName]);
 
   const currentPair: SwapPair | undefined = useMemo(() => {
     let i = pairIdx;
@@ -565,15 +602,47 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
 
 
+  const manualBanner = isManualMode && manualChatterName ? (
+    <div className="flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+      <div className="flex items-center gap-2 text-xs text-white/70">
+        <UserPlus className="h-3.5 w-3.5 text-white/50" />
+        <span className="uppercase tracking-wider text-[10px] text-white/45">Manuelle Auswahl:</span>
+        <span className="font-semibold text-foreground capitalize">{manualChatterName.replace(/_/g, " ")}</span>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => { setManualChatterName(null); setHistory([]); }}
+        className="h-7 text-[11px] text-white/60 hover:text-white"
+      >
+        ← Zurück zu Auto-Vorschlägen
+      </Button>
+    </div>
+  ) : null;
+
   if (allPairs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
         <Sparkles className="h-8 w-8 text-white/30" />
-        <p className="text-sm text-foreground font-medium">Keine Tausch-Vorschläge</p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Es wurden keine Chatter gefunden, die deutlich über- oder unterperformen relativ zu ihren Followern.
-          Stelle sicher, dass Models mit Follower-Zahlen gepflegt sind und ein aktueller Report vorliegt.
+        <p className="text-sm text-foreground font-medium">
+          {isManualMode ? "Keine Tausch-Partner gefunden" : "Keine Tausch-Vorschläge"}
         </p>
+        <p className="text-xs text-muted-foreground max-w-xs">
+          {isManualMode
+            ? `Für ${manualChatterName?.replace(/_/g, " ")} gibt es keine Chatter mit passender Skill-/Follower-Konstellation.`
+            : "Es wurden keine Chatter gefunden, die deutlich über- oder unterperformen relativ zu ihren Followern. Stelle sicher, dass Models mit Follower-Zahlen gepflegt sind und ein aktueller Report vorliegt."}
+        </p>
+        <div className="flex gap-2 mt-2">
+          <Button variant="outline" size="sm" onClick={() => setManualPickerOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Chatter manuell wählen
+          </Button>
+          {isManualMode && (
+            <Button variant="ghost" size="sm" onClick={() => setManualChatterName(null)}>
+              Zurück
+            </Button>
+          )}
+        </div>
+        {renderManualPicker()}
       </div>
     );
   }
@@ -583,10 +652,111 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       <div className="flex flex-col items-center justify-center h-full gap-3">
         <div className="text-4xl">✅</div>
         <p className="text-sm text-foreground font-medium">Alle Tausch-Vorschläge durch</p>
-        <Button variant="outline" size="sm" onClick={() => { setPairIdx(0); setDismissed(new Set()); }}>
-          Nochmal durchgehen
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setPairIdx(0); setDismissed(new Set()); }}>
+            Nochmal durchgehen
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setManualPickerOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Chatter manuell wählen
+          </Button>
+        </div>
+        {renderManualPicker()}
       </div>
+    );
+  }
+
+  function renderManualPicker() {
+    const filtered = uniqueChatterOptions.filter((c) =>
+      c.name.toLowerCase().includes(manualSearch.toLowerCase())
+    );
+    return (
+      <AnimatePresence>
+        {manualPickerOpen && (
+          <motion.div
+            key="manual-picker"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[95] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setManualPickerOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 20, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-zinc-950 p-5 shadow-2xl flex flex-col max-h-[80vh]"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="h-4 w-4 text-white/60" />
+                <h3 className="text-sm font-semibold text-foreground">Chatter manuell wählen</h3>
+              </div>
+              <p className="text-xs text-white/55 mb-3">
+                Wähle einen Chatter — Finne berechnet passende Tausch-Partner basierend auf seinen Skill-Daten.
+              </p>
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40" />
+                <Input
+                  autoFocus
+                  placeholder="Chatter suchen…"
+                  value={manualSearch}
+                  onChange={(e) => setManualSearch(e.target.value)}
+                  className="pl-9 h-9 bg-white/[0.03] border-white/[0.08] text-sm"
+                />
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+                {filtered.length === 0 ? (
+                  <p className="text-xs text-white/40 text-center py-6">Keine Chatter gefunden</p>
+                ) : (
+                  <div className="space-y-1">
+                    {filtered.map((c) => (
+                      <button
+                        key={c.name}
+                        onClick={() => {
+                          setManualChatterName(c.name);
+                          setManualPickerOpen(false);
+                          setManualSearch("");
+                          setHistory([]);
+                        }}
+                        className="w-full flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors px-3 py-2 text-left"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground capitalize truncate">
+                            {c.name.replace(/_/g, " ")}
+                          </p>
+                          <p className="text-[10px] text-white/40 truncate">
+                            {c.tier} · Skill {formatSkill(c.skillScore)}
+                          </p>
+                        </div>
+                        <span
+                          className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border shrink-0"
+                          style={{
+                            color: `hsl(${tierColor(c.tier)})`,
+                            borderColor: `hsl(${tierColor(c.tier)} / 0.35)`,
+                            background: `hsl(${tierColor(c.tier)} / 0.08)`,
+                          }}
+                        >
+                          {c.tier}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setManualPickerOpen(false)}
+                className="w-full text-xs text-white/50 hover:text-white mt-3"
+              >
+                Abbrechen
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   }
 
@@ -594,17 +764,28 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     <div className="flex flex-col h-full overflow-hidden relative">
 
       <div className="flex flex-col h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
+        {manualBanner}
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
           <div className="flex items-baseline gap-2 lg:gap-3 shrink-0">
             <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
-              Wechsel-Vorschlag
+              {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
             </span>
             <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
               {pairIdx + 1} <span className="text-white/20">/ {allPairs.length}</span>
             </span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setManualPickerOpen(true)}
+              className="h-8 text-[11px] border-white/10 text-white/70 hover:text-white hover:bg-white/5"
+              title="Chatter manuell auswählen"
+            >
+              <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+              {isManualMode ? "Anderen wählen" : "Manuell wählen"}
+            </Button>
             <span
               className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full border bg-white/[0.02]"
               style={{
@@ -885,6 +1066,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           </motion.div>
         )}
       </AnimatePresence>
+
+      {renderManualPicker()}
     </div>
   );
 }

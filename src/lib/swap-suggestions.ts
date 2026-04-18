@@ -428,6 +428,103 @@ export function computeSwapCandidates(
 /*  FORMAT HELFER                                                       */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  MANUELLER MODUS — Vorschläge für einen einzelnen Chatter            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Liste aller verfügbaren Chatter (für Auswahl-UI).
+ * Liefert deduplizierte Chatter-Namen mit ihren aggregierten Daten.
+ */
+export function listAllSwapChatters(
+  chatters: SwapInput[],
+  models: SwapModelInfo[]
+): SwapChatter[] {
+  return buildEnriched(chatters, models);
+}
+
+/**
+ * Generiert Tausch-Vorschläge für EINEN ausgewählten Chatter (manueller Modus).
+ * Filter sind gelockert: zeigt immer was, auch wenn Skill-Diff/Ratio klein sind.
+ * Liefert Pairs in beide Richtungen:
+ *   - Wenn der gewählte Chatter underplaced ist → bessere Accounts
+ *   - Wenn er overplaced ist → schwächere Chatter die seinen Account übernehmen könnten
+ * Sortiert nach erwartetem Gain absteigend.
+ */
+export function computeManualSwapCandidates(
+  chatters: SwapInput[],
+  models: SwapModelInfo[],
+  selectedChatterName: string,
+  bundle: BenchmarkBundle | null = null,
+  limit = 8
+): SwapPair[] {
+  const enriched = buildEnriched(chatters, models);
+  if (enriched.length < 2) return [];
+
+  // Alle Account-Einträge des gewählten Chatters
+  const selectedEntries = enriched.filter(
+    (e) => e.name.toLowerCase() === selectedChatterName.toLowerCase()
+  );
+  if (selectedEntries.length === 0) return [];
+
+  // Skill-Median des Pools für underplaced/overplaced-Bestimmung
+  const sortedSkills = [...enriched].map((e) => e.skillScore).sort((a, b) => a - b);
+  const median = sortedSkills[Math.floor(sortedSkills.length / 2)] ?? 0.5;
+
+  const pairs: SwapPair[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const sel of selectedEntries) {
+    const isUnderplaced = sel.skillScore >= median;
+
+    for (const other of enriched) {
+      if (other.name === sel.name) continue;
+
+      // Pair-Variante deduplizieren (left::right vs right::left)
+      const k1 = `${sel.key}::${other.key}`;
+      const k2 = `${other.key}::${sel.key}`;
+      if (seenKeys.has(k1) || seenKeys.has(k2)) continue;
+
+      let left: SwapChatter;
+      let right: SwapChatter;
+      if (isUnderplaced) {
+        // Sel ist gut → soll besseren Account (mehr Follower) bekommen
+        if (other.followers <= sel.followers) continue;
+        left = sel;
+        right = other;
+      } else {
+        // Sel ist schwach → andere (bessere Skiller) sollten seinen Account übernehmen
+        if (other.followers >= sel.followers) continue;
+        if (other.skillScore <= sel.skillScore) continue;
+        left = other;
+        right = sel;
+      }
+
+      const gain = computeExpectedGain(left, right, bundle);
+      // Lockerer Modus: auch negative/kleine Gains zulassen, aber sortieren
+      seenKeys.add(k1);
+      const followerRatio = right.followers / Math.max(left.followers, 1);
+      const tierJump = Math.max(0, tierIndex(right.tier) - tierIndex(left.tier));
+      pairs.push({
+        left,
+        right,
+        expectedGain: gain,
+        followerRatio,
+        tierJump,
+        leftAlternatives: [],
+        rightAlternatives: [],
+      });
+    }
+  }
+
+  pairs.sort((a, b) => b.expectedGain - a.expectedGain);
+  return pairs.slice(0, limit);
+}
+
+/* ------------------------------------------------------------------ */
+/*  FORMAT HELFER                                                       */
+/* ------------------------------------------------------------------ */
+
 export function formatEur(n: number): string {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(Math.round(n)) + "€";
 }
