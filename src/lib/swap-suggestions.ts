@@ -61,21 +61,25 @@ export interface SwapModelInfo {
 }
 
 export interface SwapChatter {
+  /** Eindeutiger Key: "<chatter>::<account>" */
+  key: string;
+  /** Originaler Chatter-Name (Mensch) */
   name: string;
+  /** Konkreter Account dieses Eintrags (1 Eintrag pro Chatter×Account) */
   account: string;
   followers: number;
   tier: Tier;
-  /** Tagesumsatz heute */
+  /** Tagesumsatz heute (anteilig auf diesen Account) */
   currentRevenue: number;
-  /** 7-Tage-Schnitt Umsatz */
+  /** 7-Tage-Schnitt Umsatz (anteilig auf diesen Account) */
   avgRevenue: number;
-  /** 7-Tage-Schnitt Mass-DMs */
+  /** 7-Tage-Schnitt Mass-DMs (Chatter-weit, nicht anteilig — Disziplin) */
   avgMassDms: number;
-  /** 7-Tage-Schnitt offene Chats (niedriger = besser) */
+  /** 7-Tage-Schnitt offene Chats (anteilig auf diesen Account) */
   avgOpenChats: number;
-  /** 7-Tage-Schnitt Response-Delay (niedriger = besser) */
+  /** 7-Tage-Schnitt Response-Delay (Chatter-weit, nicht anteilig) */
   avgResponseDelay: number;
-  /** Skill-Score 0..1 */
+  /** Skill-Score 0..1 — auf CHATTER-Ebene berechnet, auf alle Accounts gespiegelt */
   skillScore: number;
   /** Sub-Scores für UI/Debugging */
   scoreBreakdown: {
