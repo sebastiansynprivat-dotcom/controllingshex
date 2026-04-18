@@ -69,8 +69,48 @@ interface CsvChatterMetrics {
   responseDelayDays: number;
 }
 
+/**
+ * Quote-aware splitter: respects CSV quoted fields (which may contain newlines & commas)
+ * so a "Note" or "Account" cell with a line break does NOT shatter the batch.
+ */
+function splitCsvIntoLogicalLines(csvData: string): string[] {
+  const lines: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < csvData.length; i++) {
+    const char = csvData[i];
+
+    if (char === '"') {
+      if (inQuotes && csvData[i + 1] === '"') {
+        current += '""';
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      current += char;
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      // handle \r\n
+      if (char === "\r" && csvData[i + 1] === "\n") i++;
+      const trimmed = current.trim();
+      if (trimmed) lines.push(trimmed);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const last = current.trim();
+  if (last) lines.push(last);
+  return lines;
+}
+
 function splitCsvIntoBatches(csvData: string): { header: string; batches: string[][] } {
-  const lines = csvData.split("\n").map(l => l.trim()).filter(Boolean);
+  const lines = splitCsvIntoLogicalLines(csvData);
   if (lines.length < 2) return { header: lines[0] || "", batches: [] };
   const header = lines[0];
   const dataLines = lines.slice(1);
@@ -180,7 +220,8 @@ function buildCsvMetricMap(csvData: string): Map<string, CsvChatterMetrics> {
   const massDmsIndex = findColumnIndex(headers, [/mass\s*dm(s)?/i, /massdm/i]);
 
   ensureRequiredColumn(nameIndex, "Name", headers);
-  ensureRequiredColumn(revenueIndex, "Tagesumsatz", headers);
+  // Tagesumsatz is no longer hard-required: missing/invalid values default to 0
+  // so chatters with empty revenue cells still appear in the report.
 
   for (const line of lines.slice(1)) {
     const values = parseCsvLine(line);
@@ -199,10 +240,21 @@ function buildCsvMetricMap(csvData: string): Map<string, CsvChatterMetrics> {
 
     if (responseDelayDays > 30) responseDelayDays = 0;
 
-    metrics.set(normalizeName(rawName), {
+    const accountRaw = accountIndex !== -1 ? values[accountIndex] || "" : "";
+    const baseKey = normalizeName(rawName);
+    // Disambiguate duplicate names by account so two "Sarah" on different
+    // accounts no longer overwrite each other.
+    const accountKey = accountRaw ? `::${normalizeName(accountRaw)}` : "";
+    let key = `${baseKey}${accountKey}`;
+    let suffix = 2;
+    while (metrics.has(key)) {
+      key = `${baseKey}${accountKey}#${suffix++}`;
+    }
+
+    metrics.set(key, {
       name: rawName.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
       startDate: startDateIndex !== -1 ? values[startDateIndex] || "" : "",
-      account: accountIndex !== -1 ? values[accountIndex] || "" : "",
+      account: accountRaw,
       revenueToday: revenueIndex !== -1 ? parseDecimal(values[revenueIndex]) : 0,
       massDms: massDmsIndex !== -1 ? parseInteger(values[massDmsIndex]) : 0,
       openChats,
@@ -416,9 +468,11 @@ function buildResultFromCsv(
     ? Array.from(csvMetrics.values()).reduce((sum, chatter) => sum + chatter.revenueToday, 0) / csvMetrics.size
     : 0;
 
-  for (const [normalizedName, metrics] of csvMetrics) {
-    const ai = aiLookup.get(normalizedName);
-    const history = getRelevantHistory(historyMap?.get(normalizedName));
+  for (const [compositeKey, metrics] of csvMetrics) {
+    // Composite key is `name::account[#n]` — strip suffix to look up AI/history by base name
+    const baseName = compositeKey.split("::")[0].split("#")[0];
+    const ai = aiLookup.get(baseName) || aiLookup.get(compositeKey);
+    const history = getRelevantHistory(historyMap?.get(baseName) || historyMap?.get(compositeKey));
     const daysSinceStart = getDaysSinceStart(metrics.startDate);
     const avgPastRevenue = history.length > 0
       ? history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length
