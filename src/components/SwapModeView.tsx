@@ -36,9 +36,10 @@ interface MiniCardProps {
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   onSwipeUp: () => void;
+  onClick?: () => void;
 }
 
-function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp }: MiniCardProps) {
+function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onClick }: MiniCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 0, 200], [-8, 0, 8]);
