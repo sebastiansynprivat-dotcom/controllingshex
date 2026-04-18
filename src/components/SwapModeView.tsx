@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence, type PanInfo } from "framer-motion";
-import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2 } from "lucide-react";
+import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2, UserPlus, Search } from "lucide-react";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   computeSwapCandidates,
+  computeManualSwapCandidates,
+  listAllSwapChatters,
   formatEur,
   formatSkill,
   tierColor,
