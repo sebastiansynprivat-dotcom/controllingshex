@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence, type PanInfo } from "framer-motion";
-import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox } from "lucide-react";
+import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2 } from "lucide-react";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -231,6 +231,19 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  /** Stack der letzten Aktionen für Undo (max 20) */
+  type HistoryEntry = {
+    decisionId: string | null;
+    pairKeys: string[];
+    sessionKey: string;
+    pairIdxBefore: number;
+    leftAltIdxBefore: number;
+    rightAltIdxBefore: number;
+    action: "approved" | "rejected" | "snoozed";
+    leftName: string;
+    rightName: string;
+  };
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   /** Pair-Key beider Richtungen — Tausch ist symmetrisch */
   const pairKeyVariants = useCallback((aName: string, aAcc: string, bName: string, bAcc: string) => {
@@ -364,24 +377,24 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setRightAltIdx((i) => (i + 1) % total);
   }, [currentPair]);
 
-  /** Persistiert eine Decision in der DB und aktualisiert den lokalen Block-Cache */
+  /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
     async (
       left: SwapChatter,
       right: SwapChatter,
       status: "approved" | "rejected" | "snoozed",
       snoozeDays: number | null
-    ) => {
+    ): Promise<string | null> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Nicht angemeldet");
-        return false;
+        return null;
       }
       const snoozedUntil =
         snoozeDays !== null
           ? new Date(Date.now() + snoozeDays * 24 * 60 * 60 * 1000).toISOString()
           : null;
-      const { error } = await supabase.from("swap_decisions").insert({
+      const { data, error } = await supabase.from("swap_decisions").insert({
         user_id: user.id,
         platform,
         chatter_a: left.name,
@@ -390,10 +403,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         model_b: right.account,
         status,
         snoozed_until: snoozedUntil,
-      });
-      if (error) {
+      }).select("id").single();
+      if (error || !data) {
         toast.error("Konnte Entscheidung nicht speichern");
-        return false;
+        return null;
       }
       // Lokal cachen damit es sofort weg ist
       const keys = pairKeyVariants(left.name, left.account, right.name, right.account);
@@ -402,26 +415,56 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         for (const k of keys) n.add(k);
         return n;
       });
-      return true;
+      return data.id;
     },
     [platform, pairKeyVariants]
   );
 
+  const pushHistory = useCallback(
+    (entry: HistoryEntry) => {
+      setHistory((prev) => [...prev, entry].slice(-20));
+    },
+    []
+  );
+
   const approveSwap = useCallback(async () => {
     if (!visibleLeft || !visibleRight) return;
-    const ok = await persistDecision(visibleLeft, visibleRight, "approved", null);
-    if (!ok) return;
+    const decisionId = await persistDecision(visibleLeft, visibleRight, "approved", null);
+    if (!decisionId) return;
+    pushHistory({
+      decisionId,
+      pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
+      sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "approved",
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+    });
     toast.success(`Tausch gespeichert: +${formatEur(visibleGain)}/Tag`);
     advancePair();
-  }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision]);
+  }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Skip (↑ swipe) → automatisch 1 Tag snoozen */
   const skipPair = useCallback(async () => {
     if (!visibleLeft || !visibleRight) return;
-    await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
+    const decisionId = await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
+    if (!decisionId) return;
+    pushHistory({
+      decisionId,
+      pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
+      sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "snoozed",
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+    });
     toast("Für 1 Tag ausgeblendet", { icon: "🕒" });
     removeFromStack(visibleLeft, visibleRight);
-  }, [visibleLeft, visibleRight, persistDecision, removeFromStack]);
+  }, [visibleLeft, visibleRight, persistDecision, removeFromStack, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Roter X → öffnet Modal mit 1/7/30 Tage Auswahl */
   const openRejectModal = useCallback(() => {
@@ -432,14 +475,65 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const confirmReject = useCallback(
     async (days: number) => {
       if (!visibleLeft || !visibleRight) return;
-      await persistDecision(visibleLeft, visibleRight, "rejected", days);
+      const decisionId = await persistDecision(visibleLeft, visibleRight, "rejected", days);
+      if (!decisionId) {
+        setRejectModalOpen(false);
+        return;
+      }
+      pushHistory({
+        decisionId,
+        pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
+        sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+        pairIdxBefore: pairIdx,
+        leftAltIdxBefore: leftAltIdx,
+        rightAltIdxBefore: rightAltIdx,
+        action: "rejected",
+        leftName: visibleLeft.name,
+        rightName: visibleRight.name,
+      });
       const label = days === 1 ? "1 Tag" : `${days} Tage`;
       toast(`Verworfen für ${label}`, { icon: "✗" });
       setRejectModalOpen(false);
       removeFromStack(visibleLeft, visibleRight);
     },
-    [visibleLeft, visibleRight, persistDecision, removeFromStack]
+    [visibleLeft, visibleRight, persistDecision, removeFromStack, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]
   );
+
+  /** Macht den letzten Swipe rückgängig: löscht DB-Eintrag + restored Index/Dismissed/Block-Cache */
+  const undoLast = useCallback(async () => {
+    if (history.length === 0) {
+      toast("Nichts zum Rückgängig-Machen", { icon: "ℹ️" });
+      return;
+    }
+    const last = history[history.length - 1];
+    // DB-Eintrag löschen
+    if (last.decisionId) {
+      const { error } = await supabase.from("swap_decisions").delete().eq("id", last.decisionId);
+      if (error) {
+        toast.error("Konnte nicht rückgängig machen");
+        return;
+      }
+    }
+    // State zurücksetzen
+    setPersistedBlocked((prev) => {
+      const n = new Set(prev);
+      for (const k of last.pairKeys) n.delete(k);
+      return n;
+    });
+    setDismissed((prev) => {
+      const n = new Set(prev);
+      n.delete(last.sessionKey);
+      return n;
+    });
+    setPairIdx(last.pairIdxBefore);
+    setLeftAltIdx(last.leftAltIdxBefore);
+    setRightAltIdx(last.rightAltIdxBefore);
+    setHistory((prev) => prev.slice(0, -1));
+    const display = last.leftName.replace(/_/g, " ") + " ↔ " + last.rightName.replace(/_/g, " ");
+    toast.success(`Rückgängig: ${display}`, { icon: "↩️" });
+  }, [history]);
+
+
 
 
   if (allPairs.length === 0) {
@@ -585,12 +679,22 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {/* Hint row */}
         <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
-            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen (Dauer wählen) · ✓ Genehmigen
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen · ✓ Genehmigen · ↩ Rückgängig
           </span>
         </div>
 
         {/* Action buttons */}
         <div className="flex items-center justify-center gap-3 lg:gap-5 mt-4 lg:mt-5">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={undoLast}
+            disabled={history.length === 0}
+            className="h-10 w-10 lg:h-12 lg:w-12 rounded-full border-white/10 text-white/60 hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            title={history.length === 0 ? "Nichts rückgängig zu machen" : `Letzte Aktion rückgängig (${history.length})`}
+          >
+            <Undo2 className="h-4 w-4 lg:h-5 lg:w-5" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
