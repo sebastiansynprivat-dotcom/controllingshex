@@ -191,8 +191,11 @@ function SkillPill({
   );
 }
 
-export default function SwapModeView({ platform, chatters, models }: Props) {
-  const allPairs = useMemo(() => computeSwapCandidates(chatters, models), [chatters, models]);
+export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
+  const allPairs = useMemo(
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null),
+    [chatters, models, benchmarks]
+  );
 
   const [pairIdx, setPairIdx] = useState(0);
   // Override of left/right chatter within current pair (when user swipes one side)
@@ -230,11 +233,21 @@ export default function SwapModeView({ platform, chatters, models }: Props) {
     return currentPair.rightAlternatives[rightAltIdx - 1] || currentPair.right;
   }, [currentPair, rightAltIdx]);
 
-  // Recompute expected gain for the current visible combination
+  // Recompute expected gain for the current visible combination using peer-cluster median × skill-factor
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
-    return Math.max(0, visibleLeft.efficiency * visibleRight.followers - visibleRight.currentRevenue);
-  }, [visibleLeft, visibleRight]);
+    const skillFactor = Math.max(0.3, visibleLeft.skillScore / 0.5);
+    let baseExpected: number;
+    const cluster = benchmarks ? findCluster(benchmarks, visibleRight.followers) : null;
+    if (cluster && cluster.median > 0 && cluster.confidence !== "low") {
+      baseExpected = cluster.median * skillFactor;
+    } else {
+      const ratio = Math.min(3, visibleRight.followers / Math.max(visibleLeft.followers, 1));
+      baseExpected = visibleLeft.avgRevenue * ratio * skillFactor;
+    }
+    const current = visibleRight.avgRevenue || visibleRight.currentRevenue;
+    return Math.max(0, baseExpected - current);
+  }, [visibleLeft, visibleRight, benchmarks]);
 
   const advancePair = useCallback(() => {
     setPairIdx((i) => i + 1);
