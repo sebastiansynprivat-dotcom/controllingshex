@@ -367,40 +367,45 @@ export function computeSwapCandidates(
 
   const pairs: SwapPair[] = [];
   const usedRight = new Set<string>();
+  const usedLeft = new Set<string>();
 
   for (const u of underplacedPool) {
+    if (usedLeft.has(u.key)) continue;
     const uTierIdx = tierIndex(u.tier);
 
     let best: { right: SwapChatter; gain: number; jump: number } | null = null;
     for (const o of overplacedPool) {
-      if (usedRight.has(o.name)) continue;
-      if (o.name === u.name) continue;
+      if (usedRight.has(o.key)) continue;
+      if (o.name === u.name) continue; // kein Self-Pairing zwischen Accounts desselben Chatters
       const oTierIdx = tierIndex(o.tier);
       const jump = oTierIdx - uTierIdx;
-      if (jump < 1) continue; // Ziel muss höheres Tier sein
-      if (jump > maxTierJump) continue; // kein Mega-Sprung
-      if (u.skillScore - o.skillScore < minSkillDiff) continue; // Skill-Differenz zu klein
+      if (jump < 1) continue;
+      if (jump > maxTierJump) continue;
+      if (u.skillScore - o.skillScore < minSkillDiff) continue;
 
       const gain = computeExpectedGain(u, o, bundle);
       if (gain <= 0) continue;
       if (!best || gain > best.gain) best = { right: o, gain, jump };
     }
     if (!best) continue;
-    usedRight.add(best.right.name);
+    usedRight.add(best.right.key);
+    usedLeft.add(u.key);
 
-    // Alternativen für rechte Karte: andere Overplaced, die mit u funktionieren
+    // Alternativen für rechte Karte
     const rightAlts = overplacedPool.filter((o) => {
-      if (o.name === best!.right.name || o.name === u.name) return false;
+      if (o.key === best!.right.key) return false;
+      if (o.name === u.name) return false;
       const j = tierIndex(o.tier) - uTierIdx;
       if (j < 1 || j > maxTierJump) return false;
       if (u.skillScore - o.skillScore < minSkillDiff) return false;
       return computeExpectedGain(u, o, bundle) > 0;
     });
 
-    // Alternativen für linke Karte: andere Underplaced, die mit best.right funktionieren
+    // Alternativen für linke Karte
     const rightTierIdx = tierIndex(best.right.tier);
     const leftAlts = underplacedPool.filter((alt) => {
-      if (alt.name === u.name || alt.name === best!.right.name) return false;
+      if (alt.key === u.key) return false;
+      if (alt.name === best!.right.name) return false;
       const j = rightTierIdx - tierIndex(alt.tier);
       if (j < 1 || j > maxTierJump) return false;
       if (alt.skillScore - best!.right.skillScore < minSkillDiff) return false;
