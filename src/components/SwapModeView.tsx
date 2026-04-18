@@ -231,6 +231,19 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  /** Stack der letzten Aktionen für Undo (max 20) */
+  type HistoryEntry = {
+    decisionId: string | null;
+    pairKeys: string[];
+    sessionKey: string;
+    pairIdxBefore: number;
+    leftAltIdxBefore: number;
+    rightAltIdxBefore: number;
+    action: "approved" | "rejected" | "snoozed";
+    leftName: string;
+    rightName: string;
+  };
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   /** Pair-Key beider Richtungen — Tausch ist symmetrisch */
   const pairKeyVariants = useCallback((aName: string, aAcc: string, bName: string, bAcc: string) => {
