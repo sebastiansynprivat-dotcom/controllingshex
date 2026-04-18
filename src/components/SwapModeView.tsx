@@ -31,6 +31,13 @@ interface Props {
 
 const SWIPE_THRESHOLD = 120; // gemäß Memory: nur Distanz, keine velocity
 
+/** Formatiert ISO-Datum (YYYY-MM-DD) als kompaktes deutsches Datum, z.B. "12. Apr 25" */
+function formatStartDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "2-digit" });
+}
+
 type Side = "left" | "right";
 
 interface MiniCardProps {
