@@ -845,7 +845,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                 side="left"
                 onSwipeLeft={cycleLeftAlt}
                 onSwipeRight={approveSwap}
-                onSwipeUp={skipPair}
+                onSwipeUp={cycleLeftAlt}
                 onSingleClick={() => copyChatterName(visibleLeft.name)}
                 onDoubleClick={() => setProfileOpen(true)}
               />
