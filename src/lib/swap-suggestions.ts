@@ -81,6 +81,8 @@ export interface SwapChatter {
   avgResponseDelay: number;
   /** Skill-Score 0..1 — auf CHATTER-Ebene berechnet, auf alle Accounts gespiegelt */
   skillScore: number;
+  /** Frühestes analysis_date aus History (ISO YYYY-MM-DD) — wann der Chatter zuerst erfasst wurde */
+  firstSeen: string | null;
   /** Sub-Scores für UI/Debugging */
   scoreBreakdown: {
     massDms: number;
