@@ -679,12 +679,22 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {/* Hint row */}
         <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
-            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen (Dauer wählen) · ✓ Genehmigen
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen · ✓ Genehmigen · ↩ Rückgängig
           </span>
         </div>
 
         {/* Action buttons */}
         <div className="flex items-center justify-center gap-3 lg:gap-5 mt-4 lg:mt-5">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={undoLast}
+            disabled={history.length === 0}
+            className="h-10 w-10 lg:h-12 lg:w-12 rounded-full border-white/10 text-white/60 hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            title={history.length === 0 ? "Nichts rückgängig zu machen" : `Letzte Aktion rückgängig (${history.length})`}
+          >
+            <Undo2 className="h-4 w-4 lg:h-5 lg:w-5" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
