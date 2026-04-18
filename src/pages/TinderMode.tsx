@@ -392,6 +392,16 @@ export default function TinderMode() {
     });
   }, [chatters, checkedNames]);
 
+  // Build SwapInputs from current chatters (extract today's revenue from KPIs)
+  const swapInputs = useMemo<SwapInput[]>(() => {
+    return chatters.map((c) => {
+      const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
+      const revStr = revKey ? c.kpis[revKey] : "0";
+      const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+      return { name: c.name, account: c.account, currentRevenue: rev };
+    });
+  }, [chatters]);
+
   // Filter unchecked chatters by selected category, label, and alerts
   const uncheckedChatters = useMemo(
     () => {
