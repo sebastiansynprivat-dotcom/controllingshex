@@ -47,17 +47,7 @@ function formatEur(v: number) {
 }
 
 function capitalizeName(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return "";
-  // Erster Buchstabe groß, Rest klein (pro Wort, falls mehrere)
-  return trimmed
-    .split(/(\s+)/)
-    .map((part) =>
-      /^\s+$/.test(part)
-        ? part
-        : part.charAt(0).toLocaleUpperCase("de-DE") + part.slice(1).toLocaleLowerCase("de-DE")
-    )
-    .join("");
+  return raw.toLocaleLowerCase("de-DE");
 }
 
 export default function Models() {
