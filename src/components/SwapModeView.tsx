@@ -359,24 +359,52 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }, []);
 
   const cycleLeftAlt = useCallback(() => {
-    if (!currentPair) return;
+    if (!currentPair || !visibleLeft || !visibleRight) return;
     const total = 1 + currentPair.leftAlternatives.length;
     if (total <= 1) {
       toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
       return;
     }
+    setHistory((prev) => [
+      ...prev,
+      {
+        decisionId: null,
+        pairKeys: [],
+        sessionKey: "",
+        pairIdxBefore: pairIdx,
+        leftAltIdxBefore: leftAltIdx,
+        rightAltIdxBefore: rightAltIdx,
+        action: "alt-left",
+        leftName: visibleLeft.name,
+        rightName: visibleRight.name,
+      },
+    ].slice(-20));
     setLeftAltIdx((i) => (i + 1) % total);
-  }, [currentPair]);
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
 
   const cycleRightAlt = useCallback(() => {
-    if (!currentPair) return;
+    if (!currentPair || !visibleLeft || !visibleRight) return;
     const total = 1 + currentPair.rightAlternatives.length;
     if (total <= 1) {
       toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
       return;
     }
+    setHistory((prev) => [
+      ...prev,
+      {
+        decisionId: null,
+        pairKeys: [],
+        sessionKey: "",
+        pairIdxBefore: pairIdx,
+        leftAltIdxBefore: leftAltIdx,
+        rightAltIdxBefore: rightAltIdx,
+        action: "alt-right",
+        leftName: visibleLeft.name,
+        rightName: visibleRight.name,
+      },
+    ].slice(-20));
     setRightAltIdx((i) => (i + 1) % total);
-  }, [currentPair]);
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
