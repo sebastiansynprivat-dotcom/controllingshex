@@ -1363,8 +1363,8 @@ export default function TinderMode() {
       )}
       </div>
 
-      {/* Right: Inline performance panel (desktop only) */}
-      {isDesktop && currentChatter && (
+      {/* Right: Inline performance panel (desktop only, only in swipe mode) */}
+      {isDesktop && mode === "swipe" && currentChatter && (
         <div className="w-1/2 h-full overflow-hidden">
           <ChatterSlideOver
             open={true}
