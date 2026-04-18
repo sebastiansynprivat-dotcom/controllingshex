@@ -174,6 +174,15 @@ function aggregate7Day(history?: HistoryRow[]): {
 /*  HAUPT-FUNKTION                                                      */
 /* ------------------------------------------------------------------ */
 
+/** Account-String "a, b, c" → ["a","b","c"] (leere/nur-Komma rausfiltern) */
+function splitAccounts(raw?: string): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((a) => a.trim())
+    .filter((a) => a.length > 0);
+}
+
 function buildEnriched(
   chatters: SwapInput[],
   models: SwapModelInfo[]
@@ -183,66 +192,119 @@ function buildEnriched(
     followerLookup.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
   }
 
-  // Erste Pass: Basisdaten sammeln
-  const base: Omit<SwapChatter, "skillScore" | "scoreBreakdown">[] = [];
+  // Pass 1: Pro Chatter aggregierte Stats berechnen (Skill-Score = Disziplin = pro Mensch)
+  type ChatterAgg = {
+    name: string;
+    accounts: string[];
+    avgRevenue: number;
+    avgMassDms: number;
+    avgOpenChats: number;
+    avgResponseDelay: number;
+    currentRevenue: number;
+  };
+  const chatterAggs: ChatterAgg[] = [];
   for (const c of chatters) {
-    const account = (c.account || "").trim();
-    if (!account) continue;
-    const followers = followerLookup.get(account.toLowerCase()) || 0;
+    const accounts = splitAccounts(c.account);
+    if (accounts.length === 0) continue;
     const agg = aggregate7Day(c.history);
-    // Wenn keine History UND kein Heute-Umsatz, gar nichts zu bewerten → skip
-    if (agg.avgRevenue === 0 && c.currentRevenue === 0 && agg.avgMassDms === 0) {
-      // Bleibt aber drin wenn er Mass-DMs schickt — Disziplin ist auch ohne Umsatz wertvoll
-      // Komplett-leere skippen
-      if (agg.avgOpenChats === 0 && agg.avgResponseDelay === 0) continue;
+    if (
+      agg.avgRevenue === 0 &&
+      c.currentRevenue === 0 &&
+      agg.avgMassDms === 0 &&
+      agg.avgOpenChats === 0 &&
+      agg.avgResponseDelay === 0
+    ) {
+      continue;
     }
-    base.push({
+    chatterAggs.push({
       name: c.name,
-      account,
-      followers,
-      tier: tierOf(followers),
-      currentRevenue: c.currentRevenue,
+      accounts,
       avgRevenue: agg.avgRevenue,
       avgMassDms: agg.avgMassDms,
       avgOpenChats: agg.avgOpenChats,
       avgResponseDelay: agg.avgResponseDelay,
+      currentRevenue: c.currentRevenue,
     });
   }
+  if (chatterAggs.length === 0) return [];
 
-  if (base.length === 0) return [];
+  // Pool-weite Verteilungen (auf CHATTER-Ebene → Skill-Score pro Mensch)
+  const allMassDms = chatterAggs.map((b) => b.avgMassDms);
+  const allDelays = chatterAggs.map((b) => b.avgResponseDelay);
+  const allOpenChats = chatterAggs.map((b) => b.avgOpenChats);
 
-  // Pool-weite Verteilungen für Min-Max-Normalisierung
-  const allMassDms = base.map((b) => b.avgMassDms);
-  const allDelays = base.map((b) => b.avgResponseDelay);
-  const allOpenChats = base.map((b) => b.avgOpenChats);
-  const allEfficiencies = base
-    .filter((b) => b.followers >= 100)
-    .map((b) => b.avgRevenue / Math.max(b.followers, 1));
+  // Effizienz pro Chatter: Gesamt-Revenue / Gesamt-Follower (über alle seine Accounts summiert)
+  const chatterTotalFollowers = chatterAggs.map((b) =>
+    b.accounts.reduce((sum, acc) => sum + (followerLookup.get(acc.toLowerCase()) || 0), 0)
+  );
+  const allEfficiencies = chatterAggs
+    .map((b, i) => (chatterTotalFollowers[i] >= 100 ? b.avgRevenue / Math.max(chatterTotalFollowers[i], 1) : null))
+    .filter((v): v is number => v !== null);
 
-  // Zweite Pass: Skill-Score berechnen
-  const enriched: SwapChatter[] = base.map((b) => {
+  // Pass 2: Skill-Score pro Chatter
+  const chatterSkill = new Map<
+    string,
+    { skill: number; breakdown: SwapChatter["scoreBreakdown"] }
+  >();
+  chatterAggs.forEach((b, i) => {
     const massScore = normalizeHigherBetter(b.avgMassDms, allMassDms);
     const respScore = normalizeLowerBetter(b.avgResponseDelay, allDelays);
     const throughScore = normalizeLowerBetter(b.avgOpenChats, allOpenChats);
-    const revScore = revenueEfficiencyScore(
-      { ...b, skillScore: 0, scoreBreakdown: { massDms: 0, response: 0, throughput: 0, revenue: 0 } } as SwapChatter,
-      allEfficiencies
-    );
+    const totalFollowers = chatterTotalFollowers[i];
+    let revScore: number;
+    if (totalFollowers < 100) {
+      revScore = 0.5; // Mini-Pool: kein Skill-Beweis möglich
+    } else {
+      const eff = b.avgRevenue / Math.max(totalFollowers, 1);
+      revScore = normalizeHigherBetter(eff, allEfficiencies);
+    }
     const skill =
       WEIGHTS.massDms * massScore +
       WEIGHTS.response * respScore +
       WEIGHTS.throughput * throughScore +
       WEIGHTS.revenue * revScore;
-    return {
-      ...b,
-      skillScore: Math.max(0, Math.min(1, skill)),
-      scoreBreakdown: {
+    chatterSkill.set(b.name, {
+      skill: Math.max(0, Math.min(1, skill)),
+      breakdown: {
         massDms: massScore,
         response: respScore,
         throughput: throughScore,
         revenue: revScore,
       },
-    };
+    });
+  });
+
+  // Pass 3: Pro (Chatter, Account) ein Eintrag erzeugen
+  // Stats werden ANTEILIG verteilt: Revenue/OpenChats follower-gewichtet wenn möglich,
+  // sonst gleichmäßig. MassDMs & ResponseDelay = Chatter-weit (Disziplin, nicht trennbar).
+  const enriched: SwapChatter[] = [];
+  chatterAggs.forEach((b) => {
+    const skillEntry = chatterSkill.get(b.name);
+    if (!skillEntry) return;
+    const followerByAcc = b.accounts.map((acc) => followerLookup.get(acc.toLowerCase()) || 0);
+    const totalFollowers = followerByAcc.reduce((s, v) => s + v, 0);
+    b.accounts.forEach((acc, idx) => {
+      const followers = followerByAcc[idx];
+      // Anteil: follower-gewichtet, fallback gleichmäßig
+      const share =
+        totalFollowers > 0
+          ? followers / totalFollowers
+          : 1 / b.accounts.length;
+      enriched.push({
+        key: `${b.name}::${acc}`,
+        name: b.name,
+        account: acc,
+        followers,
+        tier: tierOf(followers),
+        currentRevenue: b.currentRevenue * share,
+        avgRevenue: b.avgRevenue * share,
+        avgMassDms: b.avgMassDms, // Chatter-weit
+        avgOpenChats: b.avgOpenChats * share,
+        avgResponseDelay: b.avgResponseDelay, // Chatter-weit
+        skillScore: skillEntry.skill,
+        scoreBreakdown: skillEntry.breakdown,
+      });
+    });
   });
 
   return enriched;
