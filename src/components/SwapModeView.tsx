@@ -581,7 +581,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {/* Hint row */}
         <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
-            Klick = Name kopieren · Doppelklick = Profil-Vergleich · Swipe oder Buttons unten
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ Skip (1 Tag) · X Verwerfen (Dauer wählen) · ✓ Genehmigen
           </span>
         </div>
 
