@@ -135,16 +135,7 @@ function normalizeLowerBetter(value: number, allValues: number[]): number {
   return 1 - (value - min) / (max - min);
 }
 
-/**
- * Effizienz (rev/followers) auf 0..1 — als "Skill-Beweis" wenn der Account
- * groß genug ist um Geld zu verdienen.
- */
-function revenueEfficiencyScore(c: SwapChatter, allEfficiencies: number[]): number {
-  // Mini-Models (<100 Follower) bekommen neutrale 0.5 — kein Skill-Beweis möglich
-  if (c.followers < 100) return 0.5;
-  const eff = c.avgRevenue / Math.max(c.followers, 1);
-  return normalizeHigherBetter(eff, allEfficiencies);
-}
+// (Effizienz-Score wird inline in buildEnriched berechnet — auf Chatter-Ebene)
 
 /* ------------------------------------------------------------------ */
 /*  HISTORY → 7-TAGE-SCHNITTE                                           */
