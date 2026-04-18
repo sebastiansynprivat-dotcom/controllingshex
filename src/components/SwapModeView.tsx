@@ -233,13 +233,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   /** Stack der letzten Aktionen für Undo (max 20) */
   type HistoryEntry = {
+    /** DB-ID falls eine Decision persistiert wurde (sonst null bei Alt-Cycle) */
     decisionId: string | null;
     pairKeys: string[];
     sessionKey: string;
     pairIdxBefore: number;
     leftAltIdxBefore: number;
     rightAltIdxBefore: number;
-    action: "approved" | "rejected" | "snoozed";
+    action: "approved" | "rejected" | "snoozed" | "alt-left" | "alt-right";
     leftName: string;
     rightName: string;
   };
