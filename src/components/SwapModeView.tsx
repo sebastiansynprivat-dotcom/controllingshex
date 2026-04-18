@@ -212,6 +212,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Reset when pair changes
   useEffect(() => {
