@@ -95,7 +95,9 @@ export interface SwapPair {
   right: SwapChatter; // overplaced (sitzt auf zu starkem Account)
   /** Erwarteter Mehr-Umsatz pro Tag wenn left auf rights Account wechselt */
   expectedGain: number;
-  /** Tier-Sprung-Distanz (1 = nur 1 Tier rauf, 2 = 2 Tier rauf) */
+  /** Follower-Verhältnis right/left (kontinuierlich, z.B. 2.4 = 2.4× mehr Follower) */
+  followerRatio: number;
+  /** Tier-Sprung — nur noch fürs visuelle Label, nicht mehr als Filter */
   tierJump: number;
   leftAlternatives: SwapChatter[];
   rightAlternatives: SwapChatter[];
