@@ -121,6 +121,10 @@ export default function TinderMode() {
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
 
+  // Mode toggle: classic Swipe-Mode vs new Wechsel-Mode
+  const [mode, setMode] = useState<"swipe" | "swap">("swipe");
+  const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
+
   // Label state
   const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
   const [assignedLabelIds, setAssignedLabelIds] = useState<Set<string>>(new Set());
