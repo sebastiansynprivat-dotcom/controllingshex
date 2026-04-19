@@ -565,12 +565,6 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     [platform, pairKeyVariants]
   );
 
-  const pushHistory = useCallback(
-    (entry: HistoryEntry) => {
-      setHistory((prev) => [...prev, entry].slice(-20));
-    },
-    []
-  );
 
   const approveSwap = useCallback(async () => {
     if (!visibleLeft || !visibleRight) return;
