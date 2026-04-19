@@ -1264,10 +1264,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             >
               <div className="flex items-center gap-2 mb-1">
                 <X className="h-4 w-4 text-red-400" />
-                <h3 className="text-sm font-semibold text-foreground">Pairing verwerfen</h3>
+                <h3 className="text-sm font-semibold text-foreground">Später anzeigen</h3>
               </div>
               <p className="text-xs text-white/55 mb-4">
-                Wie lange soll dieses Pairing nicht mehr vorgeschlagen werden?
+                Wann soll dieses Pairing wieder vorgeschlagen werden?
               </p>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {[
