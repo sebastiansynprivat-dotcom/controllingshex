@@ -414,13 +414,19 @@ function buildBrezzelsPools(
   const cap = Math.min(level.poolSize, valid.length);
   const underplaced = ascByMismatch.slice(0, cap).map((x) => x.entry);
 
-  // Fix 2: Overplaced darf sich nicht mit Underplaced überschneiden — gleiche Person
-  // (egal welcher Account-Eintrag) wird ausgeschlossen.
-  const underplacedNames = new Set(underplaced.map((u) => u.name));
+  // Fix 2 (revidiert): De-Dup nur auf KEY-Ebene (Chatter+Account). Multi-Account-Chatter
+  // dürfen weiterhin mit Account A underplaced UND mit Account B overplaced auftauchen —
+  // genau das ist ja der interessante interne Tausch. Name-basierter Filter passiert in
+  // pairUp via `o.name === u.name`-Check pro Pair, nicht im Pool-Aufbau.
+  const underplacedKeys = new Set(underplaced.map((u) => u.key));
   const overplaced = descByMismatch
-    .filter((x) => !underplacedNames.has(x.entry.name))
+    .filter((x) => !underplacedKeys.has(x.entry.key))
     .slice(0, cap)
     .map((x) => x.entry);
+
+  console.log(
+    `[Brezzels swap] poolDedup: blocked ${underplaced.length} keys; overplaced kept ${overplaced.length}`
+  );
 
   return { underplaced, overplaced };
 }
