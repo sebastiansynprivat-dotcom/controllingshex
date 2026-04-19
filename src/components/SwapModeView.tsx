@@ -748,7 +748,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         rightName: visibleRight.name,
       });
       const label = days === 1 ? "1 Tag" : `${days} Tage`;
-      toast(`Verworfen für ${label}`, { icon: "✗" });
+      toast(`Später anzeigen (${label})`, { icon: "🕒" });
       setRejectModalOpen(false);
       removeFromStack(visibleLeft, visibleRight);
     },
