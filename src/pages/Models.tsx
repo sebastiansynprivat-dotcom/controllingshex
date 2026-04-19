@@ -138,13 +138,15 @@ export default function Models() {
   }, [platform]);
 
   const filteredModels = useMemo(() => {
-    if (revenueFilter === "all") return models;
+    const q = searchQuery.trim().toLocaleLowerCase("de-DE");
     return models.filter((m) => {
+      if (q && !m.model_name.toLocaleLowerCase("de-DE").includes(q)) return false;
+      if (revenueFilter === "all") return true;
       const rev = modelRevenues[m.model_name];
       if (revenueFilter === "earning") return rev && rev.totalRevenue > 0;
       return !rev || rev.totalRevenue === 0;
     });
-  }, [models, revenueFilter, modelRevenues]);
+  }, [models, revenueFilter, modelRevenues, searchQuery]);
 
   const addModel = async () => {
     if (!newName.trim()) return;
