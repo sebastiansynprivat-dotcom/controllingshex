@@ -978,12 +978,31 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {manualBanner}
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
-          <div className="flex items-baseline gap-2 lg:gap-3 shrink-0">
+          <div className="flex items-baseline gap-2 lg:gap-3 shrink-0 flex-wrap">
             <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
               {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
             </span>
-            <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
-              {visiblePairsInfo.currentPos} <span className="text-white/20">/ {visiblePairsInfo.total}</span>
+            <span
+              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+              style={{
+                color: "hsl(152 70% 60%)",
+                borderColor: "hsl(152 70% 45% / 0.35)",
+                background: "hsl(152 70% 45% / 0.08)",
+              }}
+              title="Underplaced Chatter (links)"
+            >
+              ↑ {visiblePairsInfo.underDone}/{visiblePairsInfo.underTotal}
+            </span>
+            <span
+              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+              style={{
+                color: "hsl(0 84% 70%)",
+                borderColor: "hsl(0 84% 60% / 0.35)",
+                background: "hsl(0 84% 60% / 0.08)",
+              }}
+              title="Overplaced Chatter (rechts)"
+            >
+              ↓ {visiblePairsInfo.overDone}/{visiblePairsInfo.overTotal}
             </span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
