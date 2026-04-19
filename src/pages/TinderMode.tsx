@@ -567,14 +567,14 @@ export default function TinderMode() {
     goNext();
   }, [markChecked, goNext]);
 
-  const handleQuickInputPick = useCallback(async (type: "verbal" | "praise" | "observed") => {
+  const handleQuickInputPick = useCallback(async (type: "verbal" | "praise" | "observed" | "warning") => {
     const name = quickPromptName;
     if (!name) return;
     advanceAfterPrompt(name);
     const ok = await logManualInput(platform, name, type);
     if (ok) {
       refreshInputForChatter(name);
-      const labels = { verbal: "💬 Input", praise: "🔥 Lob", observed: "👀 Beobachtet" };
+      const labels = { verbal: "💬 Input", praise: "🔥 Lob", observed: "👀 Beobachtet", warning: "⚠️ Warnung" };
       toast.success(`${labels[type]} getrackt`);
     } else {
       toast.error("Konnte nicht gespeichert werden");
