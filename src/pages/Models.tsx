@@ -70,6 +70,7 @@ export default function Models() {
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
   const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
   const [revenueFilter, setRevenueFilter] = useState<"all" | "earning" | "zero">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
 
   const dateRange = useMemo(() => {
