@@ -442,8 +442,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = 1 + currentPair.leftAlternatives.length;
-    if (total <= 1) {
+    const total = leftCandidates.length;
+    // Verbleibende, nicht-dismisste Kandidaten (nach Hinzufügen des aktuellen)
+    const remaining = leftCandidates.filter(
+      (c) => c.key !== visibleLeft.key && !dismissedLeftKeys.has(c.key)
+    );
+    if (remaining.length === 0) {
       toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
       return;
     }
@@ -461,13 +465,21 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         rightName: visibleRight.name,
       },
     ].slice(-20));
+    setDismissedLeftKeys((prev) => {
+      const n = new Set(prev);
+      n.add(visibleLeft.key);
+      return n;
+    });
     setLeftAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
+  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dismissedLeftKeys, pairIdx, leftAltIdx, rightAltIdx]);
 
   const cycleRightAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = 1 + currentPair.rightAlternatives.length;
-    if (total <= 1) {
+    const total = rightCandidates.length;
+    const remaining = rightCandidates.filter(
+      (c) => c.key !== visibleRight.key && !dismissedRightKeys.has(c.key)
+    );
+    if (remaining.length === 0) {
       toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
       return;
     }
@@ -485,8 +497,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         rightName: visibleRight.name,
       },
     ].slice(-20));
+    setDismissedRightKeys((prev) => {
+      const n = new Set(prev);
+      n.add(visibleRight.key);
+      return n;
+    });
     setRightAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
+  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dismissedRightKeys, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
