@@ -472,14 +472,27 @@ export function computeSwapCandidates(
         overplaced.map((o) => `${o.name} (skill=${o.skillScore.toFixed(2)}, F=${o.followers})`)
       );
       const result = pairUp(underplaced, overplaced, bundle, {
-        minFollowerRatio: 1.15,
+        minFollowerRatio: 1.0,
         maxFollowerRatio,
-        minSkillDiff: 0.05,
-        maxRightUses: 2,
-        gainTolerance: -3,
+        minSkillDiff: 0,
+        maxRightUses: 3,
+        gainTolerance: -1000,
         debugLabel: `Brezzels L=${level.poolSize}`,
       });
       console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize}`);
+      // DOM-Marker für externe Inspektion (falls Console nicht erreichbar)
+      if (typeof document !== "undefined") {
+        document.documentElement.setAttribute(
+          "data-brezzels-swap-debug",
+          JSON.stringify({
+            level: level.poolSize,
+            enriched: enriched.length,
+            underplaced: underplaced.length,
+            overplaced: overplaced.length,
+            pairs: result.length,
+          })
+        );
+      }
       if (result.length >= 3 || level === BREZZELS_LEVELS[BREZZELS_LEVELS.length - 1]) {
         return result;
       }
