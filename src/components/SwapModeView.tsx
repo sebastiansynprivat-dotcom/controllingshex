@@ -425,6 +425,26 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     return undefined;
   }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed]);
 
+  /** Sichtbare Pairs (nach allen Filtern) — für korrekten Header-Counter */
+  const visiblePairsInfo = useMemo(() => {
+    let total = 0;
+    let currentPos = 0;
+    allPairs.forEach((p, i) => {
+      const sessionKey = `${p.left.key}::${p.right.key}`;
+      const dbKey = buildKey(p.left, p.right);
+      const blocked =
+        dailyDismissed.has(p.left.name) ||
+        dailyDismissed.has(p.right.name) ||
+        dismissed.has(sessionKey) ||
+        persistedBlocked.has(dbKey);
+      if (!blocked) {
+        total++;
+        if (currentPair && p === currentPair) currentPos = total;
+      }
+    });
+    return { total, currentPos };
+  }, [allPairs, dismissed, persistedBlocked, dailyDismissed, buildKey, currentPair]);
+
   /** Liefert alle Kandidaten der linken Seite in Reihenfolge: [main, ...alts] */
   const leftCandidates: SwapChatter[] = useMemo(() => {
     if (!currentPair) return [];
@@ -903,7 +923,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
             </span>
             <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
-              {pairIdx + 1} <span className="text-white/20">/ {allPairs.length}</span>
+              {visiblePairsInfo.currentPos} <span className="text-white/20">/ {visiblePairsInfo.total}</span>
             </span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
