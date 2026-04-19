@@ -923,7 +923,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
             </span>
             <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
-              {pairIdx + 1} <span className="text-white/20">/ {allPairs.length}</span>
+              {visiblePairsInfo.currentPos} <span className="text-white/20">/ {visiblePairsInfo.total}</span>
             </span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
