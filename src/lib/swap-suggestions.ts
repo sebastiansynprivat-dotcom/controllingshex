@@ -444,6 +444,21 @@ export function computeSwapCandidates(
   const platform = opts.platform;
 
   const enriched = buildEnriched(chatters, models);
+
+  // Early-Diagnose-Marker (immer gesetzt, auch bei early return)
+  if (typeof document !== "undefined") {
+    document.documentElement.setAttribute(
+      "data-brezzels-swap-debug",
+      JSON.stringify({
+        stage: "entry",
+        platform: platform ?? "(none)",
+        chattersIn: chatters.length,
+        modelsIn: models.length,
+        enriched: enriched.length,
+      })
+    );
+  }
+
   if (enriched.length < 2) return [];
 
   // ----- Brezzels: Mismatch-Pool + Diagnose-Logs -----
