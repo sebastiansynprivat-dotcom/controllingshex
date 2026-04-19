@@ -451,24 +451,42 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     return undefined;
   }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed]);
 
-  /** Sichtbare Pairs (nach allen Filtern) — für korrekten Header-Counter */
+  /** Sichtbare Pairs (nach allen Filtern) — für korrekten Header-Counter.
+   *  Underplaced (links) & Overplaced (rechts) werden separat als unique Chatter-Namen gezählt,
+   *  damit der Counter zur Checkliste passt (jeder Chatter zählt nur einmal pro Seite). */
   const visiblePairsInfo = useMemo(() => {
+    const underTotal = new Set<string>();
+    const overTotal = new Set<string>();
+    const underDone = new Set<string>();
+    const overDone = new Set<string>();
     let total = 0;
     let currentPos = 0;
-    allPairs.forEach((p, i) => {
+    allPairs.forEach((p) => {
       const sessionKey = `${p.left.key}::${p.right.key}`;
       const dbKey = buildKey(p.left, p.right);
-      const blocked =
-        dailyDismissed.has(p.left.name) ||
-        dailyDismissed.has(p.right.name) ||
-        dismissed.has(sessionKey) ||
-        persistedBlocked.has(dbKey);
+      const leftDone = dailyDismissed.has(p.left.name);
+      const rightDone = dailyDismissed.has(p.right.name);
+      const pairDone = dismissed.has(sessionKey) || persistedBlocked.has(dbKey);
+      // Universum: jeder eindeutige Chatter, der überhaupt mal vorgeschlagen wurde
+      underTotal.add(p.left.name);
+      overTotal.add(p.right.name);
+      if (leftDone || pairDone) underDone.add(p.left.name);
+      if (rightDone || pairDone) overDone.add(p.right.name);
+
+      const blocked = leftDone || rightDone || pairDone;
       if (!blocked) {
         total++;
         if (currentPair && p === currentPair) currentPos = total;
       }
     });
-    return { total, currentPos };
+    return {
+      total,
+      currentPos,
+      underDone: underDone.size,
+      underTotal: underTotal.size,
+      overDone: overDone.size,
+      overTotal: overTotal.size,
+    };
   }, [allPairs, dismissed, persistedBlocked, dailyDismissed, buildKey, currentPair]);
 
   /** Liefert alle Kandidaten der linken Seite in Reihenfolge: [main, ...alts] */
@@ -960,12 +978,31 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {manualBanner}
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
-          <div className="flex items-baseline gap-2 lg:gap-3 shrink-0">
+          <div className="flex items-baseline gap-2 lg:gap-3 shrink-0 flex-wrap">
             <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
               {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
             </span>
-            <span className="text-[10px] lg:text-xs text-white/35 tabular-nums">
-              {visiblePairsInfo.currentPos} <span className="text-white/20">/ {visiblePairsInfo.total}</span>
+            <span
+              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+              style={{
+                color: "hsl(152 70% 60%)",
+                borderColor: "hsl(152 70% 45% / 0.35)",
+                background: "hsl(152 70% 45% / 0.08)",
+              }}
+              title="Underplaced Chatter (links)"
+            >
+              ↑ {visiblePairsInfo.underDone}/{visiblePairsInfo.underTotal}
+            </span>
+            <span
+              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+              style={{
+                color: "hsl(0 84% 70%)",
+                borderColor: "hsl(0 84% 60% / 0.35)",
+                background: "hsl(0 84% 60% / 0.08)",
+              }}
+              title="Overplaced Chatter (rechts)"
+            >
+              ↓ {visiblePairsInfo.overDone}/{visiblePairsInfo.overTotal}
             </span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
