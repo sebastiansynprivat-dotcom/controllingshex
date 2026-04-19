@@ -354,46 +354,64 @@ export interface ComputeOptions {
 }
 
 /**
- * Brezzels hat eine komplett andere Skala als Maloum (Median 117 vs 468 Follower).
- * Daher: harte Schwellen für "wirklich klein" und "wirklich gross", mit Auto-Lockerung
- * falls zu wenige Pairs zustande kommen.
+ * Brezzels v3 — RELATIVE Logik statt harter Schwellen.
  *
- * Underplaced: kleiner Account UND wenig Revenue UND Skill-Top-30%
- * Overplaced:  grosser Account UND Revenue im Bottom-40% (unter Accounts >= bigF)
+ * Skala bei Brezzels: alle Accounts ~120-580 Follower, Tagesumsätze 40-400€.
+ * Harte Cuts ("kleiner als 70F", "weniger als 3€") greifen kaum jemanden.
+ *
+ * Neue Definition:
+ *   Effizienz = avgRevenue / followers  → "Wieviel Umsatz holt der Chatter pro Follower"
+ *
+ *   Underplaced = Effizienz Bottom-50% UND Skill Top-50%
+ *                 → "Gute Hände, aber Account underperformt → besseren Account geben"
+ *   Overplaced  = Effizienz Bottom-50% UND Skill Bottom-50%
+ *                 → "Schwacher Chatter, Account underperformt → an stärkeren weiterreichen"
+ *
+ * Die Auto-Lockerung lockert nur die Pool-Quantile, falls zu wenige Pairs.
  */
 interface BrezzelsLevel {
-  smallFollowers: number;
-  bigFollowers: number;
-  lowRevenue: number;
+  effPercentile: number; // z.B. 0.5 = Bottom-50%
+  skillTopPercentile: number; // z.B. 0.5 = Top-50%
+  skillBottomPercentile: number; // z.B. 0.5 = Bottom-50%
 }
 const BREZZELS_LEVELS: BrezzelsLevel[] = [
-  { smallFollowers: 70, bigFollowers: 150, lowRevenue: 3 },
-  { smallFollowers: 100, bigFollowers: 130, lowRevenue: 5 },
-  { smallFollowers: 140, bigFollowers: 110, lowRevenue: 8 },
+  { effPercentile: 0.5, skillTopPercentile: 0.5, skillBottomPercentile: 0.5 },
+  { effPercentile: 0.65, skillTopPercentile: 0.6, skillBottomPercentile: 0.6 },
+  { effPercentile: 0.8, skillTopPercentile: 0.7, skillBottomPercentile: 0.7 },
 ];
+
+function quantileAsc(sortedAsc: number[], p: number): number {
+  if (sortedAsc.length === 0) return 0;
+  const idx = Math.max(0, Math.min(sortedAsc.length - 1, Math.floor(sortedAsc.length * p)));
+  return sortedAsc[idx];
+}
 
 function buildBrezzelsPools(
   enriched: SwapChatter[],
   level: BrezzelsLevel
 ): { underplaced: SwapChatter[]; overplaced: SwapChatter[] } {
-  // Skill-Top-30% Schwelle
-  const skillsDesc = [...enriched].map((e) => e.skillScore).sort((a, b) => b - a);
-  const top30Idx = Math.max(0, Math.floor(skillsDesc.length * 0.3) - 1);
-  const skillTopThreshold = skillsDesc[top30Idx] ?? 0;
+  // Nur Einträge mit valide Followern bewerten — sonst ist Effizienz NaN
+  const valid = enriched.filter((e) => e.followers > 0);
+  if (valid.length === 0) return { underplaced: [], overplaced: [] };
 
-  // Revenue-Bottom-55%-Schwelle: nur unter Accounts mit followers >= bigFollowers
-  const bigAccs = enriched.filter((e) => e.followers >= level.bigFollowers);
-  const bigRevsAsc = bigAccs.map((e) => e.avgRevenue).sort((a, b) => a - b);
-  const bottom55Idx = Math.max(0, Math.ceil(bigRevsAsc.length * 0.55) - 1);
-  const revBottomThreshold = bigRevsAsc[bottom55Idx] ?? 0;
+  // Effizienz = avgRevenue / followers
+  const effs = valid.map((e) => e.avgRevenue / e.followers);
+  const effsAsc = [...effs].sort((a, b) => a - b);
+  const effThreshold = quantileAsc(effsAsc, level.effPercentile); // Bottom-X%-Cap
 
-  const underplaced = enriched.filter(
-    (e) =>
-      e.followers <= level.smallFollowers &&
-      e.avgRevenue < level.lowRevenue &&
-      e.skillScore >= skillTopThreshold
-  );
-  const overplaced = bigAccs.filter((e) => e.avgRevenue <= revBottomThreshold);
+  // Skill-Quantile (über gesamten Pool)
+  const skillsAsc = [...enriched].map((e) => e.skillScore).sort((a, b) => a - b);
+  const skillTopCut = quantileAsc(skillsAsc, 1 - level.skillTopPercentile); // Top-X% startet ab hier
+  const skillBottomCut = quantileAsc(skillsAsc, level.skillBottomPercentile); // Bottom-X% endet hier
+
+  const underplaced = valid.filter((e) => {
+    const eff = e.avgRevenue / e.followers;
+    return eff <= effThreshold && e.skillScore >= skillTopCut;
+  });
+  const overplaced = valid.filter((e) => {
+    const eff = e.avgRevenue / e.followers;
+    return eff <= effThreshold && e.skillScore <= skillBottomCut;
+  });
   return { underplaced, overplaced };
 }
 
@@ -412,17 +430,17 @@ export function computeSwapCandidates(
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
 
-  // ----- Brezzels: spezielle Pool-Bildung mit Auto-Lockerung -----
+  // ----- Brezzels: relative Effizienz+Skill-Logik mit Auto-Lockerung -----
   if (platform === "Brezzels") {
     for (const level of BREZZELS_LEVELS) {
       const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
       if (underplaced.length === 0 || overplaced.length === 0) continue;
       const result = pairUp(underplaced, overplaced, bundle, {
-        minFollowerRatio: 1.25,
+        minFollowerRatio: 1.15,
         maxFollowerRatio,
-        minSkillDiff: 0.08,
+        minSkillDiff: 0.05,
         maxRightUses: 2,
-        gainTolerance: -2,
+        gainTolerance: -3,
       });
       if (result.length >= 3 || level === BREZZELS_LEVELS[BREZZELS_LEVELS.length - 1]) {
         return result;
