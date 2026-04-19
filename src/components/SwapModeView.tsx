@@ -476,6 +476,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     }
   }, []);
 
+  const pushHistory = useCallback(
+    (entry: HistoryEntry) => {
+      setHistory((prev) => [...prev, entry].slice(-20));
+    },
+    []
+  );
+
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
     const dismissedName = visibleLeft.name;
