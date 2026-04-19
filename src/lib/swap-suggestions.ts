@@ -444,28 +444,6 @@ export function computeSwapCandidates(
   const platform = opts.platform;
 
   const enriched = buildEnriched(chatters, models);
-
-  // Sichtbarer Diagnose-Marker als DOM-Element
-  if (typeof document !== "undefined") {
-    let el = document.getElementById("__swap_debug__");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "__swap_debug__";
-      el.style.cssText = "position:fixed;top:4px;right:4px;z-index:99999;background:#000;color:#0f0;font:10px monospace;padding:4px 6px;border:1px solid #0f0;max-width:500px;word-break:break-all;white-space:pre-wrap;";
-      document.body.appendChild(el);
-    }
-    // Diagnostik: wieviele Chatters haben überhaupt account+stats?
-    const withAccount = chatters.filter((c) => (c.account || "").trim().length > 0).length;
-    const withRevenue = chatters.filter((c) => (c.currentRevenue || 0) > 0).length;
-    const withHistory = chatters.filter((c) => (c.history || []).length > 0).length;
-    const withAnyStats = chatters.filter((c) => {
-      if ((c.currentRevenue || 0) > 0) return true;
-      const h = c.history || [];
-      return h.some((r) => r.revenue_today > 0 || r.mass_dms > 0 || r.open_chats > 0 || r.response_delay_days > 0);
-    }).length;
-    el.textContent = `SWAP[${platform ?? "?"}] in=${chatters.length} models=${models.length} enriched=${enriched.length}\nwithAccount=${withAccount} withRev>0=${withRevenue} withHist=${withHistory} withAnyStats=${withAnyStats}`;
-  }
-
   if (enriched.length < 2) return [];
 
   // ----- Brezzels: Mismatch-Pool + Diagnose-Logs -----
