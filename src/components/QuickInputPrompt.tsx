@@ -46,7 +46,7 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
         >
           {/* Card */}
           <motion.div
-            className="relative w-full rounded-2xl p-5 flex flex-col overflow-hidden"
+            className="relative w-full rounded-2xl p-3.5 flex flex-col overflow-hidden"
             style={{
               background: `
                 radial-gradient(130% 70% at 0% 0%, hsl(152 70% 45% / 0.16) 0%, transparent 55%),
@@ -73,7 +73,7 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
             />
 
             {/* Header chip — "Eintrag tracken" */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <div
                 className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
                 style={{
@@ -87,14 +87,14 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
                 </span>
               </div>
               {categoryEmoji && (
-                <span className="text-[18px] leading-none opacity-60">{categoryEmoji}</span>
+                <span className="text-[16px] leading-none opacity-60">{categoryEmoji}</span>
               )}
             </div>
 
             {/* Avatar + Name */}
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-2.5 mb-0.5">
               <motion.div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-bold tracking-wide"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
                 style={{
                   background: "linear-gradient(135deg, hsl(152 70% 45% / 0.25) 0%, hsl(152 70% 45% / 0.06) 100%)",
                   color: "hsl(152 70% 75%)",
@@ -107,18 +107,17 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
                 {initials}
               </motion.div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Was hast du</p>
-                <h2 className="text-xl font-semibold text-foreground capitalize leading-tight truncate mt-1">
-                  {chatterName.replace(/_/g, " ")}
+                <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Was hast du</p>
+                <h2 className="text-base font-semibold text-foreground capitalize leading-tight truncate mt-0.5">
+                  {chatterName.replace(/_/g, " ")} <span className="text-white/55 font-light text-[11px]">heute gegeben?</span>
                 </h2>
-                <p className="text-[11px] text-white/55 font-light mt-0.5">heute gegeben?</p>
               </div>
             </div>
 
-            <div className="h-px bg-white/[0.06] my-4" />
+            <div className="h-px bg-white/[0.06] my-2.5" />
 
-            {/* Options — large, tappable */}
-            <div className="flex-1 flex flex-col gap-2.5">
+            {/* Options — compact, tappable */}
+            <div className="flex-1 flex flex-col gap-1.5 min-h-0">
               {OPTIONS.map(({ type, icon: Icon, label, hint, hue }, i) => (
                 <motion.button
                   key={type}
@@ -129,8 +128,8 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
                   whileTap={{ scale: 0.97 }}
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.08 + i * 0.05, type: "spring", damping: 24, stiffness: 320 }}
-                  className="group flex items-center gap-3 w-full py-3.5 px-4 rounded-2xl border text-left transition-all hover:translate-x-0.5"
+                  transition={{ delay: 0.06 + i * 0.04, type: "spring", damping: 24, stiffness: 320 }}
+                  className="group flex items-center gap-2.5 w-full py-2.5 px-3 rounded-xl border text-left transition-all hover:translate-x-0.5"
                   style={{
                     background: `linear-gradient(135deg, hsl(${hue} / 0.10), hsl(${hue} / 0.03))`,
                     borderColor: `hsl(${hue} / 0.25)`,
@@ -138,22 +137,22 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
                   }}
                 >
                   <div
-                    className="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center"
+                    className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center"
                     style={{
                       background: `linear-gradient(135deg, hsl(${hue} / 0.22), hsl(${hue} / 0.06))`,
                       border: `1px solid hsl(${hue} / 0.25)`,
                     }}
                   >
-                    <Icon className="h-4.5 w-4.5" style={{ color: `hsl(${hue} / 0.95)` }} />
+                    <Icon className="h-4 w-4" style={{ color: `hsl(${hue} / 0.95)` }} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold leading-tight" style={{ color: `hsl(${hue} / 0.98)` }}>
+                    <p className="text-[13px] font-semibold leading-tight" style={{ color: `hsl(${hue} / 0.98)` }}>
                       {label}
                     </p>
-                    <p className="text-[11px] text-white/45 font-light leading-tight mt-0.5">{hint}</p>
+                    <p className="text-[10.5px] text-white/45 font-light leading-tight mt-0.5 truncate">{hint}</p>
                   </div>
                   <div
-                    className="text-white/30 group-hover:text-white/60 transition-colors text-lg leading-none"
+                    className="text-white/30 group-hover:text-white/60 transition-colors text-base leading-none"
                     aria-hidden
                   >
                     →
@@ -168,8 +167,8 @@ export default function QuickInputPrompt({ open, chatterName, categoryEmoji, cat
               whileTap={{ scale: 0.97 }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.28 }}
-              className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.03] transition-colors"
+              transition={{ delay: 0.24 }}
+              className="mt-2 flex items-center justify-center gap-2 w-full py-2 rounded-lg text-[11px] text-white/45 hover:text-white/75 hover:bg-white/[0.03] transition-colors"
             >
               <SkipForward className="h-3.5 w-3.5" />
               <span className="font-medium">Nichts tracken — weiter</span>
