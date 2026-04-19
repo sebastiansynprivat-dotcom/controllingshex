@@ -349,6 +349,9 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     rightName: string;
     /** Chatter-Namen die durch diese Aktion in dailyDismissed eingefügt wurden (für Undo) */
     dailyDismissedAdded?: string[];
+    /** Card-Keys die durch alt-cycle in dismissedLeftKeys/RightKeys eingefügt wurden (für Undo) */
+    dismissedLeftAdded?: string[];
+    dismissedRightAdded?: string[];
   };
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -548,6 +551,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-left" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
+      dismissedLeftAdded: [visibleLeft.key],
     });
     setDismissedLeftKeys((prev) => {
       const n = new Set(prev);
@@ -577,6 +581,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-right" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
+      dismissedRightAdded: [visibleRight.key],
     });
     setDismissedRightKeys((prev) => {
       const n = new Set(prev);
@@ -739,6 +744,20 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       setDailyDismissed((prev) => {
         const n = new Set(prev);
         for (const name of last.dailyDismissedAdded!) n.delete(name);
+        return n;
+      });
+    }
+    if (last.dismissedLeftAdded && last.dismissedLeftAdded.length > 0) {
+      setDismissedLeftKeys((prev) => {
+        const n = new Set(prev);
+        for (const k of last.dismissedLeftAdded!) n.delete(k);
+        return n;
+      });
+    }
+    if (last.dismissedRightAdded && last.dismissedRightAdded.length > 0) {
+      setDismissedRightKeys((prev) => {
+        const n = new Set(prev);
+        for (const k of last.dismissedRightAdded!) n.delete(k);
         return n;
       });
     }
