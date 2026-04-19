@@ -426,18 +426,31 @@ export function computeSwapCandidates(
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
 
-  // ----- Brezzels: relative Effizienz+Skill-Logik mit Auto-Lockerung -----
+  // ----- Brezzels: Mismatch-Pool + Diagnose-Logs -----
   if (platform === "Brezzels") {
     for (const level of BREZZELS_LEVELS) {
       const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
       if (underplaced.length === 0 || overplaced.length === 0) continue;
+      console.log(
+        `[Brezzels swap] poolSize=${level.poolSize} → underplaced=${underplaced.length}, overplaced=${overplaced.length}`
+      );
+      console.log(
+        `[Brezzels swap] Underplaced:`,
+        underplaced.map((u) => `${u.name} (skill=${u.skillScore.toFixed(2)}, F=${u.followers})`)
+      );
+      console.log(
+        `[Brezzels swap] Overplaced:`,
+        overplaced.map((o) => `${o.name} (skill=${o.skillScore.toFixed(2)}, F=${o.followers})`)
+      );
       const result = pairUp(underplaced, overplaced, bundle, {
         minFollowerRatio: 1.15,
         maxFollowerRatio,
         minSkillDiff: 0.05,
         maxRightUses: 2,
         gainTolerance: -3,
+        debugLabel: `Brezzels L=${level.poolSize}`,
       });
+      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize}`);
       if (result.length >= 3 || level === BREZZELS_LEVELS[BREZZELS_LEVELS.length - 1]) {
         return result;
       }
@@ -477,6 +490,8 @@ function pairUp(
     maxRightUses?: number;
     /** Erlaubte Untergrenze für expectedGain (default 0 → strikt positiv). Brezzels: -2 € */
     gainTolerance?: number;
+    /** Wenn true: pro Underplaced-Iteration loggen wieviele an welcher Constraint scheitern */
+    debugLabel?: string;
   }
 ): SwapPair[] {
   const { minFollowerRatio, maxFollowerRatio, minSkillDiff } = cfg;
