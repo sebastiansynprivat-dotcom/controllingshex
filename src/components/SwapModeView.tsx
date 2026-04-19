@@ -368,17 +368,37 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     return undefined;
   }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey]);
 
+  /** Liefert alle Kandidaten der linken Seite in Reihenfolge: [main, ...alts] */
+  const leftCandidates: SwapChatter[] = useMemo(() => {
+    if (!currentPair) return [];
+    return [currentPair.left, ...currentPair.leftAlternatives];
+  }, [currentPair]);
+
+  const rightCandidates: SwapChatter[] = useMemo(() => {
+    if (!currentPair) return [];
+    return [currentPair.right, ...currentPair.rightAlternatives];
+  }, [currentPair]);
+
+  /** Erster nicht-dismisster Kandidat ab leftAltIdx (zirkulär) */
   const visibleLeft: SwapChatter | undefined = useMemo(() => {
-    if (!currentPair) return undefined;
-    if (leftAltIdx === 0) return currentPair.left;
-    return currentPair.leftAlternatives[leftAltIdx - 1] || currentPair.left;
-  }, [currentPair, leftAltIdx]);
+    if (leftCandidates.length === 0) return undefined;
+    const n = leftCandidates.length;
+    for (let off = 0; off < n; off++) {
+      const c = leftCandidates[(leftAltIdx + off) % n];
+      if (!dismissedLeftKeys.has(c.key)) return c;
+    }
+    return undefined;
+  }, [leftCandidates, leftAltIdx, dismissedLeftKeys]);
 
   const visibleRight: SwapChatter | undefined = useMemo(() => {
-    if (!currentPair) return undefined;
-    if (rightAltIdx === 0) return currentPair.right;
-    return currentPair.rightAlternatives[rightAltIdx - 1] || currentPair.right;
-  }, [currentPair, rightAltIdx]);
+    if (rightCandidates.length === 0) return undefined;
+    const n = rightCandidates.length;
+    for (let off = 0; off < n; off++) {
+      const c = rightCandidates[(rightAltIdx + off) % n];
+      if (!dismissedRightKeys.has(c.key)) return c;
+    }
+    return undefined;
+  }, [rightCandidates, rightAltIdx, dismissedRightKeys]);
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
