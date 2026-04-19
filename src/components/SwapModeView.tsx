@@ -390,11 +390,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       const p = allPairs[i];
       const sessionKey = `${p.left.key}::${p.right.key}`;
       const dbKey = buildKey(p.left, p.right);
-      if (!dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
+      const blockedByDaily =
+        dailyDismissed.has(p.left.name) || dailyDismissed.has(p.right.name);
+      if (!blockedByDaily && !dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
       i++;
     }
     return undefined;
-  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey]);
+  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed]);
 
   /** Liefert alle Kandidaten der linken Seite in Reihenfolge: [main, ...alts] */
   const leftCandidates: SwapChatter[] = useMemo(() => {
