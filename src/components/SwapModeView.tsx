@@ -299,36 +299,63 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     () => reportDateKey ? `swap_report_dismissed::${platform}::${reportDateKey}` : null,
     [platform, reportDateKey]
   );
+  /** Persistenter Key für einzeln weggewischte Karten-Keys (an Report gebunden) */
+  const cardStorageKey = useMemo(
+    () => reportDateKey ? `swap_report_dismissed_cards::${platform}::${reportDateKey}` : null,
+    [platform, reportDateKey]
+  );
   const [dailyDismissed, setDailyDismissed] = useState<Set<string>>(new Set());
+  /** Pro Karte: einzeln verworfene Kandidaten-Keys — persistiert bis zum nächsten Report */
+  const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
+  const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
   // Lade Ausblendungen sobald storageKey bekannt ist + räume veraltete Keys auf
   useEffect(() => {
-    if (typeof window === "undefined" || !storageKey) return;
+    if (typeof window === "undefined" || !storageKey || !cardStorageKey) return;
     try {
       const raw = window.localStorage.getItem(storageKey);
       setDailyDismissed(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
+      const rawCards = window.localStorage.getItem(cardStorageKey);
+      if (rawCards) {
+        const parsed = JSON.parse(rawCards) as { left?: string[]; right?: string[] };
+        setDismissedLeftKeys(new Set(parsed.left ?? []));
+        setDismissedRightKeys(new Set(parsed.right ?? []));
+      } else {
+        setDismissedLeftKeys(new Set());
+        setDismissedRightKeys(new Set());
+      }
       // Alte Keys (anderer Report) löschen
       for (let i = window.localStorage.length - 1; i >= 0; i--) {
         const k = window.localStorage.key(i);
         if (
           k &&
-          (k.startsWith("swap_report_dismissed::") || k.startsWith("swap_daily_dismissed::")) &&
-          k !== storageKey
+          (k.startsWith("swap_report_dismissed::") ||
+           k.startsWith("swap_report_dismissed_cards::") ||
+           k.startsWith("swap_daily_dismissed::")) &&
+          k !== storageKey &&
+          k !== cardStorageKey
         ) {
           window.localStorage.removeItem(k);
         }
       }
     } catch { /* ignore */ }
-  }, [storageKey]);
-  // Persistieren bei jeder Änderung
+  }, [storageKey, cardStorageKey]);
+  // Persistieren dailyDismissed
   useEffect(() => {
     if (typeof window === "undefined" || !storageKey) return;
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(Array.from(dailyDismissed)));
     } catch { /* ignore */ }
   }, [dailyDismissed, storageKey]);
-  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys (zusätzlicher Session-Filter) */
-  const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
-  const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
+  // Persistieren dismissedLeftKeys / dismissedRightKeys
+  useEffect(() => {
+    if (typeof window === "undefined" || !cardStorageKey) return;
+    try {
+      window.localStorage.setItem(
+        cardStorageKey,
+        JSON.stringify({ left: Array.from(dismissedLeftKeys), right: Array.from(dismissedRightKeys) })
+      );
+    } catch { /* ignore */ }
+  }, [dismissedLeftKeys, dismissedRightKeys, cardStorageKey]);
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   /** Pair-Keys die in der DB aktiv geblockt sind (snoozed_until > now ODER status=approved) */
