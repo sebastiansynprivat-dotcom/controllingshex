@@ -273,7 +273,35 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
-  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys für linke/rechte Seite */
+  /** Tages-Storage-Key: alle weggewischten Chatter-Namen für heute (über alle Pairs hinweg) */
+  const todayKey = useMemo(() => {
+    const d = new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `swap_daily_dismissed::${platform}::${iso}`;
+  }, [platform]);
+  const [dailyDismissed, setDailyDismissed] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(`swap_daily_dismissed::${platform}::${new Date().toISOString().slice(0,10)}`);
+      if (!raw) return new Set();
+      return new Set(JSON.parse(raw) as string[]);
+    } catch { return new Set(); }
+  });
+  // Persistieren bei jeder Änderung + alte Tages-Keys aufräumen
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(todayKey, JSON.stringify(Array.from(dailyDismissed)));
+      // Alte Einträge (anderer Tag) löschen
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const k = window.localStorage.key(i);
+        if (k && k.startsWith("swap_daily_dismissed::") && k !== todayKey) {
+          window.localStorage.removeItem(k);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [dailyDismissed, todayKey]);
+  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys (zusätzlicher Session-Filter) */
   const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
   const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
