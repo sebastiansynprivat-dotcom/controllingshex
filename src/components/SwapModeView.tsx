@@ -273,7 +273,35 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
-  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys für linke/rechte Seite */
+  /** Tages-Storage-Key: alle weggewischten Chatter-Namen für heute (über alle Pairs hinweg) */
+  const todayKey = useMemo(() => {
+    const d = new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `swap_daily_dismissed::${platform}::${iso}`;
+  }, [platform]);
+  const [dailyDismissed, setDailyDismissed] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(`swap_daily_dismissed::${platform}::${new Date().toISOString().slice(0,10)}`);
+      if (!raw) return new Set();
+      return new Set(JSON.parse(raw) as string[]);
+    } catch { return new Set(); }
+  });
+  // Persistieren bei jeder Änderung + alte Tages-Keys aufräumen
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(todayKey, JSON.stringify(Array.from(dailyDismissed)));
+      // Alte Einträge (anderer Tag) löschen
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const k = window.localStorage.key(i);
+        if (k && k.startsWith("swap_daily_dismissed::") && k !== todayKey) {
+          window.localStorage.removeItem(k);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [dailyDismissed, todayKey]);
+  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys (zusätzlicher Session-Filter) */
   const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
   const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
@@ -294,6 +322,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     action: "approved" | "rejected" | "snoozed" | "alt-left" | "alt-right";
     leftName: string;
     rightName: string;
+    /** Chatter-Namen die durch diese Aktion in dailyDismissed eingefügt wurden (für Undo) */
+    dailyDismissedAdded?: string[];
   };
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -362,11 +392,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       const p = allPairs[i];
       const sessionKey = `${p.left.key}::${p.right.key}`;
       const dbKey = buildKey(p.left, p.right);
-      if (!dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
+      const blockedByDaily =
+        dailyDismissed.has(p.left.name) || dailyDismissed.has(p.right.name);
+      if (!blockedByDaily && !dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
       i++;
     }
     return undefined;
-  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey]);
+  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed]);
 
   /** Liefert alle Kandidaten der linken Seite in Reihenfolge: [main, ...alts] */
   const leftCandidates: SwapChatter[] = useMemo(() => {
@@ -385,20 +417,24 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     const n = leftCandidates.length;
     for (let off = 0; off < n; off++) {
       const c = leftCandidates[(leftAltIdx + off) % n];
-      if (!dismissedLeftKeys.has(c.key)) return c;
+      if (dismissedLeftKeys.has(c.key)) continue;
+      if (dailyDismissed.has(c.name)) continue;
+      return c;
     }
     return undefined;
-  }, [leftCandidates, leftAltIdx, dismissedLeftKeys]);
+  }, [leftCandidates, leftAltIdx, dismissedLeftKeys, dailyDismissed]);
 
   const visibleRight: SwapChatter | undefined = useMemo(() => {
     if (rightCandidates.length === 0) return undefined;
     const n = rightCandidates.length;
     for (let off = 0; off < n; off++) {
       const c = rightCandidates[(rightAltIdx + off) % n];
-      if (!dismissedRightKeys.has(c.key)) return c;
+      if (dismissedRightKeys.has(c.key)) continue;
+      if (dailyDismissed.has(c.name)) continue;
+      return c;
     }
     return undefined;
-  }, [rightCandidates, rightAltIdx, dismissedRightKeys]);
+  }, [rightCandidates, rightAltIdx, dismissedRightKeys, dailyDismissed]);
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
@@ -440,70 +476,58 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     }
   }, []);
 
+  const pushHistory = useCallback(
+    (entry: HistoryEntry) => {
+      setHistory((prev) => [...prev, entry].slice(-20));
+    },
+    []
+  );
+
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = leftCandidates.length;
-    // Verbleibende, nicht-dismisste Kandidaten (nach Hinzufügen des aktuellen)
-    const remaining = leftCandidates.filter(
-      (c) => c.key !== visibleLeft.key && !dismissedLeftKeys.has(c.key)
-    );
-    if (remaining.length === 0) {
-      toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
-      return;
-    }
-    setHistory((prev) => [
-      ...prev,
-      {
-        decisionId: null,
-        pairKeys: [],
-        sessionKey: "",
-        pairIdxBefore: pairIdx,
-        leftAltIdxBefore: leftAltIdx,
-        rightAltIdxBefore: rightAltIdx,
-        action: "alt-left" as const,
-        leftName: visibleLeft.name,
-        rightName: visibleRight.name,
-      },
-    ].slice(-20));
-    setDismissedLeftKeys((prev) => {
+    const dismissedName = visibleLeft.name;
+    pushHistory({
+      decisionId: null,
+      pairKeys: [],
+      sessionKey: "",
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "alt-left" as const,
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+      dailyDismissedAdded: [dismissedName],
+    });
+    setDailyDismissed((prev) => {
       const n = new Set(prev);
-      n.add(visibleLeft.key);
+      n.add(dismissedName);
       return n;
     });
-    setLeftAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dismissedLeftKeys, pairIdx, leftAltIdx, rightAltIdx]);
+    toast(`${dismissedName.replace(/_/g, " ")} heute ausgeblendet`, { icon: "👋" });
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   const cycleRightAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = rightCandidates.length;
-    const remaining = rightCandidates.filter(
-      (c) => c.key !== visibleRight.key && !dismissedRightKeys.has(c.key)
-    );
-    if (remaining.length === 0) {
-      toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
-      return;
-    }
-    setHistory((prev) => [
-      ...prev,
-      {
-        decisionId: null,
-        pairKeys: [],
-        sessionKey: "",
-        pairIdxBefore: pairIdx,
-        leftAltIdxBefore: leftAltIdx,
-        rightAltIdxBefore: rightAltIdx,
-        action: "alt-right" as const,
-        leftName: visibleLeft.name,
-        rightName: visibleRight.name,
-      },
-    ].slice(-20));
-    setDismissedRightKeys((prev) => {
+    const dismissedName = visibleRight.name;
+    pushHistory({
+      decisionId: null,
+      pairKeys: [],
+      sessionKey: "",
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "alt-right" as const,
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+      dailyDismissedAdded: [dismissedName],
+    });
+    setDailyDismissed((prev) => {
       const n = new Set(prev);
-      n.add(visibleRight.key);
+      n.add(dismissedName);
       return n;
     });
-    setRightAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dismissedRightKeys, pairIdx, leftAltIdx, rightAltIdx]);
+    toast(`${dismissedName.replace(/_/g, " ")} heute ausgeblendet`, { icon: "👋" });
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
@@ -548,17 +572,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     [platform, pairKeyVariants]
   );
 
-  const pushHistory = useCallback(
-    (entry: HistoryEntry) => {
-      setHistory((prev) => [...prev, entry].slice(-20));
-    },
-    []
-  );
 
   const approveSwap = useCallback(async () => {
     if (!visibleLeft || !visibleRight) return;
     const decisionId = await persistDecision(visibleLeft, visibleRight, "approved", null);
     if (!decisionId) return;
+    const added = [visibleLeft.name, visibleRight.name];
     pushHistory({
       decisionId,
       pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
@@ -569,6 +588,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "approved",
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
+      dailyDismissedAdded: added,
+    });
+    setDailyDismissed((prev) => {
+      const n = new Set(prev);
+      for (const name of added) n.add(name);
+      return n;
     });
     toast.success(`Tausch gespeichert: +${formatEur(visibleGain)}/Tag`);
     advancePair();
@@ -653,6 +678,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       n.delete(last.sessionKey);
       return n;
     });
+    if (last.dailyDismissedAdded && last.dailyDismissedAdded.length > 0) {
+      setDailyDismissed((prev) => {
+        const n = new Set(prev);
+        for (const name of last.dailyDismissedAdded!) n.delete(name);
+        return n;
+      });
+    }
     setPairIdx(last.pairIdxBefore);
     setLeftAltIdx(last.leftAltIdxBefore);
     setRightAltIdx(last.rightAltIdxBefore);
