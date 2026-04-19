@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type InputSource = "note" | "video" | "label" | "verbal" | "praise" | "observed";
+export type InputSource = "note" | "video" | "label" | "verbal" | "praise" | "observed" | "warning";
 
 export interface InputEvent {
   source: InputSource;
@@ -21,6 +21,7 @@ const SOURCE_META: Record<InputSource, { icon: string; label: string; color: str
   verbal: { icon: "💬", label: "Verbal", color: "38 92% 55%" },
   praise: { icon: "🔥", label: "Lob", color: "25 95% 55%" },
   observed: { icon: "👀", label: "Beobachtet", color: "240 5% 60%" },
+  warning: { icon: "⚠️", label: "Warnung", color: "0 80% 60%" },
 };
 
 export function getSourceMeta(s: InputSource) {
@@ -86,7 +87,7 @@ export async function loadLastInputs(
     push(l.chatter_name, { source: "label", created_at: l.created_at })
   );
   (inputsRes.data || []).forEach((i: any) => {
-    const src = (["verbal", "praise", "observed"].includes(i.input_type)
+    const src = (["verbal", "praise", "observed", "warning"].includes(i.input_type)
       ? i.input_type
       : "verbal") as InputSource;
     push(i.chatter_name, { source: src, created_at: i.created_at, note: i.note });
@@ -131,7 +132,7 @@ export function getInputBadgeStyle(lastAt: string | null): InputBadgeStyle {
 export async function logManualInput(
   platform: string,
   chatterName: string,
-  type: "verbal" | "praise" | "observed",
+  type: "verbal" | "praise" | "observed" | "warning",
   note?: string
 ): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();

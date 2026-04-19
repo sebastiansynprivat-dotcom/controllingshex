@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, Flame, Eye, SkipForward, Check } from "lucide-react";
+import { MessageCircle, Flame, Eye, AlertTriangle, SkipForward, Check } from "lucide-react";
 import { useMemo } from "react";
 
 interface Props {
@@ -7,12 +7,12 @@ interface Props {
   chatterName: string;
   categoryEmoji?: string;
   categoryName?: string;
-  onPick: (type: "verbal" | "praise" | "observed") => void;
+  onPick: (type: "verbal" | "praise" | "observed" | "warning") => void;
   onSkip: () => void;
 }
 
 const OPTIONS: {
-  type: "verbal" | "praise" | "observed";
+  type: "verbal" | "praise" | "observed" | "warning";
   icon: React.ComponentType<any>;
   label: string;
   hint: string;
@@ -20,6 +20,7 @@ const OPTIONS: {
 }[] = [
   { type: "verbal", icon: MessageCircle, label: "Input gegeben", hint: "Coaching, Feedback, Korrektur", hue: "212 90% 60%" },
   { type: "praise", icon: Flame, label: "Lob", hint: "Positive Verstärkung", hue: "25 95% 55%" },
+  { type: "warning", icon: AlertTriangle, label: "Warnung", hint: "Ermahnung, ernste Ansage", hue: "0 80% 60%" },
   { type: "observed", icon: Eye, label: "Nur beobachtet", hint: "Heute kein Input nötig", hue: "240 5% 60%" },
 ];
 
