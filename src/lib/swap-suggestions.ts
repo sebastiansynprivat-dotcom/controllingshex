@@ -455,11 +455,21 @@ function pairUp(
   underplacedPool: SwapChatter[],
   overplacedPool: SwapChatter[],
   bundle: BenchmarkBundle | null,
-  cfg: { minFollowerRatio: number; maxFollowerRatio: number; minSkillDiff: number }
+  cfg: {
+    minFollowerRatio: number;
+    maxFollowerRatio: number;
+    minSkillDiff: number;
+    /** Wie oft darf ein Overplaced-Account in Pairs auftauchen? Default 1. */
+    maxRightUses?: number;
+    /** Erlaubte Untergrenze für expectedGain (default 0 → strikt positiv). Brezzels: -2 € */
+    gainTolerance?: number;
+  }
 ): SwapPair[] {
   const { minFollowerRatio, maxFollowerRatio, minSkillDiff } = cfg;
+  const maxRightUses = cfg.maxRightUses ?? 1;
+  const gainThreshold = cfg.gainTolerance ?? 0;
   const pairs: SwapPair[] = [];
-  const usedRight = new Set<string>();
+  const rightUses = new Map<string, number>();
   const usedLeft = new Set<string>();
 
   for (const u of underplacedPool) {
@@ -467,7 +477,7 @@ function pairUp(
 
     let best: { right: SwapChatter; gain: number; ratio: number } | null = null;
     for (const o of overplacedPool) {
-      if (usedRight.has(o.key)) continue;
+      if ((rightUses.get(o.key) ?? 0) >= maxRightUses) continue;
       if (o.name === u.name) continue;
       const uFollowers = Math.max(u.followers, 1);
       const ratio = o.followers / uFollowers;
@@ -476,11 +486,11 @@ function pairUp(
       if (u.skillScore - o.skillScore < minSkillDiff) continue;
 
       const gain = computeExpectedGain(u, o, bundle);
-      if (gain <= 0) continue;
+      if (gain <= gainThreshold) continue;
       if (!best || gain > best.gain) best = { right: o, gain, ratio };
     }
     if (!best) continue;
-    usedRight.add(best.right.key);
+    rightUses.set(best.right.key, (rightUses.get(best.right.key) ?? 0) + 1);
     usedLeft.add(u.key);
 
     const uFollowers = Math.max(u.followers, 1);
@@ -490,7 +500,7 @@ function pairUp(
       const r = o.followers / uFollowers;
       if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (u.skillScore - o.skillScore < minSkillDiff) return false;
-      return computeExpectedGain(u, o, bundle) > 0;
+      return computeExpectedGain(u, o, bundle) > gainThreshold;
     });
 
     const rightFollowers = Math.max(best.right.followers, 1);
@@ -500,7 +510,7 @@ function pairUp(
       const r = rightFollowers / Math.max(alt.followers, 1);
       if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (alt.skillScore - best!.right.skillScore < minSkillDiff) return false;
-      return computeExpectedGain(alt, best!.right, bundle) > 0;
+      return computeExpectedGain(alt, best!.right, bundle) > gainThreshold;
     });
 
     const tierJump = Math.max(0, tierIndex(best.right.tier) - tierIndex(u.tier));
