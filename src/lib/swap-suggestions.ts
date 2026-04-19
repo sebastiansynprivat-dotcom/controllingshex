@@ -505,19 +505,32 @@ function pairUp(
     if (usedLeft.has(u.key)) continue;
 
     let best: { right: SwapChatter; gain: number; ratio: number } | null = null;
+    let cAlreadyUsed = 0, cSameName = 0, cRatioLow = 0, cRatioHigh = 0, cSkillDiff = 0, cGain = 0, cPassed = 0;
+
     for (const o of overplacedPool) {
-      if ((rightUses.get(o.key) ?? 0) >= maxRightUses) continue;
-      if (o.name === u.name) continue;
+      if ((rightUses.get(o.key) ?? 0) >= maxRightUses) { cAlreadyUsed++; continue; }
+      if (o.name === u.name) { cSameName++; continue; }
       const uFollowers = Math.max(u.followers, 1);
       const ratio = o.followers / uFollowers;
-      if (ratio < minFollowerRatio) continue;
-      if (ratio > maxFollowerRatio) continue;
-      if (u.skillScore - o.skillScore < minSkillDiff) continue;
+      if (ratio < minFollowerRatio) { cRatioLow++; continue; }
+      if (ratio > maxFollowerRatio) { cRatioHigh++; continue; }
+      if (u.skillScore - o.skillScore < minSkillDiff) { cSkillDiff++; continue; }
 
       const gain = computeExpectedGain(u, o, bundle);
-      if (gain <= gainThreshold) continue;
+      if (gain <= gainThreshold) { cGain++; continue; }
+      cPassed++;
       if (!best || gain > best.gain) best = { right: o, gain, ratio };
     }
+
+    if (cfg.debugLabel) {
+      console.log(
+        `[${cfg.debugLabel}] U=${u.name} (skill=${u.skillScore.toFixed(2)}, F=${u.followers}) → ` +
+          `passed=${cPassed} | rejected: alreadyUsed=${cAlreadyUsed}, sameName=${cSameName}, ` +
+          `ratio<${minFollowerRatio}=${cRatioLow}, ratio>${maxFollowerRatio}=${cRatioHigh}, ` +
+          `skillDiff<${minSkillDiff}=${cSkillDiff}, gain<=${gainThreshold}=${cGain}`
+      );
+    }
+
     if (!best) continue;
     rightUses.set(best.right.key, (rightUses.get(best.right.key) ?? 0) + 1);
     usedLeft.add(u.key);
