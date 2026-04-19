@@ -182,9 +182,18 @@ function buildEnriched(
   chatters: SwapInput[],
   models: SwapModelInfo[]
 ): SwapChatter[] {
+  // Fix 1: Models mit follower_count=0 kriegen Median-Fallback (sonst werden ganze
+  // Account-Einträge unsichtbar weil der Brezzels-Pool e.followers > 0 verlangt)
+  const nonZeroFollowers = models.map((m) => m.follower_count || 0).filter((f) => f > 0);
+  let followerMedian = 0;
+  if (nonZeroFollowers.length > 0) {
+    const sorted = [...nonZeroFollowers].sort((a, b) => a - b);
+    followerMedian = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  }
   const followerLookup = new Map<string, number>();
   for (const m of models) {
-    followerLookup.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+    const raw = m.follower_count || 0;
+    followerLookup.set((m.model_name || "").toLowerCase().trim(), raw > 0 ? raw : followerMedian);
   }
 
   // Pass 1: Pro Chatter aggregierte Stats berechnen (Skill-Score = Disziplin = pro Mensch)
@@ -394,8 +403,6 @@ function buildBrezzelsPools(
   byFollowersDesc.forEach((e, i) => followerRank.set(e.key, i + 1));
 
   // Mismatch = Skill-Rang − Follower-Rang
-  // negativ → guter Skiller, schwacher Account → underplaced
-  // positiv → schlechter Skiller, starker Account → overplaced
   const withMismatch = valid.map((e) => ({
     entry: e,
     mismatch: (skillRank.get(e.key) ?? 0) - (followerRank.get(e.key) ?? 0),
@@ -406,7 +413,14 @@ function buildBrezzelsPools(
 
   const cap = Math.min(level.poolSize, valid.length);
   const underplaced = ascByMismatch.slice(0, cap).map((x) => x.entry);
-  const overplaced = descByMismatch.slice(0, cap).map((x) => x.entry);
+
+  // Fix 2: Overplaced darf sich nicht mit Underplaced überschneiden — gleiche Person
+  // (egal welcher Account-Eintrag) wird ausgeschlossen.
+  const underplacedNames = new Set(underplaced.map((u) => u.name));
+  const overplaced = descByMismatch
+    .filter((x) => !underplacedNames.has(x.entry.name))
+    .slice(0, cap)
+    .map((x) => x.entry);
 
   return { underplaced, overplaced };
 }
@@ -430,10 +444,19 @@ export function computeSwapCandidates(
   if (platform === "Brezzels") {
     for (const level of BREZZELS_LEVELS) {
       const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
-      if (underplaced.length === 0 || overplaced.length === 0) continue;
+      const totalEnriched = enriched.length;
+      const validFollowers = enriched.filter((e) => e.followers > 0).length;
+      const zeroFollowerEntries = totalEnriched - validFollowers;
+      console.log(
+        `[Brezzels swap] enrichedTotal=${totalEnriched}, validFollowers=${validFollowers}, zeroFollowerSkipped=${zeroFollowerEntries}`
+      );
       console.log(
         `[Brezzels swap] poolSize=${level.poolSize} → underplaced=${underplaced.length}, overplaced=${overplaced.length}`
       );
+      if (underplaced.length === 0 || overplaced.length === 0) {
+        console.log(`[Brezzels swap] ⚠️ Pool leer — nächstes Lockerungslevel`);
+        continue;
+      }
       console.log(
         `[Brezzels swap] Underplaced:`,
         underplaced.map((u) => `${u.name} (skill=${u.skillScore.toFixed(2)}, F=${u.followers})`)
