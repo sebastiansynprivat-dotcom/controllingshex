@@ -1043,7 +1043,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         </div>
 
         {/* Cards stage */}
-        <div className="flex-1 min-h-0 grid grid-cols-2 gap-4 lg:gap-10 items-center relative">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-10 items-center relative overflow-y-auto lg:overflow-visible">
           <AnimatePresence mode="popLayout">
             <motion.div
               key={`L-${currentPair.left.key}-${leftAltIdx}`}
@@ -1051,7 +1051,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.22 }}
-              className="w-full max-w-[520px] justify-self-end"
+              className="w-full max-w-[520px] mx-auto lg:justify-self-end"
             >
               <SwapMiniCard
                 chatter={visibleLeft}
@@ -1065,10 +1065,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             </motion.div>
           </AnimatePresence>
 
-          {/* Center swap badge with arrow + gain */}
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2">
+          {/* Center swap badge — auf Mobile inline zwischen Karten, auf Desktop absolut zentriert */}
+          <div className="lg:pointer-events-none lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:z-10 flex flex-col items-center gap-2 justify-self-center my-1 lg:my-0">
             <div
-              className="h-12 w-12 lg:h-16 lg:w-16 rounded-full flex items-center justify-center border-2"
+              className="h-10 w-10 lg:h-16 lg:w-16 rounded-full flex items-center justify-center border-2"
               style={{
                 background:
                   "radial-gradient(circle at 30% 30%, hsl(40 60% 60% / 0.35) 0%, hsl(40 45% 40% / 0.18) 60%, hsl(40 30% 20% / 0.05) 100%)",
@@ -1077,7 +1077,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                   "0 0 0 6px hsl(240 6% 6% / 0.85), 0 8px 30px -6px hsl(40 55% 50% / 0.55), inset 0 1px 0 hsl(40 80% 80% / 0.15)",
               }}
             >
-              <ArrowLeftRight className="h-5 w-5 lg:h-7 lg:w-7" style={{ color: "hsl(40 70% 75%)" }} />
+              <ArrowLeftRight className="h-4 w-4 lg:h-7 lg:w-7 rotate-90 lg:rotate-0" style={{ color: "hsl(40 70% 75%)" }} />
             </div>
             <span
               className="hidden lg:block text-[10px] uppercase tracking-[0.22em] font-semibold px-2 py-0.5 rounded-full bg-zinc-950/80 border"
@@ -1097,7 +1097,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, x: 40 }}
               transition={{ duration: 0.22 }}
-              className="w-full max-w-[520px] justify-self-start"
+              className="w-full max-w-[520px] mx-auto lg:justify-self-start"
             >
               <SwapMiniCard
                 chatter={visibleRight}
