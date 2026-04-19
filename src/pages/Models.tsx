@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Pencil, Trash2, Save, X, CalendarIcon, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, X, CalendarIcon, DollarSign, Search } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ export default function Models() {
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
   const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
   const [revenueFilter, setRevenueFilter] = useState<"all" | "earning" | "zero">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
 
   const dateRange = useMemo(() => {
@@ -137,13 +138,15 @@ export default function Models() {
   }, [platform]);
 
   const filteredModels = useMemo(() => {
-    if (revenueFilter === "all") return models;
+    const q = searchQuery.trim().toLocaleLowerCase("de-DE");
     return models.filter((m) => {
+      if (q && !m.model_name.toLocaleLowerCase("de-DE").includes(q)) return false;
+      if (revenueFilter === "all") return true;
       const rev = modelRevenues[m.model_name];
       if (revenueFilter === "earning") return rev && rev.totalRevenue > 0;
       return !rev || rev.totalRevenue === 0;
     });
-  }, [models, revenueFilter, modelRevenues]);
+  }, [models, revenueFilter, modelRevenues, searchQuery]);
 
   const addModel = async () => {
     if (!newName.trim()) return;
@@ -384,6 +387,26 @@ export default function Models() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/25 pointer-events-none" />
+          <Input
+            placeholder="Model suchen..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-white/[0.02] border-white/[0.05] text-foreground placeholder:text-white/25 font-light text-sm h-10 backdrop-blur-2xl"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+              aria-label="Suche löschen"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Table */}
