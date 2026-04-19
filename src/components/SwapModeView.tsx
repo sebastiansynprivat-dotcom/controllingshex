@@ -117,16 +117,15 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
         style={{ background: `linear-gradient(90deg, transparent, hsl(${accentHsl} / 0.7), transparent)` }}
       />
       <div
-        className="p-5 lg:p-7 border border-white/[0.06] rounded-3xl"
+        className="p-3 lg:p-7 border border-white/[0.06] rounded-2xl lg:rounded-3xl"
         style={{
           background: `radial-gradient(140% 100% at 50% -20%, hsl(${accentHsl} / 0.07) 0%, transparent 55%), linear-gradient(180deg, hsl(240 6% 8%) 0%, hsl(240 6% 5%) 100%)`,
-          minHeight: 320,
           boxShadow: `0 24px 60px -24px hsl(240 10% 0% / 0.7), inset 0 1px 0 hsl(0 0% 100% / 0.04)`,
         }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2 lg:mb-3">
           <span
-            className="text-[9px] uppercase tracking-[0.18em] font-semibold px-2 py-1 rounded-full border"
+            className="text-[8px] lg:text-[9px] uppercase tracking-[0.18em] font-semibold px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full border"
             style={{
               color: `hsl(${accentHsl})`,
               borderColor: `hsl(${accentHsl} / 0.35)`,
@@ -136,7 +135,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
             {tag}
           </span>
           <span
-            className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md border"
+            className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
             style={{
               color: `hsl(${tierColor(chatter.tier)})`,
               borderColor: `hsl(${tierColor(chatter.tier)} / 0.35)`,
@@ -147,18 +146,18 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           </span>
         </div>
 
-        <h3 className="text-lg lg:text-2xl font-semibold text-foreground capitalize truncate mb-0.5">
+        <h3 className="text-base lg:text-2xl font-semibold text-foreground capitalize truncate mb-0.5 leading-tight">
           {chatter.name.replace(/_/g, " ")}
         </h3>
-        <p className="text-xs lg:text-sm text-white/45 mb-1 truncate">@ {chatter.account}</p>
-        <div className="flex items-center gap-3 mb-3 lg:mb-5 flex-wrap">
-          <p className="text-[10px] lg:text-xs text-white/40 inline-flex items-center gap-1">
-            <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
-            {formatFollowers(chatter.followers)} Follower
+        <p className="text-[10px] lg:text-sm text-white/45 mb-1 truncate">@ {chatter.account}</p>
+        <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-5 flex-wrap">
+          <p className="text-[9px] lg:text-xs text-white/40 inline-flex items-center gap-1">
+            <Users className="h-2.5 w-2.5 lg:h-3.5 lg:w-3.5" />
+            {formatFollowers(chatter.followers)}
           </p>
           {chatter.firstSeen && (
             <p
-              className="text-[10px] lg:text-xs text-white/40 inline-flex items-center gap-1"
+              className="hidden lg:inline-flex text-[10px] lg:text-xs text-white/40 items-center gap-1"
               title={`Erster Eintrag: ${chatter.firstSeen}`}
             >
               <CalendarDays className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
@@ -168,16 +167,16 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
         </div>
 
         {/* Skill-Score Bar */}
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 lg:p-4 mb-2.5 lg:mb-4">
-          <div className="flex items-center justify-between mb-1.5 lg:mb-2">
-            <span className="text-[9px] lg:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
-              <Zap className="h-2.5 w-2.5 lg:h-3 lg:w-3" /> Skill-Score
+        <div className="rounded-lg lg:rounded-xl bg-white/[0.03] border border-white/[0.06] p-2 lg:p-4 mb-2 lg:mb-4">
+          <div className="flex items-center justify-between mb-1 lg:mb-2">
+            <span className="text-[8px] lg:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
+              <Zap className="h-2.5 w-2.5 lg:h-3 lg:w-3" /> Skill
             </span>
-            <span className="text-sm lg:text-lg font-bold tabular-nums" style={{ color: `hsl(${accentHsl})` }}>
+            <span className="text-xs lg:text-lg font-bold tabular-nums" style={{ color: `hsl(${accentHsl})` }}>
               {formatSkill(chatter.skillScore)}
             </span>
           </div>
-          <div className="h-1.5 lg:h-2 rounded-full bg-white/[0.05] overflow-hidden">
+          <div className="h-1 lg:h-2 rounded-full bg-white/[0.05] overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -188,26 +187,26 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           </div>
         </div>
 
-        {/* Skill-Breakdown Mini-Icons */}
-        <div className="grid grid-cols-4 gap-1.5 lg:gap-2 mb-2.5 lg:mb-4">
+        {/* Skill-Breakdown — auf Mobile versteckt um Höhe zu sparen */}
+        <div className="hidden lg:grid grid-cols-4 gap-1.5 lg:gap-2 mb-2.5 lg:mb-4">
           <SkillPill icon={MessageSquare} label="DMs" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
           <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
           <SkillPill icon={Inbox} label="Chat" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
           <SkillPill icon={TrendingUp} label="€/F" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 lg:gap-3">
-          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2 lg:p-3">
+        <div className="grid grid-cols-2 gap-1.5 lg:gap-3">
+          <div className="rounded-md lg:rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5 lg:p-3">
             <p className="text-[8px] lg:text-[10px] uppercase tracking-wider text-white/40">7T-Ø</p>
             <p className="text-xs lg:text-base font-semibold text-foreground tabular-nums">{formatEur(chatter.avgRevenue)}</p>
           </div>
-          <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2 lg:p-3">
+          <div className="rounded-md lg:rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5 lg:p-3">
             <p className="text-[8px] lg:text-[10px] uppercase tracking-wider text-white/40">Heute</p>
             <p className="text-xs lg:text-base font-semibold text-foreground tabular-nums">{formatEur(chatter.currentRevenue)}</p>
           </div>
         </div>
 
-        <div className="mt-3 lg:mt-4 text-[10px] lg:text-[11px] text-white/35 text-center">
+        <div className="hidden lg:block mt-3 lg:mt-4 text-[10px] lg:text-[11px] text-white/35 text-center">
           Wische in jede Richtung &nbsp;·&nbsp; nur diese Karte tauschen
         </div>
       </div>
