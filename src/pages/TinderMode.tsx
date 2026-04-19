@@ -270,7 +270,7 @@ export default function TinderMode() {
       ]);
 
       if (historyRes.data) {
-        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[]>();
+        const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number; account?: string }[]>();
         for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
@@ -279,12 +279,14 @@ export default function TinderMode() {
             mass_dms: Number(h.mass_dms) || 0,
             open_chats: Number((h as any).open_chats) || 0,
             response_delay_days: Number(h.response_delay_days) || 0,
+            account: (h as any).account ?? undefined,
           });
         }
         for (const ch of allChatters) {
           ch.history = histMap.get(ch.name)?.slice(-7);
         }
       }
+
 
       // Build per-chatter account-login map (account name → email/password from models)
       if (historyRes.data && modelsRes.data) {
@@ -401,9 +403,19 @@ export default function TinderMode() {
       const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
       const revStr = revKey ? c.kpis[revKey] : "0";
       const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+      // Fallback: account aus history ableiten wenn der aktuelle Report keinen liefert.
+      // chatter_history hat die accounts pro Tag — wir bauen eine kommagetrennte Liste.
+      let account = c.account;
+      if (!account || !account.trim()) {
+        const histAccounts = (c.history as any[] | undefined)
+          ?.map((h) => (h.account || "").trim())
+          .filter((a) => a.length > 0) ?? [];
+        const unique = Array.from(new Set(histAccounts));
+        if (unique.length > 0) account = unique.join(",");
+      }
       return {
         name: c.name,
-        account: c.account,
+        account,
         currentRevenue: rev,
         history: c.history,
       };
