@@ -32,7 +32,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-white/[0.04]">
-      <SidebarContent className={`pt-10 transition-all duration-300 ease-in-out flex flex-col h-full ${collapsed ? "px-0 items-center" : "px-3"}`}>
+      <SidebarContent style={{ paddingTop: "calc(env(safe-area-inset-top) + 2.5rem)" }} className={`transition-all duration-300 ease-in-out flex flex-col h-full ${collapsed ? "px-0 items-center" : "px-3"}`}>
         <div className={`mb-10 transition-all duration-300 ease-in-out ${collapsed ? "flex justify-center px-0" : "px-3"}`}>
           {!collapsed ? (
             <h1 className="text-sm font-semibold tracking-[0.2em] uppercase gold-text-subtle">
