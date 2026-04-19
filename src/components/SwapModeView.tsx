@@ -349,6 +349,9 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     rightName: string;
     /** Chatter-Namen die durch diese Aktion in dailyDismissed eingefügt wurden (für Undo) */
     dailyDismissedAdded?: string[];
+    /** Card-Keys die durch alt-cycle in dismissedLeftKeys/RightKeys eingefügt wurden (für Undo) */
+    dismissedLeftAdded?: string[];
+    dismissedRightAdded?: string[];
   };
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
