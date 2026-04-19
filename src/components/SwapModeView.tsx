@@ -415,20 +415,24 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     const n = leftCandidates.length;
     for (let off = 0; off < n; off++) {
       const c = leftCandidates[(leftAltIdx + off) % n];
-      if (!dismissedLeftKeys.has(c.key)) return c;
+      if (dismissedLeftKeys.has(c.key)) continue;
+      if (dailyDismissed.has(c.name)) continue;
+      return c;
     }
     return undefined;
-  }, [leftCandidates, leftAltIdx, dismissedLeftKeys]);
+  }, [leftCandidates, leftAltIdx, dismissedLeftKeys, dailyDismissed]);
 
   const visibleRight: SwapChatter | undefined = useMemo(() => {
     if (rightCandidates.length === 0) return undefined;
     const n = rightCandidates.length;
     for (let off = 0; off < n; off++) {
       const c = rightCandidates[(rightAltIdx + off) % n];
-      if (!dismissedRightKeys.has(c.key)) return c;
+      if (dismissedRightKeys.has(c.key)) continue;
+      if (dailyDismissed.has(c.name)) continue;
+      return c;
     }
     return undefined;
-  }, [rightCandidates, rightAltIdx, dismissedRightKeys]);
+  }, [rightCandidates, rightAltIdx, dismissedRightKeys, dailyDismissed]);
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
