@@ -354,64 +354,60 @@ export interface ComputeOptions {
 }
 
 /**
- * Brezzels v3 — RELATIVE Logik statt harter Schwellen.
+ * Brezzels v4 — MISMATCH-RANG-Logik.
  *
- * Skala bei Brezzels: alle Accounts ~120-580 Follower, Tagesumsätze 40-400€.
- * Harte Cuts ("kleiner als 70F", "weniger als 3€") greifen kaum jemanden.
+ * Idee: Sortiere alle Chatter zweimal — einmal nach Skill, einmal nach Followern.
+ *   Mismatch = Skill-Rang − Account-Rang   (1 = best in beiden Listen)
  *
- * Neue Definition:
- *   Effizienz = avgRevenue / followers  → "Wieviel Umsatz holt der Chatter pro Follower"
+ *   Stark negativ → Top-Skiller auf kleinem Account → UNDERPLACED
+ *   Stark positiv → Schwacher Skiller auf großem Account → OVERPLACED
  *
- *   Underplaced = Effizienz Bottom-50% UND Skill Top-50%
- *                 → "Gute Hände, aber Account underperformt → besseren Account geben"
- *   Overplaced  = Effizienz Bottom-50% UND Skill Bottom-50%
- *                 → "Schwacher Chatter, Account underperformt → an stärkeren weiterreichen"
- *
- * Die Auto-Lockerung lockert nur die Pool-Quantile, falls zu wenige Pairs.
+ * Vorteil ggü. Effizienz-Filter: Skill und Effizienz korrelieren bei enger
+ * Follower-Spanne stark — der alte Doppel-Filter (Eff Bottom-50% UND Skill Top-50%)
+ * dünnt den Pool aus statt ihn zu schärfen. Mismatch nutzt beide Dimensionen
+ * orthogonal und liefert robust Pairs auf jeder Skala.
  */
 interface BrezzelsLevel {
-  effPercentile: number; // z.B. 0.5 = Bottom-50%
-  skillTopPercentile: number; // z.B. 0.5 = Top-50%
-  skillBottomPercentile: number; // z.B. 0.5 = Bottom-50%
+  poolSize: number; // pro Seite (Underplaced/Overplaced)
 }
 const BREZZELS_LEVELS: BrezzelsLevel[] = [
-  { effPercentile: 0.5, skillTopPercentile: 0.5, skillBottomPercentile: 0.5 },
-  { effPercentile: 0.65, skillTopPercentile: 0.6, skillBottomPercentile: 0.6 },
-  { effPercentile: 0.8, skillTopPercentile: 0.7, skillBottomPercentile: 0.7 },
+  { poolSize: 12 },
+  { poolSize: 16 },
+  { poolSize: 20 },
 ];
-
-function quantileAsc(sortedAsc: number[], p: number): number {
-  if (sortedAsc.length === 0) return 0;
-  const idx = Math.max(0, Math.min(sortedAsc.length - 1, Math.floor(sortedAsc.length * p)));
-  return sortedAsc[idx];
-}
 
 function buildBrezzelsPools(
   enriched: SwapChatter[],
   level: BrezzelsLevel
 ): { underplaced: SwapChatter[]; overplaced: SwapChatter[] } {
-  // Nur Einträge mit valide Followern bewerten — sonst ist Effizienz NaN
   const valid = enriched.filter((e) => e.followers > 0);
-  if (valid.length === 0) return { underplaced: [], overplaced: [] };
+  if (valid.length < 4) return { underplaced: [], overplaced: [] };
 
-  // Effizienz = avgRevenue / followers
-  const effs = valid.map((e) => e.avgRevenue / e.followers);
-  const effsAsc = [...effs].sort((a, b) => a - b);
-  const effThreshold = quantileAsc(effsAsc, level.effPercentile); // Bottom-X%-Cap
+  // Skill-Rang: 1 = höchster Skill
+  const bySkillDesc = [...valid].sort((a, b) => b.skillScore - a.skillScore);
+  const skillRank = new Map<string, number>();
+  bySkillDesc.forEach((e, i) => skillRank.set(e.key, i + 1));
 
-  // Skill-Quantile (über gesamten Pool)
-  const skillsAsc = [...enriched].map((e) => e.skillScore).sort((a, b) => a - b);
-  const skillTopCut = quantileAsc(skillsAsc, 1 - level.skillTopPercentile); // Top-X% startet ab hier
-  const skillBottomCut = quantileAsc(skillsAsc, level.skillBottomPercentile); // Bottom-X% endet hier
+  // Account-Rang: 1 = meiste Follower
+  const byFollowersDesc = [...valid].sort((a, b) => b.followers - a.followers);
+  const followerRank = new Map<string, number>();
+  byFollowersDesc.forEach((e, i) => followerRank.set(e.key, i + 1));
 
-  const underplaced = valid.filter((e) => {
-    const eff = e.avgRevenue / e.followers;
-    return eff <= effThreshold && e.skillScore >= skillTopCut;
-  });
-  const overplaced = valid.filter((e) => {
-    const eff = e.avgRevenue / e.followers;
-    return eff <= effThreshold && e.skillScore <= skillBottomCut;
-  });
+  // Mismatch = Skill-Rang − Follower-Rang
+  // negativ → guter Skiller, schwacher Account → underplaced
+  // positiv → schlechter Skiller, starker Account → overplaced
+  const withMismatch = valid.map((e) => ({
+    entry: e,
+    mismatch: (skillRank.get(e.key) ?? 0) - (followerRank.get(e.key) ?? 0),
+  }));
+
+  const ascByMismatch = [...withMismatch].sort((a, b) => a.mismatch - b.mismatch);
+  const descByMismatch = [...withMismatch].sort((a, b) => b.mismatch - a.mismatch);
+
+  const cap = Math.min(level.poolSize, valid.length);
+  const underplaced = ascByMismatch.slice(0, cap).map((x) => x.entry);
+  const overplaced = descByMismatch.slice(0, cap).map((x) => x.entry);
+
   return { underplaced, overplaced };
 }
 
