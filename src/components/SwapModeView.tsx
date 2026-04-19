@@ -747,6 +747,20 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         return n;
       });
     }
+    if (last.dismissedLeftAdded && last.dismissedLeftAdded.length > 0) {
+      setDismissedLeftKeys((prev) => {
+        const n = new Set(prev);
+        for (const k of last.dismissedLeftAdded!) n.delete(k);
+        return n;
+      });
+    }
+    if (last.dismissedRightAdded && last.dismissedRightAdded.length > 0) {
+      setDismissedRightKeys((prev) => {
+        const n = new Set(prev);
+        for (const k of last.dismissedRightAdded!) n.delete(k);
+        return n;
+      });
+    }
     setPairIdx(last.pairIdxBefore);
     setLeftAltIdx(last.leftAltIdxBefore);
     setRightAltIdx(last.rightAltIdxBefore);
