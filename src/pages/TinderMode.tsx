@@ -401,9 +401,19 @@ export default function TinderMode() {
       const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
       const revStr = revKey ? c.kpis[revKey] : "0";
       const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+      // Fallback: account aus history ableiten wenn der aktuelle Report keinen liefert.
+      // chatter_history hat die accounts pro Tag — wir bauen eine kommagetrennte Liste.
+      let account = c.account;
+      if (!account || !account.trim()) {
+        const histAccounts = (c.history as any[] | undefined)
+          ?.map((h) => (h.account || "").trim())
+          .filter((a) => a.length > 0) ?? [];
+        const unique = Array.from(new Set(histAccounts));
+        if (unique.length > 0) account = unique.join(",");
+      }
       return {
         name: c.name,
-        account: c.account,
+        account,
         currentRevenue: rev,
         history: c.history,
       };
