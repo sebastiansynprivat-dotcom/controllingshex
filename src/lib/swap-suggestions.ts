@@ -479,7 +479,36 @@ export function computeSwapCandidates(
         gainTolerance: -1000,
         debugLabel: `Brezzels L=${level.poolSize}`,
       });
-      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize}`);
+
+      // Zweiter Pass: für jeden Overplaced der noch in keinem Pair ist,
+      // ein zusätzliches Pair mit dem best-passenden Underplaced erzeugen.
+      // → garantiert dass alle Overplaced aus dem Pool sichtbar werden.
+      const usedRightKeys = new Set(result.map((p) => p.right.key));
+      const unusedOverplaced = overplaced.filter((o) => !usedRightKeys.has(o.key));
+      for (const o of unusedOverplaced) {
+        let bestLeft: { u: SwapChatter; gain: number; ratio: number } | null = null;
+        for (const u of underplaced) {
+          if (u.name === o.name) continue;
+          const uFollowers = Math.max(u.followers, 1);
+          const ratio = o.followers / uFollowers;
+          if (ratio < 1.0 || ratio > maxFollowerRatio) continue;
+          const gain = computeExpectedGain(u, o, bundle);
+          if (!bestLeft || gain > bestLeft.gain) bestLeft = { u, gain, ratio };
+        }
+        if (!bestLeft) continue;
+        const tierJump = Math.max(0, tierIndex(o.tier) - tierIndex(bestLeft.u.tier));
+        result.push({
+          left: bestLeft.u,
+          right: o,
+          expectedGain: bestLeft.gain,
+          followerRatio: bestLeft.ratio,
+          tierJump,
+          leftAlternatives: [],
+          rightAlternatives: [],
+        });
+      }
+      result.sort((a, b) => b.expectedGain - a.expectedGain);
+      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize} (incl. ${unusedOverplaced.length} fill-ups)`);
       // DOM-Marker für externe Inspektion (falls Console nicht erreichbar)
       if (typeof document !== "undefined") {
         document.documentElement.setAttribute(
