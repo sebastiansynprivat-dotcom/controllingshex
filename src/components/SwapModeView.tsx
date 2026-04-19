@@ -273,6 +273,9 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
+  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys für linke/rechte Seite */
+  const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
+  const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   /** Pair-Keys die in der DB aktiv geblockt sind (snoozed_until > now ODER status=approved) */
@@ -340,6 +343,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   useEffect(() => {
     setLeftAltIdx(0);
     setRightAltIdx(0);
+    setDismissedLeftKeys(new Set());
+    setDismissedRightKeys(new Set());
   }, [pairIdx]);
 
   // Reset pair index + history when manual mode toggles
@@ -347,6 +352,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     setPairIdx(0);
     setLeftAltIdx(0);
     setRightAltIdx(0);
+    setDismissedLeftKeys(new Set());
+    setDismissedRightKeys(new Set());
   }, [manualChatterName]);
 
   const currentPair: SwapPair | undefined = useMemo(() => {
@@ -361,17 +368,37 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     return undefined;
   }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey]);
 
+  /** Liefert alle Kandidaten der linken Seite in Reihenfolge: [main, ...alts] */
+  const leftCandidates: SwapChatter[] = useMemo(() => {
+    if (!currentPair) return [];
+    return [currentPair.left, ...currentPair.leftAlternatives];
+  }, [currentPair]);
+
+  const rightCandidates: SwapChatter[] = useMemo(() => {
+    if (!currentPair) return [];
+    return [currentPair.right, ...currentPair.rightAlternatives];
+  }, [currentPair]);
+
+  /** Erster nicht-dismisster Kandidat ab leftAltIdx (zirkulär) */
   const visibleLeft: SwapChatter | undefined = useMemo(() => {
-    if (!currentPair) return undefined;
-    if (leftAltIdx === 0) return currentPair.left;
-    return currentPair.leftAlternatives[leftAltIdx - 1] || currentPair.left;
-  }, [currentPair, leftAltIdx]);
+    if (leftCandidates.length === 0) return undefined;
+    const n = leftCandidates.length;
+    for (let off = 0; off < n; off++) {
+      const c = leftCandidates[(leftAltIdx + off) % n];
+      if (!dismissedLeftKeys.has(c.key)) return c;
+    }
+    return undefined;
+  }, [leftCandidates, leftAltIdx, dismissedLeftKeys]);
 
   const visibleRight: SwapChatter | undefined = useMemo(() => {
-    if (!currentPair) return undefined;
-    if (rightAltIdx === 0) return currentPair.right;
-    return currentPair.rightAlternatives[rightAltIdx - 1] || currentPair.right;
-  }, [currentPair, rightAltIdx]);
+    if (rightCandidates.length === 0) return undefined;
+    const n = rightCandidates.length;
+    for (let off = 0; off < n; off++) {
+      const c = rightCandidates[(rightAltIdx + off) % n];
+      if (!dismissedRightKeys.has(c.key)) return c;
+    }
+    return undefined;
+  }, [rightCandidates, rightAltIdx, dismissedRightKeys]);
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
@@ -415,8 +442,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = 1 + currentPair.leftAlternatives.length;
-    if (total <= 1) {
+    const total = leftCandidates.length;
+    // Verbleibende, nicht-dismisste Kandidaten (nach Hinzufügen des aktuellen)
+    const remaining = leftCandidates.filter(
+      (c) => c.key !== visibleLeft.key && !dismissedLeftKeys.has(c.key)
+    );
+    if (remaining.length === 0) {
       toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
       return;
     }
@@ -434,13 +465,21 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         rightName: visibleRight.name,
       },
     ].slice(-20));
+    setDismissedLeftKeys((prev) => {
+      const n = new Set(prev);
+      n.add(visibleLeft.key);
+      return n;
+    });
     setLeftAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
+  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dismissedLeftKeys, pairIdx, leftAltIdx, rightAltIdx]);
 
   const cycleRightAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = 1 + currentPair.rightAlternatives.length;
-    if (total <= 1) {
+    const total = rightCandidates.length;
+    const remaining = rightCandidates.filter(
+      (c) => c.key !== visibleRight.key && !dismissedRightKeys.has(c.key)
+    );
+    if (remaining.length === 0) {
       toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
       return;
     }
@@ -458,8 +497,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         rightName: visibleRight.name,
       },
     ].slice(-20));
+    setDismissedRightKeys((prev) => {
+      const n = new Set(prev);
+      n.add(visibleRight.key);
+      return n;
+    });
     setRightAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx]);
+  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dismissedRightKeys, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
