@@ -424,21 +424,17 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     return () => { cancelled = true; };
   }, [platform, pairKeyVariants]);
 
-  // Reset alt-overrides when pair index changes
+  // Reset alt-overrides when pair index changes (Indizes nur, nicht die persistierten Dismissals)
   useEffect(() => {
     setLeftAltIdx(0);
     setRightAltIdx(0);
-    setDismissedLeftKeys(new Set());
-    setDismissedRightKeys(new Set());
   }, [pairIdx]);
 
-  // Reset pair index + history when manual mode toggles
+  // Reset pair index + history when manual mode toggles (persistierte Dismissals bleiben)
   useEffect(() => {
     setPairIdx(0);
     setLeftAltIdx(0);
     setRightAltIdx(0);
-    setDismissedLeftKeys(new Set());
-    setDismissedRightKeys(new Set());
   }, [manualChatterName]);
 
   const currentPair: SwapPair | undefined = useMemo(() => {
