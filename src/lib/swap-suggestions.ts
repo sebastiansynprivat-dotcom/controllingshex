@@ -426,18 +426,31 @@ export function computeSwapCandidates(
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
 
-  // ----- Brezzels: relative Effizienz+Skill-Logik mit Auto-Lockerung -----
+  // ----- Brezzels: Mismatch-Pool + Diagnose-Logs -----
   if (platform === "Brezzels") {
     for (const level of BREZZELS_LEVELS) {
       const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
       if (underplaced.length === 0 || overplaced.length === 0) continue;
+      console.log(
+        `[Brezzels swap] poolSize=${level.poolSize} → underplaced=${underplaced.length}, overplaced=${overplaced.length}`
+      );
+      console.log(
+        `[Brezzels swap] Underplaced:`,
+        underplaced.map((u) => `${u.name} (skill=${u.skillScore.toFixed(2)}, F=${u.followers})`)
+      );
+      console.log(
+        `[Brezzels swap] Overplaced:`,
+        overplaced.map((o) => `${o.name} (skill=${o.skillScore.toFixed(2)}, F=${o.followers})`)
+      );
       const result = pairUp(underplaced, overplaced, bundle, {
         minFollowerRatio: 1.15,
         maxFollowerRatio,
         minSkillDiff: 0.05,
         maxRightUses: 2,
         gainTolerance: -3,
+        debugLabel: `Brezzels L=${level.poolSize}`,
       });
+      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize}`);
       if (result.length >= 3 || level === BREZZELS_LEVELS[BREZZELS_LEVELS.length - 1]) {
         return result;
       }
@@ -477,6 +490,8 @@ function pairUp(
     maxRightUses?: number;
     /** Erlaubte Untergrenze für expectedGain (default 0 → strikt positiv). Brezzels: -2 € */
     gainTolerance?: number;
+    /** Wenn true: pro Underplaced-Iteration loggen wieviele an welcher Constraint scheitern */
+    debugLabel?: string;
   }
 ): SwapPair[] {
   const { minFollowerRatio, maxFollowerRatio, minSkillDiff } = cfg;
@@ -490,19 +505,32 @@ function pairUp(
     if (usedLeft.has(u.key)) continue;
 
     let best: { right: SwapChatter; gain: number; ratio: number } | null = null;
+    let cAlreadyUsed = 0, cSameName = 0, cRatioLow = 0, cRatioHigh = 0, cSkillDiff = 0, cGain = 0, cPassed = 0;
+
     for (const o of overplacedPool) {
-      if ((rightUses.get(o.key) ?? 0) >= maxRightUses) continue;
-      if (o.name === u.name) continue;
+      if ((rightUses.get(o.key) ?? 0) >= maxRightUses) { cAlreadyUsed++; continue; }
+      if (o.name === u.name) { cSameName++; continue; }
       const uFollowers = Math.max(u.followers, 1);
       const ratio = o.followers / uFollowers;
-      if (ratio < minFollowerRatio) continue;
-      if (ratio > maxFollowerRatio) continue;
-      if (u.skillScore - o.skillScore < minSkillDiff) continue;
+      if (ratio < minFollowerRatio) { cRatioLow++; continue; }
+      if (ratio > maxFollowerRatio) { cRatioHigh++; continue; }
+      if (u.skillScore - o.skillScore < minSkillDiff) { cSkillDiff++; continue; }
 
       const gain = computeExpectedGain(u, o, bundle);
-      if (gain <= gainThreshold) continue;
+      if (gain <= gainThreshold) { cGain++; continue; }
+      cPassed++;
       if (!best || gain > best.gain) best = { right: o, gain, ratio };
     }
+
+    if (cfg.debugLabel) {
+      console.log(
+        `[${cfg.debugLabel}] U=${u.name} (skill=${u.skillScore.toFixed(2)}, F=${u.followers}) → ` +
+          `passed=${cPassed} | rejected: alreadyUsed=${cAlreadyUsed}, sameName=${cSameName}, ` +
+          `ratio<${minFollowerRatio}=${cRatioLow}, ratio>${maxFollowerRatio}=${cRatioHigh}, ` +
+          `skillDiff<${minSkillDiff}=${cSkillDiff}, gain<=${gainThreshold}=${cGain}`
+      );
+    }
+
     if (!best) continue;
     rightUses.set(best.right.key, (rightUses.get(best.right.key) ?? 0) + 1);
     usedLeft.add(u.key);
