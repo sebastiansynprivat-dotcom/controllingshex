@@ -576,12 +576,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     if (!currentPair || !visibleLeft || !visibleRight) return;
     const total = leftCandidates.length;
     const remaining = leftCandidates.filter(
-      (c) => c.key !== visibleLeft.key && !dismissedLeftKeys.has(c.key) && !dailyDismissed.has(c.name)
+      (c) => c.name !== visibleLeft.name && !dailyDismissed.has(c.name)
     );
     if (remaining.length === 0) {
       toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
       return;
     }
+    const dismissedName = visibleLeft.name;
     pushHistory({
       decisionId: null,
       pairKeys: [],
@@ -592,26 +593,28 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-left" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
-      dismissedLeftAdded: [visibleLeft.key],
+      dailyDismissedAdded: [dismissedName],
     });
-    setDismissedLeftKeys((prev) => {
+    // Persistent: Chatter-Name komplett ausblenden bis zum nächsten Report
+    setDailyDismissed((prev) => {
       const n = new Set(prev);
-      n.add(visibleLeft.key);
+      n.add(dismissedName);
       return n;
     });
     setLeftAltIdx((i) => (i + 1) % Math.max(total, 1));
-  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dismissedLeftKeys, dailyDismissed, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
+  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dailyDismissed, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   const cycleRightAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
     const total = rightCandidates.length;
     const remaining = rightCandidates.filter(
-      (c) => c.key !== visibleRight.key && !dismissedRightKeys.has(c.key) && !dailyDismissed.has(c.name)
+      (c) => c.name !== visibleRight.name && !dailyDismissed.has(c.name)
     );
     if (remaining.length === 0) {
       toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
       return;
     }
+    const dismissedName = visibleRight.name;
     pushHistory({
       decisionId: null,
       pairKeys: [],
@@ -622,15 +625,15 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-right" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
-      dismissedRightAdded: [visibleRight.key],
+      dailyDismissedAdded: [dismissedName],
     });
-    setDismissedRightKeys((prev) => {
+    setDailyDismissed((prev) => {
       const n = new Set(prev);
-      n.add(visibleRight.key);
+      n.add(dismissedName);
       return n;
     });
     setRightAltIdx((i) => (i + 1) % Math.max(total, 1));
-  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dismissedRightKeys, dailyDismissed, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
+  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dailyDismissed, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
