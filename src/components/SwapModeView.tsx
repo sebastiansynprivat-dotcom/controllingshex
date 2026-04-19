@@ -478,68 +478,49 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = leftCandidates.length;
-    // Verbleibende, nicht-dismisste Kandidaten (nach Hinzufügen des aktuellen)
-    const remaining = leftCandidates.filter(
-      (c) => c.key !== visibleLeft.key && !dismissedLeftKeys.has(c.key)
-    );
-    if (remaining.length === 0) {
-      toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
-      return;
-    }
-    setHistory((prev) => [
-      ...prev,
-      {
-        decisionId: null,
-        pairKeys: [],
-        sessionKey: "",
-        pairIdxBefore: pairIdx,
-        leftAltIdxBefore: leftAltIdx,
-        rightAltIdxBefore: rightAltIdx,
-        action: "alt-left" as const,
-        leftName: visibleLeft.name,
-        rightName: visibleRight.name,
-      },
-    ].slice(-20));
-    setDismissedLeftKeys((prev) => {
+    const dismissedName = visibleLeft.name;
+    pushHistory({
+      decisionId: null,
+      pairKeys: [],
+      sessionKey: "",
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "alt-left" as const,
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+      dailyDismissedAdded: [dismissedName],
+    });
+    setDailyDismissed((prev) => {
       const n = new Set(prev);
-      n.add(visibleLeft.key);
+      n.add(dismissedName);
       return n;
     });
-    setLeftAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dismissedLeftKeys, pairIdx, leftAltIdx, rightAltIdx]);
+    toast(`${dismissedName.replace(/_/g, " ")} heute ausgeblendet`, { icon: "👋" });
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   const cycleRightAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const total = rightCandidates.length;
-    const remaining = rightCandidates.filter(
-      (c) => c.key !== visibleRight.key && !dismissedRightKeys.has(c.key)
-    );
-    if (remaining.length === 0) {
-      toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
-      return;
-    }
-    setHistory((prev) => [
-      ...prev,
-      {
-        decisionId: null,
-        pairKeys: [],
-        sessionKey: "",
-        pairIdxBefore: pairIdx,
-        leftAltIdxBefore: leftAltIdx,
-        rightAltIdxBefore: rightAltIdx,
-        action: "alt-right" as const,
-        leftName: visibleLeft.name,
-        rightName: visibleRight.name,
-      },
-    ].slice(-20));
-    setDismissedRightKeys((prev) => {
+    const dismissedName = visibleRight.name;
+    pushHistory({
+      decisionId: null,
+      pairKeys: [],
+      sessionKey: "",
+      pairIdxBefore: pairIdx,
+      leftAltIdxBefore: leftAltIdx,
+      rightAltIdxBefore: rightAltIdx,
+      action: "alt-right" as const,
+      leftName: visibleLeft.name,
+      rightName: visibleRight.name,
+      dailyDismissedAdded: [dismissedName],
+    });
+    setDailyDismissed((prev) => {
       const n = new Set(prev);
-      n.add(visibleRight.key);
+      n.add(dismissedName);
       return n;
     });
-    setRightAltIdx((i) => (i + 1) % total);
-  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dismissedRightKeys, pairIdx, leftAltIdx, rightAltIdx]);
+    toast(`${dismissedName.replace(/_/g, " ")} heute ausgeblendet`, { icon: "👋" });
+  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
