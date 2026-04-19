@@ -273,6 +273,9 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
+  /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys für linke/rechte Seite */
+  const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
+  const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   /** Pair-Keys die in der DB aktiv geblockt sind (snoozed_until > now ODER status=approved) */
