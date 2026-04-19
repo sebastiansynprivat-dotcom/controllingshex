@@ -581,6 +581,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-right" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
+      dismissedRightAdded: [visibleRight.key],
     });
     setDismissedRightKeys((prev) => {
       const n = new Set(prev);
