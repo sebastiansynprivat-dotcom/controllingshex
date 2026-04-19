@@ -418,9 +418,11 @@ export function computeSwapCandidates(
       const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
       if (underplaced.length === 0 || overplaced.length === 0) continue;
       const result = pairUp(underplaced, overplaced, bundle, {
-        minFollowerRatio,
+        minFollowerRatio: 1.25,
         maxFollowerRatio,
-        minSkillDiff,
+        minSkillDiff: 0.08,
+        maxRightUses: 2,
+        gainTolerance: -2,
       });
       if (result.length >= 3 || level === BREZZELS_LEVELS[BREZZELS_LEVELS.length - 1]) {
         return result;
