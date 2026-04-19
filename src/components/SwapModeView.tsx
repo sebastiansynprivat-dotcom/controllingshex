@@ -322,6 +322,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     action: "approved" | "rejected" | "snoozed" | "alt-left" | "alt-right";
     leftName: string;
     rightName: string;
+    /** Chatter-Namen die durch diese Aktion in dailyDismissed eingefügt wurden (für Undo) */
+    dailyDismissedAdded?: string[];
   };
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
