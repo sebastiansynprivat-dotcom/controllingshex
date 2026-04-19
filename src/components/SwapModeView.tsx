@@ -678,6 +678,13 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       n.delete(last.sessionKey);
       return n;
     });
+    if (last.dailyDismissedAdded && last.dailyDismissedAdded.length > 0) {
+      setDailyDismissed((prev) => {
+        const n = new Set(prev);
+        for (const name of last.dailyDismissedAdded!) n.delete(name);
+        return n;
+      });
+    }
     setPairIdx(last.pairIdxBefore);
     setLeftAltIdx(last.leftAltIdxBefore);
     setRightAltIdx(last.rightAltIdxBefore);
