@@ -349,6 +349,52 @@ export interface ComputeOptions {
   minSkillDiff?: number;
   /** Anteil Top/Bottom des Skill-Pools für Kandidaten-Auswahl (default: 0.4 = Top/Bottom 40%) */
   poolFraction?: number;
+  /** Plattform-Name (z.B. "Brezzels") — aktiviert plattform-spezifische Filter */
+  platform?: string;
+}
+
+/**
+ * Brezzels hat eine komplett andere Skala als Maloum (Median 117 vs 468 Follower).
+ * Daher: harte Schwellen für "wirklich klein" und "wirklich gross", mit Auto-Lockerung
+ * falls zu wenige Pairs zustande kommen.
+ *
+ * Underplaced: kleiner Account UND wenig Revenue UND Skill-Top-30%
+ * Overplaced:  grosser Account UND Revenue im Bottom-40% (unter Accounts >= bigF)
+ */
+interface BrezzelsLevel {
+  smallFollowers: number;
+  bigFollowers: number;
+  lowRevenue: number;
+}
+const BREZZELS_LEVELS: BrezzelsLevel[] = [
+  { smallFollowers: 70, bigFollowers: 150, lowRevenue: 3 },
+  { smallFollowers: 100, bigFollowers: 130, lowRevenue: 5 },
+  { smallFollowers: 140, bigFollowers: 110, lowRevenue: 8 },
+];
+
+function buildBrezzelsPools(
+  enriched: SwapChatter[],
+  level: BrezzelsLevel
+): { underplaced: SwapChatter[]; overplaced: SwapChatter[] } {
+  // Skill-Top-30% Schwelle
+  const skillsDesc = [...enriched].map((e) => e.skillScore).sort((a, b) => b - a);
+  const top30Idx = Math.max(0, Math.floor(skillsDesc.length * 0.3) - 1);
+  const skillTopThreshold = skillsDesc[top30Idx] ?? 0;
+
+  // Revenue-Bottom-40%-Schwelle: nur unter Accounts mit followers >= bigFollowers
+  const bigAccs = enriched.filter((e) => e.followers >= level.bigFollowers);
+  const bigRevsAsc = bigAccs.map((e) => e.avgRevenue).sort((a, b) => a - b);
+  const bottom40Idx = Math.max(0, Math.ceil(bigRevsAsc.length * 0.4) - 1);
+  const revBottomThreshold = bigRevsAsc[bottom40Idx] ?? 0;
+
+  const underplaced = enriched.filter(
+    (e) =>
+      e.followers <= level.smallFollowers &&
+      e.avgRevenue < level.lowRevenue &&
+      e.skillScore >= skillTopThreshold
+  );
+  const overplaced = bigAccs.filter((e) => e.avgRevenue <= revBottomThreshold);
+  return { underplaced, overplaced };
 }
 
 export function computeSwapCandidates(
@@ -361,10 +407,29 @@ export function computeSwapCandidates(
   const maxFollowerRatio = opts.maxFollowerRatio ?? 50;
   const minSkillDiff = opts.minSkillDiff ?? 0.13;
   const poolFraction = opts.poolFraction ?? 0.4;
+  const platform = opts.platform;
 
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
 
+  // ----- Brezzels: spezielle Pool-Bildung mit Auto-Lockerung -----
+  if (platform === "Brezzels") {
+    for (const level of BREZZELS_LEVELS) {
+      const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
+      if (underplaced.length === 0 || overplaced.length === 0) continue;
+      const result = pairUp(underplaced, overplaced, bundle, {
+        minFollowerRatio,
+        maxFollowerRatio,
+        minSkillDiff,
+      });
+      if (result.length >= 3 || level === BREZZELS_LEVELS[BREZZELS_LEVELS.length - 1]) {
+        return result;
+      }
+    }
+    return [];
+  }
+
+  // ----- Default (Maloum & Co.): Skill-Pool nach Top/Bottom poolFraction -----
   const sortedBySkill = [...enriched].sort((a, b) => b.skillScore - a.skillScore);
   const n = sortedBySkill.length;
 
@@ -373,6 +438,24 @@ export function computeSwapCandidates(
   const underplacedPool = sortedBySkill.slice(0, topCount);
   const overplacedPool = sortedBySkill.slice(-bottomCount).reverse();
 
+  return pairUp(underplacedPool, overplacedPool, bundle, {
+    minFollowerRatio,
+    maxFollowerRatio,
+    minSkillDiff,
+  });
+}
+
+/**
+ * Greedy-Pairing: pro Underplaced den besten verfügbaren Overplaced suchen,
+ * je Pair Alternativen-Pools für Karten-Wechsel mitliefern.
+ */
+function pairUp(
+  underplacedPool: SwapChatter[],
+  overplacedPool: SwapChatter[],
+  bundle: BenchmarkBundle | null,
+  cfg: { minFollowerRatio: number; maxFollowerRatio: number; minSkillDiff: number }
+): SwapPair[] {
+  const { minFollowerRatio, maxFollowerRatio, minSkillDiff } = cfg;
   const pairs: SwapPair[] = [];
   const usedRight = new Set<string>();
   const usedLeft = new Set<string>();
