@@ -381,11 +381,11 @@ function buildBrezzelsPools(
   const top30Idx = Math.max(0, Math.floor(skillsDesc.length * 0.3) - 1);
   const skillTopThreshold = skillsDesc[top30Idx] ?? 0;
 
-  // Revenue-Bottom-40%-Schwelle: nur unter Accounts mit followers >= bigFollowers
+  // Revenue-Bottom-55%-Schwelle: nur unter Accounts mit followers >= bigFollowers
   const bigAccs = enriched.filter((e) => e.followers >= level.bigFollowers);
   const bigRevsAsc = bigAccs.map((e) => e.avgRevenue).sort((a, b) => a - b);
-  const bottom40Idx = Math.max(0, Math.ceil(bigRevsAsc.length * 0.4) - 1);
-  const revBottomThreshold = bigRevsAsc[bottom40Idx] ?? 0;
+  const bottom55Idx = Math.max(0, Math.ceil(bigRevsAsc.length * 0.55) - 1);
+  const revBottomThreshold = bigRevsAsc[bottom55Idx] ?? 0;
 
   const underplaced = enriched.filter(
     (e) =>
