@@ -748,7 +748,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         rightName: visibleRight.name,
       });
       const label = days === 1 ? "1 Tag" : `${days} Tage`;
-      toast(`Verworfen für ${label}`, { icon: "✗" });
+      toast(`Später anzeigen (${label})`, { icon: "🕒" });
       setRejectModalOpen(false);
       removeFromStack(visibleLeft, visibleRight);
     },
@@ -1114,7 +1114,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         {/* Hint row */}
         <div className="hidden lg:flex items-center justify-center mt-3 mb-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
-            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ nur diese Karte tauschen · ↑-Button Pair skippen · X Verwerfen · ✓ Genehmigen · ↩ Rückgängig
+            Klick = Name kopieren · Doppelklick = Profil-Vergleich · ↑ nur diese Karte tauschen · ↑-Button Pair skippen · X Später anzeigen · ✓ Genehmigen · ↩ Rückgängig
           </span>
         </div>
 
@@ -1135,7 +1135,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             size="icon"
             onClick={openRejectModal}
             className="h-12 w-12 lg:h-14 lg:w-14 rounded-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-            title="Pairing verwerfen"
+            title="Pairing später anzeigen"
           >
             <X className="h-5 w-5 lg:h-6 lg:w-6" />
           </Button>
@@ -1264,10 +1264,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             >
               <div className="flex items-center gap-2 mb-1">
                 <X className="h-4 w-4 text-red-400" />
-                <h3 className="text-sm font-semibold text-foreground">Pairing verwerfen</h3>
+                <h3 className="text-sm font-semibold text-foreground">Später anzeigen</h3>
               </div>
               <p className="text-xs text-white/55 mb-4">
-                Wie lange soll dieses Pairing nicht mehr vorgeschlagen werden?
+                Wann soll dieses Pairing wieder vorgeschlagen werden?
               </p>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {[
