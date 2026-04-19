@@ -510,7 +510,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const cycleLeftAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const dismissedName = visibleLeft.name;
+    const total = leftCandidates.length;
+    const remaining = leftCandidates.filter(
+      (c) => c.key !== visibleLeft.key && !dismissedLeftKeys.has(c.key) && !dailyDismissed.has(c.name)
+    );
+    if (remaining.length === 0) {
+      toast("Keine weiteren Kandidaten links", { icon: "ℹ️" });
+      return;
+    }
     pushHistory({
       decisionId: null,
       pairKeys: [],
@@ -521,19 +528,25 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-left" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
-      dailyDismissedAdded: [dismissedName],
     });
-    setDailyDismissed((prev) => {
+    setDismissedLeftKeys((prev) => {
       const n = new Set(prev);
-      n.add(dismissedName);
+      n.add(visibleLeft.key);
       return n;
     });
-    toast(`${dismissedName.replace(/_/g, " ")} heute ausgeblendet`, { icon: "👋" });
-  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
+    setLeftAltIdx((i) => (i + 1) % Math.max(total, 1));
+  }, [currentPair, visibleLeft, visibleRight, leftCandidates, dismissedLeftKeys, dailyDismissed, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   const cycleRightAlt = useCallback(() => {
     if (!currentPair || !visibleLeft || !visibleRight) return;
-    const dismissedName = visibleRight.name;
+    const total = rightCandidates.length;
+    const remaining = rightCandidates.filter(
+      (c) => c.key !== visibleRight.key && !dismissedRightKeys.has(c.key) && !dailyDismissed.has(c.name)
+    );
+    if (remaining.length === 0) {
+      toast("Keine weiteren Kandidaten rechts", { icon: "ℹ️" });
+      return;
+    }
     pushHistory({
       decisionId: null,
       pairKeys: [],
@@ -544,15 +557,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "alt-right" as const,
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
-      dailyDismissedAdded: [dismissedName],
     });
-    setDailyDismissed((prev) => {
+    setDismissedRightKeys((prev) => {
       const n = new Set(prev);
-      n.add(dismissedName);
+      n.add(visibleRight.key);
       return n;
     });
-    toast(`${dismissedName.replace(/_/g, " ")} heute ausgeblendet`, { icon: "👋" });
-  }, [currentPair, visibleLeft, visibleRight, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
+    setRightAltIdx((i) => (i + 1) % Math.max(total, 1));
+  }, [currentPair, visibleLeft, visibleRight, rightCandidates, dismissedRightKeys, dailyDismissed, pairIdx, leftAltIdx, rightAltIdx, pushHistory]);
 
   /** Persistiert eine Decision in der DB. Returnt die DB-ID oder null bei Fehler. */
   const persistDecision = useCallback(
