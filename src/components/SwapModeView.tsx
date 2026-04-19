@@ -577,6 +577,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     if (!visibleLeft || !visibleRight) return;
     const decisionId = await persistDecision(visibleLeft, visibleRight, "approved", null);
     if (!decisionId) return;
+    const added = [visibleLeft.name, visibleRight.name];
     pushHistory({
       decisionId,
       pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
@@ -587,6 +588,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       action: "approved",
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
+      dailyDismissedAdded: added,
+    });
+    setDailyDismissed((prev) => {
+      const n = new Set(prev);
+      for (const name of added) n.add(name);
+      return n;
     });
     toast.success(`Tausch gespeichert: +${formatEur(visibleGain)}/Tag`);
     advancePair();
