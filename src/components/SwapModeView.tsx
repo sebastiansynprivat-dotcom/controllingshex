@@ -273,34 +273,59 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [pairIdx, setPairIdx] = useState(0);
   const [leftAltIdx, setLeftAltIdx] = useState(0);
   const [rightAltIdx, setRightAltIdx] = useState(0);
-  /** Tages-Storage-Key: alle weggewischten Chatter-Namen für heute (über alle Pairs hinweg) */
-  const todayKey = useMemo(() => {
-    const d = new Date();
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return `swap_daily_dismissed::${platform}::${iso}`;
-  }, [platform]);
-  const [dailyDismissed, setDailyDismissed] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = window.localStorage.getItem(`swap_daily_dismissed::${platform}::${new Date().toISOString().slice(0,10)}`);
-      if (!raw) return new Set();
-      return new Set(JSON.parse(raw) as string[]);
-    } catch { return new Set(); }
-  });
-  // Persistieren bei jeder Änderung + alte Tages-Keys aufräumen
+  /** analysis_date des neuesten Reports — Ausblendungen sind an diesen Key gebunden.
+   *  Sobald ein neuer Report kommt, ändert sich der Key → alte Ausblendungen verfallen. */
+  const [reportDateKey, setReportDateKey] = useState<string | null>(null);
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("analysis_reports")
+        .select("analysis_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("analysis_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      setReportDateKey(data?.analysis_date ?? "no-report");
+    })();
+    return () => { cancelled = true; };
+  }, [platform]);
+
+  const storageKey = useMemo(
+    () => reportDateKey ? `swap_report_dismissed::${platform}::${reportDateKey}` : null,
+    [platform, reportDateKey]
+  );
+  const [dailyDismissed, setDailyDismissed] = useState<Set<string>>(new Set());
+  // Lade Ausblendungen sobald storageKey bekannt ist + räume veraltete Keys auf
+  useEffect(() => {
+    if (typeof window === "undefined" || !storageKey) return;
     try {
-      window.localStorage.setItem(todayKey, JSON.stringify(Array.from(dailyDismissed)));
-      // Alte Einträge (anderer Tag) löschen
+      const raw = window.localStorage.getItem(storageKey);
+      setDailyDismissed(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
+      // Alte Keys (anderer Report) löschen
       for (let i = window.localStorage.length - 1; i >= 0; i--) {
         const k = window.localStorage.key(i);
-        if (k && k.startsWith("swap_daily_dismissed::") && k !== todayKey) {
+        if (
+          k &&
+          (k.startsWith("swap_report_dismissed::") || k.startsWith("swap_daily_dismissed::")) &&
+          k !== storageKey
+        ) {
           window.localStorage.removeItem(k);
         }
       }
     } catch { /* ignore */ }
-  }, [dailyDismissed, todayKey]);
+  }, [storageKey]);
+  // Persistieren bei jeder Änderung
+  useEffect(() => {
+    if (typeof window === "undefined" || !storageKey) return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(Array.from(dailyDismissed)));
+    } catch { /* ignore */ }
+  }, [dailyDismissed, storageKey]);
   /** Pro Pair-Index: einzeln verworfene Kandidaten-Keys (zusätzlicher Session-Filter) */
   const [dismissedLeftKeys, setDismissedLeftKeys] = useState<Set<string>>(new Set());
   const [dismissedRightKeys, setDismissedRightKeys] = useState<Set<string>>(new Set());
