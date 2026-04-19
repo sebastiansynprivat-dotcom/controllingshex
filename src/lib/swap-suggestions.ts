@@ -445,18 +445,16 @@ export function computeSwapCandidates(
 
   const enriched = buildEnriched(chatters, models);
 
-  // Early-Diagnose-Marker (immer gesetzt, auch bei early return)
+  // Sichtbarer Diagnose-Marker als DOM-Element (nicht via Attribut, weil rrweb das nicht serialisiert)
   if (typeof document !== "undefined") {
-    document.documentElement.setAttribute(
-      "data-brezzels-swap-debug",
-      JSON.stringify({
-        stage: "entry",
-        platform: platform ?? "(none)",
-        chattersIn: chatters.length,
-        modelsIn: models.length,
-        enriched: enriched.length,
-      })
-    );
+    let el = document.getElementById("__swap_debug__");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "__swap_debug__";
+      el.style.cssText = "position:fixed;top:4px;right:4px;z-index:99999;background:#000;color:#0f0;font:10px monospace;padding:4px 6px;border:1px solid #0f0;max-width:400px;word-break:break-all;";
+      document.body.appendChild(el);
+    }
+    el.textContent = `SWAP[${platform ?? "?"}] chattersIn=${chatters.length} modelsIn=${models.length} enriched=${enriched.length}`;
   }
 
   if (enriched.length < 2) return [];
