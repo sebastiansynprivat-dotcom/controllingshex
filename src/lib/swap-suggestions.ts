@@ -438,6 +438,24 @@ export function computeSwapCandidates(
   const underplacedPool = sortedBySkill.slice(0, topCount);
   const overplacedPool = sortedBySkill.slice(-bottomCount).reverse();
 
+  return pairUp(underplacedPool, overplacedPool, bundle, {
+    minFollowerRatio,
+    maxFollowerRatio,
+    minSkillDiff,
+  });
+}
+
+/**
+ * Greedy-Pairing: pro Underplaced den besten verfügbaren Overplaced suchen,
+ * je Pair Alternativen-Pools für Karten-Wechsel mitliefern.
+ */
+function pairUp(
+  underplacedPool: SwapChatter[],
+  overplacedPool: SwapChatter[],
+  bundle: BenchmarkBundle | null,
+  cfg: { minFollowerRatio: number; maxFollowerRatio: number; minSkillDiff: number }
+): SwapPair[] {
+  const { minFollowerRatio, maxFollowerRatio, minSkillDiff } = cfg;
   const pairs: SwapPair[] = [];
   const usedRight = new Set<string>();
   const usedLeft = new Set<string>();

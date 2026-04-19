@@ -239,8 +239,8 @@ function SkillPill({
 
 export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null),
-    [chatters, models, benchmarks]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform }),
+    [chatters, models, benchmarks, platform]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
