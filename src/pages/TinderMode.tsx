@@ -906,7 +906,36 @@ export default function TinderMode() {
         };
 
         return (
-          <div className="mb-3">
+          <div className="mb-3 space-y-2">
+            {tierCounts.size > 0 && (
+              <div className="flex gap-1.5 flex-wrap">
+                {ACCOUNT_TIERS.map((tier) => {
+                  const isActive = selectedTier === tier.id;
+                  const count = tierCounts.get(tier.id) || 0;
+                  const isEmpty = count === 0;
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      disabled={isEmpty}
+                      onClick={() => toggleTier(tier.id)}
+                      title={tier.description}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-normal transition-all border ${
+                        isActive
+                          ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText}`
+                          : isEmpty
+                            ? "bg-transparent border-white/[0.03] text-white/15"
+                            : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/80"
+                      }`}
+                    >
+                      <span>{tier.emoji}</span>
+                      <span>{tier.label}</span>
+                      <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <Select value={currentValue} onValueChange={handleChange}>
               <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-sm h-10">
                 <SelectValue>{triggerLabel}</SelectValue>
