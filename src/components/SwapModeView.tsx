@@ -439,18 +439,24 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }, [manualChatterName]);
 
   const currentPair: SwapPair | undefined = useMemo(() => {
-    let i = pairIdx;
-    while (i < allPairs.length) {
-      const p = allPairs[i];
-      const sessionKey = `${p.left.key}::${p.right.key}`;
-      const dbKey = buildKey(p.left, p.right);
-      const blockedByDaily =
-        dailyDismissed.has(p.left.name) || dailyDismissed.has(p.right.name);
-      if (!blockedByDaily && !dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
-      i++;
-    }
-    return undefined;
-  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed]);
+    // Erst Pairs die nicht "für später" geskippt wurden, dann am Ende die geskippten.
+    const tryFind = (includeSkipped: boolean) => {
+      let i = pairIdx;
+      while (i < allPairs.length) {
+        const p = allPairs[i];
+        const sessionKey = `${p.left.key}::${p.right.key}`;
+        const dbKey = buildKey(p.left, p.right);
+        const blockedByDaily =
+          dailyDismissed.has(p.left.name) || dailyDismissed.has(p.right.name);
+        const isSkipped = skippedForLater.has(sessionKey);
+        const passSkip = includeSkipped ? true : !isSkipped;
+        if (!blockedByDaily && !dismissed.has(sessionKey) && !persistedBlocked.has(dbKey) && passSkip) return p;
+        i++;
+      }
+      return undefined;
+    };
+    return tryFind(false) ?? tryFind(true);
+  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed, skippedForLater]);
 
   /** Sichtbare Pairs (nach allen Filtern) — für korrekten Header-Counter.
    *  Underplaced (links) & Overplaced (rechts) werden separat als unique Chatter-Namen gezählt,
