@@ -28,6 +28,7 @@ interface Props {
   tierIdsByChatter: Map<string, AccountTierId[]>;
   alertChatterNames: Set<string>;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
+  firstSeenByChatter?: Map<string, string>;
   onChatterClick: (chatterName: string) => void;
 }
 
@@ -40,6 +41,7 @@ export default function CompareModeView({
   tierIdsByChatter,
   alertChatterNames,
   allLabels,
+  firstSeenByChatter,
   onChatterClick,
 }: Props) {
   const [state, setState] = useState(() => loadCompareState());
@@ -57,8 +59,9 @@ export default function CompareModeView({
       labelsByChatter,
       tierIdsByChatter,
       alertChatterNames,
+      firstSeenByChatter,
     }),
-    [chatters, rangeHistory, range, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames]
+    [chatters, rangeHistory, range, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter]
   );
 
   const filteredA = useMemo(() => applyCompareFilter(state.setA, ctx), [state.setA, ctx]);

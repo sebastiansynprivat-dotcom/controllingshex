@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ACCOUNT_TIERS, type AccountTierId } from "@/lib/account-tiers";
 import { ACTION_CATEGORIES, type ActionCategoryName } from "@/lib/action-categories";
-import type { CompareFilter } from "@/lib/compare-filters";
+import { type CompareFilter, EMPTY_FILTER } from "@/lib/compare-filters";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -15,17 +15,6 @@ interface Props {
   onChange: (next: CompareFilter) => void;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
 }
-
-const EMPTY_FILTER: CompareFilter = {
-  tiers: [],
-  categories: [],
-  labelIds: [],
-  revToday: null,
-  revAvg: null,
-  delayMax: null,
-  status: "any",
-  alerts: "any",
-};
 
 export default function CompareFilterPanel({ label, accent, filter, onChange, allLabels }: Props) {
   const isMobile = useIsMobile();
@@ -50,6 +39,7 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.revToday) n++;
     if (filter.revAvg) n++;
     if (filter.delayMax != null) n++;
+    if (filter.tenureDays) n++;
     if (filter.status !== "any") n++;
     if (filter.alerts !== "any") n++;
     return n;
@@ -69,6 +59,10 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.status !== "any") pills.push(filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onb.");
     if (filter.alerts !== "any") pills.push(filter.alerts === "with" ? "🔔" : "🔕");
     if (filter.delayMax != null) pills.push(`≤${filter.delayMax}d`);
+    if (filter.tenureDays) {
+      const [lo, hi] = filter.tenureDays;
+      pills.push(`📅${lo}–${hi}d`);
+    }
     if (filter.revToday) pills.push("€h");
     if (filter.revAvg) pills.push("Ø€");
     if (filter.labelIds.length) pills.push(`${filter.labelIds.length}🏷`);
@@ -200,7 +194,88 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
         />
       </div>
 
-      {/* Labels */}
+      {/* Tenure: Aktiv seit (Tage) */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aktiv seit (Tage)</span>
+          {filter.tenureDays && (
+            <button
+              type="button"
+              onClick={() => update({ tenureDays: null })}
+              className="text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={0}
+            max={3650}
+            placeholder="Min"
+            value={filter.tenureDays ? filter.tenureDays[0] : ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" && (!filter.tenureDays || filter.tenureDays[1] === 0)) {
+                update({ tenureDays: null });
+                return;
+              }
+              const n = Math.max(0, Math.min(3650, Number(raw) || 0));
+              const hi = filter.tenureDays?.[1] ?? Math.max(n, 365);
+              update({ tenureDays: [n, hi] });
+            }}
+            className="h-8 text-xs px-2"
+          />
+          <span className="text-muted-foreground text-xs">–</span>
+          <Input
+            type="number"
+            min={0}
+            max={3650}
+            placeholder="Max"
+            value={filter.tenureDays ? filter.tenureDays[1] : ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" && (!filter.tenureDays || filter.tenureDays[0] === 0)) {
+                update({ tenureDays: null });
+                return;
+              }
+              const n = Math.max(0, Math.min(3650, Number(raw) || 0));
+              const lo = filter.tenureDays?.[0] ?? 0;
+              update({ tenureDays: [lo, n] });
+            }}
+            className="h-8 text-xs px-2"
+          />
+        </div>
+        {/* Quick presets */}
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {[
+            { label: "<7d", range: [0, 6] as [number, number] },
+            { label: "7–30d", range: [7, 30] as [number, number] },
+            { label: "1–3M", range: [31, 90] as [number, number] },
+            { label: "3M+", range: [91, 3650] as [number, number] },
+          ].map((p) => {
+            const on =
+              filter.tenureDays?.[0] === p.range[0] && filter.tenureDays?.[1] === p.range[1];
+            return (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => update({ tenureDays: on ? null : p.range })}
+                className={cn(
+                  "px-1.5 min-h-6 rounded text-[10px] border transition-all",
+                  on
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/80"
+                )}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {allLabels.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Labels</div>

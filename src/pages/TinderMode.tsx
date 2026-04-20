@@ -189,6 +189,8 @@ export default function TinderMode() {
   const [historyChatter, setHistoryChatter] = useState<string | null>(null);
   const [quickPromptName, setQuickPromptName] = useState<string | null>(null);
   const [accountLoginsMap, setAccountLoginsMap] = useState<Map<string, AccountLogin[]>>(new Map());
+  // First analysis_date per normalized chatter name (für "aktiv seit"-Filter im Compare-Mode)
+  const [firstSeenByChatter, setFirstSeenByChatter] = useState<Map<string, string>>(new Map());
 
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
@@ -346,6 +348,7 @@ export default function TinderMode() {
 
       if (historyRes.data) {
         const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number; account?: string }[]>();
+        const firstSeenMap = new Map<string, string>();
         for (const h of historyRes.data) {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
@@ -356,10 +359,14 @@ export default function TinderMode() {
             response_delay_days: Number(h.response_delay_days) || 0,
             account: (h as any).account ?? undefined,
           });
+          // Da history asc sortiert ist, ist das erste Vorkommen das früheste
+          const nKey = normalizeName(h.chatter_name);
+          if (!firstSeenMap.has(nKey)) firstSeenMap.set(nKey, h.analysis_date);
         }
         for (const ch of allChatters) {
           ch.history = histMap.get(ch.name)?.slice(-7);
         }
+        setFirstSeenByChatter(firstSeenMap);
       }
 
 
@@ -1146,6 +1153,7 @@ export default function TinderMode() {
             tierIdsByChatter={tierIdsByChatter}
             alertChatterNames={alertChatterNames}
             allLabels={allLabels}
+            firstSeenByChatter={firstSeenByChatter}
             onChatterClick={(name) => setCompareSlideOverChatter(name)}
           />
         </>
