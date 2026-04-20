@@ -823,7 +823,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             ];
 
             return filterGroups.map((group, gi) => {
-              const groupCats = tierScopedCategories.filter((c) => group.regex.test(c.categoryName));
+              const groupCats = tierScopedCategories.filter(
+                (c) => group.regex.test(c.categoryName) && (activeTierFilters.size === 0 || c.chatters.length > 0)
+              );
               if (groupCats.length === 0) return null;
               const groupTotal = groupCats.reduce((s, c) => s + c.chatters.length, 0);
 
