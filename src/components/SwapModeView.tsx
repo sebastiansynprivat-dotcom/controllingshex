@@ -357,6 +357,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }, [dismissedLeftKeys, dismissedRightKeys, cardStorageKey]);
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  /** Pair-Keys die in dieser Session "für später" geskippt wurden — kommen am Ende wieder. */
+  const [skippedForLater, setSkippedForLater] = useState<Set<string>>(new Set());
   /** Pair-Keys die in der DB aktiv geblockt sind (snoozed_until > now ODER status=approved) */
   const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
@@ -437,18 +439,24 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }, [manualChatterName]);
 
   const currentPair: SwapPair | undefined = useMemo(() => {
-    let i = pairIdx;
-    while (i < allPairs.length) {
-      const p = allPairs[i];
-      const sessionKey = `${p.left.key}::${p.right.key}`;
-      const dbKey = buildKey(p.left, p.right);
-      const blockedByDaily =
-        dailyDismissed.has(p.left.name) || dailyDismissed.has(p.right.name);
-      if (!blockedByDaily && !dismissed.has(sessionKey) && !persistedBlocked.has(dbKey)) return p;
-      i++;
-    }
-    return undefined;
-  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed]);
+    // Erst Pairs die nicht "für später" geskippt wurden, dann am Ende die geskippten.
+    const tryFind = (includeSkipped: boolean) => {
+      let i = pairIdx;
+      while (i < allPairs.length) {
+        const p = allPairs[i];
+        const sessionKey = `${p.left.key}::${p.right.key}`;
+        const dbKey = buildKey(p.left, p.right);
+        const blockedByDaily =
+          dailyDismissed.has(p.left.name) || dailyDismissed.has(p.right.name);
+        const isSkipped = skippedForLater.has(sessionKey);
+        const passSkip = includeSkipped ? true : !isSkipped;
+        if (!blockedByDaily && !dismissed.has(sessionKey) && !persistedBlocked.has(dbKey) && passSkip) return p;
+        i++;
+      }
+      return undefined;
+    };
+    return tryFind(false) ?? tryFind(true);
+  }, [allPairs, pairIdx, dismissed, persistedBlocked, buildKey, dailyDismissed, skippedForLater]);
 
   /** Sichtbare Pairs (nach allen Filtern) — für korrekten Header-Counter.
    *  Underplaced (links) & Overplaced (rechts) werden separat als unique Chatter-Namen gezählt,
@@ -702,15 +710,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     advancePair();
   }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
 
-  /** Skip (↑ swipe) → automatisch 1 Tag snoozen */
-  const skipPair = useCallback(async () => {
+  /** Skip → Pair für später in dieser Session zurückstellen (kein DB-Eintrag). */
+  const skipPair = useCallback(() => {
     if (!visibleLeft || !visibleRight) return;
-    const decisionId = await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
-    if (!decisionId) return;
+    const sessionKey = `${visibleLeft.key}::${visibleRight.key}`;
     pushHistory({
-      decisionId,
-      pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
-      sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+      decisionId: null,
+      pairKeys: [],
+      sessionKey,
       pairIdxBefore: pairIdx,
       leftAltIdxBefore: leftAltIdx,
       rightAltIdxBefore: rightAltIdx,
@@ -718,9 +725,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
     });
-    toast("Für 1 Tag ausgeblendet", { icon: "🕒" });
-    removeFromStack(visibleLeft, visibleRight);
-  }, [visibleLeft, visibleRight, persistDecision, removeFromStack, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
+    setSkippedForLater((prev) => {
+      const n = new Set(prev);
+      n.add(sessionKey);
+      return n;
+    });
+    setPairIdx((i) => i + 1);
+    toast("Übersprungen — kommt später wieder", { icon: "⏭️" });
+  }, [visibleLeft, visibleRight, pushHistory, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Roter X → öffnet Modal mit 1/7/30 Tage Auswahl */
   const openRejectModal = useCallback(() => {
@@ -777,6 +789,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       return n;
     });
     setDismissed((prev) => {
+      const n = new Set(prev);
+      n.delete(last.sessionKey);
+      return n;
+    });
+    setSkippedForLater((prev) => {
+      if (!prev.has(last.sessionKey)) return prev;
       const n = new Set(prev);
       n.delete(last.sessionKey);
       return n;
@@ -1144,7 +1162,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             size="icon"
             onClick={skipPair}
             className="h-10 w-10 lg:h-12 lg:w-12 rounded-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
-            title="Überspringen"
+            title="Überspringen — kommt später wieder"
           >
             <ChevronUp className="h-5 w-5" />
           </Button>
