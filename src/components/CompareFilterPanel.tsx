@@ -43,7 +43,7 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.labelIds.length) n++;
     if (filter.revToday) n++;
     if (filter.revAvg) n++;
-    if (filter.delayMax != null) n++;
+    if (filter.delayRange) n++;
     if (filter.tenureDays) n++;
     if (filter.status !== "any") n++;
     if (filter.alerts !== "any") n++;
@@ -63,7 +63,10 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     });
     if (filter.status !== "any") pills.push(filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onb.");
     if (filter.alerts !== "any") pills.push(filter.alerts === "with" ? "🔔" : "🔕");
-    if (filter.delayMax != null) pills.push(`≤${filter.delayMax}d`);
+    if (filter.delayRange) {
+      const [lo, hi] = filter.delayRange;
+      pills.push(`⏱${lo}–${hi}d`);
+    }
     if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
       pills.push(`📅${lo}–${hi}d`);
@@ -199,23 +202,61 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
         <RangeInput label="Ø € Fenster" value={filter.revAvg} onChange={(v) => update({ revAvg: v })} />
       </div>
 
-      {/* Delay max */}
+      {/* Response-Delay Range (min/max in Tagen) */}
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          Max Response-Delay (Tage)
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Response-Delay (Tage)
+          </span>
+          {filter.delayRange && (
+            <button
+              type="button"
+              onClick={() => update({ delayRange: null })}
+              className="text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              ×
+            </button>
+          )}
         </div>
-        <Input
-          type="number"
-          min={0}
-          max={30}
-          placeholder="–"
-          value={filter.delayMax ?? ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            update({ delayMax: v === "" ? null : Math.max(0, Math.min(30, Number(v))) });
-          }}
-          className="h-8 text-xs"
-        />
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={0}
+            max={30}
+            placeholder="Min"
+            value={filter.delayRange ? filter.delayRange[0] : ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" && (!filter.delayRange || filter.delayRange[1] === 0)) {
+                update({ delayRange: null });
+                return;
+              }
+              const n = Math.max(0, Math.min(30, Number(raw) || 0));
+              const hi = filter.delayRange?.[1] ?? Math.max(n, 30);
+              update({ delayRange: [n, hi] });
+            }}
+            className="h-8 text-xs px-2"
+          />
+          <span className="text-muted-foreground text-xs">–</span>
+          <Input
+            type="number"
+            min={0}
+            max={30}
+            placeholder="Max"
+            value={filter.delayRange ? filter.delayRange[1] : ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" && (!filter.delayRange || filter.delayRange[0] === 0)) {
+                update({ delayRange: null });
+                return;
+              }
+              const n = Math.max(0, Math.min(30, Number(raw) || 0));
+              const lo = filter.delayRange?.[0] ?? 0;
+              update({ delayRange: [lo, n] });
+            }}
+            className="h-8 text-xs px-2"
+          />
+        </div>
       </div>
 
       {/* Tenure: Aktiv seit (Tage) */}
