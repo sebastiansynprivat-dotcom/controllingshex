@@ -357,6 +357,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }, [dismissedLeftKeys, dismissedRightKeys, cardStorageKey]);
   /** Pair-Keys die in dieser Session lokal verworfen wurden (zusätzlich zu DB-Snoozes) */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  /** Pair-Keys die in dieser Session "für später" geskippt wurden — kommen am Ende wieder. */
+  const [skippedForLater, setSkippedForLater] = useState<Set<string>>(new Set());
   /** Pair-Keys die in der DB aktiv geblockt sind (snoozed_until > now ODER status=approved) */
   const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
