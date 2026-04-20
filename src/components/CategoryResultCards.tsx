@@ -719,6 +719,45 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               </button>
             )}
           </div>
+
+          {/* Tier-Filter (Oberfilter nach Account-Größe) */}
+          {tierCounts.size > 0 && (
+            <div className="pb-3 mb-3 border-b border-white/[0.06]">
+              <div className="flex items-start gap-4 pl-1 border-l-2 border-l-primary/30">
+                <div className="flex items-center gap-2 pt-0.5 min-w-[80px] shrink-0">
+                  <Users className="h-3 w-3 text-white/30" />
+                  <span className="text-[11px] text-white/50 font-semibold tracking-wide">Tier</span>
+                  <span className="text-[10px] text-white/20 font-medium">{[...tierCounts.values()].reduce((s, n) => s + n, 0)}</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {ACCOUNT_TIERS.map((tier) => {
+                    const isActive = activeTierFilters.has(tier.id);
+                    const count = tierCounts.get(tier.id) || 0;
+                    const isEmpty = count === 0;
+                    return (
+                      <button
+                        key={tier.id}
+                        onClick={() => !isEmpty && toggleTierFilter(tier.id)}
+                        title={tier.description}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap ${
+                          isActive
+                            ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText} shadow-[0_0_10px_-4px] shadow-current`
+                            : isEmpty
+                              ? "bg-transparent border-white/[0.03] text-white/15 cursor-default"
+                              : `bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/70 ${tier.hoverBorder} hover:bg-white/[0.05]`
+                        }`}
+                      >
+                        <span className="text-xs leading-none">{tier.emoji}</span>
+                        <span>{tier.label}</span>
+                        <span className={`text-[10px] tabular-nums font-medium ${isActive ? "opacity-60" : isEmpty ? "text-white/10" : "text-white/25"}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {(() => {
             const filterGroups: { label: string; dotClass: string; borderAccent: string; activeBg: string; activeBorder: string; activeText: string; hoverBorder: string; regex: RegExp }[] = [
               { label: "Kritisch", dotClass: "bg-red-400", borderAccent: "border-l-red-500/40", activeBg: "bg-red-500/10", activeBorder: "border-red-400/40", activeText: "text-red-300", hoverBorder: "hover:border-red-500/20", regex: /WARNUNG|0€ UMSATZ/ },
