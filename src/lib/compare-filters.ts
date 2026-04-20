@@ -212,10 +212,10 @@ export function applyCompareFilter(
     }
 
     // Tenure filter (Tage seit erstem Auftauchen in der History).
-    // Wenn keine "firstSeen"-Map verfügbar ist, Filter ignorieren statt alles auszuschließen.
-    if (filter.tenureDays && ctx.firstSeenByChatter) {
+    // Filter ist HART: ohne firstSeen-Daten → ausschließen.
+    if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
-      const firstIso = ctx.firstSeenByChatter.get(key);
+      const firstIso = ctx.firstSeenByChatter?.get(key);
       if (!firstIso) continue;
       const firstTs = new Date(firstIso + "T00:00:00Z").getTime();
       const days = Math.max(0, Math.floor((today.getTime() - firstTs) / 86400000));
