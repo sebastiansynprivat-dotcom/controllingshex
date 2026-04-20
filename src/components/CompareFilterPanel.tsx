@@ -39,6 +39,7 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.revToday) n++;
     if (filter.revAvg) n++;
     if (filter.delayMax != null) n++;
+    if (filter.tenureDays) n++;
     if (filter.status !== "any") n++;
     if (filter.alerts !== "any") n++;
     return n;
@@ -58,6 +59,10 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.status !== "any") pills.push(filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onb.");
     if (filter.alerts !== "any") pills.push(filter.alerts === "with" ? "🔔" : "🔕");
     if (filter.delayMax != null) pills.push(`≤${filter.delayMax}d`);
+    if (filter.tenureDays) {
+      const [lo, hi] = filter.tenureDays;
+      pills.push(`📅${lo}–${hi}d`);
+    }
     if (filter.revToday) pills.push("€h");
     if (filter.revAvg) pills.push("Ø€");
     if (filter.labelIds.length) pills.push(`${filter.labelIds.length}🏷`);
