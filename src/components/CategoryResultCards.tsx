@@ -719,7 +719,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Kategorien ({totalChatters})</SelectItem>
-            {categories.map((cat) => (
+            {tierScopedCategories.map((cat) => (
               <SelectItem key={cat.categoryName} value={cat.categoryName}>
                 {cat.emoji} {cat.categoryName} ({cat.chatters.length})
               </SelectItem>
