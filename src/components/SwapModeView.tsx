@@ -710,15 +710,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     advancePair();
   }, [visibleLeft, visibleRight, visibleGain, advancePair, persistDecision, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
 
-  /** Skip (↑ swipe) → automatisch 1 Tag snoozen */
-  const skipPair = useCallback(async () => {
+  /** Skip → Pair für später in dieser Session zurückstellen (kein DB-Eintrag). */
+  const skipPair = useCallback(() => {
     if (!visibleLeft || !visibleRight) return;
-    const decisionId = await persistDecision(visibleLeft, visibleRight, "snoozed", 1);
-    if (!decisionId) return;
+    const sessionKey = `${visibleLeft.key}::${visibleRight.key}`;
     pushHistory({
-      decisionId,
-      pairKeys: pairKeyVariants(visibleLeft.name, visibleLeft.account, visibleRight.name, visibleRight.account),
-      sessionKey: `${visibleLeft.key}::${visibleRight.key}`,
+      decisionId: null,
+      pairKeys: [],
+      sessionKey,
       pairIdxBefore: pairIdx,
       leftAltIdxBefore: leftAltIdx,
       rightAltIdxBefore: rightAltIdx,
@@ -726,9 +725,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       leftName: visibleLeft.name,
       rightName: visibleRight.name,
     });
-    toast("Für 1 Tag ausgeblendet", { icon: "🕒" });
-    removeFromStack(visibleLeft, visibleRight);
-  }, [visibleLeft, visibleRight, persistDecision, removeFromStack, pushHistory, pairKeyVariants, pairIdx, leftAltIdx, rightAltIdx]);
+    setSkippedForLater((prev) => {
+      const n = new Set(prev);
+      n.add(sessionKey);
+      return n;
+    });
+    setPairIdx((i) => i + 1);
+    toast("Übersprungen — kommt später wieder", { icon: "⏭️" });
+  }, [visibleLeft, visibleRight, pushHistory, pairIdx, leftAltIdx, rightAltIdx]);
 
   /** Roter X → öffnet Modal mit 1/7/30 Tage Auswahl */
   const openRejectModal = useCallback(() => {
