@@ -606,19 +606,6 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, chatterTierMap]);
 
 
-  if (!data || categories.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-light text-foreground/80 tracking-wide">Ergebnis</h2>
-        </div>
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-2xl min-h-40 flex items-center justify-center">
-          <p className="text-sm text-white/35 font-light">Keine strukturierte Analyse verfügbar.</p>
-        </div>
-      </div>
-    );
-  }
-
   // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
   // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
   const tierScopedCategories = useMemo(() => {
@@ -632,7 +619,6 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }));
   }, [categories, activeTierFilters, chatterTierMap]);
 
-  const totalChatters = tierScopedCategories.reduce((a, c) => a + c.chatters.length, 0);
   const tierScopedNames = useMemo(() => {
     const set = new Set<string>();
     for (const cat of tierScopedCategories) {
@@ -640,12 +626,28 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
     return set;
   }, [tierScopedCategories]);
+
   const checkedCount = useMemo(() => {
     if (activeTierFilters.size === 0) return dailyChecks.size;
     let n = 0;
     for (const name of dailyChecks) if (tierScopedNames.has(name)) n++;
     return n;
   }, [dailyChecks, tierScopedNames, activeTierFilters]);
+
+  if (!data || categories.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-light text-foreground/80 tracking-wide">Ergebnis</h2>
+        </div>
+        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-2xl min-h-40 flex items-center justify-center">
+          <p className="text-sm text-white/35 font-light">Keine strukturierte Analyse verfügbar.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalChatters = tierScopedCategories.reduce((a, c) => a + c.chatters.length, 0);
   const checkProgress = totalChatters > 0 ? Math.round((checkedCount / totalChatters) * 100) : 0;
 
   return (
