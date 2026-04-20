@@ -29,6 +29,10 @@ export default function SettingsPage() {
   const [showLinkPw, setShowLinkPw] = useState(false);
   const [savingLink, setSavingLink] = useState(false);
 
+  // Alert-Schwellen
+  const [thresholds, setThresholds] = useState<AlertThresholds>(() => loadAlertThresholds());
+  const [savingThresholds, setSavingThresholds] = useState(false);
+
   // Check if user signed up via OAuth (no email identity yet)
   const hasEmailIdentity = useMemo(() => {
     if (!user) return false;
