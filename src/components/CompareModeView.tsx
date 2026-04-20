@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, type PanInfo } from "framer-motion";
-import { Users, Zap, CalendarDays, RotateCcw } from "lucide-react";
+import { Users, Zap, CalendarDays, RotateCcw, ChevronLeft, ChevronRight, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
   applyCompareFilter,
@@ -285,6 +286,7 @@ function CompareSlot({
   }
 
   const enriched = enrichedMap.get(normalizeName(item.name));
+  const isMobile = useIsMobile();
 
   return (
     <div className="space-y-1.5">
@@ -294,11 +296,40 @@ function CompareSlot({
           accentHsl={accentHsl}
           item={item}
           enriched={enriched}
+          dragEnabled={isMobile}
           onSwipeLR={onSwipeNext}
           onSwipeUp={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
         />
       </div>
+      {!isMobile && (
+        <div className="flex items-center justify-center gap-1.5 pt-0.5">
+          <button
+            type="button"
+            onClick={onSwipeNext}
+            className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15 text-foreground/70 transition-colors"
+            title="Nächster"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onSwipeSkip}
+            className="inline-flex items-center gap-1 px-2 h-7 rounded-md border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15 text-[10px] text-foreground/70 transition-colors"
+            title="Überspringen"
+          >
+            <SkipForward className="h-3 w-3" /> Skip
+          </button>
+          <button
+            type="button"
+            onClick={onSwipeNext}
+            className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15 text-foreground/70 transition-colors"
+            title="Nächster"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       <div className="text-center text-[10px] text-muted-foreground/70 tabular-nums">
         {idx + 1} / {stackLength}
       </div>
@@ -312,6 +343,7 @@ function CompareSwipeCard({
   accentHsl,
   item,
   enriched,
+  dragEnabled,
   onSwipeLR,
   onSwipeUp,
   onSingleClick,
@@ -319,6 +351,7 @@ function CompareSwipeCard({
   accentHsl: string;
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
+  dragEnabled: boolean;
   onSwipeLR: () => void;
   onSwipeUp: () => void;
   onSingleClick: () => void;
@@ -372,14 +405,17 @@ function CompareSwipeCard({
 
   return (
     <motion.div
-      drag
+      drag={dragEnabled}
       dragElastic={0.18}
       dragMomentum={false}
-      onDragEnd={handleDragEnd}
+      onDragEnd={dragEnabled ? handleDragEnd : undefined}
       onClick={handleClick}
       animate={controls}
-      style={{ x, y, rotate, touchAction: "none" }}
-      className="relative w-full rounded-2xl overflow-hidden select-none cursor-grab active:cursor-grabbing"
+      style={{ x, y, rotate, touchAction: dragEnabled ? "none" : "auto" }}
+      className={cn(
+        "relative w-full rounded-2xl overflow-hidden select-none",
+        dragEnabled ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      )}
     >
       <div
         className="absolute inset-x-0 top-0 h-[2px] z-10"
