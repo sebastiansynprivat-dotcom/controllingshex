@@ -33,6 +33,7 @@ import {
   type HistoryRow as RangeHistoryRow,
 } from "@/lib/timerange-categorize";
 import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
+import { loadAlertThresholds, effectiveThresholds, type AlertThresholds } from "@/lib/alert-thresholds";
 
 interface ChatterData {
   name: string;
