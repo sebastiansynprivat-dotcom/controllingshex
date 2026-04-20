@@ -107,6 +107,40 @@ export default function SettingsPage() {
     setSavingLink(false);
   };
 
+  const updateThreshold = <K extends keyof AlertThresholds>(key: K, value: AlertThresholds[K]) => {
+    setThresholds((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const saveThresholds = async () => {
+    setSavingThresholds(true);
+    try {
+      // Sanity-Checks: med darf nicht "schärfer" als high sein
+      const t = { ...thresholds };
+      if (t.zeroMedRate > t.zeroHighRate) t.zeroMedRate = t.zeroHighRate;
+      if (t.zeroMedFloor > t.zeroHighFloor) t.zeroMedFloor = t.zeroHighFloor;
+      if (t.delayMedDays > t.delayHighDays) t.delayMedDays = t.delayHighDays;
+      if (t.trendMedPct < t.trendHighPct) t.trendMedPct = t.trendHighPct;
+      const parsed = alertThresholdsSchema.safeParse(t);
+      if (!parsed.success) {
+        toast.error("Ungültige Werte: " + parsed.error.issues[0].message);
+        setSavingThresholds(false);
+        return;
+      }
+      saveAlertThresholds(parsed.data);
+      setThresholds(parsed.data);
+      toast.success("Alert-Schwellen gespeichert");
+    } catch {
+      toast.error("Fehler beim Speichern");
+    }
+    setSavingThresholds(false);
+  };
+
+  const resetThresholds = () => {
+    setThresholds(DEFAULT_THRESHOLDS);
+    saveAlertThresholds(DEFAULT_THRESHOLDS);
+    toast.success("Auf Standard zurückgesetzt");
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-8 sm:space-y-10 animate-fade-in">
       <div>
