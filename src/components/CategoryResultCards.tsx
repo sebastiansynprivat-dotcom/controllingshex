@@ -710,9 +710,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               <Filter className="h-3.5 w-3.5 text-white/20" />
               <span className="text-[11px] text-white/40 font-medium tracking-wider uppercase">Kategorien</span>
             </div>
-            {(activeFilters.size > 0 || activeLabelFilters.size > 0) && (
+            {(activeFilters.size > 0 || activeLabelFilters.size > 0 || activeTierFilters.size > 0) && (
               <button
-                onClick={() => { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); }}
+                onClick={() => { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); setActiveTierFilters(new Set()); }}
                 className="text-[10px] text-primary/70 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
               >
                 ✕ Zurücksetzen
