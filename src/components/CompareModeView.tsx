@@ -304,6 +304,7 @@ function CompareSlot({
   onSwipeSkip: () => void;
   onReset: () => void;
   onTap: (name: string) => void;
+  onDoubleTap: () => void;
 }) {
   const accentHsl = accent === "emerald" ? "152 70% 45%" : "200 90% 55%";
   const accentBorder = accent === "emerald" ? "border-emerald-500/20" : "border-sky-500/20";
