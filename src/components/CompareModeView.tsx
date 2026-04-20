@@ -294,6 +294,7 @@ function CompareSlot({
   onSwipeSkip,
   onReset,
   onTap,
+  onDoubleTap,
 }: {
   accent: "emerald" | "sky";
   item: FilteredChatter | undefined;
@@ -356,6 +357,7 @@ function CompareSlot({
           onSwipeLR={onSwipeNext}
           onSwipeUp={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
+          onDoubleClick={onDoubleTap}
         />
       </div>
       <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums">
