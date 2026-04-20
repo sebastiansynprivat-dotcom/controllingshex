@@ -472,14 +472,30 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                   </span>
                 )}
                 {chatter.modelPerf && chatter.modelPerf.status !== "first" && chatter.modelPerf.percentChange !== null && (
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                    chatter.modelPerf.status === "better"
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : chatter.modelPerf.status === "worse"
-                      ? "bg-red-500/10 text-red-400"
-                      : "bg-secondary text-muted-foreground"
-                  }`}>
+                  <span
+                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                      chatter.modelPerf.status === "better"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : chatter.modelPerf.status === "worse"
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                    title={
+                      chatter.modelPerf.isSplitEstimate
+                        ? `Schätzung: Umsatz wurde nach Followern auf mehrere Accounts aufgeteilt (${chatter.modelPerf.previousChatterName} hatte bis zu ${chatter.modelPerf.previousMaxAccountsPerDay} Accounts/Tag, aktuell bis zu ${chatter.modelPerf.currentMaxAccountsPerDay})`
+                        : `Vergleich vs. ${chatter.modelPerf.previousChatterName}`
+                    }
+                  >
                     {chatter.modelPerf.percentChange > 0 ? "+" : ""}{chatter.modelPerf.percentChange}%
+                    {chatter.modelPerf.isSplitEstimate && <span className="ml-0.5 opacity-70">≈</span>}
+                  </span>
+                )}
+                {chatter.modelPerf?.isSplitEstimate && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400/90 border border-amber-500/20"
+                    title="Mehrere Accounts gleichzeitig — Umsatz nach Follower-Anteil geschätzt"
+                  >
+                    ⚖️ Multi-Account
                   </span>
                 )}
                 {chatter.peerBm && (() => {

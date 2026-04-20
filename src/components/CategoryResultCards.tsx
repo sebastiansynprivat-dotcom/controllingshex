@@ -914,15 +914,31 @@ function ChatterItem({ chatter, onChatterClick, stats, videoCoachingSentAt, isCh
                 {formatFollowers(modelPerf.followers)}
               </span>
               {modelPerf.status !== "first" && modelPerf.percentChange !== null && (
-                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                  modelPerf.status === "better"
-                    ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20"
-                    : modelPerf.status === "worse"
-                    ? "bg-red-500/10 text-red-400/80 border border-red-500/20"
-                    : "bg-white/[0.04] text-white/30 border border-white/[0.06]"
-                }`}>
+                <span
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    modelPerf.status === "better"
+                      ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20"
+                      : modelPerf.status === "worse"
+                      ? "bg-red-500/10 text-red-400/80 border border-red-500/20"
+                      : "bg-white/[0.04] text-white/30 border border-white/[0.06]"
+                  }`}
+                  title={
+                    modelPerf.isSplitEstimate
+                      ? `Schätzung: ${modelPerf.previousChatterName} hatte bis zu ${modelPerf.previousMaxAccountsPerDay} Accounts/Tag, aktuell bis zu ${modelPerf.currentMaxAccountsPerDay}. Umsatz wurde nach Follower-Anteil aufgeteilt.`
+                      : `Vergleich vs. ${modelPerf.previousChatterName}`
+                  }
+                >
                   {modelPerf.status === "better" ? "↑" : modelPerf.status === "worse" ? "↓" : "→"}
                   {modelPerf.percentChange > 0 ? "+" : ""}{modelPerf.percentChange}% vs. {modelPerf.previousChatterName}
+                  {modelPerf.isSplitEstimate && <span className="ml-0.5 opacity-70">≈</span>}
+                </span>
+              )}
+              {modelPerf.isSplitEstimate && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] bg-amber-500/10 text-amber-400/80 border border-amber-500/20"
+                  title="Mehrere Accounts gleichzeitig — Umsatz nach Follower-Anteil geschätzt"
+                >
+                  ⚖️ Multi-Account
                 </span>
               )}
               {modelPerf.status === "first" && (
