@@ -1,84 +1,73 @@
 
 
-## Was du willst
+## Zeitraum-Toggle im Swipe-Mode
 
-Im `/swipe` Modus zwei Modi per Toggle:
-1. **Swipe-Mode** (aktuell, unverändert) — einzelne Karten durchwischen
-2. **Wechsel-Mode** (neu) — Tausch-Vorschläge zwischen zwei Chattern, die auf falschen Models sitzen
+Im Swipe-Mode kommt oben ein **Zeitraum-Selector**, der die Karten dynamisch neu einsortiert basierend auf der Performance im gewählten Fenster. Inaktive Chatter (heute nicht mehr im aktuellen Report) fliegen automatisch raus. Der "Heute abhaken"-Mechanismus bleibt unverändert — egal welchen Zeitraum du gewählt hast, ein Check zählt für den heutigen Tag.
 
-## Wechsel-Mode Logik
+### Was du siehst
 
-**Idee**: Ein Chatter performt stark relativ zu seinen Followern (hohe Revenue/Follower-Ratio), sitzt aber auf einem schwachen Model. Ein anderer Chatter sitzt auf einem starken Model, performt dort aber schwach. → Tausch vorschlagen.
+Neuer Pill-Selector über den Filter-Chips mit Presets:
+- **Heute** (Default — aktuelles Verhalten)
+- **Gestern**
+- **Letzte 7 Tage**
+- **Letzte 14 Tage**
+- **Letzte 30 Tage**
+- **Custom…** → öffnet Date-Range-Picker (Von / Bis)
 
-**Score-Berechnung pro Chatter**:
-- `efficiency = currentAvgRevenue / followers` (Revenue pro Follower)
-- Hoch-Effizienz auf Low-Follower-Model = "Underplaced" (verdient Upgrade)
-- Niedrig-Effizienz auf High-Follower-Model = "Overplaced" (verschwendet Potenzial)
+Daneben ein kleiner Hinweis: `Re-Kategorisiert nach Ø Performance · X Tage`.
 
-**Pairing-Algorithmus**:
-1. Sortiere Chatter nach Effizienz absteigend
-2. Top-Performer auf Low-Follower-Models → "Upgrade-Kandidaten"
-3. Bottom-Performer auf High-Follower-Models → "Downgrade-Kandidaten"
-4. Pair Top mit Bottom, wo Follower-Differenz signifikant ist (z.B. >2x)
-5. Berechne **Swap-Impact**: prognostizierter Revenue-Gain wenn Top-Chatter die Effizienz auf das große Model überträgt
+Die Karten + die Filter-Chips (SOFORT EINGREIFEN, COACHING NÖTIG, etc.) zeigen jeweils den **neu berechneten Bucket pro Chatter** für den gewählten Zeitraum. Beim Wechsel des Zeitraums siehst du sofort, wer wirklich z.B. **7 Tage** schwächelt vs. nur **heute** einen schlechten Tag hatte.
 
-**Sortiere alle Vorschläge nach Impact absteigend.**
+### Re-Kategorisierungs-Logik (basierend auf `chatter_history` im Fenster)
 
-## UI
+Pro Chatter werden die History-Rows im gewählten Datumsfenster aggregiert:
+- **Tagesschnitt-Umsatz** = Ø `revenue_today` an Aktiv-Tagen
+- **Null-Tage-Quote** = Anteil Tage mit `revenue_today = 0`
+- **Max Response-Delay** im Fenster
+- **Days Since Last Active** (letzter Tag mit `revenue_today > 0`)
+- **Trend** = lineare Steigung Umsatz über das Fenster
 
-```text
-┌─────────────────────────────────────────┐
-│  [Swipe-Mode] [Wechsel-Mode]   ← Toggle │
-├─────────────────────────────────────────┤
-│                                         │
-│   ┌──────────┐   ⇄   ┌──────────┐      │
-│   │ Chatter A│ TAUSCH│ Chatter B│      │
-│   │ Model X  │       │ Model Y  │      │
-│   │ 10K Foll │       │ 80K Foll │      │
-│   │ 500€/Tag │       │ 800€/Tag │      │
-│   │ Eff: 5%  │       │ Eff: 1%  │      │
-│   └──────────┘       └──────────┘      │
-│                                         │
-│   Erwarteter Gain: +2.400€/Tag          │
-│                                         │
-│   ← wischen für andere Pairings →       │
-│                                         │
-│   [✗ Verwerfen]  [✓ Genehmigen]         │
-└─────────────────────────────────────────┘
-```
+Mapping (Priorität top-down, analog zur bestehenden Pipeline aber **fenster-basiert**):
 
-**Swipe-Verhalten** (gemäß deiner Memory: nur 120px Distanz, keine Velocity):
-- **Links wischen auf linker Karte** → ersetzt linken Chatter durch nächst-besten Underplaced-Kandidaten (rechte bleibt fix)
-- **Links wischen auf rechter Karte** → ersetzt rechten Chatter durch nächst-besten Overplaced-Kandidaten (linke bleibt fix)
-- **Rechts wischen** auf einer Karte → "Tausch genehmigen" (markiert Pair als angenommen)
-- **Hoch wischen** → ganzes Pairing verwerfen, nächstes Top-Pairing zeigen
+| Bedingung im Fenster | Bucket |
+|---|---|
+| Null-Tage-Quote ≥ 80 % **oder** max Response-Delay > 3 Tage | 🆘 SOFORT EINGREIFEN |
+| Null-Tage-Quote ≥ 50 % **oder** Trend stark fallend (≤ −30 %) | 💬 COACHING NÖTIG |
+| Trend stark steigend (≥ +30 %) **oder** Onboarding-Phase im Fenster | 🚀 PUSHEN |
+| Ø Umsatz top 20 % der Plattform im Fenster | 🎉 BELOHNEN |
+| Performance vs. Tier-Erwartung > 50 % daneben | 📊 RE-ASSIGNEN |
+| Sonst | 👀 BEOBACHTEN |
 
-So kannst du frei iterieren: linke Karte fix lassen, rechts durchprobieren, oder umgekehrt.
+Bei `Heute` bleibt die bisherige Pipeline-Kategorie (aus dem letzten Report) — kein Recompute.
 
-## Was gebaut wird
+### "Nur aktive" Filter
 
-**Neue Datei**: `src/lib/swap-suggestions.ts`
-- `computeSwapCandidates(chatters, models, history)` → liefert sortierte Liste von `SwapPair[]`
-- Jeder `SwapPair` enthält: `left` (underplaced), `right` (overplaced), `expectedGain`, plus Pools `leftAlternatives[]` und `rightAlternatives[]` zum Durchwischen
+Für jeden Zeitraum: Es werden nur Chatter angezeigt, die **im aktuellen letzten Report enthalten** sind (das ist heute aktiv). Wer nur in History-Rows aus dem Fenster vorkommt, aber heute nicht mehr im Report ist → wird **nicht** angezeigt.
 
-**Neue Komponente**: `src/components/SwapModeView.tsx`
-- Rendert zwei Karten nebeneinander (Desktop) bzw. gestackt (Mobile)
-- Eigene Swipe-Handler pro Karte (wiederverwendet Framer-Motion-Logik aus SwipeCard)
-- "Genehmigen" → speichert in neuer Tabelle `swap_decisions` (chatter_a, chatter_b, status, created_at)
+### Tagesabhaken bleibt tagesgebunden
 
-**Erweitert**: `src/pages/TinderMode.tsx`
-- Mode-Toggle oben (`useState<"swipe" | "swap">`)
-- Bei `"swap"` rendert `<SwapModeView>` statt der normalen Stack-Logik
-- Filter/Kategorien werden im Wechsel-Mode ausgeblendet (irrelevant)
+Die `daily_chatter_checks` Tabelle nutzt weiter `check_date = CURRENT_DATE`. Egal ob du den Zeitraum auf "Letzte 30 Tage" stehen hast — beim ✅-Swipe wird der Chatter **nur für heute** abgehakt und verschwindet aus der aktuellen Session. Morgen taucht er wieder auf, falls Re-Kategorisierung das so will.
 
-**Datenbank**: neue Tabelle `swap_decisions` mit RLS (workspace-scoped wie deine anderen Tabellen)
+### Persistenz
 
-## Offene Frage
+Der gewählte Zeitraum wird in `localStorage` gespeichert (`tinder.timeRange`), damit er beim Wiederkommen erhalten bleibt.
 
-Eine kurze Klärung zur Effizienz-Formel:
+### Technische Details
 
-<lov-actions>
-<lov-suggestion message="Nutz die einfache Formel: revenue/followers. Tausch wird vorgeschlagen wenn der Underplaced mindestens 3x effizienter ist als der Overplaced UND das Ziel-Model mindestens 2x mehr Follower hat. Bau das so.">Einfache Formel (rev/followers, 3x & 2x Schwellen)</lov-suggestion>
-<lov-suggestion message="Nutz statt einfacher revenue/followers eine Benchmark-basierte Formel: vergleiche jeden Chatter gegen den Peer-Benchmark seiner Follower-Klasse (loadBenchmarks gibt's schon). Tausch nur vorschlagen wenn beide signifikant über/unter ihrem Peer-Median sind.">Benchmark-basiert (peer-bm Vergleich)</lov-suggestion>
-<lov-suggestion message="Lass mich die Schwellen selbst einstellen: bau ein kleines Settings-Panel im Wechsel-Mode mit Slidern für Mindest-Effizienz-Differenz und Mindest-Follower-Differenz">Mit Settings-Panel (Slider für Schwellen)</lov-suggestion>
-</lov-actions>
+**Geänderte Dateien:**
+- `src/lib/timerange-categorize.ts` (neu) — `recategorizeByWindow(chatters, history, from, to, modelsList): Map<chatterName, ActionCategoryName>` + Helper für Aggregation/Trend
+- `src/components/TimeRangeToggle.tsx` (neu) — Pill-Selector mit Presets + Custom Date-Range-Popover (`Calendar mode="range"` aus shadcn)
+- `src/pages/TinderMode.tsx`:
+  - State `timeRange: { preset, from, to }`
+  - History-Fetch erweitern: bei Preset > 7 Tage paginiert via `.range()` laden (analog `loadHistoryWindow` in `swap-tracking.ts`)
+  - `useMemo` `recategorizedMap` nach Window
+  - `uniqueCategories`, `tierCounts`, Card-Sortierung und `categoryEmoji/Name` lesen aus `recategorizedMap` (Fallback auf Original-Kategorie wenn `Heute` aktiv)
+  - Hinweis-Text mit "Re-Kategorisiert nach Ø Performance · X Tage"
+
+**Datenfluss:** Beim Wechsel des Zeitraums wird **kein** neuer DB-Roundtrip nötig (außer beim ersten Mal, wenn das Fenster größer als die bereits geladenen 7 Tage History ist — dann wird einmalig nachgeladen und gecached).
+
+**Edge Cases:**
+- Chatter ohne History im Fenster → Bucket `BEOBACHTEN`
+- "Custom"-Range mit `from > to` → automatisch tauschen
+- "Gestern" = exakt 1 Tag (Min-Stichprobe = 1 Row)
+
