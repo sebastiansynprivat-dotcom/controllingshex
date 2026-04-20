@@ -896,6 +896,15 @@ export default function TinderMode() {
           }
         };
 
+        const toggleTier = (tierId: AccountTierId) => {
+          setActionPanel(false);
+          setSlideOver(false);
+          setLabelPanel(false);
+          setNotePanel(false);
+          setCategoryDonePrompt(null);
+          setSelectedTier((prev) => (prev === tierId ? null : tierId));
+        };
+
         return (
           <div className="mb-3">
             <Select value={currentValue} onValueChange={handleChange}>
