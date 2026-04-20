@@ -869,9 +869,14 @@ export default function TinderMode() {
         const alertCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && alertChatterNames.has(normalizeName(c.name))
         ).length;
+        const swapTrackCount = chatters.filter(
+          (c) => !checkedNames.has(normalizeName(c.name)) && swapTrackingMap.has(normalizeName(c.name))
+        ).length;
         const allUncheckedCount = chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length;
 
-        const currentValue = alertFilterActive
+        const currentValue = swapTrackFilterActive
+          ? "__swap_track__"
+          : alertFilterActive
           ? "__alerts__"
           : selectedLabelFilter
           ? `label:${selectedLabelFilter}`
@@ -883,7 +888,14 @@ export default function TinderMode() {
         let triggerLabel: React.ReactNode = (
           <span className="text-foreground/60">Alle Chatter <span className="ml-1 text-[10px] opacity-50">{allUncheckedCount}</span></span>
         );
-        if (alertFilterActive) {
+        if (swapTrackFilterActive) {
+          triggerLabel = (
+            <span className="inline-flex items-center gap-1.5 text-cyan-300">
+              <Repeat className="h-3 w-3" /> Nach Wechsel beobachten
+              <span className="ml-1 text-[10px] opacity-60">{swapTrackCount}</span>
+            </span>
+          );
+        } else if (alertFilterActive) {
           triggerLabel = (
             <span className="inline-flex items-center gap-1.5 text-red-400">
               <AlertTriangle className="h-3 w-3" /> Alerts
@@ -921,18 +933,27 @@ export default function TinderMode() {
 
           if (value === "__all__") {
             setAlertFilterActive(false);
+            setSwapTrackFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value === "__alerts__") {
             setAlertFilterActive(true);
+            setSwapTrackFilterActive(false);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(null);
+          } else if (value === "__swap_track__") {
+            setSwapTrackFilterActive(true);
+            setAlertFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value.startsWith("label:")) {
             setAlertFilterActive(false);
+            setSwapTrackFilterActive(false);
             setSelectedCategory(null);
             setSelectedLabelFilter(value.slice(6));
           } else if (value.startsWith("cat:")) {
             setAlertFilterActive(false);
+            setSwapTrackFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(value.slice(4));
           }
