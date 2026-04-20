@@ -564,8 +564,14 @@ function buildResultFromCsv(
   return { categories: Array.from(categoryMap.values()).filter((category) => category.chatters.length > 0) };
 }
 
-async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
-  const today = new Date().toISOString().split("T")[0];
+function extractDateFromFilename(name: string): string {
+  // Match YYYY-MM-DD or YYYY_MM_DD anywhere in the filename
+  const m = name.match(/(20\d{2})[-_](\d{2})[-_](\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return new Date().toISOString().split("T")[0];
+}
+
+async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined, analysisDate: string) {
   const rows: any[] = [];
   for (const cat of merged.categories || []) {
     for (const chatter of cat.chatters || []) {
