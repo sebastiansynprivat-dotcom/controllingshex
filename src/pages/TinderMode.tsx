@@ -236,14 +236,14 @@ export default function TinderMode() {
   // Count chatters per label (only unchecked ones from current data)
   const labelCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    const chatterNorms = new Set(chatters.map((c) => normalizeName(c.name)));
+    const chatterNorms = new Set(rawChatters.map((c) => normalizeName(c.name)));
     for (const a of allLabelAssignments) {
       if (chatterNorms.has(normalizeName(a.chatter_name))) {
         counts.set(a.label_id, (counts.get(a.label_id) || 0) + 1);
       }
     }
     return counts;
-  }, [allLabelAssignments, chatters]);
+  }, [allLabelAssignments, rawChatters]);
 
   useEffect(() => {
     const load = async () => {
