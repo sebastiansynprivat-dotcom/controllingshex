@@ -572,21 +572,26 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return counts;
   }, [categories, chatterTierMap]);
 
-  const visibleCategories = useMemo(() => {
-    let filtered = activeFilters.size === 0
-      ? categories
-      : categories.filter((c) => activeFilters.has(c.categoryName));
+  // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
+  // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
+  const tierScopedCategories = useMemo(() => {
+    if (activeTierFilters.size === 0) return categories;
+    return categories.map((cat) => ({
+      ...cat,
+      chatters: cat.chatters.filter((ch) => {
+        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        return tierId !== undefined && activeTierFilters.has(tierId);
+      }),
+    }));
+  }, [categories, activeTierFilters, chatterTierMap]);
 
-    if (activeTierFilters.size > 0) {
-      filtered = filtered
-        .map((cat) => ({
-          ...cat,
-          chatters: cat.chatters.filter((ch) => {
-            const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
-            return tierId !== undefined && activeTierFilters.has(tierId);
-          }),
-        }))
-        .filter((cat) => cat.chatters.length > 0);
+  const visibleCategories = useMemo(() => {
+    let filtered = activeTierFilters.size > 0
+      ? tierScopedCategories.filter((cat) => cat.chatters.length > 0)
+      : categories;
+
+    if (activeFilters.size > 0) {
+      filtered = filtered.filter((c) => activeFilters.has(c.categoryName));
     }
 
     if (activeLabelFilters.size > 0) {
@@ -603,21 +608,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
 
     return filtered;
-  }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, chatterTierMap]);
-
-
-  // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
-  // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
-  const tierScopedCategories = useMemo(() => {
-    if (activeTierFilters.size === 0) return categories;
-    return categories.map((cat) => ({
-      ...cat,
-      chatters: cat.chatters.filter((ch) => {
-        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
-        return tierId !== undefined && activeTierFilters.has(tierId);
-      }),
-    }));
-  }, [categories, activeTierFilters, chatterTierMap]);
+  }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, tierScopedCategories]);
 
   const tierScopedNames = useMemo(() => {
     const set = new Set<string>();
