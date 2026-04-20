@@ -6,7 +6,7 @@ import { type CompareFilter, type ComparePreset, EMPTY_FILTER } from "@/lib/comp
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ChevronDown, X, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, X, SlidersHorizontal } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
@@ -403,19 +403,20 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     );
   }
 
-  // ─── DESKTOP: kompakter Chip-Header + Inline-Akkordeon ──────────────────
+  // ─── DESKTOP: kompakter Chip-Header + Side-Sheet ────────────────────────
+  const sheetSide: "left" | "right" = side === "B" ? "right" : "left";
+  const SideIcon = sheetSide === "left" ? ChevronRight : ChevronLeft;
+
   return (
-    <div
-      className={cn(
-        "rounded-xl border bg-white/[0.02] transition-colors",
-        accentRing,
-        expanded && "bg-white/[0.04]"
-      )}
-    >
+    <>
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full text-left p-2.5 flex items-center justify-between gap-2 group"
+        onClick={() => setSheetOpen(true)}
+        className={cn(
+          "w-full text-left rounded-xl border bg-white/[0.02] p-2.5 flex items-center justify-between gap-2 transition-colors hover:bg-white/[0.04]",
+          accentRing,
+          sheetOpen && "bg-white/[0.05]"
+        )}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className={cn("inline-block h-2 w-2 rounded-full shrink-0", accentDot)} />
@@ -452,28 +453,34 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
             </button>
           )}
           {activeCount === 0 && <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />}
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 text-muted-foreground transition-transform",
-              expanded && "rotate-180"
-            )}
-          />
+          <SideIcon className="h-3.5 w-3.5 text-muted-foreground" />
         </div>
       </button>
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="overflow-hidden"
-          >
-            <div className="px-3 pb-3 pt-1 border-t border-white/[0.05]">{FilterBody}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side={sheetSide}
+          className="w-[380px] sm:w-[420px] sm:max-w-[420px] overflow-y-auto border-l border-r border-white/[0.08]"
+        >
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <span className={cn("inline-block h-2 w-2 rounded-full", accentDot)} />
+              {label}
+              {activeCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onChange(EMPTY_FILTER)}
+                  className="ml-auto text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  <X className="h-3 w-3" /> Reset
+                </button>
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">{FilterBody}</div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
