@@ -143,7 +143,7 @@ export default function CompareModeView({
   const currentB = orderedB[idxB];
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 space-y-3">
+    <div className="flex-1 overflow-y-auto pb-6 space-y-3" style={{ touchAction: "pan-y" }}>
       {/* Preset bar */}
       <div className="flex gap-1.5 overflow-x-auto whitespace-nowrap -mx-1 px-1 pb-1 scrollbar-none">
         {[...DEFAULT_PRESETS, ...state.customPresets].map((p) => (
@@ -288,14 +288,17 @@ function CompareSlot({
 
   return (
     <div className="space-y-1.5">
-      <CompareSwipeCard
-        accentHsl={accentHsl}
-        item={item}
-        enriched={enriched}
-        onSwipeLR={onSwipeNext}
-        onSwipeUp={onSwipeSkip}
-        onSingleClick={() => onTap(item.name)}
-      />
+      {/* Slot-Container: clipped — Drag der Karte bleibt INNERHALB dieses Slots sichtbar */}
+      <div className="relative w-full overflow-hidden rounded-2xl">
+        <CompareSwipeCard
+          accentHsl={accentHsl}
+          item={item}
+          enriched={enriched}
+          onSwipeLR={onSwipeNext}
+          onSwipeUp={onSwipeSkip}
+          onSingleClick={() => onTap(item.name)}
+        />
+      </div>
       <div className="text-center text-[10px] text-muted-foreground/70 tabular-nums">
         {idx + 1} / {stackLength}
       </div>
