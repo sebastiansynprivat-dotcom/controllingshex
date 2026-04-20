@@ -876,11 +876,11 @@ export default function UploadPage() {
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
-      // Save report to DB
-      const today = new Date().toISOString().split("T")[0];
+      // Save report to DB — derive analysis date from filename (fallback: today)
+      const analysisDate = extractDateFromFilename(file.name);
       const reportPayload = {
         platform,
-        analysis_date: today,
+        analysis_date: analysisDate,
         file_name: file.name,
         file_path: uploadedFilePath,
         result_json: merged as any,
@@ -903,7 +903,7 @@ export default function UploadPage() {
 
       // Save chatter history
       try {
-        await saveChatterHistory(merged, platform, user?.id);
+        await saveChatterHistory(merged, platform, user?.id, analysisDate);
         addStatus("✅ Chatter-Historie gespeichert.");
       } catch (histErr: any) {
         console.error("History save error:", histErr);
