@@ -312,7 +312,6 @@ function CompareSwipeCard({
   accentHsl,
   item,
   enriched,
-  dragEnabled,
   onSwipeLR,
   onSwipeUp,
   onSingleClick,
