@@ -74,6 +74,28 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+/**
+ * Parst lockere Datumsformate (DD.MM.YY, DD.MM.YYYY, YYYY-MM-DD) in ISO YYYY-MM-DD.
+ * Liefert null bei ungültigen Eingaben.
+ */
+function parseAnyDateToIso(input?: string): string | null {
+  if (!input) return null;
+  const s = input.trim();
+  // ISO bereits
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // DD.MM.YY(YY) oder DD/MM/YY(YY) oder DD-MM-YY(YY)
+  const dmy = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (dmy) {
+    let y = parseInt(dmy[3], 10);
+    if (y < 100) y += 2000;
+    const m = String(parseInt(dmy[2], 10)).padStart(2, "0");
+    const d = String(parseInt(dmy[1], 10)).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return null;
+}
+
 /* --------------------------- Apply Filter ------------------------ */
 
 export interface ApplyFilterContext {
@@ -84,6 +106,8 @@ export interface ApplyFilterContext {
     kpis: Record<string, string>;
     categoryName?: string;
     categoryEmoji?: string;
+    /** Onboarding-Start (ISO YYYY-MM-DD) oder lockeres Datumsformat (DD.MM.YY) */
+    startDate?: string;
   }>;
   /** History rows for the active TimeRange */
   rangeHistory: RangeHistoryRow[];
@@ -211,21 +235,22 @@ export function applyCompareFilter(
       if (maxDelay < lo || maxDelay > hi) continue;
     }
 
-    // Tenure filter (Tage seit erstem Auftauchen in der History).
-    // Filter ist HART: ohne firstSeen-Daten → ausschließen.
+    // Tenure filter (Tage seit erstem Auftauchen).
+    // Reihenfolge: 1) firstSeen aus History  2) startDate (Onboarding-Start)  3) 0 Tage (heute neu)
     if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
-      const firstIso = ctx.firstSeenByChatter?.get(key);
-      if (!firstIso) continue;
-      const firstTs = new Date(firstIso + "T00:00:00Z").getTime();
+      const firstIso = ctx.firstSeenByChatter?.get(key) ?? parseAnyDateToIso(c.startDate);
+      const firstTs = firstIso ? new Date(firstIso + "T00:00:00Z").getTime() : today.getTime();
       const days = Math.max(0, Math.floor((today.getTime() - firstTs) / 86400000));
       if (days < lo || days > hi) continue;
     }
 
     // Status filter
     if (filter.status !== "any") {
+      // Onboarding: nutze explizite onboardingStarts ODER fallback auf chatter.startDate
       const isOnboarding = (() => {
-        const startIso = ctx.onboardingStarts?.get(key);
+        const startIso =
+          ctx.onboardingStarts?.get(key) ?? parseAnyDateToIso(c.startDate);
         if (!startIso) return false;
         const start = new Date(startIso + "T00:00:00Z").getTime();
         const days = Math.floor((today.getTime() - start) / 86400000);
