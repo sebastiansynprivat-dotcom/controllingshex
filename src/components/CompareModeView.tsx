@@ -343,6 +343,7 @@ function CompareSwipeCard({
   accentHsl,
   item,
   enriched,
+  dragEnabled,
   onSwipeLR,
   onSwipeUp,
   onSingleClick,
@@ -350,6 +351,7 @@ function CompareSwipeCard({
   accentHsl: string;
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
+  dragEnabled: boolean;
   onSwipeLR: () => void;
   onSwipeUp: () => void;
   onSingleClick: () => void;
@@ -403,14 +405,17 @@ function CompareSwipeCard({
 
   return (
     <motion.div
-      drag
+      drag={dragEnabled}
       dragElastic={0.18}
       dragMomentum={false}
-      onDragEnd={handleDragEnd}
+      onDragEnd={dragEnabled ? handleDragEnd : undefined}
       onClick={handleClick}
       animate={controls}
-      style={{ x, y, rotate, touchAction: "none" }}
-      className="relative w-full rounded-2xl overflow-hidden select-none cursor-grab active:cursor-grabbing"
+      style={{ x, y, rotate, touchAction: dragEnabled ? "none" : "auto" }}
+      className={cn(
+        "relative w-full rounded-2xl overflow-hidden select-none",
+        dragEnabled ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      )}
     >
       <div
         className="absolute inset-x-0 top-0 h-[2px] z-10"
