@@ -251,6 +251,17 @@ export default function TinderMode() {
     );
   }, [selectedLabelFilter, allLabelAssignments]);
 
+  // Map: normalized chatter name → Set<labelId> (for compare-mode filter)
+  const labelsByChatter = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of allLabelAssignments) {
+      const key = normalizeName(a.chatter_name);
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key)!.add(a.label_id);
+    }
+    return map;
+  }, [allLabelAssignments]);
+
   // Count chatters per label (only unchecked ones from current data)
   const labelCounts = useMemo(() => {
     const counts = new Map<string, number>();
