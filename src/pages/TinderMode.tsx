@@ -1192,8 +1192,8 @@ export default function TinderMode() {
                 : entry.tierDirection === "downgrade" ? "text-red-300"
                 : "text-foreground/55";
               return (
-                <div className="pointer-events-none absolute top-14 left-3 right-3 z-30 flex justify-center">
-                  <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border backdrop-blur-md shadow-sm ${toneClass} max-w-full`}>
+                <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full z-30 flex justify-center w-max max-w-[calc(100%-1rem)]">
+                  <div className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md shadow-md ${toneClass}`}>
                     <Repeat className="h-3 w-3 shrink-0 opacity-80" />
                     <span className="text-[11px] font-semibold leading-none whitespace-nowrap">
                       {formatDelta(entry.deltaPct)}
