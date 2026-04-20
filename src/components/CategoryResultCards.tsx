@@ -572,6 +572,19 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return counts;
   }, [categories, chatterTierMap]);
 
+  // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
+  // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
+  const tierScopedCategories = useMemo(() => {
+    if (activeTierFilters.size === 0) return categories;
+    return categories.map((cat) => ({
+      ...cat,
+      chatters: cat.chatters.filter((ch) => {
+        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        return tierId !== undefined && activeTierFilters.has(tierId);
+      }),
+    }));
+  }, [categories, activeTierFilters, chatterTierMap]);
+
   const visibleCategories = useMemo(() => {
     let filtered = activeTierFilters.size > 0
       ? tierScopedCategories.filter((cat) => cat.chatters.length > 0)
@@ -596,20 +609,6 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
 
     return filtered;
   }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, tierScopedCategories]);
-
-
-  // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
-  // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
-  const tierScopedCategories = useMemo(() => {
-    if (activeTierFilters.size === 0) return categories;
-    return categories.map((cat) => ({
-      ...cat,
-      chatters: cat.chatters.filter((ch) => {
-        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
-        return tierId !== undefined && activeTierFilters.has(tierId);
-      }),
-    }));
-  }, [categories, activeTierFilters, chatterTierMap]);
 
   const tierScopedNames = useMemo(() => {
     const set = new Set<string>();
