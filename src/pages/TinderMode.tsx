@@ -159,7 +159,7 @@ export default function TinderMode() {
   const [selectedTier, setSelectedTier] = useState<AccountTierId | null>(null);
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
   const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
-  const [alertChatterNames, setAlertChatterNames] = useState<Set<string>>(new Set());
+  // alertChatterNames + alertsByChatter are derived below (DB for "today", window-aggregated otherwise)
   const [alertFilterActive, setAlertFilterActive] = useState(false);
   const [swapTrackingMap, setSwapTrackingMap] = useState<Map<string, SwapTrackingEntry>>(new Map());
   const [swapTrackFilterActive, setSwapTrackFilterActive] = useState(false);
