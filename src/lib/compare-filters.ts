@@ -84,6 +84,8 @@ export interface ApplyFilterContext {
     kpis: Record<string, string>;
     categoryName?: string;
     categoryEmoji?: string;
+    /** Onboarding-Start (ISO YYYY-MM-DD) oder lockeres Datumsformat (DD.MM.YY) */
+    startDate?: string;
   }>;
   /** History rows for the active TimeRange */
   rangeHistory: RangeHistoryRow[];
