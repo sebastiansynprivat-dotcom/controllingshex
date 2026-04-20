@@ -619,8 +619,33 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     );
   }
 
-  const totalChatters = categories.reduce((a, c) => a + c.chatters.length, 0);
-  const checkedCount = dailyChecks.size;
+  // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
+  // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
+  const tierScopedCategories = useMemo(() => {
+    if (activeTierFilters.size === 0) return categories;
+    return categories.map((cat) => ({
+      ...cat,
+      chatters: cat.chatters.filter((ch) => {
+        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        return tierId !== undefined && activeTierFilters.has(tierId);
+      }),
+    }));
+  }, [categories, activeTierFilters, chatterTierMap]);
+
+  const totalChatters = tierScopedCategories.reduce((a, c) => a + c.chatters.length, 0);
+  const tierScopedNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const cat of tierScopedCategories) {
+      for (const ch of cat.chatters) set.add(normalizeChatterName(ch.name));
+    }
+    return set;
+  }, [tierScopedCategories]);
+  const checkedCount = useMemo(() => {
+    if (activeTierFilters.size === 0) return dailyChecks.size;
+    let n = 0;
+    for (const name of dailyChecks) if (tierScopedNames.has(name)) n++;
+    return n;
+  }, [dailyChecks, tierScopedNames, activeTierFilters]);
   const checkProgress = totalChatters > 0 ? Math.round((checkedCount / totalChatters) * 100) : 0;
 
   return (
