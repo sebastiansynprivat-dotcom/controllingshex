@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ACCOUNT_TIERS, type AccountTierId } from "@/lib/account-tiers";
 import { ACTION_CATEGORIES, type ActionCategoryName } from "@/lib/action-categories";
-import { type CompareFilter, EMPTY_FILTER } from "@/lib/compare-filters";
+import { type CompareFilter, type ComparePreset, EMPTY_FILTER } from "@/lib/compare-filters";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,11 +15,15 @@ interface Props {
   filter: CompareFilter;
   onChange: (next: CompareFilter) => void;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
+  presets?: ComparePreset[];
+  onApplyPreset?: (preset: ComparePreset, side: "A" | "B") => void;
+  side?: "A" | "B";
 }
 
-export default function CompareFilterPanel({ label, accent, filter, onChange, allLabels }: Props) {
+export default function CompareFilterPanel({ label, accent, filter, onChange, allLabels, presets, onApplyPreset, side }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const accentRing =
     accent === "emerald"
@@ -72,6 +77,25 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
   // The full filter UI body (reused inline on desktop / inside sheet on mobile)
   const FilterBody = (
     <div className="space-y-3">
+      {/* Presets — quick-apply for this side */}
+      {presets && presets.length > 0 && side && onApplyPreset && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Presets</div>
+          <div className="flex flex-wrap gap-1">
+            {presets.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onApplyPreset(p, side)}
+                className="px-2 min-h-7 rounded-md text-[11px] border bg-white/[0.03] border-white/[0.06] text-white/65 hover:text-foreground hover:border-white/15 transition-all"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tiers */}
       <div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tier</div>
@@ -379,28 +403,76 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     );
   }
 
-  // ─── DESKTOP: inline (unchanged) ─────────────────────────────────────────
+  // ─── DESKTOP: kompakter Chip-Header + Inline-Akkordeon ──────────────────
   return (
-    <div className={cn("rounded-xl border bg-white/[0.02] p-3 space-y-3", accentRing)}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={cn("inline-block h-2 w-2 rounded-full", accentDot)} />
-          <span className="text-xs font-semibold tracking-wide text-foreground/90">{label}</span>
-          {activeCount > 0 && (
-            <span className="text-[10px] text-muted-foreground">({activeCount} aktiv)</span>
+    <div
+      className={cn(
+        "rounded-xl border bg-white/[0.02] transition-colors",
+        accentRing,
+        expanded && "bg-white/[0.04]"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full text-left p-2.5 flex items-center justify-between gap-2 group"
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className={cn("inline-block h-2 w-2 rounded-full shrink-0", accentDot)} />
+          <span className="text-xs font-semibold tracking-wide text-foreground/90 shrink-0">{label}</span>
+          {activePills.length > 0 ? (
+            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+              {activePills.slice(0, 5).map((p, i) => (
+                <span
+                  key={i}
+                  className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 shrink-0"
+                >
+                  {p}
+                </span>
+              ))}
+              {activePills.length > 5 && (
+                <span className="text-[10px] text-muted-foreground shrink-0">+{activePills.length - 5}</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-[11px] text-muted-foreground truncate">Filter setzen…</span>
           )}
         </div>
-        {activeCount > 0 && (
-          <button
-            type="button"
-            onClick={() => onChange(EMPTY_FILTER)}
-            className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+        <div className="flex items-center gap-1.5 shrink-0">
+          {activeCount > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(EMPTY_FILTER);
+              }}
+              className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-white/[0.05]"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+          {activeCount === 0 && <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />}
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 text-muted-foreground transition-transform",
+              expanded && "rotate-180"
+            )}
+          />
+        </div>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="overflow-hidden"
           >
-            <X className="h-3 w-3" /> Reset
-          </button>
+            <div className="px-3 pb-3 pt-1 border-t border-white/[0.05]">{FilterBody}</div>
+          </motion.div>
         )}
-      </div>
-      {FilterBody}
+      </AnimatePresence>
     </div>
   );
 }
