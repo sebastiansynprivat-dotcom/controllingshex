@@ -1,11 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
-import { Save, Eye, EyeOff, Lock } from "lucide-react";
+import { Save, Eye, EyeOff, Lock, AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  loadAlertThresholds,
+  saveAlertThresholds,
+  alertThresholdsSchema,
+  DEFAULT_THRESHOLDS,
+  type AlertThresholds,
+} from "@/lib/alert-thresholds";
 
 export default function SettingsPage() {
   const [systemPrompt, setSystemPrompt] = useState("");
