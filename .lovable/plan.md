@@ -1,73 +1,89 @@
 
 
-## Zeitraum-Toggle im Swipe-Mode
+## Vergleichs-Mode im Swipe-Mode
 
-Im Swipe-Mode kommt oben ein **Zeitraum-Selector**, der die Karten dynamisch neu einsortiert basierend auf der Performance im gewählten Fenster. Inaktive Chatter (heute nicht mehr im aktuellen Report) fliegen automatisch raus. Der "Heute abhaken"-Mechanismus bleibt unverändert — egal welchen Zeitraum du gewählt hast, ein Check zählt für den heutigen Tag.
+Neben **Swipe** und **Wechsel** kommt ein dritter Tab **Vergleich**. Du baust dir zwei Filter-Sets nebeneinander (Set A links, Set B rechts) und siehst sofort, wie sich beide Gruppen statistisch unterscheiden — plus die einzelnen Chatter pro Seite zum direkten Durchklicken.
 
 ### Was du siehst
 
-Neuer Pill-Selector über den Filter-Chips mit Presets:
-- **Heute** (Default — aktuelles Verhalten)
-- **Gestern**
-- **Letzte 7 Tage**
-- **Letzte 14 Tage**
-- **Letzte 30 Tage**
-- **Custom…** → öffnet Date-Range-Picker (Von / Bis)
+**1. Drei-Tab-Toggle oben** (statt der bisherigen 2):
+`Swipe | Wechsel | Vergleich`
 
-Daneben ein kleiner Hinweis: `Re-Kategorisiert nach Ø Performance · X Tage`.
+**2. Im Vergleichs-Mode: zwei Spalten nebeneinander** (auf Mobile gestapelt, mit „Set A / Set B“-Switcher).
 
-Die Karten + die Filter-Chips (SOFORT EINGREIFEN, COACHING NÖTIG, etc.) zeigen jeweils den **neu berechneten Bucket pro Chatter** für den gewählten Zeitraum. Beim Wechsel des Zeitraums siehst du sofort, wer wirklich z.B. **7 Tage** schwächelt vs. nur **heute** einen schlechten Tag hatte.
+Pro Spalte ein **Filter-Panel** mit folgenden Kriterien (alle optional, kombinierbar):
+- **Account-Tier** (Multi-Select: Seed / Starter / Growth / Top)
+- **Umsatz-Range Heute** (€ Min – Max Slider)
+- **Ø Umsatz im Zeitraum** (€ Min – Max, nutzt aktiven `TimeRange`)
+- **Action-Kategorie** (Multi-Select: SOFORT EINGREIFEN, COACHING NÖTIG, …)
+- **Response-Delay** (max. Tage)
+- **Status** (Active / Inactive / Onboarding)
+- **Label** (Multi-Select aus `chatter_labels`)
+- **Alert-Status** (mit / ohne aktive Alerts)
 
-### Re-Kategorisierungs-Logik (basierend auf `chatter_history` im Fenster)
+Filter-Pills wie bestehend, kompaktes Layout damit beide Sets nebeneinander auf Desktop passen.
 
-Pro Chatter werden die History-Rows im gewählten Datumsfenster aggregiert:
-- **Tagesschnitt-Umsatz** = Ø `revenue_today` an Aktiv-Tagen
-- **Null-Tage-Quote** = Anteil Tage mit `revenue_today = 0`
-- **Max Response-Delay** im Fenster
-- **Days Since Last Active** (letzter Tag mit `revenue_today > 0`)
-- **Trend** = lineare Steigung Umsatz über das Fenster
+**3. Pro Set: Vergleichs-Karte mit Aggregat-Stats**
 
-Mapping (Priorität top-down, analog zur bestehenden Pipeline aber **fenster-basiert**):
+```text
+┌── SET A ────────────┬── SET B ────────────┐
+│ 12 Chatter          │ 8 Chatter           │
+│ Ø 87 € / Tag        │ Ø 142 € / Tag       │
+│ Σ 1.044 €           │ Σ 1.136 €           │
+│ Null-Tage: 24%      │ Null-Tage: 8%       │
+│ Trend: ↘ -12%       │ Trend: ↗ +18%       │
+│ Top: niklas_la      │ Top: max_dr         │
+└─────────────────────┴─────────────────────┘
+        Δ Ø: +55 € (B besser)
+        Δ Σ: +92 €
+        Δ Null-Tage: -16pp
+```
 
-| Bedingung im Fenster | Bucket |
-|---|---|
-| Null-Tage-Quote ≥ 80 % **oder** max Response-Delay > 3 Tage | 🆘 SOFORT EINGREIFEN |
-| Null-Tage-Quote ≥ 50 % **oder** Trend stark fallend (≤ −30 %) | 💬 COACHING NÖTIG |
-| Trend stark steigend (≥ +30 %) **oder** Onboarding-Phase im Fenster | 🚀 PUSHEN |
-| Ø Umsatz top 20 % der Plattform im Fenster | 🎉 BELOHNEN |
-| Performance vs. Tier-Erwartung > 50 % daneben | 📊 RE-ASSIGNEN |
-| Sonst | 👀 BEOBACHTEN |
+Darunter pro Spalte eine **kompakte Liste** der gematchten Chatter (Name · Tier · €/Tag · kleiner Trend-Pfeil) — scrollbar, klickbar → öffnet das bestehende `ChatterSlideOver`.
 
-Bei `Heute` bleibt die bisherige Pipeline-Kategorie (aus dem letzten Report) — kein Recompute.
+**4. Quick-Presets** über den Filtern (ein Tap = beide Filter setzen):
+- `Top vs Seed`
+- `Aktiv vs Inaktiv`
+- `Mit Alert vs ohne`
+- `SOFORT EINGREIFEN vs BELOHNEN`
+- `Eigener Preset speichern…` (localStorage)
 
-### "Nur aktive" Filter
+### Datenfluss
 
-Für jeden Zeitraum: Es werden nur Chatter angezeigt, die **im aktuellen letzten Report enthalten** sind (das ist heute aktiv). Wer nur in History-Rows aus dem Fenster vorkommt, aber heute nicht mehr im Report ist → wird **nicht** angezeigt.
-
-### Tagesabhaken bleibt tagesgebunden
-
-Die `daily_chatter_checks` Tabelle nutzt weiter `check_date = CURRENT_DATE`. Egal ob du den Zeitraum auf "Letzte 30 Tage" stehen hast — beim ✅-Swipe wird der Chatter **nur für heute** abgehakt und verschwindet aus der aktuellen Session. Morgen taucht er wieder auf, falls Re-Kategorisierung das so will.
+- Greift auf den **bereits geladenen Daten-Pool** zu (`rawChatters`, `rangeHistory`, `modelsList`, `benchmarkBundle`, `recategorizedMap`, `alertsByChatter`) — **kein zusätzlicher DB-Roundtrip**.
+- Aggregate (Ø, Σ, Trend, Null-Tage, Top-Chatter) werden in einem `useMemo` pro Set berechnet, abhängig von den Filter-Werten + dem aktiven `timeRange`.
+- Beim Wechsel des `TimeRange`-Toggles oben rekalkulieren beide Sets automatisch.
 
 ### Persistenz
 
-Der gewählte Zeitraum wird in `localStorage` gespeichert (`tinder.timeRange`), damit er beim Wiederkommen erhalten bleibt.
+`localStorage`-Key `tinder.compareFilters.v1` speichert beide Filter-Sets + custom Presets, damit du beim Wiederkommen direkt weiterarbeitest.
+
+### Tagesabhaken / Swipen
+
+Im Vergleichs-Mode wird **nicht geswiped** — das ist ein reiner Analyse-View. Klick auf einen Chatter öffnet das SlideOver (mit allen bestehenden Aktionen: Note, Coaching, Alert resolven, etc.).
 
 ### Technische Details
 
-**Geänderte Dateien:**
-- `src/lib/timerange-categorize.ts` (neu) — `recategorizeByWindow(chatters, history, from, to, modelsList): Map<chatterName, ActionCategoryName>` + Helper für Aggregation/Trend
-- `src/components/TimeRangeToggle.tsx` (neu) — Pill-Selector mit Presets + Custom Date-Range-Popover (`Calendar mode="range"` aus shadcn)
-- `src/pages/TinderMode.tsx`:
-  - State `timeRange: { preset, from, to }`
-  - History-Fetch erweitern: bei Preset > 7 Tage paginiert via `.range()` laden (analog `loadHistoryWindow` in `swap-tracking.ts`)
-  - `useMemo` `recategorizedMap` nach Window
-  - `uniqueCategories`, `tierCounts`, Card-Sortierung und `categoryEmoji/Name` lesen aus `recategorizedMap` (Fallback auf Original-Kategorie wenn `Heute` aktiv)
-  - Hinweis-Text mit "Re-Kategorisiert nach Ø Performance · X Tage"
+**Neue Dateien:**
+- `src/components/CompareModeView.tsx` — Haupt-Layout (zwei Spalten, responsiv, Stats-Card, Liste, Preset-Bar)
+- `src/components/CompareFilterPanel.tsx` — Filter-UI für ein Set (wiederverwendet für A & B)
+- `src/lib/compare-filters.ts`:
+  - `CompareFilter` Type + Zod-Schema
+  - `applyCompareFilter(chatters, history, filter, range): SwapInput[]`
+  - `computeCompareStats(filtered, history, range): { count, avgRev, sumRev, zeroRate, trend, topChatter }`
+  - `loadComparePresets() / saveComparePresets()` (localStorage)
+  - `DEFAULT_PRESETS` (Top vs Seed, etc.)
 
-**Datenfluss:** Beim Wechsel des Zeitraums wird **kein** neuer DB-Roundtrip nötig (außer beim ersten Mal, wenn das Fenster größer als die bereits geladenen 7 Tage History ist — dann wird einmalig nachgeladen und gecached).
+**Geänderte Dateien:**
+- `src/pages/TinderMode.tsx`:
+  - State `mode` von `"swipe" | "swap"` → `"swipe" | "swap" | "compare"`
+  - Toggle-Bar auf 3 Buttons erweitern (gleicher Pill-Style)
+  - Render-Block: `mode === "compare" ? <CompareModeView … /> : …` — bekommt `rawChatters`, `rangeHistory`, `modelsList`, `benchmarkBundle`, `recategorizedMap`, `alertsByChatter`, `timeRange`, `labelsByChatter` als Props
+  - `TimeRangeToggle` bleibt sichtbar auch im Compare-Mode (wirkt auf beide Sets)
 
 **Edge Cases:**
-- Chatter ohne History im Fenster → Bucket `BEOBACHTEN`
-- "Custom"-Range mit `from > to` → automatisch tauschen
-- "Gestern" = exakt 1 Tag (Min-Stichprobe = 1 Row)
+- Set leer (keine Matches) → „Keine Chatter im Filter“ + Hint zur Lockerung
+- Beide Sets identisch → Δ-Zeile zeigt „Gleiche Auswahl“
+- Mobile (< 768px): Sets gestapelt, mit `A / B`-Switch-Pill statt Side-by-Side, Δ-Box bleibt sichtbar zwischen beiden
+- Filter-Werte mit Zod validiert, fehlerhafte localStorage-Daten → Defaults
 
