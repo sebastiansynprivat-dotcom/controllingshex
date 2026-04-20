@@ -492,7 +492,7 @@ export default function TinderMode() {
     });
   }, [chatters]);
 
-  // Filter unchecked chatters by selected category, label, tier, and alerts
+  // Filter unchecked chatters by selected category, label, tier, alerts, swap-tracking
   const uncheckedChatters = useMemo(
     () => {
       let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
@@ -508,11 +508,14 @@ export default function TinderMode() {
       if (alertFilterActive) {
         base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
       }
+      if (swapTrackFilterActive) {
+        base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
+      }
       const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
+    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]
   );
 
   const prefetchedChatters = useMemo(
