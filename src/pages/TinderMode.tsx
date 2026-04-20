@@ -1023,6 +1023,20 @@ export default function TinderMode() {
                   </>
                 )}
 
+                {swapTrackingMap.size > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectItem value="__swap_track__">
+                      <span className="inline-flex items-center gap-1.5 text-cyan-300">
+                        <Repeat className="h-3 w-3" /> Nach Wechsel beobachten
+                      </span>
+                      {swapTrackCount > 0 && (
+                        <span className="ml-1.5 text-[10px] opacity-50">{swapTrackCount}</span>
+                      )}
+                    </SelectItem>
+                  </>
+                )}
+
                 {allLabels.length > 0 && (
                   <>
                     <SelectSeparator />
