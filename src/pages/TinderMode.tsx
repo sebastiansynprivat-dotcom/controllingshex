@@ -1068,6 +1068,16 @@ export default function TinderMode() {
 
         return (
           <div className="mb-3 space-y-2">
+            {/* Time-Range Selector */}
+            <div className="flex flex-col gap-1">
+              <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+              {timeRange.preset !== "today" && (
+                <span className="text-[10px] text-muted-foreground/70 px-0.5">
+                  Re-Kategorisiert nach Ø Performance · {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tage"}
+                  {rangeLoading && <span className="ml-1 opacity-60">· lädt…</span>}
+                </span>
+              )}
+            </div>
             {tierCounts.size > 0 && (
               <div className="flex gap-1.5 flex-wrap">
                 {ACCOUNT_TIERS.map((tier) => {
