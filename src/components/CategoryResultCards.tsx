@@ -606,6 +606,34 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, chatterTierMap]);
 
 
+  // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
+  // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
+  const tierScopedCategories = useMemo(() => {
+    if (activeTierFilters.size === 0) return categories;
+    return categories.map((cat) => ({
+      ...cat,
+      chatters: cat.chatters.filter((ch) => {
+        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        return tierId !== undefined && activeTierFilters.has(tierId);
+      }),
+    }));
+  }, [categories, activeTierFilters, chatterTierMap]);
+
+  const tierScopedNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const cat of tierScopedCategories) {
+      for (const ch of cat.chatters) set.add(normalizeChatterName(ch.name));
+    }
+    return set;
+  }, [tierScopedCategories]);
+
+  const checkedCount = useMemo(() => {
+    if (activeTierFilters.size === 0) return dailyChecks.size;
+    let n = 0;
+    for (const name of dailyChecks) if (tierScopedNames.has(name)) n++;
+    return n;
+  }, [dailyChecks, tierScopedNames, activeTierFilters]);
+
   if (!data || categories.length === 0) {
     return (
       <div className="space-y-6">
@@ -619,8 +647,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     );
   }
 
-  const totalChatters = categories.reduce((a, c) => a + c.chatters.length, 0);
-  const checkedCount = dailyChecks.size;
+  const totalChatters = tierScopedCategories.reduce((a, c) => a + c.chatters.length, 0);
   const checkProgress = totalChatters > 0 ? Math.round((checkedCount / totalChatters) * 100) : 0;
 
   return (
@@ -692,7 +719,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Kategorien ({totalChatters})</SelectItem>
-            {categories.map((cat) => (
+            {tierScopedCategories.map((cat) => (
               <SelectItem key={cat.categoryName} value={cat.categoryName}>
                 {cat.emoji} {cat.categoryName} ({cat.chatters.length})
               </SelectItem>
@@ -796,7 +823,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             ];
 
             return filterGroups.map((group, gi) => {
-              const groupCats = categories.filter((c) => group.regex.test(c.categoryName));
+              const groupCats = tierScopedCategories.filter((c) => group.regex.test(c.categoryName));
               if (groupCats.length === 0) return null;
               const groupTotal = groupCats.reduce((s, c) => s + c.chatters.length, 0);
 
