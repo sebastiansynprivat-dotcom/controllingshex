@@ -1,69 +1,83 @@
 
 
-## Compare-Mode: Mobile Side-by-Side Layout
+## Compare-Mode: Zwei Vergleichs-Karten nebeneinander
 
-Aktuell stapelt der Compare-Mode auf Mobile beide Sets hinter einem A/B-Switcher. Du willst beide Karten **gleichzeitig nebeneinander** sehen — auch auf dem Handy. Das geht, braucht aber ein dichteres, scrollbares Layout damit's auf 360–440px sauber bleibt.
+Aktuell zeigt der Compare-Mode oben kompakte Stats-Cards + lange Listen. Du willst stattdessen **eine prominente Vergleichs-Karte pro Set** nebeneinander — sauber wie SwipeCards, mit allen wichtigen Daten **auf einen Blick**, ohne zu scrollen oder Filter aufklappen zu müssen.
 
-### Neues Layout-Konzept Mobile
-
-**1. A/B-Switcher fliegt raus.** Stattdessen: zwei echte Spalten ab `grid-cols-2` (also immer, nicht erst ab `md`). Spacing wird kompakter (`gap-2` statt `gap-3`).
-
-**2. Filter-Panel schrumpft auf Mobile** zu einem kollabierten "Chip-Header":
+### Neues Layout
 
 ```text
-┌──────── A ────────┐ ┌──────── B ────────┐
-│ ● 3 Filter aktiv  │ │ ● 2 Filter aktiv  │
-│ [Top][SOFORT][▾]  │ │ [Seed][▾]         │
-├───────────────────┤ ├───────────────────┤
-│   12 Chatter      │ │    8 Chatter      │
-│   Ø 87 €          │ │    Ø 142 €        │
-│   Σ 1.044 €       │ │    Σ 1.136 €      │
-│   ⊘ 24% · ↘ -12%  │ │    ⊘ 8% · ↗ +18%  │
-├───────────────────┤ ├───────────────────┤
-│ niklas_la   87€   │ │ max_dr     142€   │
-│ jana_mu     54€   │ │ tim_kr     128€   │
-│ … (scroll)        │ │ … (scroll)        │
-└───────────────────┘ └───────────────────┘
+┌─────── A ──────┐ ┌─────── B ──────┐
+│ ● 2 Filter     │ │ ● 1 Filter     │   ← Filter-Chip-Header (klein, tap = Sheet)
+│ [Top][Aktiv]   │ │ [Seed]         │
+└────────────────┘ └────────────────┘
+
+┌─────── A ──────┐ ┌─────── B ──────┐
+│   12 CHATTER   │ │    8 CHATTER   │   ← Vergleichs-Karte (Hero)
+│                │ │                │
+│   Ø 87 €/Tag   │ │   Ø 142 €/Tag  │   ← Hero-Zahl, groß
+│   Σ 1.044 €    │ │   Σ 1.136 €    │
+│                │ │                │
+│   ⊘ 24%        │ │   ⊘ 8%         │
+│   ↘ -12%       │ │   ↗ +18%       │
+│                │ │                │
+│   👑 niklas_la │ │   👑 max_dr    │
+│      87 €      │ │      142 €     │
+│                │ │                │
+│   ── Rest ──   │ │   ── Rest ──   │
+│   jana_mu  54€ │ │   tim_kr  128€ │
+│   leo_st   42€ │ │   ana_we   98€ │
+│   +9 weitere ▾ │ │   +5 weitere ▾ │
+└────────────────┘ └────────────────┘
 
        Δ Ø: +55€  ·  Δ Σ: +92€  ·  Δ⊘: -16pp
 ```
 
-- Header zeigt **nur die aktivsten Filter-Pills** (max 2-3) + Pfeil zum Aufklappen.
-- Tap auf Header öffnet ein **Bottom-Sheet** (mobile) bzw. inline-Expand (desktop) mit dem vollen Filter-UI — so geht kein Filter-Feature verloren, aber die Karte bleibt schmal.
-- Stats-Card kompakter: Ein-Zeilen-Stats statt Label+Value pro Row (z.B. `Ø 87€ · Σ 1.044€`, `⊘ 24% · ↘ -12%`).
-- Chatter-Liste: Name darüber, €/Tag darunter (statt nebeneinander) — passt in schmale Spalte. Max-Höhe `40vh`, intern scrollbar.
+### Was sich konkret ändert
 
-**3. Δ-Box bleibt unten** als horizontale Pill-Reihe (kompakter als bisher), immer voll-breit unter beiden Spalten sichtbar.
+**1. Eine einzige Vergleichs-Karte pro Set** (ersetzt `StatsCard` + separate `ChatterList`):
+- Akzentfarbe: Set A = emerald, Set B = sky (wie bisher)
+- Glas-Effekt + dezenter Gradient wie SwipeCards (kein full SwipeCard-Look — bleibt statisch, nicht swipebar)
+- **Hero-Zahlen-Block oben**: Chatter-Count groß, dann Ø €/Tag als Haupt-KPI
+- **Sekundär-KPIs**: Σ €, Null-Rate ⊘, Trend-Pfeil — kompakt darunter
+- **Top-Chatter prominent**: Krone 👑 + Name + €/Tag (klickbar → SlideOver)
+- **Top 3 weitere Chatter** direkt sichtbar (Name + €), Rest collapsed mit "+N weitere ▾" → expandiert inline
 
-**4. Preset-Bar bleibt** oben, horizontal scrollbar (`overflow-x-auto`) statt umbrechend — spart vertikalen Platz.
+**2. Filter-Chip-Header bleibt schlank oben** (wie schon implementiert), tap → Bottom-Sheet.
 
-**5. Schriftgrößen-Anpassungen** für 360-440px:
-- Stats-Zahlen `text-lg` statt `text-2xl`
-- Chatter-Namen `text-[11px]` mit `truncate`
-- Tier-/Kategorie-Pills im Filter-Sheet bleiben tappbar (min 28px Höhe)
+**3. Δ-Box bleibt unten** als horizontale Pill-Reihe (unverändert).
 
-### Was bleibt gleich
+**4. Preset-Bar ganz oben** bleibt horizontal-scrollbar (unverändert).
 
-- Desktop-Layout (≥768px): unverändert side-by-side mit vollem Inline-Filter
-- Alle Filter-Funktionen, Presets, Δ-Berechnung, Klick → SlideOver
-- localStorage-Persistenz
+### Warum das besser ist
+
+- **Auf den ersten Blick alles Wichtige sichtbar**: Count, Ø, Σ, Null-Rate, Trend, Top-Chatter — ohne scrollen.
+- **Echte Symmetrie**: Beide Karten exakt gleich aufgebaut, Auge vergleicht direkt zeilenweise links↔rechts.
+- **Kein hin-und-her-scrollen**: Lange Listen gibt's nicht mehr im Hauptview — nur Top 3 + Expand-Button für Rest.
+- **App-Feeling**: Eine Karte = eine Aussage, statt drei gestapelte Sub-Boxen.
+
+### Mobile (440px und runter)
+
+- Karten bleiben **immer side-by-side** (`grid-cols-2 gap-2`).
+- Hero-Zahl `text-xl` auf Mobile, `text-3xl` auf Desktop.
+- Top-Chatter-Block: Name truncate, € rechts ausgerichtet.
+- "Weitere Chatter"-Liste expandiert inline mit `max-h-[35vh] overflow-y-auto`.
+- Filter-Chip-Header darüber bleibt unverändert (Sheet-Pattern funktioniert schon).
 
 ### Geänderte Dateien
 
-- `src/components/CompareModeView.tsx`
-  - `activeMobile`-State + A/B-Switcher entfernen
-  - Grid immer `grid-cols-2 gap-2 md:gap-3`
-  - `StatsCard` & `ChatterList` kompaktere Mobile-Varianten
-  - Δ-Box als horizontale Pill-Reihe
-  - Preset-Bar auf `overflow-x-auto whitespace-nowrap`
-- `src/components/CompareFilterPanel.tsx`
-  - Neuer Mobile-Modus: Header mit aktiven Pills + Aufklapp-Button
-  - Volles Filter-UI in Sheet (`@/components/ui/sheet`) auf Mobile, inline auf Desktop
-  - Via `useIsMobile()` aus `src/hooks/use-mobile.tsx`
+- **`src/components/CompareModeView.tsx`**:
+  - `StatsCard` und `ChatterList` zu **einer neuen Komponente `CompareCard`** mergen
+  - `CompareCard` erhält: `stats`, `items`, `accent`, `onChatterClick`
+  - Layout: Hero-Block (Count + Ø) → Sekundär-KPIs (Σ, ⊘, Trend) → Top-Chatter-Highlight → Top-3-Liste → Expand-Toggle für Rest
+  - Akzentfarbe als Gradient-Tint im Karten-Background
+  - Empty-State innerhalb der Karte (statt separate Box)
+- Δ-Box, Preset-Bar, Filter-Header bleiben unverändert.
 
 ### Edge Cases
 
-- 320px Geräte: Spalten werden eng aber lesbar (Stats einzeilig, Truncate auf Namen)
-- Lange Chatter-Listen: Beide Spalten unabhängig scrollbar (`max-h-[40vh] overflow-y-auto`)
-- Sheet überlagert preview-frame korrekt (z-index aus bestehender `sheet.tsx`)
+- **Leeres Set**: Karte zeigt grauen "Keine Treffer"-Hero mit Hinweis "Filter lockern" — gleiche Höhe wie volle Karte (kein Layout-Shift).
+- **Nur 1 Chatter**: Top-Chatter-Block sichtbar, "weitere"-Liste entfällt.
+- **Beide Sets identisch**: Δ-Box zeigt "Gleiche Auswahl" (unverändert).
+- **Sehr lange Namen**: `truncate` auf Chatter-Namen, € bleibt rechts sichtbar.
 
