@@ -126,6 +126,29 @@ export default function TinderMode() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
   const [rawChatters, setRawChatters] = useState<ChatterData[]>([]);
+
+  // Time-range selector for re-categorization
+  const [timeRange, setTimeRangeState] = useState<TimeRange>(() => {
+    try {
+      const stored = localStorage.getItem("tinder.timeRange");
+      if (stored) {
+        const parsed = JSON.parse(stored) as TimeRange;
+        if (parsed?.preset) {
+          // Re-build to refresh from/to relative to today (except custom)
+          if (parsed.preset === "custom") return parsed;
+          return buildTimeRange(parsed.preset);
+        }
+      }
+    } catch {}
+    return buildTimeRange("today");
+  });
+  const setTimeRange = useCallback((r: TimeRange) => {
+    setTimeRangeState(r);
+    try { localStorage.setItem("tinder.timeRange", JSON.stringify(r)); } catch {}
+  }, []);
+  const [rangeHistory, setRangeHistory] = useState<RangeHistoryRow[]>([]);
+  const [rangeHistoryKey, setRangeHistoryKey] = useState<string>("");
+  const [rangeLoading, setRangeLoading] = useState(false);
   const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
