@@ -1171,6 +1171,25 @@ export default function TinderMode() {
               })}
             </AnimatePresence>
 
+            {/* Swap-Tracking Δ-Badge auf der Top-Card */}
+            {currentChatter && (() => {
+              const entry = swapTrackingMap.get(normalizeName(currentChatter.name));
+              if (!entry) return null;
+              const tone = deltaTone(entry.deltaPct);
+              const toneClass =
+                tone === "pos" ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
+                : tone === "neg" ? "bg-red-500/15 border-red-400/40 text-red-300"
+                : "bg-cyan-500/10 border-cyan-400/30 text-cyan-200";
+              return (
+                <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-30">
+                  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md text-[11px] font-medium ${toneClass}`}>
+                    <Repeat className="h-3 w-3" />
+                    <span>{formatDelta(entry.deltaPct)} seit Wechsel · vor {entry.daysSince}T</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Action panel overlay */}
             {currentChatter && (
               <SwipeActionPanel
