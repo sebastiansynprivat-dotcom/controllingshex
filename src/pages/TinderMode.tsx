@@ -20,6 +20,7 @@ import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
+import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 
 interface ChatterData {
   name: string;
@@ -113,6 +114,7 @@ export default function TinderMode() {
   const [labelPanel, setLabelPanel] = useState(false);
   const [notePanel, setNotePanel] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTier, setSelectedTier] = useState<AccountTierId | null>(null);
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
   const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
   const [alertChatterNames, setAlertChatterNames] = useState<Set<string>>(new Set());
@@ -380,6 +382,36 @@ export default function TinderMode() {
     });
   }, [platform]);
 
+  // Map: normalized chatter name → tierId based on his account's followers
+  const tierByChatter = useMemo(() => {
+    const followerMap = new Map<string, number>();
+    for (const m of modelsList) {
+      followerMap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+    }
+    const map = new Map<string, AccountTierId>();
+    for (const c of chatters) {
+      const acc = (c.account || "").toLowerCase().trim();
+      if (!acc) continue;
+      const followers = followerMap.get(acc);
+      if (followers == null) continue;
+      const tier = tierForFollowers(followers);
+      if (tier) map.set(normalizeName(c.name), tier.id);
+    }
+    return map;
+  }, [chatters, modelsList]);
+
+  // Tier-Counts (only over unchecked chatters, like uniqueCategories)
+  const tierCounts = useMemo(() => {
+    const counts = new Map<AccountTierId, number>();
+    for (const c of chatters) {
+      if (checkedNames.has(normalizeName(c.name))) continue;
+      const tierId = tierByChatter.get(normalizeName(c.name));
+      if (!tierId) continue;
+      counts.set(tierId, (counts.get(tierId) || 0) + 1);
+    }
+    return counts;
+  }, [chatters, checkedNames, tierByChatter]);
+
   // Extract unique categories with counts of unchecked chatters
   const uniqueCategories = useMemo(() => {
     const allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
@@ -422,12 +454,15 @@ export default function TinderMode() {
     });
   }, [chatters]);
 
-  // Filter unchecked chatters by selected category, label, and alerts
+  // Filter unchecked chatters by selected category, label, tier, and alerts
   const uncheckedChatters = useMemo(
     () => {
       let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
       if (selectedCategory) {
         base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+      }
+      if (selectedTier) {
+        base = base.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
       }
       if (labelChatterNames) {
         base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
@@ -440,7 +475,7 @@ export default function TinderMode() {
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
+    [chatters, checkedNames, selectedCategory, selectedTier, tierByChatter, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
   );
 
   const prefetchedChatters = useMemo(
@@ -453,17 +488,19 @@ export default function TinderMode() {
   const filteredTotal = useMemo(() => {
     let base = chatters;
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+    if (selectedTier) base = base.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, labelChatterNames, alertFilterActive, alertChatterNames]);
+  }, [chatters, selectedCategory, selectedTier, tierByChatter, labelChatterNames, alertFilterActive, alertChatterNames]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
+    if (selectedTier) base = base.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, labelChatterNames, alertFilterActive, alertChatterNames]);
+  }, [chatters, checkedNames, selectedCategory, selectedTier, tierByChatter, labelChatterNames, alertFilterActive, alertChatterNames]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
@@ -859,8 +896,46 @@ export default function TinderMode() {
           }
         };
 
+        const toggleTier = (tierId: AccountTierId) => {
+          setActionPanel(false);
+          setSlideOver(false);
+          setLabelPanel(false);
+          setNotePanel(false);
+          setCategoryDonePrompt(null);
+          setSelectedTier((prev) => (prev === tierId ? null : tierId));
+        };
+
         return (
-          <div className="mb-3">
+          <div className="mb-3 space-y-2">
+            {tierCounts.size > 0 && (
+              <div className="flex gap-1.5 flex-wrap">
+                {ACCOUNT_TIERS.map((tier) => {
+                  const isActive = selectedTier === tier.id;
+                  const count = tierCounts.get(tier.id) || 0;
+                  const isEmpty = count === 0;
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      disabled={isEmpty}
+                      onClick={() => toggleTier(tier.id)}
+                      title={tier.description}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-normal transition-all border ${
+                        isActive
+                          ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText}`
+                          : isEmpty
+                            ? "bg-transparent border-white/[0.03] text-white/15"
+                            : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/80"
+                      }`}
+                    >
+                      <span>{tier.emoji}</span>
+                      <span>{tier.label}</span>
+                      <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <Select value={currentValue} onValueChange={handleChange}>
               <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-sm h-10">
                 <SelectValue>{triggerLabel}</SelectValue>

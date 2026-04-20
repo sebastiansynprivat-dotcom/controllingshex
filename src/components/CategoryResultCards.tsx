@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip as RechartsTooltip } from "recharts";
 import { loadModelPerformances, formatFollowers, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
@@ -312,6 +313,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   
    const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set());
+  const [activeTierFilters, setActiveTierFilters] = useState<Set<AccountTierId>>(new Set());
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
@@ -319,6 +321,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
   const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
   const [modelPerformances, setModelPerformances] = useState<Record<string, ModelPerformance>>({});
+  const [followerMap, setFollowerMap] = useState<Map<string, number>>(new Map());
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -448,6 +451,14 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       .select("model_name, follower_count")
       .eq("platform", platform)
       .then(async ({ data: models }) => {
+        if (models) {
+          // Build followerMap (lowercase account → followers) for tier filtering
+          const fmap = new Map<string, number>();
+          for (const m of models) {
+            fmap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+          }
+          setFollowerMap(fmap);
+        }
         if (models && allChattersForModels.length > 0) {
           const perfs = await loadModelPerformances(platform, allChattersForModels, models as ModelInfo[]);
           setModelPerformances(perfs);
@@ -523,10 +534,60 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
+  const toggleTierFilter = (tierId: AccountTierId) => {
+    setActiveTierFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(tierId)) next.delete(tierId);
+      else next.add(tierId);
+      return next;
+    });
+  };
+
+  // Map: normalized chatter name → tierId (basierend auf seinem Account)
+  const chatterTierMap = useMemo(() => {
+    const map = new Map<string, AccountTierId>();
+    for (const cat of categories) {
+      for (const ch of cat.chatters) {
+        const acc = (ch.account || "").toLowerCase().trim();
+        if (!acc) continue;
+        const followers = followerMap.get(acc);
+        if (followers == null) continue;
+        const tier = tierForFollowers(followers);
+        if (tier) map.set(normalizeChatterName(ch.name), tier.id);
+      }
+    }
+    return map;
+  }, [categories, followerMap]);
+
+  // Counts pro Tier (über alle Kategorien hinweg)
+  const tierCounts = useMemo(() => {
+    const counts = new Map<AccountTierId, number>();
+    for (const cat of categories) {
+      for (const ch of cat.chatters) {
+        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        if (!tierId) continue;
+        counts.set(tierId, (counts.get(tierId) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [categories, chatterTierMap]);
+
   const visibleCategories = useMemo(() => {
     let filtered = activeFilters.size === 0
       ? categories
       : categories.filter((c) => activeFilters.has(c.categoryName));
+
+    if (activeTierFilters.size > 0) {
+      filtered = filtered
+        .map((cat) => ({
+          ...cat,
+          chatters: cat.chatters.filter((ch) => {
+            const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+            return tierId !== undefined && activeTierFilters.has(tierId);
+          }),
+        }))
+        .filter((cat) => cat.chatters.length > 0);
+    }
 
     if (activeLabelFilters.size > 0) {
       filtered = filtered
@@ -542,7 +603,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
 
     return filtered;
-  }, [activeFilters, activeLabelFilters, categories, chatterLabelsMap]);
+  }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, chatterTierMap]);
 
 
   if (!data || categories.length === 0) {
@@ -584,6 +645,35 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           {allCollapsed ? "Alle aufklappen" : "Alle einklappen"}
         </button>
       </div>
+
+      {/* Mobile Tier-Filter Pills */}
+      {tierCounts.size > 0 && (
+        <div className="flex sm:hidden w-full gap-1.5 flex-wrap">
+          {ACCOUNT_TIERS.map((tier) => {
+            const isActive = activeTierFilters.has(tier.id);
+            const count = tierCounts.get(tier.id) || 0;
+            const isEmpty = count === 0;
+            return (
+              <button
+                key={tier.id}
+                onClick={() => !isEmpty && toggleTierFilter(tier.id)}
+                disabled={isEmpty}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-normal transition-all border ${
+                  isActive
+                    ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText}`
+                    : isEmpty
+                      ? "bg-transparent border-white/[0.03] text-white/15"
+                      : "bg-white/[0.03] border-white/[0.06] text-white/55"
+                }`}
+              >
+                <span>{tier.emoji}</span>
+                <span>{tier.label}</span>
+                <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Mobile Filter Dropdowns */}
       <div className="flex sm:hidden w-full gap-2">
@@ -649,15 +739,54 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
               <Filter className="h-3.5 w-3.5 text-white/20" />
               <span className="text-[11px] text-white/40 font-medium tracking-wider uppercase">Kategorien</span>
             </div>
-            {(activeFilters.size > 0 || activeLabelFilters.size > 0) && (
+            {(activeFilters.size > 0 || activeLabelFilters.size > 0 || activeTierFilters.size > 0) && (
               <button
-                onClick={() => { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); }}
+                onClick={() => { setActiveFilters(new Set()); setActiveLabelFilters(new Set()); setActiveTierFilters(new Set()); }}
                 className="text-[10px] text-primary/70 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
               >
                 ✕ Zurücksetzen
               </button>
             )}
           </div>
+
+          {/* Tier-Filter (Oberfilter nach Account-Größe) */}
+          {tierCounts.size > 0 && (
+            <div className="pb-3 mb-3 border-b border-white/[0.06]">
+              <div className="flex items-start gap-4 pl-1 border-l-2 border-l-primary/30">
+                <div className="flex items-center gap-2 pt-0.5 min-w-[80px] shrink-0">
+                  <Users className="h-3 w-3 text-white/30" />
+                  <span className="text-[11px] text-white/50 font-semibold tracking-wide">Tier</span>
+                  <span className="text-[10px] text-white/20 font-medium">{[...tierCounts.values()].reduce((s, n) => s + n, 0)}</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {ACCOUNT_TIERS.map((tier) => {
+                    const isActive = activeTierFilters.has(tier.id);
+                    const count = tierCounts.get(tier.id) || 0;
+                    const isEmpty = count === 0;
+                    return (
+                      <button
+                        key={tier.id}
+                        onClick={() => !isEmpty && toggleTierFilter(tier.id)}
+                        title={tier.description}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap ${
+                          isActive
+                            ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText} shadow-[0_0_10px_-4px] shadow-current`
+                            : isEmpty
+                              ? "bg-transparent border-white/[0.03] text-white/15 cursor-default"
+                              : `bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/70 ${tier.hoverBorder} hover:bg-white/[0.05]`
+                        }`}
+                      >
+                        <span className="text-xs leading-none">{tier.emoji}</span>
+                        <span>{tier.label}</span>
+                        <span className={`text-[10px] tabular-nums font-medium ${isActive ? "opacity-60" : isEmpty ? "text-white/10" : "text-white/25"}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {(() => {
             const filterGroups: { label: string; dotClass: string; borderAccent: string; activeBg: string; activeBorder: string; activeText: string; hoverBorder: string; regex: RegExp }[] = [
               { label: "Kritisch", dotClass: "bg-red-400", borderAccent: "border-l-red-500/40", activeBg: "bg-red-500/10", activeBorder: "border-red-400/40", activeText: "text-red-300", hoverBorder: "hover:border-red-500/20", regex: /WARNUNG|0€ UMSATZ/ },
