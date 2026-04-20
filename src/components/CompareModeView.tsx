@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, type PanInfo } from "framer-motion";
-import { Users, Zap, CalendarDays, RotateCcw } from "lucide-react";
+import { Users, Zap, CalendarDays, RotateCcw, ChevronLeft, ChevronRight, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
   applyCompareFilter,
