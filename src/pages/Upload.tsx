@@ -564,8 +564,14 @@ function buildResultFromCsv(
   return { categories: Array.from(categoryMap.values()).filter((category) => category.chatters.length > 0) };
 }
 
-async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined) {
-  const today = new Date().toISOString().split("T")[0];
+function extractDateFromFilename(name: string): string {
+  // Match YYYY-MM-DD or YYYY_MM_DD anywhere in the filename
+  const m = name.match(/(20\d{2})[-_](\d{2})[-_](\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return new Date().toISOString().split("T")[0];
+}
+
+async function saveChatterHistory(merged: AnalysisResult, activePlatform: string, userId: string | undefined, analysisDate: string) {
   const rows: any[] = [];
   for (const cat of merged.categories || []) {
     for (const chatter of cat.chatters || []) {
@@ -588,7 +594,7 @@ async function saveChatterHistory(merged: AnalysisResult, activePlatform: string
       if (responseDelay > 30) responseDelay = 0;
       rows.push({
         chatter_name: name, revenue_today: revenue, mass_dms: massDms, open_chats: openChats,
-        response_delay_days: responseDelay, platform: activePlatform, analysis_date: today,
+        response_delay_days: responseDelay, platform: activePlatform, analysis_date: analysisDate,
         category: cat.categoryName || null, recommendation: chatter.recommendation || null, user_id: userId,
         account: chatter.account || null,
       });
@@ -870,11 +876,11 @@ export default function UploadPage() {
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
-      // Save report to DB
-      const today = new Date().toISOString().split("T")[0];
+      // Save report to DB — derive analysis date from filename (fallback: today)
+      const analysisDate = extractDateFromFilename(file.name);
       const reportPayload = {
         platform,
-        analysis_date: today,
+        analysis_date: analysisDate,
         file_name: file.name,
         file_path: uploadedFilePath,
         result_json: merged as any,
@@ -897,7 +903,7 @@ export default function UploadPage() {
 
       // Save chatter history
       try {
-        await saveChatterHistory(merged, platform, user?.id);
+        await saveChatterHistory(merged, platform, user?.id, analysisDate);
         addStatus("✅ Chatter-Historie gespeichert.");
       } catch (histErr: any) {
         console.error("History save error:", histErr);
