@@ -21,6 +21,8 @@ import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
+import { loadSwapTracking, formatDelta, deltaTone, type SwapTrackingEntry } from "@/lib/swap-tracking";
+import { Repeat } from "lucide-react";
 
 interface ChatterData {
   name: string;
@@ -126,6 +128,8 @@ export default function TinderMode() {
   const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
   const [alertChatterNames, setAlertChatterNames] = useState<Set<string>>(new Set());
   const [alertFilterActive, setAlertFilterActive] = useState(false);
+  const [swapTrackingMap, setSwapTrackingMap] = useState<Map<string, SwapTrackingEntry>>(new Map());
+  const [swapTrackFilterActive, setSwapTrackFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
