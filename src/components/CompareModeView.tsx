@@ -208,7 +208,8 @@ export default function CompareModeView({
             }
           }}
           onReset={() => { setIdxA(0); setSkippedA([]); }}
-          onTap={(name) => onChatterClick(name)}
+          onTap={handleCardSingleClick}
+          onDoubleTap={handleCardDoubleClick}
         />
         <CompareSlot
           accent="sky"
@@ -224,12 +225,59 @@ export default function CompareModeView({
             }
           }}
           onReset={() => { setIdxB(0); setSkippedB([]); }}
-          onTap={(name) => onChatterClick(name)}
+          onTap={handleCardSingleClick}
+          onDoubleTap={handleCardDoubleClick}
         />
       </div>
 
       {/* Live Δ between currently visible chatters */}
       <LiveDeltaBox a={currentA} b={currentB} enrichedMap={enrichedByName} />
+
+      {/* Compare Dialog — beide Performance-Profile nebeneinander */}
+      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
+        <DialogContent className="max-w-[1400px] w-[95vw] h-[90vh] p-0 overflow-hidden gap-0 border-white/10">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.02]">
+            <div className="flex items-center gap-2 text-xs font-medium text-foreground/80">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="capitalize">{currentA?.name.replace(/_/g, " ") ?? "—"}</span>
+              <span className="text-muted-foreground mx-1">vs</span>
+              <span className="inline-block h-2 w-2 rounded-full bg-sky-400" />
+              <span className="capitalize">{currentB?.name.replace(/_/g, " ") ?? "—"}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCompareDialogOpen(false)}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-white/[0.08] flex-1 overflow-hidden">
+            <div className="overflow-y-auto">
+              {currentA && (
+                <ChatterSlideOver
+                  open={compareDialogOpen}
+                  onClose={() => setCompareDialogOpen(false)}
+                  chatterName={currentA.name}
+                  platform={platform}
+                  inline
+                />
+              )}
+            </div>
+            <div className="overflow-y-auto">
+              {currentB && (
+                <ChatterSlideOver
+                  open={compareDialogOpen}
+                  onClose={() => setCompareDialogOpen(false)}
+                  chatterName={currentB.name}
+                  platform={platform}
+                  inline
+                />
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
