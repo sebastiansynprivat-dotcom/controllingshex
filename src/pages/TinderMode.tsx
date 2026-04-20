@@ -521,21 +521,50 @@ export default function TinderMode() {
 
     const days = rangeDays(timeRange);
 
+    // Adaptive Schwellen je nach Fensterlänge.
+    // - Kleine Fenster (≤2T): jeder Null-Tag zählt absolut
+    // - Mittel (3–9T): ≥40% Null-Tage Medium / ≥60% High, Floor 3 Null-Tage
+    // - Groß (≥10T): ≥30% Medium / ≥50% High, Floor 5 / 8 Null-Tage
+    // Zusätzlich: ein einzelner Null-Tag in 30T triggert NIE einen Alert.
+    let zeroHighRate: number, zeroMedRate: number, zeroHighFloor: number, zeroMedFloor: number;
+    if (days <= 2) {
+      zeroHighRate = 1.0; zeroMedRate = 0.5; zeroHighFloor = 2; zeroMedFloor = 1;
+    } else if (days <= 9) {
+      zeroHighRate = 0.6; zeroMedRate = 0.4; zeroHighFloor = 4; zeroMedFloor = 3;
+    } else {
+      zeroHighRate = 0.5; zeroMedRate = 0.3; zeroHighFloor = 8; zeroMedFloor = 5;
+    }
+    // Delay-Schwelle bleibt absolut (max im Fenster), aber bei großen Fenstern leicht strenger,
+    // damit ein einmaliger 3-Tage-Verzug vor 4 Wochen nicht reinrutscht — wir nutzen aktuelles Delay.
+    const delayMedDays = days >= 14 ? 3 : 2;
+    const delayHighDays = days >= 14 ? 4 : 3;
+    // Trend nur prüfen wenn wir genug Aktiv-Tage haben
+    const minActiveForTrend = Math.max(3, Math.ceil(days * 0.3));
+
     for (const c of rawChatters) {
       const key = normalizeName(c.name);
       const rows = byChatter.get(key) || [];
       if (rows.length === 0) continue;
+      // Relevanz-Filter: bei großen Fenstern muss der Chatter einen Mindestanteil
+      // tatsächlich aktiv gewesen sein, sonst keine Alerts (vermeidet Rauschen bei
+      // Chattern, die erst seit Kurzem im Roster sind).
+      const minRowsForWindow = Math.max(2, Math.ceil(days * 0.3));
+      if (rows.length < minRowsForWindow) continue;
 
       const revs = rows.map((r) => r.revenue_today);
       const sum = revs.reduce((a, b) => a + b, 0);
       const avgRev = sum / rows.length;
-      const zeroDays = rows.filter((r) => r.revenue_today === 0).length;
+      const activeDays = rows.filter((r) => r.revenue_today > 0).length;
+      const zeroDays = rows.length - activeDays;
       const zeroRate = zeroDays / rows.length;
-      const maxDelay = rows.reduce((m, r) => Math.max(m, r.response_delay_days || 0), 0);
+      // Aktuelles (jüngstes) Response-Delay statt max — sonst hängt ein alter
+      // Spike noch wochenlang als Alert nach.
+      const sortedByDate = [...rows].sort((a, b) => a.analysis_date.localeCompare(b.analysis_date));
+      const currentDelay = sortedByDate[sortedByDate.length - 1]?.response_delay_days || 0;
 
-      // Trend
+      // Trend: lineare Steigung über das Fenster
       let trend = 0;
-      if (rows.length >= 3 && avgRev > 0) {
+      if (rows.length >= minActiveForTrend && avgRev > 0) {
         const n = rows.length;
         const meanX = (n - 1) / 2;
         let num = 0, den = 0;
@@ -547,15 +576,25 @@ export default function TinderMode() {
         trend = (slope * (n - 1)) / avgRev;
       }
 
+      // Recent vs. baseline: zweite Hälfte ggü. erster Hälfte (nur bei ≥6 Rows sinnvoll)
+      let recentDrop = 0;
+      if (sortedByDate.length >= 6) {
+        const mid = Math.floor(sortedByDate.length / 2);
+        const firstAvg = sortedByDate.slice(0, mid).reduce((s, r) => s + r.revenue_today, 0) / mid;
+        const secondAvg = sortedByDate.slice(mid).reduce((s, r) => s + r.revenue_today, 0) / (sortedByDate.length - mid);
+        if (firstAvg > 0) recentDrop = (secondAvg - firstAvg) / firstAvg;
+      }
+
       const alerts: { alert_type: string; severity: string; message: string }[] = [];
 
-      if (zeroRate >= 0.8) {
+      // Null-Tage: BEIDE Bedingungen — relativer Anteil UND absoluter Floor
+      if (zeroRate >= zeroHighRate && zeroDays >= zeroHighFloor) {
         alerts.push({
           alert_type: "zero_revenue_window",
           severity: "high",
-          message: `${zeroDays} von ${rows.length} Tagen ohne Umsatz im Fenster (${days}T)`,
+          message: `${zeroDays} von ${rows.length} Tagen ohne Umsatz (${days}T)`,
         });
-      } else if (zeroRate >= 0.5) {
+      } else if (zeroRate >= zeroMedRate && zeroDays >= zeroMedFloor) {
         alerts.push({
           alert_type: "frequent_zero_days",
           severity: "medium",
@@ -563,26 +602,36 @@ export default function TinderMode() {
         });
       }
 
-      if (maxDelay > 3) {
+      // Response-Delay: aktueller Stand, nicht historisches Max
+      if (currentDelay >= delayHighDays) {
         alerts.push({
           alert_type: "response_delay",
           severity: "high",
-          message: `Antwortverzug bis zu ${maxDelay} Tage im Fenster`,
+          message: `Aktuell ${currentDelay} Tage Antwortverzug`,
         });
-      } else if (maxDelay > 2) {
+      } else if (currentDelay >= delayMedDays) {
         alerts.push({
           alert_type: "response_delay",
           severity: "medium",
-          message: `Antwortverzug bis zu ${maxDelay} Tage im Fenster`,
+          message: `Aktuell ${currentDelay} Tage Antwortverzug`,
         });
       }
 
-      if (trend <= -0.3 && avgRev > 0) {
-        alerts.push({
-          alert_type: "revenue_drop",
-          severity: trend <= -0.5 ? "high" : "medium",
-          message: `Umsatz-Trend ${Math.round(trend * 100)}% über ${days} Tage`,
-        });
+      // Trend-Drop: Slope ODER Recent-vs-Baseline. Mindest-Umsatz, sonst sind %-Werte Mist.
+      if (avgRev >= 20) {
+        if (trend <= -0.3) {
+          alerts.push({
+            alert_type: "revenue_drop",
+            severity: trend <= -0.5 ? "high" : "medium",
+            message: `Umsatz-Trend ${Math.round(trend * 100)}% über ${days}T`,
+          });
+        } else if (recentDrop <= -0.4) {
+          alerts.push({
+            alert_type: "revenue_drop",
+            severity: recentDrop <= -0.6 ? "high" : "medium",
+            message: `Letzte Hälfte ${Math.round(recentDrop * 100)}% vs. Anfang`,
+          });
+        }
       }
 
       if (alerts.length > 0) {
