@@ -125,7 +125,7 @@ export default function TinderMode() {
     setIsDesktop(mql.matches);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  const [chatters, setChatters] = useState<ChatterData[]>([]);
+  const [rawChatters, setRawChatters] = useState<ChatterData[]>([]);
   const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
