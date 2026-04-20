@@ -178,11 +178,21 @@ export function applyCompareFilter(
     const rows = histIndex.get(key) || [];
     const agg = aggregateChatter(rows);
 
+    // Max delay: bevorzuge History-Aggregat; falls leer (z.B. "Heute"-Preset), falle auf KPI zurück
+    let maxDelay = agg.maxDelay;
+    if (rows.length === 0) {
+      const delayKey = Object.keys(c.kpis).find((k) => /delay|verzug|antwort/i.test(k));
+      if (delayKey) {
+        const m = String(c.kpis[delayKey]).match(/-?\d+(?:[.,]\d+)?/);
+        if (m) maxDelay = parseFloat(m[0].replace(",", ".")) || 0;
+      }
+    }
+
     if (filter.revAvg) {
       const [lo, hi] = filter.revAvg;
       if (agg.avgRev < lo || agg.avgRev > hi) continue;
     }
-    if (filter.delayMax != null && agg.maxDelay > filter.delayMax) continue;
+    if (filter.delayMax != null && maxDelay > filter.delayMax) continue;
 
     // Status filter
     if (filter.status !== "any") {
