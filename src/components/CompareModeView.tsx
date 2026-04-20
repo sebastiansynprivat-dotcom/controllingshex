@@ -1,26 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
-import { TrendingDown, TrendingUp, Minus, Crown, ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { motion, useMotionValue, useTransform, useAnimation, type PanInfo } from "framer-motion";
+import { Users, Zap, CalendarDays, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
   applyCompareFilter,
-  computeCompareStats,
   loadCompareState,
   saveCompareState,
   formatEur,
-  formatPct,
-  formatTrendPct,
   DEFAULT_PRESETS,
   type ComparePreset,
   type ApplyFilterContext,
   type FilteredChatter,
 } from "@/lib/compare-filters";
+import {
+  listAllSwapChatters,
+  formatSkill,
+  type SwapChatter,
+  type SwapInput,
+  type SwapModelInfo,
+} from "@/lib/swap-suggestions";
+import { formatFollowers } from "@/lib/model-performance";
 import type { TimeRange, HistoryRow as RangeHistoryRow } from "@/lib/timerange-categorize";
 import type { ActionCategoryName } from "@/lib/action-categories";
 import type { AccountTierId } from "@/lib/account-tiers";
 
 interface Props {
   chatters: ApplyFilterContext["chatters"];
+  swapInputs: SwapInput[];
+  models: SwapModelInfo[];
   rangeHistory: RangeHistoryRow[];
   range: TimeRange;
   recategorizedMap: Map<string, ActionCategoryName>;
@@ -32,8 +40,22 @@ interface Props {
   onChatterClick: (chatterName: string) => void;
 }
 
+const SWIPE_THRESHOLD = 120; // gemäß Memory: nur Distanz, keine velocity
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
+
+function formatStartDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "2-digit" });
+}
+
 export default function CompareModeView({
   chatters,
+  swapInputs,
+  models,
   rangeHistory,
   range,
   recategorizedMap,
@@ -66,8 +88,28 @@ export default function CompareModeView({
 
   const filteredA = useMemo(() => applyCompareFilter(state.setA, ctx), [state.setA, ctx]);
   const filteredB = useMemo(() => applyCompareFilter(state.setB, ctx), [state.setB, ctx]);
-  const statsA = useMemo(() => computeCompareStats(filteredA, ctx), [filteredA, ctx]);
-  const statsB = useMemo(() => computeCompareStats(filteredB, ctx), [filteredB, ctx]);
+
+  // Enriched SwapChatter pool — pro normalisiertem Namen den höchsten-Skill Eintrag
+  const enrichedByName = useMemo(() => {
+    const all = listAllSwapChatters(swapInputs, models);
+    const map = new Map<string, SwapChatter>();
+    for (const sc of all) {
+      const key = normalizeName(sc.name);
+      const existing = map.get(key);
+      if (!existing || sc.skillScore > existing.skillScore) map.set(key, sc);
+    }
+    return map;
+  }, [swapInputs, models]);
+
+  // Sortierte Stacks (avgRevWindow desc) — ein Chatter pro Stack-Slot
+  const stackA = useMemo(
+    () => [...filteredA].sort((a, b) => b.avgRevWindow - a.avgRevWindow),
+    [filteredA]
+  );
+  const stackB = useMemo(
+    () => [...filteredB].sort((a, b) => b.avgRevWindow - a.avgRevWindow),
+    [filteredB]
+  );
 
   const identical = useMemo(
     () => JSON.stringify(state.setA) === JSON.stringify(state.setB),
@@ -77,9 +119,32 @@ export default function CompareModeView({
   const applyPreset = (p: ComparePreset) =>
     setState((s) => ({ ...s, setA: p.setA, setB: p.setB }));
 
+  // Indep. State pro Seite: Index + skipped (an Stack-Ende verschoben)
+  const [idxA, setIdxA] = useState(0);
+  const [idxB, setIdxB] = useState(0);
+  const [skippedA, setSkippedA] = useState<string[]>([]);
+  const [skippedB, setSkippedB] = useState<string[]>([]);
+
+  // Reset wenn sich Filter/Stack ändert
+  useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
+  useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
+
+  // Render-Reihenfolge: nicht-skipped zuerst, dann skipped am Ende
+  const orderedA = useMemo(() => {
+    const skip = new Set(skippedA);
+    return [...stackA.filter((c) => !skip.has(c.name)), ...stackA.filter((c) => skip.has(c.name))];
+  }, [stackA, skippedA]);
+  const orderedB = useMemo(() => {
+    const skip = new Set(skippedB);
+    return [...stackB.filter((c) => !skip.has(c.name)), ...stackB.filter((c) => skip.has(c.name))];
+  }, [stackB, skippedB]);
+
+  const currentA = orderedA[idxA];
+  const currentB = orderedB[idxB];
+
   return (
     <div className="flex-1 overflow-y-auto pb-6 space-y-3">
-      {/* Preset bar — horizontal scroll on mobile */}
+      {/* Preset bar */}
       <div className="flex gap-1.5 overflow-x-auto whitespace-nowrap -mx-1 px-1 pb-1 scrollbar-none">
         {[...DEFAULT_PRESETS, ...state.customPresets].map((p) => (
           <button
@@ -93,65 +158,104 @@ export default function CompareModeView({
         ))}
       </div>
 
-      {/* Two true side-by-side comparison cards */}
+      {/* Filter chip headers */}
       <div className="grid grid-cols-2 gap-2 md:gap-3">
-        <div className="space-y-2 md:space-y-3 min-w-0">
-          <CompareFilterPanel
-            label="Set A"
-            accent="emerald"
-            filter={state.setA}
-            onChange={(f) => setState((s) => ({ ...s, setA: f }))}
-            allLabels={allLabels}
-          />
-          <CompareCard stats={statsA} items={filteredA} accent="emerald" onChatterClick={onChatterClick} />
-        </div>
-        <div className="space-y-2 md:space-y-3 min-w-0">
-          <CompareFilterPanel
-            label="Set B"
-            accent="sky"
-            filter={state.setB}
-            onChange={(f) => setState((s) => ({ ...s, setB: f }))}
-            allLabels={allLabels}
-          />
-          <CompareCard stats={statsB} items={filteredB} accent="sky" onChatterClick={onChatterClick} />
-        </div>
+        <CompareFilterPanel
+          label="Set A"
+          accent="emerald"
+          filter={state.setA}
+          onChange={(f) => setState((s) => ({ ...s, setA: f }))}
+          allLabels={allLabels}
+        />
+        <CompareFilterPanel
+          label="Set B"
+          accent="sky"
+          filter={state.setB}
+          onChange={(f) => setState((s) => ({ ...s, setB: f }))}
+          allLabels={allLabels}
+        />
       </div>
 
-      {/* Delta box (full width below) */}
-      <DeltaBox statsA={statsA} statsB={statsB} identical={identical} />
+      {identical && (
+        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2 text-center text-[11px] text-muted-foreground">
+          Gleiche Auswahl — Filter unterscheiden
+        </div>
+      )}
+
+      {/* Two true side-by-side swipe cards */}
+      <div className="grid grid-cols-2 gap-2 md:gap-3 items-start">
+        <CompareSlot
+          accent="emerald"
+          item={currentA}
+          enrichedMap={enrichedByName}
+          stackLength={orderedA.length}
+          idx={idxA}
+          onSwipeNext={() => setIdxA((i) => Math.min(i + 1, orderedA.length))}
+          onSwipeSkip={() => {
+            if (currentA) {
+              setSkippedA((s) => [...s.filter((n) => n !== currentA.name), currentA.name]);
+              setIdxA((i) => Math.min(i + 1, orderedA.length));
+            }
+          }}
+          onReset={() => { setIdxA(0); setSkippedA([]); }}
+          onTap={(name) => onChatterClick(name)}
+        />
+        <CompareSlot
+          accent="sky"
+          item={currentB}
+          enrichedMap={enrichedByName}
+          stackLength={orderedB.length}
+          idx={idxB}
+          onSwipeNext={() => setIdxB((i) => Math.min(i + 1, orderedB.length))}
+          onSwipeSkip={() => {
+            if (currentB) {
+              setSkippedB((s) => [...s.filter((n) => n !== currentB.name), currentB.name]);
+              setIdxB((i) => Math.min(i + 1, orderedB.length));
+            }
+          }}
+          onReset={() => { setIdxB(0); setSkippedB([]); }}
+          onTap={(name) => onChatterClick(name)}
+        />
+      </div>
+
+      {/* Live Δ between currently visible chatters */}
+      <LiveDeltaBox a={currentA} b={currentB} enrichedMap={enrichedByName} />
     </div>
   );
 }
 
-/* --------------------------- Sub Components ---------------------- */
+/* --------------------------- Slot Wrapper ------------------------ */
 
-function CompareCard({
-  stats,
-  items,
+function CompareSlot({
   accent,
-  onChatterClick,
+  item,
+  enrichedMap,
+  stackLength,
+  idx,
+  onSwipeNext,
+  onSwipeSkip,
+  onReset,
+  onTap,
 }: {
-  stats: ReturnType<typeof computeCompareStats>;
-  items: FilteredChatter[];
   accent: "emerald" | "sky";
-  onChatterClick: (n: string) => void;
+  item: FilteredChatter | undefined;
+  enrichedMap: Map<string, SwapChatter>;
+  stackLength: number;
+  idx: number;
+  onSwipeNext: () => void;
+  onSwipeSkip: () => void;
+  onReset: () => void;
+  onTap: (name: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const accentText = accent === "emerald" ? "text-emerald-300" : "text-sky-300";
-  const accentGradient =
-    accent === "emerald"
-      ? "from-emerald-500/[0.08] via-emerald-500/[0.02] to-transparent"
-      : "from-sky-500/[0.08] via-sky-500/[0.02] to-transparent";
+  const accentHsl = accent === "emerald" ? "152 70% 45%" : "200 90% 55%";
   const accentBorder = accent === "emerald" ? "border-emerald-500/20" : "border-sky-500/20";
 
-  if (stats.count === 0) {
+  if (stackLength === 0) {
     return (
       <div
         className={cn(
-          "rounded-xl border bg-gradient-to-b backdrop-blur-sm p-3 md:p-4 min-h-[280px] flex flex-col items-center justify-center text-center",
-          accentBorder,
-          accentGradient
+          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center",
+          accentBorder
         )}
       >
         <p className="text-xs text-muted-foreground">Keine Treffer</p>
@@ -160,178 +264,239 @@ function CompareCard({
     );
   }
 
-  const TrendIcon = stats.trend > 0.05 ? TrendingUp : stats.trend < -0.05 ? TrendingDown : Minus;
-  const trendColor =
-    stats.trend > 0.05 ? "text-emerald-400" : stats.trend < -0.05 ? "text-red-400" : "text-muted-foreground";
-
-  // sort by avgRevWindow desc to surface top chatters
-  const sorted = [...items].sort((a, b) => b.avgRevWindow - a.avgRevWindow);
-  const top = sorted[0];
-  const next = sorted.slice(1, 4);
-  const rest = sorted.slice(4);
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border bg-gradient-to-b backdrop-blur-sm overflow-hidden",
-        accentBorder,
-        accentGradient
-      )}
-    >
-      {/* Hero */}
-      <div className="px-2.5 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 text-center border-b border-white/[0.04]">
-        <div className={cn("text-2xl md:text-4xl font-bold tabular-nums leading-none", accentText)}>
-          {stats.count}
-        </div>
-        <div className="text-[9px] md:text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-          Chatter
-        </div>
-        <div className="mt-2 md:mt-3 text-base md:text-2xl font-semibold tabular-nums text-foreground/95 leading-none">
-          {formatEur(stats.avgRev)}
-        </div>
-        <div className="text-[9px] md:text-[10px] text-muted-foreground mt-0.5">Ø € / Tag</div>
-      </div>
-
-      {/* Secondary KPIs */}
-      <div className="px-2.5 md:px-4 py-2 md:py-2.5 border-b border-white/[0.04] space-y-1">
-        <div className="flex items-center justify-between text-[10px] md:text-[11px]">
-          <span className="text-muted-foreground">Σ</span>
-          <span className="tabular-nums text-foreground/90">{formatEur(stats.sumRev)}</span>
-        </div>
-        <div className="flex items-center justify-between text-[10px] md:text-[11px]">
-          <span className="text-muted-foreground">⊘</span>
-          <span className="tabular-nums text-foreground/90">{formatPct(stats.zeroRate)}</span>
-        </div>
-        <div className="flex items-center justify-between text-[10px] md:text-[11px]">
-          <span className="text-muted-foreground">Trend</span>
-          <span className={cn("inline-flex items-center gap-0.5 tabular-nums", trendColor)}>
-            <TrendIcon className="h-3 w-3" />
-            {formatTrendPct(stats.trend)}
-          </span>
-        </div>
-      </div>
-
-      {/* Top chatter highlight */}
-      {top && (
+  if (idx >= stackLength || !item) {
+    return (
+      <div
+        className={cn(
+          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
+          accentBorder
+        )}
+      >
+        <p className="text-xs text-foreground/80">Alle durch ({stackLength})</p>
         <button
           type="button"
-          onClick={() => onChatterClick(top.name)}
-          className="w-full px-2.5 md:px-4 py-2 md:py-2.5 text-left hover:bg-white/[0.03] transition-colors border-b border-white/[0.04]"
+          onClick={onReset}
+          className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
         >
-          <div className="flex items-center gap-1.5 mb-1">
-            <Crown className={cn("h-3 w-3 shrink-0", accentText)} />
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Top</span>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[11px] md:text-sm text-foreground/95 truncate min-w-0">{top.name}</span>
-            <span className="text-[11px] md:text-sm tabular-nums font-medium text-foreground/95 shrink-0">
-              {formatEur(top.avgRevWindow)}
-            </span>
-          </div>
+          <RotateCcw className="h-3 w-3" /> Reset
         </button>
-      )}
+      </div>
+    );
+  }
 
-      {/* Next 3 */}
-      {next.length > 0 && (
-        <div className="divide-y divide-white/[0.04]">
-          {next.map((c) => (
-            <button
-              key={c.name}
-              type="button"
-              onClick={() => onChatterClick(c.name)}
-              className="w-full px-2.5 md:px-4 py-1.5 md:py-2 text-left hover:bg-white/[0.03] transition-colors flex items-baseline justify-between gap-2"
-            >
-              <span className="text-[10px] md:text-xs text-foreground/85 truncate min-w-0">{c.name}</span>
-              <span className="text-[10px] md:text-xs tabular-nums text-foreground/85 shrink-0">
-                {formatEur(c.avgRevWindow)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+  const enriched = enrichedMap.get(normalizeName(item.name));
 
-      {/* Expand rest */}
-      {rest.length > 0 && (
-        <>
-          {expanded && (
-            <div className="divide-y divide-white/[0.04] max-h-[35vh] overflow-y-auto border-t border-white/[0.04]">
-              {rest.map((c) => (
-                <button
-                  key={c.name}
-                  type="button"
-                  onClick={() => onChatterClick(c.name)}
-                  className="w-full px-2.5 md:px-4 py-1.5 md:py-2 text-left hover:bg-white/[0.03] transition-colors flex items-baseline justify-between gap-2"
-                >
-                  <span className="text-[10px] md:text-xs text-foreground/80 truncate min-w-0">{c.name}</span>
-                  <span className="text-[10px] md:text-xs tabular-nums text-foreground/80 shrink-0">
-                    {formatEur(c.avgRevWindow)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            className="w-full px-2.5 md:px-4 py-1.5 md:py-2 text-[10px] md:text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.03] transition-colors flex items-center justify-center gap-1 border-t border-white/[0.04]"
-          >
-            {expanded ? (
-              <>
-                <ChevronUp className="h-3 w-3" /> weniger
-              </>
-            ) : (
-              <>
-                +{rest.length} weitere <ChevronDown className="h-3 w-3" />
-              </>
-            )}
-          </button>
-        </>
-      )}
+  return (
+    <div className="space-y-1.5">
+      <CompareSwipeCard
+        accentHsl={accentHsl}
+        item={item}
+        enriched={enriched}
+        onSwipeLR={onSwipeNext}
+        onSwipeUp={onSwipeSkip}
+        onSingleClick={() => onTap(item.name)}
+      />
+      <div className="text-center text-[10px] text-muted-foreground/70 tabular-nums">
+        {idx + 1} / {stackLength}
+      </div>
     </div>
   );
 }
 
-function DeltaBox({
-  statsA,
-  statsB,
-  identical,
+/* --------------------------- Swipe Card -------------------------- */
+
+function CompareSwipeCard({
+  accentHsl,
+  item,
+  enriched,
+  onSwipeLR,
+  onSwipeUp,
+  onSingleClick,
 }: {
-  statsA: ReturnType<typeof computeCompareStats>;
-  statsB: ReturnType<typeof computeCompareStats>;
-  identical: boolean;
+  accentHsl: string;
+  item: FilteredChatter;
+  enriched: SwapChatter | undefined;
+  onSwipeLR: () => void;
+  onSwipeUp: () => void;
+  onSingleClick: () => void;
 }) {
-  if (identical) {
-    return (
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-center text-[11px] text-muted-foreground">
-        Gleiche Auswahl — kein Vergleich
-      </div>
-    );
-  }
-  if (statsA.count === 0 || statsB.count === 0) return null;
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 0, 200], [-6, 0, 6]);
+  const controls = useAnimation();
 
-  const dAvg = statsB.avgRev - statsA.avgRev;
-  const dSum = statsB.sumRev - statsA.sumRev;
-  const dZero = (statsB.zeroRate - statsA.zeroRate) * 100;
-  const dCount = statsB.count - statsA.count;
+  const handleDragEnd = useCallback(
+    async (_e: unknown, info: PanInfo) => {
+      const { offset } = info;
+      const ax = Math.abs(offset.x);
+      const ay = Math.abs(offset.y);
+      if (ay > ax && offset.y < -SWIPE_THRESHOLD) {
+        await controls.start({ y: -500, opacity: 0, transition: { duration: 0.18 } });
+        onSwipeUp();
+        controls.set({ x: 0, y: 0, opacity: 1 });
+        return;
+      }
+      if (offset.x > SWIPE_THRESHOLD) {
+        await controls.start({ x: 350, opacity: 0, transition: { duration: 0.18 } });
+        onSwipeLR();
+        controls.set({ x: 0, y: 0, opacity: 1 });
+        return;
+      }
+      if (offset.x < -SWIPE_THRESHOLD) {
+        await controls.start({ x: -350, opacity: 0, transition: { duration: 0.18 } });
+        onSwipeLR();
+        controls.set({ x: 0, y: 0, opacity: 1 });
+        return;
+      }
+      controls.start({ x: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 28 } });
+    },
+    [controls, onSwipeLR, onSwipeUp]
+  );
 
-  const winner = dAvg > 0 ? "B" : dAvg < 0 ? "A" : null;
+  const handleClick = useCallback(() => {
+    if (Math.abs(x.get()) >= 6 || Math.abs(y.get()) >= 6) return;
+    onSingleClick();
+  }, [x, y, onSingleClick]);
+
+  // Daten-Quellen: enriched (Swap) bevorzugt, sonst Fallback aus FilteredChatter
+  const tier = enriched?.tier ?? "—";
+  const followers = enriched?.followers ?? 0;
+  const skill = enriched?.skillScore ?? 0;
+  const avgRev = enriched?.avgRevenue ?? item.avgRevWindow;
+  const today = enriched?.currentRevenue ?? item.currentRevenue ?? 0;
+  const firstSeen = enriched?.firstSeen ?? null;
+  const account = enriched?.account ?? item.account ?? "";
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-2.5 md:p-3 space-y-2">
+    <motion.div
+      drag
+      dragElastic={0.18}
+      dragMomentum={false}
+      onDragEnd={handleDragEnd}
+      onClick={handleClick}
+      animate={controls}
+      style={{ x, y, rotate, touchAction: "none" }}
+      className="relative w-full rounded-2xl overflow-hidden select-none cursor-grab active:cursor-grabbing"
+    >
+      <div
+        className="absolute inset-x-0 top-0 h-[2px] z-10"
+        style={{ background: `linear-gradient(90deg, transparent, hsl(${accentHsl} / 0.7), transparent)` }}
+      />
+      <div
+        className="p-2.5 md:p-4 border border-white/[0.06] rounded-2xl min-h-[280px] md:min-h-[420px] flex flex-col"
+        style={{
+          background: `radial-gradient(140% 100% at 50% -20%, hsl(${accentHsl} / 0.08) 0%, transparent 55%), linear-gradient(180deg, hsl(240 6% 8%) 0%, hsl(240 6% 5%) 100%)`,
+          boxShadow: `0 16px 40px -20px hsl(240 10% 0% / 0.6), inset 0 1px 0 hsl(0 0% 100% / 0.04)`,
+        }}
+      >
+        {/* Tier-Pill */}
+        <div className="flex items-center justify-between mb-2">
+          <span
+            className="text-[8px] md:text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-md border truncate"
+            style={{
+              color: `hsl(${accentHsl})`,
+              borderColor: `hsl(${accentHsl} / 0.35)`,
+              background: `hsl(${accentHsl} / 0.08)`,
+            }}
+          >
+            {tier}
+          </span>
+        </div>
+
+        {/* Name */}
+        <h3 className="text-sm md:text-xl font-semibold text-foreground capitalize truncate leading-tight">
+          {item.name.replace(/_/g, " ")}
+        </h3>
+        <p className="text-[9px] md:text-xs text-white/45 truncate">@ {account || "—"}</p>
+        <div className="flex items-center gap-2 mt-1 mb-2 md:mb-3 flex-wrap">
+          <p className="text-[9px] md:text-xs text-white/40 inline-flex items-center gap-1">
+            <Users className="h-2.5 w-2.5 md:h-3 md:w-3" />
+            {formatFollowers(followers)}
+          </p>
+        </div>
+
+        {/* Skill Bar */}
+        <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-3 mb-2 md:mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
+              <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> Skill
+            </span>
+            <span className="text-[11px] md:text-base font-bold tabular-nums" style={{ color: `hsl(${accentHsl})` }}>
+              {formatSkill(skill)}
+            </span>
+          </div>
+          <div className="h-1 md:h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.round(skill * 100)}%`,
+                background: `linear-gradient(90deg, hsl(${accentHsl} / 0.6), hsl(${accentHsl}))`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-1.5 md:gap-2 mt-auto">
+          <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">7T-Ø</p>
+            <p className="text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgRev)}</p>
+          </div>
+          <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">Heute</p>
+            <p className="text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(today)}</p>
+          </div>
+        </div>
+
+        {firstSeen && (
+          <p className="hidden md:inline-flex items-center gap-1 text-[10px] text-white/35 mt-2">
+            <CalendarDays className="h-3 w-3" /> seit {formatStartDate(firstSeen)}
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/* --------------------------- Live Delta -------------------------- */
+
+function LiveDeltaBox({
+  a,
+  b,
+  enrichedMap,
+}: {
+  a: FilteredChatter | undefined;
+  b: FilteredChatter | undefined;
+  enrichedMap: Map<string, SwapChatter>;
+}) {
+  if (!a || !b) return null;
+
+  const ea = enrichedMap.get(normalizeName(a.name));
+  const eb = enrichedMap.get(normalizeName(b.name));
+
+  const avgA = ea?.avgRevenue ?? a.avgRevWindow;
+  const avgB = eb?.avgRevenue ?? b.avgRevWindow;
+  const skillA = ea?.skillScore ?? 0;
+  const skillB = eb?.skillScore ?? 0;
+  const todayA = ea?.currentRevenue ?? a.currentRevenue ?? 0;
+  const todayB = eb?.currentRevenue ?? b.currentRevenue ?? 0;
+
+  const dAvg = avgB - avgA;
+  const dSkill = skillB - skillA;
+  const dToday = todayB - todayA;
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-2.5 space-y-2">
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-primary/80">
         <span>Δ A → B</span>
-        {winner && <span className="text-foreground/80 normal-case tracking-normal">Set {winner} stärker</span>}
+        <span className="text-foreground/70 normal-case tracking-normal truncate ml-2 min-w-0">
+          {a.name} vs {b.name}
+        </span>
       </div>
       <div className="flex flex-wrap gap-1.5">
         <DeltaPill label="Ø €" delta={dAvg} fmt={formatEur} positiveGood />
-        <DeltaPill label="Σ €" delta={dSum} fmt={formatEur} positiveGood />
-        <DeltaPill
-          label="⊘"
-          delta={dZero}
-          fmt={(n) => `${n.toFixed(0)}pp`}
-          positiveGood={false}
-        />
-        <DeltaPill label="#" delta={dCount} fmt={(n) => `${n}`} positiveGood />
+        <DeltaPill label="Skill" delta={dSkill} fmt={(n) => n.toFixed(2)} positiveGood />
+        <DeltaPill label="Heute" delta={dToday} fmt={formatEur} positiveGood />
       </div>
     </div>
   );
