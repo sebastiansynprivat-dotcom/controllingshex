@@ -260,6 +260,151 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Alert-Schwellen */}
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 space-y-6 backdrop-blur-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm lg:text-base font-medium text-foreground/70 tracking-wide flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-primary/60" />
+              Alert-Schwellen (Swipe-Mode)
+            </h2>
+            <p className="text-xs lg:text-sm text-white/25 mt-0.5 font-light">
+              Wann Chatter im Zeitraum-Modus als problematisch markiert werden
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={resetThresholds}
+            className="text-[11px] text-white/30 hover:text-white/60 flex items-center gap-1 transition-colors duration-500 shrink-0"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Standard
+          </button>
+        </div>
+
+        {/* Null-Tage */}
+        <div className="space-y-3">
+          <h3 className="text-[11px] uppercase tracking-wider text-white/40 font-light">Null-Umsatz-Tage</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">Medium ab Anteil (%)</Label>
+              <Input
+                type="number"
+                min={0} max={100} step={5}
+                value={Math.round(thresholds.zeroMedRate * 100)}
+                onChange={(e) => updateThreshold("zeroMedRate", Math.max(0, Math.min(100, Number(e.target.value))) / 100)}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">High ab Anteil (%)</Label>
+              <Input
+                type="number"
+                min={0} max={100} step={5}
+                value={Math.round(thresholds.zeroHighRate * 100)}
+                onChange={(e) => updateThreshold("zeroHighRate", Math.max(0, Math.min(100, Number(e.target.value))) / 100)}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">Medium-Floor (Tage)</Label>
+              <Input
+                type="number"
+                min={1} max={60} step={1}
+                value={thresholds.zeroMedFloor}
+                onChange={(e) => updateThreshold("zeroMedFloor", Math.max(1, Math.min(60, Math.round(Number(e.target.value)))))}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">High-Floor (Tage)</Label>
+              <Input
+                type="number"
+                min={1} max={60} step={1}
+                value={thresholds.zeroHighFloor}
+                onChange={(e) => updateThreshold("zeroHighFloor", Math.max(1, Math.min(60, Math.round(Number(e.target.value)))))}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-white/25 font-light">
+            Beide Bedingungen (Anteil + Floor) müssen erfüllt sein. So triggert ein einzelner Null-Tag nie einen Alert.
+          </p>
+        </div>
+
+        {/* Antwortverzug */}
+        <div className="space-y-3">
+          <h3 className="text-[11px] uppercase tracking-wider text-white/40 font-light">Antwortverzug</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">Medium ab (Tage)</Label>
+              <Input
+                type="number"
+                min={1} max={30} step={1}
+                value={thresholds.delayMedDays}
+                onChange={(e) => updateThreshold("delayMedDays", Math.max(1, Math.min(30, Math.round(Number(e.target.value)))))}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">High ab (Tage)</Label>
+              <Input
+                type="number"
+                min={1} max={30} step={1}
+                value={thresholds.delayHighDays}
+                onChange={(e) => updateThreshold("delayHighDays", Math.max(1, Math.min(30, Math.round(Number(e.target.value)))))}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Trend */}
+        <div className="space-y-3">
+          <h3 className="text-[11px] uppercase tracking-wider text-white/40 font-light">Umsatz-Trend (Drop)</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">Medium ab Drop (%)</Label>
+              <Input
+                type="number"
+                min={5} max={100} step={5}
+                value={Math.abs(Math.round(thresholds.trendMedPct * 100))}
+                onChange={(e) => {
+                  const v = Math.max(5, Math.min(100, Number(e.target.value)));
+                  updateThreshold("trendMedPct", -v / 100);
+                }}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-white/40 font-light">High ab Drop (%)</Label>
+              <Input
+                type="number"
+                min={10} max={100} step={5}
+                value={Math.abs(Math.round(thresholds.trendHighPct * 100))}
+                onChange={(e) => {
+                  const v = Math.max(10, Math.min(100, Number(e.target.value)));
+                  updateThreshold("trendHighPct", -v / 100);
+                }}
+                className="bg-white/[0.02] border-white/[0.05] text-foreground/80 font-light text-sm"
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-white/25 font-light">
+            Negativer Trend über das gewählte Fenster. Z.B. -30 % = Umsatz sinkt um 30 % von Anfang bis Ende.
+          </p>
+        </div>
+
+        <Button
+          onClick={saveThresholds}
+          disabled={savingThresholds}
+          className="bg-white/[0.04] hover:bg-white/[0.06] text-foreground/70 border border-white/[0.06] hover:border-primary/15 font-light text-[12px] tracking-wider transition-all duration-500"
+        >
+          <Save className="h-3.5 w-3.5 mr-1.5" />
+          {savingThresholds ? "Speichert..." : "Schwellen speichern"}
+        </Button>
+      </div>
     </div>
   );
 }
