@@ -646,6 +646,35 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
         </button>
       </div>
 
+      {/* Mobile Tier-Filter Pills */}
+      {tierCounts.size > 0 && (
+        <div className="flex sm:hidden w-full gap-1.5 flex-wrap">
+          {ACCOUNT_TIERS.map((tier) => {
+            const isActive = activeTierFilters.has(tier.id);
+            const count = tierCounts.get(tier.id) || 0;
+            const isEmpty = count === 0;
+            return (
+              <button
+                key={tier.id}
+                onClick={() => !isEmpty && toggleTierFilter(tier.id)}
+                disabled={isEmpty}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-normal transition-all border ${
+                  isActive
+                    ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText}`
+                    : isEmpty
+                      ? "bg-transparent border-white/[0.03] text-white/15"
+                      : "bg-white/[0.03] border-white/[0.06] text-white/55"
+                }`}
+              >
+                <span>{tier.emoji}</span>
+                <span>{tier.label}</span>
+                <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Mobile Filter Dropdowns */}
       <div className="flex sm:hidden w-full gap-2">
         <Select
