@@ -201,15 +201,22 @@ export function applyCompareFilter(
 
     if (filter.revAvg) {
       const [lo, hi] = filter.revAvg;
-      if (agg.avgRev < lo || agg.avgRev > hi) continue;
+      // Fallback: ohne History (z.B. "Heute"-Fenster) den Tagesumsatz vergleichen,
+      // sonst würden alle Chatter durchfallen.
+      const avgForFilter = rows.length > 0 ? agg.avgRev : revToday;
+      if (avgForFilter < lo || avgForFilter > hi) continue;
     }
-    if (filter.delayMax != null && maxDelay > filter.delayMax) continue;
+    if (filter.delayRange) {
+      const [lo, hi] = filter.delayRange;
+      if (maxDelay < lo || maxDelay > hi) continue;
+    }
 
-    // Tenure filter (Tage seit erstem Auftauchen in der History)
-    if (filter.tenureDays) {
+    // Tenure filter (Tage seit erstem Auftauchen in der History).
+    // Wenn keine "firstSeen"-Map verfügbar ist, Filter ignorieren statt alles auszuschließen.
+    if (filter.tenureDays && ctx.firstSeenByChatter) {
       const [lo, hi] = filter.tenureDays;
-      const firstIso = ctx.firstSeenByChatter?.get(key);
-      if (!firstIso) continue; // keine History → kein verlässliches "aktiv seit"
+      const firstIso = ctx.firstSeenByChatter.get(key);
+      if (!firstIso) continue;
       const firstTs = new Date(firstIso + "T00:00:00Z").getTime();
       const days = Math.max(0, Math.floor((today.getTime() - firstTs) / 86400000));
       if (days < lo || days > hi) continue;
@@ -224,7 +231,8 @@ export function applyCompareFilter(
         const days = Math.floor((today.getTime() - start) / 86400000);
         return days >= 0 && days <= 13;
       })();
-      const isActive = revToday > 0 || agg.avgRev > 0;
+      // "Aktiv" = mind. ein Umsatz heute ODER irgendwann im Fenster.
+      const isActive = revToday > 0 || agg.sumRev > 0;
       if (filter.status === "onboarding" && !isOnboarding) continue;
       if (filter.status === "active" && !isActive) continue;
       if (filter.status === "inactive" && isActive) continue;
