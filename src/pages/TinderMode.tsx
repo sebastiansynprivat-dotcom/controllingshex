@@ -6,6 +6,7 @@ import SwipeCard, { type AccountLogin } from "@/components/SwipeCard";
 import SwipeActionPanel from "@/components/SwipeActionPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import SwapModeView from "@/components/SwapModeView";
+import CompareModeView from "@/components/CompareModeView";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { SwapInput, SwapModelInfo } from "@/lib/swap-suggestions";
@@ -169,7 +170,8 @@ export default function TinderMode() {
   const [undoStack, setUndoStack] = useState<string[]>([]);
 
   // Mode toggle: classic Swipe-Mode vs new Wechsel-Mode
-  const [mode, setMode] = useState<"swipe" | "swap">("swipe");
+  const [mode, setMode] = useState<"swipe" | "swap" | "compare">("swipe");
+  const [compareSlideOverChatter, setCompareSlideOverChatter] = useState<string | null>(null);
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
   const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
 
