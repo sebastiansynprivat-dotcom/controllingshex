@@ -1,83 +1,99 @@
 
 
-## Compare-Mode: Zwei Vergleichs-Karten nebeneinander
+## Compare-Mode: Echte Swipe-Karten nebeneinander (A vs B)
 
-Aktuell zeigt der Compare-Mode oben kompakte Stats-Cards + lange Listen. Du willst stattdessen **eine prominente Vergleichs-Karte pro Set** nebeneinander — sauber wie SwipeCards, mit allen wichtigen Daten **auf einen Blick**, ohne zu scrollen oder Filter aufklappen zu müssen.
+Statt aggregierter Stats-Karten ("12 Chatter, Ø 87€") zeigt der Vergleichs-Mode jetzt **zwei echte Chatter-Karten Seite an Seite** — links der aktuelle Chatter aus Set A, rechts aus Set B. Du wischst beide unabhängig durch, um Person für Person zu vergleichen.
 
-### Neues Layout
+### Layout
 
 ```text
-┌─────── A ──────┐ ┌─────── B ──────┐
-│ ● 2 Filter     │ │ ● 1 Filter     │   ← Filter-Chip-Header (klein, tap = Sheet)
-│ [Top][Aktiv]   │ │ [Seed]         │
-└────────────────┘ └────────────────┘
+┌──────── A ────────┐ ┌──────── B ────────┐
+│ ● 2 Filter   [▾] │ │ ● 1 Filter   [▾] │   ← Filter-Chip-Header
+└───────────────────┘ └───────────────────┘
 
-┌─────── A ──────┐ ┌─────── B ──────┐
-│   12 CHATTER   │ │    8 CHATTER   │   ← Vergleichs-Karte (Hero)
-│                │ │                │
-│   Ø 87 €/Tag   │ │   Ø 142 €/Tag  │   ← Hero-Zahl, groß
-│   Σ 1.044 €    │ │   Σ 1.136 €    │
-│                │ │                │
-│   ⊘ 24%        │ │   ⊘ 8%         │
-│   ↘ -12%       │ │   ↗ +18%       │
-│                │ │                │
-│   👑 niklas_la │ │   👑 max_dr    │
-│      87 €      │ │      142 €     │
-│                │ │                │
-│   ── Rest ──   │ │   ── Rest ──   │
-│   jana_mu  54€ │ │   tim_kr  128€ │
-│   leo_st   42€ │ │   ana_we   98€ │
-│   +9 weitere ▾ │ │   +5 weitere ▾ │
-└────────────────┘ └────────────────┘
+┌──────── A ────────┐ ┌──────── B ────────┐
+│ [emerald accent]  │ │ [sky accent]      │
+│ TOP · GOLD        │ │ SEED · SILVER     │
+│                   │ │                   │
+│ niklas_la         │ │ max_dr            │
+│ @ model_x         │ │ @ model_y         │
+│ 12.4k follower    │ │ 8.1k follower     │
+│                   │ │                   │
+│ ── Skill 0.78 ──  │ │ ── Skill 0.52 ──  │
+│ ▓▓▓▓▓▓▓░░         │ │ ▓▓▓▓▓░░░░         │
+│                   │ │                   │
+│ 7T-Ø    Heute     │ │ 7T-Ø    Heute     │
+│  87€    142€      │ │  54€     38€      │
+│                   │ │                   │
+│ seit 12. Apr 25   │ │ seit 03. Mai 25   │
+└───────────────────┘ └───────────────────┘
+   ← swipe →            ← swipe →
+        1 / 12               1 / 8
 
-       Δ Ø: +55€  ·  Δ Σ: +92€  ·  Δ⊘: -16pp
+       Δ Ø: +33€ · Δ Skill: +0.26
 ```
 
 ### Was sich konkret ändert
 
-**1. Eine einzige Vergleichs-Karte pro Set** (ersetzt `StatsCard` + separate `ChatterList`):
-- Akzentfarbe: Set A = emerald, Set B = sky (wie bisher)
-- Glas-Effekt + dezenter Gradient wie SwipeCards (kein full SwipeCard-Look — bleibt statisch, nicht swipebar)
-- **Hero-Zahlen-Block oben**: Chatter-Count groß, dann Ø €/Tag als Haupt-KPI
-- **Sekundär-KPIs**: Σ €, Null-Rate ⊘, Trend-Pfeil — kompakt darunter
-- **Top-Chatter prominent**: Krone 👑 + Name + €/Tag (klickbar → SlideOver)
-- **Top 3 weitere Chatter** direkt sichtbar (Name + €), Rest collapsed mit "+N weitere ▾" → expandiert inline
+**1. Statt einer aggregierten `CompareCard` pro Set → eine echte Swipe-Karte pro Chatter:**
+- Visuell identisch zum bestehenden `SwapMiniCard` (gleiche Glas-Optik, gleiche Felder: Tier-Pill, Name, @account, Followers, Skill-Bar, 7T-Ø, Heute, "seit"-Datum)
+- Akzentfarbe: Set A = emerald (`152 70% 45%`), Set B = sky (`200 90% 55%`)
+- **Beide Karten identische Höhe** (fixe Min-Height) — perfekt symmetrisch zum direkten Augen-Vergleich
 
-**2. Filter-Chip-Header bleibt schlank oben** (wie schon implementiert), tap → Bottom-Sheet.
+**2. Wisch-Mechanik (gemäß Memory: nur 120px Distanz, keine Velocity):**
+- Wisch links/rechts → nächster Chatter im jeweiligen Set
+- Wisch hoch → ans Ende verschieben (skip)
+- Tap → öffnet `ChatterSlideOver` mit vollen Details
+- Doppel-Tap → reserviert für später (vorerst no-op)
+- Beide Stacks unabhängig: A-Wisch beeinflusst B nicht
 
-**3. Δ-Box bleibt unten** als horizontale Pill-Reihe (unverändert).
+**3. Stack-Navigation:**
+- Pro Seite: Index-Anzeige unten klein (`3 / 12`)
+- Am Ende: "Alle durch" + Reset-Button pro Seite
+- Set-Wechsel via Filter setzt den jeweiligen Index automatisch zurück
 
-**4. Preset-Bar ganz oben** bleibt horizontal-scrollbar (unverändert).
+**4. Δ-Live-Vergleich unten** (zwischen aktuellen sichtbaren Chattern, nicht Set-Aggregate):
+- `Δ Ø`: 7T-Ø-Differenz (B − A)
+- `Δ Skill`: Skill-Score-Differenz
+- `Δ Heute`: aktuelle Tagesleistung
+- Pills wie bisher (grün = B besser, rot = B schlechter)
 
-### Warum das besser ist
+**5. Filter-Chip-Header bleibt** wie aktuell (Tap → Bottom-Sheet, alle bestehenden Filter inkl. Tenure).
 
-- **Auf den ersten Blick alles Wichtige sichtbar**: Count, Ø, Σ, Null-Rate, Trend, Top-Chatter — ohne scrollen.
-- **Echte Symmetrie**: Beide Karten exakt gleich aufgebaut, Auge vergleicht direkt zeilenweise links↔rechts.
-- **Kein hin-und-her-scrollen**: Lange Listen gibt's nicht mehr im Hauptview — nur Top 3 + Expand-Button für Rest.
-- **App-Feeling**: Eine Karte = eine Aussage, statt drei gestapelte Sub-Boxen.
+**6. Preset-Bar oben bleibt** (horizontal scrollbar).
 
 ### Mobile (440px und runter)
 
-- Karten bleiben **immer side-by-side** (`grid-cols-2 gap-2`).
-- Hero-Zahl `text-xl` auf Mobile, `text-3xl` auf Desktop.
-- Top-Chatter-Block: Name truncate, € rechts ausgerichtet.
-- "Weitere Chatter"-Liste expandiert inline mit `max-h-[35vh] overflow-y-auto`.
-- Filter-Chip-Header darüber bleibt unverändert (Sheet-Pattern funktioniert schon).
+- Karten **immer side-by-side** (`grid-cols-2 gap-2`)
+- Karten-Innenpadding `p-2.5` mobile / `p-4` desktop
+- Skill-Breakdown-Pills (DMs/Resp/Chat/€/F) **versteckt auf Mobile** (wie schon im SwapMiniCard) — spart Höhe
+- Name/Account `truncate`, Zahlen tabular-nums
+- Wisch-Threshold 120px (Memory-konform)
+- Δ-Pills darunter wickeln auf 2 Reihen wenn nötig
+
+### Edge Cases
+
+- **Set leer**: "Keine Treffer · Filter lockern" als Karte mit gleicher Höhe (kein Layout-Shift)
+- **Set hat nur 1 Chatter**: Karte wird nach Wisch zu "Alle durch" + Reset
+- **Beide Sets identisch befüllt**: Δ-Pills zeigen "0" (neutral grau), darüber Hinweis "Gleiche Auswahl"
+- **Sortierung**: Beide Stacks nach `avgRevWindow` desc (höchster Umsatz zuerst) — Top-Chatter direkt sichtbar
+- **Klick öffnet SlideOver**: nutzt bestehenden `onChatterClick(name)` Callback
 
 ### Geänderte Dateien
 
 - **`src/components/CompareModeView.tsx`**:
-  - `StatsCard` und `ChatterList` zu **einer neuen Komponente `CompareCard`** mergen
-  - `CompareCard` erhält: `stats`, `items`, `accent`, `onChatterClick`
-  - Layout: Hero-Block (Count + Ø) → Sekundär-KPIs (Σ, ⊘, Trend) → Top-Chatter-Highlight → Top-3-Liste → Expand-Toggle für Rest
-  - Akzentfarbe als Gradient-Tint im Karten-Background
-  - Empty-State innerhalb der Karte (statt separate Box)
-- Δ-Box, Preset-Bar, Filter-Header bleiben unverändert.
+  - `CompareCard`-Komponente (aggregierte Hero-Karte) entfernen
+  - Neue `CompareSwipeCard`-Komponente: portiert das Look&Feel von `SwapMiniCard` aus `SwapModeView.tsx`, akzeptiert aber `accent`-Prop ("emerald" | "sky") statt `side`
+  - State pro Seite: `idxA`, `idxB`, `skippedA[]`, `skippedB[]`
+  - Sort filtered items nach `avgRevWindow` desc, dann `[...visible, ...skipped]` als Render-Stack
+  - Δ-Box neu: vergleicht `filteredA[idxA]` vs `filteredB[idxB]` (Live-KPIs), nicht mehr Set-Aggregate
+  - Empty-State + "Alle durch"-State pro Seite
+- **`src/lib/compare-filters.ts`**: `FilteredChatter` muss `skillScore`, `currentRevenue`, `tier`, `account`, `followers`, `firstSeen` enthalten — falls noch nicht vorhanden, ergänzen (aus `chatters[].kpis` / vorhandener Daten ableiten)
+- **`src/pages/TinderMode.tsx`**: ggf. zusätzliche Felder an `chatters` durchreichen, falls `CompareModeView` sie noch nicht bekommt
 
-### Edge Cases
+### Was bleibt gleich
 
-- **Leeres Set**: Karte zeigt grauen "Keine Treffer"-Hero mit Hinweis "Filter lockern" — gleiche Höhe wie volle Karte (kein Layout-Shift).
-- **Nur 1 Chatter**: Top-Chatter-Block sichtbar, "weitere"-Liste entfällt.
-- **Beide Sets identisch**: Δ-Box zeigt "Gleiche Auswahl" (unverändert).
-- **Sehr lange Namen**: `truncate` auf Chatter-Namen, € bleibt rechts sichtbar.
+- Filter-Panel (Chip-Header + Sheet), Presets, Tenure-Filter, localStorage-Persistenz
+- `ChatterSlideOver` als Detail-Ansicht bei Tap
+- Memory-Constraint: nur Distanz-Schwelle 120px, keine Velocity
 
