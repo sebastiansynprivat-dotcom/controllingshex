@@ -23,6 +23,7 @@ interface Props {
 export default function CompareFilterPanel({ label, accent, filter, onChange, allLabels, presets, onApplyPreset, side }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const accentRing =
     accent === "emerald"
