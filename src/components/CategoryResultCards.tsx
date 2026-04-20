@@ -122,6 +122,13 @@ function normalizeChatterName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+function splitAccounts(accountValue?: string): string[] {
+  return (accountValue || "")
+    .split(",")
+    .map((part) => part.toLowerCase().trim())
+    .filter(Boolean);
+}
+
 function calcTrend(history: HistoryEntry[]): "up" | "down" | "stable" {
   if (history.length < 4) return "stable";
   const sorted = [...history].sort((a, b) => a.analysis_date.localeCompare(b.analysis_date));
