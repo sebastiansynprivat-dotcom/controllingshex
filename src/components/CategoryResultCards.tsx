@@ -534,10 +534,60 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
+  const toggleTierFilter = (tierId: AccountTierId) => {
+    setActiveTierFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(tierId)) next.delete(tierId);
+      else next.add(tierId);
+      return next;
+    });
+  };
+
+  // Map: normalized chatter name → tierId (basierend auf seinem Account)
+  const chatterTierMap = useMemo(() => {
+    const map = new Map<string, AccountTierId>();
+    for (const cat of categories) {
+      for (const ch of cat.chatters) {
+        const acc = (ch.account || "").toLowerCase().trim();
+        if (!acc) continue;
+        const followers = followerMap.get(acc);
+        if (followers == null) continue;
+        const tier = tierForFollowers(followers);
+        if (tier) map.set(normalizeChatterName(ch.name), tier.id);
+      }
+    }
+    return map;
+  }, [categories, followerMap]);
+
+  // Counts pro Tier (über alle Kategorien hinweg)
+  const tierCounts = useMemo(() => {
+    const counts = new Map<AccountTierId, number>();
+    for (const cat of categories) {
+      for (const ch of cat.chatters) {
+        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        if (!tierId) continue;
+        counts.set(tierId, (counts.get(tierId) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [categories, chatterTierMap]);
+
   const visibleCategories = useMemo(() => {
     let filtered = activeFilters.size === 0
       ? categories
       : categories.filter((c) => activeFilters.has(c.categoryName));
+
+    if (activeTierFilters.size > 0) {
+      filtered = filtered
+        .map((cat) => ({
+          ...cat,
+          chatters: cat.chatters.filter((ch) => {
+            const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+            return tierId !== undefined && activeTierFilters.has(tierId);
+          }),
+        }))
+        .filter((cat) => cat.chatters.length > 0);
+    }
 
     if (activeLabelFilters.size > 0) {
       filtered = filtered
@@ -553,7 +603,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
 
     return filtered;
-  }, [activeFilters, activeLabelFilters, categories, chatterLabelsMap]);
+  }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, chatterTierMap]);
 
 
   if (!data || categories.length === 0) {
