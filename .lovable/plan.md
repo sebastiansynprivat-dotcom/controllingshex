@@ -1,89 +1,69 @@
 
 
-## Vergleichs-Mode im Swipe-Mode
+## Compare-Mode: Mobile Side-by-Side Layout
 
-Neben **Swipe** und **Wechsel** kommt ein dritter Tab **Vergleich**. Du baust dir zwei Filter-Sets nebeneinander (Set A links, Set B rechts) und siehst sofort, wie sich beide Gruppen statistisch unterscheiden — plus die einzelnen Chatter pro Seite zum direkten Durchklicken.
+Aktuell stapelt der Compare-Mode auf Mobile beide Sets hinter einem A/B-Switcher. Du willst beide Karten **gleichzeitig nebeneinander** sehen — auch auf dem Handy. Das geht, braucht aber ein dichteres, scrollbares Layout damit's auf 360–440px sauber bleibt.
 
-### Was du siehst
+### Neues Layout-Konzept Mobile
 
-**1. Drei-Tab-Toggle oben** (statt der bisherigen 2):
-`Swipe | Wechsel | Vergleich`
+**1. A/B-Switcher fliegt raus.** Stattdessen: zwei echte Spalten ab `grid-cols-2` (also immer, nicht erst ab `md`). Spacing wird kompakter (`gap-2` statt `gap-3`).
 
-**2. Im Vergleichs-Mode: zwei Spalten nebeneinander** (auf Mobile gestapelt, mit „Set A / Set B“-Switcher).
-
-Pro Spalte ein **Filter-Panel** mit folgenden Kriterien (alle optional, kombinierbar):
-- **Account-Tier** (Multi-Select: Seed / Starter / Growth / Top)
-- **Umsatz-Range Heute** (€ Min – Max Slider)
-- **Ø Umsatz im Zeitraum** (€ Min – Max, nutzt aktiven `TimeRange`)
-- **Action-Kategorie** (Multi-Select: SOFORT EINGREIFEN, COACHING NÖTIG, …)
-- **Response-Delay** (max. Tage)
-- **Status** (Active / Inactive / Onboarding)
-- **Label** (Multi-Select aus `chatter_labels`)
-- **Alert-Status** (mit / ohne aktive Alerts)
-
-Filter-Pills wie bestehend, kompaktes Layout damit beide Sets nebeneinander auf Desktop passen.
-
-**3. Pro Set: Vergleichs-Karte mit Aggregat-Stats**
+**2. Filter-Panel schrumpft auf Mobile** zu einem kollabierten "Chip-Header":
 
 ```text
-┌── SET A ────────────┬── SET B ────────────┐
-│ 12 Chatter          │ 8 Chatter           │
-│ Ø 87 € / Tag        │ Ø 142 € / Tag       │
-│ Σ 1.044 €           │ Σ 1.136 €           │
-│ Null-Tage: 24%      │ Null-Tage: 8%       │
-│ Trend: ↘ -12%       │ Trend: ↗ +18%       │
-│ Top: niklas_la      │ Top: max_dr         │
-└─────────────────────┴─────────────────────┘
-        Δ Ø: +55 € (B besser)
-        Δ Σ: +92 €
-        Δ Null-Tage: -16pp
+┌──────── A ────────┐ ┌──────── B ────────┐
+│ ● 3 Filter aktiv  │ │ ● 2 Filter aktiv  │
+│ [Top][SOFORT][▾]  │ │ [Seed][▾]         │
+├───────────────────┤ ├───────────────────┤
+│   12 Chatter      │ │    8 Chatter      │
+│   Ø 87 €          │ │    Ø 142 €        │
+│   Σ 1.044 €       │ │    Σ 1.136 €      │
+│   ⊘ 24% · ↘ -12%  │ │    ⊘ 8% · ↗ +18%  │
+├───────────────────┤ ├───────────────────┤
+│ niklas_la   87€   │ │ max_dr     142€   │
+│ jana_mu     54€   │ │ tim_kr     128€   │
+│ … (scroll)        │ │ … (scroll)        │
+└───────────────────┘ └───────────────────┘
+
+       Δ Ø: +55€  ·  Δ Σ: +92€  ·  Δ⊘: -16pp
 ```
 
-Darunter pro Spalte eine **kompakte Liste** der gematchten Chatter (Name · Tier · €/Tag · kleiner Trend-Pfeil) — scrollbar, klickbar → öffnet das bestehende `ChatterSlideOver`.
+- Header zeigt **nur die aktivsten Filter-Pills** (max 2-3) + Pfeil zum Aufklappen.
+- Tap auf Header öffnet ein **Bottom-Sheet** (mobile) bzw. inline-Expand (desktop) mit dem vollen Filter-UI — so geht kein Filter-Feature verloren, aber die Karte bleibt schmal.
+- Stats-Card kompakter: Ein-Zeilen-Stats statt Label+Value pro Row (z.B. `Ø 87€ · Σ 1.044€`, `⊘ 24% · ↘ -12%`).
+- Chatter-Liste: Name darüber, €/Tag darunter (statt nebeneinander) — passt in schmale Spalte. Max-Höhe `40vh`, intern scrollbar.
 
-**4. Quick-Presets** über den Filtern (ein Tap = beide Filter setzen):
-- `Top vs Seed`
-- `Aktiv vs Inaktiv`
-- `Mit Alert vs ohne`
-- `SOFORT EINGREIFEN vs BELOHNEN`
-- `Eigener Preset speichern…` (localStorage)
+**3. Δ-Box bleibt unten** als horizontale Pill-Reihe (kompakter als bisher), immer voll-breit unter beiden Spalten sichtbar.
 
-### Datenfluss
+**4. Preset-Bar bleibt** oben, horizontal scrollbar (`overflow-x-auto`) statt umbrechend — spart vertikalen Platz.
 
-- Greift auf den **bereits geladenen Daten-Pool** zu (`rawChatters`, `rangeHistory`, `modelsList`, `benchmarkBundle`, `recategorizedMap`, `alertsByChatter`) — **kein zusätzlicher DB-Roundtrip**.
-- Aggregate (Ø, Σ, Trend, Null-Tage, Top-Chatter) werden in einem `useMemo` pro Set berechnet, abhängig von den Filter-Werten + dem aktiven `timeRange`.
-- Beim Wechsel des `TimeRange`-Toggles oben rekalkulieren beide Sets automatisch.
+**5. Schriftgrößen-Anpassungen** für 360-440px:
+- Stats-Zahlen `text-lg` statt `text-2xl`
+- Chatter-Namen `text-[11px]` mit `truncate`
+- Tier-/Kategorie-Pills im Filter-Sheet bleiben tappbar (min 28px Höhe)
 
-### Persistenz
+### Was bleibt gleich
 
-`localStorage`-Key `tinder.compareFilters.v1` speichert beide Filter-Sets + custom Presets, damit du beim Wiederkommen direkt weiterarbeitest.
+- Desktop-Layout (≥768px): unverändert side-by-side mit vollem Inline-Filter
+- Alle Filter-Funktionen, Presets, Δ-Berechnung, Klick → SlideOver
+- localStorage-Persistenz
 
-### Tagesabhaken / Swipen
+### Geänderte Dateien
 
-Im Vergleichs-Mode wird **nicht geswiped** — das ist ein reiner Analyse-View. Klick auf einen Chatter öffnet das SlideOver (mit allen bestehenden Aktionen: Note, Coaching, Alert resolven, etc.).
+- `src/components/CompareModeView.tsx`
+  - `activeMobile`-State + A/B-Switcher entfernen
+  - Grid immer `grid-cols-2 gap-2 md:gap-3`
+  - `StatsCard` & `ChatterList` kompaktere Mobile-Varianten
+  - Δ-Box als horizontale Pill-Reihe
+  - Preset-Bar auf `overflow-x-auto whitespace-nowrap`
+- `src/components/CompareFilterPanel.tsx`
+  - Neuer Mobile-Modus: Header mit aktiven Pills + Aufklapp-Button
+  - Volles Filter-UI in Sheet (`@/components/ui/sheet`) auf Mobile, inline auf Desktop
+  - Via `useIsMobile()` aus `src/hooks/use-mobile.tsx`
 
-### Technische Details
+### Edge Cases
 
-**Neue Dateien:**
-- `src/components/CompareModeView.tsx` — Haupt-Layout (zwei Spalten, responsiv, Stats-Card, Liste, Preset-Bar)
-- `src/components/CompareFilterPanel.tsx` — Filter-UI für ein Set (wiederverwendet für A & B)
-- `src/lib/compare-filters.ts`:
-  - `CompareFilter` Type + Zod-Schema
-  - `applyCompareFilter(chatters, history, filter, range): SwapInput[]`
-  - `computeCompareStats(filtered, history, range): { count, avgRev, sumRev, zeroRate, trend, topChatter }`
-  - `loadComparePresets() / saveComparePresets()` (localStorage)
-  - `DEFAULT_PRESETS` (Top vs Seed, etc.)
-
-**Geänderte Dateien:**
-- `src/pages/TinderMode.tsx`:
-  - State `mode` von `"swipe" | "swap"` → `"swipe" | "swap" | "compare"`
-  - Toggle-Bar auf 3 Buttons erweitern (gleicher Pill-Style)
-  - Render-Block: `mode === "compare" ? <CompareModeView … /> : …` — bekommt `rawChatters`, `rangeHistory`, `modelsList`, `benchmarkBundle`, `recategorizedMap`, `alertsByChatter`, `timeRange`, `labelsByChatter` als Props
-  - `TimeRangeToggle` bleibt sichtbar auch im Compare-Mode (wirkt auf beide Sets)
-
-**Edge Cases:**
-- Set leer (keine Matches) → „Keine Chatter im Filter“ + Hint zur Lockerung
-- Beide Sets identisch → Δ-Zeile zeigt „Gleiche Auswahl“
-- Mobile (< 768px): Sets gestapelt, mit `A / B`-Switch-Pill statt Side-by-Side, Δ-Box bleibt sichtbar zwischen beiden
-- Filter-Werte mit Zod validiert, fehlerhafte localStorage-Daten → Defaults
+- 320px Geräte: Spalten werden eng aber lesbar (Stats einzeilig, Truncate auf Namen)
+- Lange Chatter-Listen: Beide Spalten unabhängig scrollbar (`max-h-[40vh] overflow-y-auto`)
+- Sheet überlagert preview-frame korrekt (z-index aus bestehender `sheet.tsx`)
 
