@@ -627,10 +627,10 @@ export default function TinderMode() {
 
       // Trend-Drop: Slope ODER Recent-vs-Baseline. Mindest-Umsatz, sonst sind %-Werte Mist.
       if (avgRev >= 20) {
-        if (trend <= -0.3) {
+        if (trend <= trendMedPct) {
           alerts.push({
             alert_type: "revenue_drop",
-            severity: trend <= -0.5 ? "high" : "medium",
+            severity: trend <= trendHighPct ? "high" : "medium",
             message: `Umsatz-Trend ${Math.round(trend * 100)}% über ${days}T`,
           });
         } else if (recentDrop <= -0.4) {
