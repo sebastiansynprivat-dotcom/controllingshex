@@ -159,7 +159,7 @@ export default function TinderMode() {
   const [selectedTier, setSelectedTier] = useState<AccountTierId | null>(null);
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
   const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
-  const [alertChatterNames, setAlertChatterNames] = useState<Set<string>>(new Set());
+  // alertChatterNames + alertsByChatter are derived below (DB for "today", window-aggregated otherwise)
   const [alertFilterActive, setAlertFilterActive] = useState(false);
   const [swapTrackingMap, setSwapTrackingMap] = useState<Map<string, SwapTrackingEntry>>(new Map());
   const [swapTrackFilterActive, setSwapTrackFilterActive] = useState(false);
@@ -198,8 +198,9 @@ export default function TinderMode() {
     });
   }, [platform]);
 
-  // Load active anomaly alerts for the active workspace (with messages)
-  const [alertsByChatter, setAlertsByChatter] = useState<Map<string, { alert_type: string; severity: string; message: string }[]>>(new Map());
+  // Load active anomaly alerts for the active workspace (with messages) — DB-based, used for "today"
+  const [dbAlertsByChatter, setDbAlertsByChatter] = useState<Map<string, { alert_type: string; severity: string; message: string }[]>>(new Map());
+  const [dbAlertChatterNames, setDbAlertChatterNames] = useState<Set<string>>(new Set());
   useEffect(() => {
     const nowIso = new Date().toISOString();
     supabase
@@ -218,8 +219,8 @@ export default function TinderMode() {
           list.push({ alert_type: a.alert_type, severity: a.severity, message: a.message });
           map.set(key, list);
         });
-        setAlertChatterNames(set);
-        setAlertsByChatter(map);
+        setDbAlertChatterNames(set);
+        setDbAlertsByChatter(map);
       });
   }, [platform]);
 
@@ -501,6 +502,98 @@ export default function TinderMode() {
       };
     });
   }, [rawChatters, recategorizedMap, timeRange.preset]);
+
+  // Derived alerts: for "today" use DB alerts; for windows compute from rangeHistory aggregates.
+  const { alertChatterNames, alertsByChatter } = useMemo(() => {
+    if (timeRange.preset === "today") {
+      return { alertChatterNames: dbAlertChatterNames, alertsByChatter: dbAlertsByChatter };
+    }
+    const set = new Set<string>();
+    const map = new Map<string, { alert_type: string; severity: string; message: string }[]>();
+
+    // Group history by normalized chatter name
+    const byChatter = new Map<string, RangeHistoryRow[]>();
+    for (const h of rangeHistory) {
+      const key = normalizeName(h.chatter_name);
+      if (!byChatter.has(key)) byChatter.set(key, []);
+      byChatter.get(key)!.push(h);
+    }
+
+    const days = rangeDays(timeRange);
+
+    for (const c of rawChatters) {
+      const key = normalizeName(c.name);
+      const rows = byChatter.get(key) || [];
+      if (rows.length === 0) continue;
+
+      const revs = rows.map((r) => r.revenue_today);
+      const sum = revs.reduce((a, b) => a + b, 0);
+      const avgRev = sum / rows.length;
+      const zeroDays = rows.filter((r) => r.revenue_today === 0).length;
+      const zeroRate = zeroDays / rows.length;
+      const maxDelay = rows.reduce((m, r) => Math.max(m, r.response_delay_days || 0), 0);
+
+      // Trend
+      let trend = 0;
+      if (rows.length >= 3 && avgRev > 0) {
+        const n = rows.length;
+        const meanX = (n - 1) / 2;
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+          num += (i - meanX) * (revs[i] - avgRev);
+          den += (i - meanX) ** 2;
+        }
+        const slope = den > 0 ? num / den : 0;
+        trend = (slope * (n - 1)) / avgRev;
+      }
+
+      const alerts: { alert_type: string; severity: string; message: string }[] = [];
+
+      if (zeroRate >= 0.8) {
+        alerts.push({
+          alert_type: "zero_revenue_window",
+          severity: "high",
+          message: `${zeroDays} von ${rows.length} Tagen ohne Umsatz im Fenster (${days}T)`,
+        });
+      } else if (zeroRate >= 0.5) {
+        alerts.push({
+          alert_type: "frequent_zero_days",
+          severity: "medium",
+          message: `${zeroDays} von ${rows.length} Tagen ohne Umsatz (${days}T)`,
+        });
+      }
+
+      if (maxDelay > 3) {
+        alerts.push({
+          alert_type: "response_delay",
+          severity: "high",
+          message: `Antwortverzug bis zu ${maxDelay} Tage im Fenster`,
+        });
+      } else if (maxDelay > 2) {
+        alerts.push({
+          alert_type: "response_delay",
+          severity: "medium",
+          message: `Antwortverzug bis zu ${maxDelay} Tage im Fenster`,
+        });
+      }
+
+      if (trend <= -0.3 && avgRev > 0) {
+        alerts.push({
+          alert_type: "revenue_drop",
+          severity: trend <= -0.5 ? "high" : "medium",
+          message: `Umsatz-Trend ${Math.round(trend * 100)}% über ${days} Tage`,
+        });
+      }
+
+      if (alerts.length > 0) {
+        set.add(key);
+        map.set(key, alerts);
+      }
+    }
+
+    return { alertChatterNames: set, alertsByChatter: map };
+  }, [timeRange, rangeHistory, rawChatters, dbAlertChatterNames, dbAlertsByChatter]);
+
 
   // Map: normalized chatter name → tierIds based on all matched account follower tiers
   const tierIdsByChatter = useMemo(() => {
