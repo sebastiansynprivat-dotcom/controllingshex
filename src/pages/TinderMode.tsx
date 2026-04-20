@@ -382,7 +382,7 @@ export default function TinderMode() {
     });
   }, [platform]);
 
-  // Map: normalized chatter name → tierId based on his account's followers
+  // Map: normalized chatter name → tierId based on the first matched account follower tier
   const tierByChatter = useMemo(() => {
     const followerMap = new Map<string, number>();
     for (const m of modelsList) {
@@ -390,12 +390,19 @@ export default function TinderMode() {
     }
     const map = new Map<string, AccountTierId>();
     for (const c of chatters) {
-      const acc = (c.account || "").toLowerCase().trim();
-      if (!acc) continue;
-      const followers = followerMap.get(acc);
-      if (followers == null) continue;
-      const tier = tierForFollowers(followers);
-      if (tier) map.set(normalizeName(c.name), tier.id);
+      const accountNames = splitAccounts(c.account);
+      if (accountNames.length === 0) continue;
+
+      const tierIds = accountNames
+        .map((accountName) => {
+          const followers = followerMap.get(accountName);
+          if (followers == null) return null;
+          return tierForFollowers(followers)?.id ?? null;
+        })
+        .filter((tierId): tierId is AccountTierId => tierId !== null);
+
+      const tierId = tierIds[0];
+      if (tierId) map.set(normalizeName(c.name), tierId);
     }
     return map;
   }, [chatters, modelsList]);
@@ -412,22 +419,24 @@ export default function TinderMode() {
     return counts;
   }, [chatters, checkedNames, tierByChatter]);
 
-  // Extract unique categories with counts of unchecked chatters
+  // Extract unique categories with counts of unchecked chatters, scoped by active tier
   const uniqueCategories = useMemo(() => {
-    const allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    let allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    if (selectedTier) {
+      allUnchecked = allUnchecked.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
+    }
     const catMap = new Map<string, { emoji: string; name: string; count: number }>();
     for (const c of allUnchecked) {
       const key = c.categoryName || "WEITER SO";
       if (!catMap.has(key)) catMap.set(key, { emoji: c.categoryEmoji || "⚪", name: key, count: 0 });
       catMap.get(key)!.count++;
     }
-    // Sort by priority
     return Array.from(catMap.values()).sort((a, b) => {
       const ai = CATEGORY_PRIORITY.indexOf(a.name);
       const bi = CATEGORY_PRIORITY.indexOf(b.name);
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-  }, [chatters, checkedNames]);
+  }, [chatters, checkedNames, selectedTier, tierByChatter]);
 
   // Build SwapInputs from current chatters (extract today's revenue from KPIs + history)
   const swapInputs = useMemo<SwapInput[]>(() => {

@@ -551,11 +551,18 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   };
 
   const getChatterTierId = useCallback((ch: Chatter): AccountTierId | undefined => {
-    const acc = (ch.account || "").toLowerCase().trim();
-    if (!acc) return undefined;
-    const followers = followerMap.get(acc);
-    if (followers == null) return undefined;
-    return tierForFollowers(followers)?.id;
+    const accountNames = splitAccounts(ch.account);
+    if (accountNames.length === 0) return undefined;
+
+    const tierIds = accountNames
+      .map((accountName) => {
+        const followers = followerMap.get(accountName);
+        if (followers == null) return null;
+        return tierForFollowers(followers)?.id ?? null;
+      })
+      .filter((tierId): tierId is AccountTierId => tierId !== null);
+
+    return tierIds[0];
   }, [followerMap]);
 
   // Counts pro Tier (über alle Kategorien hinweg)
