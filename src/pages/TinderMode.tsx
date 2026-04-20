@@ -1146,6 +1146,8 @@ export default function TinderMode() {
               categoryName: c.categoryName,
               categoryEmoji: c.categoryEmoji,
             }))}
+            swapInputs={swapInputs}
+            models={modelsList}
             rangeHistory={rangeHistory}
             range={timeRange}
             recategorizedMap={recategorizedMap}
