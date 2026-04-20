@@ -1870,6 +1870,16 @@ export default function TinderMode() {
           />
         </div>
       )}
+
+      {/* Compare-Mode SlideOver (any chatter from list) */}
+      {compareSlideOverChatter && (
+        <ChatterSlideOver
+          open={!!compareSlideOverChatter}
+          onClose={() => setCompareSlideOverChatter(null)}
+          chatterName={compareSlideOverChatter}
+          platform={platform}
+        />
+      )}
     </div>
   );
 }
