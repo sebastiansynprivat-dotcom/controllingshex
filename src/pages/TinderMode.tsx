@@ -21,7 +21,7 @@ import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
-import { loadSwapTracking, formatDelta, deltaTone, type SwapTrackingEntry } from "@/lib/swap-tracking";
+import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
 import { Repeat } from "lucide-react";
 
 interface ChatterData {
@@ -1179,14 +1179,31 @@ export default function TinderMode() {
               if (!entry) return null;
               const tone = deltaTone(entry.deltaPct);
               const toneClass =
-                tone === "pos" ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
-                : tone === "neg" ? "bg-red-500/15 border-red-400/40 text-red-300"
-                : "bg-cyan-500/10 border-cyan-400/30 text-cyan-200";
+                tone === "pos" ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-200"
+                : tone === "neg" ? "bg-red-500/15 border-red-400/40 text-red-200"
+                : "bg-cyan-500/10 border-cyan-400/30 text-cyan-100";
+              const dirIcon =
+                entry.tierDirection === "upgrade" ? "▲"
+                : entry.tierDirection === "downgrade" ? "▼"
+                : entry.tierDirection === "lateral" ? "→"
+                : "·";
+              const dirClass =
+                entry.tierDirection === "upgrade" ? "text-emerald-300"
+                : entry.tierDirection === "downgrade" ? "text-red-300"
+                : "text-foreground/55";
               return (
-                <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-30">
-                  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md text-[11px] font-medium ${toneClass}`}>
-                    <Repeat className="h-3 w-3" />
-                    <span>{formatDelta(entry.deltaPct)} seit Wechsel · vor {entry.daysSince}T</span>
+                <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100%-1.5rem)]">
+                  <div className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl border backdrop-blur-md ${toneClass}`}>
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
+                      <Repeat className="h-3 w-3 opacity-80" />
+                      <span>{formatDelta(entry.deltaPct)} seit Wechsel</span>
+                      <span className="opacity-50">·</span>
+                      <span className="opacity-70 font-normal">vor {entry.daysSince}T</span>
+                    </div>
+                    <div className={`inline-flex items-center gap-1 text-[10px] leading-tight ${dirClass}`}>
+                      <span>{dirIcon}</span>
+                      <span>{tierDirectionLabel(entry.tierDirection)}</span>
+                    </div>
                   </div>
                 </div>
               );
