@@ -24,7 +24,16 @@ export const compareFilterSchema = z.object({
   alerts: z.enum(["any", "with", "without"]).default("any"),
 });
 
-export type CompareFilter = z.infer<typeof compareFilterSchema>;
+export interface CompareFilter {
+  tiers: string[];
+  categories: string[];
+  labelIds: string[];
+  revToday: [number, number] | null;
+  revAvg: [number, number] | null;
+  delayMax: number | null;
+  status: "any" | "active" | "inactive" | "onboarding";
+  alerts: "any" | "with" | "without";
+}
 
 export const EMPTY_FILTER: CompareFilter = {
   tiers: [],
