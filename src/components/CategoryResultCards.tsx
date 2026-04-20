@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip as RechartsTooltip } from "recharts";
 import { loadModelPerformances, formatFollowers, type ModelPerformance, type ModelInfo } from "@/lib/model-performance";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 
 /* ------------------------------------------------------------------ */
 /*  TYPES                                                              */
@@ -312,6 +313,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   
    const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeLabelFilters, setActiveLabelFilters] = useState<Set<string>>(new Set());
+  const [activeTierFilters, setActiveTierFilters] = useState<Set<AccountTierId>>(new Set());
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [videoCoachings, setVideoCoachings] = useState<Record<string, string>>({});
@@ -319,6 +321,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
   const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
   const [modelPerformances, setModelPerformances] = useState<Record<string, ModelPerformance>>({});
+  const [followerMap, setFollowerMap] = useState<Map<string, number>>(new Map());
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
