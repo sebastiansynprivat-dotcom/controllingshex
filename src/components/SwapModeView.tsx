@@ -793,6 +793,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
       n.delete(last.sessionKey);
       return n;
     });
+    setSkippedForLater((prev) => {
+      if (!prev.has(last.sessionKey)) return prev;
+      const n = new Set(prev);
+      n.delete(last.sessionKey);
+      return n;
+    });
     if (last.dailyDismissedAdded && last.dailyDismissedAdded.length > 0) {
       setDailyDismissed((prev) => {
         const n = new Set(prev);
