@@ -77,6 +77,25 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
   // The full filter UI body (reused inline on desktop / inside sheet on mobile)
   const FilterBody = (
     <div className="space-y-3">
+      {/* Presets — quick-apply for this side */}
+      {presets && presets.length > 0 && side && onApplyPreset && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Presets</div>
+          <div className="flex flex-wrap gap-1">
+            {presets.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onApplyPreset(p, side)}
+                className="px-2 min-h-7 rounded-md text-[11px] border bg-white/[0.03] border-white/[0.06] text-white/65 hover:text-foreground hover:border-white/15 transition-all"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tiers */}
       <div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tier</div>
