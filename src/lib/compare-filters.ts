@@ -74,6 +74,28 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+/**
+ * Parst lockere Datumsformate (DD.MM.YY, DD.MM.YYYY, YYYY-MM-DD) in ISO YYYY-MM-DD.
+ * Liefert null bei ungültigen Eingaben.
+ */
+function parseAnyDateToIso(input?: string): string | null {
+  if (!input) return null;
+  const s = input.trim();
+  // ISO bereits
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // DD.MM.YY(YY) oder DD/MM/YY(YY) oder DD-MM-YY(YY)
+  const dmy = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (dmy) {
+    let y = parseInt(dmy[3], 10);
+    if (y < 100) y += 2000;
+    const m = String(parseInt(dmy[2], 10)).padStart(2, "0");
+    const d = String(parseInt(dmy[1], 10)).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return null;
+}
+
 /* --------------------------- Apply Filter ------------------------ */
 
 export interface ApplyFilterContext {
