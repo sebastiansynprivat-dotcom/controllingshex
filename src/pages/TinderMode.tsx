@@ -388,9 +388,7 @@ export default function TinderMode() {
     let cancelled = false;
     loadSwapTracking(platform)
       .then((map) => {
-        if (cancelled) return;
-        console.log("[swap-tracking]", platform, "entries:", map.size, Array.from(map.values()));
-        setSwapTrackingMap(map);
+        if (!cancelled) setSwapTrackingMap(map);
       })
       .catch((err) => console.warn("loadSwapTracking failed:", err));
     return () => { cancelled = true; };
