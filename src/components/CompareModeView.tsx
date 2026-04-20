@@ -128,10 +128,24 @@ export default function CompareModeView({
   const [idxB, setIdxB] = useState(0);
   const [skippedA, setSkippedA] = useState<string[]>([]);
   const [skippedB, setSkippedB] = useState<string[]>([]);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const { platform } = usePlatform();
 
   // Reset wenn sich Filter/Stack ändert
   useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
   useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
+
+  const handleCardSingleClick = useCallback((name: string) => {
+    const display = name.replace(/_/g, " ");
+    navigator.clipboard?.writeText(display).then(
+      () => toast.success(`Name kopiert: ${display}`),
+      () => toast.error("Kopieren fehlgeschlagen")
+    );
+  }, []);
+
+  const handleCardDoubleClick = useCallback(() => {
+    setCompareDialogOpen(true);
+  }, []);
 
   // Render-Reihenfolge: nicht-skipped zuerst, dann skipped am Ende
   const orderedA = useMemo(() => {
