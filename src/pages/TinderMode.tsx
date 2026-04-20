@@ -23,6 +23,16 @@ import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type Benchm
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
 import { Repeat } from "lucide-react";
+import TimeRangeToggle from "@/components/TimeRangeToggle";
+import {
+  buildTimeRange,
+  loadHistoryForRange,
+  recategorizeByWindow,
+  rangeDays,
+  type TimeRange,
+  type HistoryRow as RangeHistoryRow,
+} from "@/lib/timerange-categorize";
+import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 
 interface ChatterData {
   name: string;
@@ -115,7 +125,30 @@ export default function TinderMode() {
     setIsDesktop(mql.matches);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  const [chatters, setChatters] = useState<ChatterData[]>([]);
+  const [rawChatters, setRawChatters] = useState<ChatterData[]>([]);
+
+  // Time-range selector for re-categorization
+  const [timeRange, setTimeRangeState] = useState<TimeRange>(() => {
+    try {
+      const stored = localStorage.getItem("tinder.timeRange");
+      if (stored) {
+        const parsed = JSON.parse(stored) as TimeRange;
+        if (parsed?.preset) {
+          // Re-build to refresh from/to relative to today (except custom)
+          if (parsed.preset === "custom") return parsed;
+          return buildTimeRange(parsed.preset);
+        }
+      }
+    } catch {}
+    return buildTimeRange("today");
+  });
+  const setTimeRange = useCallback((r: TimeRange) => {
+    setTimeRangeState(r);
+    try { localStorage.setItem("tinder.timeRange", JSON.stringify(r)); } catch {}
+  }, []);
+  const [rangeHistory, setRangeHistory] = useState<RangeHistoryRow[]>([]);
+  const [rangeHistoryKey, setRangeHistoryKey] = useState<string>("");
+  const [rangeLoading, setRangeLoading] = useState(false);
   const [skippedNames, setSkippedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionPanel, setActionPanel] = useState(false);
@@ -203,14 +236,14 @@ export default function TinderMode() {
   // Count chatters per label (only unchecked ones from current data)
   const labelCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    const chatterNorms = new Set(chatters.map((c) => normalizeName(c.name)));
+    const chatterNorms = new Set(rawChatters.map((c) => normalizeName(c.name)));
     for (const a of allLabelAssignments) {
       if (chatterNorms.has(normalizeName(a.chatter_name))) {
         counts.set(a.label_id, (counts.get(a.label_id) || 0) + 1);
       }
     }
     return counts;
-  }, [allLabelAssignments, chatters]);
+  }, [allLabelAssignments, rawChatters]);
 
   useEffect(() => {
     const load = async () => {
@@ -239,14 +272,14 @@ export default function TinderMode() {
       }
 
       if (!reportRes.data?.result_json) {
-        setChatters([]);
+        setRawChatters([]);
         setLoading(false);
         return;
       }
 
       const result = reportRes.data.result_json as unknown as AnalysisResult;
       if (!result?.categories) {
-        setChatters([]);
+        setRawChatters([]);
         setLoading(false);
         return;
       }
@@ -371,7 +404,7 @@ export default function TinderMode() {
         }
       }
 
-      setChatters(allChatters);
+      setRawChatters(allChatters);
       setUndoStack([]);
       setLoading(false);
 
@@ -405,6 +438,69 @@ export default function TinderMode() {
       return next;
     });
   }, [platform]);
+
+  // Load history for the selected time-range (skip for "today" — uses original cats)
+  useEffect(() => {
+    if (timeRange.preset === "today") {
+      setRangeHistory([]);
+      setRangeHistoryKey("");
+      return;
+    }
+    const key = `${platform}|${timeRange.from}|${timeRange.to}`;
+    if (key === rangeHistoryKey) return;
+    let cancelled = false;
+    setRangeLoading(true);
+    loadHistoryForRange(platform, timeRange.from, timeRange.to)
+      .then((rows) => {
+        if (cancelled) return;
+        setRangeHistory(rows);
+        setRangeHistoryKey(key);
+      })
+      .catch((err) => {
+        console.warn("loadHistoryForRange failed:", err);
+        if (!cancelled) {
+          setRangeHistory([]);
+          setRangeHistoryKey(key);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRangeLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [platform, timeRange.preset, timeRange.from, timeRange.to, rangeHistoryKey]);
+
+  // Re-categorized buckets per chatter for the selected window. Empty for "today".
+  const recategorizedMap = useMemo(() => {
+    if (timeRange.preset === "today") return new Map<string, ActionCategoryName>();
+    if (rangeHistory.length === 0 && rangeLoading) return new Map<string, ActionCategoryName>();
+    const onboardingStarts = new Map<string, string>();
+    for (const c of rawChatters) {
+      if (c.startDate) {
+        const d = parseLooseDate(c.startDate);
+        if (d) onboardingStarts.set(normalizeName(c.name), d.toISOString().split("T")[0]);
+      }
+    }
+    return recategorizeByWindow(
+      rawChatters.map((c) => c.name),
+      rangeHistory,
+      timeRange,
+      { onboardingStarts }
+    );
+  }, [rawChatters, rangeHistory, rangeLoading, timeRange]);
+
+  // Effective chatters list — applies window-based re-categorization unless "today".
+  const chatters = useMemo<ChatterData[]>(() => {
+    if (timeRange.preset === "today" || recategorizedMap.size === 0) return rawChatters;
+    return rawChatters.map((c) => {
+      const newCat = recategorizedMap.get(normalizeName(c.name));
+      if (!newCat) return c;
+      return {
+        ...c,
+        categoryName: newCat,
+        categoryEmoji: getActionEmoji(newCat),
+      };
+    });
+  }, [rawChatters, recategorizedMap, timeRange.preset]);
 
   // Map: normalized chatter name → tierIds based on all matched account follower tiers
   const tierIdsByChatter = useMemo(() => {
@@ -972,6 +1068,16 @@ export default function TinderMode() {
 
         return (
           <div className="mb-3 space-y-2">
+            {/* Time-Range Selector */}
+            <div className="flex flex-col gap-1">
+              <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+              {timeRange.preset !== "today" && (
+                <span className="text-[10px] text-muted-foreground/70 px-0.5">
+                  Re-Kategorisiert nach Ø Performance · {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tage"}
+                  {rangeLoading && <span className="ml-1 opacity-60">· lädt…</span>}
+                </span>
+              )}
+            </div>
             {tierCounts.size > 0 && (
               <div className="flex gap-1.5 flex-wrap">
                 {ACCOUNT_TIERS.map((tier) => {
