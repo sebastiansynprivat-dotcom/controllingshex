@@ -451,6 +451,14 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       .select("model_name, follower_count")
       .eq("platform", platform)
       .then(async ({ data: models }) => {
+        if (models) {
+          // Build followerMap (lowercase account → followers) for tier filtering
+          const fmap = new Map<string, number>();
+          for (const m of models) {
+            fmap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+          }
+          setFollowerMap(fmap);
+        }
         if (models && allChattersForModels.length > 0) {
           const perfs = await loadModelPerformances(platform, allChattersForModels, models as ModelInfo[]);
           setModelPerformances(perfs);
