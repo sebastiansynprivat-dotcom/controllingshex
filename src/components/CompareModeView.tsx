@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, type PanInfo } from "framer-motion";
-import { Users, Zap, CalendarDays, RotateCcw } from "lucide-react";
+import { Users, Zap, CalendarDays, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { usePlatform } from "@/contexts/PlatformContext";
+import ChatterSlideOver from "@/components/ChatterSlideOver";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
   applyCompareFilter,
@@ -124,10 +128,24 @@ export default function CompareModeView({
   const [idxB, setIdxB] = useState(0);
   const [skippedA, setSkippedA] = useState<string[]>([]);
   const [skippedB, setSkippedB] = useState<string[]>([]);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const { platform } = usePlatform();
 
   // Reset wenn sich Filter/Stack ändert
   useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
   useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
+
+  const handleCardSingleClick = useCallback((name: string) => {
+    const display = name.replace(/_/g, " ");
+    navigator.clipboard?.writeText(display).then(
+      () => toast.success(`Name kopiert: ${display}`),
+      () => toast.error("Kopieren fehlgeschlagen")
+    );
+  }, []);
+
+  const handleCardDoubleClick = useCallback(() => {
+    setCompareDialogOpen(true);
+  }, []);
 
   // Render-Reihenfolge: nicht-skipped zuerst, dann skipped am Ende
   const orderedA = useMemo(() => {
@@ -190,7 +208,8 @@ export default function CompareModeView({
             }
           }}
           onReset={() => { setIdxA(0); setSkippedA([]); }}
-          onTap={(name) => onChatterClick(name)}
+          onTap={handleCardSingleClick}
+          onDoubleTap={handleCardDoubleClick}
         />
         <CompareSlot
           accent="sky"
@@ -206,12 +225,59 @@ export default function CompareModeView({
             }
           }}
           onReset={() => { setIdxB(0); setSkippedB([]); }}
-          onTap={(name) => onChatterClick(name)}
+          onTap={handleCardSingleClick}
+          onDoubleTap={handleCardDoubleClick}
         />
       </div>
 
       {/* Live Δ between currently visible chatters */}
       <LiveDeltaBox a={currentA} b={currentB} enrichedMap={enrichedByName} />
+
+      {/* Compare Dialog — beide Performance-Profile nebeneinander */}
+      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
+        <DialogContent className="max-w-[1400px] w-[95vw] h-[90vh] p-0 overflow-hidden gap-0 border-white/10">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.02]">
+            <div className="flex items-center gap-2 text-xs font-medium text-foreground/80">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="capitalize">{currentA?.name.replace(/_/g, " ") ?? "—"}</span>
+              <span className="text-muted-foreground mx-1">vs</span>
+              <span className="inline-block h-2 w-2 rounded-full bg-sky-400" />
+              <span className="capitalize">{currentB?.name.replace(/_/g, " ") ?? "—"}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCompareDialogOpen(false)}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-white/[0.08] flex-1 overflow-hidden">
+            <div className="overflow-y-auto">
+              {currentA && (
+                <ChatterSlideOver
+                  open={compareDialogOpen}
+                  onClose={() => setCompareDialogOpen(false)}
+                  chatterName={currentA.name}
+                  platform={platform}
+                  inline
+                />
+              )}
+            </div>
+            <div className="overflow-y-auto">
+              {currentB && (
+                <ChatterSlideOver
+                  open={compareDialogOpen}
+                  onClose={() => setCompareDialogOpen(false)}
+                  chatterName={currentB.name}
+                  platform={platform}
+                  inline
+                />
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -228,6 +294,7 @@ function CompareSlot({
   onSwipeSkip,
   onReset,
   onTap,
+  onDoubleTap,
 }: {
   accent: "emerald" | "sky";
   item: FilteredChatter | undefined;
@@ -238,6 +305,7 @@ function CompareSlot({
   onSwipeSkip: () => void;
   onReset: () => void;
   onTap: (name: string) => void;
+  onDoubleTap: () => void;
 }) {
   const accentHsl = accent === "emerald" ? "152 70% 45%" : "200 90% 55%";
   const accentBorder = accent === "emerald" ? "border-emerald-500/20" : "border-sky-500/20";
@@ -289,6 +357,7 @@ function CompareSlot({
           onSwipeLR={onSwipeNext}
           onSwipeUp={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
+          onDoubleClick={onDoubleTap}
         />
       </div>
       <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums">
@@ -315,6 +384,7 @@ function CompareSwipeCard({
   onSwipeLR,
   onSwipeUp,
   onSingleClick,
+  onDoubleClick,
 }: {
   accentHsl: string;
   item: FilteredChatter;
@@ -322,11 +392,13 @@ function CompareSwipeCard({
   onSwipeLR: () => void;
   onSwipeUp: () => void;
   onSingleClick: () => void;
+  onDoubleClick: () => void;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 0, 200], [-6, 0, 6]);
   const controls = useAnimation();
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDragEnd = useCallback(
     async (_e: unknown, info: PanInfo) => {
@@ -358,8 +430,21 @@ function CompareSwipeCard({
 
   const handleClick = useCallback(() => {
     if (Math.abs(x.get()) >= 6 || Math.abs(y.get()) >= 6) return;
-    onSingleClick();
-  }, [x, y, onSingleClick]);
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      onDoubleClick();
+      return;
+    }
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+      onSingleClick();
+    }, 250);
+  }, [x, y, onSingleClick, onDoubleClick]);
+
+  useEffect(() => () => {
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+  }, []);
 
   // Daten-Quellen: enriched (Swap) bevorzugt, sonst Fallback aus FilteredChatter
   const tier = enriched?.tier ?? "—";
