@@ -23,6 +23,16 @@ import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type Benchm
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
 import { Repeat } from "lucide-react";
+import TimeRangeToggle from "@/components/TimeRangeToggle";
+import {
+  buildTimeRange,
+  loadHistoryForRange,
+  recategorizeByWindow,
+  rangeDays,
+  type TimeRange,
+  type HistoryRow as RangeHistoryRow,
+} from "@/lib/timerange-categorize";
+import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 
 interface ChatterData {
   name: string;
