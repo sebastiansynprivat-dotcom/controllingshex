@@ -649,7 +649,7 @@ export default function TinderMode() {
     }
 
     return { alertChatterNames: set, alertsByChatter: map };
-  }, [timeRange, rangeHistory, rawChatters, dbAlertChatterNames, dbAlertsByChatter]);
+  }, [timeRange, rangeHistory, rawChatters, dbAlertChatterNames, dbAlertsByChatter, alertThresholds]);
 
 
   // Map: normalized chatter name → tierIds based on all matched account follower tiers
