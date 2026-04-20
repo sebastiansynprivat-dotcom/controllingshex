@@ -536,23 +536,16 @@ export default function TinderMode() {
 
     const days = rangeDays(timeRange);
 
-    // Adaptive Schwellen je nach Fensterlänge.
-    // - Kleine Fenster (≤2T): jeder Null-Tag zählt absolut
-    // - Mittel (3–9T): ≥40% Null-Tage Medium / ≥60% High, Floor 3 Null-Tage
-    // - Groß (≥10T): ≥30% Medium / ≥50% High, Floor 5 / 8 Null-Tage
-    // Zusätzlich: ein einzelner Null-Tag in 30T triggert NIE einen Alert.
-    let zeroHighRate: number, zeroMedRate: number, zeroHighFloor: number, zeroMedFloor: number;
-    if (days <= 2) {
-      zeroHighRate = 1.0; zeroMedRate = 0.5; zeroHighFloor = 2; zeroMedFloor = 1;
-    } else if (days <= 9) {
-      zeroHighRate = 0.6; zeroMedRate = 0.4; zeroHighFloor = 4; zeroMedFloor = 3;
-    } else {
-      zeroHighRate = 0.5; zeroMedRate = 0.3; zeroHighFloor = 8; zeroMedFloor = 5;
-    }
-    // Delay-Schwelle bleibt absolut (max im Fenster), aber bei großen Fenstern leicht strenger,
-    // damit ein einmaliger 3-Tage-Verzug vor 4 Wochen nicht reinrutscht — wir nutzen aktuelles Delay.
-    const delayMedDays = days >= 14 ? 3 : 2;
-    const delayHighDays = days >= 14 ? 4 : 3;
+    // User-konfigurierbare Schwellen, an Fensterlänge angepasst (Floors capped auf days).
+    const t = effectiveThresholds(alertThresholds, days);
+    const zeroHighRate = t.zeroHighRate;
+    const zeroMedRate = t.zeroMedRate;
+    const zeroHighFloor = t.zeroHighFloor;
+    const zeroMedFloor = t.zeroMedFloor;
+    const delayMedDays = t.delayMedDays;
+    const delayHighDays = t.delayHighDays;
+    const trendMedPct = t.trendMedPct;
+    const trendHighPct = t.trendHighPct;
     // Trend nur prüfen wenn wir genug Aktiv-Tage haben
     const minActiveForTrend = Math.max(3, Math.ceil(days * 0.3));
 
