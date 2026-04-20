@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ACCOUNT_TIERS, type AccountTierId } from "@/lib/account-tiers";
 import { ACTION_CATEGORIES, type ActionCategoryName } from "@/lib/action-categories";
-import { type CompareFilter, EMPTY_FILTER } from "@/lib/compare-filters";
+import { type CompareFilter, type ComparePreset, EMPTY_FILTER } from "@/lib/compare-filters";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,9 +15,12 @@ interface Props {
   filter: CompareFilter;
   onChange: (next: CompareFilter) => void;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
+  presets?: ComparePreset[];
+  onApplyPreset?: (preset: ComparePreset, side: "A" | "B") => void;
+  side?: "A" | "B";
 }
 
-export default function CompareFilterPanel({ label, accent, filter, onChange, allLabels }: Props) {
+export default function CompareFilterPanel({ label, accent, filter, onChange, allLabels, presets, onApplyPreset, side }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
 
