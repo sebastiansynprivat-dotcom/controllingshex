@@ -249,14 +249,14 @@ export default function TinderMode() {
       }
 
       if (!reportRes.data?.result_json) {
-        setChatters([]);
+        setRawChatters([]);
         setLoading(false);
         return;
       }
 
       const result = reportRes.data.result_json as unknown as AnalysisResult;
       if (!result?.categories) {
-        setChatters([]);
+        setRawChatters([]);
         setLoading(false);
         return;
       }
@@ -381,7 +381,7 @@ export default function TinderMode() {
         }
       }
 
-      setChatters(allChatters);
+      setRawChatters(allChatters);
       setUndoStack([]);
       setLoading(false);
 
