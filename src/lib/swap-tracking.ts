@@ -12,8 +12,10 @@
  * Vergleich: Ø Tagesumsatz 3 Tage VOR Swap vs Ø 3 Tage NACH Swap.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { tierForFollowers, ACCOUNT_TIERS, type AccountTierId } from "@/lib/account-tiers";
 
 export type SwapSide = "received" | "gave";
+export type TierDirection = "upgrade" | "downgrade" | "lateral" | "unknown";
 
 export interface SwapTrackingEntry {
   /** Normalisierter Chatter-Name (key für Lookups) */
@@ -28,8 +30,16 @@ export interface SwapTrackingEntry {
   side: SwapSide;
   /** Partner-Chatter im Swap (zur Anzeige) */
   partnerName: string;
-  /** Account, der vergeben/erhalten wurde */
-  accountInvolved: string | null;
+  /** Account, den der Chatter VOR dem Swap hatte (jetzt abgegeben) */
+  oldAccount: string | null;
+  /** Account, den der Chatter NACH dem Swap hat (jetzt erhalten) */
+  newAccount: string | null;
+  /** Tier des alten Accounts (null wenn unbekannt) */
+  oldTier: AccountTierId | null;
+  /** Tier des neuen Accounts (null wenn unbekannt) */
+  newTier: AccountTierId | null;
+  /** Hat der Chatter ein größeres/kleineres Profil bekommen? */
+  tierDirection: TierDirection;
   /** Ø Tagesumsatz 3 Tage VOR dem Swap-Tag (exklusiv Swap-Tag) */
   avgBefore: number;
   /** Ø Tagesumsatz 3 Tage AB Swap-Tag (inklusiv Swap-Tag, falls vorhanden) */
@@ -52,6 +62,11 @@ interface RawSwap {
   model_b: string | null;
   created_at: string;
   status: string;
+}
+
+interface RawModel {
+  model_name: string;
+  follower_count: number | null;
 }
 
 const WINDOW_DAYS = 3;
