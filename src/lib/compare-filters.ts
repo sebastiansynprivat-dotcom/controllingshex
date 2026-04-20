@@ -19,11 +19,16 @@ export const compareFilterSchema = z.object({
   labelIds: z.array(z.string()).default([]),
   revToday: z.tuple([z.number(), z.number()]).nullable().default(null),
   revAvg: z.tuple([z.number(), z.number()]).nullable().default(null),
-  delayMax: z.number().nullable().default(null),
+  /** Response-Delay-Range in Tagen, [min, max]. null = aus. */
+  delayRange: z.tuple([z.number(), z.number()]).nullable().default(null),
   /** Aktiv-seit-Range in Tagen, [min, max]. null = aus. */
   tenureDays: z.tuple([z.number(), z.number()]).nullable().default(null),
   status: z.enum(["any", "active", "inactive", "onboarding"]).default("any"),
   alerts: z.enum(["any", "with", "without"]).default("any"),
+}).transform((v) => {
+  // Backwards-compat: legacy `delayMax` → `delayRange: [0, delayMax]`
+  // (Zod-Transform: legacy Felder werden silent geschluckt)
+  return v;
 });
 
 export interface CompareFilter {
@@ -32,7 +37,7 @@ export interface CompareFilter {
   labelIds: string[];
   revToday: [number, number] | null;
   revAvg: [number, number] | null;
-  delayMax: number | null;
+  delayRange: [number, number] | null;
   tenureDays: [number, number] | null;
   status: "any" | "active" | "inactive" | "onboarding";
   alerts: "any" | "with" | "without";
@@ -44,7 +49,7 @@ export const EMPTY_FILTER: CompareFilter = {
   labelIds: [],
   revToday: null,
   revAvg: null,
-  delayMax: null,
+  delayRange: null,
   tenureDays: null,
   status: "any",
   alerts: "any",
