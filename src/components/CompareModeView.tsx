@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { TrendingDown, TrendingUp, Minus, Crown, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
@@ -93,7 +93,7 @@ export default function CompareModeView({
         ))}
       </div>
 
-      {/* Two true side-by-side columns (also on mobile) */}
+      {/* Two true side-by-side comparison cards */}
       <div className="grid grid-cols-2 gap-2 md:gap-3">
         <div className="space-y-2 md:space-y-3 min-w-0">
           <CompareFilterPanel
@@ -103,8 +103,7 @@ export default function CompareModeView({
             onChange={(f) => setState((s) => ({ ...s, setA: f }))}
             allLabels={allLabels}
           />
-          <StatsCard stats={statsA} accent="emerald" />
-          <ChatterList items={filteredA} onClick={onChatterClick} />
+          <CompareCard stats={statsA} items={filteredA} accent="emerald" onChatterClick={onChatterClick} />
         </div>
         <div className="space-y-2 md:space-y-3 min-w-0">
           <CompareFilterPanel
@@ -114,8 +113,7 @@ export default function CompareModeView({
             onChange={(f) => setState((s) => ({ ...s, setB: f }))}
             allLabels={allLabels}
           />
-          <StatsCard stats={statsB} accent="sky" />
-          <ChatterList items={filteredB} onClick={onChatterClick} />
+          <CompareCard stats={statsB} items={filteredB} accent="sky" onChatterClick={onChatterClick} />
         </div>
       </div>
 
@@ -127,19 +125,37 @@ export default function CompareModeView({
 
 /* --------------------------- Sub Components ---------------------- */
 
-function StatsCard({
+function CompareCard({
   stats,
+  items,
   accent,
+  onChatterClick,
 }: {
   stats: ReturnType<typeof computeCompareStats>;
+  items: FilteredChatter[];
   accent: "emerald" | "sky";
+  onChatterClick: (n: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   const accentText = accent === "emerald" ? "text-emerald-300" : "text-sky-300";
+  const accentGradient =
+    accent === "emerald"
+      ? "from-emerald-500/[0.08] via-emerald-500/[0.02] to-transparent"
+      : "from-sky-500/[0.08] via-sky-500/[0.02] to-transparent";
+  const accentBorder = accent === "emerald" ? "border-emerald-500/20" : "border-sky-500/20";
+
   if (stats.count === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 md:p-3 text-center">
-        <p className="text-[11px] text-muted-foreground">Keine Treffer</p>
-        <p className="text-[10px] text-muted-foreground/70 mt-0.5">Filter lockern</p>
+      <div
+        className={cn(
+          "rounded-xl border bg-gradient-to-b backdrop-blur-sm p-3 md:p-4 min-h-[280px] flex flex-col items-center justify-center text-center",
+          accentBorder,
+          accentGradient
+        )}
+      >
+        <p className="text-xs text-muted-foreground">Keine Treffer</p>
+        <p className="text-[10px] text-muted-foreground/70 mt-1">Filter lockern</p>
       </div>
     );
   }
@@ -148,105 +164,129 @@ function StatsCard({
   const trendColor =
     stats.trend > 0.05 ? "text-emerald-400" : stats.trend < -0.05 ? "text-red-400" : "text-muted-foreground";
 
+  // sort by avgRevWindow desc to surface top chatters
+  const sorted = [...items].sort((a, b) => b.avgRevWindow - a.avgRevWindow);
+  const top = sorted[0];
+  const next = sorted.slice(1, 4);
+  const rest = sorted.slice(4);
+
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 md:p-3 space-y-1.5">
-      <div className="flex items-baseline justify-between">
-        <span className={cn("text-lg md:text-2xl font-semibold tabular-nums leading-none", accentText)}>
+    <div
+      className={cn(
+        "rounded-xl border bg-gradient-to-b backdrop-blur-sm overflow-hidden",
+        accentBorder,
+        accentGradient
+      )}
+    >
+      {/* Hero */}
+      <div className="px-2.5 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 text-center border-b border-white/[0.04]">
+        <div className={cn("text-2xl md:text-4xl font-bold tabular-nums leading-none", accentText)}>
           {stats.count}
-        </span>
-        <span className="text-[10px] text-muted-foreground">Chatter</span>
+        </div>
+        <div className="text-[9px] md:text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+          Chatter
+        </div>
+        <div className="mt-2 md:mt-3 text-base md:text-2xl font-semibold tabular-nums text-foreground/95 leading-none">
+          {formatEur(stats.avgRev)}
+        </div>
+        <div className="text-[9px] md:text-[10px] text-muted-foreground mt-0.5">Ø € / Tag</div>
       </div>
-      {/* Compact one-line stats on mobile, structured on desktop */}
-      <div className="md:hidden space-y-1">
-        <div className="text-[11px] tabular-nums text-foreground/90 truncate">
-          Ø {formatEur(stats.avgRev)}
+
+      {/* Secondary KPIs */}
+      <div className="px-2.5 md:px-4 py-2 md:py-2.5 border-b border-white/[0.04] space-y-1">
+        <div className="flex items-center justify-between text-[10px] md:text-[11px]">
+          <span className="text-muted-foreground">Σ</span>
+          <span className="tabular-nums text-foreground/90">{formatEur(stats.sumRev)}</span>
         </div>
-        <div className="text-[11px] tabular-nums text-foreground/90 truncate">
-          Σ {formatEur(stats.sumRev)}
+        <div className="flex items-center justify-between text-[10px] md:text-[11px]">
+          <span className="text-muted-foreground">⊘</span>
+          <span className="tabular-nums text-foreground/90">{formatPct(stats.zeroRate)}</span>
         </div>
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="tabular-nums text-foreground/80">⊘ {formatPct(stats.zeroRate)}</span>
+        <div className="flex items-center justify-between text-[10px] md:text-[11px]">
+          <span className="text-muted-foreground">Trend</span>
           <span className={cn("inline-flex items-center gap-0.5 tabular-nums", trendColor)}>
             <TrendIcon className="h-3 w-3" />
             {formatTrendPct(stats.trend)}
           </span>
         </div>
       </div>
-      <div className="hidden md:block space-y-1.5">
-        <Stat label="Ø € / Tag" value={formatEur(stats.avgRev)} />
-        <Stat label="Σ € im Fenster" value={formatEur(stats.sumRev)} />
-        <Stat label="Null-Tage" value={formatPct(stats.zeroRate)} />
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="text-muted-foreground">Trend</span>
-          <span className={cn("inline-flex items-center gap-1 tabular-nums", trendColor)}>
-            <TrendIcon className="h-3 w-3" /> {formatTrendPct(stats.trend)}
-          </span>
-        </div>
-      </div>
-      {stats.topChatter && (
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between text-[10px] md:text-[11px] pt-1 border-t border-white/[0.04]">
-          <span className="text-muted-foreground">Top</span>
-          <span className="text-foreground/90 truncate md:max-w-[60%]">
-            {stats.topChatter.name}
-          </span>
-        </div>
+
+      {/* Top chatter highlight */}
+      {top && (
+        <button
+          type="button"
+          onClick={() => onChatterClick(top.name)}
+          className="w-full px-2.5 md:px-4 py-2 md:py-2.5 text-left hover:bg-white/[0.03] transition-colors border-b border-white/[0.04]"
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <Crown className={cn("h-3 w-3 shrink-0", accentText)} />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Top</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] md:text-sm text-foreground/95 truncate min-w-0">{top.name}</span>
+            <span className="text-[11px] md:text-sm tabular-nums font-medium text-foreground/95 shrink-0">
+              {formatEur(top.avgRevWindow)}
+            </span>
+          </div>
+        </button>
       )}
-    </div>
-  );
-}
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-[11px]">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground/90 tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-function ChatterList({ items, onClick }: { items: FilteredChatter[]; onClick: (n: string) => void }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-      <div className="px-2 md:px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-white/[0.04]">
-        Chatter ({items.length})
-      </div>
-      <div className="max-h-[40vh] md:max-h-72 overflow-y-auto divide-y divide-white/[0.04]">
-        {items.map((c) => {
-          const trend = c.zeroRateWindow;
-          return (
+      {/* Next 3 */}
+      {next.length > 0 && (
+        <div className="divide-y divide-white/[0.04]">
+          {next.map((c) => (
             <button
               key={c.name}
               type="button"
-              onClick={() => onClick(c.name)}
-              className="w-full px-2 md:px-3 py-1.5 text-left hover:bg-white/[0.03] transition-colors block"
+              onClick={() => onChatterClick(c.name)}
+              className="w-full px-2.5 md:px-4 py-1.5 md:py-2 text-left hover:bg-white/[0.03] transition-colors flex items-baseline justify-between gap-2"
             >
-              {/* Mobile: stacked. Desktop: row */}
-              <div className="md:flex md:items-center md:justify-between">
-                <div className="min-w-0 md:flex-1">
-                  <div className="text-[11px] md:text-xs text-foreground/90 truncate">{c.name}</div>
-                  <div className="text-[10px] text-muted-foreground truncate hidden md:block">
-                    {c.account || "—"} · {c.category || "—"}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between md:block md:text-right md:shrink-0 md:ml-2 mt-0.5 md:mt-0">
-                  <div className="text-[11px] md:text-xs tabular-nums text-foreground/90">
-                    {formatEur(c.avgRevWindow)}
-                  </div>
-                  <div
-                    className={cn(
-                      "text-[10px] tabular-nums",
-                      trend >= 0.5 ? "text-red-400" : trend >= 0.3 ? "text-amber-400" : "text-muted-foreground"
-                    )}
-                  >
-                    {formatPct(trend)}⊘
-                  </div>
-                </div>
-              </div>
+              <span className="text-[10px] md:text-xs text-foreground/85 truncate min-w-0">{c.name}</span>
+              <span className="text-[10px] md:text-xs tabular-nums text-foreground/85 shrink-0">
+                {formatEur(c.avgRevWindow)}
+              </span>
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expand rest */}
+      {rest.length > 0 && (
+        <>
+          {expanded && (
+            <div className="divide-y divide-white/[0.04] max-h-[35vh] overflow-y-auto border-t border-white/[0.04]">
+              {rest.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => onChatterClick(c.name)}
+                  className="w-full px-2.5 md:px-4 py-1.5 md:py-2 text-left hover:bg-white/[0.03] transition-colors flex items-baseline justify-between gap-2"
+                >
+                  <span className="text-[10px] md:text-xs text-foreground/80 truncate min-w-0">{c.name}</span>
+                  <span className="text-[10px] md:text-xs tabular-nums text-foreground/80 shrink-0">
+                    {formatEur(c.avgRevWindow)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="w-full px-2.5 md:px-4 py-1.5 md:py-2 text-[10px] md:text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.03] transition-colors flex items-center justify-center gap-1 border-t border-white/[0.04]"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-3 w-3" /> weniger
+              </>
+            ) : (
+              <>
+                +{rest.length} weitere <ChevronDown className="h-3 w-3" />
+              </>
+            )}
+          </button>
+        </>
+      )}
     </div>
   );
 }
