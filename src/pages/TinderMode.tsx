@@ -383,6 +383,15 @@ export default function TinderMode() {
     load();
   }, [platform]);
 
+  // Swap-Tracking: Welche Chatter hatten kürzlich einen Account-Wechsel + waren vorher schon aktiv?
+  useEffect(() => {
+    let cancelled = false;
+    loadSwapTracking(platform)
+      .then((map) => { if (!cancelled) setSwapTrackingMap(map); })
+      .catch((err) => console.warn("loadSwapTracking failed:", err));
+    return () => { cancelled = true; };
+  }, [platform]);
+
   // Refresh a single chatter's input info after a logged event
   const refreshInputForChatter = useCallback(async (chatterName: string) => {
     const fresh = await loadLastInputs(platform, [chatterName]);
