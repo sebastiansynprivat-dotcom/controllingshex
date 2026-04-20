@@ -1145,6 +1145,7 @@ export default function TinderMode() {
               kpis: c.kpis,
               categoryName: c.categoryName,
               categoryEmoji: c.categoryEmoji,
+              startDate: c.startDate,
             }))}
             swapInputs={swapInputs}
             models={modelsList}
