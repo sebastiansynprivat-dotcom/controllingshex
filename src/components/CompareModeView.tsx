@@ -288,14 +288,17 @@ function CompareSlot({
 
   return (
     <div className="space-y-1.5">
-      <CompareSwipeCard
-        accentHsl={accentHsl}
-        item={item}
-        enriched={enriched}
-        onSwipeLR={onSwipeNext}
-        onSwipeUp={onSwipeSkip}
-        onSingleClick={() => onTap(item.name)}
-      />
+      {/* Slot-Container: clipped — Drag der Karte bleibt INNERHALB dieses Slots sichtbar */}
+      <div className="relative w-full overflow-hidden rounded-2xl">
+        <CompareSwipeCard
+          accentHsl={accentHsl}
+          item={item}
+          enriched={enriched}
+          onSwipeLR={onSwipeNext}
+          onSwipeUp={onSwipeSkip}
+          onSingleClick={() => onTap(item.name)}
+        />
+      </div>
       <div className="text-center text-[10px] text-muted-foreground/70 tabular-nums">
         {idx + 1} / {stackLength}
       </div>
