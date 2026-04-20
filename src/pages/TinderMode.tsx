@@ -55,6 +55,13 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+function splitAccounts(accountValue?: string): string[] {
+  return (accountValue || "")
+    .split(",")
+    .map((part) => part.toLowerCase().trim())
+    .filter(Boolean);
+}
+
 function toTitleCase(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -382,48 +389,55 @@ export default function TinderMode() {
     });
   }, [platform]);
 
-  // Map: normalized chatter name → tierId based on the first matched account follower tier
-  const tierByChatter = useMemo(() => {
+  // Map: normalized chatter name → tierIds based on all matched account follower tiers
+  const tierIdsByChatter = useMemo(() => {
     const followerMap = new Map<string, number>();
     for (const m of modelsList) {
       followerMap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
     }
-    const map = new Map<string, AccountTierId>();
+    const map = new Map<string, AccountTierId[]>();
     for (const c of chatters) {
       const accountNames = splitAccounts(c.account);
       if (accountNames.length === 0) continue;
 
-      const tierIds = accountNames
-        .map((accountName) => {
-          const followers = followerMap.get(accountName);
-          if (followers == null) return null;
-          return tierForFollowers(followers)?.id ?? null;
-        })
-        .filter((tierId): tierId is AccountTierId => tierId !== null);
+      const tierIds = Array.from(new Set(
+        accountNames
+          .map((accountName) => {
+            const followers = followerMap.get(accountName);
+            if (followers == null) return null;
+            return tierForFollowers(followers)?.id ?? null;
+          })
+          .filter((tierId): tierId is AccountTierId => tierId !== null)
+      ));
 
-      const tierId = tierIds[0];
-      if (tierId) map.set(normalizeName(c.name), tierId);
+      if (tierIds.length > 0) map.set(normalizeName(c.name), tierIds);
     }
     return map;
   }, [chatters, modelsList]);
+
+  const chatterMatchesSelectedTier = useCallback((chatterName: string, tier: AccountTierId | null) => {
+    if (!tier) return true;
+    const tierIds = tierIdsByChatter.get(normalizeName(chatterName)) || [];
+    return tierIds.includes(tier);
+  }, [tierIdsByChatter]);
 
   // Tier-Counts (only over unchecked chatters, like uniqueCategories)
   const tierCounts = useMemo(() => {
     const counts = new Map<AccountTierId, number>();
     for (const c of chatters) {
       if (checkedNames.has(normalizeName(c.name))) continue;
-      const tierId = tierByChatter.get(normalizeName(c.name));
-      if (!tierId) continue;
-      counts.set(tierId, (counts.get(tierId) || 0) + 1);
+      for (const tierId of tierIdsByChatter.get(normalizeName(c.name)) || []) {
+        counts.set(tierId, (counts.get(tierId) || 0) + 1);
+      }
     }
     return counts;
-  }, [chatters, checkedNames, tierByChatter]);
+  }, [chatters, checkedNames, tierIdsByChatter]);
 
   // Extract unique categories with counts of unchecked chatters, scoped by active tier
   const uniqueCategories = useMemo(() => {
     let allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
     if (selectedTier) {
-      allUnchecked = allUnchecked.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
+      allUnchecked = allUnchecked.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     }
     const catMap = new Map<string, { emoji: string; name: string; count: number }>();
     for (const c of allUnchecked) {
@@ -436,7 +450,7 @@ export default function TinderMode() {
       const bi = CATEGORY_PRIORITY.indexOf(b.name);
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-  }, [chatters, checkedNames, selectedTier, tierByChatter]);
+  }, [chatters, checkedNames, selectedTier, chatterMatchesSelectedTier]);
 
   // Build SwapInputs from current chatters (extract today's revenue from KPIs + history)
   const swapInputs = useMemo<SwapInput[]>(() => {

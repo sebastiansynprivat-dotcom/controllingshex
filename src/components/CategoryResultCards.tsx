@@ -550,19 +550,19 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
-  const getChatterTierId = useCallback((ch: Chatter): AccountTierId | undefined => {
+  const getChatterTierIds = useCallback((ch: Chatter): AccountTierId[] => {
     const accountNames = splitAccounts(ch.account);
-    if (accountNames.length === 0) return undefined;
+    if (accountNames.length === 0) return [];
 
-    const tierIds = accountNames
-      .map((accountName) => {
-        const followers = followerMap.get(accountName);
-        if (followers == null) return null;
-        return tierForFollowers(followers)?.id ?? null;
-      })
-      .filter((tierId): tierId is AccountTierId => tierId !== null);
-
-    return tierIds[0];
+    return Array.from(new Set(
+      accountNames
+        .map((accountName) => {
+          const followers = followerMap.get(accountName);
+          if (followers == null) return null;
+          return tierForFollowers(followers)?.id ?? null;
+        })
+        .filter((tierId): tierId is AccountTierId => tierId !== null)
+    ));
   }, [followerMap]);
 
   // Counts pro Tier (über alle Kategorien hinweg)
@@ -570,13 +570,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     const counts = new Map<AccountTierId, number>();
     for (const cat of categories) {
       for (const ch of cat.chatters) {
-        const tierId = getChatterTierId(ch);
-        if (!tierId) continue;
-        counts.set(tierId, (counts.get(tierId) || 0) + 1);
+        for (const tierId of getChatterTierIds(ch)) {
+          counts.set(tierId, (counts.get(tierId) || 0) + 1);
+        }
       }
     }
     return counts;
-  }, [categories, getChatterTierId]);
+  }, [categories, getChatterTierIds]);
 
   // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
   // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
@@ -585,11 +585,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return categories.map((cat) => ({
       ...cat,
       chatters: cat.chatters.filter((ch) => {
-        const tierId = getChatterTierId(ch);
-        return tierId !== undefined && activeTierFilters.has(tierId);
+        const tierIds = getChatterTierIds(ch);
+        return tierIds.some((tierId) => activeTierFilters.has(tierId));
       }),
     }));
-  }, [categories, activeTierFilters, getChatterTierId]);
+  }, [categories, activeTierFilters, getChatterTierIds]);
 
   const visibleCategories = useMemo(() => {
     let filtered = activeTierFilters.size > 0
