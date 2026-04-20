@@ -20,6 +20,8 @@ export const compareFilterSchema = z.object({
   revToday: z.tuple([z.number(), z.number()]).nullable().default(null),
   revAvg: z.tuple([z.number(), z.number()]).nullable().default(null),
   delayMax: z.number().nullable().default(null),
+  /** Aktiv-seit-Range in Tagen, [min, max]. null = aus. */
+  tenureDays: z.tuple([z.number(), z.number()]).nullable().default(null),
   status: z.enum(["any", "active", "inactive", "onboarding"]).default("any"),
   alerts: z.enum(["any", "with", "without"]).default("any"),
 });
@@ -31,6 +33,7 @@ export interface CompareFilter {
   revToday: [number, number] | null;
   revAvg: [number, number] | null;
   delayMax: number | null;
+  tenureDays: [number, number] | null;
   status: "any" | "active" | "inactive" | "onboarding";
   alerts: "any" | "with" | "without";
 }
@@ -42,6 +45,7 @@ export const EMPTY_FILTER: CompareFilter = {
   revToday: null,
   revAvg: null,
   delayMax: null,
+  tenureDays: null,
   status: "any",
   alerts: "any",
 };
@@ -90,6 +94,8 @@ export interface ApplyFilterContext {
   alertChatterNames: Set<string>;
   /** Onboarding start dates: normalizedName → ISO YYYY-MM-DD */
   onboardingStarts?: Map<string, string>;
+  /** Erstes analysis_date je Chatter (für "aktiv seit"-Filter): normalizedName → ISO YYYY-MM-DD */
+  firstSeenByChatter?: Map<string, string>;
 }
 
 interface AggregateRow {
@@ -193,6 +199,16 @@ export function applyCompareFilter(
       if (agg.avgRev < lo || agg.avgRev > hi) continue;
     }
     if (filter.delayMax != null && maxDelay > filter.delayMax) continue;
+
+    // Tenure filter (Tage seit erstem Auftauchen in der History)
+    if (filter.tenureDays) {
+      const [lo, hi] = filter.tenureDays;
+      const firstIso = ctx.firstSeenByChatter?.get(key);
+      if (!firstIso) continue; // keine History → kein verlässliches "aktiv seit"
+      const firstTs = new Date(firstIso + "T00:00:00Z").getTime();
+      const days = Math.max(0, Math.floor((today.getTime() - firstTs) / 86400000));
+      if (days < lo || days > hi) continue;
+    }
 
     // Status filter
     if (filter.status !== "any") {
