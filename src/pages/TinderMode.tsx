@@ -225,6 +225,20 @@ export default function TinderMode() {
       });
   }, [platform]);
 
+  // User-konfigurierbare Alert-Schwellen (aus localStorage)
+  const [alertThresholds, setAlertThresholds] = useState<AlertThresholds>(() => loadAlertThresholds());
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<AlertThresholds>).detail;
+      if (detail) setAlertThresholds(detail);
+    };
+    window.addEventListener("alertThresholdsChanged", handler);
+    window.addEventListener("storage", () => setAlertThresholds(loadAlertThresholds()));
+    return () => {
+      window.removeEventListener("alertThresholdsChanged", handler);
+    };
+  }, []);
+
   // Derive label filter set from allLabelAssignments
   const labelChatterNames = useMemo(() => {
     if (!selectedLabelFilter) return null;
