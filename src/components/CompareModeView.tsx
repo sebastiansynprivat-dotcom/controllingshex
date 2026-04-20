@@ -143,7 +143,7 @@ export default function CompareModeView({
   const currentB = orderedB[idxB];
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 space-y-3">
+    <div className="flex-1 overflow-y-auto pb-6 space-y-3" style={{ touchAction: "pan-y" }}>
       {/* Preset bar */}
       <div className="flex gap-1.5 overflow-x-auto whitespace-nowrap -mx-1 px-1 pb-1 scrollbar-none">
         {[...DEFAULT_PRESETS, ...state.customPresets].map((p) => (
