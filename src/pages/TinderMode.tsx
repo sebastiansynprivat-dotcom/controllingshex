@@ -198,8 +198,9 @@ export default function TinderMode() {
     });
   }, [platform]);
 
-  // Load active anomaly alerts for the active workspace (with messages)
-  const [alertsByChatter, setAlertsByChatter] = useState<Map<string, { alert_type: string; severity: string; message: string }[]>>(new Map());
+  // Load active anomaly alerts for the active workspace (with messages) — DB-based, used for "today"
+  const [dbAlertsByChatter, setDbAlertsByChatter] = useState<Map<string, { alert_type: string; severity: string; message: string }[]>>(new Map());
+  const [dbAlertChatterNames, setDbAlertChatterNames] = useState<Set<string>>(new Set());
   useEffect(() => {
     const nowIso = new Date().toISOString();
     supabase
@@ -218,8 +219,8 @@ export default function TinderMode() {
           list.push({ alert_type: a.alert_type, severity: a.severity, message: a.message });
           map.set(key, list);
         });
-        setAlertChatterNames(set);
-        setAlertsByChatter(map);
+        setDbAlertChatterNames(set);
+        setDbAlertsByChatter(map);
       });
   }, [platform]);
 
