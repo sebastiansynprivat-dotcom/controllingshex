@@ -382,6 +382,36 @@ export default function TinderMode() {
     });
   }, [platform]);
 
+  // Map: normalized chatter name → tierId based on his account's followers
+  const tierByChatter = useMemo(() => {
+    const followerMap = new Map<string, number>();
+    for (const m of modelsList) {
+      followerMap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+    }
+    const map = new Map<string, AccountTierId>();
+    for (const c of chatters) {
+      const acc = (c.account || "").toLowerCase().trim();
+      if (!acc) continue;
+      const followers = followerMap.get(acc);
+      if (followers == null) continue;
+      const tier = tierForFollowers(followers);
+      if (tier) map.set(normalizeName(c.name), tier.id);
+    }
+    return map;
+  }, [chatters, modelsList]);
+
+  // Tier-Counts (only over unchecked chatters, like uniqueCategories)
+  const tierCounts = useMemo(() => {
+    const counts = new Map<AccountTierId, number>();
+    for (const c of chatters) {
+      if (checkedNames.has(normalizeName(c.name))) continue;
+      const tierId = tierByChatter.get(normalizeName(c.name));
+      if (!tierId) continue;
+      counts.set(tierId, (counts.get(tierId) || 0) + 1);
+    }
+    return counts;
+  }, [chatters, checkedNames, tierByChatter]);
+
   // Extract unique categories with counts of unchecked chatters
   const uniqueCategories = useMemo(() => {
     const allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
