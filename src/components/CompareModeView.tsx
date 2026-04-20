@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { TrendingDown, TrendingUp, Minus, Crown, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
