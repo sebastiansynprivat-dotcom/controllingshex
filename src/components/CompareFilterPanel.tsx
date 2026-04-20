@@ -246,7 +246,9 @@ function RangeInput({
       return;
     }
     const n = Number(raw) || 0;
-    const next: [number, number] = idx === 0 ? [n, value?.[1] ?? n] : [value?.[0] ?? 0, n];
+    const curLo = value?.[0] ?? 0;
+    const curHi = value?.[1] ?? n;
+    const next: [number, number] = idx === 0 ? [n, curHi] : [curLo, n];
     onChange(next);
   };
   return (
