@@ -384,6 +384,7 @@ function CompareSwipeCard({
   onSwipeLR,
   onSwipeUp,
   onSingleClick,
+  onDoubleClick,
 }: {
   accentHsl: string;
   item: FilteredChatter;
@@ -391,11 +392,13 @@ function CompareSwipeCard({
   onSwipeLR: () => void;
   onSwipeUp: () => void;
   onSingleClick: () => void;
+  onDoubleClick: () => void;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 0, 200], [-6, 0, 6]);
   const controls = useAnimation();
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDragEnd = useCallback(
     async (_e: unknown, info: PanInfo) => {
@@ -427,8 +430,21 @@ function CompareSwipeCard({
 
   const handleClick = useCallback(() => {
     if (Math.abs(x.get()) >= 6 || Math.abs(y.get()) >= 6) return;
-    onSingleClick();
-  }, [x, y, onSingleClick]);
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      onDoubleClick();
+      return;
+    }
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+      onSingleClick();
+    }, 250);
+  }, [x, y, onSingleClick, onDoubleClick]);
+
+  useEffect(() => () => {
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+  }, []);
 
   // Daten-Quellen: enriched (Swap) bevorzugt, sonst Fallback aus FilteredChatter
   const tier = enriched?.tier ?? "—";
