@@ -387,7 +387,11 @@ export default function TinderMode() {
   useEffect(() => {
     let cancelled = false;
     loadSwapTracking(platform)
-      .then((map) => { if (!cancelled) setSwapTrackingMap(map); })
+      .then((map) => {
+        if (cancelled) return;
+        console.log("[swap-tracking]", platform, "entries:", map.size, Array.from(map.values()));
+        setSwapTrackingMap(map);
+      })
       .catch((err) => console.warn("loadSwapTracking failed:", err));
     return () => { cancelled = true; };
   }, [platform]);
