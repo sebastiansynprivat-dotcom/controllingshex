@@ -439,6 +439,69 @@ export default function TinderMode() {
     });
   }, [platform]);
 
+  // Load history for the selected time-range (skip for "today" — uses original cats)
+  useEffect(() => {
+    if (timeRange.preset === "today") {
+      setRangeHistory([]);
+      setRangeHistoryKey("");
+      return;
+    }
+    const key = `${platform}|${timeRange.from}|${timeRange.to}`;
+    if (key === rangeHistoryKey) return;
+    let cancelled = false;
+    setRangeLoading(true);
+    loadHistoryForRange(platform, timeRange.from, timeRange.to)
+      .then((rows) => {
+        if (cancelled) return;
+        setRangeHistory(rows);
+        setRangeHistoryKey(key);
+      })
+      .catch((err) => {
+        console.warn("loadHistoryForRange failed:", err);
+        if (!cancelled) {
+          setRangeHistory([]);
+          setRangeHistoryKey(key);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRangeLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [platform, timeRange.preset, timeRange.from, timeRange.to, rangeHistoryKey]);
+
+  // Re-categorized buckets per chatter for the selected window. Empty for "today".
+  const recategorizedMap = useMemo(() => {
+    if (timeRange.preset === "today") return new Map<string, ActionCategoryName>();
+    if (rangeHistory.length === 0 && rangeLoading) return new Map<string, ActionCategoryName>();
+    const onboardingStarts = new Map<string, string>();
+    for (const c of rawChatters) {
+      if (c.startDate) {
+        const d = parseLooseDate(c.startDate);
+        if (d) onboardingStarts.set(normalizeName(c.name), d.toISOString().split("T")[0]);
+      }
+    }
+    return recategorizeByWindow(
+      rawChatters.map((c) => c.name),
+      rangeHistory,
+      timeRange,
+      { onboardingStarts }
+    );
+  }, [rawChatters, rangeHistory, rangeLoading, timeRange]);
+
+  // Effective chatters list — applies window-based re-categorization unless "today".
+  const chatters = useMemo<ChatterData[]>(() => {
+    if (timeRange.preset === "today" || recategorizedMap.size === 0) return rawChatters;
+    return rawChatters.map((c) => {
+      const newCat = recategorizedMap.get(normalizeName(c.name));
+      if (!newCat) return c;
+      return {
+        ...c,
+        categoryName: newCat,
+        categoryEmoji: getActionEmoji(newCat),
+      };
+    });
+  }, [rawChatters, recategorizedMap, timeRange.preset]);
+
   // Map: normalized chatter name → tierIds based on all matched account follower tiers
   const tierIdsByChatter = useMemo(() => {
     const followerMap = new Map<string, number>();
