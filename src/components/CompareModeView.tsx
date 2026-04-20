@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, type PanInfo } from "framer-motion";
-import { Users, Zap, CalendarDays, RotateCcw } from "lucide-react";
+import { Users, Zap, CalendarDays, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { usePlatform } from "@/contexts/PlatformContext";
+import ChatterSlideOver from "@/components/ChatterSlideOver";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
   applyCompareFilter,
