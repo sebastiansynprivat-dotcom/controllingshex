@@ -719,11 +719,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Kategorien ({totalChatters})</SelectItem>
-            {tierScopedCategories.map((cat) => (
-              <SelectItem key={cat.categoryName} value={cat.categoryName}>
-                {cat.emoji} {cat.categoryName} ({cat.chatters.length})
-              </SelectItem>
-            ))}
+            {tierScopedCategories
+              .filter((cat) => activeTierFilters.size === 0 || cat.chatters.length > 0)
+              .map((cat) => (
+                <SelectItem key={cat.categoryName} value={cat.categoryName}>
+                  {cat.emoji} {cat.categoryName} ({cat.chatters.length})
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
@@ -823,7 +825,9 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
             ];
 
             return filterGroups.map((group, gi) => {
-              const groupCats = tierScopedCategories.filter((c) => group.regex.test(c.categoryName));
+              const groupCats = tierScopedCategories.filter(
+                (c) => group.regex.test(c.categoryName) && (activeTierFilters.size === 0 || c.chatters.length > 0)
+              );
               if (groupCats.length === 0) return null;
               const groupTotal = groupCats.reduce((s, c) => s + c.chatters.length, 0);
 
