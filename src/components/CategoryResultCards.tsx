@@ -543,34 +543,26 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
-  // Map: normalized chatter name → tierId (basierend auf seinem Account)
-  const chatterTierMap = useMemo(() => {
-    const map = new Map<string, AccountTierId>();
-    for (const cat of categories) {
-      for (const ch of cat.chatters) {
-        const acc = (ch.account || "").toLowerCase().trim();
-        if (!acc) continue;
-        const followers = followerMap.get(acc);
-        if (followers == null) continue;
-        const tier = tierForFollowers(followers);
-        if (tier) map.set(normalizeChatterName(ch.name), tier.id);
-      }
-    }
-    return map;
-  }, [categories, followerMap]);
+  const getChatterTierId = useCallback((ch: Chatter): AccountTierId | undefined => {
+    const acc = (ch.account || "").toLowerCase().trim();
+    if (!acc) return undefined;
+    const followers = followerMap.get(acc);
+    if (followers == null) return undefined;
+    return tierForFollowers(followers)?.id;
+  }, [followerMap]);
 
   // Counts pro Tier (über alle Kategorien hinweg)
   const tierCounts = useMemo(() => {
     const counts = new Map<AccountTierId, number>();
     for (const cat of categories) {
       for (const ch of cat.chatters) {
-        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        const tierId = getChatterTierId(ch);
         if (!tierId) continue;
         counts.set(tierId, (counts.get(tierId) || 0) + 1);
       }
     }
     return counts;
-  }, [categories, chatterTierMap]);
+  }, [categories, getChatterTierId]);
 
   // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
   // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
@@ -579,11 +571,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return categories.map((cat) => ({
       ...cat,
       chatters: cat.chatters.filter((ch) => {
-        const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
+        const tierId = getChatterTierId(ch);
         return tierId !== undefined && activeTierFilters.has(tierId);
       }),
     }));
-  }, [categories, activeTierFilters, chatterTierMap]);
+  }, [categories, activeTierFilters, getChatterTierId]);
 
   const visibleCategories = useMemo(() => {
     let filtered = activeTierFilters.size > 0
