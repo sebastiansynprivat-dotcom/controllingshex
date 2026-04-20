@@ -55,6 +55,13 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+function splitAccounts(accountValue?: string): string[] {
+  return (accountValue || "")
+    .split(",")
+    .map((part) => part.toLowerCase().trim())
+    .filter(Boolean);
+}
+
 function toTitleCase(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -382,52 +389,68 @@ export default function TinderMode() {
     });
   }, [platform]);
 
-  // Map: normalized chatter name → tierId based on his account's followers
-  const tierByChatter = useMemo(() => {
+  // Map: normalized chatter name → tierIds based on all matched account follower tiers
+  const tierIdsByChatter = useMemo(() => {
     const followerMap = new Map<string, number>();
     for (const m of modelsList) {
       followerMap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
     }
-    const map = new Map<string, AccountTierId>();
+    const map = new Map<string, AccountTierId[]>();
     for (const c of chatters) {
-      const acc = (c.account || "").toLowerCase().trim();
-      if (!acc) continue;
-      const followers = followerMap.get(acc);
-      if (followers == null) continue;
-      const tier = tierForFollowers(followers);
-      if (tier) map.set(normalizeName(c.name), tier.id);
+      const accountNames = splitAccounts(c.account);
+      if (accountNames.length === 0) continue;
+
+      const tierIds = Array.from(new Set(
+        accountNames
+          .map((accountName) => {
+            const followers = followerMap.get(accountName);
+            if (followers == null) return null;
+            return tierForFollowers(followers)?.id ?? null;
+          })
+          .filter((tierId): tierId is AccountTierId => tierId !== null)
+      ));
+
+      if (tierIds.length > 0) map.set(normalizeName(c.name), tierIds);
     }
     return map;
   }, [chatters, modelsList]);
+
+  const chatterMatchesSelectedTier = useCallback((chatterName: string, tier: AccountTierId | null) => {
+    if (!tier) return true;
+    const tierIds = tierIdsByChatter.get(normalizeName(chatterName)) || [];
+    return tierIds.includes(tier);
+  }, [tierIdsByChatter]);
 
   // Tier-Counts (only over unchecked chatters, like uniqueCategories)
   const tierCounts = useMemo(() => {
     const counts = new Map<AccountTierId, number>();
     for (const c of chatters) {
       if (checkedNames.has(normalizeName(c.name))) continue;
-      const tierId = tierByChatter.get(normalizeName(c.name));
-      if (!tierId) continue;
-      counts.set(tierId, (counts.get(tierId) || 0) + 1);
+      for (const tierId of tierIdsByChatter.get(normalizeName(c.name)) || []) {
+        counts.set(tierId, (counts.get(tierId) || 0) + 1);
+      }
     }
     return counts;
-  }, [chatters, checkedNames, tierByChatter]);
+  }, [chatters, checkedNames, tierIdsByChatter]);
 
-  // Extract unique categories with counts of unchecked chatters
+  // Extract unique categories with counts of unchecked chatters, scoped by active tier
   const uniqueCategories = useMemo(() => {
-    const allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    let allUnchecked = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
+    if (selectedTier) {
+      allUnchecked = allUnchecked.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
+    }
     const catMap = new Map<string, { emoji: string; name: string; count: number }>();
     for (const c of allUnchecked) {
       const key = c.categoryName || "WEITER SO";
       if (!catMap.has(key)) catMap.set(key, { emoji: c.categoryEmoji || "⚪", name: key, count: 0 });
       catMap.get(key)!.count++;
     }
-    // Sort by priority
     return Array.from(catMap.values()).sort((a, b) => {
       const ai = CATEGORY_PRIORITY.indexOf(a.name);
       const bi = CATEGORY_PRIORITY.indexOf(b.name);
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-  }, [chatters, checkedNames]);
+  }, [chatters, checkedNames, selectedTier, chatterMatchesSelectedTier]);
 
   // Build SwapInputs from current chatters (extract today's revenue from KPIs + history)
   const swapInputs = useMemo<SwapInput[]>(() => {
@@ -462,7 +485,7 @@ export default function TinderMode() {
         base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
       }
       if (selectedTier) {
-        base = base.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
+        base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
       }
       if (labelChatterNames) {
         base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
@@ -470,12 +493,11 @@ export default function TinderMode() {
       if (alertFilterActive) {
         base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
       }
-      // Put skipped names at the end
       const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, selectedTier, tierByChatter, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
+    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
   );
 
   const prefetchedChatters = useMemo(
@@ -488,19 +510,19 @@ export default function TinderMode() {
   const filteredTotal = useMemo(() => {
     let base = chatters;
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
-    if (selectedTier) base = base.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
+    if (selectedTier) base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, selectedTier, tierByChatter, labelChatterNames, alertFilterActive, alertChatterNames]);
+  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
-    if (selectedTier) base = base.filter((c) => tierByChatter.get(normalizeName(c.name)) === selectedTier);
+    if (selectedTier) base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, selectedTier, tierByChatter, labelChatterNames, alertFilterActive, alertChatterNames]);
+  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open

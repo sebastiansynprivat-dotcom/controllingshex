@@ -122,6 +122,13 @@ function normalizeChatterName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+function splitAccounts(accountValue?: string): string[] {
+  return (accountValue || "")
+    .split(",")
+    .map((part) => part.toLowerCase().trim())
+    .filter(Boolean);
+}
+
 function calcTrend(history: HistoryEntry[]): "up" | "down" | "stable" {
   if (history.length < 4) return "stable";
   const sorted = [...history].sort((a, b) => a.analysis_date.localeCompare(b.analysis_date));
@@ -543,12 +550,19 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     });
   };
 
-  const getChatterTierId = useCallback((ch: Chatter): AccountTierId | undefined => {
-    const acc = (ch.account || "").toLowerCase().trim();
-    if (!acc) return undefined;
-    const followers = followerMap.get(acc);
-    if (followers == null) return undefined;
-    return tierForFollowers(followers)?.id;
+  const getChatterTierIds = useCallback((ch: Chatter): AccountTierId[] => {
+    const accountNames = splitAccounts(ch.account);
+    if (accountNames.length === 0) return [];
+
+    return Array.from(new Set(
+      accountNames
+        .map((accountName) => {
+          const followers = followerMap.get(accountName);
+          if (followers == null) return null;
+          return tierForFollowers(followers)?.id ?? null;
+        })
+        .filter((tierId): tierId is AccountTierId => tierId !== null)
+    ));
   }, [followerMap]);
 
   // Counts pro Tier (über alle Kategorien hinweg)
@@ -556,13 +570,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     const counts = new Map<AccountTierId, number>();
     for (const cat of categories) {
       for (const ch of cat.chatters) {
-        const tierId = getChatterTierId(ch);
-        if (!tierId) continue;
-        counts.set(tierId, (counts.get(tierId) || 0) + 1);
+        for (const tierId of getChatterTierIds(ch)) {
+          counts.set(tierId, (counts.get(tierId) || 0) + 1);
+        }
       }
     }
     return counts;
-  }, [categories, getChatterTierId]);
+  }, [categories, getChatterTierIds]);
 
   // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
   // zählen wir NUR Chatters innerhalb der aktiven Tiers — sonst alle.
@@ -571,11 +585,11 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return categories.map((cat) => ({
       ...cat,
       chatters: cat.chatters.filter((ch) => {
-        const tierId = getChatterTierId(ch);
-        return tierId !== undefined && activeTierFilters.has(tierId);
+        const tierIds = getChatterTierIds(ch);
+        return tierIds.some((tierId) => activeTierFilters.has(tierId));
       }),
     }));
-  }, [categories, activeTierFilters, getChatterTierId]);
+  }, [categories, activeTierFilters, getChatterTierIds]);
 
   const visibleCategories = useMemo(() => {
     let filtered = activeTierFilters.size > 0
