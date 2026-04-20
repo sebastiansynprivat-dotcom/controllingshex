@@ -573,20 +573,12 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   }, [categories, chatterTierMap]);
 
   const visibleCategories = useMemo(() => {
-    let filtered = activeFilters.size === 0
-      ? categories
-      : categories.filter((c) => activeFilters.has(c.categoryName));
+    let filtered = activeTierFilters.size > 0
+      ? tierScopedCategories.filter((cat) => cat.chatters.length > 0)
+      : categories;
 
-    if (activeTierFilters.size > 0) {
-      filtered = filtered
-        .map((cat) => ({
-          ...cat,
-          chatters: cat.chatters.filter((ch) => {
-            const tierId = chatterTierMap.get(normalizeChatterName(ch.name));
-            return tierId !== undefined && activeTierFilters.has(tierId);
-          }),
-        }))
-        .filter((cat) => cat.chatters.length > 0);
+    if (activeFilters.size > 0) {
+      filtered = filtered.filter((c) => activeFilters.has(c.categoryName));
     }
 
     if (activeLabelFilters.size > 0) {
@@ -603,7 +595,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
 
     return filtered;
-  }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, chatterTierMap]);
+  }, [activeFilters, activeLabelFilters, activeTierFilters, categories, chatterLabelsMap, tierScopedCategories]);
 
 
   // Tier-aware Kategorien (für Pill-Counts + Progress-Bar): wenn ein Tier aktiv ist,
