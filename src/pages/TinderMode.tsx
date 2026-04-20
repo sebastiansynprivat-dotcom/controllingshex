@@ -352,13 +352,15 @@ export default function TinderMode() {
           const followerLookup = new Map<string, number>();
           for (const m of modelsRes.data) followerLookup.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
           for (const ch of allChatters) {
-            const acc = (ch.account || "").trim();
-            if (!acc) continue;
-            const followers = followerLookup.get(acc.toLowerCase()) || 0;
+            const accountNames = splitAccounts(ch.account);
+            if (accountNames.length === 0) continue;
+            // Bei Mehrfach-Accounts: Follower aufsummieren, ersten Account als Label nutzen.
+            const followers = accountNames.reduce((sum, name) => sum + (followerLookup.get(name) || 0), 0);
+            const accLabel = accountNames.join(", ");
             const revKey = Object.keys(ch.kpis).find((k) => /umsatz|revenue/i.test(k));
             const revStr = revKey ? ch.kpis[revKey] : "0";
             const rev = parseFloat(revStr.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
-            ch.peerBm = getChatterBenchmark(bundle, acc, followers, rev);
+            ch.peerBm = getChatterBenchmark(bundle, accLabel, followers, rev);
           }
         } catch (err) {
           console.warn("Peer-benchmark load failed:", err);
