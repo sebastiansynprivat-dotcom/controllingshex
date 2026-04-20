@@ -1192,19 +1192,16 @@ export default function TinderMode() {
                 : entry.tierDirection === "downgrade" ? "text-red-300"
                 : "text-foreground/55";
               return (
-                <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full z-30 flex justify-center w-max max-w-[calc(100%-1rem)]">
-                  <div className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md shadow-md ${toneClass}`}>
-                    <Repeat className="h-3 w-3 shrink-0 opacity-80" />
-                    <span className="text-[11px] font-semibold leading-none whitespace-nowrap">
+                <div className="pointer-events-none absolute top-2 right-2 z-30 max-w-[60%]">
+                  <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border backdrop-blur-md shadow-sm ${toneClass}`}>
+                    <Repeat className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                    <span className="text-[10px] font-semibold leading-none whitespace-nowrap">
                       {formatDelta(entry.deltaPct)}
                     </span>
-                    <span className="opacity-40 leading-none">·</span>
                     <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${dirClass}`}>
                       <span>{dirIcon}</span>
-                      <span>{tierDirectionLabel(entry.tierDirection)}</span>
                     </span>
-                    <span className="opacity-40 leading-none">·</span>
-                    <span className="text-[10px] opacity-70 font-normal leading-none whitespace-nowrap">vor {entry.daysSince}T</span>
+                    <span className="text-[10px] opacity-60 font-normal leading-none whitespace-nowrap">{entry.daysSince}T</span>
                   </div>
                 </div>
               );
