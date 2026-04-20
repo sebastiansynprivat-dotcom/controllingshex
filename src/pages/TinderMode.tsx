@@ -21,6 +21,8 @@ import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
+import { loadSwapTracking, formatDelta, deltaTone, type SwapTrackingEntry } from "@/lib/swap-tracking";
+import { Repeat } from "lucide-react";
 
 interface ChatterData {
   name: string;
@@ -126,6 +128,8 @@ export default function TinderMode() {
   const [allLabelAssignments, setAllLabelAssignments] = useState<{ label_id: string; chatter_name: string }[]>([]);
   const [alertChatterNames, setAlertChatterNames] = useState<Set<string>>(new Set());
   const [alertFilterActive, setAlertFilterActive] = useState(false);
+  const [swapTrackingMap, setSwapTrackingMap] = useState<Map<string, SwapTrackingEntry>>(new Map());
+  const [swapTrackFilterActive, setSwapTrackFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -379,6 +383,15 @@ export default function TinderMode() {
     load();
   }, [platform]);
 
+  // Swap-Tracking: Welche Chatter hatten kürzlich einen Account-Wechsel + waren vorher schon aktiv?
+  useEffect(() => {
+    let cancelled = false;
+    loadSwapTracking(platform)
+      .then((map) => { if (!cancelled) setSwapTrackingMap(map); })
+      .catch((err) => console.warn("loadSwapTracking failed:", err));
+    return () => { cancelled = true; };
+  }, [platform]);
+
   // Refresh a single chatter's input info after a logged event
   const refreshInputForChatter = useCallback(async (chatterName: string) => {
     const fresh = await loadLastInputs(platform, [chatterName]);
@@ -479,7 +492,7 @@ export default function TinderMode() {
     });
   }, [chatters]);
 
-  // Filter unchecked chatters by selected category, label, tier, and alerts
+  // Filter unchecked chatters by selected category, label, tier, alerts, swap-tracking
   const uncheckedChatters = useMemo(
     () => {
       let base = chatters.filter((c) => !checkedNames.has(normalizeName(c.name)));
@@ -495,11 +508,14 @@ export default function TinderMode() {
       if (alertFilterActive) {
         base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
       }
+      if (swapTrackFilterActive) {
+        base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
+      }
       const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames]
+    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]
   );
 
   const prefetchedChatters = useMemo(
@@ -515,16 +531,18 @@ export default function TinderMode() {
     if (selectedTier) base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+    if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames]);
+  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (selectedTier) base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+    if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames]);
+  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
@@ -851,9 +869,14 @@ export default function TinderMode() {
         const alertCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && alertChatterNames.has(normalizeName(c.name))
         ).length;
+        const swapTrackCount = chatters.filter(
+          (c) => !checkedNames.has(normalizeName(c.name)) && swapTrackingMap.has(normalizeName(c.name))
+        ).length;
         const allUncheckedCount = chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length;
 
-        const currentValue = alertFilterActive
+        const currentValue = swapTrackFilterActive
+          ? "__swap_track__"
+          : alertFilterActive
           ? "__alerts__"
           : selectedLabelFilter
           ? `label:${selectedLabelFilter}`
@@ -865,7 +888,14 @@ export default function TinderMode() {
         let triggerLabel: React.ReactNode = (
           <span className="text-foreground/60">Alle Chatter <span className="ml-1 text-[10px] opacity-50">{allUncheckedCount}</span></span>
         );
-        if (alertFilterActive) {
+        if (swapTrackFilterActive) {
+          triggerLabel = (
+            <span className="inline-flex items-center gap-1.5 text-cyan-300">
+              <Repeat className="h-3 w-3" /> Nach Wechsel beobachten
+              <span className="ml-1 text-[10px] opacity-60">{swapTrackCount}</span>
+            </span>
+          );
+        } else if (alertFilterActive) {
           triggerLabel = (
             <span className="inline-flex items-center gap-1.5 text-red-400">
               <AlertTriangle className="h-3 w-3" /> Alerts
@@ -903,18 +933,27 @@ export default function TinderMode() {
 
           if (value === "__all__") {
             setAlertFilterActive(false);
+            setSwapTrackFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value === "__alerts__") {
             setAlertFilterActive(true);
+            setSwapTrackFilterActive(false);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(null);
+          } else if (value === "__swap_track__") {
+            setSwapTrackFilterActive(true);
+            setAlertFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value.startsWith("label:")) {
             setAlertFilterActive(false);
+            setSwapTrackFilterActive(false);
             setSelectedCategory(null);
             setSelectedLabelFilter(value.slice(6));
           } else if (value.startsWith("cat:")) {
             setAlertFilterActive(false);
+            setSwapTrackFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(value.slice(4));
           }
@@ -979,6 +1018,20 @@ export default function TinderMode() {
                       </span>
                       {alertCount > 0 && (
                         <span className="ml-1.5 text-[10px] opacity-50">{alertCount}</span>
+                      )}
+                    </SelectItem>
+                  </>
+                )}
+
+                {swapTrackingMap.size > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectItem value="__swap_track__">
+                      <span className="inline-flex items-center gap-1.5 text-cyan-300">
+                        <Repeat className="h-3 w-3" /> Nach Wechsel beobachten
+                      </span>
+                      {swapTrackCount > 0 && (
+                        <span className="ml-1.5 text-[10px] opacity-50">{swapTrackCount}</span>
                       )}
                     </SelectItem>
                   </>
@@ -1117,6 +1170,25 @@ export default function TinderMode() {
                 );
               })}
             </AnimatePresence>
+
+            {/* Swap-Tracking Δ-Badge auf der Top-Card */}
+            {currentChatter && (() => {
+              const entry = swapTrackingMap.get(normalizeName(currentChatter.name));
+              if (!entry) return null;
+              const tone = deltaTone(entry.deltaPct);
+              const toneClass =
+                tone === "pos" ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
+                : tone === "neg" ? "bg-red-500/15 border-red-400/40 text-red-300"
+                : "bg-cyan-500/10 border-cyan-400/30 text-cyan-200";
+              return (
+                <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-30">
+                  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md text-[11px] font-medium ${toneClass}`}>
+                    <Repeat className="h-3 w-3" />
+                    <span>{formatDelta(entry.deltaPct)} seit Wechsel · vor {entry.daysSince}T</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Action panel overlay */}
             {currentChatter && (
