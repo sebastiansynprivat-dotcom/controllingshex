@@ -295,17 +295,3 @@ export function tierDirectionLabel(dir: TierDirection): string {
   }
 }
 
-/** Formatiert Δ% kompakt für Badge: "+18%", "-7%", "·" wenn null */
-export function formatDelta(deltaPct: number | null): string {
-  if (deltaPct === null) return "·";
-  const sign = deltaPct > 0 ? "+" : "";
-  return `${sign}${Math.round(deltaPct)}%`;
-}
-
-/** Tone für Badge je nach Δ. */
-export function deltaTone(deltaPct: number | null): "pos" | "neg" | "neutral" {
-  if (deltaPct === null) return "neutral";
-  if (deltaPct >= 10) return "pos";
-  if (deltaPct <= -10) return "neg";
-  return "neutral";
-}
