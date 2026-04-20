@@ -1192,18 +1192,19 @@ export default function TinderMode() {
                 : entry.tierDirection === "downgrade" ? "text-red-300"
                 : "text-foreground/55";
               return (
-                <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100%-1.5rem)]">
-                  <div className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl border backdrop-blur-md ${toneClass}`}>
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
-                      <Repeat className="h-3 w-3 opacity-80" />
-                      <span>{formatDelta(entry.deltaPct)} seit Wechsel</span>
-                      <span className="opacity-50">·</span>
-                      <span className="opacity-70 font-normal">vor {entry.daysSince}T</span>
-                    </div>
-                    <div className={`inline-flex items-center gap-1 text-[10px] leading-tight ${dirClass}`}>
+                <div className="pointer-events-none absolute top-14 left-3 right-3 z-30 flex justify-center">
+                  <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border backdrop-blur-md shadow-sm ${toneClass} max-w-full`}>
+                    <Repeat className="h-3 w-3 shrink-0 opacity-80" />
+                    <span className="text-[11px] font-semibold leading-none whitespace-nowrap">
+                      {formatDelta(entry.deltaPct)}
+                    </span>
+                    <span className="opacity-40 leading-none">·</span>
+                    <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${dirClass}`}>
                       <span>{dirIcon}</span>
                       <span>{tierDirectionLabel(entry.tierDirection)}</span>
-                    </div>
+                    </span>
+                    <span className="opacity-40 leading-none">·</span>
+                    <span className="text-[10px] opacity-70 font-normal leading-none whitespace-nowrap">vor {entry.daysSince}T</span>
                   </div>
                 </div>
               );
