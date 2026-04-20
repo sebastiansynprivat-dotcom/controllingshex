@@ -503,6 +503,98 @@ export default function TinderMode() {
     });
   }, [rawChatters, recategorizedMap, timeRange.preset]);
 
+  // Derived alerts: for "today" use DB alerts; for windows compute from rangeHistory aggregates.
+  const { alertChatterNames, alertsByChatter } = useMemo(() => {
+    if (timeRange.preset === "today") {
+      return { alertChatterNames: dbAlertChatterNames, alertsByChatter: dbAlertsByChatter };
+    }
+    const set = new Set<string>();
+    const map = new Map<string, { alert_type: string; severity: string; message: string }[]>();
+
+    // Group history by normalized chatter name
+    const byChatter = new Map<string, RangeHistoryRow[]>();
+    for (const h of rangeHistory) {
+      const key = normalizeName(h.chatter_name);
+      if (!byChatter.has(key)) byChatter.set(key, []);
+      byChatter.get(key)!.push(h);
+    }
+
+    const days = rangeDays(timeRange);
+
+    for (const c of rawChatters) {
+      const key = normalizeName(c.name);
+      const rows = byChatter.get(key) || [];
+      if (rows.length === 0) continue;
+
+      const revs = rows.map((r) => r.revenue_today);
+      const sum = revs.reduce((a, b) => a + b, 0);
+      const avgRev = sum / rows.length;
+      const zeroDays = rows.filter((r) => r.revenue_today === 0).length;
+      const zeroRate = zeroDays / rows.length;
+      const maxDelay = rows.reduce((m, r) => Math.max(m, r.response_delay_days || 0), 0);
+
+      // Trend
+      let trend = 0;
+      if (rows.length >= 3 && avgRev > 0) {
+        const n = rows.length;
+        const meanX = (n - 1) / 2;
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+          num += (i - meanX) * (revs[i] - avgRev);
+          den += (i - meanX) ** 2;
+        }
+        const slope = den > 0 ? num / den : 0;
+        trend = (slope * (n - 1)) / avgRev;
+      }
+
+      const alerts: { alert_type: string; severity: string; message: string }[] = [];
+
+      if (zeroRate >= 0.8) {
+        alerts.push({
+          alert_type: "zero_revenue_window",
+          severity: "high",
+          message: `${zeroDays} von ${rows.length} Tagen ohne Umsatz im Fenster (${days}T)`,
+        });
+      } else if (zeroRate >= 0.5) {
+        alerts.push({
+          alert_type: "frequent_zero_days",
+          severity: "medium",
+          message: `${zeroDays} von ${rows.length} Tagen ohne Umsatz (${days}T)`,
+        });
+      }
+
+      if (maxDelay > 3) {
+        alerts.push({
+          alert_type: "response_delay",
+          severity: "high",
+          message: `Antwortverzug bis zu ${maxDelay} Tage im Fenster`,
+        });
+      } else if (maxDelay > 2) {
+        alerts.push({
+          alert_type: "response_delay",
+          severity: "medium",
+          message: `Antwortverzug bis zu ${maxDelay} Tage im Fenster`,
+        });
+      }
+
+      if (trend <= -0.3 && avgRev > 0) {
+        alerts.push({
+          alert_type: "revenue_drop",
+          severity: trend <= -0.5 ? "high" : "medium",
+          message: `Umsatz-Trend ${Math.round(trend * 100)}% über ${days} Tage`,
+        });
+      }
+
+      if (alerts.length > 0) {
+        set.add(key);
+        map.set(key, alerts);
+      }
+    }
+
+    return { alertChatterNames: set, alertsByChatter: map };
+  }, [timeRange, rangeHistory, rawChatters, dbAlertChatterNames, dbAlertsByChatter]);
+
+
   // Map: normalized chatter name → tierIds based on all matched account follower tiers
   const tierIdsByChatter = useMemo(() => {
     const followerMap = new Map<string, number>();
