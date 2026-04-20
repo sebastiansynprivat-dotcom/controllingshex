@@ -1094,35 +1094,61 @@ export default function TinderMode() {
   return (
     <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
       {/* Left: Card area */}
-      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? (mode === "swap" ? "w-full" : "w-1/2 max-w-xl") : "w-full max-w-md mx-auto"}`}>
-      {/* Mode Toggle: Swipe vs Wechsel */}
+      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full max-w-md mx-auto"}`}>
+      {/* Mode Toggle: Swipe / Wechsel / Vergleich */}
       <div className="mb-3 flex p-0.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
-        <button
-          type="button"
-          onClick={() => setMode("swipe")}
-          className={`flex-1 text-xs font-medium py-1.5 rounded-full transition-all ${
-            mode === "swipe"
-              ? "bg-white/[0.08] text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Swipe-Mode
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("swap")}
-          className={`flex-1 text-xs font-medium py-1.5 rounded-full transition-all ${
-            mode === "swap"
-              ? "bg-white/[0.08] text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Wechsel-Mode
-        </button>
+        {([
+          { id: "swipe", label: "Swipe" },
+          { id: "swap", label: "Wechsel" },
+          { id: "compare", label: "Vergleich" },
+        ] as const).map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMode(m.id)}
+            className={`flex-1 text-xs font-medium py-1.5 rounded-full transition-all ${
+              mode === m.id
+                ? "bg-white/[0.08] text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
       </div>
 
       {mode === "swap" ? (
         <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} benchmarks={benchmarkBundle} />
+      ) : mode === "compare" ? (
+        <>
+          {/* Time-Range Selector bleibt sichtbar im Compare-Mode */}
+          <div className="mb-3 flex flex-col gap-1">
+            <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+            {timeRange.preset !== "today" && (
+              <span className="text-[10px] text-muted-foreground/70 px-0.5">
+                Vergleich basiert auf {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tagen"}
+                {rangeLoading && <span className="ml-1 opacity-60">· lädt…</span>}
+              </span>
+            )}
+          </div>
+          <CompareModeView
+            chatters={chatters.map((c) => ({
+              name: c.name,
+              account: c.account,
+              kpis: c.kpis,
+              categoryName: c.categoryName,
+              categoryEmoji: c.categoryEmoji,
+            }))}
+            rangeHistory={rangeHistory}
+            range={timeRange}
+            recategorizedMap={recategorizedMap}
+            labelsByChatter={labelsByChatter}
+            tierIdsByChatter={tierIdsByChatter}
+            alertChatterNames={alertChatterNames}
+            allLabels={allLabels}
+            onChatterClick={(name) => setCompareSlideOverChatter(name)}
+          />
+        </>
       ) : (
       <>
       {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
