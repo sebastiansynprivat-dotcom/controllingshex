@@ -12,8 +12,10 @@
  * Vergleich: Ø Tagesumsatz 3 Tage VOR Swap vs Ø 3 Tage NACH Swap.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { tierForFollowers, ACCOUNT_TIERS, type AccountTierId } from "@/lib/account-tiers";
 
 export type SwapSide = "received" | "gave";
+export type TierDirection = "upgrade" | "downgrade" | "lateral" | "unknown";
 
 export interface SwapTrackingEntry {
   /** Normalisierter Chatter-Name (key für Lookups) */
@@ -28,8 +30,16 @@ export interface SwapTrackingEntry {
   side: SwapSide;
   /** Partner-Chatter im Swap (zur Anzeige) */
   partnerName: string;
-  /** Account, der vergeben/erhalten wurde */
-  accountInvolved: string | null;
+  /** Account, den der Chatter VOR dem Swap hatte (jetzt abgegeben) */
+  oldAccount: string | null;
+  /** Account, den der Chatter NACH dem Swap hat (jetzt erhalten) */
+  newAccount: string | null;
+  /** Tier des alten Accounts (null wenn unbekannt) */
+  oldTier: AccountTierId | null;
+  /** Tier des neuen Accounts (null wenn unbekannt) */
+  newTier: AccountTierId | null;
+  /** Hat der Chatter ein größeres/kleineres Profil bekommen? */
+  tierDirection: TierDirection;
   /** Ø Tagesumsatz 3 Tage VOR dem Swap-Tag (exklusiv Swap-Tag) */
   avgBefore: number;
   /** Ø Tagesumsatz 3 Tage AB Swap-Tag (inklusiv Swap-Tag, falls vorhanden) */
@@ -52,6 +62,11 @@ interface RawSwap {
   model_b: string | null;
   created_at: string;
   status: string;
+}
+
+interface RawModel {
+  model_name: string;
+  follower_count: number | null;
 }
 
 const WINDOW_DAYS = 3;
@@ -126,10 +141,11 @@ export async function loadSwapTracking(
   earliestHistoryDate.setDate(earliestHistoryDate.getDate() - (WINDOW_DAYS + 2));
 
   let swapsRes;
+  let modelsRes;
   let history: RawHistoryRow[];
 
   try {
-    [swapsRes, history] = await Promise.all([
+    [swapsRes, modelsRes, history] = await Promise.all([
       supabase
         .from("swap_decisions")
         .select("id, chatter_a, chatter_b, model_a, model_b, created_at, status")
@@ -137,6 +153,10 @@ export async function loadSwapTracking(
         .eq("status", "approved")
         .gte("created_at", earliestSwapDate.toISOString())
         .order("created_at", { ascending: false }),
+      supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("platform", platform),
       loadHistoryWindow(platform, toIsoDate(earliestHistoryDate)),
     ]);
   } catch (error) {
@@ -148,8 +168,23 @@ export async function loadSwapTracking(
     console.warn("loadSwapTracking swaps:", swapsRes.error.message);
     return result;
   }
+  if (modelsRes.error) {
+    console.warn("loadSwapTracking models:", modelsRes.error.message);
+  }
 
   const swaps = (swapsRes.data || []) as RawSwap[];
+  const models = (modelsRes.data || []) as RawModel[];
+
+  // Tier-Lookup: model_name (lowercased) → AccountTierId
+  const tierByModel = new Map<string, AccountTierId>();
+  for (const m of models) {
+    if (!m.model_name) continue;
+    tierByModel.set(m.model_name.trim().toLowerCase(), tierForFollowers(m.follower_count ?? 0).id);
+  }
+  const lookupTier = (account: string | null): AccountTierId | null => {
+    if (!account) return null;
+    return tierByModel.get(account.trim().toLowerCase()) ?? null;
+  };
 
   // history per normalisiertem Namen → sortierte Liste
   const histByChatter = new Map<string, { date: string; rev: number }[]>();
@@ -163,6 +198,18 @@ export async function loadSwapTracking(
   }
 
   const todayIso = toIsoDate(new Date());
+  const tierRank = new Map<AccountTierId, number>(
+    ACCOUNT_TIERS.map((t, i) => [t.id, i] as const)
+  );
+
+  const directionFor = (oldT: AccountTierId | null, newT: AccountTierId | null): TierDirection => {
+    if (!oldT || !newT) return "unknown";
+    const a = tierRank.get(oldT) ?? -1;
+    const b = tierRank.get(newT) ?? -1;
+    if (b > a) return "upgrade";
+    if (b < a) return "downgrade";
+    return "lateral";
+  };
 
   // Helper: berechne Entry für einen Chatter+Swap. Returns null wenn ungültig.
   const computeEntry = (
@@ -170,7 +217,8 @@ export async function loadSwapTracking(
     swap: RawSwap,
     side: SwapSide,
     partner: string,
-    accountInvolved: string | null
+    oldAccount: string | null,
+    newAccount: string | null
   ): SwapTrackingEntry | null => {
     const key = normalizeName(chatterDisplay);
     const hist = histByChatter.get(key);
@@ -180,21 +228,18 @@ export async function loadSwapTracking(
     const daysSince = daysBetween(swapIso, todayIso);
     if (daysSince < MIN_DAYS_AFTER || daysSince > MAX_DAYS_AFTER) return null;
 
-    // Baseline: Tage strikt vor Swap-Datum, max. WINDOW_DAYS jüngste
-    const before = hist
-      .filter((h) => h.date < swapIso)
-      .slice(-WINDOW_DAYS);
-    if (before.length < 2) return null; // zu wenig Vorgeschichte → ignorieren
+    const before = hist.filter((h) => h.date < swapIso).slice(-WINDOW_DAYS);
+    if (before.length < 2) return null;
 
-    // After: Tage ab Swap-Datum (inklusiv), max. WINDOW_DAYS älteste
-    const after = hist
-      .filter((h) => h.date >= swapIso)
-      .slice(0, WINDOW_DAYS);
+    const after = hist.filter((h) => h.date >= swapIso).slice(0, WINDOW_DAYS);
     if (after.length === 0) return null;
 
     const avgBefore = avg(before.map((h) => h.rev));
     const avgAfter = avg(after.map((h) => h.rev));
     const deltaPct = avgBefore > 0 ? ((avgAfter - avgBefore) / avgBefore) * 100 : null;
+
+    const oldTier = lookupTier(oldAccount);
+    const newTier = lookupTier(newAccount);
 
     return {
       chatterKey: key,
@@ -203,26 +248,23 @@ export async function loadSwapTracking(
       daysSince,
       side,
       partnerName: partner,
-      accountInvolved,
+      oldAccount,
+      newAccount,
+      oldTier,
+      newTier,
+      tierDirection: directionFor(oldTier, newTier),
       avgBefore,
       avgAfter,
       deltaPct,
     };
   };
 
-  // Iteriere absteigend (jüngster zuerst); wer schon im result ist, wird
-  // nicht überschrieben → wir behalten den jüngsten gültigen Swap pro Chatter.
+  // Wechsel-Mode: A gibt model_a ab und bekommt model_b. B gibt model_b ab und bekommt model_a.
   for (const swap of swaps) {
-    // Seite A: gibt model_a ab, bekommt evtl. model_b
-    const entryA = computeEntry(swap.chatter_a, swap, "gave", swap.chatter_b, swap.model_a);
-    if (entryA && !result.has(entryA.chatterKey)) {
-      result.set(entryA.chatterKey, entryA);
-    }
-    // Seite B: bekommt model_a (klassischer "Empfänger" im Wechsel-Mode)
-    const entryB = computeEntry(swap.chatter_b, swap, "received", swap.chatter_a, swap.model_a);
-    if (entryB && !result.has(entryB.chatterKey)) {
-      result.set(entryB.chatterKey, entryB);
-    }
+    const entryA = computeEntry(swap.chatter_a, swap, "gave", swap.chatter_b, swap.model_a, swap.model_b);
+    if (entryA && !result.has(entryA.chatterKey)) result.set(entryA.chatterKey, entryA);
+    const entryB = computeEntry(swap.chatter_b, swap, "received", swap.chatter_a, swap.model_b, swap.model_a);
+    if (entryB && !result.has(entryB.chatterKey)) result.set(entryB.chatterKey, entryB);
   }
 
   return result;
@@ -242,3 +284,14 @@ export function deltaTone(deltaPct: number | null): "pos" | "neg" | "neutral" {
   if (deltaPct <= -10) return "neg";
   return "neutral";
 }
+
+/** Kurz-Label für Tier-Veränderung, z.B. "Größeres Profil" / "Kleineres Profil" */
+export function tierDirectionLabel(dir: TierDirection): string {
+  switch (dir) {
+    case "upgrade": return "Größeres Profil";
+    case "downgrade": return "Kleineres Profil";
+    case "lateral": return "Gleiches Tier";
+    default: return "Profil unbekannt";
+  }
+}
+
