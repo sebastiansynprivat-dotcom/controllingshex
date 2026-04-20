@@ -59,6 +59,7 @@ const WINDOW_DAYS = 3;
 const MIN_DAYS_AFTER = 1;
 /** Wie lange ein Swap überhaupt im Tracking-Bucket bleibt (Tage). */
 const MAX_DAYS_AFTER = 21;
+const HISTORY_PAGE_SIZE = 1000;
 
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
@@ -80,6 +81,31 @@ function avg(nums: number[]): number {
   return nums.reduce((s, n) => s + n, 0) / nums.length;
 }
 
+async function loadHistoryWindow(platform: string, earliestHistoryIso: string): Promise<RawHistoryRow[]> {
+  const allRows: RawHistoryRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today")
+      .eq("platform", platform)
+      .gte("analysis_date", earliestHistoryIso)
+      .order("analysis_date", { ascending: true })
+      .range(from, from + HISTORY_PAGE_SIZE - 1);
+
+    if (error) throw error;
+
+    const rows = (data || []) as RawHistoryRow[];
+    allRows.push(...rows);
+
+    if (rows.length < HISTORY_PAGE_SIZE) break;
+    from += HISTORY_PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
 /**
  * Lädt alle approved Swap-Decisions der letzten 30 Tage und berechnet pro
  * beteiligtem Chatter (beide Seiten!) den Performance-Delta.
@@ -99,30 +125,31 @@ export async function loadSwapTracking(
   const earliestHistoryDate = new Date(earliestSwapDate);
   earliestHistoryDate.setDate(earliestHistoryDate.getDate() - (WINDOW_DAYS + 2));
 
-  const [swapsRes, historyRes] = await Promise.all([
-    supabase
-      .from("swap_decisions")
-      .select("id, chatter_a, chatter_b, model_a, model_b, created_at, status")
-      .eq("platform", platform)
-      .eq("status", "approved")
-      .gte("created_at", earliestSwapDate.toISOString())
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today")
-      .eq("platform", platform)
-      .gte("analysis_date", toIsoDate(earliestHistoryDate))
-      .order("analysis_date", { ascending: true }),
-  ]);
+  let swapsRes;
+  let history: RawHistoryRow[];
 
-  if (swapsRes.error || historyRes.error) {
-    if (swapsRes.error) console.warn("loadSwapTracking swaps:", swapsRes.error.message);
-    if (historyRes.error) console.warn("loadSwapTracking history:", historyRes.error.message);
+  try {
+    [swapsRes, history] = await Promise.all([
+      supabase
+        .from("swap_decisions")
+        .select("id, chatter_a, chatter_b, model_a, model_b, created_at, status")
+        .eq("platform", platform)
+        .eq("status", "approved")
+        .gte("created_at", earliestSwapDate.toISOString())
+        .order("created_at", { ascending: false }),
+      loadHistoryWindow(platform, toIsoDate(earliestHistoryDate)),
+    ]);
+  } catch (error) {
+    console.warn("loadSwapTracking history:", error);
+    return result;
+  }
+
+  if (swapsRes.error) {
+    console.warn("loadSwapTracking swaps:", swapsRes.error.message);
     return result;
   }
 
   const swaps = (swapsRes.data || []) as RawSwap[];
-  const history = (historyRes.data || []) as RawHistoryRow[];
 
   // history per normalisiertem Namen → sortierte Liste
   const histByChatter = new Map<string, { date: string; rev: number }[]>();
