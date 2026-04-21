@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -11,6 +12,14 @@ import {
   type AbsenceForecastInput,
 } from "@/lib/absence-forecast";
 import { cn } from "@/lib/utils";
+
+function PremiumSpinner() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="premium-spinner"><span /><span /><span /></div>
+    </div>
+  );
+}
 
 interface AnalysisChatter { name: string; account?: string }
 interface AnalysisCategory { chatters: AnalysisChatter[] }
@@ -29,11 +38,16 @@ const BAND_META: Record<AbsenceForecast["band"], { label: string; chip: string; 
 function PresenceStrip({ history }: { history: AbsencePoint[] }) {
   const last = history.slice(-21);
   return (
-    <div className="flex items-center gap-[2px]">
+    <div className="flex items-center gap-[3px]">
       {last.map((p, i) => (
         <div
           key={i}
-          className={cn("w-1.5 h-4 rounded-sm", p.present ? "bg-emerald-400/70" : "bg-white/10")}
+          className={cn(
+            "w-1.5 h-4 rounded-[2px] transition-transform",
+            p.present
+              ? "bg-gradient-to-b from-emerald-300/90 to-emerald-500/70 shadow-[0_0_4px_hsl(155_60%_50%/0.4)]"
+              : "bg-gradient-to-b from-white/[0.04] to-black/40 border border-white/[0.04]",
+          )}
           title={`${p.date} — ${p.present ? "anwesend" : "Aussetzer"}`}
         />
       ))}
