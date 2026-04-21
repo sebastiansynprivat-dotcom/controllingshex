@@ -1550,16 +1550,8 @@ export default function TinderMode() {
                     <span className={`text-[11px] font-light tabular-nums leading-none ${accent.value}`}>
                       {formatDelta(entry.deltaPct)}
                     </span>
-                    {entry.tierDirection !== "same" && entry.tierDirection !== null && (
-                      <span
-                        className={`text-[10px] leading-none ${
-                          entry.tierDirection === "upgrade" ? "text-emerald-300/80"
-                          : entry.tierDirection === "downgrade" ? "text-red-300/80"
-                          : "text-white/40"
-                        }`}
-                      >
-                        {entry.tierDirection === "upgrade" ? "↗" : entry.tierDirection === "downgrade" ? "↘" : "→"}
-                      </span>
+                    {dirArrow && (
+                      <span className={`text-[10px] leading-none ${dirColor}`}>{dirArrow}</span>
                     )}
                     <span className="text-[9px] text-white/35 font-light leading-none tabular-nums">{entry.daysSince}T</span>
                   </div>
