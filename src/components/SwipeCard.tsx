@@ -113,18 +113,25 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   const controls = useAnimation();
   const didHandleGestureRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const thresholdCrossedRef = useRef(false);
   const tapCountRef = useRef<number>(0);
   const lastTapTimeRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loginPicker, setLoginPicker] = useState<null | "email" | "password">(null);
-  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const rotate = useTransform(x, [-200, 200], [-12, 12]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
 
-  // Edge-glow opacities (replaces the big overlay text)
-  const edgeRight = useTransform(x, [0, 140], [0, 1]);
-  const edgeLeft = useTransform(x, [-140, 0], [1, 0]);
-  const edgeUp = useTransform(y, [-140, 0], [1, 0]);
-  const edgeDown = useTransform(y, [0, 140], [0, 1]);
+  // Edge-glow opacities — react earlier (100px) for instant feedback
+  const edgeRight = useTransform(x, [0, 100], [0, 1]);
+  const edgeLeft = useTransform(x, [-100, 0], [1, 0]);
+  const edgeUp = useTransform(y, [-100, 0], [1, 0]);
+  const edgeDown = useTransform(y, [0, 100], [0, 1]);
+
+  // Lock-in scale for edge labels — kicks in past 60% of threshold
+  const lockRight = useTransform(x, [60, 120], [0.85, 1.08]);
+  const lockLeft = useTransform(x, [-120, -60], [1.08, 0.85]);
+  const lockUp = useTransform(y, [-120, -60], [1.08, 0.85]);
+  const lockDown = useTransform(y, [60, 120], [0.85, 1.08]);
 
   const accent = useMemo(() => categoryAccent(chatter.categoryName), [chatter.categoryName]);
   const hero = useMemo(() => pickHeroKpi(chatter.kpis), [chatter.kpis]);
