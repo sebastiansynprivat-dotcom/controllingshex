@@ -256,8 +256,9 @@ export default function CompareModeView({
           }}
           onSwipeSkip={() => {
             if (currentA) {
+              // Name ans Ende verschieben — idx bleibt, dort rückt der nächste auf.
+              // So bleibt der skipped am Stapel-Ende für später erreichbar.
               setSkippedA((s) => [...s.filter((n) => n !== currentA.name), currentA.name]);
-              setIdxA((i) => Math.min(i + 1, orderedA.length));
             }
           }}
           onReset={() => { setIdxA(0); setSkippedA([]); setDismissedA(new Set()); }}
@@ -284,7 +285,6 @@ export default function CompareModeView({
           onSwipeSkip={() => {
             if (currentB) {
               setSkippedB((s) => [...s.filter((n) => n !== currentB.name), currentB.name]);
-              setIdxB((i) => Math.min(i + 1, orderedB.length));
             }
           }}
           onReset={() => { setIdxB(0); setSkippedB([]); setDismissedB(new Set()); }}
