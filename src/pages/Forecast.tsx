@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkles, ChevronRight, Target, CheckCircle2, XCircle, CalendarX } from "lucide-react";
+import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkles, ChevronRight, Target, CheckCircle2, XCircle, CalendarX, Brain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RiskBadge } from "@/components/RiskBadge";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { AbsenceForecastPanel, AbsenceBacktestPanel } from "@/components/AbsencePanel";
+import { MLForecastPanel } from "@/components/MLForecastPanel";
 import { loadBenchmarks, findCluster, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import {
   computeRiskScores,
@@ -256,12 +257,21 @@ export default function Forecast() {
               <TabsList className="bg-white/[0.03] border border-white/[0.06]">
                 <TabsTrigger value="forecast">Frühwarnung</TabsTrigger>
                 <TabsTrigger value="absence">Abwesenheit</TabsTrigger>
+                <TabsTrigger value="ml" className="gap-1.5">
+                  <Brain className="h-3 w-3" />
+                  Smart-Modell
+                </TabsTrigger>
                 <TabsTrigger value="backtest">Treffer-Quote</TabsTrigger>
               </TabsList>
 
               {/* ───────── Abwesenheits-Tab ───────── */}
               <TabsContent value="absence" className="space-y-4">
                 <AbsenceForecastPanel />
+              </TabsContent>
+
+              {/* ───────── ML-Tab ───────── */}
+              <TabsContent value="ml" className="space-y-4">
+                <MLForecastPanel />
               </TabsContent>
 
               {/* ───────── Forecast Tab ───────── */}
