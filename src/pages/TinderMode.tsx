@@ -1214,9 +1214,14 @@ export default function TinderMode() {
         const swapTrackCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && swapTrackingMap.has(normalizeName(c.name))
         ).length;
+        const recoveryCount = chatters.filter(
+          (c) => !checkedNames.has(normalizeName(c.name)) && recoveryMap.has(normalizeName(c.name))
+        ).length;
         const allUncheckedCount = chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length;
 
-        const currentValue = swapTrackFilterActive
+        const currentValue = recoveryFilterActive
+          ? "__recovery__"
+          : swapTrackFilterActive
           ? "__swap_track__"
           : alertFilterActive
           ? "__alerts__"
