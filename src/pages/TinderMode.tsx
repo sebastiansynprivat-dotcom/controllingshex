@@ -1329,10 +1329,10 @@ export default function TinderMode() {
               </div>
             )}
             <Select value={currentValue} onValueChange={handleChange}>
-              <SelectTrigger className="w-full bg-white/[0.02] border-white/[0.06] text-sm h-10">
+              <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] text-sm h-10 rounded-xl px-3.5 text-foreground/85 font-light tracking-wide hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180">
                 <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
-              <SelectContent className="max-h-[60vh]">
+              <SelectContent className="max-h-[60vh] premium-card border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl p-1.5 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
                 <SelectItem value="__all__">
                   Alle Chatter
                   <span className="ml-1.5 text-[10px] opacity-50">{allUncheckedCount}</span>
