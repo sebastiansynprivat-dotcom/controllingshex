@@ -84,6 +84,7 @@ export default function Forecast() {
   const [bundle, setBundle] = useState<BenchmarkBundle | null>(null);
   const [openChatter, setOpenChatter] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [includeAbsence, setIncludeAbsence] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,9 +175,11 @@ export default function Forecast() {
           account: ch.account,
           followers,
           history: last7,
+          fullHistory: includeAbsence ? sortedDays : undefined,
           daysSinceStart: ch.daysSinceStart,
           peerMedian: cluster?.median ?? bm.globalMedian ?? null,
           peerP25: cluster?.p25 ?? bm.globalP25 ?? null,
+          includeAbsence,
         });
       }
 
@@ -204,7 +207,7 @@ export default function Forecast() {
           peerP25: cluster?.p25 ?? bm.globalP25 ?? null,
         });
       }
-      const bt = backtest(fullHistMap, meta, 60, 30);
+      const bt = backtest(fullHistMap, meta, 60, 30, includeAbsence);
       if (cancelled) return;
       setBacktestResult(bt);
 
@@ -215,7 +218,7 @@ export default function Forecast() {
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [platform]);
+  }, [platform, includeAbsence]);
 
   const totalEuroAtRisk = useMemo(() => risks.reduce((s, r) => s + r.euroAtRisk, 0), [risks]);
 
