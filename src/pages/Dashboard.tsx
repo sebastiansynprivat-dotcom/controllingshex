@@ -5,6 +5,7 @@ import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import TrendWidget from "@/components/TrendWidget";
 import AlertCockpit from "@/components/AlertCockpit";
+import RecoveryQueueCard from "@/components/RecoveryQueueCard";
 import { ForecastBanner } from "@/components/ForecastBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
@@ -252,6 +253,9 @@ export default function Dashboard() {
                 )}
               </div>
             )}
+
+            {/* Revenue Recovery Queue — Tagesziel mit konkretem €-Hebel */}
+            <RecoveryQueueCard platform={platform} onChatterSelect={setSelectedChatter} />
 
             {/* Forecast-Frühwarnung Banner */}
             <ForecastBanner platform={platform} />
