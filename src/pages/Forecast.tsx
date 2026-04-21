@@ -440,6 +440,13 @@ export default function Forecast() {
                     </p>
                   </>
                 )}
+
+                <div className="pt-6 space-y-3">
+                  <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+                    Abwesenheits-Prognose
+                  </p>
+                  <AbsenceBacktestPanel />
+                </div>
               </TabsContent>
             </Tabs>
           </motion.div>
