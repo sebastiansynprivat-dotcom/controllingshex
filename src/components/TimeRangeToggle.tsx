@@ -53,10 +53,10 @@ export default function TimeRangeToggle({ value, onChange }: Props) {
             type="button"
             onClick={() => handlePreset(p.id)}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border",
+              "px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide transition-all border backdrop-blur-sm",
               isActive
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/80"
+                ? "bg-gradient-to-b from-yellow-400/[0.14] to-yellow-500/[0.06] border-yellow-400/35 text-yellow-200 shadow-[0_0_0_1px_rgba(212,175,55,0.08),0_4px_14px_-6px_rgba(212,175,55,0.35)]"
+                : "bg-white/[0.025] border-white/[0.07] text-white/55 hover:text-foreground/85 hover:bg-white/[0.045] hover:border-white/[0.12]"
             )}
           >
             {p.label}
@@ -69,17 +69,20 @@ export default function TimeRangeToggle({ value, onChange }: Props) {
             variant="ghost"
             size="sm"
             className={cn(
-              "h-auto px-2.5 py-1 rounded-md text-[11px] font-medium border",
+              "h-auto px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide border backdrop-blur-sm transition-all",
               value.preset === "custom"
-                ? "bg-primary/15 border-primary/40 text-primary hover:bg-primary/20"
-                : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/80"
+                ? "bg-gradient-to-b from-yellow-400/[0.14] to-yellow-500/[0.06] border-yellow-400/35 text-yellow-200 hover:bg-yellow-400/[0.18] shadow-[0_0_0_1px_rgba(212,175,55,0.08),0_4px_14px_-6px_rgba(212,175,55,0.35)]"
+                : "bg-white/[0.025] border-white/[0.07] text-white/55 hover:text-foreground/85 hover:bg-white/[0.045] hover:border-white/[0.12]"
             )}
           >
-            <CalendarIcon className="h-3 w-3 mr-1" />
+            <CalendarIcon className="h-3 w-3 mr-1 opacity-70" />
             {customLabel}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent
+          className="w-auto p-0 premium-card border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]"
+          align="start"
+        >
           <Calendar
             mode="range"
             selected={customDateRange as any}
