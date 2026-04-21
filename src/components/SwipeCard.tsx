@@ -113,18 +113,25 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   const controls = useAnimation();
   const didHandleGestureRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const thresholdCrossedRef = useRef(false);
   const tapCountRef = useRef<number>(0);
   const lastTapTimeRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loginPicker, setLoginPicker] = useState<null | "email" | "password">(null);
-  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const rotate = useTransform(x, [-200, 200], [-12, 12]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
 
-  // Edge-glow opacities (replaces the big overlay text)
-  const edgeRight = useTransform(x, [0, 140], [0, 1]);
-  const edgeLeft = useTransform(x, [-140, 0], [1, 0]);
-  const edgeUp = useTransform(y, [-140, 0], [1, 0]);
-  const edgeDown = useTransform(y, [0, 140], [0, 1]);
+  // Edge-glow opacities — react earlier (100px) for instant feedback
+  const edgeRight = useTransform(x, [0, 100], [0, 1]);
+  const edgeLeft = useTransform(x, [-100, 0], [1, 0]);
+  const edgeUp = useTransform(y, [-100, 0], [1, 0]);
+  const edgeDown = useTransform(y, [0, 100], [0, 1]);
+
+  // Lock-in scale for edge labels — kicks in past 60% of threshold
+  const lockRight = useTransform(x, [60, 120], [0.85, 1.08]);
+  const lockLeft = useTransform(x, [-120, -60], [1.08, 0.85]);
+  const lockUp = useTransform(y, [-120, -60], [1.08, 0.85]);
+  const lockDown = useTransform(y, [60, 120], [0.85, 1.08]);
 
   const accent = useMemo(() => categoryAccent(chatter.categoryName), [chatter.categoryName]);
   const hero = useMemo(() => pickHeroKpi(chatter.kpis), [chatter.kpis]);
@@ -146,7 +153,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   const snapBack = useCallback(() => {
     controls.start({
       x: 0, y: 0, rotate: 0, opacity: 1,
-      transition: { type: "spring", stiffness: 400, damping: 28 },
+      transition: { type: "spring", stiffness: 320, damping: 32, mass: 0.8 },
     });
   }, [controls]);
 
@@ -162,7 +169,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
       callback();
       controls.start({
         x: 0, y: 0, rotate: 0, opacity: 1,
-        transition: { type: "spring", stiffness: 400, damping: 28, delay: 0.08 },
+        transition: { type: "spring", stiffness: 320, damping: 32, mass: 0.8, delay: 0.08 },
       });
     });
   }, [controls]);
@@ -184,13 +191,13 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     triggerHaptic("medium");
     didHandleGestureRef.current = true;
     const targets = {
-      right: { x: 500, y: 0, rotate: 20 },
-      down: { x: 0, y: 500, rotate: 0 },
+      right: { x: 560, y: 0, rotate: 22 },
+      down: { x: 0, y: 560, rotate: 0 },
     };
     await controls.start({
       ...targets[direction],
       opacity: 0,
-      transition: { duration: 0.3, ease: "easeIn" },
+      transition: { duration: 0.32, ease: [0.32, 0, 0.67, 0] },
     });
     callback();
   }, [controls]);
@@ -202,6 +209,15 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     const absX = Math.abs(info.offset.x);
     const absY = Math.abs(info.offset.y);
     const isVerticalIntent = absY > absX * 1.1;
+
+    // Haptic notch when crossing the 120px threshold (any direction)
+    const crossed = absX >= 120 || absY >= 120;
+    if (crossed && !thresholdCrossedRef.current) {
+      thresholdCrossedRef.current = true;
+      triggerHaptic("light");
+    } else if (!crossed && thresholdCrossedRef.current) {
+      thresholdCrossedRef.current = false;
+    }
 
     if (info.offset.y < -56 && isVerticalIntent) {
       openDetails();
@@ -265,6 +281,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   }, []);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+    thresholdCrossedRef.current = false;
     if (didHandleGestureRef.current) {
       didHandleGestureRef.current = false;
       isDraggingRef.current = false;
@@ -293,81 +310,101 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     }
   }, [flyOff, snapBack, peekAndReturn, openDetails, onSwipeRight, onSwipeLeft, onSwipeDown]);
 
-  // Severity-based outer ring shadow
+  // Severity-based outer ring shadow — softer breathing
   const severityRing = hasCritical
-    ? "0 0 0 1px rgba(239,68,68,0.25), 0 0 28px -4px rgba(239,68,68,0.35)"
+    ? "0 0 0 1px rgba(239,68,68,0.22), 0 0 32px -4px rgba(239,68,68,0.32)"
     : "";
 
   const baseShadow = isTop
-    ? `0 14px 50px -14px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.07)${severityRing ? `, ${severityRing}` : ""}`
+    ? `0 18px 60px -16px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)${severityRing ? `, ${severityRing}` : ""}`
     : "0 4px 20px -8px rgba(0,0,0,0.4)";
+
+  // Stack-card visibility: depth-hint for card #2 instead of fully invisible
+  const stackBg = stackIndex === 1
+    ? `linear-gradient(165deg, hsl(0 0% 100% / 0.03) 0%, hsl(240 6% 5%) 40%, hsl(240 8% 3%) 100%)`
+    : `
+        radial-gradient(130% 70% at 0% 0%, ${accent.tint} 0%, transparent 55%),
+        radial-gradient(110% 80% at 100% 100%, hsl(${accent.hue} / 0.12) 0%, transparent 60%),
+        linear-gradient(165deg, hsl(0 0% 100% / 0.05) 0%, hsl(240 6% 5%) 38%, hsl(240 8% 3%) 100%)
+      `;
 
   return (
     <motion.div
+      layout={false}
       className={`absolute inset-0 rounded-2xl p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
         ...(isTop
           ? { x, y: displayY, rotate, zIndex: 20, willChange: "transform" }
-          : { scale: stackScale, y: stackOffsetY, opacity: stackOpacity, zIndex: 20 - stackIndex, willChange: "auto" }
+          : { zIndex: 20 - stackIndex, willChange: "auto" }
         ),
-        background: `
-          radial-gradient(130% 70% at 0% 0%, ${accent.tint} 0%, transparent 55%),
-          radial-gradient(110% 80% at 100% 100%, hsl(${accent.hue} / 0.12) 0%, transparent 60%),
-          linear-gradient(165deg, hsl(0 0% 100% / 0.05) 0%, hsl(240 6% 5%) 38%, hsl(240 8% 3%) 100%)
-        `,
+        background: stackBg,
         boxShadow: baseShadow,
         border: "1px solid transparent",
       }}
       drag={isTop}
       dragDirectionLock={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={isTop ? 0.2 : 0}
+      dragElastic={isTop ? 0.32 : 0}
       dragMomentum={false}
+      dragTransition={{ bounceStiffness: 320, bounceDamping: 32 }}
       onDrag={isTop ? handleDrag : undefined}
       onDragEnd={isTop ? handleDragEnd : undefined}
-      animate={isTop ? controls : undefined}
-      initial={false}
-      whileDrag={isTop ? { scale: 1.02 } : undefined}
+      animate={isTop ? controls : (stackIndex === 1 ? { scale: 0.95, y: 8, opacity: 0.42 } : { scale: 0.92, y: 14, opacity: 0 })}
+      initial={isTop ? { scale: 0.96, opacity: 0 } : false}
+      transition={isTop ? { type: "spring", stiffness: 320, damping: 32, mass: 0.8 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      whileDrag={isTop ? { scale: 1.035, boxShadow: `0 28px 80px -18px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1)${severityRing ? `, ${severityRing}` : ""}` } : undefined}
+      whileTap={isTop ? { scale: 0.992 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
     >
-      {/* Static accent border — dezent, einheitlich */}
-      <div
-        className="pointer-events-none absolute inset-0 rounded-2xl"
-        style={{
-          border: `1px solid hsl(${accent.hue} / ${isTop ? 0.18 : 0.08})`,
-        }}
-      />
-
-      {/* Top accent line — single visual anchor for category */}
+      {/* Premium top highlight — 1px light edge */}
       {isTop && (
         <div
           aria-hidden
-          className="pointer-events-none absolute top-0 left-6 right-6 h-px rounded-full"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
           style={{
-            background: `linear-gradient(to right, transparent 0%, hsl(${accent.hue} / 0.6) 50%, transparent 100%)`,
-            boxShadow: `0 0 12px hsl(${accent.hue} / 0.4)`,
+            background: "linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.14) 50%, transparent 100%)",
           }}
         />
       )}
 
-      {/* Severity pulse — only when critical alerts present (functional, not decorative) */}
+      {/* Static accent border — verstärkt */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl"
+        style={{
+          border: `1px solid hsl(${accent.hue} / ${isTop ? 0.28 : 0.08})`,
+          boxShadow: isTop ? `inset 0 0 24px hsl(${accent.hue} / 0.06)` : undefined,
+        }}
+      />
+
+      {/* Top accent line — gradient with inner glow */}
+      {isTop && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-0 left-6 right-6 h-[1.5px] rounded-full"
+          style={{
+            background: `linear-gradient(to right, transparent 0%, hsl(${accent.hue} / 0.85) 50%, transparent 100%)`,
+            boxShadow: `0 0 16px hsl(${accent.hue} / 0.55), 0 0 32px hsl(${accent.hue} / 0.25)`,
+          }}
+        />
+      )}
+
+      {/* Severity pulse — softer, slower breathing */}
       {isTop && hasCritical && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-2xl"
-          animate={{ opacity: [0.2, 0.45, 0.2] }}
-          transition={{ duration: 2.8, ease: "easeInOut", repeat: Infinity }}
+          animate={{ opacity: [0.18, 0.42, 0.18] }}
+          transition={{ duration: 3.4, ease: [0.4, 0, 0.6, 1], repeat: Infinity }}
           style={{
-            boxShadow: "inset 0 0 0 1px rgba(239,68,68,0.3), inset 0 0 24px rgba(239,68,68,0.14)",
+            boxShadow: "inset 0 0 0 1px rgba(239,68,68,0.28), inset 0 0 28px rgba(239,68,68,0.13)",
           }}
         />
       )}
 
       {isTop && (
         <>
-          {/* Edge-glow swipe indicators — elegant alternative to overlay text */}
           <motion.div
             className="absolute inset-y-0 right-0 w-20 rounded-r-2xl pointer-events-none z-10"
             style={{
@@ -376,7 +413,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               boxShadow: "inset -1px 0 0 rgba(16,185,129,0.6)",
             }}
           >
-            <motion.div className="absolute top-3 right-3 text-emerald-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeRight }}>
+            <motion.div className="absolute top-3 right-3 text-emerald-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeRight, scale: lockRight }}>
               ✓ OK
             </motion.div>
           </motion.div>
@@ -388,7 +425,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               boxShadow: "inset 1px 0 0 rgba(239,68,68,0.6)",
             }}
           >
-            <motion.div className="absolute top-3 left-3 text-red-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeLeft }}>
+            <motion.div className="absolute top-3 left-3 text-red-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeLeft, scale: lockLeft }}>
               ✗ Aktion
             </motion.div>
           </motion.div>
@@ -400,7 +437,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               boxShadow: "inset 0 1px 0 rgba(59,130,246,0.6)",
             }}
           >
-            <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-blue-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeUp }}>
+            <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-blue-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeUp, scale: lockUp }}>
               ↑ Details
             </motion.div>
           </motion.div>
@@ -413,7 +450,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                 boxShadow: "inset 0 -1px 0 rgba(245,158,11,0.6)",
               }}
             >
-              <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-amber-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeDown }}>
+              <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-amber-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeDown, scale: lockDown }}>
                 ↓ Skip
               </motion.div>
             </motion.div>
@@ -426,10 +463,10 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {/* Category badge + start date */}
         <div className="flex items-center justify-between">
           <div
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
+            className="premium-chip flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
             style={{
-              borderColor: `hsl(${accent.hue} / 0.25)`,
-              background: `hsl(${accent.hue} / 0.08)`,
+              borderColor: `hsl(${accent.hue} / 0.32)`,
+              background: `linear-gradient(180deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.06) 100%)`,
             }}
           >
             <span className="text-[11px] leading-none">{chatter.categoryEmoji || "📊"}</span>
@@ -450,14 +487,15 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {/* Avatar + Name */}
         <div className="flex items-center gap-2.5">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide relative overflow-hidden"
             style={{
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.22) 0%, hsl(${accent.hue} / 0.06) 100%)`,
-              color: `hsl(${accent.hue} / 0.9)`,
-              border: `1px solid hsl(${accent.hue} / 0.18)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.26) 0%, hsl(${accent.hue} / 0.06) 100%)`,
+              color: `hsl(${accent.hue} / 0.95)`,
+              border: `1px solid hsl(${accent.hue} / 0.24)`,
+              boxShadow: `inset 0 1px 0 hsl(0 0% 100% / 0.08), 0 0 18px -4px hsl(${accent.hue} / 0.35)`,
             }}
           >
-            {initials}
+            <span className="relative z-[1]">{initials}</span>
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold text-foreground capitalize leading-tight truncate">
@@ -560,30 +598,30 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {/* Hero KPI — single visual anchor, ruhiger Glow */}
         {hero && (
           <div
-            className="rounded-xl px-3 py-2.5 border relative overflow-hidden"
+            className="rounded-xl px-3 py-2.5 border relative overflow-hidden premium-stat"
             style={{
-              borderColor: `hsl(${accent.hue} / 0.22)`,
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.12) 0%, hsl(${accent.hue} / 0.03) 100%)`,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05)`,
+              borderColor: `hsl(${accent.hue} / 0.28)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.03) 100%)`,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px -10px hsl(${accent.hue} / 0.35)`,
             }}
           >
-            {/* Subtle shine sweep — selten, dezent */}
+            {/* Subtle shine sweep — sehr selten, dezent */}
             {isTop && (
               <motion.div
                 aria-hidden
                 className="absolute inset-0 pointer-events-none"
                 initial={{ x: "-120%" }}
                 animate={{ x: "120%" }}
-                transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity, repeatDelay: 7 }}
+                transition={{ duration: 2.6, ease: "easeInOut", repeat: Infinity, repeatDelay: 12 }}
                 style={{
-                  background: "linear-gradient(105deg, transparent 42%, rgba(255,255,255,0.07) 50%, transparent 58%)",
+                  background: "linear-gradient(105deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%)",
                 }}
               />
             )}
-            <p className="text-[9px] uppercase tracking-[0.2em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
+            <p className="text-[9px] uppercase tracking-[0.22em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
               {hero.key}
             </p>
-            <p className="text-[26px] font-bold text-foreground leading-none relative z-[1] mt-1 tracking-tight">
+            <p className="text-[30px] font-extralight text-foreground leading-none relative z-[1] mt-1 tracking-tighter">
               {hero.value}
             </p>
           </div>
@@ -593,7 +631,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {kpiEntries.length > 0 && (
           <div className="grid grid-cols-2 gap-1.5">
             {kpiEntries.slice(0, 4).map(([key, value]) => (
-              <div key={key} className="bg-white/[0.025] border border-white/[0.04] rounded-md px-2 py-1.5">
+              <div key={key} className="premium-stat rounded-md px-2 py-1.5 transition-colors hover:bg-white/[0.04]">
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{key}</p>
                 <p className="text-[13px] font-medium text-foreground leading-tight">{value}</p>
               </div>
