@@ -64,16 +64,34 @@ function Sparkline({ values, band }: { values: number[]; band: RiskScore["band"]
   const min = Math.min(...values, 0);
   const range = max - min || 1;
   const w = 64, h = 24;
-  const pts = values.map((v, i) => {
+  const coords = values.map((v, i) => {
     const x = (i / (values.length - 1)) * w;
     const y = h - ((v - min) / range) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const stroke = band === "critical" ? "hsl(0 80% 60%)" : band === "high" ? "hsl(25 90% 55%)" : band === "medium" ? "hsl(45 90% 55%)" : "hsl(155 60% 45%)";
+    return [x, y] as const;
+  });
+  const linePts = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const areaPts = `0,${h} ${linePts} ${w},${h}`;
+  const stroke = band === "critical" ? "hsl(0 80% 62%)" : band === "high" ? "hsl(25 90% 58%)" : band === "medium" ? "hsl(45 90% 58%)" : "hsl(155 60% 50%)";
+  const gradId = `spark-${band}`;
   return (
     <svg width={w} height={h} className="overflow-visible">
-      <polyline points={pts} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPts} fill={`url(#${gradId})`} />
+      <polyline points={linePts} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+function PremiumSpinner() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="premium-spinner"><span /><span /><span /></div>
+    </div>
   );
 }
 
