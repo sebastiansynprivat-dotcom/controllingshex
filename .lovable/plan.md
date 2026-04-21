@@ -1,81 +1,59 @@
 
 
-# Forecast Cockpit — Vorhersagen statt Reagieren
+# Premium-Polish für die Frühwarnungs-Karten
 
-## Das Kern-Problem
+Ziel: Alle Karten unter `/forecast` (Frühwarnung, Abwesenheit, Smart-Modell, Treffer-Quote) sollen sich optisch und haptisch wie eine echte Premium-Software anfühlen — nicht wie ein Standard-Tailwind-Dashboard. Es geht um Tiefe, Materialität, Mikro-Animationen und subtile Gold-Akzente, die bereits im Design-System (`index.css` → `glass-card`, `gold-glow`, `bg-depth`) angelegt aber bisher nicht genutzt werden.
 
-Dein Dashboard ist **100% reaktiv**. Anomaly-Alerts triggern *nachdem* der Chatter eingebrochen ist. Leaderboard zeigt vergangenen Umsatz. Compare-Mode hilft nur, wenn du *schon weißt* dass jemand schwächelt. Du hast 9 Tage saubere History pro Chatter, Skill-Score, Peer-Median und Disziplin-Metriken — aber **kein einziges Feature nutzt diese Daten, um den nächsten Tag vorherzusagen**.
+## Was sich ändert (visuell)
 
-Das ist die Lücke. Ein guter Controlling-Manager fragt nicht *"wer war schlecht?"* — er fragt *"wer wird in 2 Tagen schlecht?"*.
+**Tiefe & Material**
+- Karten bekommen echte Glass-Optik: `backdrop-blur(32px)` + dezenter Innen-Glow + 1px-Highlight oben (simuliert Lichtkante)
+- Statt flachem `bg-white/[0.02]` → **Gradient-Layer**: oben heller, unten tiefer schwarz (verleiht physikalisches Gewicht)
+- Kritische/Akute Karten bekommen einen sanft pulsierenden Rand-Glow in der jeweiligen Band-Farbe (rot/orange) — kein hektisches Blinken, sondern atmend (3s)
 
-## Die Lösung: Risk-Forecast pro Chatter (nächste 3 Tage)
+**Hierarchie**
+- Score-Badges (`RiskBadge`, Abwesenheits-%) werden zu echten "Chips" mit Tiefe: Inset-Shadow + Outline-Glow in Bandfarbe statt flacher Border
+- Sparklines bekommen einen weichen Verlauf (Fill unter der Linie mit 8 % Opacity in Bandfarbe) statt nur 1.5px Stroke
+- Tabellen-Header (`uppercase`-Labels) in Gold-Subtle statt Weiß-70
 
-Eine neue Seite `/forecast` (Sidebar: **„Frühwarnung"**) die für jeden aktiven Chatter einen **Risk-Score 0–100** für die nächsten 1–3 Tage berechnet — bevor irgendwas passiert.
+**Hover & Mikro-Interaktion**
+- Karten heben sich beim Hover leicht an: `translateY(-1px)` + verstärkter Glow + Border-Color geht 200 ms zur Bandfarbe
+- Klick auf Karte: kurzer Scale-Pulse (0.98 → 1) als haptisches Feedback (160 ms, ease-out)
+- Chevron rotiert mit `cubic-bezier(0.16, 1, 0.3, 1)` statt linear → fühlt sich teurer an
+- Expand-Bereich (Signal-Breakdown) faltet sich mit `framer-motion` `AnimatePresence` smooth auf — heute springt er einfach rein
+- Signal-Pills im aufgeklappten Bereich: Stagger-Animation (jede Pill fadet 30 ms versetzt ein)
 
-### Was geht in den Risk-Score (alle Daten existieren bereits)
+**Premium-Details**
+- Tabs (Frühwarnung / Abwesenheit / Smart-Modell / Treffer-Quote): aktiver Tab bekommt Gold-Underline statt graues Background — wie iOS Settings
+- KPI-Stat-Karten (Vorhersagen / Treffer / Trefferquote): Zahlen in `font-extralight` mit leichtem Gold-Gradient-Text bei "Trefferquote", Icon oben rechts in Glas-Pill
+- Presence-Strip (21-Tage-Anwesenheit): aus harten Blöcken werden abgerundete "Pillen" mit dezentem Gradient (anwesend = emerald-Verlauf, Aussetzer = matte schwarze Glaspille)
+- Live-Predictions / Backtest-Listen: Zeilen bekommen Hover-State mit Gold-Akzent-Linie links (3px, scale-y 0 → 1)
+- ML-Weight-Bars: aus flachem `bg-orange-400/70` wird ein Gradient (orange-400 → orange-500) mit 12 % Glow rechts vom Bar-Ende
 
-| Signal | Quelle | Logik |
-|---|---|---|
-| **Trend-Slope Revenue** | `chatter_history.revenue_today` letzte 7 Tage | Linear-Regression-Steigung. Negative Slope >15%/Tag = Risiko ↑ |
-| **Verzug-Drift** | `response_delay_days` letzte 7 Tage | Steigt von 0→1→2 Tagen = klassischer Vor-Crash-Indikator |
-| **Mass-DM-Verfall** | `mass_dms` letzte 7 Tage | Disziplin-Frühindikator. Drop vor Revenue-Drop, meist 2–3 Tage Vorlauf |
-| **Chat-Stau-Wachstum** | `open_chats` Slope | Backlog wächst = Chatter verliert Kontrolle |
-| **Peer-Gap-Trend** | Skill-Score vs. Peer-Cluster-Median | Driftet unter Cluster-P25 = strukturelles Problem |
-| **Onboarding-Phase** | `startDate` < 14 Tage | Boost +20 — neue Chatter sind volatil per Definition |
-| **Account-Tier-Mismatch** | Skill-Score niedrig + High-Tier-Account | Schon im Swap-Score, hier als *passive* Warnung statt aktivem Vorschlag |
+**Loading-State**
+- Spinner ersetzt durch ein dezentes 3-Punkt-Pulsing (Apple-Style) in Gold
+- Skeleton-Karten beim ersten Lade-Vorgang statt leerer Spinner-Fläche → fühlt sich sofort lebendig an
 
-Gewichteter Composite (z.B. 30/25/15/10/10/5/5) → 0–100. Schwelle ≥60 = **„wird wahrscheinlich crashen"**.
+## Technisch
 
-### Was du auf der Seite siehst
+**Neue Tailwind-Utilities** in `src/index.css`:
+- `.premium-card` — Glas-Layer + oberes 1px-Highlight + sanfter Inset-Shadow
+- `.premium-card-hover` — `translateY(-1px) + box-shadow` Übergang
+- `.glow-band-{critical,warning,low,...}` — atmender Rand-Glow per `@keyframes`
+- `.gold-underline` — Tab-Active-Indicator
+- `@keyframes breathe` — 3s ease-in-out infinite für die Glow-Pulse
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ FRÜHWARNUNG · 7 Chatter mit Risk ≥60 für die nächsten 3 Tage│
-├─────────────────────────────────────────────────────────────┤
-│ 🔴 87  Niklas La        Revenue-Slope -42%/d, Verzug 0→2    │
-│        Hauptursache: Mass-DMs eingebrochen (Disziplin-Drop) │
-│        Prognose: Crash in ~2 Tagen, ~180€/Tag gefährdet     │
-│        [Coachen] [Notiz] [Snooze 3d]                        │
-├─────────────────────────────────────────────────────────────┤
-│ 🟠 72  Marie Klein      Peer-Gap wächst, Chat-Stau +60%     │
-│ 🟡 64  Tim Berger       Onboarding Tag 4, instabile KPIs    │
-│ ...                                                          │
-└─────────────────────────────────────────────────────────────┘
-```
+**Editierte Dateien**:
+- `src/index.css` — neue Utilities + Keyframes (`breathe`, `gold-underline-grow`, `pulse-dot`)
+- `src/components/RiskBadge.tsx` — Inset-Shadow, Bandfarben-Glow, optional `pulse` für critical
+- `src/components/AbsencePanel.tsx` — Premium-Karten, neue Presence-Pillen, Stagger-Expand, KPI-Karten mit Gradient-Zahlen
+- `src/components/MLForecastPanel.tsx` — Premium-StatCards, Weight-Bar-Gradient, Tabellen-Hover-Akzent
+- `src/pages/Forecast.tsx` — Premium-Karten in Risk-Liste, Tab-Underline-Style, Sparkline mit Fill, AnimatePresence für Expand, Stat-Banner mit Gold-Gradient
+- Sparkline-Komponente um optionales `<linearGradient>` + `<polygon>`-Fill ergänzen
 
-Jede Zeile **muss** zwei Dinge liefern, sonst ist es Bullshit:
-
-1. **Den Hauptgrund in einem Satz** (welches Signal hat am stärksten gefeuert)
-2. **Die geschätzte Geld-Auswirkung in €** (Slope × verbleibende Tage × current avg)
-
-### Backtesting-View (Vertrauen aufbauen)
-
-Ein zweiter Tab **„Treffer-Quote"** der zeigt:
-> *„Von 23 Risk-≥60-Warnungen letzte Woche sind 18 tatsächlich eingetreten (78%)."*
-
-Berechnet rückwirkend gegen `chatter_history` — du siehst sofort ob das Modell taugt oder nur Lärm produziert. Ohne diese Validierung würdest du dem Score nicht trauen, und das wäre richtig so.
-
-### Wo es im Flow integriert wird
-
-- **Dashboard:** Schmaler roter Streifen oben *„3 Chatter mit hohem Crash-Risiko in den nächsten 3 Tagen"* → Klick öffnet `/forecast`
-- **Tinder/Compare:** Risk-Pill auf jeder Karte (kleiner roter Dot mit Score), damit du beim Triagen direkt siehst wer kippt
-- **Slide-Over:** Forecast-Block mit den 7 Signalen als Mini-Sparklines
-
-## Warum genau das
-
-- **Nicht gamifiziert** — kein Streak, kein Badge, keine Punkte. Reines Controlling.
-- **Nicht „noch ein Filter"** — generiert *neue Information* aus vorhandenen Daten.
-- **Vollständig client-side berechenbar** — keine neue Edge Function, keine neue Tabelle, keine API-Kosten. Backtest läuft on-the-fly über die 9 Tage History die du schon hast.
-- **Wird mit jedem Report besser** — je mehr History, desto präziser die Slope-Schätzungen und Backtest-Quoten.
-- **Direkter ROI** — jeder verhinderte Crash ist barer Umsatz. Du sagst selbst, dass deine Compare/Swap-Tools nur greifen wenn du weißt *wo* du hingucken sollst. Das hier sagt's dir.
-
-## Technische Skizze
-
-- Neue Datei `src/lib/risk-forecast.ts` — pure Funktion `computeRiskScores(chatters, history, benchmarks): RiskScore[]`
-- Neue Seite `src/pages/Forecast.tsx` mit Liste + Backtest-Tab
-- Neue Komponente `src/components/RiskBadge.tsx` für die Pill (in Tinder/Compare/Slide-Over wiederverwendet)
-- Sidebar-Eintrag `Frühwarnung` mit `AlertOctagon`-Icon zwischen Dashboard und Videocoaching
-- Backtest: für jeden Tag T in History → Risk berechnen mit Daten bis T-1 → vergleichen mit was an T+1..T+3 *tatsächlich* passiert ist (Revenue-Drop ≥30% = "Hit")
-
-Keine DB-Migration nötig. Kein neues Secret. Keine Edge Function (Phase 1).
+**Was nicht passiert**
+- Keine Logik-Änderung (Risk-Engine, ML, Abwesenheits-Forecast bleiben 1:1)
+- Keine neuen Datenfelder, keine DB-Migration
+- Keine Performance-Regression (alle Animationen via CSS-Transform / Opacity → GPU-beschleunigt)
+- Keine erhöhte Render-Komplexität (`framer-motion` ist schon im Projekt)
 
