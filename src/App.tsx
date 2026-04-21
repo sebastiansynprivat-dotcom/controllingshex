@@ -16,6 +16,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import Notes from "@/pages/Notes";
 import TinderMode from "@/pages/TinderMode";
 import Forecast from "@/pages/Forecast";
+import AbsenceForecastPage from "@/pages/AbsenceForecast";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
@@ -47,6 +48,7 @@ const AppRoutes = () => (
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/forecast" element={<Forecast />} />
+              <Route path="/absence" element={<AbsenceForecastPage />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/videocoaching" element={<Videocoaching />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
