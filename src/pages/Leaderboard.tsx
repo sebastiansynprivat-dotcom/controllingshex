@@ -382,22 +382,29 @@ export default function Leaderboard() {
                     }}
                     onClick={() => setSelectedChatter(entry.name)}
                     className={cn(
-                      "premium-card premium-card-interactive flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer",
-                      isTopThree && `bg-gradient-to-r ${medalColors[i]}`,
+                      "premium-card premium-card-interactive flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer relative",
+                      i === 0 && "glow-band-gold",
+                      i === 1 && "glow-band-silver",
+                      i === 2 && "glow-band-bronze",
                     )}
                   >
                     {/* Rank */}
-                    <span
-                      className={cn(
-                        "w-7 text-center text-base font-extralight tracking-tight shrink-0 tabular-nums",
-                        i === 0 && "text-yellow-400",
-                        i === 1 && "text-gray-300",
-                        i === 2 && "text-amber-600",
-                        i > 2 && "text-white/35",
+                    <div className="w-8 flex items-center justify-center shrink-0">
+                      {i === 0 ? (
+                        <Crown className="h-4 w-4 text-yellow-400" style={{ filter: 'drop-shadow(0 0 8px hsl(45 90% 60% / 0.6))' }} />
+                      ) : (
+                        <span
+                          className={cn(
+                            "text-base font-extralight tracking-tight tabular-nums",
+                            i === 1 && "text-gray-300",
+                            i === 2 && "text-amber-600",
+                            i > 2 && "text-white/35",
+                          )}
+                        >
+                          {i + 1}
+                        </span>
                       )}
-                    >
-                      {i + 1}
-                    </span>
+                    </div>
 
                     {/* Rank delta indicator */}
                     <div className="w-9 shrink-0 flex items-center justify-center">
