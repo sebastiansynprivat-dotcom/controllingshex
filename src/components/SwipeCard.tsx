@@ -669,6 +669,33 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                   </div>
                 );
               })()}
+              {recoveryDelta && (() => {
+                const eur = Math.round(recoveryDelta.recoveryEur);
+                const pct = Math.round(recoveryDelta.gapPct * 100);
+                const fmt = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(eur);
+                return (
+                  <div
+                    className="shrink-0 rounded-lg border px-2 py-1.5 backdrop-blur-md text-right"
+                    style={{
+                      borderColor: "hsl(38 92% 60% / 0.22)",
+                      background: "linear-gradient(135deg, hsl(38 92% 55% / 0.10) 0%, rgba(0,0,0,0.35) 100%)",
+                      boxShadow: "0 4px 14px -6px hsl(38 92% 50% / 0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    <div className="flex items-center justify-end gap-1 leading-none">
+                      <span className="text-[8px] uppercase tracking-[0.18em] text-amber-300/70 font-medium">Recovery</span>
+                    </div>
+                    <div className="flex items-baseline justify-end gap-1 mt-1">
+                      <span className="text-[13px] font-light tabular-nums leading-none text-amber-200">
+                        +{fmt} €
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-white/40 font-light leading-none mt-1 tabular-nums text-right">
+                      −{pct}% v. Ø
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
