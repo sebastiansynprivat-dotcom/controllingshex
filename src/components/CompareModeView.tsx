@@ -187,15 +187,17 @@ export default function CompareModeView({
     setCompareDialogOpen(true);
   }, []);
 
-  // Render-Reihenfolge: nicht-skipped zuerst, dann skipped am Ende
+  // Render-Reihenfolge: dismissed komplett raus, dann nicht-skipped, dann skipped am Ende
   const orderedA = useMemo(() => {
+    const visible = stackA.filter((c) => !dismissedA.has(c.name));
     const skip = new Set(skippedA);
-    return [...stackA.filter((c) => !skip.has(c.name)), ...stackA.filter((c) => skip.has(c.name))];
-  }, [stackA, skippedA]);
+    return [...visible.filter((c) => !skip.has(c.name)), ...visible.filter((c) => skip.has(c.name))];
+  }, [stackA, skippedA, dismissedA]);
   const orderedB = useMemo(() => {
+    const visible = stackB.filter((c) => !dismissedB.has(c.name));
     const skip = new Set(skippedB);
-    return [...stackB.filter((c) => !skip.has(c.name)), ...stackB.filter((c) => skip.has(c.name))];
-  }, [stackB, skippedB]);
+    return [...visible.filter((c) => !skip.has(c.name)), ...visible.filter((c) => skip.has(c.name))];
+  }, [stackB, skippedB, dismissedB]);
 
   const currentA = orderedA[idxA];
   const currentB = orderedB[idxB];
@@ -240,14 +242,25 @@ export default function CompareModeView({
           enrichedMap={enrichedByName}
           stackLength={orderedA.length}
           idx={idxA}
-          onSwipeNext={() => setIdxA((i) => Math.min(i + 1, orderedA.length))}
+          dismissedCount={dismissedA.size}
+          onSwipeDismiss={() => {
+            if (currentA) {
+              const name = currentA.name;
+              setDismissedA((d) => {
+                const next = new Set(d);
+                next.add(name);
+                return next;
+              });
+              // idx bleibt — der nächste Chatter rückt an dieselbe Stelle
+            }
+          }}
           onSwipeSkip={() => {
             if (currentA) {
               setSkippedA((s) => [...s.filter((n) => n !== currentA.name), currentA.name]);
               setIdxA((i) => Math.min(i + 1, orderedA.length));
             }
           }}
-          onReset={() => { setIdxA(0); setSkippedA([]); }}
+          onReset={() => { setIdxA(0); setSkippedA([]); setDismissedA(new Set()); }}
           onTap={handleCardSingleClick}
           onDoubleTap={handleCardDoubleClick}
         />
@@ -257,14 +270,24 @@ export default function CompareModeView({
           enrichedMap={enrichedByName}
           stackLength={orderedB.length}
           idx={idxB}
-          onSwipeNext={() => setIdxB((i) => Math.min(i + 1, orderedB.length))}
+          dismissedCount={dismissedB.size}
+          onSwipeDismiss={() => {
+            if (currentB) {
+              const name = currentB.name;
+              setDismissedB((d) => {
+                const next = new Set(d);
+                next.add(name);
+                return next;
+              });
+            }
+          }}
           onSwipeSkip={() => {
             if (currentB) {
               setSkippedB((s) => [...s.filter((n) => n !== currentB.name), currentB.name]);
               setIdxB((i) => Math.min(i + 1, orderedB.length));
             }
           }}
-          onReset={() => { setIdxB(0); setSkippedB([]); }}
+          onReset={() => { setIdxB(0); setSkippedB([]); setDismissedB(new Set()); }}
           onTap={handleCardSingleClick}
           onDoubleTap={handleCardDoubleClick}
         />
