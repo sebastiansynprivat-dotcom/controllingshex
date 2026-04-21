@@ -1526,9 +1526,15 @@ export default function TinderMode() {
                 tone === "pos" ? { text: "text-emerald-200", value: "text-emerald-300", icon: "text-emerald-300/80", glow: "rgba(16,185,129,0.18)" }
                 : tone === "neg" ? { text: "text-red-200", value: "text-red-300", icon: "text-red-300/80", glow: "rgba(239,68,68,0.18)" }
                 : { text: "text-foreground/75", value: "text-foreground/85", icon: "text-white/55", glow: "rgba(255,255,255,0.08)" };
-              const DirIcon =
-                entry.tierDirection === "upgrade" ? TrendingDown // placeholder, replaced below
+              const dirArrow =
+                entry.tierDirection === "upgrade" ? "↗"
+                : entry.tierDirection === "downgrade" ? "↘"
+                : entry.tierDirection === "lateral" ? "→"
                 : null;
+              const dirColor =
+                entry.tierDirection === "upgrade" ? "text-emerald-300/80"
+                : entry.tierDirection === "downgrade" ? "text-red-300/80"
+                : "text-white/40";
               return (
                 <div className="pointer-events-none absolute bottom-3 left-3 z-30 max-w-[calc(100%-1.5rem)]">
                   <div
