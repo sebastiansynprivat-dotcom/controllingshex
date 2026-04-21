@@ -1346,7 +1346,7 @@ export default function TinderMode() {
               </div>
             )}
             <Select value={currentValue} onValueChange={handleChange}>
-              <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] text-sm min-h-10 h-auto py-2 rounded-xl px-3.5 text-foreground/85 font-light tracking-wide hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180 [&>span]:!line-clamp-none [&>span]:whitespace-normal [&>span]:text-left">
+              <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] h-auto py-2 rounded-lg px-3 hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180 [&>span]:!line-clamp-none [&>span]:whitespace-normal [&>span]:text-left [&>span]:flex-1">
                 <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-[60vh] premium-card border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl p-1.5 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
