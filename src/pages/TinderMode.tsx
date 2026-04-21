@@ -23,6 +23,7 @@ import { mapToActionCategory } from "@/lib/action-categories";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
+import { loadRecoveryHistory, computeRecoveryQueue, type RecoveryEntry } from "@/lib/recovery-queue";
 import { Repeat } from "lucide-react";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import {
