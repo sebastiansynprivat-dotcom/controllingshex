@@ -39,6 +39,7 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
   const activeCount = useMemo(() => {
     let n = 0;
     if (filter.tiers.length) n++;
+    if (filter.followerRange) n++;
     if (filter.categories.length) n++;
     if (filter.labelIds.length) n++;
     if (filter.revToday) n++;
@@ -70,6 +71,11 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
       pills.push(`📅${lo}–${hi}d`);
+    }
+    if (filter.followerRange) {
+      const [lo, hi] = filter.followerRange;
+      const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `${n}`);
+      pills.push(`👥${fmt(lo)}–${fmt(hi)}`);
     }
     if (filter.revToday) pills.push("€h");
     if (filter.revAvg) pills.push("Ø€");
@@ -124,7 +130,63 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
         </div>
       </div>
 
-      {/* Categories */}
+      {/* Follower-Range — feinkörniger als Tiers, ideal für Brezzels (kleine Spreizung) */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Follower-Range
+          </span>
+          {filter.followerRange && (
+            <button
+              type="button"
+              onClick={() => update({ followerRange: null })}
+              className="text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={0}
+            max={1000000}
+            placeholder="Min"
+            value={filter.followerRange ? filter.followerRange[0] : ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" && (!filter.followerRange || filter.followerRange[1] === 0)) {
+                update({ followerRange: null });
+                return;
+              }
+              const n = Math.max(0, Number(raw) || 0);
+              const hi = filter.followerRange?.[1] ?? Math.max(n, 1000000);
+              update({ followerRange: [n, hi] });
+            }}
+            className="h-8 text-xs px-2"
+          />
+          <span className="text-muted-foreground text-xs">–</span>
+          <Input
+            type="number"
+            min={0}
+            max={1000000}
+            placeholder="Max"
+            value={filter.followerRange ? filter.followerRange[1] : ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" && (!filter.followerRange || filter.followerRange[0] === 0)) {
+                update({ followerRange: null });
+                return;
+              }
+              const n = Math.max(0, Number(raw) || 0);
+              const lo = filter.followerRange?.[0] ?? 0;
+              update({ followerRange: [lo, n] });
+            }}
+            className="h-8 text-xs px-2"
+          />
+        </div>
+      </div>
+
       <div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Kategorie</div>
         <div className="flex flex-wrap gap-1">

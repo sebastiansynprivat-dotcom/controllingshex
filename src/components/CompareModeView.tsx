@@ -41,6 +41,7 @@ interface Props {
   alertChatterNames: Set<string>;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
   firstSeenByChatter?: Map<string, string>;
+  followersByChatter?: Map<string, number>;
   reportId?: string | null;
   onChatterClick: (chatterName: string) => void;
 }
@@ -69,6 +70,7 @@ export default function CompareModeView({
   alertChatterNames,
   allLabels,
   firstSeenByChatter,
+  followersByChatter,
   reportId,
   onChatterClick,
 }: Props) {
@@ -88,8 +90,9 @@ export default function CompareModeView({
       tierIdsByChatter,
       alertChatterNames,
       firstSeenByChatter,
+      followersByChatter,
     }),
-    [chatters, rangeHistory, range, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter]
+    [chatters, rangeHistory, range, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter, followersByChatter]
   );
 
   const filteredA = useMemo(() => applyCompareFilter(state.setA, ctx), [state.setA, ctx]);

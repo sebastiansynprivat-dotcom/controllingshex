@@ -23,6 +23,8 @@ export const compareFilterSchema = z.object({
   delayRange: z.tuple([z.number(), z.number()]).nullable().default(null),
   /** Aktiv-seit-Range in Tagen, [min, max]. null = aus. */
   tenureDays: z.tuple([z.number(), z.number()]).nullable().default(null),
+  /** Follower-Range [min, max]. null = aus. Plattformunabhängig. */
+  followerRange: z.tuple([z.number(), z.number()]).nullable().default(null),
   status: z.enum(["any", "active", "inactive", "onboarding"]).default("any"),
   alerts: z.enum(["any", "with", "without"]).default("any"),
 }).transform((v) => {
@@ -39,6 +41,7 @@ export interface CompareFilter {
   revAvg: [number, number] | null;
   delayRange: [number, number] | null;
   tenureDays: [number, number] | null;
+  followerRange: [number, number] | null;
   status: "any" | "active" | "inactive" | "onboarding";
   alerts: "any" | "with" | "without";
 }
@@ -51,6 +54,7 @@ export const EMPTY_FILTER: CompareFilter = {
   revAvg: null,
   delayRange: null,
   tenureDays: null,
+  followerRange: null,
   status: "any",
   alerts: "any",
 };
@@ -125,6 +129,8 @@ export interface ApplyFilterContext {
   onboardingStarts?: Map<string, string>;
   /** Erstes analysis_date je Chatter (für "aktiv seit"-Filter): normalizedName → ISO YYYY-MM-DD */
   firstSeenByChatter?: Map<string, string>;
+  /** Follower-Summe je Chatter (über alle zugeordneten Accounts): normalizedName → number */
+  followersByChatter?: Map<string, number>;
 }
 
 interface AggregateRow {
@@ -182,6 +188,13 @@ export function applyCompareFilter(
     // Tier filter
     if (filter.tiers.length > 0) {
       if (!tierIds.some((t) => filter.tiers.includes(t))) continue;
+    }
+
+    // Follower-Range filter (Brezzels-Use-Case: feinere Eingrenzung als Tiers)
+    if (filter.followerRange) {
+      const [lo, hi] = filter.followerRange;
+      const followers = ctx.followersByChatter?.get(key) ?? 0;
+      if (followers < lo || followers > hi) continue;
     }
 
     // Category filter (use recategorized when available, fallback to original)

@@ -701,6 +701,22 @@ export default function TinderMode() {
     return map;
   }, [chatters, modelsList]);
 
+  // Map: normalized chatter name → Summe der Follower aller zugeordneten Accounts
+  const followersByChatter = useMemo(() => {
+    const followerMap = new Map<string, number>();
+    for (const m of modelsList) {
+      followerMap.set((m.model_name || "").toLowerCase().trim(), m.follower_count || 0);
+    }
+    const map = new Map<string, number>();
+    for (const c of chatters) {
+      const accountNames = splitAccounts(c.account);
+      if (accountNames.length === 0) continue;
+      const sum = accountNames.reduce((acc, n) => acc + (followerMap.get(n) || 0), 0);
+      map.set(normalizeName(c.name), sum);
+    }
+    return map;
+  }, [chatters, modelsList]);
+
   const chatterMatchesSelectedTier = useCallback((chatterName: string, tier: AccountTierId | null) => {
     if (!tier) return true;
     const tierIds = tierIdsByChatter.get(normalizeName(chatterName)) || [];
@@ -1160,6 +1176,7 @@ export default function TinderMode() {
             alertChatterNames={alertChatterNames}
             allLabels={allLabels}
             firstSeenByChatter={firstSeenByChatter}
+            followersByChatter={followersByChatter}
             reportId={currentReportId}
             onChatterClick={(name) => setCompareSlideOverChatter(name)}
           />
