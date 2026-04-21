@@ -323,15 +323,11 @@ export function AbsenceBacktestPanel() {
   const bt = data?.backtest || null;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-      </div>
-    );
+    return <PremiumSpinner />;
   }
   if (!bt || bt.totalPredictions === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
+      <div className="premium-card rounded-xl p-8 text-center">
         <p className="text-foreground/60 font-light">Noch nicht genug History für Abwesenheits-Backtest.</p>
         <p className="text-white/40 text-sm font-light mt-1">Mindestens 12 Tage History pro Chatter benötigt.</p>
       </div>
@@ -341,27 +337,27 @@ export function AbsenceBacktestPanel() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-          <p className="text-white/40 text-xs font-light">Vorhersagen</p>
-          <p className="text-foreground text-2xl font-extralight tabular-nums mt-1">{bt.totalPredictions}</p>
+        <div className="premium-card rounded-xl px-4 py-3">
+          <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Vorhersagen</p>
+          <p className="text-foreground text-3xl font-extralight tabular-nums mt-1">{bt.totalPredictions}</p>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-          <p className="text-emerald-400/70 text-xs font-light">Treffer</p>
-          <p className="text-emerald-300 text-2xl font-extralight tabular-nums mt-1">{bt.hits}</p>
+        <div className="premium-card rounded-xl px-4 py-3 border-emerald-500/15">
+          <p className="text-emerald-400/80 text-[11px] font-medium tracking-wider uppercase">Treffer</p>
+          <p className="text-emerald-300 text-3xl font-extralight tabular-nums mt-1">{bt.hits}</p>
         </div>
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-          <p className="text-white/40 text-xs font-light">Trefferquote</p>
-          <p className="text-foreground text-2xl font-extralight tabular-nums mt-1">{Math.round(bt.hitRate * 100)}%</p>
+        <div className="premium-card rounded-xl px-4 py-3">
+          <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Trefferquote</p>
+          <p className="gold-text text-3xl font-extralight tabular-nums mt-1">{Math.round(bt.hitRate * 100)}%</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="premium-card rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 border-b border-white/[0.04]">
-          <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">Historische Abwesenheits-Vorhersagen</p>
+          <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Historische Abwesenheits-Vorhersagen</p>
         </div>
         <div className="divide-y divide-white/[0.04] max-h-96 overflow-y-auto">
           {bt.details.slice(0, 50).map((d, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <div key={i} className="row-accent flex items-center gap-3 px-4 py-2.5 text-sm">
               {d.actualGapWithin2Days ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-400/80 shrink-0" />
               ) : (

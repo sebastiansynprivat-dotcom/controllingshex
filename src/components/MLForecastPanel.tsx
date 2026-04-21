@@ -219,13 +219,13 @@ export function MLForecastPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+        <div className="premium-spinner"><span /><span /><span /></div>
       </div>
     );
   }
   if (error || !data) {
     return (
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center">
+      <div className="premium-card rounded-xl p-6 text-center border-amber-500/20">
         <Info className="h-6 w-6 text-amber-400/80 mx-auto mb-2" />
         <p className="text-foreground/80 font-light">{error || "Keine Daten."}</p>
       </div>
