@@ -1238,7 +1238,14 @@ export default function TinderMode() {
             Alle Chatter <span className="ml-1 text-[10px] text-white/40">{allUncheckedCount}</span>
           </span>
         );
-        if (swapTrackFilterActive) {
+        if (recoveryFilterActive) {
+          triggerIcon = <Sparkles className="h-3.5 w-3.5 text-amber-300/90 shrink-0" />;
+          triggerName = (
+            <span className="text-foreground font-light text-[13px] truncate">
+              Revenue Recovery <span className="ml-1 text-[10px] text-white/40">{recoveryCount}</span>
+            </span>
+          );
+        } else if (swapTrackFilterActive) {
           triggerIcon = <Repeat className="h-3.5 w-3.5 text-cyan-300/90 shrink-0" />;
           triggerName = (
             <span className="text-foreground font-light text-[13px] truncate">
