@@ -234,12 +234,6 @@ export default function Leaderboard() {
   }, [highlights.length]);
   useEffect(() => { setTickerIdx(0); }, [highlights.length]);
 
-  const medalColors = [
-    "from-yellow-500/20 to-yellow-600/5 border-yellow-500/30",
-    "from-gray-300/20 to-gray-400/5 border-gray-400/30",
-    "from-amber-700/20 to-amber-800/5 border-amber-700/30",
-  ];
-
   const filterButtons: { label: string; mode: FilterMode }[] = [
     { label: "Heute", mode: "today" },
     { label: "Woche", mode: "week" },
