@@ -1,63 +1,59 @@
 
 
-# Premium-Polish für den Swipe-Mode
+# Premium-Polish für die Frühwarnungs-Karten
 
-Ziel: Das Swipe-Erlebnis unter `/tinder` soll sich noch smoother anfühlen (Gesten, Übergänge zwischen Karten) und visuell auf dasselbe Premium-Niveau wie die Forecast-Karten gehoben werden — ohne die feste 120px-Swipe-Schwelle anzutasten (Memory-Constraint) und ohne Logik-Änderungen.
-
-## Was sich ändert (haptisch / Handling)
-
-**Smoother Gesten**
-- Drag-Physik entspannter: `dragElastic` von 0.2 → 0.32, sodass die Karte beim Ziehen weicher mitwippt statt hart zu enden
-- Spring-Snapback feiner abgestimmt (`stiffness: 320, damping: 32, mass: 0.8`) — fühlt sich „teurer" an, weniger digital-zackig
-- Rotation-Mapping sanfter: `[-200, 200] → [-12°, 12°]` statt 15° (weniger nervös bei kleinen Bewegungen)
-- `whileDrag`-Scale von 1.02 → 1.035 + leichter `boxShadow`-Lift, damit die Karte beim Greifen physisch „abhebt"
-- Edge-Glows reagieren früher und smoother (Mapping `[0, 100]` statt `[0, 140]`) → unmittelbares visuelles Feedback während der Bewegung
-- Fly-off-Animation beim Right-Swipe mit `cubic-bezier(0.32, 0, 0.67, 0)` statt `easeIn` → fühlt sich beschleunigend an wie iOS-Karten-Dismiss
-
-**Übergang zur nächsten Karte**
-- Neue Top-Card faded + skaliert sanft hoch (von 0.96 → 1, Opacity 0 → 1) statt einfach „da zu sein" — Stagger 80ms nach Fly-off der vorigen Karte
-- Hintere Stack-Karten werden wieder leicht sichtbar (statt komplett opacity:0): Karte #2 mit `scale: 0.95, opacity: 0.4, y: 8` als Tiefen-Hint → echtes „Stapel-Gefühl" statt einer einsamen Karte
-- Beim Drag der Top-Card skaliert die zweite Karte synchron leicht hoch (parallax-artig)
-
-**Mikro-Polish**
-- Tap-Feedback: kurzer `scale(0.99)`-Pulse beim Single-Tap (160ms)
-- Haptische Vibration beim Überschreiten der 120px-Schwelle (in `handleDrag`) — User spürt physisch, dass jetzt losgelassen werden kann (statt erst nach dem Loslassen)
-- Edge-Glow-Labels (`✓ OK`, `✗ Aktion`, `↑ Details`, `↓ Skip`) bekommen eine sanfte Scale-Up-Animation ab 60% Drag-Distance (akustisch-visueller „Lock-in"-Moment)
+Ziel: Alle Karten unter `/forecast` (Frühwarnung, Abwesenheit, Smart-Modell, Treffer-Quote) sollen sich optisch und haptisch wie eine echte Premium-Software anfühlen — nicht wie ein Standard-Tailwind-Dashboard. Es geht um Tiefe, Materialität, Mikro-Animationen und subtile Gold-Akzente, die bereits im Design-System (`index.css` → `glass-card`, `gold-glow`, `bg-depth`) angelegt aber bisher nicht genutzt werden.
 
 ## Was sich ändert (visuell)
 
-**Karten-Material**
-- Stack-Hintergrund-Gradient kräftiger schichten: zusätzliche Highlight-Linie oben (1px-Lichtkante via `::before` wie bei `.premium-card`) → echte Glas-Materialität
-- Aktiver Border-Glow in Kategorie-Farbe verstärkt (`hsl(${accent.hue} / 0.18)` → `0.28`) für mehr Tiefe
-- Top-Accent-Linie wird zu einem feinen Verlauf mit zusätzlichem Innen-Glow (statt nur 1px hairline)
+**Tiefe & Material**
+- Karten bekommen echte Glass-Optik: `backdrop-blur(32px)` + dezenter Innen-Glow + 1px-Highlight oben (simuliert Lichtkante)
+- Statt flachem `bg-white/[0.02]` → **Gradient-Layer**: oben heller, unten tiefer schwarz (verleiht physikalisches Gewicht)
+- Kritische/Akute Karten bekommen einen sanft pulsierenden Rand-Glow in der jeweiligen Band-Farbe (rot/orange) — kein hektisches Blinken, sondern atmend (3s)
 
-**Hero-KPI**
-- Hintergrund-Sweep (Shine) deutlich subtiler und nur alle 12s statt 7s — weniger ablenkend, mehr „Premium-Detail"
-- Zahl in `font-extralight` mit feinem `tracking-tighter` (wie Forecast-KPIs) statt `font-bold` → eleganter
-- Optionaler Gold-Gradient-Text bei Top-Werten
+**Hierarchie**
+- Score-Badges (`RiskBadge`, Abwesenheits-%) werden zu echten "Chips" mit Tiefe: Inset-Shadow + Outline-Glow in Bandfarbe statt flacher Border
+- Sparklines bekommen einen weichen Verlauf (Fill unter der Linie mit 8 % Opacity in Bandfarbe) statt nur 1.5px Stroke
+- Tabellen-Header (`uppercase`-Labels) in Gold-Subtle statt Weiß-70
 
-**Avatar & Badges**
-- Avatar bekommt subtilen Inset-Highlight (1px oben weiß/8%) + verstärkten Akzent-Glow
-- Category-Badge oben links wird zu echtem „Chip" mit Inset-Shadow + Outline-Glow (analog `.premium-chip` aus der Forecast-Polish)
+**Hover & Mikro-Interaktion**
+- Karten heben sich beim Hover leicht an: `translateY(-1px)` + verstärkter Glow + Border-Color geht 200 ms zur Bandfarbe
+- Klick auf Karte: kurzer Scale-Pulse (0.98 → 1) als haptisches Feedback (160 ms, ease-out)
+- Chevron rotiert mit `cubic-bezier(0.16, 1, 0.3, 1)` statt linear → fühlt sich teurer an
+- Expand-Bereich (Signal-Breakdown) faltet sich mit `framer-motion` `AnimatePresence` smooth auf — heute springt er einfach rein
+- Signal-Pills im aufgeklappten Bereich: Stagger-Animation (jede Pill fadet 30 ms versetzt ein)
 
-**KPI-Grid**
-- 4 KPI-Tiles nutzen `.premium-stat`-Style (Gradient + 1px-Highlight) statt flachem `bg-white/[0.025]`
-- Hover/Active-Subtle-Highlight bei Tap
+**Premium-Details**
+- Tabs (Frühwarnung / Abwesenheit / Smart-Modell / Treffer-Quote): aktiver Tab bekommt Gold-Underline statt graues Background — wie iOS Settings
+- KPI-Stat-Karten (Vorhersagen / Treffer / Trefferquote): Zahlen in `font-extralight` mit leichtem Gold-Gradient-Text bei "Trefferquote", Icon oben rechts in Glas-Pill
+- Presence-Strip (21-Tage-Anwesenheit): aus harten Blöcken werden abgerundete "Pillen" mit dezentem Gradient (anwesend = emerald-Verlauf, Aussetzer = matte schwarze Glaspille)
+- Live-Predictions / Backtest-Listen: Zeilen bekommen Hover-State mit Gold-Akzent-Linie links (3px, scale-y 0 → 1)
+- ML-Weight-Bars: aus flachem `bg-orange-400/70` wird ein Gradient (orange-400 → orange-500) mit 12 % Glow rechts vom Bar-Ende
 
-**Severity-Pulse**
-- Critical-Pulse atmet smoother (3.4s statt 2.8s) und mit weicherer Easing-Kurve — weniger „alarm", mehr „aufmerksam"
+**Loading-State**
+- Spinner ersetzt durch ein dezentes 3-Punkt-Pulsing (Apple-Style) in Gold
+- Skeleton-Karten beim ersten Lade-Vorgang statt leerer Spinner-Fläche → fühlt sich sofort lebendig an
 
 ## Technisch
 
-**Editierte Dateien**
-- `src/components/SwipeCard.tsx` — alle Anpassungen oben (Drag-Physik, Übergänge, Material, Stack-Sichtbarkeit, Threshold-Haptic)
-- `src/pages/TinderMode.tsx` — minimal: AnimatePresence-`mode` und Initial-/Exit-Varianten für die neue Karten-Übergangs-Animation; Stack-Index-Logik anpassen, sodass zweite Karte sichtbar bleibt
-- ggf. kleiner Helper in `SwipeCard.tsx` für `useTransform`-basierten Threshold-Trigger (Haptic bei x=120 Crossing)
+**Neue Tailwind-Utilities** in `src/index.css`:
+- `.premium-card` — Glas-Layer + oberes 1px-Highlight + sanfter Inset-Shadow
+- `.premium-card-hover` — `translateY(-1px) + box-shadow` Übergang
+- `.glow-band-{critical,warning,low,...}` — atmender Rand-Glow per `@keyframes`
+- `.gold-underline` — Tab-Active-Indicator
+- `@keyframes breathe` — 3s ease-in-out infinite für die Glow-Pulse
 
-**Was nicht passiert (wichtig)**
-- Keine velocity-basierten Swipe-Schwellen (Memory-Constraint bleibt: feste 120px)
-- Keine Logik-Änderung an Swipe-Aktionen (Right/Left/Up/Down-Handler bleiben 1:1)
-- Keine neue Lib, kein neues Dependency (`framer-motion` ist schon da)
-- Keine Performance-Regression (alle Animationen via Transform/Opacity, GPU-beschleunigt)
-- Keine Änderungen am Action-Panel, Slide-Over oder Login-Picker
+**Editierte Dateien**:
+- `src/index.css` — neue Utilities + Keyframes (`breathe`, `gold-underline-grow`, `pulse-dot`)
+- `src/components/RiskBadge.tsx` — Inset-Shadow, Bandfarben-Glow, optional `pulse` für critical
+- `src/components/AbsencePanel.tsx` — Premium-Karten, neue Presence-Pillen, Stagger-Expand, KPI-Karten mit Gradient-Zahlen
+- `src/components/MLForecastPanel.tsx` — Premium-StatCards, Weight-Bar-Gradient, Tabellen-Hover-Akzent
+- `src/pages/Forecast.tsx` — Premium-Karten in Risk-Liste, Tab-Underline-Style, Sparkline mit Fill, AnimatePresence für Expand, Stat-Banner mit Gold-Gradient
+- Sparkline-Komponente um optionales `<linearGradient>` + `<polygon>`-Fill ergänzen
+
+**Was nicht passiert**
+- Keine Logik-Änderung (Risk-Engine, ML, Abwesenheits-Forecast bleiben 1:1)
+- Keine neuen Datenfelder, keine DB-Migration
+- Keine Performance-Regression (alle Animationen via CSS-Transform / Opacity → GPU-beschleunigt)
+- Keine erhöhte Render-Komplexität (`framer-motion` ist schon im Projekt)
 
