@@ -41,6 +41,7 @@ interface Props {
   alertChatterNames: Set<string>;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
   firstSeenByChatter?: Map<string, string>;
+  reportId?: string | null;
   onChatterClick: (chatterName: string) => void;
 }
 
@@ -68,6 +69,7 @@ export default function CompareModeView({
   alertChatterNames,
   allLabels,
   firstSeenByChatter,
+  reportId,
   onChatterClick,
 }: Props) {
   const [state, setState] = useState(() => loadCompareState());
