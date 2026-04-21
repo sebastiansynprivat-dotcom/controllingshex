@@ -1176,6 +1176,7 @@ export default function TinderMode() {
             alertChatterNames={alertChatterNames}
             allLabels={allLabels}
             firstSeenByChatter={firstSeenByChatter}
+            followersByChatter={followersByChatter}
             reportId={currentReportId}
             onChatterClick={(name) => setCompareSlideOverChatter(name)}
           />
