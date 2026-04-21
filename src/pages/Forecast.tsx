@@ -105,6 +105,15 @@ export default function Forecast() {
   const [bundle, setBundle] = useState<BenchmarkBundle | null>(null);
   const [openChatter, setOpenChatter] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<"forecast" | "absence" | "ml" | "backtest">("forecast");
+  const [tabMenuOpen, setTabMenuOpen] = useState(false);
+
+  const TAB_META: Record<typeof tab, { label: string; icon: React.ComponentType<{ className?: string }>; hint: string }> = {
+    forecast: { label: "Frühwarnung", icon: AlertOctagon, hint: "Crash-Risiko nächste 3 Tage" },
+    absence: { label: "Abwesenheit", icon: CalendarX, hint: "Wer fehlt morgen?" },
+    ml: { label: "Smart-Modell", icon: Brain, hint: "ML-Vorhersage" },
+    backtest: { label: "Treffer-Quote", icon: Target, hint: "Modell-Genauigkeit" },
+  };
 
   useEffect(() => {
     let cancelled = false;
