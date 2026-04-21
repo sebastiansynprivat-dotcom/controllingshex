@@ -257,22 +257,22 @@ export default function Forecast() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-5xl mx-auto p-2 sm:p-8 lg:p-12 space-y-8"
+            className="max-w-5xl mx-auto px-4 py-5 sm:p-8 lg:p-12 space-y-6 sm:space-y-8"
           >
-            <header className="space-y-2">
-              <div className="flex items-center gap-3">
-                <AlertOctagon className="h-6 w-6 text-orange-400/80" />
-                <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">
+            <header className="space-y-1.5">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <AlertOctagon className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400/80 shrink-0" />
+                <h1 className="text-xl sm:text-3xl font-extralight tracking-tight text-foreground">
                   Frühwarnung
                 </h1>
               </div>
-              <p className="text-white/40 text-sm font-light tracking-wide">
+              <p className="text-white/40 text-xs sm:text-sm font-light tracking-wide">
                 Prognose der nächsten 1–3 Tage · {platform}
               </p>
             </header>
 
-            <Tabs defaultValue="forecast" className="space-y-6">
-              <TabsList className="bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start">
+            <Tabs defaultValue="forecast" className="space-y-5 sm:space-y-6">
+              <TabsList className="bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
                 <TabsTrigger
                   value="forecast"
                   className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors"
@@ -325,18 +325,18 @@ export default function Forecast() {
                   </div>
                 ) : (
                   <>
-                    <div className="premium-card flex items-baseline justify-between rounded-xl px-4 py-3">
-                      <div>
-                        <p className="text-foreground/80 font-light text-sm">
+                    <div className="premium-card flex items-baseline justify-between gap-3 rounded-xl px-3 sm:px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-foreground/80 font-light text-xs sm:text-sm truncate">
                           {risks.length} Chatter mit hohem Crash-Risiko
                         </p>
-                        <p className="text-white/40 text-xs font-light">in den nächsten 3 Tagen</p>
+                        <p className="text-white/40 text-[11px] sm:text-xs font-light">in den nächsten 3 Tagen</p>
                       </div>
-                      <div className="text-right">
-                        <p className="gold-text font-medium text-xl tabular-nums">
+                      <div className="text-right shrink-0">
+                        <p className="gold-text font-medium text-lg sm:text-xl tabular-nums">
                           ~{totalEuroAtRisk}€
                         </p>
-                        <p className="text-white/40 text-xs font-light">Geld-Risiko</p>
+                        <p className="text-white/40 text-[11px] sm:text-xs font-light">Geld-Risiko</p>
                       </div>
                     </div>
 
@@ -351,23 +351,25 @@ export default function Forecast() {
                           >
                             <button
                               onClick={() => toggle(r.chatter)}
-                              className="w-full flex items-center gap-4 px-4 py-3.5 text-left"
+                              className="w-full flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 sm:py-3.5 text-left"
                             >
                               <RiskBadge score={r.score} band={r.band} size="md" />
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-baseline gap-2">
-                                  <span className="text-foreground font-light truncate">{r.chatter}</span>
+                                <div className="flex items-baseline gap-2 flex-wrap">
+                                  <span className="text-foreground font-light truncate text-sm sm:text-base">{r.chatter}</span>
                                   {r.account && (
-                                    <span className="text-white/30 text-xs font-light truncate">@{r.account}</span>
+                                    <span className="text-white/30 text-xs font-light truncate hidden sm:inline">@{r.account}</span>
                                   )}
                                 </div>
-                                <p className="text-white/50 text-xs font-light truncate mt-0.5">
+                                <p className="text-white/50 text-[11px] sm:text-xs font-light truncate mt-0.5">
                                   {r.mainReason}
                                 </p>
                               </div>
-                              <Sparkline values={r.revenueTrend} band={r.band} />
+                              <div className="hidden sm:block">
+                                <Sparkline values={r.revenueTrend} band={r.band} />
+                              </div>
                               <div className="text-right shrink-0">
-                                <p className="text-orange-400/80 text-sm tabular-nums">~{r.euroAtRisk}€</p>
+                                <p className="text-orange-400/80 text-xs sm:text-sm tabular-nums">~{r.euroAtRisk}€</p>
                                 <p className="text-white/30 text-[10px] font-light">in 3T</p>
                               </div>
                               <ChevronRight
@@ -446,7 +448,7 @@ export default function Forecast() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       <div className="premium-card rounded-xl px-4 py-3">
                         <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Vorhersagen</p>
                         <p className="text-foreground text-3xl font-extralight tabular-nums mt-1">
