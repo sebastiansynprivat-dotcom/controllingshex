@@ -1203,45 +1203,62 @@ export default function TinderMode() {
           ? `cat:${selectedCategory}`
           : "__all__";
 
-        // Active filter label for trigger
-        let triggerLabel: React.ReactNode = (
-          <span className="text-foreground/60">Alle Chatter <span className="ml-1 text-[10px] opacity-50">{allUncheckedCount}</span></span>
+        // Active filter — icon + label (Forecast-style two-line trigger)
+        let triggerIcon: React.ReactNode = null;
+        let triggerName: React.ReactNode = (
+          <span className="text-foreground font-light text-[13px] truncate">
+            Alle Chatter <span className="ml-1 text-[10px] text-white/40">{allUncheckedCount}</span>
+          </span>
         );
         if (swapTrackFilterActive) {
-          triggerLabel = (
-            <span className="inline-flex items-center gap-1.5 text-cyan-300">
-              <Repeat className="h-3 w-3" /> Nach Wechsel beobachten
-              <span className="ml-1 text-[10px] opacity-60">{swapTrackCount}</span>
+          triggerIcon = <Repeat className="h-3.5 w-3.5 text-cyan-300/90 shrink-0" />;
+          triggerName = (
+            <span className="text-foreground font-light text-[13px] truncate">
+              Nach Wechsel beobachten <span className="ml-1 text-[10px] text-white/40">{swapTrackCount}</span>
             </span>
           );
         } else if (alertFilterActive) {
-          triggerLabel = (
-            <span className="inline-flex items-center gap-1.5 text-red-400">
-              <AlertTriangle className="h-3 w-3" /> Alerts
-              <span className="ml-1 text-[10px] opacity-60">{alertCount}</span>
+          triggerIcon = <AlertTriangle className="h-3.5 w-3.5 text-red-400/90 shrink-0" />;
+          triggerName = (
+            <span className="text-foreground font-light text-[13px] truncate">
+              Alerts <span className="ml-1 text-[10px] text-white/40">{alertCount}</span>
             </span>
           );
         } else if (selectedLabelFilter) {
           const lbl = allLabels.find((l) => l.id === selectedLabelFilter);
           if (lbl) {
-            triggerLabel = (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: lbl.color }} />
-                {lbl.label_name}
-                <span className="ml-1 text-[10px] opacity-50">{labelCounts.get(lbl.id) || 0}</span>
+            triggerIcon = (
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: lbl.color, boxShadow: `0 0 6px ${lbl.color}80` }}
+              />
+            );
+            triggerName = (
+              <span className="text-foreground font-light text-[13px] truncate">
+                {lbl.label_name} <span className="ml-1 text-[10px] text-white/40">{labelCounts.get(lbl.id) || 0}</span>
               </span>
             );
           }
         } else if (selectedCategory) {
           const cat = uniqueCategories.find((c) => c.name === selectedCategory);
-          triggerLabel = (
-            <span className="inline-flex items-center gap-1.5">
-              <span>{cat?.emoji || "📊"}</span>
-              <span className="truncate">{selectedCategory}</span>
-              {cat && <span className="ml-1 text-[10px] opacity-50">{cat.count}</span>}
+          triggerIcon = <span className="text-sm leading-none shrink-0">{cat?.emoji || "📊"}</span>;
+          triggerName = (
+            <span className="text-foreground font-light text-[13px] truncate">
+              {selectedCategory} {cat && <span className="ml-1 text-[10px] text-white/40">{cat.count}</span>}
             </span>
           );
         }
+        const triggerLabel: React.ReactNode = (
+          <div className="flex items-center justify-between gap-2.5 w-full min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {triggerIcon ?? <Sparkles className="h-3.5 w-3.5 text-orange-400/80 shrink-0" />}
+              <div className="min-w-0 leading-tight text-left">
+                <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium gold-text-subtle">Filter</p>
+                {triggerName}
+              </div>
+            </div>
+          </div>
+        );
 
         const handleChange = (value: string) => {
           setActionPanel(false);
@@ -1329,7 +1346,7 @@ export default function TinderMode() {
               </div>
             )}
             <Select value={currentValue} onValueChange={handleChange}>
-              <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] text-sm min-h-10 h-auto py-2 rounded-xl px-3.5 text-foreground/85 font-light tracking-wide hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180 [&>span]:!line-clamp-none [&>span]:whitespace-normal [&>span]:text-left">
+              <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] h-auto py-2 rounded-lg px-3 hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180 [&>span]:!line-clamp-none [&>span]:whitespace-normal [&>span]:text-left [&>span]:flex-1">
                 <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-[60vh] premium-card border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl p-1.5 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
