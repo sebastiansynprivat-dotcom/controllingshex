@@ -258,15 +258,20 @@ export default function Leaderboard() {
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Trophy className="h-5 w-5 text-yellow-500" />
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Chatter Leaderboard
-        </h1>
+        <div className="premium-stat rounded-lg p-2">
+          <Trophy className="h-4 w-4 text-primary" style={{ filter: 'drop-shadow(0 0 6px hsl(40 50% 60% / 0.5))' }} />
+        </div>
+        <div>
+          <h1 className="text-xl font-extralight tracking-tight text-foreground">
+            Chatter Leaderboard
+          </h1>
+          <p className="text-[10px] gold-text-subtle uppercase tracking-[0.2em] font-medium mt-0.5">Top Performer</p>
+        </div>
       </div>
 
       {/* Live-Ticker */}
       {highlights.length > 0 && (
-        <div className="relative h-12 overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02]">
+        <div className="premium-card relative h-12 overflow-hidden rounded-xl">
           <AnimatePresence mode="wait">
             {highlights[tickerIdx] && (() => {
               const h = highlights[tickerIdx];
@@ -308,15 +313,18 @@ export default function Leaderboard() {
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
         {filterButtons.map((fb) => (
-          <Button
+          <button
             key={fb.mode}
-            size="sm"
-            variant={filter === fb.mode ? "default" : "outline"}
             onClick={() => setFilter(fb.mode)}
-            className="text-xs"
+            className={cn(
+              "premium-chip px-3.5 py-1.5 rounded-lg text-[11px] font-light tracking-wide transition-all duration-300 border whitespace-nowrap active:scale-[0.97]",
+              filter === fb.mode
+                ? "bg-primary/12 border-primary/35 text-primary"
+                : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/85 hover:bg-white/[0.05] hover:border-white/[0.1]",
+            )}
           >
             {fb.label}
-          </Button>
+          </button>
         ))}
 
         {filter === "custom" && (
@@ -345,10 +353,10 @@ export default function Leaderboard() {
       {/* List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+          <div className="premium-spinner"><span /><span /><span /></div>
         </div>
       ) : leaderboard.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-20">
+        <p className="text-sm text-muted-foreground text-center py-20 font-light italic">
           Keine Daten im gewählten Zeitraum.
         </p>
       ) : (
@@ -374,20 +382,18 @@ export default function Leaderboard() {
                     }}
                     onClick={() => setSelectedChatter(entry.name)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors hover:bg-white/[0.04]",
-                      isTopThree
-                        ? `bg-gradient-to-r ${medalColors[i]} border`
-                        : "border-white/[0.06] bg-white/[0.02]",
+                      "premium-card premium-card-interactive flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer",
+                      isTopThree && `bg-gradient-to-r ${medalColors[i]}`,
                     )}
                   >
                     {/* Rank */}
                     <span
                       className={cn(
-                        "w-7 text-center text-sm font-semibold shrink-0",
-                        i === 0 && "text-yellow-500",
-                        i === 1 && "text-gray-400",
-                        i === 2 && "text-amber-700",
-                        i > 2 && "text-white/30",
+                        "w-7 text-center text-base font-extralight tracking-tight shrink-0 tabular-nums",
+                        i === 0 && "text-yellow-400",
+                        i === 1 && "text-gray-300",
+                        i === 2 && "text-amber-600",
+                        i > 2 && "text-white/35",
                       )}
                     >
                       {i + 1}
@@ -437,7 +443,10 @@ export default function Leaderboard() {
 
                     {/* Revenue + % change */}
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <span className="text-sm font-semibold text-foreground tabular-nums">
+                      <span className={cn(
+                        "text-sm tabular-nums tracking-tight",
+                        isTopThree ? "font-extralight gold-text text-base" : "font-light text-foreground"
+                      )}>
                         {entry.total.toLocaleString("de-DE", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
