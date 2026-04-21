@@ -325,18 +325,18 @@ export default function Forecast() {
                   </div>
                 ) : (
                   <>
-                    <div className="premium-card flex items-baseline justify-between rounded-xl px-4 py-3">
-                      <div>
-                        <p className="text-foreground/80 font-light text-sm">
+                    <div className="premium-card flex items-baseline justify-between gap-3 rounded-xl px-3 sm:px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-foreground/80 font-light text-xs sm:text-sm truncate">
                           {risks.length} Chatter mit hohem Crash-Risiko
                         </p>
-                        <p className="text-white/40 text-xs font-light">in den nächsten 3 Tagen</p>
+                        <p className="text-white/40 text-[11px] sm:text-xs font-light">in den nächsten 3 Tagen</p>
                       </div>
-                      <div className="text-right">
-                        <p className="gold-text font-medium text-xl tabular-nums">
+                      <div className="text-right shrink-0">
+                        <p className="gold-text font-medium text-lg sm:text-xl tabular-nums">
                           ~{totalEuroAtRisk}€
                         </p>
-                        <p className="text-white/40 text-xs font-light">Geld-Risiko</p>
+                        <p className="text-white/40 text-[11px] sm:text-xs font-light">Geld-Risiko</p>
                       </div>
                     </div>
 
