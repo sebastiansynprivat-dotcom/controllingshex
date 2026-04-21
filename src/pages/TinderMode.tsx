@@ -1496,6 +1496,15 @@ export default function TinderMode() {
               {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
                 const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
                 const isTopCard = stackIndex === 0;
+                const swapEntry = isTopCard ? swapTrackingMap.get(normalizeName(chatter.name)) : undefined;
+                const swapDeltaProp = swapEntry
+                  ? {
+                      deltaLabel: formatDelta(swapEntry.deltaPct),
+                      tone: deltaTone(swapEntry.deltaPct) as "pos" | "neg" | "neutral",
+                      direction: swapEntry.tierDirection,
+                      daysSince: swapEntry.daysSince,
+                    }
+                  : null;
 
                 return (
                   <SwipeCard
@@ -1512,52 +1521,11 @@ export default function TinderMode() {
                     isTop={isTopCard}
                     stackIndex={stackIndex}
                     accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
+                    swapDelta={swapDeltaProp}
                   />
                 );
               })}
             </AnimatePresence>
-
-            {/* Swap-Tracking Δ-Badge — dezent unten links auf der Top-Card, kollidiert nicht mit Header-Badges */}
-            {currentChatter && (() => {
-              const entry = swapTrackingMap.get(normalizeName(currentChatter.name));
-              if (!entry) return null;
-              const tone = deltaTone(entry.deltaPct);
-              const accent =
-                tone === "pos" ? { text: "text-emerald-200", value: "text-emerald-300", icon: "text-emerald-300/80", glow: "rgba(16,185,129,0.18)" }
-                : tone === "neg" ? { text: "text-red-200", value: "text-red-300", icon: "text-red-300/80", glow: "rgba(239,68,68,0.18)" }
-                : { text: "text-foreground/75", value: "text-foreground/85", icon: "text-white/55", glow: "rgba(255,255,255,0.08)" };
-              const dirArrow =
-                entry.tierDirection === "upgrade" ? "↗"
-                : entry.tierDirection === "downgrade" ? "↘"
-                : entry.tierDirection === "lateral" ? "→"
-                : null;
-              const dirColor =
-                entry.tierDirection === "upgrade" ? "text-emerald-300/80"
-                : entry.tierDirection === "downgrade" ? "text-red-300/80"
-                : "text-white/40";
-              return (
-                <div className="pointer-events-none absolute bottom-3 left-3 z-30 max-w-[calc(100%-1.5rem)]">
-                  <div
-                    className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/[0.08] backdrop-blur-xl ${accent.text}`}
-                    style={{
-                      background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.5) 100%)",
-                      boxShadow: `0 4px 14px -6px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
-                    }}
-                  >
-                    <Repeat className={`h-2.5 w-2.5 shrink-0 ${accent.icon}`} />
-                    <span className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Wechsel</span>
-                    <span className="h-2.5 w-px bg-white/[0.08]" />
-                    <span className={`text-[11px] font-light tabular-nums leading-none ${accent.value}`}>
-                      {formatDelta(entry.deltaPct)}
-                    </span>
-                    {dirArrow && (
-                      <span className={`text-[10px] leading-none ${dirColor}`}>{dirArrow}</span>
-                    )}
-                    <span className="text-[9px] text-white/35 font-light leading-none tabular-nums">{entry.daysSince}T</span>
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* Action panel overlay */}
             {currentChatter && (

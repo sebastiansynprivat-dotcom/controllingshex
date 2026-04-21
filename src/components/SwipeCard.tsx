@@ -32,6 +32,13 @@ interface AnomalyAlertInfo {
   message: string;
 }
 
+interface SwapDeltaInfo {
+  deltaLabel: string; // pre-formatted, e.g. "+18%"
+  tone: "pos" | "neg" | "neutral";
+  direction: "upgrade" | "downgrade" | "lateral" | "unknown";
+  daysSince: number;
+}
+
 interface Props {
   chatter: ChatterData;
   alerts?: AnomalyAlertInfo[];
@@ -45,6 +52,7 @@ interface Props {
   isTop: boolean;
   stackIndex?: number;
   accountLogins?: AccountLogin[];
+  swapDelta?: SwapDeltaInfo | null;
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
@@ -107,7 +115,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [] }: Props) {
+export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [], swapDelta = null }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
@@ -600,12 +608,60 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                 }}
               />
             )}
-            <p className="text-[9px] uppercase tracking-[0.2em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
-              {hero.key}
-            </p>
-            <p className="text-[26px] font-bold text-foreground leading-none relative z-[1] mt-1 tracking-tight">
-              {hero.value}
-            </p>
+            <div className="relative z-[1] flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] uppercase tracking-[0.2em] font-semibold" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
+                  {hero.key}
+                </p>
+                <p className="text-[26px] font-bold text-foreground leading-none mt-1 tracking-tight truncate">
+                  {hero.value}
+                </p>
+              </div>
+              {swapDelta && (() => {
+                const tone = swapDelta.tone;
+                const valueColor =
+                  tone === "pos" ? "text-emerald-300"
+                  : tone === "neg" ? "text-red-300"
+                  : "text-foreground/85";
+                const glow =
+                  tone === "pos" ? "rgba(16,185,129,0.18)"
+                  : tone === "neg" ? "rgba(239,68,68,0.18)"
+                  : "rgba(255,255,255,0.08)";
+                const dirArrow =
+                  swapDelta.direction === "upgrade" ? "↗"
+                  : swapDelta.direction === "downgrade" ? "↘"
+                  : swapDelta.direction === "lateral" ? "→"
+                  : null;
+                const dirColor =
+                  swapDelta.direction === "upgrade" ? "text-emerald-300/80"
+                  : swapDelta.direction === "downgrade" ? "text-red-300/80"
+                  : "text-white/40";
+                return (
+                  <div
+                    className="shrink-0 rounded-lg border border-white/[0.08] px-2 py-1.5 backdrop-blur-md text-right"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.35) 100%)",
+                      boxShadow: `0 4px 14px -6px ${glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                    }}
+                  >
+                    <div className="flex items-center justify-end gap-1 leading-none">
+                      <span className="text-[8px] uppercase tracking-[0.18em] text-white/40 font-medium">Wechsel</span>
+                    </div>
+                    <div className="flex items-baseline justify-end gap-1 mt-1">
+                      <span className={`text-[13px] font-light tabular-nums leading-none ${valueColor}`}>
+                        {swapDelta.deltaLabel}
+                      </span>
+                      {dirArrow && (
+                        <span className={`text-[10px] leading-none ${dirColor}`}>{dirArrow}</span>
+                      )}
+                    </div>
+                    <p className="text-[9px] text-white/35 font-light leading-none mt-1 tabular-nums text-right">
+                      {swapDelta.daysSince}T
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
