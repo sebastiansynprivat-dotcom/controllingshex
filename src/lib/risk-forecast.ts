@@ -337,6 +337,10 @@ export function computeRiskScore(input: ForecastInput): RiskScore {
     tierMismatchSignal(history, input.followers, input.peerMedian),
   ];
 
+  if (input.includeAbsence) {
+    signals.push(absencePatternSignal(input.fullHistory));
+  }
+
   const score = Math.min(100, Math.round(signals.reduce((s, sig) => s + sig.points, 0)));
 
   // Hauptursache = stärkstes Signal
@@ -390,6 +394,7 @@ export function backtest(
   meta: Map<string, { account: string | null; followers: number; daysSinceStart: number | null; peerMedian: number | null; peerP25: number | null }>,
   threshold: number = 60,
   dropThresholdPct: number = 30,
+  includeAbsence: boolean = false,
 ): BacktestResult {
   const details: BacktestResult["details"] = [];
   let hits = 0;
@@ -414,9 +419,11 @@ export function backtest(
         account: m.account,
         followers: m.followers,
         history: train,
+        fullHistory: includeAbsence ? full.slice(0, pivot) : undefined,
         daysSinceStart: m.daysSinceStart,
         peerMedian: m.peerMedian,
         peerP25: m.peerP25,
+        includeAbsence,
       }).score;
 
       if (score < threshold) continue;
