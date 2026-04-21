@@ -32,6 +32,13 @@ interface AnomalyAlertInfo {
   message: string;
 }
 
+interface SwapDeltaInfo {
+  deltaLabel: string; // pre-formatted, e.g. "+18%"
+  tone: "pos" | "neg" | "neutral";
+  direction: "upgrade" | "downgrade" | "lateral" | "unknown";
+  daysSince: number;
+}
+
 interface Props {
   chatter: ChatterData;
   alerts?: AnomalyAlertInfo[];
@@ -45,6 +52,7 @@ interface Props {
   isTop: boolean;
   stackIndex?: number;
   accountLogins?: AccountLogin[];
+  swapDelta?: SwapDeltaInfo | null;
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
