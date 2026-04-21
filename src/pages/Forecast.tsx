@@ -448,7 +448,7 @@ export default function Forecast() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       <div className="premium-card rounded-xl px-4 py-3">
                         <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Vorhersagen</p>
                         <p className="text-foreground text-3xl font-extralight tabular-nums mt-1">
