@@ -6,6 +6,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RiskBadge } from "@/components/RiskBadge";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import { AbsenceForecastPanel, AbsenceBacktestPanel } from "@/components/AbsencePanel";
 import { loadBenchmarks, findCluster, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import {
   computeRiskScores,
@@ -254,8 +255,14 @@ export default function Forecast() {
             <Tabs defaultValue="forecast" className="space-y-6">
               <TabsList className="bg-white/[0.03] border border-white/[0.06]">
                 <TabsTrigger value="forecast">Frühwarnung</TabsTrigger>
+                <TabsTrigger value="absence">Abwesenheit</TabsTrigger>
                 <TabsTrigger value="backtest">Treffer-Quote</TabsTrigger>
               </TabsList>
+
+              {/* ───────── Abwesenheits-Tab ───────── */}
+              <TabsContent value="absence" className="space-y-4">
+                <AbsenceForecastPanel />
+              </TabsContent>
 
               {/* ───────── Forecast Tab ───────── */}
               <TabsContent value="forecast" className="space-y-4">
@@ -433,6 +440,13 @@ export default function Forecast() {
                     </p>
                   </>
                 )}
+
+                <div className="pt-6 space-y-3">
+                  <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+                    Abwesenheits-Prognose
+                  </p>
+                  <AbsenceBacktestPanel />
+                </div>
               </TabsContent>
             </Tabs>
           </motion.div>
