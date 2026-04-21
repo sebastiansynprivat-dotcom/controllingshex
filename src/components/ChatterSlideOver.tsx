@@ -336,23 +336,24 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         {/* ── Hero Header ── */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-medium tracking-wide bg-white/[0.04] border border-white/[0.08] text-white/70"
+            className="premium-stat flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-light tracking-wide text-primary/80"
+            style={{ filter: 'drop-shadow(0 0 8px hsl(40 50% 60% / 0.15))' }}
           >
             {initials}
           </div>
           <div className="min-w-0 flex-1">
             <h2
               onClick={() => { navigator.clipboard.writeText(displayName); toast.success("Name kopiert"); }}
-              className="text-lg font-light tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+              className="text-lg font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
               title="Klicken zum Kopieren"
             >
               {displayName}
             </h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-[10px] text-white/30 font-light tracking-[0.15em] uppercase">{platform} · Profil</p>
+              <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">{platform} · Profil</p>
               {trend30.direction !== "stable" && (
-                <span className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded ${
-                  trend30.direction === "up" ? "text-emerald-400/80" : "text-red-400/80"
+                <span className={`premium-chip inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-md ${
+                  trend30.direction === "up" ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/20" : "text-red-300 bg-red-500/10 border border-red-500/20"
                 }`}>
                   {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                   {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
@@ -365,10 +366,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           <div className="p-6 pb-16 space-y-8">
             {loading ? (
               <div className="flex items-center justify-center py-24">
-                <span className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+                <div className="premium-spinner"><span /><span /><span /></div>
               </div>
             ) : history.length === 0 ? (
-              <p className="text-center text-white/20 font-light py-20 text-sm tracking-wide">Noch keine historischen Daten vorhanden.</p>
+              <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
             ) : (
               <>
                 {/* KPI Grid */}
@@ -376,12 +377,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   {kpis.map((kpi) => {
                     const Icon = kpi.icon;
                     return (
-                      <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
+                      <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-4">
                         <div className="flex items-center gap-1.5">
-                          <Icon className="h-3 w-3 text-white/30" />
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light">{kpi.label}</p>
+                          <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">{kpi.label}</p>
                         </div>
-                        <p className={`text-lg font-light mt-2 ${kpi.gold ? "gold-text" : "text-foreground/75"}`}>{kpi.value}</p>
+                        <p className={`text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
                       </div>
                     );
                   })}
@@ -433,10 +434,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
                 {/* 30-Tage-Trend */}
                 {last30.length >= 4 && (
-                  <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5 relative">
+                  <div className="premium-card rounded-2xl p-5 relative">
                     <div className="flex items-center justify-between mb-4">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">30-Tage-Trend</p>
-                      <span className={`text-xs font-medium px-3 py-1 rounded-full ${trend30.direction === "up" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : trend30.direction === "down" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-white/[0.04] text-white/40 border border-white/[0.06]"}`}>
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">30-Tage-Trend</p>
+                      <span className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${trend30.direction === "up" ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25" : trend30.direction === "down" ? "bg-red-500/12 text-red-300 border border-red-500/25" : "bg-white/[0.05] text-white/55 border border-white/[0.08]"}`}>
                         {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"} {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
                       </span>
                     </div>
@@ -444,29 +445,29 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       <AreaChart data={last30}>
                         <defs>
                           <linearGradient id="trend30FillInline" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.2} />
+                            <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.25} />
                             <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
-                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
-                        <Area type="monotone" dataKey="revenue_today" stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"} strokeWidth={1.5} fill="url(#trend30FillInline)" dot={false} activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.1)", strokeWidth: 4 }} />
+                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
+                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+                        <Area type="monotone" dataKey="revenue_today" stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"} strokeWidth={2} fill="url(#trend30FillInline)" dot={false} activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.15)", strokeWidth: 4 }} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 )}
 
                 {/* Revenue Chart */}
-                <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-5">Umsatzverlauf</p>
+                <div className="premium-card rounded-2xl p-5">
+                  <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">Umsatzverlauf</p>
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={enrichedHistory}>
-                      <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
-                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.15)" }} />
-                      {noteDates.map((date) => <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.3)" strokeDasharray="3 3" />)}
-                      <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.3)", strokeWidth: 6 }} />
+                      <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
+                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
+                      {noteDates.map((date) => <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />)}
+                      <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -526,14 +527,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onPointerDown={handleDoubleTapClose}
-          className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.5)] flex flex-col"
+          className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
         >
           {/* ── Hero Header ── */}
           <div
             className="flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0"
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-medium tracking-wide bg-white/[0.04] border border-white/[0.08] text-white/70">
+            <div
+              className="premium-stat flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-light tracking-wide text-primary/85"
+              style={{ filter: 'drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))' }}
+            >
               {initials}
             </div>
             <div className="min-w-0 flex-1">
@@ -542,16 +546,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   navigator.clipboard.writeText(displayName);
                   toast.success("Name kopiert");
                 }}
-                className="text-xl sm:text-[26px] font-light tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+                className="text-xl sm:text-[26px] font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
                 title="Klicken zum Kopieren"
               >
                 {displayName}
               </h2>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-[11px] text-white/30 font-light tracking-[0.15em] uppercase">{platform} · Profil</p>
+                <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">{platform} · Profil</p>
                 {trend30.direction !== "stable" && (
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                    trend30.direction === "up" ? "text-emerald-400/80" : "text-red-400/80"
+                  <span className={`premium-chip inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-md tabular-nums ${
+                    trend30.direction === "up" ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/25" : "text-red-300 bg-red-500/10 border border-red-500/25"
                   }`}>
                     {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                     {trend30.pct > 0 ? "+" : ""}{trend30.pct}% / 30T
@@ -561,7 +565,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
             <button
               onClick={onClose}
-              className="p-2.5 rounded-xl hover:bg-white/[0.04] text-white/25 hover:text-white/50 transition-colors duration-300 shrink-0"
+              className="p-2.5 rounded-xl hover:bg-white/[0.05] text-white/35 hover:text-white/70 transition-colors duration-300 shrink-0 active:scale-[0.95]"
             >
               <X className="h-5 w-5" />
             </button>
@@ -574,10 +578,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
               {loading ? (
                 <div className="flex items-center justify-center py-24">
-                  <span className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+                  <div className="premium-spinner"><span /><span /><span /></div>
                 </div>
               ) : history.length === 0 ? (
-                <p className="text-center text-white/20 font-light py-20 text-sm tracking-wide">Noch keine historischen Daten vorhanden.</p>
+                <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
               ) : (
                 <>
                   {/* ── 2. KPI Grid (2×2) ── */}
@@ -585,12 +589,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     {kpis.map((kpi) => {
                       const Icon = kpi.icon;
                       return (
-                        <div key={kpi.label} className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
+                        <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-5">
                           <div className="flex items-center gap-1.5">
-                            <Icon className="h-3.5 w-3.5 text-white/30" />
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light">{kpi.label}</p>
+                            <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">{kpi.label}</p>
                           </div>
-                          <p className={`text-xl font-light mt-2.5 ${kpi.gold ? "gold-text" : "text-foreground/75"}`}>{kpi.value}</p>
+                          <p className={`text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
                         </div>
                       );
                     })}
@@ -674,15 +678,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
                   {/* ── 30-Tage-Trend ── */}
                   {last30.length >= 4 && (
-                    <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7 relative">
+                    <div className="premium-card rounded-2xl p-7 relative">
                       <div className="flex items-center justify-between mb-5">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">30-Tage-Trend</p>
-                        <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                        <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">30-Tage-Trend</p>
+                        <span className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${
                           trend30.direction === "up"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25"
                             : trend30.direction === "down"
-                            ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                            : "bg-white/[0.04] text-white/40 border border-white/[0.06]"
+                            ? "bg-red-500/12 text-red-300 border border-red-500/25"
+                            : "bg-white/[0.05] text-white/55 border border-white/[0.08]"
                         }`}>
                           {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
                           {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
@@ -692,21 +696,21 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                         <AreaChart data={last30}>
                           <defs>
                             <linearGradient id="trend30Fill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.2} />
+                              <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.25} />
                               <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
                             </linearGradient>
                           </defs>
-                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
-                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
+                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
                           <Area
                             type="monotone"
                             dataKey="revenue_today"
                             stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                            strokeWidth={1.5}
+                            strokeWidth={2}
                             fill="url(#trend30Fill)"
                             dot={false}
-                            activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.1)", strokeWidth: 4 }}
+                            activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.15)", strokeWidth: 4 }}
                           />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -714,49 +718,49 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   )}
 
                   {/* ── 3. Revenue Chart ── */}
-                  <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-7">Umsatzverlauf</p>
+                  <div className="premium-card rounded-2xl p-7">
+                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-7">Umsatzverlauf</p>
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={enrichedHistory}>
-                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
-                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.15)" }} />
+                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
+                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
                         {noteDates.map((date) => (
-                          <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.3)" strokeDasharray="3 3" />
+                          <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
                         ))}
-                        <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.3)", strokeWidth: 6 }} />
+                        <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }} />
                       </LineChart>
                     </ResponsiveContainer>
                     {noteDates.length > 0 && (
-                      <p className="text-[10px] text-white/15 font-light mt-4">Gestrichelte Linien = Coaching-Notizen</p>
+                      <p className="text-[10px] text-white/30 font-light mt-4 tracking-wide">Gestrichelte Linien = Coaching-Notizen</p>
                     )}
                   </div>
 
                   {/* ── 4. Postfach-Disziplin ── */}
                   <div className="space-y-5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Postfach-Disziplin</p>
-                    <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-7">
+                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Postfach-Disziplin</p>
+                    <div className="premium-card rounded-2xl p-7">
                       <ResponsiveContainer width="100%" height={170}>
                         <AreaChart data={history}>
                           <defs>
                             <linearGradient id="ghostFill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#E25822" stopOpacity={0.2} />
+                              <stop offset="0%" stopColor="#E25822" stopOpacity={0.28} />
                               <stop offset="100%" stopColor="#E25822" stopOpacity={0} />
                             </linearGradient>
                           </defs>
-                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 10 }} width={30} />
-                          <Tooltip content={<GhostChatTooltip />} cursor={{ stroke: "rgba(226,88,34,0.15)" }} />
-                          <Area type="monotone" dataKey="open_chats" stroke="#E25822" strokeWidth={1.5} fill="url(#ghostFill)" dot={false} activeDot={{ r: 4, fill: "#E25822", stroke: "rgba(226,88,34,0.3)", strokeWidth: 6 }} />
+                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} width={30} />
+                          <Tooltip content={<GhostChatTooltip />} cursor={{ stroke: "rgba(226,88,34,0.2)" }} />
+                          <Area type="monotone" dataKey="open_chats" stroke="#E25822" strokeWidth={2} fill="url(#ghostFill)" dot={false} activeDot={{ r: 4, fill: "#E25822", stroke: "rgba(226,88,34,0.4)", strokeWidth: 6 }} />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
                     {ghostSummary && (
-                      <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] p-5">
-                        <p className="text-xs text-white/40 font-light leading-relaxed">
-                          Letzte 7 Tage: Ø <span className="text-[#E25822] font-medium">{ghostSummary.avgChats} Chats</span> offen,{" "}
-                          <span className="text-[#E25822] font-medium">{ghostSummary.avgDelay} Tage</span> Verzug.{" "}
-                          Trend: <span className="font-medium text-white/60">{ghostSummary.trend}</span>
+                      <div className="premium-card rounded-xl p-5">
+                        <p className="text-xs text-white/55 font-light leading-relaxed tracking-wide">
+                          Letzte 7 Tage: Ø <span className="font-medium tabular-nums" style={{ color: "#E25822" }}>{ghostSummary.avgChats} Chats</span> offen,{" "}
+                          <span className="font-medium tabular-nums" style={{ color: "#E25822" }}>{ghostSummary.avgDelay} Tage</span> Verzug.{" "}
+                          Trend: <span className="font-medium text-white/80">{ghostSummary.trend}</span>
                         </p>
                       </div>
                     )}
@@ -764,19 +768,19 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
                   {/* ── 5. Management-Logbuch ── */}
                   <div className="space-y-5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Management-Logbuch</p>
                     <div className="flex gap-3">
                       <textarea
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder="Was wurde heute besprochen?"
                         rows={2}
-                        className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                        className="premium-card flex-1 rounded-xl px-4 py-3 text-sm text-foreground/85 font-light placeholder:text-white/25 resize-none focus:outline-none focus:border-primary/30 transition-colors duration-300"
                       />
                       <button
                         onClick={saveNote}
                         disabled={savingNote || !noteText.trim()}
-                        className="self-end px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                        className="premium-chip self-end px-4 py-3 rounded-xl bg-primary/12 border border-primary/25 text-primary hover:bg-primary/18 transition-all duration-300 disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.97]"
                       >
                         <Send className="h-4 w-4" />
                       </button>
@@ -784,9 +788,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     {notes.length > 0 && (
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {notes.map((n) => (
-                          <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-4 py-3">
-                            <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
-                            <p className="text-[10px] text-white/20 font-light mt-2">{formatDateTime(n.created_at)}</p>
+                          <div key={n.id} className="premium-card rounded-xl px-4 py-3">
+                            <p className="text-xs text-foreground/80 font-light leading-relaxed">{n.note_text}</p>
+                            <p className="text-[10px] text-white/30 font-light mt-2 tracking-wide">{formatDateTime(n.created_at)}</p>
                           </div>
                         ))}
                       </div>
@@ -795,23 +799,23 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
                   {/* ── 6. Verlauf-Tabelle ── */}
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light mb-5">Verlauf</p>
-                    <div className="rounded-xl bg-white/[0.015] border border-white/[0.04] overflow-hidden">
-                      <div className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.05]">
+                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">Verlauf</p>
+                    <div className="premium-card rounded-xl overflow-hidden">
+                      <div className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.06]">
                         {["Datum", "Umsatz", "DMs"].map((h) => (
-                          <span key={h} className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light">{h}</span>
+                          <span key={h} className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">{h}</span>
                         ))}
                         {["Chats", "Verzug"].map((h) => (
-                          <span key={h} className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-light hidden sm:block">{h}</span>
+                          <span key={h} className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium hidden sm:block">{h}</span>
                         ))}
                       </div>
                       {[...history].reverse().map((row, i) => (
-                        <div key={i} className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.01] transition-colors duration-300">
-                          <span className="text-xs text-white/40 font-light">{formatDate(row.analysis_date)}</span>
-                          <span className="text-xs font-light gold-text">{formatCurrency(row.revenue_today)}</span>
-                          <span className="text-xs text-white/35 font-light">{row.mass_dms}</span>
-                          <span className="text-xs text-white/35 font-light hidden sm:block">{row.open_chats}</span>
-                          <span className={`text-xs font-light hidden sm:block ${row.response_delay_days > 0 ? "text-[#E25822]/70" : "text-white/20"}`}>
+                        <div key={i} className="row-accent grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.03] last:border-0">
+                          <span className="text-xs text-white/55 font-light tabular-nums">{formatDate(row.analysis_date)}</span>
+                          <span className="text-xs font-light gold-text tabular-nums">{formatCurrency(row.revenue_today)}</span>
+                          <span className="text-xs text-white/50 font-light tabular-nums">{row.mass_dms}</span>
+                          <span className="text-xs text-white/50 font-light hidden sm:block tabular-nums">{row.open_chats}</span>
+                          <span className={`text-xs font-light hidden sm:block tabular-nums ${row.response_delay_days > 0 ? "text-[#E25822]/85" : "text-white/25"}`}>
                             {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
                           </span>
                         </div>
