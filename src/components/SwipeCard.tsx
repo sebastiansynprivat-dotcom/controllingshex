@@ -60,6 +60,7 @@ interface Props {
   stackIndex?: number;
   accountLogins?: AccountLogin[];
   swapDelta?: SwapDeltaInfo | null;
+  recoveryDelta?: RecoveryDeltaInfo | null;
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
