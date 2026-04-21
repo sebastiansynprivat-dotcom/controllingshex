@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkles, ChevronRight, Target, CheckCircle2, XCircle, CalendarX, Brain } from "lucide-react";
+import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkles, ChevronRight, Target, CheckCircle2, XCircle, CalendarX, Brain, ChevronDown, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
