@@ -153,7 +153,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   const snapBack = useCallback(() => {
     controls.start({
       x: 0, y: 0, rotate: 0, opacity: 1,
-      transition: { type: "spring", stiffness: 400, damping: 28 },
+      transition: { type: "spring", stiffness: 320, damping: 32, mass: 0.8 },
     });
   }, [controls]);
 
@@ -169,7 +169,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
       callback();
       controls.start({
         x: 0, y: 0, rotate: 0, opacity: 1,
-        transition: { type: "spring", stiffness: 400, damping: 28, delay: 0.08 },
+        transition: { type: "spring", stiffness: 320, damping: 32, mass: 0.8, delay: 0.08 },
       });
     });
   }, [controls]);
@@ -191,13 +191,13 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     triggerHaptic("medium");
     didHandleGestureRef.current = true;
     const targets = {
-      right: { x: 500, y: 0, rotate: 20 },
-      down: { x: 0, y: 500, rotate: 0 },
+      right: { x: 560, y: 0, rotate: 22 },
+      down: { x: 0, y: 560, rotate: 0 },
     };
     await controls.start({
       ...targets[direction],
       opacity: 0,
-      transition: { duration: 0.3, ease: "easeIn" },
+      transition: { duration: 0.32, ease: [0.32, 0, 0.67, 0] },
     });
     callback();
   }, [controls]);
@@ -209,6 +209,15 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     const absX = Math.abs(info.offset.x);
     const absY = Math.abs(info.offset.y);
     const isVerticalIntent = absY > absX * 1.1;
+
+    // Haptic notch when crossing the 120px threshold (any direction)
+    const crossed = absX >= 120 || absY >= 120;
+    if (crossed && !thresholdCrossedRef.current) {
+      thresholdCrossedRef.current = true;
+      triggerHaptic("light");
+    } else if (!crossed && thresholdCrossedRef.current) {
+      thresholdCrossedRef.current = false;
+    }
 
     if (info.offset.y < -56 && isVerticalIntent) {
       openDetails();
