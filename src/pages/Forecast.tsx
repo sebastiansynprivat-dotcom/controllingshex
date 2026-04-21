@@ -242,7 +242,7 @@ export default function Forecast() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-5xl mx-auto p-2 sm:p-8 lg:p-12 space-y-8"
           >
-            <header className="space-y-2">
+            <header className="space-y-3">
               <div className="flex items-center gap-3">
                 <AlertOctagon className="h-6 w-6 text-orange-400/80" />
                 <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">
@@ -252,6 +252,28 @@ export default function Forecast() {
               <p className="text-white/40 text-sm font-light tracking-wide">
                 Prognose der nächsten 1–3 Tage · {platform}
               </p>
+
+              {/* Absence-Pattern Toggle */}
+              <button
+                onClick={() => setIncludeAbsence(v => !v)}
+                className={`inline-flex items-center gap-2.5 px-3.5 py-2 rounded-lg border text-xs font-light transition-all ${
+                  includeAbsence
+                    ? "border-orange-400/40 bg-orange-500/10 text-orange-200/90"
+                    : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:text-white/70 hover:border-white/[0.15]"
+                }`}
+                title="Bezieht das 30-Tage-Anwesenheitsmuster in den Score ein"
+              >
+                <CalendarX className="h-3.5 w-3.5" />
+                <span>Abwesenheits-Muster einbeziehen</span>
+                <span className={`ml-1 h-4 w-7 rounded-full transition-colors relative ${includeAbsence ? "bg-orange-400/60" : "bg-white/10"}`}>
+                  <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${includeAbsence ? "translate-x-3.5" : "translate-x-0.5"}`} />
+                </span>
+              </button>
+              {includeAbsence && (
+                <p className="text-orange-300/50 text-[11px] font-light pl-1">
+                  Erkennt Chatter, die unregelmäßig anwesend sind (Lücken, Zero-Days, Trend zur Verschlechterung). Treffer-Quote im 2. Tab zeigt, wie verlässlich das Signal ist.
+                </p>
+              )}
             </header>
 
             <Tabs defaultValue="forecast" className="space-y-6">
