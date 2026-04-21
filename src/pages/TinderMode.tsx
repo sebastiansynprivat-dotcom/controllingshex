@@ -1565,6 +1565,15 @@ export default function TinderMode() {
                       daysSince: swapEntry.daysSince,
                     }
                   : null;
+                const recoveryEntry = isTopCard ? recoveryMap.get(normalizeName(chatter.name)) : undefined;
+                const recoveryDeltaProp = recoveryEntry
+                  ? {
+                      recoveryEur: recoveryEntry.recoveryEur,
+                      baseline: recoveryEntry.baseline,
+                      currentAvg: recoveryEntry.currentAvg,
+                      gapPct: recoveryEntry.gapPct,
+                    }
+                  : null;
 
                 return (
                   <SwipeCard
@@ -1582,6 +1591,7 @@ export default function TinderMode() {
                     stackIndex={stackIndex}
                     accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
                     swapDelta={swapDeltaProp}
+                    recoveryDelta={recoveryDeltaProp}
                   />
                 );
               })}
