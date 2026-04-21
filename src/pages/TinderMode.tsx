@@ -850,8 +850,9 @@ export default function TinderMode() {
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
+    if (recoveryFilterActive) base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]);
+  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
