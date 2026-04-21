@@ -39,6 +39,13 @@ interface SwapDeltaInfo {
   daysSince: number;
 }
 
+interface RecoveryDeltaInfo {
+  recoveryEur: number;     // 7-Tage-Potenzial
+  baseline: number;        // 30d-Median
+  currentAvg: number;      // letzte 3 Tage Schnitt
+  gapPct: number;          // 0..1
+}
+
 interface Props {
   chatter: ChatterData;
   alerts?: AnomalyAlertInfo[];
