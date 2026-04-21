@@ -149,8 +149,8 @@ export default function Leaderboard() {
           activeDays: days.size,
           prevTotal: Math.round((prevGrouped[name] ?? 0) * 100) / 100,
         }))
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 20);
+        .filter((e) => e.total > 0)
+        .sort((a, b) => b.total - a.total);
 
       return sorted.map((entry, i) => {
         const rank = i + 1;
