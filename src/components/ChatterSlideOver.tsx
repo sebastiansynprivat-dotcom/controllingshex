@@ -85,12 +85,12 @@ function RevenueTooltip({ active, payload }: any) {
   const row = payload[0]?.payload as (HistoryRow & { note?: string }) | undefined;
   if (!row) return null;
   return (
-    <div className="bg-zinc-900/90 backdrop-blur-2xl border border-white/[0.08] rounded-xl px-5 py-3.5 shadow-2xl max-w-[240px]">
-      <p className="text-[11px] text-white/35 font-light tracking-wider mb-2">{formatDate(row.analysis_date)}</p>
-      <p className="text-lg font-light gold-text">{formatCurrency(row.revenue_today)}</p>
-      <p className="text-xs text-white/40 font-light mt-1">{row.mass_dms} MassDMs</p>
+    <div className="premium-card rounded-xl px-5 py-3.5 max-w-[240px]">
+      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">{formatDate(row.analysis_date)}</p>
+      <p className="text-lg font-extralight gold-text tracking-tight tabular-nums">{formatCurrency(row.revenue_today)}</p>
+      <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.mass_dms} MassDMs</p>
       {row.note && (
-        <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2">📝 {row.note}</p>
+        <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">📝 {row.note}</p>
       )}
     </div>
   );
@@ -101,10 +101,10 @@ function GhostChatTooltip({ active, payload }: any) {
   const row = payload[0]?.payload as HistoryRow | undefined;
   if (!row) return null;
   return (
-    <div className="bg-zinc-900/90 backdrop-blur-2xl border border-white/[0.08] rounded-xl px-5 py-3.5 shadow-2xl">
-      <p className="text-[11px] text-white/35 font-light tracking-wider mb-2">{formatDate(row.analysis_date)}</p>
-      <p className="text-lg font-light text-[#E25822]">{row.open_chats} Offene Chats</p>
-      <p className="text-xs text-white/40 font-light mt-1">{row.response_delay_days} Tage Verzug</p>
+    <div className="premium-card rounded-xl px-5 py-3.5">
+      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">{formatDate(row.analysis_date)}</p>
+      <p className="text-lg font-extralight tracking-tight tabular-nums" style={{ color: "#E25822" }}>{row.open_chats} Offene Chats</p>
+      <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.response_delay_days} Tage Verzug</p>
     </div>
   );
 }
