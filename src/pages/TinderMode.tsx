@@ -1429,6 +1429,20 @@ export default function TinderMode() {
                   </>
                 )}
 
+                {recoveryMap.size > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectItem value="__recovery__">
+                      <span className="inline-flex items-center gap-1.5 text-amber-300">
+                        <Sparkles className="h-3 w-3" /> Revenue Recovery
+                      </span>
+                      {recoveryCount > 0 && (
+                        <span className="ml-1.5 text-[10px] opacity-50">{recoveryCount}</span>
+                      )}
+                    </SelectItem>
+                  </>
+                )}
+
                 {allLabels.length > 0 && (
                   <>
                     <SelectSeparator />
