@@ -598,30 +598,30 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {/* Hero KPI — single visual anchor, ruhiger Glow */}
         {hero && (
           <div
-            className="rounded-xl px-3 py-2.5 border relative overflow-hidden"
+            className="rounded-xl px-3 py-2.5 border relative overflow-hidden premium-stat"
             style={{
-              borderColor: `hsl(${accent.hue} / 0.22)`,
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.12) 0%, hsl(${accent.hue} / 0.03) 100%)`,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05)`,
+              borderColor: `hsl(${accent.hue} / 0.28)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.03) 100%)`,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px -10px hsl(${accent.hue} / 0.35)`,
             }}
           >
-            {/* Subtle shine sweep — selten, dezent */}
+            {/* Subtle shine sweep — sehr selten, dezent */}
             {isTop && (
               <motion.div
                 aria-hidden
                 className="absolute inset-0 pointer-events-none"
                 initial={{ x: "-120%" }}
                 animate={{ x: "120%" }}
-                transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity, repeatDelay: 7 }}
+                transition={{ duration: 2.6, ease: "easeInOut", repeat: Infinity, repeatDelay: 12 }}
                 style={{
-                  background: "linear-gradient(105deg, transparent 42%, rgba(255,255,255,0.07) 50%, transparent 58%)",
+                  background: "linear-gradient(105deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%)",
                 }}
               />
             )}
-            <p className="text-[9px] uppercase tracking-[0.2em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
+            <p className="text-[9px] uppercase tracking-[0.22em] font-semibold relative z-[1]" style={{ color: `hsl(${accent.hue} / 0.85)` }}>
               {hero.key}
             </p>
-            <p className="text-[26px] font-bold text-foreground leading-none relative z-[1] mt-1 tracking-tight">
+            <p className="text-[30px] font-extralight text-foreground leading-none relative z-[1] mt-1 tracking-tighter">
               {hero.value}
             </p>
           </div>
@@ -631,7 +631,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {kpiEntries.length > 0 && (
           <div className="grid grid-cols-2 gap-1.5">
             {kpiEntries.slice(0, 4).map(([key, value]) => (
-              <div key={key} className="bg-white/[0.025] border border-white/[0.04] rounded-md px-2 py-1.5">
+              <div key={key} className="premium-stat rounded-md px-2 py-1.5 transition-colors hover:bg-white/[0.04]">
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{key}</p>
                 <p className="text-[13px] font-medium text-foreground leading-tight">{value}</p>
               </div>
