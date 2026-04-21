@@ -125,11 +125,49 @@ export default function CompareModeView({
   const applyPreset = (p: ComparePreset) =>
     setState((s) => ({ ...s, setA: p.setA, setB: p.setB }));
 
-  // Indep. State pro Seite: Index + skipped (an Stack-Ende verschoben)
+  // Indep. State pro Seite: Index + skipped (an Stack-Ende verschoben) + dismissed (bis nächster Report ausgeblendet)
   const [idxA, setIdxA] = useState(0);
   const [idxB, setIdxB] = useState(0);
   const [skippedA, setSkippedA] = useState<string[]>([]);
   const [skippedB, setSkippedB] = useState<string[]>([]);
+  const dismissKey = reportId ? `compare.dismissed.${reportId}` : null;
+  const [dismissedA, setDismissedA] = useState<Set<string>>(new Set());
+  const [dismissedB, setDismissedB] = useState<Set<string>>(new Set());
+
+  // Load dismissed from localStorage when reportId changes
+  useEffect(() => {
+    if (!dismissKey) {
+      setDismissedA(new Set());
+      setDismissedB(new Set());
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(dismissKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { a?: string[]; b?: string[] };
+        setDismissedA(new Set(parsed.a || []));
+        setDismissedB(new Set(parsed.b || []));
+      } else {
+        setDismissedA(new Set());
+        setDismissedB(new Set());
+      }
+    } catch {
+      setDismissedA(new Set());
+      setDismissedB(new Set());
+    }
+  }, [dismissKey]);
+
+  // Persist dismissed
+  useEffect(() => {
+    if (!dismissKey) return;
+    try {
+      localStorage.setItem(
+        dismissKey,
+        JSON.stringify({ a: Array.from(dismissedA), b: Array.from(dismissedB) })
+      );
+    } catch {}
+  }, [dismissKey, dismissedA, dismissedB]);
+
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const { platform } = usePlatform();
 
