@@ -257,22 +257,22 @@ export default function Forecast() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-5xl mx-auto p-2 sm:p-8 lg:p-12 space-y-8"
+            className="max-w-5xl mx-auto px-4 py-5 sm:p-8 lg:p-12 space-y-6 sm:space-y-8"
           >
-            <header className="space-y-2">
-              <div className="flex items-center gap-3">
-                <AlertOctagon className="h-6 w-6 text-orange-400/80" />
-                <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">
+            <header className="space-y-1.5">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <AlertOctagon className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400/80 shrink-0" />
+                <h1 className="text-xl sm:text-3xl font-extralight tracking-tight text-foreground">
                   Frühwarnung
                 </h1>
               </div>
-              <p className="text-white/40 text-sm font-light tracking-wide">
+              <p className="text-white/40 text-xs sm:text-sm font-light tracking-wide">
                 Prognose der nächsten 1–3 Tage · {platform}
               </p>
             </header>
 
-            <Tabs defaultValue="forecast" className="space-y-6">
-              <TabsList className="bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start">
+            <Tabs defaultValue="forecast" className="space-y-5 sm:space-y-6">
+              <TabsList className="bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
                 <TabsTrigger
                   value="forecast"
                   className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors"
