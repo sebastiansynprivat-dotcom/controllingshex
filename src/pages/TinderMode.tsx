@@ -469,6 +469,21 @@ export default function TinderMode() {
     return () => { cancelled = true; };
   }, [platform]);
 
+  // Recovery Queue: Chatter unter ihrem 30-Tage-Median (Umsatz-Hebel)
+  useEffect(() => {
+    let cancelled = false;
+    loadRecoveryHistory(platform)
+      .then((history) => {
+        if (cancelled) return;
+        const entries = computeRecoveryQueue(history);
+        const map = new Map<string, RecoveryEntry>();
+        for (const e of entries) map.set(normalizeName(e.chatterName), e);
+        setRecoveryMap(map);
+      })
+      .catch((err) => console.warn("loadRecoveryQueue failed:", err));
+    return () => { cancelled = true; };
+  }, [platform]);
+
   // Refresh a single chatter's input info after a logged event
   const refreshInputForChatter = useCallback(async (chatterName: string) => {
     const fresh = await loadLastInputs(platform, [chatterName]);
