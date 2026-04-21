@@ -281,6 +281,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   }, []);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+    thresholdCrossedRef.current = false;
     if (didHandleGestureRef.current) {
       didHandleGestureRef.current = false;
       isDraggingRef.current = false;
@@ -309,50 +310,71 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     }
   }, [flyOff, snapBack, peekAndReturn, openDetails, onSwipeRight, onSwipeLeft, onSwipeDown]);
 
-  // Severity-based outer ring shadow
+  // Severity-based outer ring shadow — softer breathing
   const severityRing = hasCritical
-    ? "0 0 0 1px rgba(239,68,68,0.25), 0 0 28px -4px rgba(239,68,68,0.35)"
+    ? "0 0 0 1px rgba(239,68,68,0.22), 0 0 32px -4px rgba(239,68,68,0.32)"
     : "";
 
   const baseShadow = isTop
-    ? `0 14px 50px -14px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.07)${severityRing ? `, ${severityRing}` : ""}`
+    ? `0 18px 60px -16px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)${severityRing ? `, ${severityRing}` : ""}`
     : "0 4px 20px -8px rgba(0,0,0,0.4)";
+
+  // Stack-card visibility: depth-hint for card #2 instead of fully invisible
+  const stackBg = stackIndex === 1
+    ? `linear-gradient(165deg, hsl(0 0% 100% / 0.03) 0%, hsl(240 6% 5%) 40%, hsl(240 8% 3%) 100%)`
+    : `
+        radial-gradient(130% 70% at 0% 0%, ${accent.tint} 0%, transparent 55%),
+        radial-gradient(110% 80% at 100% 100%, hsl(${accent.hue} / 0.12) 0%, transparent 60%),
+        linear-gradient(165deg, hsl(0 0% 100% / 0.05) 0%, hsl(240 6% 5%) 38%, hsl(240 8% 3%) 100%)
+      `;
 
   return (
     <motion.div
+      layout={false}
       className={`absolute inset-0 rounded-2xl p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
         ...(isTop
           ? { x, y: displayY, rotate, zIndex: 20, willChange: "transform" }
-          : { scale: stackScale, y: stackOffsetY, opacity: stackOpacity, zIndex: 20 - stackIndex, willChange: "auto" }
+          : { zIndex: 20 - stackIndex, willChange: "auto" }
         ),
-        background: `
-          radial-gradient(130% 70% at 0% 0%, ${accent.tint} 0%, transparent 55%),
-          radial-gradient(110% 80% at 100% 100%, hsl(${accent.hue} / 0.12) 0%, transparent 60%),
-          linear-gradient(165deg, hsl(0 0% 100% / 0.05) 0%, hsl(240 6% 5%) 38%, hsl(240 8% 3%) 100%)
-        `,
+        background: stackBg,
         boxShadow: baseShadow,
         border: "1px solid transparent",
       }}
       drag={isTop}
       dragDirectionLock={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={isTop ? 0.2 : 0}
+      dragElastic={isTop ? 0.32 : 0}
       dragMomentum={false}
+      dragTransition={{ bounceStiffness: 320, bounceDamping: 32 }}
       onDrag={isTop ? handleDrag : undefined}
       onDragEnd={isTop ? handleDragEnd : undefined}
-      animate={isTop ? controls : undefined}
-      initial={false}
-      whileDrag={isTop ? { scale: 1.02 } : undefined}
+      animate={isTop ? controls : (stackIndex === 1 ? { scale: 0.95, y: 8, opacity: 0.42 } : { scale: 0.92, y: 14, opacity: 0 })}
+      initial={isTop ? { scale: 0.96, opacity: 0 } : false}
+      transition={isTop ? { type: "spring", stiffness: 320, damping: 32, mass: 0.8 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      whileDrag={isTop ? { scale: 1.035, boxShadow: `0 28px 80px -18px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1)${severityRing ? `, ${severityRing}` : ""}` } : undefined}
+      whileTap={isTop ? { scale: 0.992 } : undefined}
       onClick={isTop ? handleCardTap : undefined}
     >
-      {/* Static accent border — dezent, einheitlich */}
+      {/* Premium top highlight — 1px light edge */}
+      {isTop && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.14) 50%, transparent 100%)",
+          }}
+        />
+      )}
+
+      {/* Static accent border — verstärkt */}
       <div
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
-          border: `1px solid hsl(${accent.hue} / ${isTop ? 0.18 : 0.08})`,
+          border: `1px solid hsl(${accent.hue} / ${isTop ? 0.28 : 0.08})`,
+          boxShadow: isTop ? `inset 0 0 24px hsl(${accent.hue} / 0.06)` : undefined,
         }}
       />
 
