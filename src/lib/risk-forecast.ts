@@ -245,9 +245,78 @@ function tierMismatchSignal(history: HistoryPoint[], followers: number, peerMedi
   return { key: "tier", label: "Tier-Mismatch", points: 0, detail: "passt" };
 }
 
-/* ------------------------------------------------------------------ */
-/*  HAUPT-FUNKTION                                                     */
-/* ------------------------------------------------------------------ */
+/**
+ * Absence-Pattern-Signal
+ *
+ * Erkennt Chatter mit unregelmäßigem Anwesenheitsmuster über die volle History
+ * (typischerweise 30 Tage). Drei Sub-Signale kombiniert:
+ *   1. Zero-Day-Anteil — Tage mit 0€ ÷ Total-Tage
+ *   2. Lücken-Frequenz — wieviele Lücken (≥2 aufeinanderfolgende Zero-Days)
+ *   3. Trend-Verschlechterung — Zero-Anteil letzte 7 Tage vs. davor
+ *
+ * Punkt-Vergabe greift nur bei ≥10 Tagen History (sonst zu unsicher).
+ */
+function absencePatternSignal(fullHistory: HistoryPoint[] | undefined): SignalContribution {
+  if (!fullHistory || fullHistory.length < 10) {
+    return { key: "absence", label: "Abwesenheits-Muster", points: 0, detail: "zu wenig Daten" };
+  }
+  const revs = fullHistory.map(h => h.revenue);
+  const n = revs.length;
+  const zeros = revs.filter(v => v === 0).length;
+  const zeroRatio = zeros / n;
+
+  // Lücken zählen (Sequenzen von ≥2 aufeinanderfolgenden Zero-Days)
+  let gaps = 0;
+  let inGap = false;
+  let runLen = 0;
+  let maxRun = 0;
+  for (const v of revs) {
+    if (v === 0) {
+      runLen++;
+      if (runLen === 2 && !inGap) { gaps++; inGap = true; }
+    } else {
+      if (runLen > maxRun) maxRun = runLen;
+      runLen = 0;
+      inGap = false;
+    }
+  }
+  if (runLen > maxRun) maxRun = runLen;
+
+  // Trend: Zero-Anteil letzte 7 vs. vorherige Periode
+  const split = Math.max(7, Math.floor(n / 2));
+  const recent = revs.slice(-7);
+  const earlier = revs.slice(0, n - 7);
+  const recentZeroRatio = recent.length > 0 ? recent.filter(v => v === 0).length / recent.length : 0;
+  const earlierZeroRatio = earlier.length > 0 ? earlier.filter(v => v === 0).length / earlier.length : 0;
+  const trendDelta = recentZeroRatio - earlierZeroRatio;
+
+  // Punkte
+  let pts = 0;
+  let label: string[] = [];
+
+  // 1) absoluter Anteil
+  if (zeroRatio >= 0.5) { pts += W.absence * 0.6; label.push(`${Math.round(zeroRatio * 100)}% Tage ohne Umsatz`); }
+  else if (zeroRatio >= 0.3) { pts += W.absence * 0.4; label.push(`${Math.round(zeroRatio * 100)}% Zero-Days`); }
+  else if (zeroRatio >= 0.15) { pts += W.absence * 0.2; label.push(`${Math.round(zeroRatio * 100)}% Zero-Days`); }
+
+  // 2) Lücken-Frequenz (≥3 Lücken in 30 Tagen = unzuverlässig)
+  if (gaps >= 4) pts += W.absence * 0.4;
+  else if (gaps >= 2) pts += W.absence * 0.2;
+
+  // 3) Trend-Verschlechterung
+  if (trendDelta >= 0.25) { pts += W.absence * 0.3; label.unshift("Anwesenheit verschlechtert sich"); }
+
+  // Cap auf max gewicht
+  pts = Math.min(pts, W.absence);
+
+  const detail = label.length > 0
+    ? label.join(" · ")
+    : gaps > 0
+      ? `${gaps} Lücken, max ${maxRun} Tage am Stück weg`
+      : "regelmäßig anwesend";
+
+  return { key: "absence", label: "Abwesenheits-Muster", points: Math.round(pts), detail };
+}
 
 function bandFor(score: number): RiskScore["band"] {
   if (score >= 80) return "critical";
