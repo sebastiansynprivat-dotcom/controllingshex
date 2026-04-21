@@ -230,8 +230,8 @@ export default function Models() {
         </div>
 
         {/* Add New */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 sm:p-8 backdrop-blur-2xl">
-          <h2 className="text-[13px] font-medium text-foreground/70 mb-4 sm:mb-5 tracking-wide">Neues Model</h2>
+        <div className="premium-card rounded-2xl p-5 sm:p-8">
+          <h2 className="text-[11px] gold-text-subtle mb-4 sm:mb-5 tracking-[0.2em] uppercase font-medium">Neues Model</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               placeholder="Name"
@@ -266,7 +266,7 @@ export default function Models() {
           <div className="flex justify-end mt-4">
             <Button
               onClick={addModel}
-              className="bg-white/[0.04] hover:bg-white/[0.06] text-foreground/70 border border-white/[0.06] hover:border-primary/15 font-light text-[12px] tracking-wider transition-all duration-500 shrink-0"
+              className="premium-chip bg-white/[0.04] hover:bg-white/[0.07] text-foreground/80 border border-white/[0.08] hover:border-primary/25 font-light text-[12px] tracking-wider transition-all duration-300 shrink-0 active:scale-[0.98]"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Hinzufügen
@@ -275,15 +275,15 @@ export default function Models() {
         </div>
 
         {/* Revenue Filter Bar */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4 sm:p-6 backdrop-blur-2xl space-y-4">
+        <div className="premium-card rounded-2xl p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-3.5 w-3.5 text-white/20" />
-              <span className="text-[11px] text-white/40 font-medium tracking-wider uppercase">Umsatz-Filter</span>
+              <DollarSign className="h-3.5 w-3.5 text-primary/60" />
+              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Umsatz-Filter</span>
             </div>
             <div className="text-right">
-              <span className="text-sm font-light gold-text">{formatEur(totalRevAll)}</span>
-              <span className="text-[10px] text-white/20 ml-2">{earningCount}/{models.length} aktiv</span>
+              <span className="text-base font-extralight gold-text tracking-tight tabular-nums">{formatEur(totalRevAll)}</span>
+              <span className="text-[10px] text-white/25 ml-2 font-light">{earningCount}/{models.length} aktiv</span>
             </div>
           </div>
 
@@ -294,10 +294,10 @@ export default function Models() {
                 key={opt.key}
                 onClick={() => setPeriod(opt.key)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap",
+                  "premium-chip px-3 py-1.5 rounded-lg text-[11px] font-light tracking-wide transition-all duration-300 border whitespace-nowrap active:scale-[0.97]",
                   period === opt.key
-                    ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_-3px] shadow-primary/30"
-                    : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/70 hover:bg-white/[0.05]"
+                    ? "bg-primary/12 border-primary/35 text-primary"
+                    : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/85 hover:bg-white/[0.05] hover:border-white/[0.1]"
                 )}
               >
                 {opt.label}
@@ -371,14 +371,14 @@ export default function Models() {
                 key={opt.key}
                 onClick={() => setRevenueFilter(opt.key)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-[11px] font-normal transition-all duration-200 border whitespace-nowrap",
+                  "premium-chip px-3 py-1.5 rounded-lg text-[11px] font-light tracking-wide transition-all duration-300 border whitespace-nowrap active:scale-[0.97]",
                   revenueFilter === opt.key
                     ? opt.key === "earning"
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                      ? "bg-emerald-500/12 border-emerald-500/35 text-emerald-300"
                       : opt.key === "zero"
-                      ? "bg-red-500/10 border-red-500/30 text-red-400"
-                      : "bg-white/[0.06] border-white/[0.12] text-white/70"
-                    : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:text-white/60 hover:bg-white/[0.05]"
+                      ? "bg-red-500/12 border-red-500/35 text-red-300"
+                      : "bg-white/[0.07] border-white/[0.14] text-white/80"
+                    : "bg-white/[0.03] border-white/[0.06] text-white/45 hover:text-white/70 hover:bg-white/[0.05] hover:border-white/[0.1]"
                 )}
               >
                 {opt.label}
@@ -396,7 +396,7 @@ export default function Models() {
             placeholder="Model suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-white/[0.02] border-white/[0.05] text-foreground placeholder:text-white/25 font-light text-sm h-10 backdrop-blur-2xl"
+            className="pl-9 premium-card text-foreground placeholder:text-white/25 font-light text-sm h-10 border-0"
           />
           {searchQuery && (
             <button
@@ -410,15 +410,15 @@ export default function Models() {
         </div>
 
         {/* Table */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-2xl">
+        <div className="premium-card rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.04]">
-                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Model</th>
-                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Follower</th>
-                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Umsatz</th>
-                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em] hidden sm:table-cell">Hinzugefügt</th>
-                <th className="text-right py-3 sm:py-4 px-4 sm:px-8 text-[10px] text-white/25 font-light uppercase tracking-[0.2em]">Aktionen</th>
+              <tr className="border-b border-white/[0.05]">
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] gold-text-subtle font-medium uppercase tracking-[0.2em]">Model</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] gold-text-subtle font-medium uppercase tracking-[0.2em]">Follower</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] gold-text-subtle font-medium uppercase tracking-[0.2em]">Umsatz</th>
+                <th className="text-left py-3 sm:py-4 px-4 sm:px-8 text-[10px] gold-text-subtle font-medium uppercase tracking-[0.2em] hidden sm:table-cell">Hinzugefügt</th>
+                <th className="text-right py-3 sm:py-4 px-4 sm:px-8 text-[10px] gold-text-subtle font-medium uppercase tracking-[0.2em]">Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -434,7 +434,7 @@ export default function Models() {
                 const hasRevenue = rev && rev.totalRevenue > 0;
 
                 return (
-                  <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors duration-500">
+                  <tr key={m.id} className="row-accent border-b border-white/[0.03] transition-colors duration-300">
                     {editId === m.id ? (
                       <>
                         <td className="py-3 sm:py-4 px-4 sm:px-8 space-y-1.5">
@@ -484,11 +484,11 @@ export default function Models() {
                         <td className="py-4 sm:py-5 px-4 sm:px-8 align-top">
                           {hasRevenue ? (
                             <div>
-                              <span className="text-sm font-light gold-text">{formatEur(rev.totalRevenue)}</span>
-                              <span className="block text-[10px] text-white/20 font-light mt-0.5">{rev.days} Einträge</span>
+                              <span className="text-base font-extralight gold-text tracking-tight tabular-nums">{formatEur(rev.totalRevenue)}</span>
+                              <span className="block text-[10px] text-white/25 font-light mt-0.5 tracking-wide">{rev.days} Einträge</span>
                             </div>
                           ) : (
-                            <span className="text-xs text-white/15 font-light">Kein Umsatz</span>
+                            <span className="text-xs text-white/15 font-light italic">Kein Umsatz</span>
                           )}
                         </td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-white/25 font-light text-xs hidden sm:table-cell align-top">{new Date(m.created_at).toLocaleDateString("de-DE")}</td>
