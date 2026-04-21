@@ -840,8 +840,9 @@ export default function TinderMode() {
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
+    if (recoveryFilterActive) base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]);
+  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
