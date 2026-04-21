@@ -1517,35 +1517,45 @@ export default function TinderMode() {
               })}
             </AnimatePresence>
 
-            {/* Swap-Tracking Δ-Badge auf der Top-Card */}
+            {/* Swap-Tracking Δ-Badge — dezent unten links auf der Top-Card, kollidiert nicht mit Header-Badges */}
             {currentChatter && (() => {
               const entry = swapTrackingMap.get(normalizeName(currentChatter.name));
               if (!entry) return null;
               const tone = deltaTone(entry.deltaPct);
-              const toneClass =
-                tone === "pos" ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-200"
-                : tone === "neg" ? "bg-red-500/15 border-red-400/40 text-red-200"
-                : "bg-cyan-500/10 border-cyan-400/30 text-cyan-100";
-              const dirIcon =
-                entry.tierDirection === "upgrade" ? "▲"
-                : entry.tierDirection === "downgrade" ? "▼"
-                : entry.tierDirection === "lateral" ? "→"
-                : "·";
-              const dirClass =
-                entry.tierDirection === "upgrade" ? "text-emerald-300"
-                : entry.tierDirection === "downgrade" ? "text-red-300"
-                : "text-foreground/55";
+              const accent =
+                tone === "pos" ? { text: "text-emerald-200", value: "text-emerald-300", icon: "text-emerald-300/80", glow: "rgba(16,185,129,0.18)" }
+                : tone === "neg" ? { text: "text-red-200", value: "text-red-300", icon: "text-red-300/80", glow: "rgba(239,68,68,0.18)" }
+                : { text: "text-foreground/75", value: "text-foreground/85", icon: "text-white/55", glow: "rgba(255,255,255,0.08)" };
+              const DirIcon =
+                entry.tierDirection === "upgrade" ? TrendingDown // placeholder, replaced below
+                : null;
               return (
-                <div className="pointer-events-none absolute top-2 right-2 z-30 max-w-[60%]">
-                  <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border backdrop-blur-md shadow-sm ${toneClass}`}>
-                    <Repeat className="h-2.5 w-2.5 shrink-0 opacity-80" />
-                    <span className="text-[10px] font-semibold leading-none whitespace-nowrap">
+                <div className="pointer-events-none absolute bottom-3 left-3 z-30 max-w-[calc(100%-1.5rem)]">
+                  <div
+                    className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/[0.08] backdrop-blur-xl ${accent.text}`}
+                    style={{
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.5) 100%)",
+                      boxShadow: `0 4px 14px -6px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                    }}
+                  >
+                    <Repeat className={`h-2.5 w-2.5 shrink-0 ${accent.icon}`} />
+                    <span className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium leading-none">Wechsel</span>
+                    <span className="h-2.5 w-px bg-white/[0.08]" />
+                    <span className={`text-[11px] font-light tabular-nums leading-none ${accent.value}`}>
                       {formatDelta(entry.deltaPct)}
                     </span>
-                    <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${dirClass}`}>
-                      <span>{dirIcon}</span>
-                    </span>
-                    <span className="text-[10px] opacity-60 font-normal leading-none whitespace-nowrap">{entry.daysSince}T</span>
+                    {entry.tierDirection !== "same" && entry.tierDirection !== null && (
+                      <span
+                        className={`text-[10px] leading-none ${
+                          entry.tierDirection === "upgrade" ? "text-emerald-300/80"
+                          : entry.tierDirection === "downgrade" ? "text-red-300/80"
+                          : "text-white/40"
+                        }`}
+                      >
+                        {entry.tierDirection === "upgrade" ? "↗" : entry.tierDirection === "downgrade" ? "↘" : "→"}
+                      </span>
+                    )}
+                    <span className="text-[9px] text-white/35 font-light leading-none tabular-nums">{entry.daysSince}T</span>
                   </div>
                 </div>
               );
