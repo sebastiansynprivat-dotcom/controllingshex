@@ -353,7 +353,8 @@ function CompareSlot({
   enrichedMap,
   stackLength,
   idx,
-  onSwipeNext,
+  dismissedCount,
+  onSwipeDismiss,
   onSwipeSkip,
   onReset,
   onTap,
@@ -364,7 +365,8 @@ function CompareSlot({
   enrichedMap: Map<string, SwapChatter>;
   stackLength: number;
   idx: number;
-  onSwipeNext: () => void;
+  dismissedCount: number;
+  onSwipeDismiss: () => void;
   onSwipeSkip: () => void;
   onReset: () => void;
   onTap: (name: string) => void;
@@ -377,12 +379,25 @@ function CompareSlot({
     return (
       <div
         className={cn(
-          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center",
+          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
           accentBorder
         )}
       >
-        <p className="text-xs text-muted-foreground">Keine Treffer</p>
-        <p className="text-[10px] text-muted-foreground/70 mt-1">Filter lockern</p>
+        <p className="text-xs text-muted-foreground">
+          {dismissedCount > 0 ? `Alle abgehakt (${dismissedCount})` : "Keine Treffer"}
+        </p>
+        <p className="text-[10px] text-muted-foreground/70">
+          {dismissedCount > 0 ? "Bis zum nächsten Report ausgeblendet" : "Filter lockern"}
+        </p>
+        {dismissedCount > 0 && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+          >
+            <RotateCcw className="h-3 w-3" /> Zurücksetzen
+          </button>
+        )}
       </div>
     );
   }
@@ -417,14 +432,17 @@ function CompareSlot({
           accentHsl={accentHsl}
           item={item}
           enriched={enriched}
-          onSwipeLR={onSwipeNext}
-          onSwipeUp={onSwipeSkip}
+          onSwipeLR={onSwipeDismiss}
+          onSwipeDown={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
           onDoubleClick={onDoubleTap}
         />
       </div>
       <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums">
         <span>{idx + 1} / {stackLength}</span>
+        {dismissedCount > 0 && (
+          <span className="text-muted-foreground/50">· {dismissedCount} abgehakt</span>
+        )}
         <button
           type="button"
           onClick={onReset}
@@ -445,7 +463,7 @@ function CompareSwipeCard({
   item,
   enriched,
   onSwipeLR,
-  onSwipeUp,
+  onSwipeDown,
   onSingleClick,
   onDoubleClick,
 }: {
@@ -453,7 +471,7 @@ function CompareSwipeCard({
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
   onSwipeLR: () => void;
-  onSwipeUp: () => void;
+  onSwipeDown: () => void;
   onSingleClick: () => void;
   onDoubleClick: () => void;
 }) {
@@ -468,9 +486,17 @@ function CompareSwipeCard({
       const { offset } = info;
       const ax = Math.abs(offset.x);
       const ay = Math.abs(offset.y);
+      // Vertikal dominant → Down-Swipe = ans Stack-Ende (skip)
+      if (ay > ax && offset.y > SWIPE_THRESHOLD) {
+        await controls.start({ y: 500, opacity: 0, transition: { duration: 0.18 } });
+        onSwipeDown();
+        controls.set({ x: 0, y: 0, opacity: 1 });
+        return;
+      }
+      // Up-Swipe ebenfalls als Skip behandeln (Symmetrie)
       if (ay > ax && offset.y < -SWIPE_THRESHOLD) {
         await controls.start({ y: -500, opacity: 0, transition: { duration: 0.18 } });
-        onSwipeUp();
+        onSwipeDown();
         controls.set({ x: 0, y: 0, opacity: 1 });
         return;
       }
@@ -488,7 +514,7 @@ function CompareSwipeCard({
       }
       controls.start({ x: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 28 } });
     },
-    [controls, onSwipeLR, onSwipeUp]
+    [controls, onSwipeLR, onSwipeDown]
   );
 
   const handleClick = useCallback(() => {
