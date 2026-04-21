@@ -378,34 +378,33 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         }}
       />
 
-      {/* Top accent line — single visual anchor for category */}
+      {/* Top accent line — gradient with inner glow */}
       {isTop && (
         <div
           aria-hidden
-          className="pointer-events-none absolute top-0 left-6 right-6 h-px rounded-full"
+          className="pointer-events-none absolute top-0 left-6 right-6 h-[1.5px] rounded-full"
           style={{
-            background: `linear-gradient(to right, transparent 0%, hsl(${accent.hue} / 0.6) 50%, transparent 100%)`,
-            boxShadow: `0 0 12px hsl(${accent.hue} / 0.4)`,
+            background: `linear-gradient(to right, transparent 0%, hsl(${accent.hue} / 0.85) 50%, transparent 100%)`,
+            boxShadow: `0 0 16px hsl(${accent.hue} / 0.55), 0 0 32px hsl(${accent.hue} / 0.25)`,
           }}
         />
       )}
 
-      {/* Severity pulse — only when critical alerts present (functional, not decorative) */}
+      {/* Severity pulse — softer, slower breathing */}
       {isTop && hasCritical && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-2xl"
-          animate={{ opacity: [0.2, 0.45, 0.2] }}
-          transition={{ duration: 2.8, ease: "easeInOut", repeat: Infinity }}
+          animate={{ opacity: [0.18, 0.42, 0.18] }}
+          transition={{ duration: 3.4, ease: [0.4, 0, 0.6, 1], repeat: Infinity }}
           style={{
-            boxShadow: "inset 0 0 0 1px rgba(239,68,68,0.3), inset 0 0 24px rgba(239,68,68,0.14)",
+            boxShadow: "inset 0 0 0 1px rgba(239,68,68,0.28), inset 0 0 28px rgba(239,68,68,0.13)",
           }}
         />
       )}
 
       {isTop && (
         <>
-          {/* Edge-glow swipe indicators — elegant alternative to overlay text */}
           <motion.div
             className="absolute inset-y-0 right-0 w-20 rounded-r-2xl pointer-events-none z-10"
             style={{
@@ -414,7 +413,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               boxShadow: "inset -1px 0 0 rgba(16,185,129,0.6)",
             }}
           >
-            <motion.div className="absolute top-3 right-3 text-emerald-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeRight }}>
+            <motion.div className="absolute top-3 right-3 text-emerald-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeRight, scale: lockRight }}>
               ✓ OK
             </motion.div>
           </motion.div>
@@ -426,7 +425,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               boxShadow: "inset 1px 0 0 rgba(239,68,68,0.6)",
             }}
           >
-            <motion.div className="absolute top-3 left-3 text-red-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeLeft }}>
+            <motion.div className="absolute top-3 left-3 text-red-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeLeft, scale: lockLeft }}>
               ✗ Aktion
             </motion.div>
           </motion.div>
@@ -438,7 +437,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               boxShadow: "inset 0 1px 0 rgba(59,130,246,0.6)",
             }}
           >
-            <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-blue-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeUp }}>
+            <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-blue-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeUp, scale: lockUp }}>
               ↑ Details
             </motion.div>
           </motion.div>
@@ -451,7 +450,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                 boxShadow: "inset 0 -1px 0 rgba(245,158,11,0.6)",
               }}
             >
-              <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-amber-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeDown }}>
+              <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-amber-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeDown, scale: lockDown }}>
                 ↓ Skip
               </motion.div>
             </motion.div>
