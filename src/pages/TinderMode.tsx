@@ -1496,6 +1496,15 @@ export default function TinderMode() {
               {prefetchedChatters.slice().reverse().map((chatter, reverseIndex) => {
                 const stackIndex = prefetchedChatters.length - 1 - reverseIndex;
                 const isTopCard = stackIndex === 0;
+                const swapEntry = isTopCard ? swapTrackingMap.get(normalizeName(chatter.name)) : undefined;
+                const swapDeltaProp = swapEntry
+                  ? {
+                      deltaLabel: formatDelta(swapEntry.deltaPct),
+                      tone: deltaTone(swapEntry.deltaPct) as "pos" | "neg" | "neutral",
+                      direction: swapEntry.tierDirection,
+                      daysSince: swapEntry.daysSince,
+                    }
+                  : null;
 
                 return (
                   <SwipeCard
@@ -1512,6 +1521,7 @@ export default function TinderMode() {
                     isTop={isTopCard}
                     stackIndex={stackIndex}
                     accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
+                    swapDelta={swapDeltaProp}
                   />
                 );
               })}
