@@ -1305,26 +1305,37 @@ export default function TinderMode() {
           if (value === "__all__") {
             setAlertFilterActive(false);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value === "__alerts__") {
             setAlertFilterActive(true);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value === "__swap_track__") {
             setSwapTrackFilterActive(true);
+            setAlertFilterActive(false);
+            setRecoveryFilterActive(false);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(null);
+          } else if (value === "__recovery__") {
+            setRecoveryFilterActive(true);
+            setSwapTrackFilterActive(false);
             setAlertFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value.startsWith("label:")) {
             setAlertFilterActive(false);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedCategory(null);
             setSelectedLabelFilter(value.slice(6));
           } else if (value.startsWith("cat:")) {
             setAlertFilterActive(false);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(value.slice(4));
           }
