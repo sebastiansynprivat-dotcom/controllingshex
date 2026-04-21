@@ -367,53 +367,73 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
 
       {isTop && (
         <>
-          {/* Edge-glow swipe indicators — elegant alternative to overlay text */}
+          {/* Edge-glow swipe indicators — premium materiality */}
           <motion.div
-            className="absolute inset-y-0 right-0 w-20 rounded-r-2xl pointer-events-none z-10"
+            className="absolute inset-y-0 right-0 w-24 rounded-r-2xl pointer-events-none z-10"
             style={{
               opacity: edgeRight,
-              background: "linear-gradient(to left, rgba(16,185,129,0.55) 0%, rgba(16,185,129,0.18) 40%, transparent 100%)",
-              boxShadow: "inset -1px 0 0 rgba(16,185,129,0.6)",
+              background:
+                "linear-gradient(to left, hsl(152 55% 45% / 0.42) 0%, hsl(152 50% 40% / 0.16) 35%, hsl(152 50% 40% / 0.04) 65%, transparent 100%)",
+              boxShadow:
+                "inset -1px 0 0 hsl(152 60% 55% / 0.45), inset -24px 0 40px -20px hsl(152 60% 50% / 0.35)",
             }}
           >
-            <motion.div className="absolute top-3 right-3 text-emerald-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeRight }}>
+            <motion.div
+              className="absolute top-3 right-3 text-[10px] tracking-[0.25em] uppercase font-light"
+              style={{ opacity: edgeRight, color: "hsl(152 55% 78%)", textShadow: "0 0 12px hsl(152 60% 50% / 0.4)" }}
+            >
               ✓ OK
             </motion.div>
           </motion.div>
           <motion.div
-            className="absolute inset-y-0 left-0 w-20 rounded-l-2xl pointer-events-none z-10"
+            className="absolute inset-y-0 left-0 w-24 rounded-l-2xl pointer-events-none z-10"
             style={{
               opacity: edgeLeft,
-              background: "linear-gradient(to right, rgba(239,68,68,0.55) 0%, rgba(239,68,68,0.18) 40%, transparent 100%)",
-              boxShadow: "inset 1px 0 0 rgba(239,68,68,0.6)",
+              background:
+                "linear-gradient(to right, hsl(0 65% 50% / 0.42) 0%, hsl(0 60% 45% / 0.16) 35%, hsl(0 60% 45% / 0.04) 65%, transparent 100%)",
+              boxShadow:
+                "inset 1px 0 0 hsl(0 70% 60% / 0.45), inset 24px 0 40px -20px hsl(0 65% 50% / 0.35)",
             }}
           >
-            <motion.div className="absolute top-3 left-3 text-red-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeLeft }}>
+            <motion.div
+              className="absolute top-3 left-3 text-[10px] tracking-[0.25em] uppercase font-light"
+              style={{ opacity: edgeLeft, color: "hsl(0 70% 82%)", textShadow: "0 0 12px hsl(0 65% 50% / 0.4)" }}
+            >
               ✗ Aktion
             </motion.div>
           </motion.div>
           <motion.div
-            className="absolute inset-x-0 top-0 h-16 rounded-t-2xl pointer-events-none z-10"
+            className="absolute inset-x-0 top-0 h-20 rounded-t-2xl pointer-events-none z-10"
             style={{
               opacity: edgeUp,
-              background: "linear-gradient(to bottom, rgba(59,130,246,0.5) 0%, rgba(59,130,246,0.15) 50%, transparent 100%)",
-              boxShadow: "inset 0 1px 0 rgba(59,130,246,0.6)",
+              background:
+                "linear-gradient(to bottom, hsl(45 80% 55% / 0.4) 0%, hsl(45 75% 50% / 0.14) 45%, transparent 100%)",
+              boxShadow:
+                "inset 0 1px 0 hsl(45 85% 60% / 0.5), inset 0 24px 40px -20px hsl(45 80% 55% / 0.35)",
             }}
           >
-            <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-blue-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeUp }}>
+            <motion.div
+              className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] tracking-[0.25em] uppercase font-light"
+              style={{ opacity: edgeUp, color: "hsl(45 75% 82%)", textShadow: "0 0 12px hsl(45 80% 55% / 0.45)" }}
+            >
               ↑ Details
             </motion.div>
           </motion.div>
           {onSwipeDown && (
             <motion.div
-              className="absolute inset-x-0 bottom-0 h-16 rounded-b-2xl pointer-events-none z-10"
+              className="absolute inset-x-0 bottom-0 h-20 rounded-b-2xl pointer-events-none z-10"
               style={{
                 opacity: edgeDown,
-                background: "linear-gradient(to top, rgba(245,158,11,0.5) 0%, rgba(245,158,11,0.15) 50%, transparent 100%)",
-                boxShadow: "inset 0 -1px 0 rgba(245,158,11,0.6)",
+                background:
+                  "linear-gradient(to top, hsl(25 75% 50% / 0.4) 0%, hsl(25 70% 48% / 0.14) 45%, transparent 100%)",
+                boxShadow:
+                  "inset 0 -1px 0 hsl(25 80% 60% / 0.5), inset 0 -24px 40px -20px hsl(25 75% 50% / 0.35)",
               }}
             >
-              <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-amber-300 text-xs font-semibold tracking-wider uppercase" style={{ opacity: edgeDown }}>
+              <motion.div
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] tracking-[0.25em] uppercase font-light"
+                style={{ opacity: edgeDown, color: "hsl(25 75% 82%)", textShadow: "0 0 12px hsl(25 75% 50% / 0.4)" }}
+              >
                 ↓ Skip
               </motion.div>
             </motion.div>
