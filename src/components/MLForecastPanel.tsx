@@ -219,13 +219,13 @@ export function MLForecastPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+        <div className="premium-spinner"><span /><span /><span /></div>
       </div>
     );
   }
   if (error || !data) {
     return (
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center">
+      <div className="premium-card rounded-xl p-6 text-center border-amber-500/20">
         <Info className="h-6 w-6 text-amber-400/80 mx-auto mb-2" />
         <p className="text-foreground/80 font-light">{error || "Keine Daten."}</p>
       </div>
@@ -249,10 +249,10 @@ export function MLForecastPanel() {
       <VerdictBanner result={result} />
 
       {/* Gelernte Gewichte */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="premium-card rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 border-b border-white/[0.04] flex items-center gap-2">
-          <Brain className="h-3.5 w-3.5 text-primary/70" />
-          <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+          <Brain className="h-3.5 w-3.5 text-primary/80" />
+          <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">
             Gelernte Signal-Gewichte
           </p>
         </div>
@@ -270,9 +270,9 @@ export function MLForecastPanel() {
       </div>
 
       {/* Live-Predictions */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="premium-card rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 border-b border-white/[0.04]">
-          <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+          <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">
             Aktuelle ML-Prognose · Top 20
           </p>
         </div>
@@ -280,7 +280,7 @@ export function MLForecastPanel() {
           {livePredictions.slice(0, 20).map((p, i) => {
             const diff = p.mlScore - p.heuristicScore;
             return (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+              <div key={i} className="row-accent flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className={cn(
                   "tabular-nums w-10 text-right font-medium",
                   p.mlScore >= 80 ? "text-red-400" :
@@ -301,15 +301,15 @@ export function MLForecastPanel() {
       </div>
 
       {/* Recent Predictions im Backtest */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="premium-card rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 border-b border-white/[0.04]">
-          <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+          <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">
             ML-Backtest · Treffer/Misses
           </p>
         </div>
         <div className="divide-y divide-white/[0.04] max-h-80 overflow-y-auto">
           {result.ml.details.slice(0, 50).map((d, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <div key={i} className="row-accent flex items-center gap-3 px-4 py-2.5 text-sm">
               {d.hit ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-400/80 shrink-0" />
               ) : (
@@ -333,37 +333,33 @@ export function MLForecastPanel() {
 /* ───────── HELPERS ───────── */
 
 function StatCard({ label, value, hint, accent = "neutral" }: { label: string; value: string; hint?: string; accent?: "neutral" | "good" | "warn" | "muted" }) {
-  const cls = accent === "good" ? "border-emerald-500/20 bg-emerald-500/5"
-            : accent === "warn" ? "border-amber-500/20 bg-amber-500/5"
-            : accent === "muted" ? "border-white/[0.06] bg-white/[0.02]"
-            : "border-white/[0.06] bg-white/[0.02]";
-  const valCls = accent === "good" ? "text-emerald-300" : accent === "warn" ? "text-amber-300" : "text-foreground";
+  const extra = accent === "good" ? "border-emerald-500/20" : accent === "warn" ? "border-amber-500/20" : "";
+  const valCls = accent === "good" ? "text-emerald-300" : accent === "warn" ? "text-amber-300" : "gold-text";
   return (
-    <div className={cn("rounded-xl border px-4 py-3", cls)}>
-      <p className="text-white/40 text-xs font-light">{label}</p>
-      <p className={cn("text-2xl font-extralight tabular-nums mt-1", valCls)}>{value}</p>
+    <div className={cn("premium-card rounded-xl px-4 py-3", extra)}>
+      <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">{label}</p>
+      <p className={cn("text-3xl font-extralight tabular-nums mt-1", valCls)}>{value}</p>
       {hint && <p className="text-white/30 text-[11px] font-light mt-0.5">{hint}</p>}
     </div>
   );
 }
 
 function WeightRow({ label, weight }: { label: string; weight: number }) {
-  // Visualize: |weight| relative to max → bar-Länge
   const maxShown = 0.15;
   const pct = Math.min(100, (Math.abs(weight) / maxShown) * 100);
   const positive = weight >= 0;
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5">
+    <div className="row-accent flex items-center gap-3 px-4 py-2.5">
       <span className="text-foreground/70 text-sm font-light w-44 truncate">{label}</span>
-      <div className="flex-1 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+      <div className="flex-1 h-2 rounded-full bg-white/[0.04] overflow-hidden">
         <div
-          className={cn("h-full rounded-full", positive ? "bg-orange-400/70" : "bg-emerald-400/70")}
+          className={cn("h-full rounded-full transition-all duration-500", positive ? "ml-bar" : "ml-bar-neg")}
           style={{ width: `${pct}%` }}
         />
       </div>
       <span className={cn(
         "text-xs tabular-nums w-16 text-right",
-        positive ? "text-orange-400/80" : "text-emerald-400/80",
+        positive ? "text-orange-400/90" : "text-emerald-400/90",
       )}>{weight >= 0 ? "+" : ""}{weight.toFixed(3)}</span>
     </div>
   );
@@ -396,12 +392,10 @@ function VerdictBanner({ result }: { result: TrainAndEvalResult }) {
     body = `Heuristik ${Math.round(heuristic.hitRate * 100)}% · ML ${Math.round(ml.hitRate * 100)}%. Mit mehr History sollte ML überholen. Crash-Quote im Datensatz: ${Math.round(baseRate * 100)}%.`;
   }
 
-  const cls = tone === "good" ? "border-emerald-500/20 bg-emerald-500/5"
-            : tone === "warn" ? "border-amber-500/20 bg-amber-500/5"
-            : "border-white/[0.06] bg-white/[0.02]";
+  const extra = tone === "good" ? "border-emerald-500/25 glow-band-warning" : tone === "warn" ? "border-amber-500/25" : "";
 
   return (
-    <div className={cn("rounded-xl border px-4 py-3 space-y-1", cls)}>
+    <div className={cn("premium-card rounded-xl px-4 py-3 space-y-1", extra)}>
       <p className="text-foreground/90 text-sm font-medium">{title}</p>
       <p className="text-white/60 text-xs font-light leading-relaxed">{body}</p>
     </div>

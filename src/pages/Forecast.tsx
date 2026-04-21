@@ -64,16 +64,34 @@ function Sparkline({ values, band }: { values: number[]; band: RiskScore["band"]
   const min = Math.min(...values, 0);
   const range = max - min || 1;
   const w = 64, h = 24;
-  const pts = values.map((v, i) => {
+  const coords = values.map((v, i) => {
     const x = (i / (values.length - 1)) * w;
     const y = h - ((v - min) / range) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const stroke = band === "critical" ? "hsl(0 80% 60%)" : band === "high" ? "hsl(25 90% 55%)" : band === "medium" ? "hsl(45 90% 55%)" : "hsl(155 60% 45%)";
+    return [x, y] as const;
+  });
+  const linePts = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const areaPts = `0,${h} ${linePts} ${w},${h}`;
+  const stroke = band === "critical" ? "hsl(0 80% 62%)" : band === "high" ? "hsl(25 90% 58%)" : band === "medium" ? "hsl(45 90% 58%)" : "hsl(155 60% 50%)";
+  const gradId = `spark-${band}`;
   return (
     <svg width={w} height={h} className="overflow-visible">
-      <polyline points={pts} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPts} fill={`url(#${gradId})`} />
+      <polyline points={linePts} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+function PremiumSpinner() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="premium-spinner"><span /><span /><span /></div>
+    </div>
   );
 }
 
@@ -254,14 +272,26 @@ export default function Forecast() {
             </header>
 
             <Tabs defaultValue="forecast" className="space-y-6">
-              <TabsList className="bg-white/[0.03] border border-white/[0.06]">
-                <TabsTrigger value="forecast">Frühwarnung</TabsTrigger>
-                <TabsTrigger value="absence">Abwesenheit</TabsTrigger>
-                <TabsTrigger value="ml" className="gap-1.5">
+              <TabsList className="bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start">
+                <TabsTrigger
+                  value="forecast"
+                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors"
+                >Frühwarnung</TabsTrigger>
+                <TabsTrigger
+                  value="absence"
+                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors"
+                >Abwesenheit</TabsTrigger>
+                <TabsTrigger
+                  value="ml"
+                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors gap-1.5"
+                >
                   <Brain className="h-3 w-3" />
                   Smart-Modell
                 </TabsTrigger>
-                <TabsTrigger value="backtest">Treffer-Quote</TabsTrigger>
+                <TabsTrigger
+                  value="backtest"
+                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors"
+                >Treffer-Quote</TabsTrigger>
               </TabsList>
 
               {/* ───────── Abwesenheits-Tab ───────── */}
@@ -277,11 +307,9 @@ export default function Forecast() {
               {/* ───────── Forecast Tab ───────── */}
               <TabsContent value="forecast" className="space-y-4">
                 {loading ? (
-                  <div className="flex items-center justify-center py-20">
-                    <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-                  </div>
+                  <PremiumSpinner />
                 ) : risks.length === 0 ? (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-8 text-center">
+                  <div className="premium-card rounded-xl p-8 text-center">
                     <CheckCircle2 className="h-8 w-8 text-emerald-400/80 mx-auto mb-3" />
                     <p className="text-foreground/80 font-light">
                       Keine Chatter mit Risk-Score ≥ 60.
@@ -297,7 +325,7 @@ export default function Forecast() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-baseline justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                    <div className="premium-card flex items-baseline justify-between rounded-xl px-4 py-3">
                       <div>
                         <p className="text-foreground/80 font-light text-sm">
                           {risks.length} Chatter mit hohem Crash-Risiko
@@ -305,7 +333,7 @@ export default function Forecast() {
                         <p className="text-white/40 text-xs font-light">in den nächsten 3 Tagen</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-orange-400/90 font-medium text-lg tabular-nums">
+                        <p className="gold-text font-medium text-xl tabular-nums">
                           ~{totalEuroAtRisk}€
                         </p>
                         <p className="text-white/40 text-xs font-light">Geld-Risiko</p>
@@ -315,10 +343,11 @@ export default function Forecast() {
                     <div className="space-y-2">
                       {risks.map((r) => {
                         const isOpen = expanded.has(r.chatter);
+                        const glowClass = r.band === "critical" ? "glow-band-critical" : r.band === "high" ? "glow-band-high" : "";
                         return (
                           <div
                             key={r.chatter}
-                            className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden transition-colors hover:border-white/[0.1]"
+                            className={`premium-card premium-card-interactive rounded-xl overflow-hidden ${glowClass}`}
                           >
                             <button
                               onClick={() => toggle(r.chatter)}
@@ -341,39 +370,59 @@ export default function Forecast() {
                                 <p className="text-orange-400/80 text-sm tabular-nums">~{r.euroAtRisk}€</p>
                                 <p className="text-white/30 text-[10px] font-light">in 3T</p>
                               </div>
-                              <ChevronRight className={`h-4 w-4 text-white/30 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                              <ChevronRight
+                                className="h-4 w-4 text-white/30 shrink-0 transition-transform duration-300"
+                                style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
+                              />
                             </button>
 
-                            {isOpen && (
-                              <div className="border-t border-white/[0.04] bg-black/20 px-4 py-4 space-y-3">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {r.signals
-                                    .filter(s => s.points > 0)
-                                    .sort((a, b) => b.points - a.points)
-                                    .map((s) => {
-                                      const Icon = SIGNAL_ICON[s.key];
-                                      return (
-                                        <div key={s.key} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                          <Icon className="h-4 w-4 text-white/40 shrink-0" />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-foreground/70 text-xs font-light">{s.label}</p>
-                                            <p className="text-white/40 text-[11px] font-light truncate">{s.detail}</p>
-                                          </div>
-                                          <span className="text-orange-400/70 text-xs tabular-nums">+{s.points}</span>
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  <button
-                                    onClick={() => setOpenChatter(r.chatter)}
-                                    className="text-xs font-light px-3 py-1.5 rounded-lg bg-primary/10 text-primary/80 hover:bg-primary/20 transition-colors"
-                                  >
-                                    Detail öffnen
-                                  </button>
-                                </div>
-                              </div>
-                            )}
+                            <AnimatePresence initial={false}>
+                              {isOpen && (
+                                <motion.div
+                                  key="exp"
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="border-t border-white/[0.04] bg-black/30 px-4 py-4 space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {r.signals
+                                        .filter(s => s.points > 0)
+                                        .sort((a, b) => b.points - a.points)
+                                        .map((s, idx) => {
+                                          const Icon = SIGNAL_ICON[s.key];
+                                          return (
+                                            <motion.div
+                                              key={s.key}
+                                              initial={{ opacity: 0, y: 6 }}
+                                              animate={{ opacity: 1, y: 0 }}
+                                              transition={{ delay: idx * 0.03, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                                              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/[0.025] border border-white/[0.05] premium-chip"
+                                            >
+                                              <Icon className="h-4 w-4 text-white/40 shrink-0" />
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-foreground/70 text-xs font-light">{s.label}</p>
+                                                <p className="text-white/40 text-[11px] font-light truncate">{s.detail}</p>
+                                              </div>
+                                              <span className="text-orange-400/80 text-xs tabular-nums">+{s.points}</span>
+                                            </motion.div>
+                                          );
+                                        })}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                      <button
+                                        onClick={() => setOpenChatter(r.chatter)}
+                                        className="text-xs font-light px-3 py-1.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors premium-chip"
+                                      >
+                                        Detail öffnen
+                                      </button>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
                         );
                       })}
@@ -385,11 +434,9 @@ export default function Forecast() {
               {/* ───────── Backtest Tab ───────── */}
               <TabsContent value="backtest" className="space-y-4">
                 {loading ? (
-                  <div className="flex items-center justify-center py-20">
-                    <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-                  </div>
+                  <PremiumSpinner />
                 ) : !backtestResult || backtestResult.totalPredictions === 0 ? (
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
+                  <div className="premium-card rounded-xl p-8 text-center">
                     <p className="text-foreground/60 font-light">
                       Noch nicht genug History für Backtest.
                     </p>
@@ -400,35 +447,35 @@ export default function Forecast() {
                 ) : (
                   <>
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-                        <p className="text-white/40 text-xs font-light">Vorhersagen</p>
-                        <p className="text-foreground text-2xl font-extralight tabular-nums mt-1">
+                      <div className="premium-card rounded-xl px-4 py-3">
+                        <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Vorhersagen</p>
+                        <p className="text-foreground text-3xl font-extralight tabular-nums mt-1">
                           {backtestResult.totalPredictions}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-                        <p className="text-emerald-400/70 text-xs font-light">Treffer</p>
-                        <p className="text-emerald-300 text-2xl font-extralight tabular-nums mt-1">
+                      <div className="premium-card rounded-xl px-4 py-3 border-emerald-500/15">
+                        <p className="text-emerald-400/80 text-[11px] font-medium tracking-wider uppercase">Treffer</p>
+                        <p className="text-emerald-300 text-3xl font-extralight tabular-nums mt-1">
                           {backtestResult.hits}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-                        <p className="text-white/40 text-xs font-light">Trefferquote</p>
-                        <p className="text-foreground text-2xl font-extralight tabular-nums mt-1">
+                      <div className="premium-card rounded-xl px-4 py-3">
+                        <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Trefferquote</p>
+                        <p className="gold-text text-3xl font-extralight tabular-nums mt-1">
                           {Math.round(backtestResult.hitRate * 100)}%
                         </p>
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                    <div className="premium-card rounded-xl overflow-hidden">
                       <div className="px-4 py-2.5 border-b border-white/[0.04]">
-                        <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+                        <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">
                           Historische Vorhersagen
                         </p>
                       </div>
                       <div className="divide-y divide-white/[0.04] max-h-96 overflow-y-auto">
                         {backtestResult.details.slice(0, 50).map((d, i) => (
-                          <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                          <div key={i} className="row-accent flex items-center gap-3 px-4 py-2.5 text-sm">
                             {d.hit ? (
                               <CheckCircle2 className="h-4 w-4 text-emerald-400/80 shrink-0" />
                             ) : (
@@ -452,7 +499,7 @@ export default function Forecast() {
                 )}
 
                 <div className="pt-6 space-y-3">
-                  <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
+                  <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">
                     Abwesenheits-Prognose
                   </p>
                   <AbsenceBacktestPanel />

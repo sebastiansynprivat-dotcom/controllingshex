@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -11,6 +12,14 @@ import {
   type AbsenceForecastInput,
 } from "@/lib/absence-forecast";
 import { cn } from "@/lib/utils";
+
+function PremiumSpinner() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="premium-spinner"><span /><span /><span /></div>
+    </div>
+  );
+}
 
 interface AnalysisChatter { name: string; account?: string }
 interface AnalysisCategory { chatters: AnalysisChatter[] }
@@ -29,11 +38,16 @@ const BAND_META: Record<AbsenceForecast["band"], { label: string; chip: string; 
 function PresenceStrip({ history }: { history: AbsencePoint[] }) {
   const last = history.slice(-21);
   return (
-    <div className="flex items-center gap-[2px]">
+    <div className="flex items-center gap-[3px]">
       {last.map((p, i) => (
         <div
           key={i}
-          className={cn("w-1.5 h-4 rounded-sm", p.present ? "bg-emerald-400/70" : "bg-white/10")}
+          className={cn(
+            "w-1.5 h-4 rounded-[2px] transition-transform",
+            p.present
+              ? "bg-gradient-to-b from-emerald-300/90 to-emerald-500/70 shadow-[0_0_4px_hsl(155_60%_50%/0.4)]"
+              : "bg-gradient-to-b from-white/[0.04] to-black/40 border border-white/[0.04]",
+          )}
           title={`${p.date} — ${p.present ? "anwesend" : "Aussetzer"}`}
         />
       ))}
@@ -170,16 +184,12 @@ export function AbsenceForecastPanel() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-      </div>
-    );
+    return <PremiumSpinner />;
   }
 
   if (forecasts.length === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
+      <div className="premium-card rounded-xl p-8 text-center">
         <p className="text-foreground/60 font-light">Keine ausreichende History.</p>
         <p className="text-white/40 text-sm font-light mt-1">Mindestens 5 Tage Daten pro Chatter benötigt.</p>
       </div>
@@ -210,7 +220,7 @@ export function AbsenceForecastPanel() {
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-8 text-center">
+        <div className="premium-card rounded-xl p-8 text-center">
           <CheckCircle2 className="h-8 w-8 text-emerald-400/80 mx-auto mb-3" />
           <p className="text-foreground/80 font-light">Keine akuten Abwesenheits-Warnungen.</p>
           <p className="text-white/40 text-sm font-light mt-1">Alle Chatter im stabilen Muster.</p>
@@ -221,11 +231,12 @@ export function AbsenceForecastPanel() {
             const meta = BAND_META[f.band];
             const isOpen = expanded.has(f.chatter);
             const probPct = Math.round(f.nextDropProbability * 100);
+            const glowClass = f.band === "critical" ? "glow-band-critical" : f.band === "warning" ? "glow-band-warning" : "";
             return (
-              <div key={f.chatter} className={cn("rounded-xl border bg-white/[0.02] overflow-hidden transition-colors hover:border-white/[0.12]", meta.border)}>
+              <div key={f.chatter} className={cn("premium-card premium-card-interactive rounded-xl overflow-hidden", glowClass)}>
                 <button onClick={() => toggle(f.chatter)} className="w-full flex items-center gap-4 px-4 py-3.5 text-left">
-                  <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium", meta.chip)}>
-                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                  <div className={cn("premium-chip flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium tabular-nums", meta.chip)}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot, f.band === "critical" && "animate-pulse")} />
                     {probPct}%
                   </div>
                   <div className="flex-1 min-w-0">
@@ -244,39 +255,52 @@ export function AbsenceForecastPanel() {
                       </p>
                     )}
                   </div>
-                  <ChevronRight className={cn("h-4 w-4 text-white/30 shrink-0 transition-transform", isOpen && "rotate-90")} />
+                  <ChevronRight
+                    className="h-4 w-4 text-white/30 shrink-0 transition-transform duration-300"
+                    style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
+                  />
                 </button>
 
-                {isOpen && (
-                  <div className="border-t border-white/[0.04] bg-black/20 px-4 py-4 space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div className="px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                        <p className="text-white/40 font-light">Aktueller Streak</p>
-                        <p className="text-foreground/90 tabular-nums mt-0.5">{f.currentStreakDays} Tage</p>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      key="exp"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="border-t border-white/[0.04] bg-black/30 px-4 py-4 space-y-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          {[
+                            { label: "Aktueller Streak", value: `${f.currentStreakDays} Tage` },
+                            { label: "Typisch / Max", value: `${f.pattern.avgPresentStreak.toFixed(1)} / ${f.pattern.maxPresentStreak}` },
+                            { label: "Lücken (30d)", value: `${f.pattern.gapCount} · max ${f.pattern.maxGap}d` },
+                            { label: "Anwesenheit", value: `${Math.round(f.pattern.presenceRate * 100)}%` },
+                          ].map((item, idx) => (
+                            <motion.div
+                              key={item.label}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.03, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                              className="premium-chip px-3 py-2 rounded-lg bg-white/[0.025] border border-white/[0.05]"
+                            >
+                              <p className="text-white/40 font-light">{item.label}</p>
+                              <p className="text-foreground/90 tabular-nums mt-0.5">{item.value}</p>
+                            </motion.div>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <button
+                            onClick={() => setOpenChatter(f.chatter)}
+                            className="text-xs font-light px-3 py-1.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors premium-chip"
+                          >Detail öffnen</button>
+                        </div>
                       </div>
-                      <div className="px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                        <p className="text-white/40 font-light">Typisch / Max</p>
-                        <p className="text-foreground/90 tabular-nums mt-0.5">
-                          {f.pattern.avgPresentStreak.toFixed(1)} / {f.pattern.maxPresentStreak}
-                        </p>
-                      </div>
-                      <div className="px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                        <p className="text-white/40 font-light">Lücken (30d)</p>
-                        <p className="text-foreground/90 tabular-nums mt-0.5">{f.pattern.gapCount} · max {f.pattern.maxGap}d</p>
-                      </div>
-                      <div className="px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                        <p className="text-white/40 font-light">Anwesenheit</p>
-                        <p className="text-foreground/90 tabular-nums mt-0.5">{Math.round(f.pattern.presenceRate * 100)}%</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        onClick={() => setOpenChatter(f.chatter)}
-                        className="text-xs font-light px-3 py-1.5 rounded-lg bg-primary/10 text-primary/80 hover:bg-primary/20 transition-colors"
-                      >Detail öffnen</button>
-                    </div>
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
           })}
@@ -299,15 +323,11 @@ export function AbsenceBacktestPanel() {
   const bt = data?.backtest || null;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-      </div>
-    );
+    return <PremiumSpinner />;
   }
   if (!bt || bt.totalPredictions === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
+      <div className="premium-card rounded-xl p-8 text-center">
         <p className="text-foreground/60 font-light">Noch nicht genug History für Abwesenheits-Backtest.</p>
         <p className="text-white/40 text-sm font-light mt-1">Mindestens 12 Tage History pro Chatter benötigt.</p>
       </div>
@@ -317,27 +337,27 @@ export function AbsenceBacktestPanel() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-          <p className="text-white/40 text-xs font-light">Vorhersagen</p>
-          <p className="text-foreground text-2xl font-extralight tabular-nums mt-1">{bt.totalPredictions}</p>
+        <div className="premium-card rounded-xl px-4 py-3">
+          <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Vorhersagen</p>
+          <p className="text-foreground text-3xl font-extralight tabular-nums mt-1">{bt.totalPredictions}</p>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-          <p className="text-emerald-400/70 text-xs font-light">Treffer</p>
-          <p className="text-emerald-300 text-2xl font-extralight tabular-nums mt-1">{bt.hits}</p>
+        <div className="premium-card rounded-xl px-4 py-3 border-emerald-500/15">
+          <p className="text-emerald-400/80 text-[11px] font-medium tracking-wider uppercase">Treffer</p>
+          <p className="text-emerald-300 text-3xl font-extralight tabular-nums mt-1">{bt.hits}</p>
         </div>
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-          <p className="text-white/40 text-xs font-light">Trefferquote</p>
-          <p className="text-foreground text-2xl font-extralight tabular-nums mt-1">{Math.round(bt.hitRate * 100)}%</p>
+        <div className="premium-card rounded-xl px-4 py-3">
+          <p className="text-white/40 text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Trefferquote</p>
+          <p className="gold-text text-3xl font-extralight tabular-nums mt-1">{Math.round(bt.hitRate * 100)}%</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="premium-card rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 border-b border-white/[0.04]">
-          <p className="text-foreground/70 text-xs font-medium tracking-wide uppercase">Historische Abwesenheits-Vorhersagen</p>
+          <p className="text-[11px] font-medium tracking-wider uppercase gold-text-subtle">Historische Abwesenheits-Vorhersagen</p>
         </div>
         <div className="divide-y divide-white/[0.04] max-h-96 overflow-y-auto">
           {bt.details.slice(0, 50).map((d, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <div key={i} className="row-accent flex items-center gap-3 px-4 py-2.5 text-sm">
               {d.actualGapWithin2Days ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-400/80 shrink-0" />
               ) : (
