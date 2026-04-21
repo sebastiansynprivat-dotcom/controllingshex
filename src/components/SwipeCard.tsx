@@ -463,10 +463,10 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {/* Category badge + start date */}
         <div className="flex items-center justify-between">
           <div
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
+            className="premium-chip flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
             style={{
-              borderColor: `hsl(${accent.hue} / 0.25)`,
-              background: `hsl(${accent.hue} / 0.08)`,
+              borderColor: `hsl(${accent.hue} / 0.32)`,
+              background: `linear-gradient(180deg, hsl(${accent.hue} / 0.14) 0%, hsl(${accent.hue} / 0.06) 100%)`,
             }}
           >
             <span className="text-[11px] leading-none">{chatter.categoryEmoji || "📊"}</span>
@@ -487,14 +487,15 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
         {/* Avatar + Name */}
         <div className="flex items-center gap-2.5">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-wide relative overflow-hidden"
             style={{
-              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.22) 0%, hsl(${accent.hue} / 0.06) 100%)`,
-              color: `hsl(${accent.hue} / 0.9)`,
-              border: `1px solid hsl(${accent.hue} / 0.18)`,
+              background: `linear-gradient(135deg, hsl(${accent.hue} / 0.26) 0%, hsl(${accent.hue} / 0.06) 100%)`,
+              color: `hsl(${accent.hue} / 0.95)`,
+              border: `1px solid hsl(${accent.hue} / 0.24)`,
+              boxShadow: `inset 0 1px 0 hsl(0 0% 100% / 0.08), 0 0 18px -4px hsl(${accent.hue} / 0.35)`,
             }}
           >
-            {initials}
+            <span className="relative z-[1]">{initials}</span>
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold text-foreground capitalize leading-tight truncate">
