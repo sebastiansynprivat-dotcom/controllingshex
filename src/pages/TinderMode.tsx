@@ -191,6 +191,7 @@ export default function TinderMode() {
   const [accountLoginsMap, setAccountLoginsMap] = useState<Map<string, AccountLogin[]>>(new Map());
   // First analysis_date per normalized chatter name (für "aktiv seit"-Filter im Compare-Mode)
   const [firstSeenByChatter, setFirstSeenByChatter] = useState<Map<string, string>>(new Map());
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null);
 
   // Load all labels and assignments on mount for filter chips with counts
   useEffect(() => {
@@ -285,7 +286,7 @@ export default function TinderMode() {
       const [reportRes, checksRes] = await Promise.all([
         supabase
           .from("analysis_reports")
-          .select("result_json")
+          .select("id, result_json")
           .eq("platform", platform)
           .not("result_json", "is", null)
           .order("analysis_date", { ascending: false })
@@ -304,10 +305,12 @@ export default function TinderMode() {
 
       if (!reportRes.data?.result_json) {
         setRawChatters([]);
+        setCurrentReportId(null);
         setLoading(false);
         return;
       }
 
+      setCurrentReportId((reportRes.data as any).id ?? null);
       const result = reportRes.data.result_json as unknown as AnalysisResult;
       if (!result?.categories) {
         setRawChatters([]);
@@ -1157,6 +1160,7 @@ export default function TinderMode() {
             alertChatterNames={alertChatterNames}
             allLabels={allLabels}
             firstSeenByChatter={firstSeenByChatter}
+            reportId={currentReportId}
             onChatterClick={(name) => setCompareSlideOverChatter(name)}
           />
         </>

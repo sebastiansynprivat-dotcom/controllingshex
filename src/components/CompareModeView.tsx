@@ -41,6 +41,7 @@ interface Props {
   alertChatterNames: Set<string>;
   allLabels: Array<{ id: string; label_name: string; color: string }>;
   firstSeenByChatter?: Map<string, string>;
+  reportId?: string | null;
   onChatterClick: (chatterName: string) => void;
 }
 
@@ -68,6 +69,7 @@ export default function CompareModeView({
   alertChatterNames,
   allLabels,
   firstSeenByChatter,
+  reportId,
   onChatterClick,
 }: Props) {
   const [state, setState] = useState(() => loadCompareState());
@@ -123,11 +125,49 @@ export default function CompareModeView({
   const applyPreset = (p: ComparePreset) =>
     setState((s) => ({ ...s, setA: p.setA, setB: p.setB }));
 
-  // Indep. State pro Seite: Index + skipped (an Stack-Ende verschoben)
+  // Indep. State pro Seite: Index + skipped (an Stack-Ende verschoben) + dismissed (bis nächster Report ausgeblendet)
   const [idxA, setIdxA] = useState(0);
   const [idxB, setIdxB] = useState(0);
   const [skippedA, setSkippedA] = useState<string[]>([]);
   const [skippedB, setSkippedB] = useState<string[]>([]);
+  const dismissKey = reportId ? `compare.dismissed.${reportId}` : null;
+  const [dismissedA, setDismissedA] = useState<Set<string>>(new Set());
+  const [dismissedB, setDismissedB] = useState<Set<string>>(new Set());
+
+  // Load dismissed from localStorage when reportId changes
+  useEffect(() => {
+    if (!dismissKey) {
+      setDismissedA(new Set());
+      setDismissedB(new Set());
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(dismissKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { a?: string[]; b?: string[] };
+        setDismissedA(new Set(parsed.a || []));
+        setDismissedB(new Set(parsed.b || []));
+      } else {
+        setDismissedA(new Set());
+        setDismissedB(new Set());
+      }
+    } catch {
+      setDismissedA(new Set());
+      setDismissedB(new Set());
+    }
+  }, [dismissKey]);
+
+  // Persist dismissed
+  useEffect(() => {
+    if (!dismissKey) return;
+    try {
+      localStorage.setItem(
+        dismissKey,
+        JSON.stringify({ a: Array.from(dismissedA), b: Array.from(dismissedB) })
+      );
+    } catch {}
+  }, [dismissKey, dismissedA, dismissedB]);
+
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const { platform } = usePlatform();
 
@@ -147,15 +187,17 @@ export default function CompareModeView({
     setCompareDialogOpen(true);
   }, []);
 
-  // Render-Reihenfolge: nicht-skipped zuerst, dann skipped am Ende
+  // Render-Reihenfolge: dismissed komplett raus, dann nicht-skipped, dann skipped am Ende
   const orderedA = useMemo(() => {
+    const visible = stackA.filter((c) => !dismissedA.has(c.name));
     const skip = new Set(skippedA);
-    return [...stackA.filter((c) => !skip.has(c.name)), ...stackA.filter((c) => skip.has(c.name))];
-  }, [stackA, skippedA]);
+    return [...visible.filter((c) => !skip.has(c.name)), ...visible.filter((c) => skip.has(c.name))];
+  }, [stackA, skippedA, dismissedA]);
   const orderedB = useMemo(() => {
+    const visible = stackB.filter((c) => !dismissedB.has(c.name));
     const skip = new Set(skippedB);
-    return [...stackB.filter((c) => !skip.has(c.name)), ...stackB.filter((c) => skip.has(c.name))];
-  }, [stackB, skippedB]);
+    return [...visible.filter((c) => !skip.has(c.name)), ...visible.filter((c) => skip.has(c.name))];
+  }, [stackB, skippedB, dismissedB]);
 
   const currentA = orderedA[idxA];
   const currentB = orderedB[idxB];
@@ -200,14 +242,25 @@ export default function CompareModeView({
           enrichedMap={enrichedByName}
           stackLength={orderedA.length}
           idx={idxA}
-          onSwipeNext={() => setIdxA((i) => Math.min(i + 1, orderedA.length))}
+          dismissedCount={dismissedA.size}
+          onSwipeDismiss={() => {
+            if (currentA) {
+              const name = currentA.name;
+              setDismissedA((d) => {
+                const next = new Set(d);
+                next.add(name);
+                return next;
+              });
+              // idx bleibt — der nächste Chatter rückt an dieselbe Stelle
+            }
+          }}
           onSwipeSkip={() => {
             if (currentA) {
               setSkippedA((s) => [...s.filter((n) => n !== currentA.name), currentA.name]);
               setIdxA((i) => Math.min(i + 1, orderedA.length));
             }
           }}
-          onReset={() => { setIdxA(0); setSkippedA([]); }}
+          onReset={() => { setIdxA(0); setSkippedA([]); setDismissedA(new Set()); }}
           onTap={handleCardSingleClick}
           onDoubleTap={handleCardDoubleClick}
         />
@@ -217,14 +270,24 @@ export default function CompareModeView({
           enrichedMap={enrichedByName}
           stackLength={orderedB.length}
           idx={idxB}
-          onSwipeNext={() => setIdxB((i) => Math.min(i + 1, orderedB.length))}
+          dismissedCount={dismissedB.size}
+          onSwipeDismiss={() => {
+            if (currentB) {
+              const name = currentB.name;
+              setDismissedB((d) => {
+                const next = new Set(d);
+                next.add(name);
+                return next;
+              });
+            }
+          }}
           onSwipeSkip={() => {
             if (currentB) {
               setSkippedB((s) => [...s.filter((n) => n !== currentB.name), currentB.name]);
               setIdxB((i) => Math.min(i + 1, orderedB.length));
             }
           }}
-          onReset={() => { setIdxB(0); setSkippedB([]); }}
+          onReset={() => { setIdxB(0); setSkippedB([]); setDismissedB(new Set()); }}
           onTap={handleCardSingleClick}
           onDoubleTap={handleCardDoubleClick}
         />
@@ -290,7 +353,8 @@ function CompareSlot({
   enrichedMap,
   stackLength,
   idx,
-  onSwipeNext,
+  dismissedCount,
+  onSwipeDismiss,
   onSwipeSkip,
   onReset,
   onTap,
@@ -301,7 +365,8 @@ function CompareSlot({
   enrichedMap: Map<string, SwapChatter>;
   stackLength: number;
   idx: number;
-  onSwipeNext: () => void;
+  dismissedCount: number;
+  onSwipeDismiss: () => void;
   onSwipeSkip: () => void;
   onReset: () => void;
   onTap: (name: string) => void;
@@ -314,12 +379,25 @@ function CompareSlot({
     return (
       <div
         className={cn(
-          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center",
+          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
           accentBorder
         )}
       >
-        <p className="text-xs text-muted-foreground">Keine Treffer</p>
-        <p className="text-[10px] text-muted-foreground/70 mt-1">Filter lockern</p>
+        <p className="text-xs text-muted-foreground">
+          {dismissedCount > 0 ? `Alle abgehakt (${dismissedCount})` : "Keine Treffer"}
+        </p>
+        <p className="text-[10px] text-muted-foreground/70">
+          {dismissedCount > 0 ? "Bis zum nächsten Report ausgeblendet" : "Filter lockern"}
+        </p>
+        {dismissedCount > 0 && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+          >
+            <RotateCcw className="h-3 w-3" /> Zurücksetzen
+          </button>
+        )}
       </div>
     );
   }
@@ -354,14 +432,17 @@ function CompareSlot({
           accentHsl={accentHsl}
           item={item}
           enriched={enriched}
-          onSwipeLR={onSwipeNext}
-          onSwipeUp={onSwipeSkip}
+          onSwipeLR={onSwipeDismiss}
+          onSwipeDown={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
           onDoubleClick={onDoubleTap}
         />
       </div>
       <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums">
         <span>{idx + 1} / {stackLength}</span>
+        {dismissedCount > 0 && (
+          <span className="text-muted-foreground/50">· {dismissedCount} abgehakt</span>
+        )}
         <button
           type="button"
           onClick={onReset}
@@ -382,7 +463,7 @@ function CompareSwipeCard({
   item,
   enriched,
   onSwipeLR,
-  onSwipeUp,
+  onSwipeDown,
   onSingleClick,
   onDoubleClick,
 }: {
@@ -390,7 +471,7 @@ function CompareSwipeCard({
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
   onSwipeLR: () => void;
-  onSwipeUp: () => void;
+  onSwipeDown: () => void;
   onSingleClick: () => void;
   onDoubleClick: () => void;
 }) {
@@ -405,9 +486,17 @@ function CompareSwipeCard({
       const { offset } = info;
       const ax = Math.abs(offset.x);
       const ay = Math.abs(offset.y);
+      // Vertikal dominant → Down-Swipe = ans Stack-Ende (skip)
+      if (ay > ax && offset.y > SWIPE_THRESHOLD) {
+        await controls.start({ y: 500, opacity: 0, transition: { duration: 0.18 } });
+        onSwipeDown();
+        controls.set({ x: 0, y: 0, opacity: 1 });
+        return;
+      }
+      // Up-Swipe ebenfalls als Skip behandeln (Symmetrie)
       if (ay > ax && offset.y < -SWIPE_THRESHOLD) {
         await controls.start({ y: -500, opacity: 0, transition: { duration: 0.18 } });
-        onSwipeUp();
+        onSwipeDown();
         controls.set({ x: 0, y: 0, opacity: 1 });
         return;
       }
@@ -425,7 +514,7 @@ function CompareSwipeCard({
       }
       controls.start({ x: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 28 } });
     },
-    [controls, onSwipeLR, onSwipeUp]
+    [controls, onSwipeLR, onSwipeDown]
   );
 
   const handleClick = useCallback(() => {
