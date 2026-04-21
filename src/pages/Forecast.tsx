@@ -287,18 +287,18 @@ export default function Forecast() {
                 <Popover open={tabMenuOpen} onOpenChange={setTabMenuOpen}>
                   <PopoverTrigger asChild>
                     <button
-                      className="premium-card premium-card-interactive w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left"
+                      className="premium-card premium-card-interactive w-full flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-left"
                       aria-label="Ansicht wählen"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {(() => { const Icon = TAB_META[tab].icon; return <Icon className="h-4 w-4 text-orange-400/80 shrink-0" />; })()}
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-medium gold-text-subtle">Ansicht</p>
-                          <p className="text-foreground font-light text-sm truncate mt-0.5">{TAB_META[tab].label}</p>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {(() => { const Icon = TAB_META[tab].icon; return <Icon className="h-3.5 w-3.5 text-orange-400/80 shrink-0" />; })()}
+                        <div className="min-w-0 leading-tight">
+                          <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium gold-text-subtle">Ansicht</p>
+                          <p className="text-foreground font-light text-[13px] truncate">{TAB_META[tab].label}</p>
                         </div>
                       </div>
                       <ChevronDown
-                        className="h-4 w-4 text-white/40 shrink-0 transition-transform duration-300"
+                        className="h-3.5 w-3.5 text-white/40 shrink-0 transition-transform duration-300"
                         style={{ transform: tabMenuOpen ? "rotate(180deg)" : "rotate(0deg)" }}
                       />
                     </button>
