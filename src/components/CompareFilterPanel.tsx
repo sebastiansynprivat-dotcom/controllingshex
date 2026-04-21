@@ -39,6 +39,7 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
   const activeCount = useMemo(() => {
     let n = 0;
     if (filter.tiers.length) n++;
+    if (filter.followerRange) n++;
     if (filter.categories.length) n++;
     if (filter.labelIds.length) n++;
     if (filter.revToday) n++;
@@ -70,6 +71,11 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
       pills.push(`📅${lo}–${hi}d`);
+    }
+    if (filter.followerRange) {
+      const [lo, hi] = filter.followerRange;
+      const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `${n}`);
+      pills.push(`👥${fmt(lo)}–${fmt(hi)}`);
     }
     if (filter.revToday) pills.push("€h");
     if (filter.revAvg) pills.push("Ø€");
