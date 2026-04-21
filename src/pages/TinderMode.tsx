@@ -23,6 +23,7 @@ import { mapToActionCategory } from "@/lib/action-categories";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
+import { loadRecoveryHistory, computeRecoveryQueue, type RecoveryEntry } from "@/lib/recovery-queue";
 import { Repeat } from "lucide-react";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import {
@@ -165,6 +166,8 @@ export default function TinderMode() {
   const [alertFilterActive, setAlertFilterActive] = useState(false);
   const [swapTrackingMap, setSwapTrackingMap] = useState<Map<string, SwapTrackingEntry>>(new Map());
   const [swapTrackFilterActive, setSwapTrackFilterActive] = useState(false);
+  const [recoveryMap, setRecoveryMap] = useState<Map<string, RecoveryEntry>>(new Map());
+  const [recoveryFilterActive, setRecoveryFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -463,6 +466,21 @@ export default function TinderMode() {
         if (!cancelled) setSwapTrackingMap(map);
       })
       .catch((err) => console.warn("loadSwapTracking failed:", err));
+    return () => { cancelled = true; };
+  }, [platform]);
+
+  // Recovery Queue: Chatter unter ihrem 30-Tage-Median (Umsatz-Hebel)
+  useEffect(() => {
+    let cancelled = false;
+    loadRecoveryHistory(platform)
+      .then((history) => {
+        if (cancelled) return;
+        const entries = computeRecoveryQueue(history);
+        const map = new Map<string, RecoveryEntry>();
+        for (const e of entries) map.set(normalizeName(e.chatterName), e);
+        setRecoveryMap(map);
+      })
+      .catch((err) => console.warn("loadRecoveryQueue failed:", err));
     return () => { cancelled = true; };
   }, [platform]);
 
@@ -798,11 +816,14 @@ export default function TinderMode() {
       if (swapTrackFilterActive) {
         base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
       }
+      if (recoveryFilterActive) {
+        base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
+      }
       const notSkipped = base.filter((c) => !skippedNames.has(normalizeName(c.name)));
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]
+    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]
   );
 
   const prefetchedChatters = useMemo(
@@ -819,8 +840,9 @@ export default function TinderMode() {
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
+    if (recoveryFilterActive) base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]);
+  }, [chatters, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]);
   const filteredChecked = useMemo(() => {
     let base = chatters.filter((c) => checkedNames.has(normalizeName(c.name)));
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
@@ -828,8 +850,9 @@ export default function TinderMode() {
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
     if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
     if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
+    if (recoveryFilterActive) base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
     return base.length;
-  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap]);
+  }, [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]);
   const progress = filteredTotal > 0 ? (filteredChecked / filteredTotal) * 100 : 0;
 
   // Load label assignments lazily — only when panel is open
@@ -1191,9 +1214,14 @@ export default function TinderMode() {
         const swapTrackCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && swapTrackingMap.has(normalizeName(c.name))
         ).length;
+        const recoveryCount = chatters.filter(
+          (c) => !checkedNames.has(normalizeName(c.name)) && recoveryMap.has(normalizeName(c.name))
+        ).length;
         const allUncheckedCount = chatters.filter((c) => !checkedNames.has(normalizeName(c.name))).length;
 
-        const currentValue = swapTrackFilterActive
+        const currentValue = recoveryFilterActive
+          ? "__recovery__"
+          : swapTrackFilterActive
           ? "__swap_track__"
           : alertFilterActive
           ? "__alerts__"
@@ -1210,7 +1238,14 @@ export default function TinderMode() {
             Alle Chatter <span className="ml-1 text-[10px] text-white/40">{allUncheckedCount}</span>
           </span>
         );
-        if (swapTrackFilterActive) {
+        if (recoveryFilterActive) {
+          triggerIcon = <Sparkles className="h-3.5 w-3.5 text-amber-300/90 shrink-0" />;
+          triggerName = (
+            <span className="text-foreground font-light text-[13px] truncate">
+              Revenue Recovery <span className="ml-1 text-[10px] text-white/40">{recoveryCount}</span>
+            </span>
+          );
+        } else if (swapTrackFilterActive) {
           triggerIcon = <Repeat className="h-3.5 w-3.5 text-cyan-300/90 shrink-0" />;
           triggerName = (
             <span className="text-foreground font-light text-[13px] truncate">
@@ -1270,26 +1305,37 @@ export default function TinderMode() {
           if (value === "__all__") {
             setAlertFilterActive(false);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value === "__alerts__") {
             setAlertFilterActive(true);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value === "__swap_track__") {
             setSwapTrackFilterActive(true);
+            setAlertFilterActive(false);
+            setRecoveryFilterActive(false);
+            setSelectedLabelFilter(null);
+            setSelectedCategory(null);
+          } else if (value === "__recovery__") {
+            setRecoveryFilterActive(true);
+            setSwapTrackFilterActive(false);
             setAlertFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(null);
           } else if (value.startsWith("label:")) {
             setAlertFilterActive(false);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedCategory(null);
             setSelectedLabelFilter(value.slice(6));
           } else if (value.startsWith("cat:")) {
             setAlertFilterActive(false);
             setSwapTrackFilterActive(false);
+            setRecoveryFilterActive(false);
             setSelectedLabelFilter(null);
             setSelectedCategory(value.slice(4));
           }
@@ -1378,6 +1424,20 @@ export default function TinderMode() {
                       </span>
                       {swapTrackCount > 0 && (
                         <span className="ml-1.5 text-[10px] opacity-50">{swapTrackCount}</span>
+                      )}
+                    </SelectItem>
+                  </>
+                )}
+
+                {recoveryMap.size > 0 && (
+                  <>
+                    <SelectSeparator />
+                    <SelectItem value="__recovery__">
+                      <span className="inline-flex items-center gap-1.5 text-amber-300">
+                        <Sparkles className="h-3 w-3" /> Revenue Recovery
+                      </span>
+                      {recoveryCount > 0 && (
+                        <span className="ml-1.5 text-[10px] opacity-50">{recoveryCount}</span>
                       )}
                     </SelectItem>
                   </>
@@ -1505,6 +1565,15 @@ export default function TinderMode() {
                       daysSince: swapEntry.daysSince,
                     }
                   : null;
+                const recoveryEntry = isTopCard ? recoveryMap.get(normalizeName(chatter.name)) : undefined;
+                const recoveryDeltaProp = recoveryEntry
+                  ? {
+                      recoveryEur: recoveryEntry.recoveryEur,
+                      baseline: recoveryEntry.baseline,
+                      currentAvg: recoveryEntry.currentAvg,
+                      gapPct: recoveryEntry.gapPct,
+                    }
+                  : null;
 
                 return (
                   <SwipeCard
@@ -1522,6 +1591,7 @@ export default function TinderMode() {
                     stackIndex={stackIndex}
                     accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
                     swapDelta={swapDeltaProp}
+                    recoveryDelta={recoveryDeltaProp}
                   />
                 );
               })}
