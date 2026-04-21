@@ -12,6 +12,7 @@
  *  - Peer-Gap-Trend       (10) — Skill vs. Cluster-P25
  *  - Onboarding-Phase     ( 5) — daysSinceStart < 14
  *  - Tier-Mismatch        ( 5) — niedrige Performance auf High-Tier-Account
+ *  - Abwesenheits-Muster  (15) — unzuverlässige Anwesenheit (opt-in)
  */
 
 export interface HistoryPoint {
@@ -26,17 +27,21 @@ export interface ForecastInput {
   chatter: string;
   account: string | null;
   followers: number;
-  /** sortiert ASC nach Datum */
+  /** sortiert ASC nach Datum (üblicherweise letzte 7 Tage) */
   history: HistoryPoint[];
+  /** Volle History (30d), für Absence-Pattern-Erkennung. Optional. */
+  fullHistory?: HistoryPoint[];
   /** Tage seit Onboarding (null wenn unbekannt) */
   daysSinceStart: number | null;
   /** Peer-Cluster-Median (€/Tag) — null wenn keine Benchmark-Daten */
   peerMedian: number | null;
   peerP25: number | null;
+  /** Wenn true → Absence-Signal wird eingerechnet */
+  includeAbsence?: boolean;
 }
 
 export interface SignalContribution {
-  key: "revenue" | "delay" | "massdm" | "openchats" | "peer" | "onboarding" | "tier";
+  key: "revenue" | "delay" | "massdm" | "openchats" | "peer" | "onboarding" | "tier" | "absence";
   label: string;
   /** Punkte 0..maxWeight */
   points: number;
@@ -67,6 +72,7 @@ const W = {
   peer: 10,
   onboarding: 5,
   tier: 5,
+  absence: 15,
 } as const;
 
 /* ------------------------------------------------------------------ */
