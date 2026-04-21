@@ -1312,12 +1312,12 @@ export default function TinderMode() {
                       disabled={isEmpty}
                       onClick={() => toggleTier(tier.id)}
                       title={tier.description}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-normal transition-all border ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide transition-all border backdrop-blur-sm ${
                         isActive
-                          ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText}`
+                          ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText} shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_14px_-6px_rgba(0,0,0,0.5)]`
                           : isEmpty
                             ? "bg-transparent border-white/[0.03] text-white/15"
-                            : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/80"
+                            : "bg-white/[0.025] border-white/[0.07] text-white/55 hover:text-foreground/85 hover:bg-white/[0.045] hover:border-white/[0.12]"
                       }`}
                     >
                       <span>{tier.emoji}</span>
