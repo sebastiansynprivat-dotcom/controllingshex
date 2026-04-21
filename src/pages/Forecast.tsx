@@ -281,8 +281,58 @@ export default function Forecast() {
               </p>
             </header>
 
-            <Tabs defaultValue="forecast" className="space-y-5 sm:space-y-6">
-              <TabsList className="bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="space-y-5 sm:space-y-6">
+              {/* Mobile: Premium Dropdown */}
+              <div className="sm:hidden">
+                <Popover open={tabMenuOpen} onOpenChange={setTabMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="premium-card premium-card-interactive w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left"
+                      aria-label="Ansicht wählen"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {(() => { const Icon = TAB_META[tab].icon; return <Icon className="h-4 w-4 text-orange-400/80 shrink-0" />; })()}
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-medium gold-text-subtle">Ansicht</p>
+                          <p className="text-foreground font-light text-sm truncate mt-0.5">{TAB_META[tab].label}</p>
+                        </div>
+                      </div>
+                      <ChevronDown
+                        className="h-4 w-4 text-white/40 shrink-0 transition-transform duration-300"
+                        style={{ transform: tabMenuOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                      />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    sideOffset={8}
+                    className="premium-card w-[calc(100vw-2rem)] max-w-sm p-1.5 border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl"
+                  >
+                    {(Object.keys(TAB_META) as Array<keyof typeof TAB_META>).map((key) => {
+                      const meta = TAB_META[key];
+                      const Icon = meta.icon;
+                      const active = tab === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => { setTab(key); setTabMenuOpen(false); }}
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${active ? "bg-white/[0.05]" : "hover:bg-white/[0.03]"}`}
+                        >
+                          <Icon className={`h-4 w-4 shrink-0 ${active ? "text-orange-400/90" : "text-white/40"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-light truncate ${active ? "text-foreground" : "text-foreground/75"}`}>{meta.label}</p>
+                            <p className="text-[11px] text-white/40 font-light truncate">{meta.hint}</p>
+                          </div>
+                          {active && <Check className="h-3.5 w-3.5 text-orange-400/90 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Desktop: Tab-Leiste */}
+              <TabsList className="hidden sm:flex bg-transparent border-b border-white/[0.06] rounded-none p-0 h-auto gap-1 w-full justify-start">
                 <TabsTrigger
                   value="forecast"
                   className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-3 py-2 text-sm font-light text-white/40 data-[state=active]:text-foreground data-[state=active]:gold-underline-active transition-colors"
