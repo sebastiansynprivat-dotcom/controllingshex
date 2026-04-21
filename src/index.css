@@ -238,6 +238,15 @@
   .glow-band-warning {
     animation: breathe-warning 3.6s ease-in-out infinite;
   }
+  .glow-band-gold {
+    animation: breathe-gold 3.8s ease-in-out infinite;
+  }
+  .glow-band-silver {
+    animation: breathe-silver 4.2s ease-in-out infinite;
+  }
+  .glow-band-bronze {
+    animation: breathe-bronze 4.4s ease-in-out infinite;
+  }
 
   .gold-underline-active {
     position: relative;
@@ -356,6 +365,18 @@
 @keyframes breathe-warning {
   0%, 100% { box-shadow: 0 1px 0 0 hsl(0 0% 100% / 0.05) inset, 0 0 0 1px hsl(45 80% 50% / 0.14), 0 0 14px -2px hsl(45 85% 55% / 0.12); }
   50%      { box-shadow: 0 1px 0 0 hsl(0 0% 100% / 0.05) inset, 0 0 0 1px hsl(45 85% 55% / 0.24), 0 0 24px 0px  hsl(45 90% 58% / 0.20); }
+}
+@keyframes breathe-gold {
+  0%, 100% { box-shadow: 0 1px 0 0 hsl(48 90% 70% / 0.08) inset, 0 0 0 1px hsl(45 85% 55% / 0.22), 0 0 22px -2px hsl(45 90% 60% / 0.20); }
+  50%      { box-shadow: 0 1px 0 0 hsl(48 90% 70% / 0.12) inset, 0 0 0 1px hsl(45 90% 60% / 0.40), 0 0 38px 2px  hsl(45 95% 62% / 0.32); }
+}
+@keyframes breathe-silver {
+  0%, 100% { box-shadow: 0 1px 0 0 hsl(0 0% 100% / 0.06) inset, 0 0 0 1px hsl(220 8% 70% / 0.18), 0 0 18px -2px hsl(220 10% 75% / 0.14); }
+  50%      { box-shadow: 0 1px 0 0 hsl(0 0% 100% / 0.10) inset, 0 0 0 1px hsl(220 10% 75% / 0.30), 0 0 28px 0px  hsl(220 12% 80% / 0.22); }
+}
+@keyframes breathe-bronze {
+  0%, 100% { box-shadow: 0 1px 0 0 hsl(25 60% 60% / 0.06) inset, 0 0 0 1px hsl(25 70% 45% / 0.20), 0 0 18px -2px hsl(25 75% 50% / 0.14); }
+  50%      { box-shadow: 0 1px 0 0 hsl(25 60% 60% / 0.10) inset, 0 0 0 1px hsl(25 75% 50% / 0.30), 0 0 28px 0px  hsl(25 80% 55% / 0.22); }
 }
 
 @keyframes underline-grow {
