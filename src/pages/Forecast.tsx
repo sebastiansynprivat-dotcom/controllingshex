@@ -351,23 +351,25 @@ export default function Forecast() {
                           >
                             <button
                               onClick={() => toggle(r.chatter)}
-                              className="w-full flex items-center gap-4 px-4 py-3.5 text-left"
+                              className="w-full flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 sm:py-3.5 text-left"
                             >
                               <RiskBadge score={r.score} band={r.band} size="md" />
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-baseline gap-2">
-                                  <span className="text-foreground font-light truncate">{r.chatter}</span>
+                                <div className="flex items-baseline gap-2 flex-wrap">
+                                  <span className="text-foreground font-light truncate text-sm sm:text-base">{r.chatter}</span>
                                   {r.account && (
-                                    <span className="text-white/30 text-xs font-light truncate">@{r.account}</span>
+                                    <span className="text-white/30 text-xs font-light truncate hidden sm:inline">@{r.account}</span>
                                   )}
                                 </div>
-                                <p className="text-white/50 text-xs font-light truncate mt-0.5">
+                                <p className="text-white/50 text-[11px] sm:text-xs font-light truncate mt-0.5">
                                   {r.mainReason}
                                 </p>
                               </div>
-                              <Sparkline values={r.revenueTrend} band={r.band} />
+                              <div className="hidden sm:block">
+                                <Sparkline values={r.revenueTrend} band={r.band} />
+                              </div>
                               <div className="text-right shrink-0">
-                                <p className="text-orange-400/80 text-sm tabular-nums">~{r.euroAtRisk}€</p>
+                                <p className="text-orange-400/80 text-xs sm:text-sm tabular-nums">~{r.euroAtRisk}€</p>
                                 <p className="text-white/30 text-[10px] font-light">in 3T</p>
                               </div>
                               <ChevronRight
