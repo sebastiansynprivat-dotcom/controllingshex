@@ -5,6 +5,7 @@ import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import TrendWidget from "@/components/TrendWidget";
 import AlertCockpit from "@/components/AlertCockpit";
+import { ForecastBanner } from "@/components/ForecastBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
@@ -251,6 +252,9 @@ export default function Dashboard() {
                 )}
               </div>
             )}
+
+            {/* Forecast-Frühwarnung Banner */}
+            <ForecastBanner platform={platform} />
 
             {/* Auto-Anomaly Cockpit (datengetrieben aus chatter_history) */}
             <AlertCockpit platform={platform} onChatterSelect={setSelectedChatter} />
