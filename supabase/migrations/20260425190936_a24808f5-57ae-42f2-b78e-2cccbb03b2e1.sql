@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.chatter_history_dedup_idx;
