@@ -183,6 +183,8 @@ export default function TinderMode() {
   const [compareSlideOverChatter, setCompareSlideOverChatter] = useState<string | null>(null);
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
   const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
+  // V2 Decisions für heute (mit Hysterese persistiert).
+  const [todayDecisions, setTodayDecisions] = useState<Map<string, StabilizedDecision>>(new Map());
 
   // Label state
   const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
