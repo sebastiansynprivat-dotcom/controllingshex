@@ -107,6 +107,45 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_category_state: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          current_category: string
+          id: string
+          last_evaluation_date: string
+          last_signals: Json | null
+          platform: string
+          since_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          current_category: string
+          id?: string
+          last_evaluation_date?: string
+          last_signals?: Json | null
+          platform?: string
+          since_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          current_category?: string
+          id?: string
+          last_evaluation_date?: string
+          last_signals?: Json | null
+          platform?: string
+          since_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_history: {
         Row: {
           account: string | null
