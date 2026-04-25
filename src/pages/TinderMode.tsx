@@ -534,35 +534,54 @@ export default function TinderMode() {
     return () => { cancelled = true; };
   }, [platform, timeRange.preset, timeRange.from, timeRange.to, rangeHistoryKey]);
 
-  // Re-categorized buckets per chatter for the selected window. Empty for "today".
+  // V2 decisions for the selected window. Empty for "today" — heute kommt
+  // die Kategorie aus dem Snapshot und wird unten via stabilizeAndPersist
+  // (Hysterese, Punkt 10) zusätzlich geglättet.
   const recategorizedMap = useMemo(() => {
-    if (timeRange.preset === "today") return new Map<string, ActionCategoryName>();
-    if (rangeHistory.length === 0 && rangeLoading) return new Map<string, ActionCategoryName>();
+    if (timeRange.preset === "today") return new Map<string, CategoryDecision>();
+    if (rangeHistory.length === 0 && rangeLoading) return new Map<string, CategoryDecision>();
     const onboardingStarts = new Map<string, string>();
+    const todaysAccountByChatter = new Map<string, string>();
+    const todaysFollowersByChatter = new Map<string, number>();
+    const todaysRevenueByChatter = new Map<string, number>();
     for (const c of rawChatters) {
+      const key = normalizeName(c.name);
       if (c.startDate) {
         const d = parseLooseDate(c.startDate);
-        if (d) onboardingStarts.set(normalizeName(c.name), d.toISOString().split("T")[0]);
+        if (d) onboardingStarts.set(key, d.toISOString().split("T")[0]);
       }
+      if (c.account) todaysAccountByChatter.set(key, c.account);
+      // Follower aus modelPerf wenn vorhanden
+      const followers = (c as any).modelPerf?.followerCount || 0;
+      if (followers > 0) todaysFollowersByChatter.set(key, followers);
+      const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+      todaysRevenueByChatter.set(key, todayRev);
     }
-    return recategorizeByWindow(
+    return recategorizeByWindowV2(
       rawChatters.map((c) => c.name),
       rangeHistory,
       timeRange,
-      { onboardingStarts }
+      {
+        onboardingStarts,
+        todaysAccountByChatter,
+        todaysFollowersByChatter,
+        todaysRevenueByChatter,
+        benchmarks: benchmarkBundle,
+      }
     );
-  }, [rawChatters, rangeHistory, rangeLoading, timeRange]);
+  }, [rawChatters, rangeHistory, rangeLoading, timeRange, benchmarkBundle]);
 
   // Effective chatters list — applies window-based re-categorization unless "today".
   const chatters = useMemo<ChatterData[]>(() => {
     if (timeRange.preset === "today" || recategorizedMap.size === 0) return rawChatters;
     return rawChatters.map((c) => {
-      const newCat = recategorizedMap.get(normalizeName(c.name));
-      if (!newCat) return c;
+      const dec = recategorizedMap.get(normalizeName(c.name));
+      if (!dec) return c;
       return {
         ...c,
-        categoryName: newCat,
-        categoryEmoji: getActionEmoji(newCat),
+        categoryName: dec.name,
+        categoryEmoji: getActionEmoji(dec.name),
+        decision: dec,
       };
     });
   }, [rawChatters, recategorizedMap, timeRange.preset]);
