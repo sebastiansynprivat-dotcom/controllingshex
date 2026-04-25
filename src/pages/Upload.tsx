@@ -604,10 +604,14 @@ async function saveChatterHistory(merged: AnalysisResult, activePlatform: string
     // Normalize account to "" so the unique index (COALESCE(account,'')) matches reliably
     const normalizedRows = rows.map((r: any) => ({ ...r, account: r.account ?? "" }));
     for (let i = 0; i < normalizedRows.length; i += 200) {
-      await supabase.from("chatter_history").upsert(
+      const { error } = await supabase.from("chatter_history").upsert(
         normalizedRows.slice(i, i + 200),
         { onConflict: "chatter_name,account,platform,analysis_date" }
       );
+      if (error) {
+        console.error("[saveChatterHistory] upsert error:", error);
+        throw new Error(`chatter_history upsert failed: ${error.message}`);
+      }
     }
   }
 }
