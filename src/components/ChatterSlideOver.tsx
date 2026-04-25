@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,6 +16,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import WeekTrendCard from "@/components/WeekTrendCard";
+import { onChatterDataUpdated } from "@/lib/data-events";
 
 interface HistoryRow {
   analysis_date: string;
@@ -142,8 +143,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     }
   }, [open, chatterName]);
 
-  useEffect(() => {
-    if (!open || !chatterName) return;
+  const fetchProfile = useCallback(() => {
+    if (!chatterName) return;
     setLoading(true);
     Promise.all([
       supabase
@@ -174,7 +175,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       setNotes((notesRes.data as CoachingNote[]) || []);
       setLoading(false);
     });
-  }, [open, chatterName, platform]);
+  }, [chatterName, platform]);
+
+  useEffect(() => {
+    if (!open || !chatterName) return;
+    fetchProfile();
+  }, [open, chatterName, platform, fetchProfile]);
+
+  // Auto-refresh after upload completes
+  useEffect(() => {
+    if (!open) return;
+    return onChatterDataUpdated(() => {
+      fetchProfile();
+    });
+  }, [open, fetchProfile]);
 
   // Fetch labels
   useEffect(() => {
