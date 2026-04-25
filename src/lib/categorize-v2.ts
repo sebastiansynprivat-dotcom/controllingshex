@@ -192,7 +192,7 @@ export function categorizeChatters(
     if (startIso) {
       const start = new Date(startIso + "T00:00:00Z").getTime();
       const days = Math.floor((today.getTime() - start) / 86400000);
-      if (days >= 0 && days <= 14) sig.onboardingDay = days + 1; // Tag 1..15
+      if (days >= 0 && days <= 13) sig.onboardingDay = days + 1; // Tag 1..14
     }
   }
 
