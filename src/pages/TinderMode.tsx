@@ -577,7 +577,22 @@ export default function TinderMode() {
 
   // Effective chatters list — applies window-based re-categorization unless "today".
   const chatters = useMemo<ChatterData[]>(() => {
-    if (timeRange.preset === "today" || recategorizedMap.size === 0) return rawChatters;
+    if (timeRange.preset === "today") {
+      // Heute: Snapshot-Kategorie + ggf. v2-Decision aus todayDecisions (Hysterese)
+      if (todayDecisions.size === 0) return rawChatters;
+      return rawChatters.map((c) => {
+        const dec = todayDecisions.get(normalizeName(c.name));
+        if (!dec) return c;
+        return {
+          ...c,
+          // Hysterese darf die Snapshot-Kategorie überschreiben (sanft):
+          categoryName: dec.name,
+          categoryEmoji: getActionEmoji(dec.name),
+          decision: dec,
+        };
+      });
+    }
+    if (recategorizedMap.size === 0) return rawChatters;
     return rawChatters.map((c) => {
       const dec = recategorizedMap.get(normalizeName(c.name));
       if (!dec) return c;
@@ -588,7 +603,67 @@ export default function TinderMode() {
         decision: dec,
       };
     });
-  }, [rawChatters, recategorizedMap, timeRange.preset]);
+  }, [rawChatters, recategorizedMap, timeRange.preset, todayDecisions]);
+
+  // Punkt 10 (Hysterese) + V2 Engine für „today": berechne v2 aus letzten 14 Tagen
+  // History und persistiere den geglätteten State. Läuft nur im today-Mode.
+  useEffect(() => {
+    if (timeRange.preset !== "today") return;
+    if (rawChatters.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const today = new Date();
+        const from = new Date(today);
+        from.setDate(from.getDate() - 13);
+        const fromIso = from.toISOString().split("T")[0];
+        const toIso = today.toISOString().split("T")[0];
+
+        const history = await loadHistoryForRange(platform, fromIso, toIso);
+        if (cancelled) return;
+
+        const onboardingStarts = new Map<string, string>();
+        const todaysAccountByChatter = new Map<string, string>();
+        const todaysFollowersByChatter = new Map<string, number>();
+        const todaysRevenueByChatter = new Map<string, number>();
+        const displayNames = new Map<string, string>();
+        for (const c of rawChatters) {
+          const key = normalizeName(c.name);
+          displayNames.set(key, c.name);
+          if (c.startDate) {
+            const d = parseLooseDate(c.startDate);
+            if (d) onboardingStarts.set(key, d.toISOString().split("T")[0]);
+          }
+          if (c.account) todaysAccountByChatter.set(key, c.account);
+          const followers = (c as any).modelPerf?.followerCount || 0;
+          if (followers > 0) todaysFollowersByChatter.set(key, followers);
+          const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+          todaysRevenueByChatter.set(key, todayRev);
+        }
+
+        const raw = categorizeChatters(
+          rawChatters.map((c) => c.name),
+          history,
+          {
+            onboardingStarts,
+            todaysAccountByChatter,
+            todaysFollowersByChatter,
+            todaysRevenueByChatter,
+            benchmarks: benchmarkBundle,
+          }
+        );
+        const stabilized = await stabilizeAndPersist(platform, user.id, raw, displayNames);
+        if (!cancelled) setTodayDecisions(stabilized);
+      } catch (err) {
+        console.warn("today decisions/hysteresis failed:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rawChatters, platform, timeRange.preset, benchmarkBundle]);
 
   // Derived alerts: for "today" use DB alerts; for windows compute from rangeHistory aggregates.
   const { alertChatterNames, alertsByChatter } = useMemo(() => {
