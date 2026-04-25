@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkles, ChevronRight, Target, CheckCircle2, XCircle, CalendarX, Brain, ChevronDown, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
+import { onChatterDataUpdated } from "@/lib/data-events";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RiskBadge } from "@/components/RiskBadge";

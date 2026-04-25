@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { emitChatterDataUpdated } from "@/lib/data-events";
 import {
   Dialog,
   DialogContent,
@@ -909,6 +910,8 @@ export default function UploadPage() {
       try {
         await saveChatterHistory(merged, platform, user?.id, analysisDate);
         addStatus("✅ Chatter-Historie gespeichert.");
+        // Notify all open views (SlideOver, Dashboard, Forecast, …) to re-fetch
+        emitChatterDataUpdated("upload");
       } catch (histErr: any) {
         console.error("History save error:", histErr);
         addStatus("⚠️ Chatter-Historie konnte nicht gespeichert werden.");

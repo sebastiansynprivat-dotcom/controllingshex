@@ -9,6 +9,7 @@ import RecoveryQueueCard from "@/components/RecoveryQueueCard";
 import { ForecastBanner } from "@/components/ForecastBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { onChatterDataUpdated } from "@/lib/data-events";
 import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -57,9 +58,6 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      setReports([]);
-      setSelectedId(null);
-
       const { data } = await supabase
         .from("analysis_reports")
         .select("id, analysis_date, chatter_count, result_json")
@@ -70,11 +68,15 @@ export default function Dashboard() {
       if (data && data.length > 0) {
         const rows = data as unknown as ReportRow[];
         setReports(rows);
-        setSelectedId(rows[0].id);
+        setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0].id));
+      } else {
+        setReports([]);
+        setSelectedId(null);
       }
       setLoading(false);
     };
     load();
+    return onChatterDataUpdated(load);
   }, [platform]);
 
   const selectedIndex = reports.findIndex((r) => r.id === selectedId);

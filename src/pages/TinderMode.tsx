@@ -20,6 +20,7 @@ import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatte
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { onChatterDataUpdated } from "@/lib/data-events";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
@@ -456,6 +457,8 @@ export default function TinderMode() {
       }
     };
     load();
+    const off = onChatterDataUpdated(load);
+    return () => { off(); };
   }, [platform]);
 
   // Swap-Tracking: Welche Chatter hatten kürzlich einen Account-Wechsel + waren vorher schon aktiv?
