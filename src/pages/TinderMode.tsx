@@ -39,7 +39,9 @@ import {
 import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 import { loadAlertThresholds, effectiveThresholds, type AlertThresholds } from "@/lib/alert-thresholds";
 import type { CategoryDecision } from "@/lib/categorize-v2";
+import { categorizeChatters } from "@/lib/categorize-v2";
 import type { StabilizedDecision } from "@/lib/category-state";
+import { stabilizeAndPersist } from "@/lib/category-state";
 
 interface ChatterData {
   name: string;
