@@ -81,11 +81,11 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
 
   const upper = text.replace(/^[^\w]*/, "").trim().toUpperCase();
 
-  // 0. Onboarding (höchste Priorität) — extrahiere Tag-Nummer
-  const onboardingMatch = upper.match(/ONBOARDING\s*TAG\s*(\d)/);
+  // 0. Onboarding (höchste Priorität) — extrahiere Tag-Nummer (1-14)
+  const onboardingMatch = upper.match(/ONBOARDING\s*TAG\s*(\d{1,2})/);
   if (onboardingMatch) {
     const day = parseInt(onboardingMatch[1], 10);
-    if (day >= 1 && day <= 5) {
+    if (day >= 1 && day <= 14) {
       return { name: `ONBOARDING TAG ${day}` as ActionCategoryName, emoji: "🔵" };
     }
   }
