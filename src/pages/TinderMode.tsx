@@ -20,6 +20,7 @@ import { loadLastInputs, logManualInput, type LastInputInfo } from "@/lib/chatte
 import QuickInputPrompt from "@/components/QuickInputPrompt";
 import InputHistorySheet from "@/components/InputHistorySheet";
 import { mapToActionCategory } from "@/lib/action-categories";
+import { getCategoryCriteria, SPECIAL_FILTER_CRITERIA } from "@/lib/category-criteria";
 import { onChatterDataUpdated } from "@/lib/data-events";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
