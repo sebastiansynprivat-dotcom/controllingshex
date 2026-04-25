@@ -534,8 +534,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             className="sticky top-0 z-30 flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0"
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
-            {/* Drag handle indicator (mobil sichtbar als Affordance für swipe-down-to-close) */}
-            <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/15 sm:hidden" style={{ marginTop: "env(safe-area-inset-top, 0px)" }} />
             <div
               className="premium-stat flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-light tracking-wide text-primary/85"
               style={{ filter: 'drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))' }}
