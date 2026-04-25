@@ -4,7 +4,6 @@ import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkle
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { onChatterDataUpdated } from "@/lib/data-events";
-import { onChatterDataUpdated } from "@/lib/data-events";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RiskBadge } from "@/components/RiskBadge";
