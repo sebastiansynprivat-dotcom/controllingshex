@@ -332,9 +332,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   if (inline) {
     // Inline mode: render directly without portal/overlay
     return (
-      <div className="h-full flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl">
+      <div className="h-full min-h-0 flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl">
         {/* ── Hero Header ── */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
           <div
             className="premium-stat flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-light tracking-wide text-primary/80"
             style={{ filter: 'drop-shadow(0 0 8px hsl(40 50% 60% / 0.15))' }}
@@ -362,8 +362,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
           </div>
         </div>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none">
-          <div className="p-6 pb-16 space-y-8">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none">
+          <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
             {loading ? (
               <div className="flex items-center justify-center py-24">
                 <div className="premium-spinner"><span /><span /><span /></div>
@@ -373,16 +373,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             ) : (
               <>
                 {/* KPI Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   {kpis.map((kpi) => {
                     const Icon = kpi.icon;
                     return (
-                      <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-4">
+                      <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-3 sm:p-4 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">{kpi.label}</p>
+                          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug">{kpi.label}</p>
                         </div>
-                        <p className={`text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
+                        <p className={`text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
                       </div>
                     );
                   })}
