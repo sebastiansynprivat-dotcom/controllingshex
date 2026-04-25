@@ -31,12 +31,17 @@ import {
   buildTimeRange,
   loadHistoryForRange,
   recategorizeByWindow,
+  recategorizeByWindowV2,
   rangeDays,
   type TimeRange,
   type HistoryRow as RangeHistoryRow,
 } from "@/lib/timerange-categorize";
 import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 import { loadAlertThresholds, effectiveThresholds, type AlertThresholds } from "@/lib/alert-thresholds";
+import type { CategoryDecision } from "@/lib/categorize-v2";
+import { categorizeChatters } from "@/lib/categorize-v2";
+import type { StabilizedDecision } from "@/lib/category-state";
+import { stabilizeAndPersist } from "@/lib/category-state";
 
 interface ChatterData {
   name: string;
@@ -49,6 +54,8 @@ interface ChatterData {
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
   peerBm?: ChatterBenchmark;
+  /** V2: Erklärbare Kategorie-Entscheidung (Reasons + Signals) */
+  decision?: CategoryDecision | StabilizedDecision;
 }
 
 interface AnalysisCategory {
@@ -178,6 +185,8 @@ export default function TinderMode() {
   const [compareSlideOverChatter, setCompareSlideOverChatter] = useState<string | null>(null);
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
   const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
+  // V2 Decisions für heute (mit Hysterese persistiert).
+  const [todayDecisions, setTodayDecisions] = useState<Map<string, StabilizedDecision>>(new Map());
 
   // Label state
   const [allLabels, setAllLabels] = useState<{ id: string; label_name: string; color: string }[]>([]);
@@ -529,38 +538,132 @@ export default function TinderMode() {
     return () => { cancelled = true; };
   }, [platform, timeRange.preset, timeRange.from, timeRange.to, rangeHistoryKey]);
 
-  // Re-categorized buckets per chatter for the selected window. Empty for "today".
+  // V2 decisions for the selected window. Empty for "today" — heute kommt
+  // die Kategorie aus dem Snapshot und wird unten via stabilizeAndPersist
+  // (Hysterese, Punkt 10) zusätzlich geglättet.
   const recategorizedMap = useMemo(() => {
-    if (timeRange.preset === "today") return new Map<string, ActionCategoryName>();
-    if (rangeHistory.length === 0 && rangeLoading) return new Map<string, ActionCategoryName>();
+    if (timeRange.preset === "today") return new Map<string, CategoryDecision>();
+    if (rangeHistory.length === 0 && rangeLoading) return new Map<string, CategoryDecision>();
     const onboardingStarts = new Map<string, string>();
+    const todaysAccountByChatter = new Map<string, string>();
+    const todaysFollowersByChatter = new Map<string, number>();
+    const todaysRevenueByChatter = new Map<string, number>();
     for (const c of rawChatters) {
+      const key = normalizeName(c.name);
       if (c.startDate) {
         const d = parseLooseDate(c.startDate);
-        if (d) onboardingStarts.set(normalizeName(c.name), d.toISOString().split("T")[0]);
+        if (d) onboardingStarts.set(key, d.toISOString().split("T")[0]);
       }
+      if (c.account) todaysAccountByChatter.set(key, c.account);
+      // Follower aus modelPerf wenn vorhanden
+      const followers = (c as any).modelPerf?.followerCount || 0;
+      if (followers > 0) todaysFollowersByChatter.set(key, followers);
+      const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+      todaysRevenueByChatter.set(key, todayRev);
     }
-    return recategorizeByWindow(
+    return recategorizeByWindowV2(
       rawChatters.map((c) => c.name),
       rangeHistory,
       timeRange,
-      { onboardingStarts }
+      {
+        onboardingStarts,
+        todaysAccountByChatter,
+        todaysFollowersByChatter,
+        todaysRevenueByChatter,
+        benchmarks: benchmarkBundle,
+      }
     );
-  }, [rawChatters, rangeHistory, rangeLoading, timeRange]);
+  }, [rawChatters, rangeHistory, rangeLoading, timeRange, benchmarkBundle]);
 
   // Effective chatters list — applies window-based re-categorization unless "today".
   const chatters = useMemo<ChatterData[]>(() => {
-    if (timeRange.preset === "today" || recategorizedMap.size === 0) return rawChatters;
+    if (timeRange.preset === "today") {
+      // Heute: Snapshot-Kategorie + ggf. v2-Decision aus todayDecisions (Hysterese)
+      if (todayDecisions.size === 0) return rawChatters;
+      return rawChatters.map((c) => {
+        const dec = todayDecisions.get(normalizeName(c.name));
+        if (!dec) return c;
+        return {
+          ...c,
+          // Hysterese darf die Snapshot-Kategorie überschreiben (sanft):
+          categoryName: dec.name,
+          categoryEmoji: getActionEmoji(dec.name),
+          decision: dec,
+        };
+      });
+    }
+    if (recategorizedMap.size === 0) return rawChatters;
     return rawChatters.map((c) => {
-      const newCat = recategorizedMap.get(normalizeName(c.name));
-      if (!newCat) return c;
+      const dec = recategorizedMap.get(normalizeName(c.name));
+      if (!dec) return c;
       return {
         ...c,
-        categoryName: newCat,
-        categoryEmoji: getActionEmoji(newCat),
+        categoryName: dec.name,
+        categoryEmoji: getActionEmoji(dec.name),
+        decision: dec,
       };
     });
-  }, [rawChatters, recategorizedMap, timeRange.preset]);
+  }, [rawChatters, recategorizedMap, timeRange.preset, todayDecisions]);
+
+  // Punkt 10 (Hysterese) + V2 Engine für „today": berechne v2 aus letzten 14 Tagen
+  // History und persistiere den geglätteten State. Läuft nur im today-Mode.
+  useEffect(() => {
+    if (timeRange.preset !== "today") return;
+    if (rawChatters.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const today = new Date();
+        const from = new Date(today);
+        from.setDate(from.getDate() - 13);
+        const fromIso = from.toISOString().split("T")[0];
+        const toIso = today.toISOString().split("T")[0];
+
+        const history = await loadHistoryForRange(platform, fromIso, toIso);
+        if (cancelled) return;
+
+        const onboardingStarts = new Map<string, string>();
+        const todaysAccountByChatter = new Map<string, string>();
+        const todaysFollowersByChatter = new Map<string, number>();
+        const todaysRevenueByChatter = new Map<string, number>();
+        const displayNames = new Map<string, string>();
+        for (const c of rawChatters) {
+          const key = normalizeName(c.name);
+          displayNames.set(key, c.name);
+          if (c.startDate) {
+            const d = parseLooseDate(c.startDate);
+            if (d) onboardingStarts.set(key, d.toISOString().split("T")[0]);
+          }
+          if (c.account) todaysAccountByChatter.set(key, c.account);
+          const followers = (c as any).modelPerf?.followerCount || 0;
+          if (followers > 0) todaysFollowersByChatter.set(key, followers);
+          const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+          todaysRevenueByChatter.set(key, todayRev);
+        }
+
+        const raw = categorizeChatters(
+          rawChatters.map((c) => c.name),
+          history,
+          {
+            onboardingStarts,
+            todaysAccountByChatter,
+            todaysFollowersByChatter,
+            todaysRevenueByChatter,
+            benchmarks: benchmarkBundle,
+          }
+        );
+        const stabilized = await stabilizeAndPersist(platform, user.id, raw, displayNames);
+        if (!cancelled) setTodayDecisions(stabilized);
+      } catch (err) {
+        console.warn("today decisions/hysteresis failed:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rawChatters, platform, timeRange.preset, benchmarkBundle]);
 
   // Derived alerts: for "today" use DB alerts; for windows compute from rangeHistory aggregates.
   const { alertChatterNames, alertsByChatter } = useMemo(() => {
@@ -1207,7 +1310,7 @@ export default function TinderMode() {
             models={modelsList}
             rangeHistory={rangeHistory}
             range={timeRange}
-            recategorizedMap={recategorizedMap}
+            recategorizedMap={new Map(Array.from(recategorizedMap, ([k, v]) => [k, v.name as ActionCategoryName]))}
             labelsByChatter={labelsByChatter}
             tierIdsByChatter={tierIdsByChatter}
             alertChatterNames={alertChatterNames}

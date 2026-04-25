@@ -23,6 +23,8 @@ export interface HistoryRow {
   analysis_date: string;
   revenue_today: number;
   response_delay_days?: number;
+  /** Account zu dem Zeitpunkt — für Wechsel-Tracking (Punkt 7) */
+  account?: string | null;
 }
 
 const HISTORY_PAGE_SIZE = 1000;
@@ -97,7 +99,7 @@ export async function loadHistoryForRange(
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, response_delay_days")
+      .select("chatter_name, analysis_date, revenue_today, response_delay_days, account")
       .eq("platform", platform)
       .gte("analysis_date", fromIso)
       .lte("analysis_date", toIso)
@@ -111,6 +113,7 @@ export async function loadHistoryForRange(
         analysis_date: r.analysis_date,
         revenue_today: Number(r.revenue_today) || 0,
         response_delay_days: Number(r.response_delay_days) || 0,
+        account: r.account ?? null,
       });
     }
     if (rows.length < HISTORY_PAGE_SIZE) break;
@@ -249,3 +252,26 @@ export function recategorizeByWindow(
 
   return result;
 }
+
+/* ====================================================================== */
+/*  V2: Liefert die volle CategoryDecision (Reasons + Signals)             */
+/* ====================================================================== */
+
+import { categorizeChatters, type CategoryDecision, type CategorizeOptions } from "@/lib/categorize-v2";
+
+/**
+ * V2-Variante: gibt für jeden Chatter eine vollständige `CategoryDecision`
+ * zurück (inkl. Reasons + Signals für UI-Tooltips).
+ *
+ * Backwards-Compat: `recategorizeByWindow` bleibt unverändert und nutzt die
+ * alte Heuristik. Neue UI sollte v2 verwenden.
+ */
+export function recategorizeByWindowV2(
+  chatterNames: string[],
+  history: HistoryRow[],
+  _range: TimeRange,
+  options: CategorizeOptions = {}
+): Map<string, CategoryDecision> {
+  return categorizeChatters(chatterNames, history, options);
+}
+
