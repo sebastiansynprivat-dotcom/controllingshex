@@ -31,12 +31,15 @@ import {
   buildTimeRange,
   loadHistoryForRange,
   recategorizeByWindow,
+  recategorizeByWindowV2,
   rangeDays,
   type TimeRange,
   type HistoryRow as RangeHistoryRow,
 } from "@/lib/timerange-categorize";
 import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 import { loadAlertThresholds, effectiveThresholds, type AlertThresholds } from "@/lib/alert-thresholds";
+import type { CategoryDecision } from "@/lib/categorize-v2";
+import type { StabilizedDecision } from "@/lib/category-state";
 
 interface ChatterData {
   name: string;
@@ -49,6 +52,8 @@ interface ChatterData {
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
   peerBm?: ChatterBenchmark;
+  /** V2: Erklärbare Kategorie-Entscheidung (Reasons + Signals) */
+  decision?: CategoryDecision | StabilizedDecision;
 }
 
 interface AnalysisCategory {
