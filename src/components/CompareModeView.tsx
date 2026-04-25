@@ -206,9 +206,9 @@ export default function CompareModeView({
   const currentB = orderedB[idxB];
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 space-y-3" style={{ touchAction: "pan-y" }}>
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-3" style={{ touchAction: "pan-y", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}>
       {/* Filter chip headers (Presets sind im Akkordeon integriert) */}
-      <div className="grid grid-cols-2 gap-2 md:gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
         <CompareFilterPanel
           label="Set A"
           accent="emerald"
@@ -238,7 +238,7 @@ export default function CompareModeView({
       )}
 
       {/* Two true side-by-side swipe cards */}
-      <div className="grid grid-cols-2 gap-2 md:gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-3 items-start">
         <CompareSlot
           accent="emerald"
           item={currentA}
