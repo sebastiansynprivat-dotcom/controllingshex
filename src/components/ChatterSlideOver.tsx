@@ -527,13 +527,25 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onPointerDown={handleDoubleTapClose}
+          drag="y"
+          dragDirectionLock
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0, bottom: 0.4 }}
+          dragMomentum={false}
+          onDragEnd={(_, info) => {
+            // Memory-Regel: nur Distanz, keine Velocity. 120px Schwelle.
+            if (info.offset.y > 120) onClose();
+          }}
           className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
+          style={{ touchAction: "pan-y" }}
         >
-          {/* ── Hero Header ── */}
+          {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
-            className="flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0"
+            className="sticky top-0 z-30 flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0"
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
+            {/* Drag handle indicator (mobil sichtbar als Affordance für swipe-down-to-close) */}
+            <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/15 sm:hidden" style={{ marginTop: "env(safe-area-inset-top, 0px)" }} />
             <div
               className="premium-stat flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-light tracking-wide text-primary/85"
               style={{ filter: 'drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))' }}
@@ -563,17 +575,26 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 )}
               </div>
             </div>
+            {/* Close-Button: 44x44px (Apple HIG), erweiterte Hit-Area über safe-area */}
             <button
               onClick={onClose}
-              className="p-2.5 rounded-xl hover:bg-white/[0.05] text-white/35 hover:text-white/70 transition-colors duration-300 shrink-0 active:scale-[0.95]"
+              aria-label="Schließen"
+              className="relative flex items-center justify-center h-11 w-11 rounded-xl hover:bg-white/[0.05] active:bg-white/[0.08] text-white/55 hover:text-white transition-colors duration-200 shrink-0 active:scale-[0.95]"
             >
-              <X className="h-5 w-5" />
+              {/* Unsichtbare Hit-Area-Erweiterung nach oben in die safe-area */}
+              <span
+                aria-hidden
+                className="absolute inset-x-[-8px] bottom-0 -top-3"
+                style={{ marginTop: "calc(-1 * env(safe-area-inset-top, 0px))" }}
+              />
+              <X className="h-5 w-5 relative" />
             </button>
           </div>
 
           <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
               {loading ? (
