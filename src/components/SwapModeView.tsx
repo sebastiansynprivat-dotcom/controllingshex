@@ -1195,7 +1195,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-stretch justify-center p-0 sm:p-4"
+            className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-stretch justify-center p-0 sm:p-4"
             onClick={() => setProfileOpen(false)}
           >
             <motion.div
@@ -1204,22 +1204,31 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               exit={{ y: 20, opacity: 0 }}
               transition={{ duration: 0.22 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[1400px] h-full bg-zinc-950 sm:rounded-2xl border-x-0 sm:border-x border-y-0 sm:border-y border-white/[0.08] shadow-2xl overflow-hidden flex flex-col"
-              style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+              className="relative w-full max-w-[1400px] h-full bg-background sm:rounded-2xl border-x-0 sm:border-x border-y-0 sm:border-y border-border shadow-2xl overflow-hidden flex flex-col"
+              style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             >
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-zinc-900/60 shrink-0">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/95 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-2">
                   <ArrowLeftRight className="h-4 w-4" style={{ color: "hsl(40 50% 70%)" }} />
                   <span className="text-xs uppercase tracking-wider text-white/55 font-medium">Performance-Vergleich</span>
                 </div>
                 <button
                   onClick={() => setProfileOpen(false)}
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  className="h-11 w-11 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   aria-label="Schließen"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
+              <button
+                onClick={() => setProfileOpen(false)}
+                aria-label="Performance-Vergleich schließen"
+                className="md:hidden fixed right-4 z-[220] inline-flex h-11 items-center gap-1.5 rounded-full border border-border bg-background/95 px-4 text-xs font-medium text-foreground shadow-2xl backdrop-blur-xl active:scale-95 transition-transform"
+                style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+              >
+                <X className="h-4 w-4" />
+                Schließen
+              </button>
               <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.06] overflow-y-auto md:overflow-hidden">
                 <div className="min-h-0 overflow-y-auto relative">
                   <div className="sticky top-0 z-10 px-4 py-2 bg-zinc-950/90 backdrop-blur border-b border-white/[0.06]">
