@@ -847,6 +847,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               )}
             </div>
           </div>
+
+          {/* Floating-Close-Pill — immer erreichbar auf Mobile, auch wenn der Header verdeckt ist */}
+          <button
+            onClick={onClose}
+            aria-label="Schließen"
+            className="sm:hidden fixed right-4 z-40 inline-flex items-center gap-1.5 h-11 px-4 rounded-full bg-zinc-900/95 backdrop-blur-xl border border-white/15 text-white/80 text-xs font-medium shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] active:scale-95 transition-transform"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+          >
+            <X className="h-4 w-4" />
+            Schließen
+          </button>
         </motion.aside>
       )}
     </AnimatePresence>
