@@ -529,9 +529,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           onPointerDown={handleDoubleTapClose}
           className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
         >
-          {/* ── Hero Header ── */}
+          {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
-            className="flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0"
+            className="sticky top-0 z-30 flex items-center gap-3 sm:gap-4 px-5 sm:px-10 pb-4 sm:py-5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0"
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
             <div
@@ -563,17 +563,26 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 )}
               </div>
             </div>
+            {/* Close-Button: 44x44px (Apple HIG), erweiterte Hit-Area über safe-area */}
             <button
               onClick={onClose}
-              className="p-2.5 rounded-xl hover:bg-white/[0.05] text-white/35 hover:text-white/70 transition-colors duration-300 shrink-0 active:scale-[0.95]"
+              aria-label="Schließen"
+              className="relative flex items-center justify-center h-11 w-11 rounded-xl hover:bg-white/[0.05] active:bg-white/[0.08] text-white/55 hover:text-white transition-colors duration-200 shrink-0 active:scale-[0.95]"
             >
-              <X className="h-5 w-5" />
+              {/* Unsichtbare Hit-Area-Erweiterung nach oben in die safe-area */}
+              <span
+                aria-hidden
+                className="absolute inset-x-[-8px] bottom-0 -top-3"
+                style={{ marginTop: "calc(-1 * env(safe-area-inset-top, 0px))" }}
+              />
+              <X className="h-5 w-5 relative" />
             </button>
           </div>
 
           <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
               {loading ? (
@@ -826,6 +835,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               )}
             </div>
           </div>
+
+          {/* Floating-Close-Pill — immer erreichbar auf Mobile, auch wenn der Header verdeckt ist */}
+          <button
+            onClick={onClose}
+            aria-label="Schließen"
+            className="sm:hidden fixed right-4 z-40 inline-flex items-center gap-1.5 h-11 px-4 rounded-full bg-zinc-900/95 backdrop-blur-xl border border-white/15 text-white/80 text-xs font-medium shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] active:scale-95 transition-transform"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+          >
+            <X className="h-4 w-4" />
+            Schließen
+          </button>
         </motion.aside>
       )}
     </AnimatePresence>

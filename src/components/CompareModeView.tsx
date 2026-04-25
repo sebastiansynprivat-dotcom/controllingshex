@@ -299,52 +299,142 @@ export default function CompareModeView({
       {/* Live Δ between currently visible chatters */}
       <LiveDeltaBox a={currentA} b={currentB} enrichedMap={enrichedByName} />
 
-      {/* Compare Dialog — beide Performance-Profile nebeneinander */}
-      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
-        <DialogContent className="max-w-[1400px] w-[95vw] h-[90vh] p-0 overflow-hidden gap-0 border-white/10">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.02]">
-            <div className="flex items-center gap-2 text-xs font-medium text-foreground/80">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-              <span className="capitalize">{currentA?.name.replace(/_/g, " ") ?? "—"}</span>
-              <span className="text-muted-foreground mx-1">vs</span>
-              <span className="inline-block h-2 w-2 rounded-full bg-sky-400" />
-              <span className="capitalize">{currentB?.name.replace(/_/g, " ") ?? "—"}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCompareDialogOpen(false)}
-              className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 divide-x divide-white/[0.08] flex-1 overflow-hidden">
-            <div className="overflow-y-auto">
-              {currentA && (
-                <ChatterSlideOver
-                  open={compareDialogOpen}
-                  onClose={() => setCompareDialogOpen(false)}
-                  chatterName={currentA.name}
-                  platform={platform}
-                  inline
-                />
-              )}
-            </div>
-            <div className="overflow-y-auto">
-              {currentB && (
-                <ChatterSlideOver
-                  open={compareDialogOpen}
-                  onClose={() => setCompareDialogOpen(false)}
-                  chatterName={currentB.name}
-                  platform={platform}
-                  inline
-                />
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Compare Dialog — Desktop: side-by-side, Mobile: Tabs (volle Breite) */}
+      <CompareProfileDialog
+        open={compareDialogOpen}
+        onOpenChange={setCompareDialogOpen}
+        currentA={currentA}
+        currentB={currentB}
+        platform={platform}
+      />
     </div>
+  );
+}
+
+/* --------------------------- Compare Dialog (responsive) ------------------------ */
+
+function CompareProfileDialog({
+  open,
+  onOpenChange,
+  currentA,
+  currentB,
+  platform,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  currentA: FilteredChatter | undefined;
+  currentB: FilteredChatter | undefined;
+  platform: string;
+}) {
+  const [activeTab, setActiveTab] = useState<"A" | "B">("A");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 overflow-hidden gap-0 border-white/10 max-w-[1400px] w-screen h-[100dvh] sm:w-[95vw] sm:h-[90vh] sm:rounded-lg rounded-none"
+        style={{
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
+        {/* Header: kompakt, mit großem Schließen-Button */}
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-2 text-xs font-medium text-foreground/80 min-w-0 flex-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+            <span className="capitalize truncate">{currentA?.name.replace(/_/g, " ") ?? "—"}</span>
+            <span className="text-muted-foreground mx-1 shrink-0">vs</span>
+            <span className="inline-block h-2 w-2 rounded-full bg-sky-400 shrink-0" />
+            <span className="capitalize truncate">{currentB?.name.replace(/_/g, " ") ?? "—"}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="Schließen"
+            className="inline-flex items-center justify-center h-11 w-11 rounded-md hover:bg-white/[0.08] active:bg-white/[0.12] text-white/60 hover:text-white transition-colors shrink-0"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Mobile: Tab-Switch zwischen den zwei Profilen */}
+        <div className="sm:hidden flex p-1 m-2 mb-0 rounded-lg bg-white/[0.04] border border-white/[0.06] shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab("A")}
+            className={cn(
+              "flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-medium transition-all",
+              activeTab === "A"
+                ? "bg-emerald-500/15 text-emerald-200 shadow-sm"
+                : "text-white/55 hover:text-white/80"
+            )}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="capitalize truncate max-w-[120px]">{currentA?.name.replace(/_/g, " ") ?? "A"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("B")}
+            className={cn(
+              "flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-medium transition-all",
+              activeTab === "B"
+                ? "bg-sky-500/15 text-sky-200 shadow-sm"
+                : "text-white/55 hover:text-white/80"
+            )}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400" />
+            <span className="capitalize truncate max-w-[120px]">{currentB?.name.replace(/_/g, " ") ?? "B"}</span>
+          </button>
+        </div>
+
+        {/* Desktop: side-by-side */}
+        <div className="hidden sm:grid sm:grid-cols-2 divide-x divide-white/[0.08] flex-1 overflow-hidden">
+          <div className="overflow-y-auto">
+            {currentA && (
+              <ChatterSlideOver
+                open={open}
+                onClose={() => onOpenChange(false)}
+                chatterName={currentA.name}
+                platform={platform}
+                inline
+              />
+            )}
+          </div>
+          <div className="overflow-y-auto">
+            {currentB && (
+              <ChatterSlideOver
+                open={open}
+                onClose={() => onOpenChange(false)}
+                chatterName={currentB.name}
+                platform={platform}
+                inline
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Mobile: nur das aktive Profil */}
+        <div className="sm:hidden flex-1 overflow-y-auto">
+          {activeTab === "A" && currentA && (
+            <ChatterSlideOver
+              open={open}
+              onClose={() => onOpenChange(false)}
+              chatterName={currentA.name}
+              platform={platform}
+              inline
+            />
+          )}
+          {activeTab === "B" && currentB && (
+            <ChatterSlideOver
+              open={open}
+              onClose={() => onOpenChange(false)}
+              chatterName={currentB.name}
+              platform={platform}
+              inline
+            />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

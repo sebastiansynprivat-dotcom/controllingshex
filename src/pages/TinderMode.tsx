@@ -1141,11 +1141,19 @@ export default function TinderMode() {
   }
 
   return (
-    <div className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`} style={{ maxHeight: '100dvh', touchAction: 'none' }}>
+    <div
+      className={`flex h-full overflow-hidden overscroll-none ${isDesktop ? "" : ""}`}
+      style={{
+        maxHeight: '100dvh',
+        // Im Swipe-Mode muss touchAction:none sein (sonst kollidiert Browser-Pan mit Karten-Drag).
+        // In Wechsel/Vergleich brauchen wir vertikales Scrollen.
+        touchAction: mode === 'swipe' ? 'none' : 'pan-y',
+      }}
+    >
       {/* Left: Card area */}
-      <div className={`flex flex-col px-4 pt-3 pb-4 overflow-hidden ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full max-w-md mx-auto"}`}>
+      <div className={`flex flex-col ${mode === 'swipe' ? 'px-4 pt-3 pb-4 overflow-hidden' : 'px-2 sm:px-4 pt-2 pb-3 overflow-y-auto'} ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full max-w-md mx-auto"}`}>
       {/* Mode Toggle: Swipe / Wechsel / Vergleich */}
-      <div className="mb-3 flex p-0.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
+      <div className="mb-3 flex p-0.5 rounded-full bg-white/[0.03] border border-white/[0.06] sticky top-0 z-20 backdrop-blur-xl">
         {([
           { id: "swipe", label: "Swipe" },
           { id: "swap", label: "Wechsel" },
