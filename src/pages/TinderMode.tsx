@@ -1600,6 +1600,35 @@ export default function TinderMode() {
                 )}
               </SelectContent>
             </Select>
+            {(() => {
+              let criteria: ReturnType<typeof getCategoryCriteria> | null = null;
+              if (recoveryFilterActive) criteria = SPECIAL_FILTER_CRITERIA.recovery;
+              else if (swapTrackFilterActive) criteria = SPECIAL_FILTER_CRITERIA.swap_track;
+              else if (alertFilterActive) criteria = SPECIAL_FILTER_CRITERIA.alerts;
+              else if (selectedCategory) criteria = getCategoryCriteria(selectedCategory);
+              if (!criteria) return null;
+              return (
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2 backdrop-blur-sm">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Sparkles className="h-2.5 w-2.5 text-amber-300/70 shrink-0" />
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium">
+                      Sortier-Kriterien
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-foreground/80 font-light leading-snug mb-1.5">
+                    {criteria.short}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {criteria.rules.map((rule, i) => (
+                      <li key={i} className="text-[10px] text-muted-foreground/75 font-light leading-snug flex gap-1.5">
+                        <span className="text-white/30 shrink-0">·</span>
+                        <span>{rule}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
