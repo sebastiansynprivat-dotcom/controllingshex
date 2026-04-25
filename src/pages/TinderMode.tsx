@@ -1515,6 +1515,35 @@ export default function TinderMode() {
                 <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-[60vh] premium-card border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl p-1.5 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
+                {(() => {
+                  let criteria: ReturnType<typeof getCategoryCriteria> | null = null;
+                  if (recoveryFilterActive) criteria = SPECIAL_FILTER_CRITERIA.recovery;
+                  else if (swapTrackFilterActive) criteria = SPECIAL_FILTER_CRITERIA.swap_track;
+                  else if (alertFilterActive) criteria = SPECIAL_FILTER_CRITERIA.alerts;
+                  else if (selectedCategory) criteria = getCategoryCriteria(selectedCategory);
+                  if (!criteria) return null;
+                  return (
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 mb-1.5 mx-0.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Sparkles className="h-2.5 w-2.5 text-amber-300/70 shrink-0" />
+                        <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium">
+                          Sortier-Kriterien
+                        </p>
+                      </div>
+                      <p className="text-[11px] text-foreground/80 font-light leading-snug mb-1.5">
+                        {criteria.short}
+                      </p>
+                      <ul className="space-y-0.5">
+                        {criteria.rules.map((rule, i) => (
+                          <li key={i} className="text-[10px] text-muted-foreground/75 font-light leading-snug flex gap-1.5">
+                            <span className="text-white/30 shrink-0">·</span>
+                            <span>{rule}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 <SelectItem value="__all__">
                   Alle Chatter
                   <span className="ml-1.5 text-[10px] opacity-50">{allUncheckedCount}</span>
