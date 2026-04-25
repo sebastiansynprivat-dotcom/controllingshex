@@ -994,48 +994,55 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
       <div className="flex flex-col h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
         {manualBanner}
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 lg:mb-6 gap-3">
-          <div className="flex items-baseline gap-2 lg:gap-3 shrink-0 flex-wrap">
-            <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
-              {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
-            </span>
+        {/* Header — Mobile: zwei Reihen, Desktop: eine Reihe */}
+        <div className="mb-3 lg:mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-3">
+          {/* Reihe 1: Label + Counter + +€/Tag (Hauptpill, rechts) */}
+          <div className="flex items-center justify-between gap-2 lg:gap-3 flex-wrap">
+            <div className="flex items-baseline gap-2 lg:gap-3 flex-wrap">
+              <span className="text-[10px] lg:text-xs uppercase tracking-[0.22em] text-white/40 font-medium">
+                {isManualMode ? "Manueller Vorschlag" : "Wechsel-Vorschlag"}
+              </span>
+              <span
+                className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+                style={{
+                  color: "hsl(152 70% 60%)",
+                  borderColor: "hsl(152 70% 45% / 0.35)",
+                  background: "hsl(152 70% 45% / 0.08)",
+                }}
+                title="Underplaced Chatter (links)"
+              >
+                ↑ {visiblePairsInfo.underDone}/{visiblePairsInfo.underTotal}
+              </span>
+              <span
+                className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+                style={{
+                  color: "hsl(0 84% 70%)",
+                  borderColor: "hsl(0 84% 60% / 0.35)",
+                  background: "hsl(0 84% 60% / 0.08)",
+                }}
+                title="Overplaced Chatter (rechts)"
+              >
+                ↓ {visiblePairsInfo.overDone}/{visiblePairsInfo.overTotal}
+              </span>
+            </div>
             <span
-              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
+              className="inline-flex items-center gap-1 lg:gap-2 text-[11px] lg:text-sm font-bold px-2.5 lg:px-4 py-1 lg:py-2 rounded-full border tabular-nums shrink-0"
               style={{
-                color: "hsl(152 70% 60%)",
-                borderColor: "hsl(152 70% 45% / 0.35)",
-                background: "hsl(152 70% 45% / 0.08)",
+                color: visibleGain > 0 ? "hsl(152 70% 60%)" : "hsl(0 0% 60%)",
+                borderColor: visibleGain > 0 ? "hsl(152 70% 45% / 0.45)" : "hsl(0 0% 100% / 0.1)",
+                background: visibleGain > 0 ? "hsl(152 70% 45% / 0.10)" : "transparent",
+                boxShadow: visibleGain > 0 ? "0 4px 22px -8px hsl(152 70% 45% / 0.6)" : "none",
               }}
-              title="Underplaced Chatter (links)"
             >
-              ↑ {visiblePairsInfo.underDone}/{visiblePairsInfo.underTotal}
-            </span>
-            <span
-              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold tabular-nums px-1.5 py-0.5 rounded-md border"
-              style={{
-                color: "hsl(0 84% 70%)",
-                borderColor: "hsl(0 84% 60% / 0.35)",
-                background: "hsl(0 84% 60% / 0.08)",
-              }}
-              title="Overplaced Chatter (rechts)"
-            >
-              ↓ {visiblePairsInfo.overDone}/{visiblePairsInfo.overTotal}
+              <TrendingUp className="h-3 w-3 lg:h-4 lg:w-4" />
+              +{formatEur(visibleGain)} / Tag
             </span>
           </div>
-          <div className="flex items-center gap-2 lg:gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setManualPickerOpen(true)}
-              className="h-8 text-[11px] border-white/10 text-white/70 hover:text-white hover:bg-white/5"
-              title="Chatter manuell auswählen"
-            >
-              <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-              {isManualMode ? "Anderen wählen" : "Manuell wählen"}
-            </Button>
+
+          {/* Reihe 2 (nur Mobile): Follower-Ratio + Manuell-Button */}
+          <div className="flex items-center justify-between gap-2 lg:gap-3">
             <span
-              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full border bg-white/[0.02]"
+              className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2 lg:px-3 py-1 lg:py-1.5 rounded-full border bg-white/[0.02]"
               style={{
                 color: "hsl(200 60% 70%)",
                 borderColor: "hsl(200 55% 55% / 0.3)",
@@ -1044,18 +1051,16 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             >
               {currentPair.followerRatio.toFixed(1)}× Follower
             </span>
-            <span
-              className="inline-flex items-center gap-1.5 lg:gap-2 text-xs lg:text-sm font-bold px-3 lg:px-4 py-1.5 lg:py-2 rounded-full border tabular-nums"
-              style={{
-                color: visibleGain > 0 ? "hsl(152 70% 60%)" : "hsl(0 0% 60%)",
-                borderColor: visibleGain > 0 ? "hsl(152 70% 45% / 0.45)" : "hsl(0 0% 100% / 0.1)",
-                background: visibleGain > 0 ? "hsl(152 70% 45% / 0.10)" : "transparent",
-                boxShadow: visibleGain > 0 ? "0 4px 22px -8px hsl(152 70% 45% / 0.6)" : "none",
-              }}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setManualPickerOpen(true)}
+              className="h-8 text-[11px] border-white/10 text-white/70 hover:text-white hover:bg-white/5 shrink-0"
+              title="Chatter manuell auswählen"
             >
-              <TrendingUp className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
-              +{formatEur(visibleGain)} / Tag
-            </span>
+              <UserPlus className="h-3.5 w-3.5 lg:mr-1.5" />
+              <span className="hidden sm:inline">{isManualMode ? "Anderen wählen" : "Manuell wählen"}</span>
+            </Button>
           </div>
         </div>
 
