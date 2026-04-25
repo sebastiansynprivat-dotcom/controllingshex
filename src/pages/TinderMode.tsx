@@ -178,6 +178,7 @@ export default function TinderMode() {
   const [recoveryMap, setRecoveryMap] = useState<Map<string, RecoveryEntry>>(new Map());
   const [recoveryFilterActive, setRecoveryFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
 
@@ -1509,7 +1510,7 @@ export default function TinderMode() {
                 })}
               </div>
             )}
-            <Select value={currentValue} onValueChange={handleChange}>
+            <Select value={currentValue} onValueChange={handleChange} open={filterDropdownOpen} onOpenChange={setFilterDropdownOpen}>
               <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] h-auto py-2 rounded-lg px-3 hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180 [&>span]:!line-clamp-none [&>span]:whitespace-normal [&>span]:text-left [&>span]:flex-1">
                 <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
@@ -1600,7 +1601,7 @@ export default function TinderMode() {
                 )}
               </SelectContent>
             </Select>
-            {(() => {
+            {filterDropdownOpen && (() => {
               let criteria: ReturnType<typeof getCategoryCriteria> | null = null;
               if (recoveryFilterActive) criteria = SPECIAL_FILTER_CRITERIA.recovery;
               else if (swapTrackFilterActive) criteria = SPECIAL_FILTER_CRITERIA.swap_track;
