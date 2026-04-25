@@ -252,3 +252,26 @@ export function recategorizeByWindow(
 
   return result;
 }
+
+/* ====================================================================== */
+/*  V2: Liefert die volle CategoryDecision (Reasons + Signals)             */
+/* ====================================================================== */
+
+import { categorizeChatters, type CategoryDecision, type CategorizeOptions } from "@/lib/categorize-v2";
+
+/**
+ * V2-Variante: gibt für jeden Chatter eine vollständige `CategoryDecision`
+ * zurück (inkl. Reasons + Signals für UI-Tooltips).
+ *
+ * Backwards-Compat: `recategorizeByWindow` bleibt unverändert und nutzt die
+ * alte Heuristik. Neue UI sollte v2 verwenden.
+ */
+export function recategorizeByWindowV2(
+  chatterNames: string[],
+  history: HistoryRow[],
+  _range: TimeRange,
+  options: CategorizeOptions = {}
+): Map<string, CategoryDecision> {
+  return categorizeChatters(chatterNames, history, options);
+}
+
