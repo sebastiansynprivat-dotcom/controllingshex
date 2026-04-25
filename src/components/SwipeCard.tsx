@@ -7,6 +7,9 @@ import WeekTrendCard from "@/components/WeekTrendCard";
 import LastInputBadge from "@/components/LastInputBadge";
 import type { InputSource } from "@/lib/chatter-inputs";
 import { type ChatterBenchmark, formatBenchmarkLabel, getBenchmarkTone } from "@/lib/peer-benchmarks";
+import type { CategoryDecision } from "@/lib/categorize-v2";
+import type { StabilizedDecision } from "@/lib/category-state";
+import CategoryReasonPopover from "@/components/CategoryReasonPopover";
 
 export interface AccountLogin {
   account: string;
@@ -24,6 +27,7 @@ interface ChatterData {
   history?: { analysis_date: string; revenue_today: number; mass_dms: number; response_delay_days: number }[];
   modelPerf?: ModelPerformance;
   peerBm?: ChatterBenchmark;
+  decision?: CategoryDecision | StabilizedDecision;
 }
 
 interface AnomalyAlertInfo {
