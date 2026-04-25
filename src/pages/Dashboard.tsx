@@ -58,9 +58,6 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      setReports([]);
-      setSelectedId(null);
-
       const { data } = await supabase
         .from("analysis_reports")
         .select("id, analysis_date, chatter_count, result_json")
@@ -71,11 +68,15 @@ export default function Dashboard() {
       if (data && data.length > 0) {
         const rows = data as unknown as ReportRow[];
         setReports(rows);
-        setSelectedId(rows[0].id);
+        setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0].id));
+      } else {
+        setReports([]);
+        setSelectedId(null);
       }
       setLoading(false);
     };
     load();
+    return onChatterDataUpdated(load);
   }, [platform]);
 
   const selectedIndex = reports.findIndex((r) => r.id === selectedId);
