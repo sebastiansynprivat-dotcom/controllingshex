@@ -1231,7 +1231,7 @@ export default function TinderMode() {
             models={modelsList}
             rangeHistory={rangeHistory}
             range={timeRange}
-            recategorizedMap={recategorizedMap}
+            recategorizedMap={new Map(Array.from(recategorizedMap, ([k, v]) => [k, v.name as ActionCategoryName]))}
             labelsByChatter={labelsByChatter}
             tierIdsByChatter={tierIdsByChatter}
             alertChatterNames={alertChatterNames}
