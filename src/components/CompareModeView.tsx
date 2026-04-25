@@ -206,9 +206,9 @@ export default function CompareModeView({
   const currentB = orderedB[idxB];
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 space-y-3" style={{ touchAction: "pan-y" }}>
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-3" style={{ touchAction: "pan-y", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}>
       {/* Filter chip headers (Presets sind im Akkordeon integriert) */}
-      <div className="grid grid-cols-2 gap-2 md:gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
         <CompareFilterPanel
           label="Set A"
           accent="emerald"
@@ -238,7 +238,7 @@ export default function CompareModeView({
       )}
 
       {/* Two true side-by-side swipe cards */}
-      <div className="grid grid-cols-2 gap-2 md:gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-3 items-start">
         <CompareSlot
           accent="emerald"
           item={currentA}
@@ -472,7 +472,7 @@ function CompareSlot({
     return (
       <div
         className={cn(
-          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
+          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[220px] sm:min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
           accentBorder
         )}
       >
@@ -499,7 +499,7 @@ function CompareSlot({
     return (
       <div
         className={cn(
-          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
+          "rounded-2xl border bg-white/[0.02] backdrop-blur-sm p-4 min-h-[220px] sm:min-h-[280px] md:min-h-[420px] flex flex-col items-center justify-center text-center gap-3",
           accentBorder
         )}
       >
@@ -653,7 +653,7 @@ function CompareSwipeCard({
         style={{ background: `linear-gradient(90deg, transparent, hsl(${accentHsl} / 0.7), transparent)` }}
       />
       <div
-        className="p-2.5 md:p-4 border border-white/[0.06] rounded-2xl min-h-[280px] md:min-h-[420px] flex flex-col"
+          className="p-3 sm:p-2.5 md:p-4 border border-white/[0.06] rounded-2xl min-h-[220px] sm:min-h-[280px] md:min-h-[420px] flex flex-col"
         style={{
           background: `radial-gradient(140% 100% at 50% -20%, hsl(${accentHsl} / 0.08) 0%, transparent 55%), linear-gradient(180deg, hsl(240 6% 8%) 0%, hsl(240 6% 5%) 100%)`,
           boxShadow: `0 16px 40px -20px hsl(240 10% 0% / 0.6), inset 0 1px 0 hsl(0 0% 100% / 0.04)`,
@@ -674,7 +674,7 @@ function CompareSwipeCard({
         </div>
 
         {/* Name */}
-        <h3 className="text-sm md:text-xl font-semibold text-foreground capitalize truncate leading-tight">
+        <h3 className="text-base sm:text-sm md:text-xl font-semibold text-foreground capitalize truncate leading-tight">
           {item.name.replace(/_/g, " ")}
         </h3>
         <p className="text-[9px] md:text-xs text-white/45 truncate">@ {account || "—"}</p>
@@ -710,11 +710,11 @@ function CompareSwipeCard({
         <div className="grid grid-cols-2 gap-1.5 md:gap-2 mt-auto">
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
             <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">7T-Ø</p>
-            <p className="text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgRev)}</p>
+            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgRev)}</p>
           </div>
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
             <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">Heute</p>
-            <p className="text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(today)}</p>
+            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(today)}</p>
           </div>
         </div>
 

@@ -990,12 +990,15 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }
 
   return (
-    <div className="flex flex-col h-full lg:overflow-hidden overflow-y-auto relative">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden relative">
 
-      <div className="flex flex-col lg:h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
+      <div
+        className="flex flex-col min-h-0 lg:h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-1.5 sm:pt-3 lg:pt-6 pb-3 lg:pb-6 overflow-y-auto lg:overflow-hidden"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+      >
         {manualBanner}
         {/* Header — Mobile: zwei Reihen, Desktop: eine Reihe */}
-        <div className="mb-3 lg:mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-3">
+        <div className="mb-2.5 lg:mb-6 flex shrink-0 flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-3">
           {/* Reihe 1: Label + Counter + +€/Tag (Hauptpill, rechts) */}
           <div className="flex items-center justify-between gap-2 lg:gap-3 flex-wrap">
             <div className="flex items-baseline gap-2 lg:gap-3 flex-wrap">
@@ -1065,7 +1068,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         </div>
 
         {/* Cards stage */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-10 items-center relative overflow-y-auto lg:overflow-visible">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 lg:gap-10 items-start lg:items-center relative overflow-visible lg:flex-1 lg:min-h-0">
           <AnimatePresence mode="popLayout">
             <motion.div
               key={`L-${currentPair.left.key}-${leftAltIdx}`}
@@ -1088,7 +1091,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
           </AnimatePresence>
 
           {/* Center swap badge — auf Mobile inline zwischen Karten, auf Desktop absolut zentriert */}
-          <div className="lg:pointer-events-none lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:z-10 flex flex-col items-center gap-2 justify-self-center my-1 lg:my-0">
+          <div className="lg:pointer-events-none lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:z-10 flex flex-col items-center gap-2 justify-self-center -my-1 lg:my-0">
             <div
               className="h-10 w-10 lg:h-16 lg:w-16 rounded-full flex items-center justify-center border-2"
               style={{
@@ -1142,7 +1145,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center justify-center gap-3 lg:gap-5 mt-4 lg:mt-5">
+        <div className="sticky bottom-0 z-20 -mx-3 mt-3 flex shrink-0 items-center justify-center gap-3 lg:static lg:mx-0 lg:gap-5 lg:mt-5 bg-background/92 px-3 py-2.5 backdrop-blur-xl border-t border-white/[0.06] lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-0">
           <Button
             variant="outline"
             size="icon"
@@ -1192,7 +1195,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-stretch justify-center p-2 sm:p-4"
+            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-stretch justify-center p-0 sm:p-4"
             onClick={() => setProfileOpen(false)}
           >
             <motion.div
@@ -1201,9 +1204,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
               exit={{ y: 20, opacity: 0 }}
               transition={{ duration: 0.22 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[1400px] h-full bg-zinc-950 rounded-2xl border border-white/[0.08] shadow-2xl overflow-hidden flex flex-col"
+              className="relative w-full max-w-[1400px] h-full bg-zinc-950 sm:rounded-2xl border-x-0 sm:border-x border-y-0 sm:border-y border-white/[0.08] shadow-2xl overflow-hidden flex flex-col"
+              style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             >
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-zinc-900/60">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-zinc-900/60 shrink-0">
                 <div className="flex items-center gap-2">
                   <ArrowLeftRight className="h-4 w-4" style={{ color: "hsl(40 50% 70%)" }} />
                   <span className="text-xs uppercase tracking-wider text-white/55 font-medium">Performance-Vergleich</span>
@@ -1216,7 +1220,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.06] overflow-hidden">
+              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.06] overflow-y-auto md:overflow-hidden">
                 <div className="min-h-0 overflow-y-auto relative">
                   <div className="sticky top-0 z-10 px-4 py-2 bg-zinc-950/90 backdrop-blur border-b border-white/[0.06]">
                     <span
