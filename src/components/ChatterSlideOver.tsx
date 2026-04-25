@@ -128,6 +128,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelColor, setNewLabelColor] = useState("#3B82F6");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastTapRef = useRef<number>(0);
 
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
@@ -501,7 +502,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   }
 
   // Doppel-Tipp irgendwo im Slide-Over schließt es
-  const lastTapRef = useRef<number>(0);
   const handleDoubleTapClose = (e: React.PointerEvent) => {
     // Ignoriere Tipps auf interaktive Elemente (Buttons, Inputs, Links)
     const target = e.target as HTMLElement;
