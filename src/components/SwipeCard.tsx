@@ -465,18 +465,36 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
       <div className="flex-1 min-h-0 flex flex-col gap-2 relative z-[1]">
         {/* Category badge + start date */}
         <div className="flex items-center justify-between">
-          <div
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
-            style={{
-              borderColor: `hsl(${accent.hue} / 0.25)`,
-              background: `hsl(${accent.hue} / 0.08)`,
-            }}
-          >
-            <span className="text-[11px] leading-none">{chatter.categoryEmoji || "📊"}</span>
-            <span className="text-[9.5px] uppercase tracking-wider font-semibold" style={{ color: `hsl(${accent.hue} / 0.95)` }}>
-              {chatter.categoryName || "Unbekannt"}
-            </span>
-          </div>
+          {chatter.decision ? (
+            <CategoryReasonPopover decision={chatter.decision}>
+              <div
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-colors hover:brightness-110"
+                style={{
+                  borderColor: `hsl(${accent.hue} / 0.35)`,
+                  background: `hsl(${accent.hue} / 0.08)`,
+                }}
+              >
+                <span className="text-[11px] leading-none">{chatter.categoryEmoji || "📊"}</span>
+                <span className="text-[9.5px] uppercase tracking-wider font-semibold" style={{ color: `hsl(${accent.hue} / 0.95)` }}>
+                  {chatter.categoryName || "Unbekannt"}
+                </span>
+                <span className="text-[8px] opacity-60 ml-0.5">ⓘ</span>
+              </div>
+            </CategoryReasonPopover>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border"
+              style={{
+                borderColor: `hsl(${accent.hue} / 0.25)`,
+                background: `hsl(${accent.hue} / 0.08)`,
+              }}
+            >
+              <span className="text-[11px] leading-none">{chatter.categoryEmoji || "📊"}</span>
+              <span className="text-[9.5px] uppercase tracking-wider font-semibold" style={{ color: `hsl(${accent.hue} / 0.95)` }}>
+                {chatter.categoryName || "Unbekannt"}
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5 shrink-0">
             <LastInputBadge lastAt={lastInputAt} lastSource={lastInputSource} onClick={onLastInputClick} />
             {chatter.startDate && (
