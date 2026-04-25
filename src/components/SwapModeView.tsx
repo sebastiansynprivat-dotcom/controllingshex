@@ -990,9 +990,9 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative">
+    <div className="flex flex-col h-full lg:overflow-hidden overflow-y-auto relative">
 
-      <div className="flex flex-col h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
+      <div className="flex flex-col lg:h-full w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 pt-3 lg:pt-6 pb-4 lg:pb-6">
         {manualBanner}
         {/* Header — Mobile: zwei Reihen, Desktop: eine Reihe */}
         <div className="mb-3 lg:mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-3">
