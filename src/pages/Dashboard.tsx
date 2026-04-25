@@ -9,6 +9,7 @@ import RecoveryQueueCard from "@/components/RecoveryQueueCard";
 import { ForecastBanner } from "@/components/ForecastBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { onChatterDataUpdated } from "@/lib/data-events";
 import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
