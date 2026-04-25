@@ -178,7 +178,6 @@ export default function TinderMode() {
   const [recoveryMap, setRecoveryMap] = useState<Map<string, RecoveryEntry>>(new Map());
   const [recoveryFilterActive, setRecoveryFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
 
@@ -1510,11 +1509,40 @@ export default function TinderMode() {
                 })}
               </div>
             )}
-            <Select value={currentValue} onValueChange={handleChange} open={filterDropdownOpen} onOpenChange={setFilterDropdownOpen}>
+            <Select value={currentValue} onValueChange={handleChange}>
               <SelectTrigger className="premium-card premium-card-interactive w-full bg-white/[0.02] border-white/[0.08] h-auto py-2 rounded-lg px-3 hover:border-white/[0.14] focus:ring-1 focus:ring-white/10 focus:ring-offset-0 transition-all data-[state=open]:border-white/[0.16] data-[state=open]:bg-white/[0.035] [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-white/40 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180 [&>span]:!line-clamp-none [&>span]:whitespace-normal [&>span]:text-left [&>span]:flex-1">
                 <SelectValue>{triggerLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-[60vh] premium-card border-white/[0.08] bg-black/95 backdrop-blur-xl rounded-xl p-1.5 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
+                {(() => {
+                  let criteria: ReturnType<typeof getCategoryCriteria> | null = null;
+                  if (recoveryFilterActive) criteria = SPECIAL_FILTER_CRITERIA.recovery;
+                  else if (swapTrackFilterActive) criteria = SPECIAL_FILTER_CRITERIA.swap_track;
+                  else if (alertFilterActive) criteria = SPECIAL_FILTER_CRITERIA.alerts;
+                  else if (selectedCategory) criteria = getCategoryCriteria(selectedCategory);
+                  if (!criteria) return null;
+                  return (
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 mb-1.5 mx-0.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Sparkles className="h-2.5 w-2.5 text-amber-300/70 shrink-0" />
+                        <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium">
+                          Sortier-Kriterien
+                        </p>
+                      </div>
+                      <p className="text-[11px] text-foreground/80 font-light leading-snug mb-1.5">
+                        {criteria.short}
+                      </p>
+                      <ul className="space-y-0.5">
+                        {criteria.rules.map((rule, i) => (
+                          <li key={i} className="text-[10px] text-muted-foreground/75 font-light leading-snug flex gap-1.5">
+                            <span className="text-white/30 shrink-0">·</span>
+                            <span>{rule}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 <SelectItem value="__all__">
                   Alle Chatter
                   <span className="ml-1.5 text-[10px] opacity-50">{allUncheckedCount}</span>
@@ -1601,35 +1629,6 @@ export default function TinderMode() {
                 )}
               </SelectContent>
             </Select>
-            {(() => {
-              let criteria: ReturnType<typeof getCategoryCriteria> | null = null;
-              if (recoveryFilterActive) criteria = SPECIAL_FILTER_CRITERIA.recovery;
-              else if (swapTrackFilterActive) criteria = SPECIAL_FILTER_CRITERIA.swap_track;
-              else if (alertFilterActive) criteria = SPECIAL_FILTER_CRITERIA.alerts;
-              else if (selectedCategory) criteria = getCategoryCriteria(selectedCategory);
-              if (!criteria) return null;
-              return (
-                <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2 backdrop-blur-sm">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Sparkles className="h-2.5 w-2.5 text-amber-300/70 shrink-0" />
-                    <p className="text-[9px] uppercase tracking-[0.18em] text-white/40 font-medium">
-                      Sortier-Kriterien
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-foreground/80 font-light leading-snug mb-1.5">
-                    {criteria.short}
-                  </p>
-                  <ul className="space-y-0.5">
-                    {criteria.rules.map((rule, i) => (
-                      <li key={i} className="text-[10px] text-muted-foreground/75 font-light leading-snug flex gap-1.5">
-                        <span className="text-white/30 shrink-0">·</span>
-                        <span>{rule}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })()}
           </div>
         );
       })()}
