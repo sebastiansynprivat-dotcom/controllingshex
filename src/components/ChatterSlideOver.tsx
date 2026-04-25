@@ -527,17 +527,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onPointerDown={handleDoubleTapClose}
-          drag="y"
-          dragDirectionLock
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 0.4 }}
-          dragMomentum={false}
-          onDragEnd={(_, info) => {
-            // Memory-Regel: nur Distanz, keine Velocity. 120px Schwelle.
-            if (info.offset.y > 120) onClose();
-          }}
           className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
-          style={{ touchAction: "pan-y" }}
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
