@@ -178,7 +178,6 @@ export default function TinderMode() {
   const [recoveryMap, setRecoveryMap] = useState<Map<string, RecoveryEntry>>(new Map());
   const [recoveryFilterActive, setRecoveryFilterActive] = useState(false);
   const [categoryDonePrompt, setCategoryDonePrompt] = useState<string | null>(null);
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [checkedNames, setCheckedNames] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
 
