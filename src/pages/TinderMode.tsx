@@ -1601,7 +1601,7 @@ export default function TinderMode() {
                 )}
               </SelectContent>
             </Select>
-            {(() => {
+            {filterDropdownOpen && (() => {
               let criteria: ReturnType<typeof getCategoryCriteria> | null = null;
               if (recoveryFilterActive) criteria = SPECIAL_FILTER_CRITERIA.recovery;
               else if (swapTrackFilterActive) criteria = SPECIAL_FILTER_CRITERIA.swap_track;
