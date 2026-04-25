@@ -219,7 +219,7 @@ export function recategorizeByWindow(
     if (startIso) {
       const start = new Date(startIso + "T00:00:00Z").getTime();
       const days = Math.floor((today.getTime() - start) / 86400000);
-      if (days >= 0 && days <= 5) onboardingDay = days + 1;
+      if (days >= 0 && days <= 13) onboardingDay = days + 1;
     }
 
     // 1. SOFORT EINGREIFEN
