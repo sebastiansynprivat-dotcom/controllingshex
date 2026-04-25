@@ -209,8 +209,8 @@ export function step2_categorize(chatters: CleanedChatter[]): CategorizedChatter
       return { ...ch, category: "WARNUNG", emoji: "🟠" };
     }
 
-    // Priority 2: 🟦 BLAU — Newcomer (Start Date 1–5 Tage, NOT today=0)
-    if (daysSinceStart > 0 && daysSinceStart <= 5) {
+    // Priority 2: 🟦 BLAU — Newcomer (Start Date 1–14 Tage, NOT today=0)
+    if (daysSinceStart > 0 && daysSinceStart <= 14) {
       return {
         ...ch,
         category: `ONBOARDING TAG ${daysSinceStart}`,

@@ -16,6 +16,15 @@ export type ActionCategoryName =
   | "ONBOARDING TAG 3"
   | "ONBOARDING TAG 4"
   | "ONBOARDING TAG 5"
+  | "ONBOARDING TAG 6"
+  | "ONBOARDING TAG 7"
+  | "ONBOARDING TAG 8"
+  | "ONBOARDING TAG 9"
+  | "ONBOARDING TAG 10"
+  | "ONBOARDING TAG 11"
+  | "ONBOARDING TAG 12"
+  | "ONBOARDING TAG 13"
+  | "ONBOARDING TAG 14"
   | "SOFORT EINGREIFEN"
   | "COACHING NÖTIG"
   | "PUSHEN"
@@ -32,12 +41,15 @@ export interface ActionCategory {
   description: string;
 }
 
+const ONBOARDING_DAYS = Array.from({ length: 14 }, (_, i) => i + 1);
+
 export const ACTION_CATEGORIES: readonly ActionCategory[] = [
-  { name: "ONBOARDING TAG 1",  emoji: "🔵", priority: 1, description: "Onboarding Tag 1 — frisch gestartet" },
-  { name: "ONBOARDING TAG 2",  emoji: "🔵", priority: 1, description: "Onboarding Tag 2" },
-  { name: "ONBOARDING TAG 3",  emoji: "🔵", priority: 1, description: "Onboarding Tag 3" },
-  { name: "ONBOARDING TAG 4",  emoji: "🔵", priority: 1, description: "Onboarding Tag 4" },
-  { name: "ONBOARDING TAG 5",  emoji: "🔵", priority: 1, description: "Onboarding Tag 5" },
+  ...ONBOARDING_DAYS.map((d) => ({
+    name: `ONBOARDING TAG ${d}` as ActionCategoryName,
+    emoji: "🔵",
+    priority: 1,
+    description: d === 1 ? "Onboarding Tag 1 — frisch gestartet" : `Onboarding Tag ${d}`,
+  })),
   { name: "SOFORT EINGREIFEN", emoji: "🆘", priority: 2, description: "Kritisch — heute eingreifen" },
   { name: "COACHING NÖTIG",    emoji: "💬", priority: 3, description: "Performance fällt — Coaching nötig" },
   { name: "PUSHEN",            emoji: "🚀", priority: 4, description: "Potenzial pushen" },
@@ -69,11 +81,11 @@ export function mapToActionCategory(rawName: string | undefined | null): { name:
 
   const upper = text.replace(/^[^\w]*/, "").trim().toUpperCase();
 
-  // 0. Onboarding (höchste Priorität) — extrahiere Tag-Nummer
-  const onboardingMatch = upper.match(/ONBOARDING\s*TAG\s*(\d)/);
+  // 0. Onboarding (höchste Priorität) — extrahiere Tag-Nummer (1-14)
+  const onboardingMatch = upper.match(/ONBOARDING\s*TAG\s*(\d{1,2})/);
   if (onboardingMatch) {
     const day = parseInt(onboardingMatch[1], 10);
-    if (day >= 1 && day <= 5) {
+    if (day >= 1 && day <= 14) {
       return { name: `ONBOARDING TAG ${day}` as ActionCategoryName, emoji: "🔵" };
     }
   }

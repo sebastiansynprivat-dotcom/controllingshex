@@ -484,7 +484,7 @@ function buildResultFromCsv(
     let category = ai?.category || "";
     let emoji = ai?.emoji || "";
 
-    if (daysSinceStart !== null && daysSinceStart > 0 && daysSinceStart <= 5) {
+    if (daysSinceStart !== null && daysSinceStart > 0 && daysSinceStart <= 14) {
       category = `ONBOARDING TAG ${daysSinceStart}`;
       emoji = "🔵";
     } else if (metrics.responseDelayDays > 2) {

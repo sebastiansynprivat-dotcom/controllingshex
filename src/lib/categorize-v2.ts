@@ -192,7 +192,7 @@ export function categorizeChatters(
     if (startIso) {
       const start = new Date(startIso + "T00:00:00Z").getTime();
       const days = Math.floor((today.getTime() - start) / 86400000);
-      if (days >= 0 && days <= 14) sig.onboardingDay = days + 1; // Tag 1..15
+      if (days >= 0 && days <= 13) sig.onboardingDay = days + 1; // Tag 1..14
     }
   }
 
@@ -236,10 +236,10 @@ function decide(s: CategorySignals, top20Cutoff: number): CategoryDecision {
     return { name: "BEOBACHTEN", reasons, signals: s, confidence: "low" };
   }
 
-  // Punkt 4: Onboarding-Phasen
-  // Tag 1..5 = harte Onboarding-Kategorie (überspringt alles)
-  if (s.onboardingDay !== null && s.onboardingDay >= 1 && s.onboardingDay <= 5) {
-    reasons.push(`Onboarding Tag ${s.onboardingDay} — Schonfrist`);
+  // Punkt 4: Onboarding-Phase Tag 1..14 — jeder Tag eigene Kategorie,
+  // überspringt alle anderen Bewertungen.
+  if (s.onboardingDay !== null && s.onboardingDay >= 1 && s.onboardingDay <= 14) {
+    reasons.push(`Onboarding Tag ${s.onboardingDay} von 14 — Schonfrist`);
     return {
       name: `ONBOARDING TAG ${s.onboardingDay}` as ActionCategoryName,
       reasons,
@@ -248,13 +248,9 @@ function decide(s: CategorySignals, top20Cutoff: number): CategoryDecision {
     };
   }
 
-  // Tag 6..14 = Grace-Phase: mildere Schwellen
-  const grace = s.onboardingDay !== null && s.onboardingDay >= 6 && s.onboardingDay <= 15;
-  const T = grace
-    ? { sofortZero: 0.9, coachZero: 0.7, coachTrend: -0.5, sofortDelay: 5 }
-    : { sofortZero: 0.8, coachZero: 0.5, coachTrend: -0.3, sofortDelay: 3 };
-
-  if (grace) reasons.push(`Onboarding-Grace (Tag ${s.onboardingDay}) — mildere Schwellen`);
+  // Onboarding ist vorbei — normale Schwellen
+  const T = { sofortZero: 0.8, coachZero: 0.5, coachTrend: -0.3, sofortDelay: 3 };
+  const grace = false;
 
   // Punkt 9: Peer-Schutz — wer im Cluster ≥90% Median schafft, geht NICHT in COACHING/SOFORT
   const peerProtected = s.peerPctOfMedian !== null && s.peerPctOfMedian >= 90;
