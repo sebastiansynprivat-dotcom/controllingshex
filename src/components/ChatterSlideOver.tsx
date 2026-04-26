@@ -117,6 +117,55 @@ function sanitizeDelay(raw: number, revenue: number): number {
   return val;
 }
 
+/* Premium Skeleton — placeholder layout matching the real profile */
+function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
+  const spacing = compact ? "space-y-6 sm:space-y-8" : "space-y-8 sm:space-y-12";
+  const kpiPad = compact ? "p-3 sm:p-4" : "p-5";
+  const kpiGap = compact ? "gap-2.5 sm:gap-3" : "gap-4";
+  return (
+    <div className={spacing}>
+      {/* KPI Grid 2×2 */}
+      <div className={`grid grid-cols-2 ${kpiGap}`}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className={`premium-skel-card ${kpiPad}`}>
+            <div className="flex items-center gap-1.5 mb-3">
+              <div className="premium-skel h-3 w-3 rounded-full" />
+              <div className="premium-skel h-2.5 w-20 rounded" />
+            </div>
+            <div className="premium-skel h-7 w-24 rounded mt-2" />
+            <div className="premium-skel h-2 w-16 rounded mt-2" />
+          </div>
+        ))}
+      </div>
+      {/* Chart */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="premium-skel h-3 w-[2px]" />
+          <div className="premium-skel h-2.5 w-32 rounded" />
+        </div>
+        <div className="premium-skel-card p-5">
+          <div className="premium-skel h-40 w-full rounded-lg" />
+        </div>
+      </div>
+      {/* List */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="premium-skel h-3 w-[2px]" />
+          <div className="premium-skel h-2.5 w-24 rounded" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="premium-skel-card p-4">
+              <div className="premium-skel h-2.5 w-3/4 rounded mb-2" />
+              <div className="premium-skel h-2 w-1/2 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -454,15 +503,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           </div>
         </div>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none">
-          <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <div className="premium-spinner"><span /><span /><span /></div>
-              </div>
-            ) : history.length === 0 ? (
+          {loading ? (
+            <div className="p-4 sm:p-6 pb-16">
+              <ProfileSkeleton compact />
+            </div>
+          ) : history.length === 0 ? (
+            <div className="p-4 sm:p-6">
               <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
-            ) : (
-              <>
+            </div>
+          ) : (
+            <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
                 {/* KPI Grid */}
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   {kpis.map((kpi) => {
@@ -583,10 +633,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
-        </div>
       </div>
     );
   }
@@ -709,9 +758,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
               {loading ? (
-                <div className="flex items-center justify-center py-24">
-                  <div className="premium-spinner"><span /><span /><span /></div>
-                </div>
+                <ProfileSkeleton />
               ) : history.length === 0 ? (
                 <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
               ) : (

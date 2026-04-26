@@ -429,3 +429,45 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Premium Skeleton — shimmery placeholder bar */
+.premium-skel {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    hsl(0 0% 100% / 0.025) 0%,
+    hsl(40 40% 70% / 0.06) 45%,
+    hsl(40 50% 75% / 0.09) 50%,
+    hsl(40 40% 70% / 0.06) 55%,
+    hsl(0 0% 100% / 0.025) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.4s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  border-radius: 0.5rem;
+}
+.premium-skel-card {
+  background: linear-gradient(
+    180deg,
+    hsl(0 0% 100% / 0.018) 0%,
+    hsl(0 0% 100% / 0.008) 100%
+  );
+  border: 1px solid hsl(0 0% 100% / 0.04);
+  border-radius: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+.premium-skel-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(40 50% 75% / 0.045) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.4s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  pointer-events: none;
+}
