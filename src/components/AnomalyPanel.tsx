@@ -70,15 +70,53 @@ export default function AnomalyPanel({
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
   const [peerAvg, setPeerAvg] = useState(0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
+  /** model_name (lowercased) -> follower_count */
+  const [modelFollowers, setModelFollowers] = useState<Map<string, number>>(new Map());
+  /** chatter_name -> array of account names (raw) */
+  const [chatterAccounts, setChatterAccounts] = useState<Map<string, string[]>>(new Map());
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const rid = await loadActiveReportId(user.id, platform);
     setReportId(rid);
-    const result = await computeAnomaliesForWindow(user.id, platform, range, rid);
+    const [result, modelsRes, accountsRes] = await Promise.all([
+      computeAnomaliesForWindow(user.id, platform, range, rid),
+      supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("user_id", user.id)
+        .eq("platform", platform),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, account, analysis_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .not("account", "is", null)
+        .order("analysis_date", { ascending: false })
+        .limit(2000),
+    ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
+
+    const fmap = new Map<string, number>();
+    for (const m of modelsRes.data ?? []) {
+      fmap.set(m.model_name.toLowerCase().trim(), Number(m.follower_count ?? 0));
+    }
+    setModelFollowers(fmap);
+
+    // Pro Chatter den jüngsten account-Eintrag nehmen (history ist desc sortiert)
+    const amap = new Map<string, string[]>();
+    for (const row of accountsRes.data ?? []) {
+      if (amap.has(row.chatter_name)) continue;
+      const accs = String(row.account)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (accs.length > 0) amap.set(row.chatter_name, accs);
+    }
+    setChatterAccounts(amap);
+
     setLoading(false);
   }, [user, platform, range]);
 
