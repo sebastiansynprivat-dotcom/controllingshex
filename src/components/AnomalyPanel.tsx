@@ -268,7 +268,7 @@ export default function AnomalyPanel({
     });
   }, [anomalies, chatterAccounts, modelFollowers]);
 
-  const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
+  const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
   const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
 
   const visibleGroups = variant === "compact" && !expanded
@@ -279,15 +279,17 @@ export default function AnomalyPanel({
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
       {/* Header */}
       <div className={`${padding} border-b border-white/[0.04] space-y-3`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-baseline gap-3 min-w-0">
-            <div className="text-xs uppercase tracking-[0.2em] text-white/40 font-light">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+          <div className="flex items-baseline gap-2 sm:gap-3 min-w-0">
+            <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/40 font-light">
               Auffälligkeiten
             </div>
-            <div className="text-[10px] text-white/35 font-light">{rangeLabel(range)}</div>
+            <div className="text-[10px] text-white/35 font-light truncate">{rangeLabel(range)}</div>
           </div>
           {!hideTimeControls && (
-            <TimeRangeToggle value={range} onChange={setRange} />
+            <div className="-mx-1 sm:mx-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TimeRangeToggle value={range} onChange={setRange} />
+            </div>
           )}
         </div>
 
@@ -366,7 +368,7 @@ export default function AnomalyPanel({
           </div>
         </div>
       ) : (
-        <div className={`${variant === "compact" ? "p-3" : "p-4"} space-y-3`}>
+        <div className={`${variant === "compact" ? "p-2.5 sm:p-3" : "p-3 sm:p-4"} space-y-2.5 sm:space-y-3`}>
           <AnimatePresence initial={false}>
             {visibleGroups.map((group, idx) => {
               const topSev = SEVERITY_STYLE[group.topSeverity];
@@ -386,7 +388,7 @@ export default function AnomalyPanel({
                   <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
 
                   {/* Chatter-Header */}
-                  <div className={`flex items-center gap-3 ${variant === "compact" ? "px-4 py-2.5" : "px-5 py-3"} border-b border-white/[0.05] bg-white/[0.015]`}>
+                  <div className={`flex items-center gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-2.5 sm:py-3"} border-b border-white/[0.05] bg-white/[0.015]`}>
                     <span className={`relative flex h-2.5 w-2.5 shrink-0`}>
                       {group.topSeverity === "critical" && (
                         <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
@@ -463,7 +465,7 @@ export default function AnomalyPanel({
                   </div>
 
                   {/* Auffälligkeiten gestapelt */}
-                  <div className={`${variant === "compact" ? "px-3 py-2" : "px-4 py-2.5"} space-y-0.5`}>
+                  <div className={`${variant === "compact" ? "px-2.5 sm:px-3 py-2" : "px-3 sm:px-4 py-2 sm:py-2.5"} space-y-0.5`}>
                     {group.items.map((a) => {
                       const meta = ANOMALY_LABELS[a.alert_type];
                       const sev = SEVERITY_STYLE[a.severity];
