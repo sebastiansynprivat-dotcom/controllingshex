@@ -1788,6 +1788,25 @@ export default function TinderMode() {
                     accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
                     swapDelta={swapDeltaProp}
                     recoveryDelta={recoveryDeltaProp}
+                    dailyGoal={goalsByChatter.get(normalizeChatterKey(chatter.name)) ?? null}
+                    onAssignGoal={isTopCard ? async (eur, suggestion) => {
+                      const row = await upsertDailyGoal(
+                        platform,
+                        chatter.name,
+                        eur,
+                        suggestion?.eur ?? null,
+                        suggestion?.source ?? "manual",
+                      );
+                      if (row) {
+                        setGoalsByChatter((prev) => {
+                          const next = new Map(prev);
+                          next.set(normalizeChatterKey(chatter.name), row);
+                          return next;
+                        });
+                      } else {
+                        throw new Error("upsert failed");
+                      }
+                    } : undefined}
                   />
                 );
               })}
