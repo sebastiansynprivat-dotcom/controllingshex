@@ -208,61 +208,83 @@ export default function AnomalyPanel({
       ) : (
         <>
           <AnimatePresence initial={false}>
-            {visibleList.map((a) => {
-              const meta = ANOMALY_LABELS[a.alert_type];
-              const sev = SEVERITY_STYLE[a.severity];
-              const key = `${a.chatter_name}|${a.alert_type}`;
+            {visibleGroups.map((group) => {
+              const topSev = SEVERITY_STYLE[group.topSeverity];
               return (
                 <motion.div
-                  key={key}
+                  key={group.name}
                   layout
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
-                  className={`group border-l-2 ${sev.border} border-b border-white/[0.04] last:border-b-0`}
+                  className={`border-l-2 ${topSev.border} border-b border-white/[0.04] last:border-b-0`}
                 >
-                  <div className={`flex items-center gap-3 ${padding}`}>
-                    <span className="text-base shrink-0 opacity-80">{meta.emoji}</span>
-                    <button
-                      type="button"
-                      onClick={() => onChatterSelect?.(a.chatter_name)}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className={`${textSize} text-foreground font-normal truncate`}>
-                          {a.chatter_name}
-                        </span>
-                        <span className={`text-[10px] uppercase tracking-wider font-light ${sev.text}`}>
-                          {meta.label}
-                        </span>
-                      </div>
-                      <div className="text-xs text-white/55 font-light truncate">
-                        {a.message}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDismiss(a)}
-                      disabled={pendingDismiss.has(key)}
-                      title="Als erledigt markieren (bis zum nächsten Report)"
-                      className="p-1.5 rounded-md hover:bg-white/[0.06] text-white/40 hover:text-emerald-300 transition-colors disabled:opacity-40"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
+                  {/* Chatter-Header */}
+                  <button
+                    type="button"
+                    onClick={() => onChatterSelect?.(group.name)}
+                    className={`w-full flex items-center gap-3 ${padding} pb-2 text-left hover:bg-white/[0.015] transition-colors`}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${topSev.dot} shrink-0`} />
+                    <span className={`${textSize} text-foreground font-medium truncate flex-1 min-w-0`}>
+                      {group.name}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wider text-white/35 font-light shrink-0">
+                      {group.items.length} {group.items.length === 1 ? "Signal" : "Signale"}
+                    </span>
+                  </button>
+
+                  {/* Auffälligkeiten gestapelt */}
+                  <div className={`pb-3 ${variant === "compact" ? "px-4" : "px-5"} space-y-1`}>
+                    {group.items.map((a) => {
+                      const meta = ANOMALY_LABELS[a.alert_type];
+                      const sev = SEVERITY_STYLE[a.severity];
+                      const key = `${a.chatter_name}|${a.alert_type}`;
+                      return (
+                        <div
+                          key={key}
+                          className="group/row flex items-start gap-2.5 py-1.5 pl-4 pr-2 rounded-md hover:bg-white/[0.025] transition-colors"
+                        >
+                          <span className="text-sm shrink-0 opacity-80 leading-5">{meta.emoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[10px] uppercase tracking-wider font-light ${sev.text}`}>
+                                {meta.label}
+                              </span>
+                              <span className="text-[9px] uppercase tracking-wider text-white/30 font-light">
+                                · {sev.label}
+                              </span>
+                            </div>
+                            <div className="text-xs text-white/55 font-light truncate">
+                              {a.message}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDismiss(a)}
+                            disabled={pendingDismiss.has(key)}
+                            title="Als erledigt markieren (bis zum nächsten Report)"
+                            className="opacity-0 group-hover/row:opacity-100 focus:opacity-100 p-1 rounded-md hover:bg-white/[0.06] text-white/40 hover:text-emerald-300 transition-all disabled:opacity-40 shrink-0"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
 
-          {variant === "compact" && anomalies.length > compactInitialCount && (
+          {variant === "compact" && groupedByChatter.length > compactInitialCount && (
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
               className="w-full flex items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 hover:bg-white/[0.02] transition-colors"
             >
-              {expanded ? "Weniger" : `${anomalies.length - compactInitialCount} weitere`}
+              {expanded ? "Weniger" : `${groupedByChatter.length - compactInitialCount} weitere Chatter`}
               <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
             </button>
           )}
