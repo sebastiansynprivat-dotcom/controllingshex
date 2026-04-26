@@ -15,6 +15,7 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Auffälligkeiten", url: "/auffaelligkeiten", icon: AlertOctagon },
   { title: "Frühwarnung", url: "/forecast", icon: AlertOctagon },
   { title: "Videocoaching", url: "/videocoaching", icon: Video },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
