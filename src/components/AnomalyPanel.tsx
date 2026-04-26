@@ -26,6 +26,7 @@ import {
   type ChatterAnomaly,
 } from "@/lib/anomaly-window";
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
+import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
 interface Props {
   platform: string;
@@ -66,6 +67,8 @@ export default function AnomalyPanel({
   const [reportId, setReportId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
+  const [peerAvg, setPeerAvg] = useState(0);
+  const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -74,6 +77,7 @@ export default function AnomalyPanel({
     setReportId(rid);
     const result = await computeAnomaliesForWindow(user.id, platform, range, rid);
     setAnomalies(result.anomalies);
+    setPeerAvg(result.peerAvgRevenuePerDay);
     setLoading(false);
   }, [user, platform, range]);
 
@@ -244,7 +248,16 @@ export default function AnomalyPanel({
                       return (
                         <div
                           key={key}
-                          className="group/row flex items-start gap-2.5 py-1.5 pl-4 pr-2 rounded-md hover:bg-white/[0.025] transition-colors"
+                          className="group/row flex items-start gap-2.5 py-1.5 pl-4 pr-2 rounded-md hover:bg-white/[0.025] transition-colors cursor-pointer"
+                          onClick={() => setDetailAnomaly(a)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setDetailAnomaly(a);
+                            }
+                          }}
                         >
                           <span className="text-sm shrink-0 opacity-80 leading-5">{meta.emoji}</span>
                           <div className="flex-1 min-w-0">
@@ -262,7 +275,10 @@ export default function AnomalyPanel({
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleDismiss(a)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDismiss(a);
+                            }}
                             disabled={pendingDismiss.has(key)}
                             title="Als erledigt markieren (bis zum nächsten Report)"
                             className="opacity-0 group-hover/row:opacity-100 focus:opacity-100 p-1 rounded-md hover:bg-white/[0.06] text-white/40 hover:text-emerald-300 transition-all disabled:opacity-40 shrink-0"
