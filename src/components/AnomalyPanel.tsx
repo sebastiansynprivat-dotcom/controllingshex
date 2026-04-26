@@ -21,6 +21,7 @@ import {
   computeAnomaliesForWindow,
   loadActiveReportId,
   dismissAnomaly,
+  dismissChatter,
   ANOMALY_LABELS,
   SEVERITY_STYLE,
   type ChatterAnomaly,
