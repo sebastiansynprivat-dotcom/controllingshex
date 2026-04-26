@@ -39,6 +39,9 @@ import {
 } from "@/lib/timerange-categorize";
 import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 import { loadAlertThresholds, effectiveThresholds, type AlertThresholds } from "@/lib/alert-thresholds";
+import { loadActiveReportId } from "@/lib/anomaly-window";
+import { onAnomalyDismissed } from "@/lib/data-events";
+import { useAuth } from "@/contexts/AuthContext";
 import type { CategoryDecision } from "@/lib/categorize-v2";
 import { categorizeChatters } from "@/lib/categorize-v2";
 import type { StabilizedDecision } from "@/lib/category-state";
