@@ -283,26 +283,16 @@ export default function AnomalyPanel({
 
         {/* Premium Progress Bar: X von Y Chattern auffällig (nur kritisch+hoch zählen) */}
         {(() => {
-          const seriousChatters = new Set(
+          const criticalChatters = new Set(
             anomalies
-              .filter((a) => a.severity === "critical" || a.severity === "high")
+              .filter((a) => a.severity === "critical")
               .map((a) => a.chatter_name),
           );
-          const flagged = seriousChatters.size;
+          const flagged = criticalChatters.size;
           const total = Math.max(totalChattersInRange, groupedByChatter.length);
           const pct = total > 0 ? Math.min(100, (flagged / total) * 100) : 0;
-          const tone =
-            counts.critical > 0
-              ? "from-red-500/80 via-red-400/70 to-orange-400/70"
-              : counts.high > 0
-                ? "from-orange-400/80 via-amber-400/70 to-yellow-300/70"
-                : "from-emerald-400/80 via-emerald-300/70 to-emerald-200/60";
-          const glow =
-            counts.critical > 0
-              ? "shadow-[0_0_18px_-2px_rgba(248,113,113,0.45)]"
-              : counts.high > 0
-                ? "shadow-[0_0_16px_-2px_rgba(251,146,60,0.4)]"
-                : "shadow-[0_0_14px_-2px_rgba(52,211,153,0.35)]";
+          const tone = "from-red-500/80 via-red-400/70 to-orange-400/70";
+          const glow = "shadow-[0_0_18px_-2px_rgba(248,113,113,0.45)]";
           return (
             <div className="space-y-2">
               <div className="flex items-end justify-between gap-3">
