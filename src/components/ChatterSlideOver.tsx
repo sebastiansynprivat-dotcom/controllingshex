@@ -931,18 +931,27 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 </>
               )}
             </div>
-          </div>
-          {compareWith && (
-            <div className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden">
-              <ChatterSlideOver
-                inline
-                open
-                chatterName={compareWith}
-                platform={platform}
-                onClose={() => setCompareWith(null)}
-              />
-            </div>
-          )}
+          </motion.div>
+          <AnimatePresence>
+            {compareWith && (
+              <motion.div
+                key="compare-pane"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+                className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden"
+              >
+                <ChatterSlideOver
+                  inline
+                  open
+                  chatterName={compareWith}
+                  platform={platform}
+                  onClose={() => setCompareWith(null)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
           </div>
 
           {/* Floating-Close-Pill — immer erreichbar auf Mobile, auch wenn der Header verdeckt ist */}
