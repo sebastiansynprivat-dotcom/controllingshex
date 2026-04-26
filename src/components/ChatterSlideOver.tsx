@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock, GitCompareArrows, Search } from "lucide-react";
+import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock, GitCompareArrows } from "lucide-react";
+import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -580,7 +582,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onPointerDown={handleDoubleTapClose}
-          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full sm:w-[min(1040px,100vw)]" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col transition-[width] duration-300`}
+          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full sm:left-0" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col transition-[width] duration-300`}
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
@@ -618,110 +620,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
             {/* Vergleichen-mit Button (nur im non-inline Mode) */}
             {!inline && (
-              <div className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (compareWith) {
-                      setCompareWith(null);
-                    } else {
-                      setPickerOpen((v) => !v);
-                    }
-                  }}
-                  className={`group/cmp relative inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl border text-[11px] font-medium tracking-[0.08em] uppercase transition-all duration-300 overflow-hidden ${
-                    compareWith
-                      ? "border-primary/40 text-primary bg-gradient-to-b from-primary/15 to-primary/5 shadow-[0_0_18px_-4px_hsl(40_60%_55%/0.45),inset_0_1px_0_hsl(40_60%_70%/0.15)]"
-                      : "border-white/[0.08] text-white/65 bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:text-primary/90 hover:border-primary/25 hover:shadow-[0_0_18px_-6px_hsl(40_60%_55%/0.4)]"
-                  }`}
-                  title={compareWith ? "Vergleich beenden" : "Mit anderem Chatter vergleichen"}
-                >
-                  <span aria-hidden className="absolute inset-0 -translate-x-full group-hover/cmp:translate-x-full transition-transform duration-[1100ms] ease-out bg-[linear-gradient(110deg,transparent,hsl(40_60%_70%/0.18),transparent)]" />
-                  <GitCompareArrows className="relative h-3.5 w-3.5" />
-                  <span className="relative hidden sm:inline">{compareWith ? "Vergleich aus" : "Vergleichen"}</span>
-                </button>
-                <AnimatePresence>
-                  {pickerOpen && !compareWith && (
-                    <>
-                      {/* Click-Outside-Backdrop */}
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => { setPickerOpen(false); setPickerQuery(""); }}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.15 } }}
-                        transition={{ type: "spring", damping: 24, stiffness: 320 }}
-                        className="absolute right-0 top-full mt-3 w-[320px] max-h-[60vh] rounded-2xl border border-white/[0.08] z-50 flex flex-col overflow-hidden"
-                        style={{
-                          background: "linear-gradient(180deg, rgba(24,24,27,0.96) 0%, rgba(9,9,11,0.98) 100%)",
-                          backdropFilter: "blur(28px) saturate(1.4)",
-                          WebkitBackdropFilter: "blur(28px) saturate(1.4)",
-                          boxShadow: "0 24px 60px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.06)",
-                        }}
-                      >
-                        {/* Goldener Akzent-Strich oben */}
-                        <span aria-hidden className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-
-                        {/* Header */}
-                        <div className="px-4 pt-3.5 pb-2.5 border-b border-white/[0.05]">
-                          <p className="text-[9px] uppercase tracking-[0.25em] gold-text-subtle font-medium mb-2.5">Vergleichen mit</p>
-                          <div className="flex items-center gap-2 px-3 h-9 rounded-lg bg-white/[0.025] border border-white/[0.06] focus-within:border-primary/30 focus-within:bg-white/[0.04] transition-colors">
-                            <Search className="h-3.5 w-3.5 text-white/35" />
-                            <input
-                              autoFocus
-                              value={pickerQuery}
-                              onChange={(e) => setPickerQuery(e.target.value)}
-                              placeholder="Chatter suchen…"
-                              className="flex-1 bg-transparent text-sm text-foreground/90 font-light placeholder:text-white/25 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Liste */}
-                        <div className="flex-1 overflow-y-auto py-1.5 px-1.5 scrollbar-thin scrollbar-thumb-white/10">
-                          {chatterList.length === 0 ? (
-                            <div className="flex items-center gap-2 px-3 py-6 text-xs text-white/30 font-light">
-                              <span className="h-3 w-3 rounded-full border border-white/15 border-t-white/45 animate-spin" />
-                              Lade Chatter…
-                            </div>
-                          ) : (() => {
-                              const filtered = chatterList
-                                .filter((n) => !pickerQuery.trim() || n.toLowerCase().includes(pickerQuery.toLowerCase()))
-                                .slice(0, 100);
-                              if (filtered.length === 0) {
-                                return <p className="px-3 py-6 text-center text-xs text-white/30 font-light italic">Keine Treffer</p>;
-                              }
-                              return filtered.map((n) => {
-                                const init = getInitials(n);
-                                return (
-                                  <button
-                                    key={n}
-                                    type="button"
-                                    onClick={() => {
-                                      setCompareWith(n);
-                                      setPickerOpen(false);
-                                      setPickerQuery("");
-                                    }}
-                                    className="group/row w-full flex items-center gap-2.5 text-left px-2.5 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/[0.08] hover:to-transparent transition-all duration-200"
-                                  >
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] font-light text-primary/70 group-hover/row:border-primary/25 group-hover/row:text-primary transition-colors">
-                                      {init}
-                                    </span>
-                                    <span className="flex-1 min-w-0 text-xs text-white/75 font-light tracking-wide truncate group-hover/row:text-white transition-colors">
-                                      {toTitleCase(n)}
-                                    </span>
-                                    <GitCompareArrows className="h-3 w-3 text-white/0 group-hover/row:text-primary/60 transition-colors" />
-                                  </button>
-                                );
-                              });
-                            })()}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (compareWith) setCompareWith(null);
+                  else setPickerOpen(true);
+                }}
+                className="shrink-0 h-9 gap-1.5"
+                title={compareWith ? "Vergleich beenden" : "Mit anderem Chatter vergleichen"}
+              >
+                <GitCompareArrows className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{compareWith ? "Vergleich aus" : "Vergleichen"}</span>
+              </Button>
             )}
             {/* Close-Button: 44x44px (Apple HIG), erweiterte Hit-Area über safe-area */}
             <button
@@ -742,7 +654,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           <div className={`flex-1 min-h-0 ${compareWith ? "flex flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : ""}`}>
           <div
             ref={scrollRef}
-            className={`${compareWith ? "sm:flex-1 sm:min-w-0 sm:max-w-[50%] max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5`}
+            className={`${compareWith ? "sm:flex-1 sm:min-w-0 sm:max-w-[50%] max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
@@ -1020,6 +932,48 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             Schließen
           </button>
         </motion.aside>
+      )}
+      {open && !inline && (
+        <CommandDialog open={pickerOpen} onOpenChange={setPickerOpen}>
+          <CommandInput
+            placeholder="Chatter suchen…"
+            value={pickerQuery}
+            onValueChange={setPickerQuery}
+          />
+          <CommandList>
+            {chatterList.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground font-light">
+                <span className="h-3 w-3 rounded-full border border-white/15 border-t-white/45 animate-spin" />
+                Lade Chatter…
+              </div>
+            ) : (
+              <>
+                <CommandEmpty>Keine Treffer.</CommandEmpty>
+                {chatterList.slice(0, 200).map((n) => {
+                  const init = getInitials(n);
+                  return (
+                    <CommandItem
+                      key={n}
+                      value={n}
+                      onSelect={() => {
+                        setCompareWith(n);
+                        setPickerOpen(false);
+                        setPickerQuery("");
+                      }}
+                      className="gap-2.5"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] font-light text-primary/70">
+                        {init}
+                      </span>
+                      <span className="flex-1 truncate">{toTitleCase(n)}</span>
+                      <GitCompareArrows className="h-3.5 w-3.5 text-muted-foreground" />
+                    </CommandItem>
+                  );
+                })}
+              </>
+            )}
+          </CommandList>
+        </CommandDialog>
       )}
     </AnimatePresence>
   );
