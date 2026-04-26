@@ -74,7 +74,7 @@ async function loadWindow(
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days, account")
       .eq("user_id", userId)
       .eq("platform", platform)
       .gte("analysis_date", range.from)
@@ -110,7 +110,7 @@ async function loadBaseline(
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days, account")
       .eq("user_id", userId)
       .eq("platform", platform)
       .gte("analysis_date", fromIso)
@@ -123,6 +123,144 @@ async function loadBaseline(
     offset += PAGE;
   }
   return all;
+}
+
+/**
+ * Lädt die KOMPLETTE chatter_history des Workspaces (für die Lernkurve).
+ * Genutzt um „erwartetes €/Tag bei N Followern" zu lernen.
+ */
+async function loadFullHistory(userId: string, platform: string): Promise<HistoryRow[]> {
+  const all: HistoryRow[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days, account")
+      .eq("user_id", userId)
+      .eq("platform", platform)
+      .order("analysis_date", { ascending: false })
+      .range(offset, offset + PAGE - 1);
+    if (error || !data || data.length === 0) break;
+    all.push(...(data as HistoryRow[]));
+    if (data.length < PAGE) break;
+    offset += PAGE;
+    if (offset > 20000) break; // safety cap
+  }
+  return all;
+}
+
+/** Lädt alle Models (Follower-Zahlen) für Workspace */
+async function loadModels(userId: string, platform: string): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  const { data } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("user_id", userId)
+    .eq("platform", platform);
+  for (const m of data ?? []) {
+    map.set(String(m.model_name).toLowerCase().trim(), Number(m.follower_count ?? 0));
+  }
+  return map;
+}
+
+function parseAccounts(account: string | null): string[] {
+  if (!account) return [];
+  return account
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Lernkurve: erwartetes €/Tag in Abhängigkeit der Follower-Summe.
+ *
+ * Methode: Sammle pro (Chatter, Tag) den Tagesumsatz und die Follower-Summe seiner
+ * Accounts an dem Tag. Bilde dann via gleitendem Bucket (log-spaced) den **Median**
+ * — Median ist robuster gegen 0€-Tage und Ausreißer als Mittelwert.
+ */
+export interface PeerCurve {
+  /** Liefert erwartetes €/Tag für eine Follower-Summe. 0 wenn keine Daten. */
+  expected: (followers: number) => number;
+  /** Anzahl Datentage in die Kurve eingeflossen */
+  sampleSize: number;
+  /** Bandbreite — kleinste & größte Follower-Werte in den Daten */
+  followerRange: [number, number];
+}
+
+function buildPeerCurve(
+  history: HistoryRow[],
+  modelFollowers: Map<string, number>,
+): PeerCurve {
+  // Sammle Datapoints (followerSum, revenue)
+  const points: { f: number; r: number }[] = [];
+  for (const row of history) {
+    const accs = parseAccounts(row.account);
+    if (accs.length === 0) continue;
+    let fSum = 0;
+    let known = false;
+    for (const a of accs) {
+      const fc = modelFollowers.get(a.toLowerCase().trim());
+      if (fc !== undefined) {
+        fSum += fc;
+        known = true;
+      }
+    }
+    if (!known || fSum <= 0) continue;
+    points.push({ f: fSum, r: Number(row.revenue_today ?? 0) });
+  }
+
+  if (points.length < 10) {
+    return { expected: () => 0, sampleSize: points.length, followerRange: [0, 0] };
+  }
+
+  // Sortiere nach Follower aufsteigend
+  points.sort((a, b) => a.f - b.f);
+  const minF = points[0].f;
+  const maxF = points[points.length - 1].f;
+
+  // Vorberechnete Smoothed-Kurve: für jeden Punkt der Median seines log-Nachbarschaftsfensters.
+  // Wir nehmen ein Fenster von ±35% Follower-Distanz — passt sich der lokalen Dichte an.
+  const cache: { f: number; med: number }[] = [];
+  let cursorLow = 0;
+  let cursorHigh = 0;
+  for (let i = 0; i < points.length; i++) {
+    const f = points[i].f;
+    const lo = f * 0.65;
+    const hi = f * 1.35;
+    while (cursorLow < points.length && points[cursorLow].f < lo) cursorLow++;
+    while (cursorHigh < points.length && points[cursorHigh].f <= hi) cursorHigh++;
+    const slice = points.slice(cursorLow, cursorHigh);
+    if (slice.length < 5) continue;
+    const sorted = [...slice].map((p) => p.r).sort((a, b) => a - b);
+    const med = sorted[Math.floor(sorted.length / 2)];
+    cache.push({ f, med });
+  }
+
+  if (cache.length === 0) {
+    return { expected: () => 0, sampleSize: points.length, followerRange: [minF, maxF] };
+  }
+
+  // Lookup: linear interpolieren zwischen nächsten Cache-Punkten
+  return {
+    sampleSize: points.length,
+    followerRange: [minF, maxF],
+    expected: (followers: number) => {
+      if (followers <= cache[0].f) return cache[0].med;
+      if (followers >= cache[cache.length - 1].f) return cache[cache.length - 1].med;
+      // binäre Suche
+      let lo = 0;
+      let hi = cache.length - 1;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (cache[mid].f <= followers) lo = mid;
+        else hi = mid;
+      }
+      const a = cache[lo];
+      const b = cache[hi];
+      const t = (followers - a.f) / (b.f - a.f || 1);
+      return a.med + (b.med - a.med) * t;
+    },
+  };
 }
 
 function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAggregate> {
