@@ -346,7 +346,7 @@ export default function AnomalyPanel({
           <div className="h-3 w-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
           Berechne Auffälligkeiten…
         </div>
-      ) : anomalies.length === 0 ? (
+      ) : groupedByChatter.length === 0 ? (
         <div className="px-5 py-8 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-white/40 font-light">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
