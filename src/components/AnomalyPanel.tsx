@@ -124,6 +124,32 @@ export default function AnomalyPanel({
     }
   };
 
+  const handleDismissChatter = async (chatterName: string, items: ChatterAnomaly[]) => {
+    if (!user || !reportId || items.length === 0) return;
+    const key = `chatter|${chatterName}`;
+    setPendingDismiss((p) => new Set(p).add(key));
+    setAnomalies((prev) => prev.filter((x) => x.chatter_name !== chatterName));
+    try {
+      await dismissChatter({
+        userId: user.id,
+        platform,
+        chatterName,
+        alertTypes: items.map((i) => i.alert_type),
+        reportId,
+      });
+      emitAnomalyDismissed();
+    } catch (err) {
+      console.error("[AnomalyPanel] dismiss chatter failed:", err);
+      refresh();
+    } finally {
+      setPendingDismiss((p) => {
+        const next = new Set(p);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
   const counts = useMemo(() => {
     return {
       critical: anomalies.filter((a) => a.severity === "critical").length,
