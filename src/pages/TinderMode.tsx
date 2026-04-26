@@ -507,6 +507,9 @@ export default function TinderMode() {
       if (allChatters.length > 0) {
         loadLastInputs(platform, allChatters.map((c) => c.name)).then(setInputsMap);
       }
+
+      // Load today's daily goals (parallel)
+      loadTodayGoals(platform).then(setGoalsByChatter).catch(() => {});
     };
     load();
     const off = onChatterDataUpdated(load);
