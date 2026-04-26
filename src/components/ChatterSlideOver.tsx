@@ -962,10 +962,14 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             {compareWith && (
               <motion.div
                 key="compare-pane"
-                initial={{ opacity: 0, x: 24 }}
+                initial={{ opacity: 0, x: 32 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+                exit={{ opacity: 0, x: 32 }}
+                transition={{
+                  opacity: { duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
+                  x: { duration: 0.6, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
+                }}
+                style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
                 className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden"
               >
                 <ChatterSlideOver
