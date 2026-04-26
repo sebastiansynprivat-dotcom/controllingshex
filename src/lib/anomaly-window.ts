@@ -632,13 +632,15 @@ export const ANOMALY_LABELS: Record<AnomalyType, { label: string; emoji: string 
   peer_underperform:    { label: "Unter Peer-Schnitt",      emoji: "📉" },
   self_revenue_drop:    { label: "Eigener Schnitt gefallen", emoji: "⚠️" },
   persistent_zero:      { label: "Mehrtägige 0€-Serie",      emoji: "🔥" },
-  massdm_low:           { label: "MassDMs < 6/Tag",          emoji: "📨" },
+  massdm_low:           { label: "MassDMs < 4/Tag + schwacher Umsatz", emoji: "📨" },
   massdm_zero_no_rev:   { label: "Keine MassDMs & kein Umsatz", emoji: "🚨" },
+  high_effort_no_rev:   { label: "Zieht durch — Umsatz folgt", emoji: "💪" },
 };
 
 export const SEVERITY_STYLE: Record<AnomalySeverity, { dot: string; border: string; label: string; text: string }> = {
   critical: { dot: "bg-red-500",     border: "border-l-red-500/70 bg-red-500/[0.05]",     label: "Kritisch", text: "text-red-300" },
   high:     { dot: "bg-orange-400",  border: "border-l-orange-400/70 bg-orange-400/[0.05]", label: "Hoch",   text: "text-orange-200" },
   medium:   { dot: "bg-yellow-400",  border: "border-l-yellow-400/70 bg-yellow-400/[0.04]", label: "Mittel", text: "text-yellow-200" },
-  info:     { dot: "bg-emerald-400", border: "border-l-emerald-400/70 bg-emerald-400/[0.04]", label: "Info", text: "text-emerald-200" },
+  info:     { dot: "bg-sky-400",     border: "border-l-sky-400/70 bg-sky-400/[0.04]",       label: "Info",   text: "text-sky-200" },
+  positive: { dot: "bg-emerald-400", border: "border-l-emerald-400/70 bg-emerald-400/[0.05]", label: "Positiv", text: "text-emerald-200" },
 };
