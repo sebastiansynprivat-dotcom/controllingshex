@@ -534,6 +534,7 @@ export async function computeAnomaliesForWindow(
     windowDays: days,
     reportId: activeReportId,
     peerAvgRevenuePerDay: peerAvg,
+    peerCurve,
   };
 }
 
