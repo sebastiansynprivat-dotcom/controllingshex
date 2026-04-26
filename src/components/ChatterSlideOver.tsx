@@ -511,7 +511,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
           ) : (
             <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
-              <></>
                 {/* KPI Grid */}
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   {kpis.map((kpi) => {
