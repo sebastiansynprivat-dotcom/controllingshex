@@ -586,11 +586,23 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       {open && (
         <motion.aside
           initial={{ x: 40, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
+          animate={{
+            x: 0,
+            opacity: 1,
+            left: compareWith ? 0 : "auto",
+          }}
           exit={{ x: 40, opacity: 0 }}
-          transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          transition={{
+            x: { type: "spring", damping: 32, stiffness: 280 },
+            opacity: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+            left: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+          }}
           onPointerDown={handleDoubleTapClose}
-          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full sm:left-0" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col transition-[width] duration-300`}
+          style={{
+            width: compareWith ? "100%" : undefined,
+            transition: "width 0.55s cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col`}
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
