@@ -396,9 +396,22 @@ export async function computeAnomaliesForWindow(
   // MassDM-Ziel skaliert mit Fensterlänge (6/Tag)
   const massDmTargetPerDay = 6;
 
+  // Onboarding-Filter: ein Chatter mit weniger als 5 historischen Reporttagen
+  // (gesamte Workspace-Historie, nicht nur Fenster) wird ausgeblendet.
+  const totalDaysByChatter = new Map<string, Set<string>>();
+  for (const r of fullHistory) {
+    const k = normalize(r.chatter_name);
+    const set = totalDaysByChatter.get(k) ?? new Set<string>();
+    set.add(r.analysis_date);
+    totalDaysByChatter.set(k, set);
+  }
+  const ONBOARDING_MIN_DAYS = 5;
+
   const anomalies: ChatterAnomaly[] = [];
 
   for (const a of agg.values()) {
+    const totalDays = totalDaysByChatter.get(normalize(a.name))?.size ?? 0;
+    if (totalDays < ONBOARDING_MIN_DAYS) continue;
     const baseHere = baseline.get(normalize(a.name));
     const haveOwnHistory = baseHere && baseHere.days >= 3;
 
