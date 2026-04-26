@@ -22,3 +22,18 @@ export function onChatterDataUpdated(handler: () => void): () => void {
   window.addEventListener(CHATTER_DATA_UPDATED, wrapped);
   return () => window.removeEventListener(CHATTER_DATA_UPDATED, wrapped);
 }
+
+/** Auffälligkeiten-Dismissal Sync (Dashboard ↔ Auffälligkeiten-Page ↔ Swipe Mode). */
+export const ANOMALY_DISMISSED = "anomaly-dismissed";
+
+export function emitAnomalyDismissed() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(ANOMALY_DISMISSED));
+}
+
+export function onAnomalyDismissed(handler: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const wrapped = () => handler();
+  window.addEventListener(ANOMALY_DISMISSED, wrapped);
+  return () => window.removeEventListener(ANOMALY_DISMISSED, wrapped);
+}

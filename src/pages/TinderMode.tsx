@@ -39,6 +39,9 @@ import {
 } from "@/lib/timerange-categorize";
 import { getActionEmoji, type ActionCategoryName } from "@/lib/action-categories";
 import { loadAlertThresholds, effectiveThresholds, type AlertThresholds } from "@/lib/alert-thresholds";
+import { loadActiveReportId } from "@/lib/anomaly-window";
+import { onAnomalyDismissed } from "@/lib/data-events";
+import { useAuth } from "@/contexts/AuthContext";
 import type { CategoryDecision } from "@/lib/categorize-v2";
 import { categorizeChatters } from "@/lib/categorize-v2";
 import type { StabilizedDecision } from "@/lib/category-state";
@@ -257,6 +260,43 @@ export default function TinderMode() {
       window.removeEventListener("alertThresholdsChanged", handler);
     };
   }, []);
+
+  // Dismissal-Sync: abgehakte Chatter (im Dashboard / Auffälligkeiten-Tab)
+  // werden auch hier aus dem Alert-Filter entfernt — bis zum nächsten Report.
+  const { user: authUser } = useAuth();
+  const [dismissedChatterNames, setDismissedChatterNames] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!authUser) {
+        setDismissedChatterNames(new Set());
+        return;
+      }
+      const reportId = await loadActiveReportId(authUser.id, platform);
+      if (!reportId) {
+        if (!cancelled) setDismissedChatterNames(new Set());
+        return;
+      }
+      const { data } = await supabase
+        .from("alert_dismissals")
+        .select("chatter_name")
+        .eq("user_id", authUser.id)
+        .eq("platform", platform)
+        .eq("report_id", reportId);
+      if (cancelled) return;
+      const set = new Set<string>();
+      for (const r of (data as { chatter_name: string }[]) || []) {
+        set.add(normalizeName(r.chatter_name));
+      }
+      setDismissedChatterNames(set);
+    };
+    load();
+    const off = onAnomalyDismissed(load);
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [authUser, platform]);
 
   // Derive label filter set from allLabelAssignments
   const labelChatterNames = useMemo(() => {
@@ -918,7 +958,10 @@ export default function TinderMode() {
         base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
       }
       if (alertFilterActive) {
-        base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+        base = base.filter((c) => {
+          const k = normalizeName(c.name);
+          return alertChatterNames.has(k) && !dismissedChatterNames.has(k);
+        });
       }
       if (swapTrackFilterActive) {
         base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
@@ -930,7 +973,7 @@ export default function TinderMode() {
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]
+    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, dismissedChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]
   );
 
   const prefetchedChatters = useMemo(
@@ -945,7 +988,7 @@ export default function TinderMode() {
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (selectedTier) base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
-    if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+    if (alertFilterActive) base = base.filter((c) => { const k = normalizeName(c.name); return alertChatterNames.has(k) && !dismissedChatterNames.has(k); });
     if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
     if (recoveryFilterActive) base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
     return base.length;
@@ -1326,9 +1369,10 @@ export default function TinderMode() {
       <>
       {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
       {(() => {
-        const alertCount = chatters.filter(
-          (c) => !checkedNames.has(normalizeName(c.name)) && alertChatterNames.has(normalizeName(c.name))
-        ).length;
+        const alertCount = chatters.filter((c) => {
+          const k = normalizeName(c.name);
+          return !checkedNames.has(k) && alertChatterNames.has(k) && !dismissedChatterNames.has(k);
+        }).length;
         const swapTrackCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && swapTrackingMap.has(normalizeName(c.name))
         ).length;

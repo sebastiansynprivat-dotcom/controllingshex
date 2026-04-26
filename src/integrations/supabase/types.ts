@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_dismissals: {
+        Row: {
+          alert_type: string
+          chatter_name: string
+          dismissed_at: string
+          id: string
+          platform: string
+          report_id: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          chatter_name: string
+          dismissed_at?: string
+          id?: string
+          platform?: string
+          report_id: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          chatter_name?: string
+          dismissed_at?: string
+          id?: string
+          platform?: string
+          report_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       analysis_reports: {
         Row: {
           analysis_date: string
