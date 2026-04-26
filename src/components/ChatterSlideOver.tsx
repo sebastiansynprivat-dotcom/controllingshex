@@ -182,6 +182,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     return () => { cancelled = true; };
   }, [pickerOpen, platform, chatterName, inline]);
 
+  // ESC schließt den Picker
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.stopPropagation(); setPickerOpen(false); setPickerQuery(""); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [pickerOpen]);
+
   const fetchProfile = useCallback(() => {
     if (!chatterName) return;
     setLoading(true);
