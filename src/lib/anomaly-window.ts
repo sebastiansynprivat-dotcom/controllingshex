@@ -40,6 +40,7 @@ interface HistoryRow {
   revenue_today: number | null;
   mass_dms: number | null;
   response_delay_days: number | null;
+  account: string | null;
 }
 
 interface ChatterAggregate {
@@ -52,6 +53,9 @@ interface ChatterAggregate {
   avgMassDmsPerDay: number;
   consecutiveZeroDays: number; // längste 0€-Strecke am Ende des Fensters
   zeroDaysInWindow: number;
+  /** Summe der Follower aller jüngsten Accounts dieses Chatters */
+  totalFollowers: number;
+  accounts: string[];
 }
 
 const PAGE = 1000;
@@ -70,7 +74,7 @@ async function loadWindow(
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days, account")
       .eq("user_id", userId)
       .eq("platform", platform)
       .gte("analysis_date", range.from)
@@ -106,7 +110,7 @@ async function loadBaseline(
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days, account")
       .eq("user_id", userId)
       .eq("platform", platform)
       .gte("analysis_date", fromIso)
@@ -121,7 +125,149 @@ async function loadBaseline(
   return all;
 }
 
-function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAggregate> {
+/**
+ * Lädt die KOMPLETTE chatter_history des Workspaces (für die Lernkurve).
+ * Genutzt um „erwartetes €/Tag bei N Followern" zu lernen.
+ */
+async function loadFullHistory(userId: string, platform: string): Promise<HistoryRow[]> {
+  const all: HistoryRow[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, response_delay_days, account")
+      .eq("user_id", userId)
+      .eq("platform", platform)
+      .order("analysis_date", { ascending: false })
+      .range(offset, offset + PAGE - 1);
+    if (error || !data || data.length === 0) break;
+    all.push(...(data as HistoryRow[]));
+    if (data.length < PAGE) break;
+    offset += PAGE;
+    if (offset > 20000) break; // safety cap
+  }
+  return all;
+}
+
+/** Lädt alle Models (Follower-Zahlen) für Workspace */
+async function loadModels(userId: string, platform: string): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  const { data } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("user_id", userId)
+    .eq("platform", platform);
+  for (const m of data ?? []) {
+    map.set(String(m.model_name).toLowerCase().trim(), Number(m.follower_count ?? 0));
+  }
+  return map;
+}
+
+function parseAccounts(account: string | null): string[] {
+  if (!account) return [];
+  return account
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Lernkurve: erwartetes €/Tag in Abhängigkeit der Follower-Summe.
+ *
+ * Methode: Sammle pro (Chatter, Tag) den Tagesumsatz und die Follower-Summe seiner
+ * Accounts an dem Tag. Bilde dann via gleitendem Bucket (log-spaced) den **Median**
+ * — Median ist robuster gegen 0€-Tage und Ausreißer als Mittelwert.
+ */
+export interface PeerCurve {
+  /** Liefert erwartetes €/Tag für eine Follower-Summe. 0 wenn keine Daten. */
+  expected: (followers: number) => number;
+  /** Anzahl Datentage in die Kurve eingeflossen */
+  sampleSize: number;
+  /** Bandbreite — kleinste & größte Follower-Werte in den Daten */
+  followerRange: [number, number];
+}
+
+function buildPeerCurve(
+  history: HistoryRow[],
+  modelFollowers: Map<string, number>,
+): PeerCurve {
+  // Sammle Datapoints (followerSum, revenue)
+  const points: { f: number; r: number }[] = [];
+  for (const row of history) {
+    const accs = parseAccounts(row.account);
+    if (accs.length === 0) continue;
+    let fSum = 0;
+    let known = false;
+    for (const a of accs) {
+      const fc = modelFollowers.get(a.toLowerCase().trim());
+      if (fc !== undefined) {
+        fSum += fc;
+        known = true;
+      }
+    }
+    if (!known || fSum <= 0) continue;
+    points.push({ f: fSum, r: Number(row.revenue_today ?? 0) });
+  }
+
+  if (points.length < 10) {
+    return { expected: () => 0, sampleSize: points.length, followerRange: [0, 0] };
+  }
+
+  // Sortiere nach Follower aufsteigend
+  points.sort((a, b) => a.f - b.f);
+  const minF = points[0].f;
+  const maxF = points[points.length - 1].f;
+
+  // Vorberechnete Smoothed-Kurve: für jeden Punkt der Median seines log-Nachbarschaftsfensters.
+  // Wir nehmen ein Fenster von ±35% Follower-Distanz — passt sich der lokalen Dichte an.
+  const cache: { f: number; med: number }[] = [];
+  let cursorLow = 0;
+  let cursorHigh = 0;
+  for (let i = 0; i < points.length; i++) {
+    const f = points[i].f;
+    const lo = f * 0.65;
+    const hi = f * 1.35;
+    while (cursorLow < points.length && points[cursorLow].f < lo) cursorLow++;
+    while (cursorHigh < points.length && points[cursorHigh].f <= hi) cursorHigh++;
+    const slice = points.slice(cursorLow, cursorHigh);
+    if (slice.length < 5) continue;
+    const sorted = [...slice].map((p) => p.r).sort((a, b) => a - b);
+    const med = sorted[Math.floor(sorted.length / 2)];
+    cache.push({ f, med });
+  }
+
+  if (cache.length === 0) {
+    return { expected: () => 0, sampleSize: points.length, followerRange: [minF, maxF] };
+  }
+
+  // Lookup: linear interpolieren zwischen nächsten Cache-Punkten
+  return {
+    sampleSize: points.length,
+    followerRange: [minF, maxF],
+    expected: (followers: number) => {
+      if (followers <= cache[0].f) return cache[0].med;
+      if (followers >= cache[cache.length - 1].f) return cache[cache.length - 1].med;
+      // binäre Suche
+      let lo = 0;
+      let hi = cache.length - 1;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (cache[mid].f <= followers) lo = mid;
+        else hi = mid;
+      }
+      const a = cache[lo];
+      const b = cache[hi];
+      const t = (followers - a.f) / (b.f - a.f || 1);
+      return a.med + (b.med - a.med) * t;
+    },
+  };
+}
+
+function aggregate(
+  rows: HistoryRow[],
+  range: TimeRange,
+  modelFollowers: Map<string, number>,
+): Map<string, ChatterAggregate> {
   const days = rangeDays(range);
   const byName = new Map<string, HistoryRow[]>();
   for (const r of rows) {
@@ -144,6 +290,20 @@ function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAgg
       else break;
     }
 
+    // Jüngster Account-Eintrag im Fenster (list ist asc → letzter Eintrag)
+    let accounts: string[] = [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const accs = parseAccounts(list[i].account);
+      if (accs.length > 0) {
+        accounts = accs;
+        break;
+      }
+    }
+    const totalFollowers = accounts.reduce(
+      (s, a) => s + (modelFollowers.get(a.toLowerCase().trim()) ?? 0),
+      0,
+    );
+
     out.set(key, {
       name: list[0].chatter_name,
       rows: list,
@@ -154,6 +314,8 @@ function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAgg
       avgMassDmsPerDay: totalDM / days,
       consecutiveZeroDays: streak,
       zeroDaysInWindow: zeroDays,
+      totalFollowers,
+      accounts,
     });
   }
   return out;
@@ -187,7 +349,10 @@ export interface ComputeResult {
   /** kontext infos */
   windowDays: number;
   reportId: string | null;
+  /** Globaler Mittelwert (Fallback / Anzeige) */
   peerAvgRevenuePerDay: number;
+  /** Lernkurve aus kompletter Workspace-Historie: erwartetes €/Tag bei N Followern. */
+  peerCurve: PeerCurve;
 }
 
 /**
@@ -206,15 +371,18 @@ export async function computeAnomaliesForWindow(
   activeReportId: string | null,
 ): Promise<ComputeResult> {
   const days = rangeDays(range);
-  const [windowRows, baselineRows] = await Promise.all([
+  const [windowRows, baselineRows, fullHistory, modelFollowers] = await Promise.all([
     loadWindow(userId, platform, range),
     loadBaseline(userId, platform, range.from, 30),
+    loadFullHistory(userId, platform),
+    loadModels(userId, platform),
   ]);
 
-  const agg = aggregate(windowRows, range);
+  const agg = aggregate(windowRows, range, modelFollowers);
   const baseline = aggregateBaseline(baselineRows);
+  const peerCurve = buildPeerCurve(fullHistory, modelFollowers);
 
-  // Peer Schnitt = Durchschnitt der avgRevenuePerDay aller Chatter im Fenster
+  // Globaler Mittelwert nur als Fallback / für UI-Anzeige
   const peerValues = [...agg.values()]
     .filter((a) => a.daysActive >= Math.min(2, days))
     .map((a) => a.avgRevenuePerDay);
@@ -230,19 +398,29 @@ export async function computeAnomaliesForWindow(
     const baseHere = baseline.get(normalize(a.name));
     const haveOwnHistory = baseHere && baseHere.days >= 3;
 
-    // ── 1. Peer-Underperform ─────────────────────────────────
-    if (peerAvg > 5 && a.avgRevenuePerDay < peerAvg * 0.5 && a.daysActive >= Math.min(2, days)) {
-      const deltaPct = peerAvg > 0 ? -((peerAvg - a.avgRevenuePerDay) / peerAvg) * 100 : 0;
+    // ── 1. Peer-Underperform (follower-basierte Erwartung) ──
+    // Erwartung kommt aus Workspace-Lernkurve. Fällt diese aus (zu wenige Daten),
+    // greifen wir auf den globalen Peer-Mittelwert zurück.
+    const expectedFromCurve =
+      a.totalFollowers > 0 ? peerCurve.expected(a.totalFollowers) : 0;
+    const useExpected = expectedFromCurve > 0;
+    const expected = useExpected ? expectedFromCurve : peerAvg;
+
+    if (expected > 5 && a.avgRevenuePerDay < expected * 0.5 && a.daysActive >= Math.min(2, days)) {
+      const deltaPct = -((expected - a.avgRevenuePerDay) / expected) * 100;
       const severity: AnomalySeverity =
-        a.avgRevenuePerDay < peerAvg * 0.25 ? "high" : "medium";
+        a.avgRevenuePerDay < expected * 0.25 ? "high" : "medium";
+      const ctx = useExpected
+        ? `erwartet ${expected.toFixed(0)}€ bei ${a.totalFollowers.toLocaleString("de-DE")} Followern`
+        : `Peer-Schnitt ${expected.toFixed(0)}€`;
       anomalies.push({
         chatter_name: a.name,
         alert_type: "peer_underperform",
         severity,
         metric_value: a.avgRevenuePerDay,
-        baseline_value: peerAvg,
+        baseline_value: expected,
         delta_pct: Math.round(deltaPct),
-        message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(Math.abs(deltaPct))}% unter Peer-Schnitt (${peerAvg.toFixed(0)}€)`,
+        message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(Math.abs(deltaPct))}% unter Erwartung (${ctx})`,
         score: SEVERITY_RANK[severity] * 10 + Math.abs(deltaPct) / 10,
       });
     }
@@ -356,6 +534,7 @@ export async function computeAnomaliesForWindow(
     windowDays: days,
     reportId: activeReportId,
     peerAvgRevenuePerDay: peerAvg,
+    peerCurve,
   };
 }
 
