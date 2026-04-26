@@ -143,6 +143,10 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   const lastTapTimeRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loginPicker, setLoginPicker] = useState<null | "email" | "password">(null);
+  const [goalEditOpen, setGoalEditOpen] = useState(false);
+  const [goalEditValue, setGoalEditValue] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
+  const goalSuggestion = useMemo(() => suggestDailyGoal(chatter.peerBm), [chatter.peerBm]);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
 
