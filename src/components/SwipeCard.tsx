@@ -493,7 +493,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
       )}
 
       {/* Content */}
-      <div className="flex-1 min-h-0 flex flex-col gap-2 relative z-[1]">
+      <div className="flex-1 min-h-0 flex flex-col gap-1.5 sm:gap-2 relative z-[1]">
         {/* Category badge + start date */}
         <div className="flex items-center justify-between">
           {chatter.decision ? (
