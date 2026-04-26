@@ -341,7 +341,7 @@ function aggregateBaseline(rows: HistoryRow[]): Map<string, { avgRevenue: number
   return out;
 }
 
-const SEVERITY_RANK: Record<AnomalySeverity, number> = { critical: 4, high: 3, medium: 2, info: 1 };
+const SEVERITY_RANK: Record<AnomalySeverity, number> = { critical: 4, high: 3, medium: 2, info: 1, positive: 0 };
 
 export interface ComputeResult {
   anomalies: ChatterAnomaly[];
