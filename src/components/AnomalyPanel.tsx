@@ -268,7 +268,7 @@ export default function AnomalyPanel({
     });
   }, [anomalies, chatterAccounts, modelFollowers]);
 
-  const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
+  const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
   const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
 
   const visibleGroups = variant === "compact" && !expanded
@@ -279,15 +279,17 @@ export default function AnomalyPanel({
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
       {/* Header */}
       <div className={`${padding} border-b border-white/[0.04] space-y-3`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-baseline gap-3 min-w-0">
-            <div className="text-xs uppercase tracking-[0.2em] text-white/40 font-light">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+          <div className="flex items-baseline gap-2 sm:gap-3 min-w-0">
+            <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/40 font-light">
               Auffälligkeiten
             </div>
-            <div className="text-[10px] text-white/35 font-light">{rangeLabel(range)}</div>
+            <div className="text-[10px] text-white/35 font-light truncate">{rangeLabel(range)}</div>
           </div>
           {!hideTimeControls && (
-            <TimeRangeToggle value={range} onChange={setRange} />
+            <div className="-mx-1 sm:mx-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TimeRangeToggle value={range} onChange={setRange} />
+            </div>
           )}
         </div>
 
