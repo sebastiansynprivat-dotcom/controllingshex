@@ -1369,9 +1369,10 @@ export default function TinderMode() {
       <>
       {/* Unified Filter — Kategorien + Labels + Alerts in einem Dropdown */}
       {(() => {
-        const alertCount = chatters.filter(
-          (c) => !checkedNames.has(normalizeName(c.name)) && alertChatterNames.has(normalizeName(c.name))
-        ).length;
+        const alertCount = chatters.filter((c) => {
+          const k = normalizeName(c.name);
+          return !checkedNames.has(k) && alertChatterNames.has(k) && !dismissedChatterNames.has(k);
+        }).length;
         const swapTrackCount = chatters.filter(
           (c) => !checkedNames.has(normalizeName(c.name)) && swapTrackingMap.has(normalizeName(c.name))
         ).length;
