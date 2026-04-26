@@ -355,7 +355,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
 
   return (
     <motion.div
-      className={`absolute inset-0 rounded-2xl p-3.5 flex flex-col select-none overflow-hidden ${
+      className={`absolute inset-0 rounded-2xl p-3 sm:p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
@@ -493,7 +493,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
       )}
 
       {/* Content */}
-      <div className="flex-1 min-h-0 flex flex-col gap-2 relative z-[1]">
+      <div className="flex-1 min-h-0 flex flex-col gap-1.5 sm:gap-2 relative z-[1]">
         {/* Category badge + start date */}
         <div className="flex items-center justify-between">
           {chatter.decision ? (

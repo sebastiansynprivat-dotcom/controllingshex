@@ -1307,11 +1307,11 @@ export default function TinderMode() {
     >
       {/* Left: Card area */}
       <div
-        className={`flex min-h-0 flex-col ${mode === 'swipe' ? 'px-4 pt-3 pb-4 overflow-hidden' : 'px-3 sm:px-4 pt-2 overflow-y-auto'} ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full mx-auto"}`}
+        className={`flex min-h-0 flex-col ${mode === 'swipe' ? 'px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-4 overflow-hidden' : 'px-3 sm:px-4 pt-2 overflow-y-auto'} ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full mx-auto"}`}
         style={mode === "swipe" ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
       >
       {/* Mode Toggle: Swipe / Wechsel / Vergleich */}
-      <div className="relative z-10 mb-3 flex shrink-0 p-0.5 rounded-full bg-background/95 border border-white/[0.08] shadow-[0_10px_32px_-22px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+      <div className="relative z-10 mb-2 sm:mb-3 flex shrink-0 p-0.5 rounded-full bg-background/95 border border-white/[0.08] shadow-[0_10px_32px_-22px_rgba(0,0,0,0.85)] backdrop-blur-xl">
         {([
           { id: "swipe", label: "Swipe" },
           { id: "swap", label: "Wechsel" },
@@ -1518,7 +1518,7 @@ export default function TinderMode() {
         };
 
         return (
-          <div className="mb-3 space-y-2">
+          <div className="mb-2 sm:mb-3 space-y-1.5 sm:space-y-2">
             {/* Time-Range Selector */}
             <div className="flex flex-col gap-1">
               <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
@@ -1530,7 +1530,7 @@ export default function TinderMode() {
               )}
             </div>
             {tierCounts.size > 0 && (
-              <div className="flex gap-1.5 flex-wrap">
+              <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {ACCOUNT_TIERS.map((tier) => {
                   const isActive = selectedTier === tier.id;
                   const count = tierCounts.get(tier.id) || 0;
@@ -1542,7 +1542,7 @@ export default function TinderMode() {
                       disabled={isEmpty}
                       onClick={() => toggleTier(tier.id)}
                       title={tier.description}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide transition-all border backdrop-blur-sm ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide transition-all border backdrop-blur-sm shrink-0 ${
                         isActive
                           ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText} shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_14px_-6px_rgba(0,0,0,0.5)]`
                           : isEmpty
@@ -1684,16 +1684,16 @@ export default function TinderMode() {
 
 
 
-      <div className="mb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-muted-foreground font-medium">
-            {filteredChecked}/{filteredTotal} gecheckt
+      <div className="mb-1.5 sm:mb-2">
+        <div className="flex items-center gap-2 mb-1">
+          <Progress value={progress} className="h-1 flex-1" />
+          <span className="text-[10px] text-muted-foreground font-medium tabular-nums shrink-0">
+            {filteredChecked}/{filteredTotal}
           </span>
-          <span className="text-[10px] text-muted-foreground">
-            {uncheckedChatters.length} übrig
+          <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0 hidden sm:inline">
+            · {uncheckedChatters.length} übrig
           </span>
         </div>
-        <Progress value={progress} className="h-1" />
       </div>
 
       {/* Card stack */}
@@ -1846,7 +1846,7 @@ export default function TinderMode() {
       {/* Bottom buttons */}
       {!isDone && currentChatter && (
         <>
-          <div className="flex items-center justify-center gap-3 mt-4">
+          <div className="flex items-center justify-center gap-2.5 sm:gap-3 mt-2.5 sm:mt-4 shrink-0">
             <Button
               variant="outline"
               size="icon"
