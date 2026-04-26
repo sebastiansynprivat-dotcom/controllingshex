@@ -13,7 +13,20 @@ interface PlatformContextType {
 const PlatformContext = createContext<PlatformContextType | null>(null);
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
-  const [platform, setPlatform] = useState<Platform>("Maloum");
+  const [platform, setPlatformState] = useState<Platform>(() => {
+    const saved = localStorage.getItem("activePlatform");
+    return PLATFORMS.includes(saved as Platform) ? (saved as Platform) : "Maloum";
+  });
+
+  const setPlatform = (nextPlatform: Platform) => {
+    localStorage.setItem("activePlatform", nextPlatform);
+    setPlatformState(nextPlatform);
+  };
+
+  useEffect(() => {
+    localStorage.setItem("activePlatform", platform);
+  }, [platform]);
+
   return (
     <PlatformContext.Provider value={{ platform, setPlatform, platforms: PLATFORMS }}>
       {children}
