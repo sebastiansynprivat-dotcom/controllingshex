@@ -332,13 +332,14 @@ export default function AnomalyPanel({
           </AnimatePresence>
         </div>
       )}
-      <>
 
+      {!loading && anomalies.length > 0 && (
+        <>
           {variant === "compact" && groupedByChatter.length > compactInitialCount && (
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="w-full flex items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 hover:bg-white/[0.02] transition-colors"
+              className="w-full flex items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 hover:bg-white/[0.02] transition-colors border-t border-white/[0.04]"
             >
               {expanded ? "Weniger" : `${groupedByChatter.length - compactInitialCount} weitere Chatter`}
               <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
