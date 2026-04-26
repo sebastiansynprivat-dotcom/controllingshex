@@ -192,22 +192,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     return () => window.removeEventListener("keydown", onKey, true);
   }, [pickerOpen]);
 
-  // Wenn das Profil offen ist: native Seiten-Scrollbar komplett ausblenden
-  useEffect(() => {
-    if (!open || inline) return;
-    const bodyOverflow = document.body.style.overflow;
-    const htmlOverflow = document.documentElement.style.overflow;
-    const htmlScrollbarWidth = document.documentElement.style.scrollbarWidth;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    document.documentElement.style.scrollbarWidth = "none";
-    return () => {
-      document.body.style.overflow = bodyOverflow;
-      document.documentElement.style.overflow = htmlOverflow;
-      document.documentElement.style.scrollbarWidth = htmlScrollbarWidth;
-    };
-  }, [open, inline]);
-
   const fetchProfile = useCallback(() => {
     if (!chatterName) return;
     setLoading(true);
