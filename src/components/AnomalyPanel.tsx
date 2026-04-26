@@ -128,12 +128,31 @@ export default function AnomalyPanel({
     };
   }, [anomalies]);
 
+  // Gruppiere pro Chatter — Reihenfolge nach höchstem Score je Chatter.
+  const groupedByChatter = useMemo(() => {
+    const map = new Map<string, { name: string; topScore: number; topSeverity: ChatterAnomaly["severity"]; items: ChatterAnomaly[] }>();
+    for (const a of anomalies) {
+      const key = a.chatter_name;
+      const entry = map.get(key);
+      if (entry) {
+        entry.items.push(a);
+        if (a.score > entry.topScore) {
+          entry.topScore = a.score;
+          entry.topSeverity = a.severity;
+        }
+      } else {
+        map.set(key, { name: a.chatter_name, topScore: a.score, topSeverity: a.severity, items: [a] });
+      }
+    }
+    return [...map.values()].sort((a, b) => b.topScore - a.topScore);
+  }, [anomalies]);
+
   const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
   const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
 
-  const visibleList = variant === "compact" && !expanded
-    ? anomalies.slice(0, compactInitialCount)
-    : anomalies;
+  const visibleGroups = variant === "compact" && !expanded
+    ? groupedByChatter.slice(0, compactInitialCount)
+    : groupedByChatter;
 
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
