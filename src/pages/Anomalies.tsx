@@ -23,8 +23,8 @@ export default function Anomalies() {
   );
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-10 space-y-4 sm:space-y-6">
+    <div className="min-h-full bg-background -m-3 sm:m-0">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-10 space-y-3 sm:space-y-6">
         {/* Hero */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-4 sm:p-8">
           <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
