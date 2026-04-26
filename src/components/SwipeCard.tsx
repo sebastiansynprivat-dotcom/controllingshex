@@ -67,6 +67,10 @@ interface Props {
   accountLogins?: AccountLogin[];
   swapDelta?: SwapDeltaInfo | null;
   recoveryDelta?: RecoveryDeltaInfo | null;
+  /** Bereits vergebenes Tagesziel für heute (falls vorhanden). */
+  dailyGoal?: DailyGoal | null;
+  /** Callback zum Setzen / Aktualisieren des Tagesziels. */
+  onAssignGoal?: (eur: number, suggestion: GoalSuggestion | null) => Promise<void> | void;
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
