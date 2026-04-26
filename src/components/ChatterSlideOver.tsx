@@ -950,6 +950,18 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               )}
             </div>
           </div>
+          {compareWith && (
+            <div className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden">
+              <ChatterSlideOver
+                inline
+                open
+                chatterName={compareWith}
+                platform={platform}
+                onClose={() => setCompareWith(null)}
+              />
+            </div>
+          )}
+          </div>
 
           {/* Floating-Close-Pill — immer erreichbar auf Mobile, auch wenn der Header verdeckt ist */}
           <button
