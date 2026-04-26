@@ -323,6 +323,27 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
     }
   }, [flyOff, snapBack, peekAndReturn, openDetails, onSwipeRight, onSwipeLeft, onSwipeDown]);
 
+  const assignGoal = useCallback(async (eur: number) => {
+    if (!onAssignGoal || !Number.isFinite(eur) || eur <= 0) return;
+    setSavingGoal(true);
+    try {
+      await onAssignGoal(eur, goalSuggestion);
+      triggerHaptic("medium");
+      toast.success(`Tagesziel ${formatEur(eur)} vergeben`);
+      setGoalEditOpen(false);
+    } catch {
+      toast.error("Tagesziel konnte nicht gespeichert werden");
+    } finally {
+      setSavingGoal(false);
+    }
+  }, [onAssignGoal, goalSuggestion]);
+
+  const openGoalEdit = useCallback(() => {
+    const initial = dailyGoal?.goal_eur ?? goalSuggestion?.eur ?? 0;
+    setGoalEditValue(initial > 0 ? String(Math.round(initial)) : "");
+    setGoalEditOpen(true);
+  }, [dailyGoal, goalSuggestion]);
+
   // Severity-based outer ring shadow
   const severityRing = hasCritical
     ? "0 0 0 1px rgba(239,68,68,0.25), 0 0 28px -4px rgba(239,68,68,0.35)"
