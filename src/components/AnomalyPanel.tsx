@@ -472,13 +472,13 @@ export default function AnomalyPanel({
                         <div
                           key={key}
                           className="flex items-start gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-white/[0.025] transition-colors cursor-pointer"
-                          onClick={() => setDetailAnomaly(a)}
+                          onClick={() => onChatterSelect?.(group.name)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              setDetailAnomaly(a);
+                              onChatterSelect?.(group.name);
                             }
                           }}
                         >
