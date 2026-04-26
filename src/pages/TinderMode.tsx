@@ -1846,7 +1846,7 @@ export default function TinderMode() {
       {/* Bottom buttons */}
       {!isDone && currentChatter && (
         <>
-          <div className="flex items-center justify-center gap-3 mt-4">
+          <div className="flex items-center justify-center gap-2.5 sm:gap-3 mt-2.5 sm:mt-4 shrink-0">
             <Button
               variant="outline"
               size="icon"
