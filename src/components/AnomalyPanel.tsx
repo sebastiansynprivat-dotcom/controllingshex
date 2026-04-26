@@ -1,0 +1,263 @@
+/**
+ * Wiederverwendbares Auffälligkeiten-Panel mit Zeitraumfilter.
+ *
+ * Wird im Dashboard, in der dedizierten Auffälligkeiten-Page und im
+ * Swipe-Mode verwendet — alle synchron via `onAnomalyDismissed`.
+ *
+ * Abhaken (✓) gilt **bis zum nächsten Report** (per `report_id`-Bindung).
+ */
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, RotateCcw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import TimeRangeToggle from "@/components/TimeRangeToggle";
+import {
+  buildTimeRange,
+  rangeLabel,
+  type TimeRange,
+} from "@/lib/timerange-categorize";
+import {
+  computeAnomaliesForWindow,
+  loadActiveReportId,
+  dismissAnomaly,
+  ANOMALY_LABELS,
+  SEVERITY_STYLE,
+  type ChatterAnomaly,
+} from "@/lib/anomaly-window";
+import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
+
+interface Props {
+  platform: string;
+  /** Default time range. */
+  defaultRange?: TimeRange;
+  /** Compact: less padding, smaller text — used in dashboard. */
+  variant?: "default" | "compact";
+  /** Click on a chatter row. */
+  onChatterSelect?: (name: string) => void;
+  /** Optional limit when compact, with "show more" toggle. */
+  compactInitialCount?: number;
+  /** Hide the time range controls (used when controlled externally). */
+  hideTimeControls?: boolean;
+  /** Externally controlled range (overrides internal state when set). */
+  range?: TimeRange;
+  onRangeChange?: (range: TimeRange) => void;
+}
+
+export default function AnomalyPanel({
+  platform,
+  defaultRange,
+  variant = "default",
+  onChatterSelect,
+  compactInitialCount = 5,
+  hideTimeControls = false,
+  range: rangeProp,
+  onRangeChange,
+}: Props) {
+  const { user } = useAuth();
+  const [internalRange, setInternalRange] = useState<TimeRange>(
+    () => defaultRange ?? buildTimeRange("7d"),
+  );
+  const range = rangeProp ?? internalRange;
+  const setRange = onRangeChange ?? setInternalRange;
+
+  const [loading, setLoading] = useState(true);
+  const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>([]);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
+
+  const refresh = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const rid = await loadActiveReportId(user.id, platform);
+    setReportId(rid);
+    const result = await computeAnomaliesForWindow(user.id, platform, range, rid);
+    setAnomalies(result.anomalies);
+    setLoading(false);
+  }, [user, platform, range]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const offData = onChatterDataUpdated(() => refresh());
+    const offDismiss = onAnomalyDismissed(() => refresh());
+    return () => {
+      offData();
+      offDismiss();
+    };
+  }, [refresh]);
+
+  const handleDismiss = async (a: ChatterAnomaly) => {
+    if (!user || !reportId) return;
+    const key = `${a.chatter_name}|${a.alert_type}`;
+    setPendingDismiss((p) => new Set(p).add(key));
+    setAnomalies((prev) =>
+      prev.filter((x) => !(x.chatter_name === a.chatter_name && x.alert_type === a.alert_type)),
+    );
+    try {
+      await dismissAnomaly({
+        userId: user.id,
+        platform,
+        chatterName: a.chatter_name,
+        alertType: a.alert_type,
+        reportId,
+      });
+      emitAnomalyDismissed();
+    } catch (err) {
+      console.error("[AnomalyPanel] dismiss failed:", err);
+      // rollback
+      refresh();
+    } finally {
+      setPendingDismiss((p) => {
+        const next = new Set(p);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const counts = useMemo(() => {
+    return {
+      critical: anomalies.filter((a) => a.severity === "critical").length,
+      high: anomalies.filter((a) => a.severity === "high").length,
+      medium: anomalies.filter((a) => a.severity === "medium").length,
+      info: anomalies.filter((a) => a.severity === "info").length,
+    };
+  }, [anomalies]);
+
+  const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
+  const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
+
+  const visibleList = variant === "compact" && !expanded
+    ? anomalies.slice(0, compactInitialCount)
+    : anomalies;
+
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
+      {/* Header */}
+      <div className={`flex items-center justify-between gap-3 ${padding} border-b border-white/[0.04]`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="text-xs uppercase tracking-[0.2em] text-white/40 font-light">
+            Auffälligkeiten
+          </div>
+          <div className="text-xs text-white/50 font-light">
+            <span className="text-foreground font-normal">{anomalies.length}</span>
+            <span className="text-white/30"> · {rangeLabel(range)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-white/40 font-light">
+            {counts.critical > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                {counts.critical}
+              </span>
+            )}
+            {counts.high > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                {counts.high}
+              </span>
+            )}
+            {counts.medium > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                {counts.medium}
+              </span>
+            )}
+          </div>
+        </div>
+        {!hideTimeControls && (
+          <TimeRangeToggle value={range} onChange={setRange} />
+        )}
+      </div>
+
+      {/* Body */}
+      {loading ? (
+        <div className="flex items-center gap-2 px-5 py-6 text-xs text-white/40 font-light">
+          <div className="h-3 w-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+          Berechne Auffälligkeiten…
+        </div>
+      ) : anomalies.length === 0 ? (
+        <div className="px-5 py-8 text-center">
+          <div className="inline-flex items-center gap-2 text-xs text-white/40 font-light">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
+            Keine Auffälligkeiten im Zeitraum.
+          </div>
+        </div>
+      ) : (
+        <>
+          <AnimatePresence initial={false}>
+            {visibleList.map((a) => {
+              const meta = ANOMALY_LABELS[a.alert_type];
+              const sev = SEVERITY_STYLE[a.severity];
+              const key = `${a.chatter_name}|${a.alert_type}`;
+              return (
+                <motion.div
+                  key={key}
+                  layout
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`group border-l-2 ${sev.border} border-b border-white/[0.04] last:border-b-0`}
+                >
+                  <div className={`flex items-center gap-3 ${padding}`}>
+                    <span className="text-base shrink-0 opacity-80">{meta.emoji}</span>
+                    <button
+                      type="button"
+                      onClick={() => onChatterSelect?.(a.chatter_name)}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className={`${textSize} text-foreground font-normal truncate`}>
+                          {a.chatter_name}
+                        </span>
+                        <span className={`text-[10px] uppercase tracking-wider font-light ${sev.text}`}>
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div className="text-xs text-white/55 font-light truncate">
+                        {a.message}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDismiss(a)}
+                      disabled={pendingDismiss.has(key)}
+                      title="Als erledigt markieren (bis zum nächsten Report)"
+                      className="p-1.5 rounded-md hover:bg-white/[0.06] text-white/40 hover:text-emerald-300 transition-colors disabled:opacity-40"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
+          {variant === "compact" && anomalies.length > compactInitialCount && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="w-full flex items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 hover:bg-white/[0.02] transition-colors"
+            >
+              {expanded ? "Weniger" : `${anomalies.length - compactInitialCount} weitere`}
+              <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => refresh()}
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider text-white/25 hover:text-white/55 transition-colors border-t border-white/[0.03]"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Neu berechnen
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
