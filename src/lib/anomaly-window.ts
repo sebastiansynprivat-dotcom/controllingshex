@@ -349,7 +349,10 @@ export interface ComputeResult {
   /** kontext infos */
   windowDays: number;
   reportId: string | null;
+  /** Globaler Mittelwert (Fallback / Anzeige) */
   peerAvgRevenuePerDay: number;
+  /** Lernkurve aus kompletter Workspace-Historie: erwartetes €/Tag bei N Followern. */
+  peerCurve: PeerCurve;
 }
 
 /**
@@ -368,15 +371,18 @@ export async function computeAnomaliesForWindow(
   activeReportId: string | null,
 ): Promise<ComputeResult> {
   const days = rangeDays(range);
-  const [windowRows, baselineRows] = await Promise.all([
+  const [windowRows, baselineRows, fullHistory, modelFollowers] = await Promise.all([
     loadWindow(userId, platform, range),
     loadBaseline(userId, platform, range.from, 30),
+    loadFullHistory(userId, platform),
+    loadModels(userId, platform),
   ]);
 
-  const agg = aggregate(windowRows, range);
+  const agg = aggregate(windowRows, range, modelFollowers);
   const baseline = aggregateBaseline(baselineRows);
+  const peerCurve = buildPeerCurve(fullHistory, modelFollowers);
 
-  // Peer Schnitt = Durchschnitt der avgRevenuePerDay aller Chatter im Fenster
+  // Globaler Mittelwert nur als Fallback / für UI-Anzeige
   const peerValues = [...agg.values()]
     .filter((a) => a.daysActive >= Math.min(2, days))
     .map((a) => a.avgRevenuePerDay);
@@ -392,19 +398,29 @@ export async function computeAnomaliesForWindow(
     const baseHere = baseline.get(normalize(a.name));
     const haveOwnHistory = baseHere && baseHere.days >= 3;
 
-    // ── 1. Peer-Underperform ─────────────────────────────────
-    if (peerAvg > 5 && a.avgRevenuePerDay < peerAvg * 0.5 && a.daysActive >= Math.min(2, days)) {
-      const deltaPct = peerAvg > 0 ? -((peerAvg - a.avgRevenuePerDay) / peerAvg) * 100 : 0;
+    // ── 1. Peer-Underperform (follower-basierte Erwartung) ──
+    // Erwartung kommt aus Workspace-Lernkurve. Fällt diese aus (zu wenige Daten),
+    // greifen wir auf den globalen Peer-Mittelwert zurück.
+    const expectedFromCurve =
+      a.totalFollowers > 0 ? peerCurve.expected(a.totalFollowers) : 0;
+    const useExpected = expectedFromCurve > 0;
+    const expected = useExpected ? expectedFromCurve : peerAvg;
+
+    if (expected > 5 && a.avgRevenuePerDay < expected * 0.5 && a.daysActive >= Math.min(2, days)) {
+      const deltaPct = -((expected - a.avgRevenuePerDay) / expected) * 100;
       const severity: AnomalySeverity =
-        a.avgRevenuePerDay < peerAvg * 0.25 ? "high" : "medium";
+        a.avgRevenuePerDay < expected * 0.25 ? "high" : "medium";
+      const ctx = useExpected
+        ? `erwartet ${expected.toFixed(0)}€ bei ${a.totalFollowers.toLocaleString("de-DE")} Followern`
+        : `Peer-Schnitt ${expected.toFixed(0)}€`;
       anomalies.push({
         chatter_name: a.name,
         alert_type: "peer_underperform",
         severity,
         metric_value: a.avgRevenuePerDay,
-        baseline_value: peerAvg,
+        baseline_value: expected,
         delta_pct: Math.round(deltaPct),
-        message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(Math.abs(deltaPct))}% unter Peer-Schnitt (${peerAvg.toFixed(0)}€)`,
+        message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(Math.abs(deltaPct))}% unter Erwartung (${ctx})`,
         score: SEVERITY_RANK[severity] * 10 + Math.abs(deltaPct) / 10,
       });
     }
