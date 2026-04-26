@@ -117,6 +117,55 @@ function sanitizeDelay(raw: number, revenue: number): number {
   return val;
 }
 
+/* Premium Skeleton — placeholder layout matching the real profile */
+function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
+  const pad = compact ? "p-4 sm:p-6 space-y-6 sm:space-y-8" : "p-5 sm:p-10 space-y-8 sm:space-y-12";
+  const kpiPad = compact ? "p-3 sm:p-4" : "p-5";
+  const kpiGap = compact ? "gap-2.5 sm:gap-3" : "gap-4";
+  return (
+    <div className={pad}>
+      {/* KPI Grid 2×2 */}
+      <div className={`grid grid-cols-2 ${kpiGap}`}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className={`premium-skel-card ${kpiPad}`}>
+            <div className="flex items-center gap-1.5 mb-3">
+              <div className="premium-skel h-3 w-3 rounded-full" />
+              <div className="premium-skel h-2.5 w-20 rounded" />
+            </div>
+            <div className="premium-skel h-7 w-24 rounded mt-2" />
+            <div className="premium-skel h-2 w-16 rounded mt-2" />
+          </div>
+        ))}
+      </div>
+      {/* Section: Trend Chart */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="premium-skel h-3 w-[2px]" />
+          <div className="premium-skel h-2.5 w-32 rounded" />
+        </div>
+        <div className="premium-skel-card p-5">
+          <div className="premium-skel h-40 w-full rounded-lg" />
+        </div>
+      </div>
+      {/* Section: Notes / List */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="premium-skel h-3 w-[2px]" />
+          <div className="premium-skel h-2.5 w-24 rounded" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="premium-skel-card p-4">
+              <div className="premium-skel h-2.5 w-3/4 rounded mb-2" />
+              <div className="premium-skel h-2 w-1/2 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
