@@ -562,7 +562,7 @@ ZUSÄTZLICHE FELDER (PFLICHT pro Chatter)
 ==============================================================
 WICHTIGE REGELN
 ==============================================================
-- Erlaubte categoryName-Werte EXAKT: "ONBOARDING TAG 1", "ONBOARDING TAG 2", "ONBOARDING TAG 3", "ONBOARDING TAG 4", "ONBOARDING TAG 5", "SOFORT EINGREIFEN", "COACHING NÖTIG", "PUSHEN", "BELOHNEN", "RE-ASSIGNEN", "BEOBACHTEN"
+- Erlaubte categoryName-Werte EXAKT: "ONBOARDING TAG 1", "ONBOARDING TAG 2", "ONBOARDING TAG 3", "ONBOARDING TAG 4", "ONBOARDING TAG 5", "ONBOARDING TAG 6", "ONBOARDING TAG 7", "ONBOARDING TAG 8", "ONBOARDING TAG 9", "ONBOARDING TAG 10", "ONBOARDING TAG 11", "ONBOARDING TAG 12", "ONBOARDING TAG 13", "ONBOARDING TAG 14", "SOFORT EINGREIFEN", "COACHING NÖTIG", "PUSHEN", "BELOHNEN", "RE-ASSIGNEN", "BEOBACHTEN"
 - Jeder Chatter gehört in GENAU EINE Kategorie. Onboarding (Tag 1-14) hat IMMER Vorrang.
 - Ein Onboarding-Chatter darf unter KEINEN Umständen zusätzlich oder stattdessen in einer anderen Kategorie auftauchen.
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Geldbeträge mit € formatieren.
