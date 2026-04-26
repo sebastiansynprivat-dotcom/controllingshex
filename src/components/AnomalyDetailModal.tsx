@@ -31,10 +31,10 @@ function explain(a: ChatterAnomaly, range: TimeRange, peerAvg: number): Explanat
   switch (a.alert_type) {
     case "peer_underperform":
       return {
-        formula: `Ø Tagesumsatz Chatter ÷ Ø Tagesumsatz aller Chatter`,
-        threshold: `< 50% des Peer-Schnitts (Schwelle: ${(peerAvg * 0.5).toFixed(0)}€/Tag)`,
-        comparePeriod: `Peer-Schnitt aller aktiven Chatter im Fenster (${windowLabel})`,
-        reasoning: `Der Ø Tagesumsatz von ${a.metric_value.toFixed(0)}€ liegt ${Math.abs(a.delta_pct)}% unter dem Peer-Schnitt von ${a.baseline_value.toFixed(0)}€. Severity „Hoch" ab < 25% des Peer-Schnitts.`,
+        formula: `Ø Tagesumsatz Chatter vs. Erwartung aus Lernkurve (Median Umsatz vergleichbar großer Accounts in deiner Workspace-Historie, ±35% Follower-Distanz)`,
+        threshold: `< 50% der Erwartung (Schwelle: ${(a.baseline_value * 0.5).toFixed(0)}€/Tag · Hoch ab < 25%)`,
+        comparePeriod: `Komplette Workspace-Historie, gefiltert auf Accounts mit ähnlicher Follower-Größe`,
+        reasoning: `Der Ø Tagesumsatz von ${a.metric_value.toFixed(0)}€ liegt ${Math.abs(a.delta_pct)}% unter der Erwartung von ${a.baseline_value.toFixed(0)}€/Tag — diese Erwartung wird dynamisch aus deiner gesamten Historie berechnet, basierend auf der Follower-Summe seiner Accounts.`,
       };
     case "self_revenue_drop":
       return {
