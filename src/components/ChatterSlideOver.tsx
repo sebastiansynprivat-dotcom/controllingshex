@@ -163,21 +163,34 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     setPickerQuery("");
   }, [chatterName]);
 
-  // Liste aller Chatter-Namen für Picker (volle Liste, paginiert)
+  // Liste aller AKTIVEN Chatter-Namen (nur die, die im neuesten Report vorkamen)
   useEffect(() => {
     if (!pickerOpen || inline) return;
     let cancelled = false;
     (async () => {
+      // 1) neuestes Analyse-Datum für die Plattform finden
+      const { data: latest } = await supabase
+        .from("chatter_history")
+        .select("analysis_date")
+        .eq("platform", platform)
+        .order("analysis_date", { ascending: false })
+        .limit(1);
+      if (cancelled) return;
+      const latestDate = latest?.[0]?.analysis_date;
+      if (!latestDate) {
+        setChatterList([]);
+        return;
+      }
+      // 2) alle Chatter aus diesem Report (paginiert, falls > 1000)
       const all = new Set<string>();
       const pageSize = 1000;
       let from = 0;
-      // Über alle Seiten paginieren — Supabase liefert max. 1000 pro Request
       while (!cancelled) {
         const { data, error } = await supabase
           .from("chatter_history")
           .select("chatter_name")
           .eq("platform", platform)
-          .order("chatter_name", { ascending: true })
+          .eq("analysis_date", latestDate)
           .range(from, from + pageSize - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data) {
