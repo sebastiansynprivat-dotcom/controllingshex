@@ -176,6 +176,48 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_daily_goals: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          goal_date: string
+          goal_eur: number
+          id: string
+          note: string | null
+          platform: string
+          source: string
+          suggested_eur: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          goal_date?: string
+          goal_eur: number
+          id?: string
+          note?: string | null
+          platform?: string
+          source?: string
+          suggested_eur?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          goal_date?: string
+          goal_eur?: number
+          id?: string
+          note?: string | null
+          platform?: string
+          source?: string
+          suggested_eur?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_history: {
         Row: {
           account: string | null

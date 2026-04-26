@@ -23,6 +23,7 @@ import { mapToActionCategory } from "@/lib/action-categories";
 import { getCategoryCriteria, SPECIAL_FILTER_CRITERIA } from "@/lib/category-criteria";
 import { onChatterDataUpdated } from "@/lib/data-events";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
+import { loadTodayGoals, upsertDailyGoal, normalizeChatterKey, type DailyGoal, type GoalSuggestion } from "@/lib/daily-goals";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
 import { loadRecoveryHistory, computeRecoveryQueue, type RecoveryEntry } from "@/lib/recovery-queue";
@@ -189,6 +190,7 @@ export default function TinderMode() {
   const [compareSlideOverChatter, setCompareSlideOverChatter] = useState<string | null>(null);
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
   const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
+  const [goalsByChatter, setGoalsByChatter] = useState<Map<string, DailyGoal>>(new Map());
   // V2 Decisions für heute (mit Hysterese persistiert).
   const [todayDecisions, setTodayDecisions] = useState<Map<string, StabilizedDecision>>(new Map());
 
@@ -505,6 +507,9 @@ export default function TinderMode() {
       if (allChatters.length > 0) {
         loadLastInputs(platform, allChatters.map((c) => c.name)).then(setInputsMap);
       }
+
+      // Load today's daily goals (parallel)
+      loadTodayGoals(platform).then(setGoalsByChatter).catch(() => {});
     };
     load();
     const off = onChatterDataUpdated(load);
@@ -1783,6 +1788,25 @@ export default function TinderMode() {
                     accountLogins={accountLoginsMap.get(normalizeName(chatter.name)) || []}
                     swapDelta={swapDeltaProp}
                     recoveryDelta={recoveryDeltaProp}
+                    dailyGoal={goalsByChatter.get(normalizeChatterKey(chatter.name)) ?? null}
+                    onAssignGoal={isTopCard ? async (eur, suggestion) => {
+                      const row = await upsertDailyGoal(
+                        platform,
+                        chatter.name,
+                        eur,
+                        suggestion?.eur ?? null,
+                        suggestion?.source ?? "manual",
+                      );
+                      if (row) {
+                        setGoalsByChatter((prev) => {
+                          const next = new Map(prev);
+                          next.set(normalizeChatterKey(chatter.name), row);
+                          return next;
+                        });
+                      } else {
+                        throw new Error("upsert failed");
+                      }
+                    } : undefined}
                   />
                 );
               })}

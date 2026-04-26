@@ -1,7 +1,7 @@
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo, AnimatePresence } from "framer-motion";
 import { useMemo, useCallback, useRef, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles, Mail, Key } from "lucide-react";
+import { Users, AlertTriangle, TrendingDown, MessageSquareOff, Inbox, Sparkles, Mail, Key, Target, Check, Pencil, X as XIcon } from "lucide-react";
 import { type ModelPerformance, formatFollowers } from "@/lib/model-performance";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import LastInputBadge from "@/components/LastInputBadge";
@@ -10,6 +10,8 @@ import { type ChatterBenchmark, formatBenchmarkLabel, getBenchmarkTone } from "@
 import type { CategoryDecision } from "@/lib/categorize-v2";
 import type { StabilizedDecision } from "@/lib/category-state";
 import CategoryReasonPopover from "@/components/CategoryReasonPopover";
+import { suggestDailyGoal, formatEur, type DailyGoal, type GoalSuggestion } from "@/lib/daily-goals";
+import { Input } from "@/components/ui/input";
 
 export interface AccountLogin {
   account: string;
@@ -65,6 +67,10 @@ interface Props {
   accountLogins?: AccountLogin[];
   swapDelta?: SwapDeltaInfo | null;
   recoveryDelta?: RecoveryDeltaInfo | null;
+  /** Bereits vergebenes Tagesziel für heute (falls vorhanden). */
+  dailyGoal?: DailyGoal | null;
+  /** Callback zum Setzen / Aktualisieren des Tagesziels. */
+  onAssignGoal?: (eur: number, suggestion: GoalSuggestion | null) => Promise<void> | void;
 }
 
 const ALERT_ICONS: Record<string, typeof AlertTriangle> = {
@@ -127,7 +133,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [], swapDelta = null, recoveryDelta = null }: Props) {
+export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [], swapDelta = null, recoveryDelta = null, dailyGoal = null, onAssignGoal }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
@@ -137,6 +143,10 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
   const lastTapTimeRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loginPicker, setLoginPicker] = useState<null | "email" | "password">(null);
+  const [goalEditOpen, setGoalEditOpen] = useState(false);
+  const [goalEditValue, setGoalEditValue] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
+  const goalSuggestion = useMemo(() => suggestDailyGoal(chatter.peerBm), [chatter.peerBm]);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const displayY = useTransform(y, (value) => (value < 0 ? value * 0.45 : value));
 
@@ -312,6 +322,27 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
       snapBack();
     }
   }, [flyOff, snapBack, peekAndReturn, openDetails, onSwipeRight, onSwipeLeft, onSwipeDown]);
+
+  const assignGoal = useCallback(async (eur: number) => {
+    if (!onAssignGoal || !Number.isFinite(eur) || eur <= 0) return;
+    setSavingGoal(true);
+    try {
+      await onAssignGoal(eur, goalSuggestion);
+      triggerHaptic("medium");
+      toast.success(`Tagesziel ${formatEur(eur)} vergeben`);
+      setGoalEditOpen(false);
+    } catch {
+      toast.error("Tagesziel konnte nicht gespeichert werden");
+    } finally {
+      setSavingGoal(false);
+    }
+  }, [onAssignGoal, goalSuggestion]);
+
+  const openGoalEdit = useCallback(() => {
+    const initial = dailyGoal?.goal_eur ?? goalSuggestion?.eur ?? 0;
+    setGoalEditValue(initial > 0 ? String(Math.round(initial)) : "");
+    setGoalEditOpen(true);
+  }, [dailyGoal, goalSuggestion]);
 
   // Severity-based outer ring shadow
   const severityRing = hasCritical
@@ -722,6 +753,76 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
           </div>
         )}
 
+        {/* Tagesziel — Peer-Ø + Vorschlag / vergebener Wert */}
+        {(goalSuggestion || dailyGoal) && (
+          <div
+            className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Target className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                <span className="text-[9px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                  Tagesziel
+                </span>
+              </div>
+              {(goalSuggestion?.peerAvgEur || dailyGoal?.suggested_eur) && (
+                <span
+                  className="text-[10px] text-muted-foreground/80 truncate tabular-nums"
+                  title={goalSuggestion?.rationale}
+                >
+                  Peer-Ø: {formatEur(goalSuggestion?.peerAvgEur ?? dailyGoal?.suggested_eur ?? 0)}
+                  {goalSuggestion?.peerLabel && (
+                    <span className="text-muted-foreground/50"> · {goalSuggestion.peerLabel}</span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {dailyGoal ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 shrink-0">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  <span className="text-[13px] font-semibold text-emerald-300 tabular-nums">
+                    {formatEur(dailyGoal.goal_eur)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    · {new Date(dailyGoal.updated_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openGoalEdit(); }}
+                  className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
+                >
+                  <Pencil className="h-2.5 w-2.5" />
+                  ändern
+                </button>
+              </div>
+            ) : goalSuggestion ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); assignGoal(goalSuggestion.eur); }}
+                  disabled={savingGoal}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 text-[12px] font-semibold py-1.5 transition-colors disabled:opacity-50"
+                >
+                  <Check className="h-3 w-3" />
+                  Vorschlag: {formatEur(goalSuggestion.eur)}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openGoalEdit(); }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] text-muted-foreground hover:text-foreground text-[10px] py-1.5 px-2 transition-colors"
+                  title="Ziel anpassen"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         {/* KPIs — 2x2 grid */}
         {kpiEntries.length > 0 && (
           <div className="grid grid-cols-2 gap-1.5">
@@ -795,6 +896,93 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
               >
                 Abbrechen
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Goal-Edit Inline-Sheet */}
+      <AnimatePresence>
+        {goalEditOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-sm rounded-2xl p-3"
+            onClick={(e) => { e.stopPropagation(); setGoalEditOpen(false); }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+              className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-card/95 backdrop-blur-xl p-4 space-y-3 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <p className="text-[12px] uppercase tracking-wider font-semibold text-foreground">
+                    Tagesziel setzen
+                  </p>
+                </div>
+                <button
+                  onClick={() => setGoalEditOpen(false)}
+                  className="text-muted-foreground/60 hover:text-foreground"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+
+              {goalSuggestion && (
+                <p className="text-[11px] text-muted-foreground">
+                  Vorschlag <span className="text-foreground font-medium">{formatEur(goalSuggestion.eur)}</span>
+                  {goalSuggestion.peerLabel && <> · {goalSuggestion.peerLabel}</>}
+                </p>
+              )}
+
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    autoFocus
+                    value={goalEditValue}
+                    onChange={(e) => setGoalEditValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const n = parseFloat(goalEditValue);
+                        if (Number.isFinite(n) && n > 0) assignGoal(n);
+                      }
+                    }}
+                    className="pr-8 text-base font-semibold tabular-nums"
+                    placeholder="z. B. 250"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
+                </div>
+                <button
+                  onClick={() => {
+                    const n = parseFloat(goalEditValue);
+                    if (Number.isFinite(n) && n > 0) assignGoal(n);
+                  }}
+                  disabled={savingGoal || !goalEditValue}
+                  className="rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-300 px-3 py-2 text-[12px] font-semibold disabled:opacity-50 transition-colors"
+                >
+                  {savingGoal ? "…" : "Speichern"}
+                </button>
+              </div>
+
+              {goalSuggestion && goalEditValue !== String(goalSuggestion.eur) && (
+                <button
+                  onClick={() => setGoalEditValue(String(goalSuggestion.eur))}
+                  className="text-[10px] text-muted-foreground/70 hover:text-foreground"
+                >
+                  ↺ auf Vorschlag zurücksetzen
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}

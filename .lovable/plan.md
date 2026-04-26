@@ -1,122 +1,80 @@
+# Tagesziel + Peer-Ø auf Swipe-Karten
 
-# Plan: Bewertungs-Engine v2 — Punkte 3, 4, 6, 7, 8, 9, 10
+## Ziel
+Auf jeder Swipe-Karte (TinderMode / Onboarding-Mode) soll der Coach
+1. den **Peer-Durchschnitt** des Chatters (€/Tag, basierend auf seinem Cluster bzw. Account-Baseline) immer sichtbar haben,
+2. ein **automatisch vorgeschlagenes Tagesziel** sehen, abgeleitet aus dem Peer-Median des Accounts,
+3. dieses Ziel **direkt auf der Karte eintragen / bestätigen / anpassen** können,
+4. das vergebene Tagesziel **dauerhaft auf der Karte angezeigt** bekommen (mit Datum / "heute vergeben").
 
-Ziel: Die Action-Kategorisierung im Swipe-Mode wird fairer, robuster, erklärbarer und stabiler. Ein einziger neuer Engine-Layer (`categorize-v2.ts`) ersetzt den Kern von `recategorizeByWindow` — alle UI-Komponenten konsumieren weiterhin die gleiche `ActionCategoryName`, bekommen aber zusätzlich `reasons[]` und `signals` für die Tooltip-Anzeige.
+## Architektur
 
----
+### 1. Neue Tabelle `chatter_daily_goals` (Migration)
+Spalten:
+- `id` uuid pk
+- `user_id` uuid (RLS: auth.uid())
+- `platform` text default 'Maloum'
+- `chatter_name` text
+- `goal_date` date default current_date
+- `goal_eur` numeric (das vergebene Ziel)
+- `suggested_eur` numeric (was das System vorgeschlagen hat — für Auswertung)
+- `source` text ('peer-cluster' | 'account-baseline' | 'global' | 'manual')
+- `note` text nullable
+- `created_at`, `updated_at` timestamps
+- Unique-Index `(user_id, platform, chatter_name, goal_date)` → 1 Ziel pro Tag pro Chatter
+- RLS: Users CRUD nur eigene Rows, Service-Role full access
 
-## 🎯 Was umgesetzt wird
+### 2. Neue Helper `src/lib/daily-goals.ts`
+- `suggestDailyGoal(bm: ChatterBenchmark): { eur: number; source: string; rationale: string }`
+  - Priorität: Account-Baseline (avg ×1.1, "Stretch +10%") > Peer-Cluster-Median > Global-Median
+  - Rundung auf nächste 5/10/25 € je nach Größe
+  - Cold-Start (source = "none") → kein Vorschlag, manuelle Eingabe
+- `loadTodayGoals(platform)` → Map<normalizedName, GoalRow> für heute
+- `upsertDailyGoal(platform, chatterName, eur, suggested, source)` → schreibt/aktualisiert Eintrag
 
-### Punkt 3 — Konstanz statt statisches Top-20%
-- **BELOHNEN** triggert ab jetzt bei einem von drei Signalen:
-  - `7d-Median ≥ 30d-Median × 1.10` (positiver Trend, persönlich)
-  - `≥ 5 Tage in Folge ≥ persönlicher Median` (Konstanz)
-  - Zusätzlich weiterhin Top-20% **als drittes Kriterium** (nicht alleinig)
-- Verhindert, dass Platz 21 nie Anerkennung bekommt.
+### 3. SwipeCard UI (`src/components/SwipeCard.tsx`)
+Neuer kompakter Block direkt **unter dem Hero-KPI**, oberhalb der weiteren KPIs:
 
-### Punkt 4 — Soft-Onboarding bis Tag 14
-- Tag 1–5: weiterhin `ONBOARDING TAG X` (bleibt explizit).
-- Tag 6–14: **neuer interner Modus „grace"** — alle Schwellen werden milder:
-  - `zeroRate`-Cutoff für SOFORT EINGREIFEN: 80% → **90%**
-  - `zeroRate`-Cutoff für COACHING: 50% → **70%**
-  - Trend-Cutoff für COACHING: −30% → **−50%**
-- Verhindert harten Sprung am Tag 6.
+```
+┌─ Tagesziel ─────────────────────────────────┐
+│  Peer-Ø: 240 €/Tag  ·  Cluster 10K-30K       │
+│                                               │
+│  [ Vorschlag: 265 € ]   [ ✏️ anpassen ]      │
+│                                               │
+│   …oder bei vergeben:                         │
+│  ✅ Ziel heute vergeben: 280 €  ·  14:32      │
+│                                       [ändern]│
+└───────────────────────────────────────────────┘
+```
 
-### Punkt 6 — Antwortverzug: aktueller Wert statt max
-- Bisher: `maxDelay` über das Fenster → ein alter Verzug bleibt „kleben".
-- Neu: **letzter bekannter `response_delay_days`** (jüngster History-Eintrag im Fenster). `maxDelay` wird zusätzlich als Kontext-Signal gespeichert, aber triggert nicht mehr direkt SOFORT EINGREIFEN.
-- Zusätzlicher Schwellenwert „Verzug-Trend" (steigend vs. fallend) als Reason-Detail.
+- **Peer-Ø-Zeile**: zeigt immer `formatBenchmarkLabel`-Wert + Cluster-Label (oder Account-Ø-Tage), egal welche Größe → fällt auf globalen Median zurück.
+- **Vorschlag-Pill**: tap-bar → speichert direkt mit einem Tap (Toast „Tagesziel 265 € vergeben").
+- **„✏️ anpassen"** öffnet ein leichtes Inline-Sheet (kleines Popover/Drawer) mit Number-Input + Speichern. Kein Reload.
+- **Vergeben-State**: ersetzt die Vorschlag-Pill durch grünes Badge mit Wert + Uhrzeit, plus „ändern"-Link.
+- Touch-Bereich groß, kein Drag-Konflikt (`stopPropagation` + `pointer-events`).
+- Reihenfolge: passt zwischen `pickHeroKpi`-Block und `kpiEntries`.
 
-### Punkt 7 — Account-Wechsel killt Kontinuität
-- **Aggregation jetzt per `chatter_name`** (nicht mehr per `chatter_name + account`).
-- Account wird als **Kontext-Liste** mitgeführt (alle Accounts, die der Chatter im Fenster hatte) und im Reason-Tooltip angezeigt: „2 Account-Wechsel im Fenster".
-- Falls du in einem späteren Schritt Performance pro Account separat sehen willst, bleibt die History granular — aber die Kategorisierung nutzt die zusammengefasste Reihe.
+### 4. TinderMode-Loader (`src/pages/TinderMode.tsx`)
+- Nach `loadBenchmarks` zusätzlich `loadTodayGoals(platform)` parallel laden.
+- Map `goalsByChatter` per `useState`, an SwipeCard via Prop weiterreichen (`dailyGoal` + `onAssignGoal`).
+- Auf erfolgreichem Upsert: Map sofort lokal aktualisieren (optimistic) → Karte aktualisiert ohne Reload.
+- Funktioniert in allen Time-Range-Modi; Suggestion bleibt aus aktuellem `peerBm`.
 
-### Punkt 8 — Erklärbarkeit (Reason-Tooltip)
-- Neue Datenstruktur `CategoryDecision`:
-  ```ts
-  {
-    name: ActionCategoryName,
-    reasons: string[],         // z.B. ["4/7 Tage 0€", "Trend −35% vs. 30d-Median"]
-    signals: {
-      avgRev, medianRev, zeroRate, lastDelay, trend7v30,
-      consistencyStreak, peerPctOfMedian, accountChanges
-    },
-    confidence: "low" | "medium" | "high"
-  }
-  ```
-- Im Swipe-Mode: Tap/Hover auf das Kategorie-Badge öffnet **HoverCard** (mobile = Sheet) mit allen Reasons + Mini-Signal-Chips.
-- Komponente: `CategoryReasonPopover.tsx` (neu).
+### 5. Optional: ChatterSlideOver
+Im Detail-SlideOver oben kleiner Mirror-Block „Heutiges Ziel: 280 €" — read-only, nur falls bereits vergeben. (Hält UX konsistent, ohne Doppelaufwand.)
 
-### Punkt 9 — Peer-Benchmarks in der Kategorisierung nutzen
-- `peer-benchmarks.ts` (`getChatterBenchmark`) wird in der neuen Engine **eingebunden**.
-- Neue Regel: Ein Chatter geht **nicht** in COACHING/SOFORT EINGREIFEN, wenn `peerPctOfMedian ≥ 90%` (= performt im Cluster-Schnitt) — auch wenn absolute Schwellen sagen würden „kritisch".
-- Umgekehrt: Wenn `peerPctOfMedian < 50%` UND `avgRev > 0` → Reason-Hint „unter Cluster-Schnitt", schiebt ggf. von BEOBACHTEN in COACHING.
-- Cold-Start (Confidence „low") → Peer-Logik wird übersprungen, Fallback auf absolute Schwellen.
+## Fragen / Annahmen
+- **Goal-Formel**: Account-Baseline × 1.1 (Stretch +10%), sonst Cluster-Median × 1.0. Falls du lieber +20% / +0% willst → leicht änderbar in `suggestDailyGoal`.
+- **Pro Tag 1 Ziel**: Falls jemand mehrfach am Tag drückt → wird aktualisiert, nicht dupliziert.
+- **Sichtbarkeit Peer-Ø**: aktuell zeigt die kleine Pill oben schon `XX% vom Peer-Ø`. Im neuen Block wird der **absolute €-Wert** des Peer-Ø zusätzlich gezeigt — wie gewünscht ("egal welche Größe").
 
-### Punkt 10 — Hysterese (keine Whiplash-Wechsel)
-- Neue Tabelle `chatter_category_state`:
-  ```sql
-  user_id, chatter_name, platform,
-  current_category text,
-  since_date date,           -- seit wann diese Kategorie gilt
-  last_evaluation_date date,
-  last_signals jsonb         -- letzte Signale (für Debug/UI)
-  ```
-- RLS: standard user-isoliert.
-- Logik bei jeder Re-Kategorisierung:
-  1. Wenn neue Kategorie = aktuelle → State aktualisieren, fertig.
-  2. Wenn Wechsel **rauf** in höhere Severity (BEOBACHTEN → COACHING → SOFORT) → **sofort**.
-  3. Wenn Wechsel **runter** (SOFORT → COACHING → BEOBACHTEN) → erst nach **2 Tagen** stabilen Verbesserungs-Signalen.
-  4. Onboarding-Wechsel ignoriert Hysterese (folgen dem Tageszähler).
-- Im Reason-Tooltip: „Stabil seit X Tagen in dieser Kategorie".
+## Files
+- **NEW** `supabase/migrations/<ts>_chatter_daily_goals.sql` — Tabelle + RLS
+- **NEW** `src/lib/daily-goals.ts` — Suggest/Load/Upsert
+- **EDIT** `src/components/SwipeCard.tsx` — Tagesziel-Block + Inline-Edit + Props
+- **EDIT** `src/pages/TinderMode.tsx` — Goals laden, an Card durchreichen, Optimistic Update
+- **EDIT** `src/components/ChatterSlideOver.tsx` *(optional)* — Read-only Mirror
 
----
-
-## 📁 Datei-Änderungen
-
-### Neu
-- **`src/lib/categorize-v2.ts`** — die neue Engine. Exportiert `categorizeChatters(rows, range, options): Map<key, CategoryDecision>`. Nutzt intern peer-benchmarks + state.
-- **`src/lib/category-state.ts`** — Loader/Saver für `chatter_category_state` mit Hysterese-Logik.
-- **`src/components/CategoryReasonPopover.tsx`** — UI für den Erklärbarkeits-Tooltip.
-- **Migration**: Tabelle `chatter_category_state` mit RLS-Policies (user-isoliert + service_role full access).
-
-### Geändert
-- **`src/lib/timerange-categorize.ts`** — `recategorizeByWindow` ruft intern jetzt `categorizeChatters` auf, gibt für Backwards-Compat weiterhin `Map<key, ActionCategoryName>` zurück, **plus** zusätzliche Funktion `recategorizeByWindowV2` die `Map<key, CategoryDecision>` liefert.
-- **`src/pages/TinderMode.tsx`** — nutzt v2 für Swipe-Cards, hängt `decision` an `ChatterData`, übergibt an `SwipeCard` für das Reason-Popover.
-- **`src/components/SwipeCard.tsx`** — empfängt `decision`, rendert das Kategorie-Badge mit `CategoryReasonPopover`.
-- **`src/components/CompareModeView.tsx`** + **`src/components/SwapModeView.tsx`** — zeigen ebenfalls die Reasons im Profil-Header an.
-
-### Unverändert (nur lesend genutzt)
-- `peer-benchmarks.ts`, `absence-forecast.ts`, `swap-tracking.ts`, `action-categories.ts` (Enum bleibt gleich).
-
----
-
-## 🔢 Neue Schwellenwerte (zusammengefasst)
-
-| Signal | Normal | Onboarding-Grace (Tag 6–14) |
-|---|---|---|
-| zeroRate → SOFORT | ≥ 80% | ≥ 90% |
-| zeroRate → COACHING | ≥ 50% | ≥ 70% |
-| trend7v30 → COACHING | ≤ −30% | ≤ −50% |
-| trend7v30 → PUSHEN | ≥ +30% | ≥ +30% |
-| BELOHNEN | 7d-Med ≥ 30d-Med×1.10 ODER 5-Tage-Streak ≥ pers. Median ODER Top-20% | gleich |
-| lastDelay → SOFORT | > 3 Tage (statt maxDelay) | > 5 Tage |
-| Peer-Schutz | peerPctMedian ≥ 90% blockt COACHING/SOFORT | nicht aktiv |
-
----
-
-## 🧪 Was ich nach der Umsetzung manuell prüfe
-1. Build läuft sauber (TypeScript).
-2. Migration `chatter_category_state` deployt + RLS aktiv.
-3. Auf der Swipe-Seite öffnet das Kategorie-Badge das Reason-Popover mit ≥ 1 Reason.
-4. Ein Test-Chatter, der heute „SOFORT EINGREIFEN" wäre, aber peerPctMedian=95% hat → wird zu BEOBACHTEN/COACHING herabgestuft mit Reason „im Peer-Schnitt".
-5. Hysterese: Ein Chatter, der heute von SOFORT auf BEOBACHTEN fallen würde, bleibt zunächst auf COACHING (Zwischenstufe) und wechselt erst nach 2 Tagen.
-
----
-
-## ❓ Offene Punkte vor Umsetzung
-- **Punkt 1 (Arbeitstag-aware 0€) und Punkt 5 (robusterer Trend)** waren in deiner Auswahl **nicht enthalten** — ich lasse beide bewusst aus. Falls du sie doch mit reinnehmen willst, sag Bescheid, dann ergänze ich.
-- **Hysterese-Tage** (aktuell 2 Tage für Downgrade): Magic Number — falls du lieber 3 oder 1 willst, hier festlegen.
-
-Wenn du den Plan freigibst, setze ich's in einem Rutsch um und melde mich, wenn es live testbar ist.
+## Out of Scope
+- Auswertung/History-View vergangener Ziele (kann später ein eigener Tab werden, Daten sind dann da).
+- Goals an Chatter automatisch verschicken (Webhook/DM) — nur Eintragen wie gewünscht.
