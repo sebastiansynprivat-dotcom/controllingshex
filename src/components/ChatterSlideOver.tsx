@@ -503,15 +503,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           </div>
         </div>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none">
-          <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <div className="premium-spinner"><span /><span /><span /></div>
-              </div>
-            ) : history.length === 0 ? (
+          {loading ? (
+            <ProfileSkeleton compact />
+          ) : history.length === 0 ? (
+            <div className="p-4 sm:p-6">
               <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
-            ) : (
-              <>
+            </div>
+          ) : (
+            <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
+              <></>
                 {/* KPI Grid */}
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   {kpis.map((kpi) => {
