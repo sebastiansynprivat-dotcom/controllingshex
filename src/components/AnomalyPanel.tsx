@@ -6,7 +6,7 @@
  *
  * Abhaken (✓) gilt **bis zum nächsten Report** (per `report_id`-Bindung).
  */
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, RotateCcw, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
