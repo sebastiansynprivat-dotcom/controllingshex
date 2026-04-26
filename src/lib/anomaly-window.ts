@@ -310,9 +310,12 @@ function aggregate(
       rows: list,
       daysActive: list.length,
       totalRevenue: totalRev,
-      avgRevenuePerDay: totalRev / days,
+      // Wichtig: Durchschnitt nur über echte Report-Tage des Chatters rechnen.
+      // Sonst wird ein Chatter im 30d-Fenster künstlich schlechtgerechnet,
+      // wenn erst z.B. 15 Tage Daten vorhanden sind.
+      avgRevenuePerDay: totalRev / Math.max(1, list.length),
       totalMassDms: totalDM,
-      avgMassDmsPerDay: totalDM / days,
+      avgMassDmsPerDay: totalDM / Math.max(1, list.length),
       consecutiveZeroDays: streak,
       zeroDaysInWindow: zeroDays,
       totalFollowers,
