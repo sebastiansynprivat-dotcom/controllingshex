@@ -748,7 +748,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </button>
           </div>
 
-          <div className={`flex-1 min-h-0 ${compareWith ? "flex flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : ""}`}>
+          <div className={`flex-1 min-h-0 flex ${compareWith ? "flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : "flex-col"}`}>
           <motion.div
             ref={scrollRef}
             animate={{ flexBasis: compareWith ? "50%" : "100%" }}
