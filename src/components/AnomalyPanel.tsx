@@ -21,6 +21,7 @@ import {
   computeAnomaliesForWindow,
   loadActiveReportId,
   dismissAnomaly,
+  dismissChatter,
   ANOMALY_LABELS,
   SEVERITY_STYLE,
   type ChatterAnomaly,
@@ -123,6 +124,32 @@ export default function AnomalyPanel({
     }
   };
 
+  const handleDismissChatter = async (chatterName: string, items: ChatterAnomaly[]) => {
+    if (!user || !reportId || items.length === 0) return;
+    const key = `chatter|${chatterName}`;
+    setPendingDismiss((p) => new Set(p).add(key));
+    setAnomalies((prev) => prev.filter((x) => x.chatter_name !== chatterName));
+    try {
+      await dismissChatter({
+        userId: user.id,
+        platform,
+        chatterName,
+        alertTypes: items.map((i) => i.alert_type),
+        reportId,
+      });
+      emitAnomalyDismissed();
+    } catch (err) {
+      console.error("[AnomalyPanel] dismiss chatter failed:", err);
+      refresh();
+    } finally {
+      setPendingDismiss((p) => {
+        const next = new Set(p);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
   const counts = useMemo(() => {
     return {
       critical: anomalies.filter((a) => a.severity === "critical").length,
@@ -210,37 +237,59 @@ export default function AnomalyPanel({
           </div>
         </div>
       ) : (
-        <>
+        <div className={`${variant === "compact" ? "p-3" : "p-4"} space-y-3`}>
           <AnimatePresence initial={false}>
-            {visibleGroups.map((group) => {
+            {visibleGroups.map((group, idx) => {
               const topSev = SEVERITY_STYLE[group.topSeverity];
+              const chatterKey = `chatter|${group.name}`;
+              const isPending = pendingDismiss.has(chatterKey);
               return (
                 <motion.div
                   key={group.name}
                   layout
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`border-l-2 ${topSev.border} border-b border-white/[0.04] last:border-b-0`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
+                  transition={{ duration: 0.22, delay: idx * 0.02 }}
+                  className={`relative rounded-xl border border-white/[0.06] ${topSev.border.split(" ").slice(1).join(" ")} overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.4)] hover:border-white/[0.12] transition-colors`}
                 >
+                  {/* Severity Akzent-Streifen links */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
+
                   {/* Chatter-Header */}
-                  <button
-                    type="button"
-                    onClick={() => onChatterSelect?.(group.name)}
-                    className={`w-full flex items-center gap-3 ${padding} pb-2 text-left hover:bg-white/[0.015] transition-colors`}
-                  >
-                    <span className={`h-2 w-2 rounded-full ${topSev.dot} shrink-0`} />
-                    <span className={`${textSize} text-foreground font-medium truncate flex-1 min-w-0`}>
-                      {group.name}
+                  <div className={`flex items-center gap-3 ${variant === "compact" ? "px-4 py-2.5" : "px-5 py-3"} border-b border-white/[0.05] bg-white/[0.015]`}>
+                    <span className={`relative flex h-2.5 w-2.5 shrink-0`}>
+                      {group.topSeverity === "critical" && (
+                        <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
+                      )}
+                      <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${topSev.dot}`} />
                     </span>
-                    <span className="text-[10px] uppercase tracking-wider text-white/35 font-light shrink-0">
-                      {group.items.length} {group.items.length === 1 ? "Signal" : "Signale"}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => onChatterSelect?.(group.name)}
+                      className="flex-1 min-w-0 text-left group/name"
+                    >
+                      <div className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
+                        {group.name}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light mt-0.5">
+                        {group.items.length} {group.items.length === 1 ? "Signal" : "Signale"} · {topSev.label}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDismissChatter(group.name, group.items)}
+                      disabled={isPending}
+                      title="Chatter komplett abhaken (bis zum nächsten Report)"
+                      className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] text-[10px] uppercase tracking-wider text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Erledigt</span>
+                    </button>
+                  </div>
 
                   {/* Auffälligkeiten gestapelt */}
-                  <div className={`pb-3 ${variant === "compact" ? "px-4" : "px-5"} space-y-1`}>
+                  <div className={`${variant === "compact" ? "px-3 py-2" : "px-4 py-2.5"} space-y-0.5`}>
                     {group.items.map((a) => {
                       const meta = ANOMALY_LABELS[a.alert_type];
                       const sev = SEVERITY_STYLE[a.severity];
@@ -248,7 +297,7 @@ export default function AnomalyPanel({
                       return (
                         <div
                           key={key}
-                          className="group/row flex items-start gap-2.5 py-1.5 pl-4 pr-2 rounded-md hover:bg-white/[0.025] transition-colors cursor-pointer"
+                          className="flex items-start gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-white/[0.025] transition-colors cursor-pointer"
                           onClick={() => setDetailAnomaly(a)}
                           role="button"
                           tabIndex={0}
@@ -259,32 +308,20 @@ export default function AnomalyPanel({
                             }
                           }}
                         >
-                          <span className="text-sm shrink-0 opacity-80 leading-5">{meta.emoji}</span>
+                          <span className="text-base shrink-0 opacity-80 leading-5">{meta.emoji}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[10px] uppercase tracking-wider font-light ${sev.text}`}>
+                              <span className={`text-[10px] uppercase tracking-[0.15em] font-light ${sev.text}`}>
                                 {meta.label}
                               </span>
-                              <span className="text-[9px] uppercase tracking-wider text-white/30 font-light">
+                              <span className="text-[9px] uppercase tracking-wider text-white/25 font-light">
                                 · {sev.label}
                               </span>
                             </div>
-                            <div className="text-xs text-white/55 font-light truncate">
+                            <div className="text-xs text-white/60 font-light mt-0.5 line-clamp-2">
                               {a.message}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDismiss(a);
-                            }}
-                            disabled={pendingDismiss.has(key)}
-                            title="Als erledigt markieren (bis zum nächsten Report)"
-                            className="opacity-0 group-hover/row:opacity-100 focus:opacity-100 p-1 rounded-md hover:bg-white/[0.06] text-white/40 hover:text-emerald-300 transition-all disabled:opacity-40 shrink-0"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                          </button>
                         </div>
                       );
                     })}
@@ -293,12 +330,16 @@ export default function AnomalyPanel({
               );
             })}
           </AnimatePresence>
+        </div>
+      )}
 
+      {!loading && anomalies.length > 0 && (
+        <>
           {variant === "compact" && groupedByChatter.length > compactInitialCount && (
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="w-full flex items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 hover:bg-white/[0.02] transition-colors"
+              className="w-full flex items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 hover:bg-white/[0.02] transition-colors border-t border-white/[0.04]"
             >
               {expanded ? "Weniger" : `${groupedByChatter.length - compactInitialCount} weitere Chatter`}
               <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />

@@ -393,6 +393,24 @@ export async function dismissAnomaly(params: {
   } as any);
 }
 
+export async function dismissChatter(params: {
+  userId: string;
+  platform: string;
+  chatterName: string;
+  alertTypes: AnomalyType[];
+  reportId: string;
+}): Promise<void> {
+  if (params.alertTypes.length === 0) return;
+  const rows = params.alertTypes.map((t) => ({
+    user_id: params.userId,
+    platform: params.platform,
+    chatter_name: params.chatterName,
+    alert_type: t,
+    report_id: params.reportId,
+  }));
+  await supabase.from("alert_dismissals").insert(rows as any);
+}
+
 export async function undismissAnomaly(params: {
   userId: string;
   platform: string;
