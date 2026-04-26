@@ -263,7 +263,11 @@ function buildPeerCurve(
   };
 }
 
-function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAggregate> {
+function aggregate(
+  rows: HistoryRow[],
+  range: TimeRange,
+  modelFollowers: Map<string, number>,
+): Map<string, ChatterAggregate> {
   const days = rangeDays(range);
   const byName = new Map<string, HistoryRow[]>();
   for (const r of rows) {
@@ -286,6 +290,20 @@ function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAgg
       else break;
     }
 
+    // Jüngster Account-Eintrag im Fenster (list ist asc → letzter Eintrag)
+    let accounts: string[] = [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const accs = parseAccounts(list[i].account);
+      if (accs.length > 0) {
+        accounts = accs;
+        break;
+      }
+    }
+    const totalFollowers = accounts.reduce(
+      (s, a) => s + (modelFollowers.get(a.toLowerCase().trim()) ?? 0),
+      0,
+    );
+
     out.set(key, {
       name: list[0].chatter_name,
       rows: list,
@@ -296,6 +314,8 @@ function aggregate(rows: HistoryRow[], range: TimeRange): Map<string, ChatterAgg
       avgMassDmsPerDay: totalDM / days,
       consecutiveZeroDays: streak,
       zeroDaysInWindow: zeroDays,
+      totalFollowers,
+      accounts,
     });
   }
   return out;
