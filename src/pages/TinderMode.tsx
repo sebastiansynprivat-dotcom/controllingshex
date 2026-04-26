@@ -190,6 +190,7 @@ export default function TinderMode() {
   const [compareSlideOverChatter, setCompareSlideOverChatter] = useState<string | null>(null);
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
   const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
+  const [goalsByChatter, setGoalsByChatter] = useState<Map<string, DailyGoal>>(new Map());
   // V2 Decisions für heute (mit Hysterese persistiert).
   const [todayDecisions, setTodayDecisions] = useState<Map<string, StabilizedDecision>>(new Map());
 
