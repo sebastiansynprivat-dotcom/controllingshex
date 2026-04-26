@@ -1684,16 +1684,16 @@ export default function TinderMode() {
 
 
 
-      <div className="mb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-muted-foreground font-medium">
-            {filteredChecked}/{filteredTotal} gecheckt
+      <div className="mb-1.5 sm:mb-2">
+        <div className="flex items-center gap-2 mb-1">
+          <Progress value={progress} className="h-1 flex-1" />
+          <span className="text-[10px] text-muted-foreground font-medium tabular-nums shrink-0">
+            {filteredChecked}/{filteredTotal}
           </span>
-          <span className="text-[10px] text-muted-foreground">
-            {uncheckedChatters.length} übrig
+          <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0 hidden sm:inline">
+            · {uncheckedChatters.length} übrig
           </span>
         </div>
-        <Progress value={progress} className="h-1" />
       </div>
 
       {/* Card stack */}
