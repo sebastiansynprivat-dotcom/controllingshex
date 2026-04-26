@@ -133,7 +133,7 @@ function triggerHaptic(style: "light" | "medium" = "light") {
   } catch {}
 }
 
-export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [], swapDelta = null, recoveryDelta = null }: Props) {
+export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, lastInputSource = null, onLastInputClick, onSwipeRight, onSwipeLeft, onSwipeUp, onSwipeDown, isTop, stackIndex = 0, accountLogins = [], swapDelta = null, recoveryDelta = null, dailyGoal = null, onAssignGoal }: Props) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimation();
