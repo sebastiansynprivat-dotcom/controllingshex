@@ -82,8 +82,8 @@ export default function AnomalyPanel({
     setLoading(true);
     const rid = await loadActiveReportId(user.id, platform);
     setReportId(rid);
-    const fromIso = range.from.toISOString().slice(0, 10);
-    const toIso = range.to.toISOString().slice(0, 10);
+    const fromIso = String(range.from).slice(0, 10);
+    const toIso = String(range.to).slice(0, 10);
     const [result, modelsRes, accountsRes, totalRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
