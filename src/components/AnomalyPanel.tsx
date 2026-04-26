@@ -237,7 +237,8 @@ export default function AnomalyPanel({
     };
   }, [anomalies]);
 
-  // Gruppiere pro Chatter — Reihenfolge nach höchstem Score je Chatter.
+  // Gruppiere pro Chatter — nur Chatter mit mind. einem kritisch/hoch Signal anzeigen.
+  // Wenn ein Chatter qualifiziert, zeigen wir ALLE seine Signale (auch medium) als Kontext.
   const groupedByChatter = useMemo(() => {
     const map = new Map<string, { name: string; topScore: number; topSeverity: ChatterAnomaly["severity"]; items: ChatterAnomaly[] }>();
     for (const a of anomalies) {
@@ -253,7 +254,9 @@ export default function AnomalyPanel({
         map.set(key, { name: a.chatter_name, topScore: a.score, topSeverity: a.severity, items: [a] });
       }
     }
-    return [...map.values()].sort((a, b) => b.topScore - a.topScore);
+    return [...map.values()]
+      .filter((g) => g.topSeverity === "critical" || g.topSeverity === "high")
+      .sort((a, b) => b.topScore - a.topScore);
   }, [anomalies]);
 
   const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
