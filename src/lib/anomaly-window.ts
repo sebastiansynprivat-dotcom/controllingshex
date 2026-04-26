@@ -14,13 +14,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { TimeRange } from "@/lib/timerange-categorize";
 import { rangeDays } from "@/lib/timerange-categorize";
 
-export type AnomalySeverity = "critical" | "high" | "medium" | "info";
+export type AnomalySeverity = "critical" | "high" | "medium" | "info" | "positive";
 export type AnomalyType =
   | "peer_underperform"   // Liegt deutlich unter Peer-Schnitt
   | "self_revenue_drop"   // Eigener Schnitt eingebrochen
   | "persistent_zero"     // Mehrere Tage in Folge unter Ziel
-  | "massdm_low"          // < 6/Tag — verschärft wenn auch Umsatz schwach
-  | "massdm_zero_no_rev"; // Keine MassDMs UND kein Umsatz im Zeitraum
+  | "massdm_low"          // < 4/Tag UND Umsatz schwach
+  | "massdm_zero_no_rev"  // Keine MassDMs UND kein Umsatz im Zeitraum
+  | "high_effort_no_rev"; // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
 
 export interface ChatterAnomaly {
   chatter_name: string;
@@ -340,7 +341,7 @@ function aggregateBaseline(rows: HistoryRow[]): Map<string, { avgRevenue: number
   return out;
 }
 
-const SEVERITY_RANK: Record<AnomalySeverity, number> = { critical: 4, high: 3, medium: 2, info: 1 };
+const SEVERITY_RANK: Record<AnomalySeverity, number> = { critical: 4, high: 3, medium: 2, info: 1, positive: 0 };
 
 export interface ComputeResult {
   anomalies: ChatterAnomaly[];
@@ -406,7 +407,13 @@ export async function computeAnomaliesForWindow(
     const useExpected = expectedFromCurve > 0;
     const expected = useExpected ? expectedFromCurve : peerAvg;
 
-    if (expected > 5 && a.avgRevenuePerDay < expected * 0.5 && a.daysActive >= Math.min(2, days)) {
+    // Mindestens 4 Tage aktiv im Fenster (sonst zu wenig Daten)
+    const minDaysForPeer = Math.min(4, days);
+    if (
+      expected > 5 &&
+      a.avgRevenuePerDay < expected * 0.5 &&
+      a.daysActive >= minDaysForPeer
+    ) {
       const deltaPct = -((expected - a.avgRevenuePerDay) / expected) * 100;
       const severity: AnomalySeverity =
         a.avgRevenuePerDay < expected * 0.25 ? "high" : "medium";
@@ -459,31 +466,31 @@ export async function computeAnomaliesForWindow(
       });
     }
 
-    // ── 4. MassDM dynamisch ──────────────────────────────────
-    // Ziel: 6/Tag. Härter werten wenn Umsatz fehlt.
-    const dmShortfall = massDmTargetPerDay - a.avgMassDmsPerDay; // 0 wenn Ziel erreicht
-    if (dmShortfall > 0 && a.daysActive >= Math.min(2, days)) {
-      const noRevenue = a.avgRevenuePerDay < 5;
-      const lowRevenue = a.avgRevenuePerDay < (peerAvg > 0 ? peerAvg * 0.5 : 30);
+    // ── 4. MassDM — nur wenn auch der Umsatz schwach ist ─────
+    // Regel: MassDM-Alarm NUR wenn (a) MassDMs < 4/Tag UND (b) Umsatz unter Erwartung.
+    // Hohe MassDM-Performance trotz fehlendem Umsatz = positiver Trigger (er zieht durch).
+    const revenueBenchmark = useExpected ? expected : peerAvg;
+    const revenueWeak = revenueBenchmark > 0
+      ? a.avgRevenuePerDay < revenueBenchmark * 0.5
+      : a.avgRevenuePerDay < 30;
+    const noRevenue = a.avgRevenuePerDay < 5;
 
-      // Regulärer MassDM-low
-      if (a.avgMassDmsPerDay < 4) {
-        let severity: AnomalySeverity = "medium";
-        if (noRevenue && a.avgMassDmsPerDay < 2) severity = "critical";
-        else if (noRevenue || (lowRevenue && a.avgMassDmsPerDay < 2)) severity = "high";
-        else if (lowRevenue) severity = "medium";
-        else severity = "info";
-
-        // type wechseln wenn ganz extrem
+    if (a.daysActive >= Math.min(2, days)) {
+      // 4a. Negativer Alarm: wenig DMs UND schwacher Umsatz
+      if (a.avgMassDmsPerDay < 4 && revenueWeak) {
+        const dmShortfall = massDmTargetPerDay - a.avgMassDmsPerDay;
+        let severity: AnomalySeverity;
         const type: AnomalyType =
-          noRevenue && a.avgMassDmsPerDay < 1
-            ? "massdm_zero_no_rev"
-            : "massdm_low";
+          noRevenue && a.avgMassDmsPerDay < 1 ? "massdm_zero_no_rev" : "massdm_low";
+
+        if (type === "massdm_zero_no_rev") severity = "critical";
+        else if (noRevenue && a.avgMassDmsPerDay < 2) severity = "high";
+        else severity = "medium";
 
         const msg =
           type === "massdm_zero_no_rev"
             ? `Praktisch keine MassDMs (${a.avgMassDmsPerDay.toFixed(1)}/Tag) UND kein Umsatz`
-            : `Ø ${a.avgMassDmsPerDay.toFixed(1)} MassDMs/Tag (Ziel 6)${noRevenue ? " — kein Umsatz" : lowRevenue ? " — schwacher Umsatz" : ""}`;
+            : `Ø ${a.avgMassDmsPerDay.toFixed(1)} MassDMs/Tag (Ziel 6) — ${noRevenue ? "kein Umsatz" : "Umsatz unter Erwartung"}`;
 
         anomalies.push({
           chatter_name: a.name,
@@ -494,6 +501,20 @@ export async function computeAnomaliesForWindow(
           delta_pct: -Math.round((dmShortfall / massDmTargetPerDay) * 100),
           message: msg,
           score: SEVERITY_RANK[severity] * 10 + dmShortfall + (noRevenue ? 8 : 0),
+        });
+      }
+
+      // 4b. Positiver Trigger: er zieht trotz fehlendem Umsatz durch (≥6 DMs/Tag, kein Umsatz)
+      if (a.avgMassDmsPerDay >= 6 && noRevenue) {
+        anomalies.push({
+          chatter_name: a.name,
+          alert_type: "high_effort_no_rev",
+          severity: "positive",
+          metric_value: a.avgMassDmsPerDay,
+          baseline_value: massDmTargetPerDay,
+          delta_pct: Math.round(((a.avgMassDmsPerDay - massDmTargetPerDay) / massDmTargetPerDay) * 100),
+          message: `Ø ${a.avgMassDmsPerDay.toFixed(1)} MassDMs/Tag — zieht voll durch, Umsatz folgt erfahrungsgemäß`,
+          score: 0.5, // ganz unten in der Liste
         });
       }
     }
@@ -611,13 +632,15 @@ export const ANOMALY_LABELS: Record<AnomalyType, { label: string; emoji: string 
   peer_underperform:    { label: "Unter Peer-Schnitt",      emoji: "📉" },
   self_revenue_drop:    { label: "Eigener Schnitt gefallen", emoji: "⚠️" },
   persistent_zero:      { label: "Mehrtägige 0€-Serie",      emoji: "🔥" },
-  massdm_low:           { label: "MassDMs < 6/Tag",          emoji: "📨" },
+  massdm_low:           { label: "MassDMs < 4/Tag + schwacher Umsatz", emoji: "📨" },
   massdm_zero_no_rev:   { label: "Keine MassDMs & kein Umsatz", emoji: "🚨" },
+  high_effort_no_rev:   { label: "Zieht durch — Umsatz folgt", emoji: "💪" },
 };
 
 export const SEVERITY_STYLE: Record<AnomalySeverity, { dot: string; border: string; label: string; text: string }> = {
   critical: { dot: "bg-red-500",     border: "border-l-red-500/70 bg-red-500/[0.05]",     label: "Kritisch", text: "text-red-300" },
   high:     { dot: "bg-orange-400",  border: "border-l-orange-400/70 bg-orange-400/[0.05]", label: "Hoch",   text: "text-orange-200" },
   medium:   { dot: "bg-yellow-400",  border: "border-l-yellow-400/70 bg-yellow-400/[0.04]", label: "Mittel", text: "text-yellow-200" },
-  info:     { dot: "bg-emerald-400", border: "border-l-emerald-400/70 bg-emerald-400/[0.04]", label: "Info", text: "text-emerald-200" },
+  info:     { dot: "bg-sky-400",     border: "border-l-sky-400/70 bg-sky-400/[0.04]",       label: "Info",   text: "text-sky-200" },
+  positive: { dot: "bg-emerald-400", border: "border-l-emerald-400/70 bg-emerald-400/[0.05]", label: "Positiv", text: "text-emerald-200" },
 };
