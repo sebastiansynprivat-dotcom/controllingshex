@@ -1518,7 +1518,7 @@ export default function TinderMode() {
         };
 
         return (
-          <div className="mb-3 space-y-2">
+          <div className="mb-2 sm:mb-3 space-y-1.5 sm:space-y-2">
             {/* Time-Range Selector */}
             <div className="flex flex-col gap-1">
               <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
@@ -1530,7 +1530,7 @@ export default function TinderMode() {
               )}
             </div>
             {tierCounts.size > 0 && (
-              <div className="flex gap-1.5 flex-wrap">
+              <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {ACCOUNT_TIERS.map((tier) => {
                   const isActive = selectedTier === tier.id;
                   const count = tierCounts.get(tier.id) || 0;
