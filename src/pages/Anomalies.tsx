@@ -24,24 +24,24 @@ export default function Anomalies() {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-10 space-y-4 sm:space-y-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-6 sm:p-8">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-4 sm:p-8">
           <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-red-500/[0.08] blur-3xl pointer-events-none" />
-          <div className="relative flex items-start gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-orange-400/20 to-red-500/10 border border-orange-300/20 flex items-center justify-center shrink-0">
-              <AlertOctagon className="h-5 w-5 text-orange-200" />
+          <div className="relative flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-400/20 to-red-500/10 border border-orange-300/20 flex items-center justify-center shrink-0">
+              <AlertOctagon className="h-4 w-4 sm:h-5 sm:w-5 text-orange-200" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 font-light">
                 <Sparkles className="h-3 w-3" />
                 Cockpit
               </div>
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight gold-text mt-1">
+              <h1 className="text-xl sm:text-3xl font-semibold tracking-tight gold-text mt-0.5 sm:mt-1">
                 Auffälligkeiten
               </h1>
-              <p className="text-sm text-white/55 font-light mt-1.5 max-w-2xl">
+              <p className="text-[12px] sm:text-sm text-white/55 font-light mt-1 sm:mt-1.5 max-w-2xl leading-relaxed">
                 {subtitle}
               </p>
             </div>
@@ -58,7 +58,7 @@ export default function Anomalies() {
         />
 
         {/* Erläuterung */}
-        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-5 text-xs text-white/45 font-light leading-relaxed">
+        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-4 sm:p-5 text-xs text-white/45 font-light leading-relaxed">
           <p className="text-white/65 mb-2 text-[11px] uppercase tracking-[0.2em]">Wie wird gezählt?</p>
           <ul className="space-y-1.5">
             <li>📉 <span className="text-white/70">Unter Peer-Schnitt</span> — Ø Tagesumsatz unter 50% des Schnitts aller Chatter im Zeitraum.</li>
