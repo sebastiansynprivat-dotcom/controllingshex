@@ -388,7 +388,7 @@ export default function AnomalyPanel({
                   <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
 
                   {/* Chatter-Header */}
-                  <div className={`flex items-center gap-3 ${variant === "compact" ? "px-4 py-2.5" : "px-5 py-3"} border-b border-white/[0.05] bg-white/[0.015]`}>
+                  <div className={`flex items-center gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-2.5 sm:py-3"} border-b border-white/[0.05] bg-white/[0.015]`}>
                     <span className={`relative flex h-2.5 w-2.5 shrink-0`}>
                       {group.topSeverity === "critical" && (
                         <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
