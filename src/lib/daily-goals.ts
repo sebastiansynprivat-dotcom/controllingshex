@@ -50,30 +50,20 @@ function roundGoal(eur: number): number {
 /**
  * Berechnet einen Tagesziel-Vorschlag aus dem Peer-Benchmark des Chatters.
  *
+ * Peer-Ø = Cluster-Median nach Account-Größe (Follower-Bucket) — so wie überall
+ * sonst im System. Persönliche Account-Baselines fließen NICHT in den Peer-Ø
+ * ein (das wäre kein Peer-Vergleich, sondern eine Selbst-Referenz).
+ *
  * Priorität:
- *  1. Account-Baseline (avg × 1.10 Stretch)  — wenn ≥7 Tage History vorhanden
- *  2. Peer-Cluster-Median × 1.0
- *  3. Globaler Median × 1.0
- *  4. Cold-Start → null
+ *  1. Peer-Cluster-Median (Account-Größen-Bucket) × 1.0
+ *  2. Globaler Median × 1.0   — wenn kein Cluster vorhanden
+ *  3. Cold-Start → null
  */
 export function suggestDailyGoal(bm: ChatterBenchmark | undefined | null): GoalSuggestion | null {
   if (!bm) return null;
 
-  // 1. Account-Baseline (persönlich, +10% Stretch)
-  if (bm.source === "account-baseline" && bm.baseline && bm.baseline.avgRevenue > 0) {
-    const avg = bm.baseline.avgRevenue;
-    const stretch = avg * 1.10;
-    return {
-      eur: roundGoal(stretch),
-      source: "account-baseline",
-      rationale: `Persönlicher Ø + 10% Stretch (${bm.baseline.dayCount} Tage History)`,
-      peerAvgEur: avg,
-      peerLabel: `Account-Ø · ${bm.baseline.dayCount} Tage`,
-    };
-  }
-
-  // 2. Peer-Cluster
-  if (bm.cluster && bm.cluster.median > 0 && bm.confidence !== "low") {
+  // 1. Peer-Cluster nach Account-Größe (= echter Peer-Ø)
+  if (bm.cluster && bm.cluster.median > 0) {
     return {
       eur: roundGoal(bm.cluster.median),
       source: "peer-cluster",
@@ -83,19 +73,12 @@ export function suggestDailyGoal(bm: ChatterBenchmark | undefined | null): GoalS
     };
   }
 
-  // 3. Account-Baseline (auch wenn primary source = peer-cluster, aber baseline existiert)
-  if (bm.baseline && bm.baseline.avgRevenue > 0 && bm.baseline.dayCount >= 3) {
-    const avg = bm.baseline.avgRevenue;
-    return {
-      eur: roundGoal(avg * 1.10),
-      source: "account-baseline",
-      rationale: `Persönlicher Ø + 10% Stretch (${bm.baseline.dayCount} Tage History)`,
-      peerAvgEur: avg,
-      peerLabel: `Account-Ø · ${bm.baseline.dayCount} Tage`,
-    };
-  }
+  // 2. Globaler Median (Fallback wenn Account keine Follower-Zuordnung hat)
+  // Indirekt über pctOfPeerMedian erkennbar: source === "global" trägt globalen Wert
+  // Hier haben wir aber keinen direkten Zugriff auf bundle.globalMedian → nichts vorschlagen,
+  // damit der UI-Fallback "manuell setzen" greift.
 
-  // 4. Cold-Start → kein Vorschlag
+  // 3. Cold-Start → kein Vorschlag
   return null;
 }
 
