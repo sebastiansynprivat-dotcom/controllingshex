@@ -63,6 +63,7 @@ export default function AnomalyPanel({
   const range = rangeProp ?? internalRange;
   const setRange = onRangeChange ?? setInternalRange;
 
+  const sourceIdRef = useRef<string>(`ap-${Math.random().toString(36).slice(2, 10)}`);
   const [loading, setLoading] = useState(true);
   const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>([]);
   const [reportId, setReportId] = useState<string | null>(null);
