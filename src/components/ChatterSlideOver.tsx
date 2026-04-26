@@ -933,48 +933,94 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           </button>
         </motion.aside>
       )}
-      {open && !inline && (
-        <CommandDialog open={pickerOpen} onOpenChange={setPickerOpen}>
-          <CommandInput
-            placeholder="Chatter suchen…"
-            value={pickerQuery}
-            onValueChange={setPickerQuery}
-          />
-          <CommandList>
-            {chatterList.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground font-light">
-                <span className="h-3 w-3 rounded-full border border-white/15 border-t-white/45 animate-spin" />
-                Lade Chatter…
+      {open && !inline && pickerOpen && (() => {
+        const filtered = chatterList.filter((n) => !pickerQuery.trim() || n.toLowerCase().includes(pickerQuery.toLowerCase()));
+        return (
+          <motion.div
+            key="cmp-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[60] flex items-start justify-center px-4 sm:pt-[12vh] pt-[8vh]"
+            style={{ background: "radial-gradient(ellipse 80% 60% at 50% 30%, hsl(40 30% 12% / 0.5) 0%, hsl(0 0% 0% / 0.78) 70%)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+            onClick={() => { setPickerOpen(false); setPickerQuery(""); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.14 } }}
+              transition={{ type: "spring", damping: 26, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+              className="premium-card gold-glow-sm w-full max-w-[480px] max-h-[70vh] rounded-2xl flex flex-col overflow-hidden"
+            >
+              {/* Goldener Akzent-Strich oben */}
+              <span aria-hidden className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-primary/55 to-transparent" />
+
+              {/* Header */}
+              <div className="px-6 pt-5 pb-4 border-b border-white/[0.05] shrink-0">
+                <p className="text-[10px] uppercase tracking-[0.25em] gold-text-subtle font-medium">Vergleichen mit</p>
+                <p className="text-[11px] text-white/35 font-light mt-1 tracking-wide">
+                  Wähle einen zweiten Chatter für direkten Vergleich
+                </p>
+                <div className="mt-4 flex items-center gap-2.5 px-3.5 h-11 rounded-xl bg-white/[0.025] border border-white/[0.06] focus-within:border-primary/30 focus-within:bg-white/[0.04] transition-colors">
+                  <Search className="h-4 w-4 text-white/35 shrink-0" />
+                  <input
+                    autoFocus
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    placeholder="Chatter suchen…"
+                    className="flex-1 bg-transparent text-sm text-foreground/90 font-light placeholder:text-white/25 focus:outline-none"
+                  />
+                  <kbd className="hidden sm:inline-flex items-center px-1.5 h-5 rounded text-[9px] font-medium text-white/35 bg-white/[0.04] border border-white/[0.06] tracking-wider">ESC</kbd>
+                </div>
               </div>
-            ) : (
-              <>
-                <CommandEmpty>Keine Treffer.</CommandEmpty>
-                {chatterList.slice(0, 200).map((n) => {
-                  const init = getInitials(n);
-                  return (
-                    <CommandItem
-                      key={n}
-                      value={n}
-                      onSelect={() => {
-                        setCompareWith(n);
-                        setPickerOpen(false);
-                        setPickerQuery("");
-                      }}
-                      className="gap-2.5"
-                    >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] font-light text-primary/70">
-                        {init}
-                      </span>
-                      <span className="flex-1 truncate">{toTitleCase(n)}</span>
-                      <GitCompareArrows className="h-3.5 w-3.5 text-muted-foreground" />
-                    </CommandItem>
-                  );
-                })}
-              </>
-            )}
-          </CommandList>
-        </CommandDialog>
-      )}
+
+              {/* Liste */}
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none py-2 px-2">
+                {chatterList.length === 0 ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-xs text-white/30 font-light">
+                    <span className="h-3 w-3 rounded-full border border-white/15 border-t-primary/60 animate-spin" />
+                    Lade Chatter…
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <p className="px-3 py-12 text-center text-xs text-white/30 font-light italic tracking-wide">Keine Treffer</p>
+                ) : (
+                  filtered.slice(0, 200).map((n) => {
+                    const init = getInitials(n);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => {
+                          setCompareWith(n);
+                          setPickerOpen(false);
+                          setPickerQuery("");
+                        }}
+                        className="group/row w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-xl hover:bg-white/[0.035] transition-all duration-200"
+                      >
+                        <span className="premium-stat flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-light tracking-wide text-primary/75 group-hover/row:text-primary transition-colors">
+                          {init}
+                        </span>
+                        <span className="flex-1 min-w-0 text-sm text-foreground/80 font-light tracking-tight truncate group-hover/row:text-foreground transition-colors">
+                          {toTitleCase(n)}
+                        </span>
+                        <GitCompareArrows className="h-3.5 w-3.5 text-white/15 group-hover/row:text-primary/65 transition-colors" />
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer-Hint */}
+              <div className="px-6 py-3 border-t border-white/[0.05] shrink-0 flex items-center justify-between text-[10px] text-white/30 font-light tracking-wide">
+                <span>{filtered.length} {filtered.length === 1 ? "Chatter" : "Chatter"}</span>
+                <span>Klick zum Vergleichen</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        );
+      })()}
     </AnimatePresence>
   );
 
