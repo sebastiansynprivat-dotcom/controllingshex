@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock } from "lucide-react";
+import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock, GitCompareArrows, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -131,6 +131,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<number>(0);
 
+  // Compare-Mode (nur im non-inline Slide-Over verfügbar)
+  const [compareWith, setCompareWith] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [chatterList, setChatterList] = useState<string[]>([]);
+
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
     "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
@@ -142,6 +148,39 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       scrollRef.current.scrollTop = 0;
     }
   }, [open, chatterName]);
+
+  // Compare-Auswahl zurücksetzen, wenn Slide-Over schließt oder Hauptchatter wechselt
+  useEffect(() => {
+    if (!open) {
+      setCompareWith(null);
+      setPickerOpen(false);
+      setPickerQuery("");
+    }
+  }, [open]);
+  useEffect(() => {
+    setCompareWith(null);
+    setPickerOpen(false);
+    setPickerQuery("");
+  }, [chatterName]);
+
+  // Liste aller Chatter-Namen für Picker (nur laden, wenn Picker geöffnet wird)
+  useEffect(() => {
+    if (!pickerOpen || inline) return;
+    let cancelled = false;
+    supabase
+      .from("chatter_history")
+      .select("chatter_name")
+      .eq("platform", platform)
+      .order("chatter_name", { ascending: true })
+      .limit(5000)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const uniq = Array.from(new Set(data.map((r: any) => r.chatter_name as string)))
+          .filter((n) => n && n !== chatterName);
+        setChatterList(uniq);
+      });
+    return () => { cancelled = true; };
+  }, [pickerOpen, platform, chatterName, inline]);
 
   const fetchProfile = useCallback(() => {
     if (!chatterName) return;
@@ -541,7 +580,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onPointerDown={handleDoubleTapClose}
-          className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
+          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full sm:w-[min(1040px,100vw)]" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col transition-[width] duration-300`}
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
@@ -577,6 +616,67 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 )}
               </div>
             </div>
+            {/* Vergleichen-mit Button (nur im non-inline Mode) */}
+            {!inline && (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compareWith) {
+                      setCompareWith(null);
+                    } else {
+                      setPickerOpen((v) => !v);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border text-[11px] font-medium tracking-wide transition-colors ${
+                    compareWith
+                      ? "bg-primary/15 border-primary/30 text-primary"
+                      : "bg-white/[0.03] border-white/[0.08] text-white/65 hover:text-white hover:bg-white/[0.06]"
+                  }`}
+                  title={compareWith ? "Vergleich beenden" : "Mit anderem Chatter vergleichen"}
+                >
+                  <GitCompareArrows className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{compareWith ? "Vergleich aus" : "Vergleichen"}</span>
+                </button>
+                {pickerOpen && !compareWith && (
+                  <div className="absolute right-0 top-full mt-2 w-[280px] max-h-[60vh] rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
+                      <Search className="h-3.5 w-3.5 text-white/40" />
+                      <input
+                        autoFocus
+                        value={pickerQuery}
+                        onChange={(e) => setPickerQuery(e.target.value)}
+                        placeholder="Chatter suchen…"
+                        className="flex-1 bg-transparent text-sm text-foreground/85 font-light placeholder:text-white/30 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex-1 overflow-y-auto py-1">
+                      {chatterList.length === 0 ? (
+                        <p className="px-3 py-4 text-xs text-white/30 font-light">Lade Chatter…</p>
+                      ) : (
+                        chatterList
+                          .filter((n) => !pickerQuery.trim() || n.toLowerCase().includes(pickerQuery.toLowerCase()))
+                          .slice(0, 100)
+                          .map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => {
+                                setCompareWith(n);
+                                setPickerOpen(false);
+                                setPickerQuery("");
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs text-white/75 hover:bg-white/[0.05] transition-colors truncate"
+                            >
+                              {toTitleCase(n)}
+                            </button>
+                          ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Close-Button: 44x44px (Apple HIG), erweiterte Hit-Area über safe-area */}
             <button
               onClick={onClose}
@@ -593,9 +693,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </button>
           </div>
 
+          <div className={`flex-1 min-h-0 ${compareWith ? "flex flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : ""}`}>
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5"
+            className={`${compareWith ? "sm:flex-1 sm:min-w-0 sm:max-w-[50%] max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/5`}
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
@@ -848,6 +949,18 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 </>
               )}
             </div>
+          </div>
+          {compareWith && (
+            <div className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden">
+              <ChatterSlideOver
+                inline
+                open
+                chatterName={compareWith}
+                platform={platform}
+                onClose={() => setCompareWith(null)}
+              />
+            </div>
+          )}
           </div>
 
           {/* Floating-Close-Pill — immer erreichbar auf Mobile, auch wenn der Header verdeckt ist */}
