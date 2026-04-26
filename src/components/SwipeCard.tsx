@@ -753,8 +753,8 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
           </div>
         )}
 
-        {/* Tagesziel — Peer-Ø + Vorschlag / vergebener Wert */}
-        {(goalSuggestion || dailyGoal) && (
+        {/* Tagesziel — Peer-Ø + Vorschlag / vergebener Wert. Immer auf Top-Card. */}
+        {(isTop && onAssignGoal) || dailyGoal ? (
           <div
             className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2"
             onClick={(e) => e.stopPropagation()}
@@ -767,7 +767,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                   Tagesziel
                 </span>
               </div>
-              {(goalSuggestion?.peerAvgEur || dailyGoal?.suggested_eur) && (
+              {(goalSuggestion?.peerAvgEur || dailyGoal?.suggested_eur) ? (
                 <span
                   className="text-[10px] text-muted-foreground/80 truncate tabular-nums"
                   title={goalSuggestion?.rationale}
@@ -776,6 +776,10 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                   {goalSuggestion?.peerLabel && (
                     <span className="text-muted-foreground/50"> · {goalSuggestion.peerLabel}</span>
                   )}
+                </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/50">
+                  Peer-Ø: noch keine Daten
                 </span>
               )}
             </div>
@@ -819,9 +823,17 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
                   <Pencil className="h-3 w-3" />
                 </button>
               </div>
-            ) : null}
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); openGoalEdit(); }}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-muted-foreground hover:text-foreground text-[12px] font-medium py-1.5 transition-colors"
+              >
+                <Pencil className="h-3 w-3" />
+                Tagesziel manuell setzen
+              </button>
+            )}
           </div>
-        )}
+        ) : null}
 
         {/* KPIs — 2x2 grid */}
         {kpiEntries.length > 0 && (
