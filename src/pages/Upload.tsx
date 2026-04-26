@@ -517,7 +517,7 @@ function buildResultFromCsv(
         /ACCOUNT-EINBRUCH/i.test(category) ||
         isZeroRevenueOnlyCategory(category) ||
         (/COMEBACK/i.test(category) && previousZeroRevenueStreak < 3) ||
-        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 0 || daysSinceStart > 5)) ||
+        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 14)) ||
         (/WARNUNG/i.test(category) && metrics.responseDelayDays <= 2);
 
       if (invalidAiCategory) {
