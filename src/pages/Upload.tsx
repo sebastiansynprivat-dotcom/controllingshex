@@ -333,12 +333,13 @@ function parseStartDate(value: string): Date | null {
   return null;
 }
 
-function getDaysSinceStart(startDate: string): number | null {
+function getDaysSinceStart(startDate: string, referenceDateIso?: string): number | null {
   const parsed = parseStartDate(startDate);
   if (!parsed) return null;
 
+  const reference = referenceDateIso ? parseStartDate(referenceDateIso) : null;
   const now = new Date();
-  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayUtc = reference?.getTime() ?? Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const diff = Math.floor((todayUtc - parsed.getTime()) / 86400000);
   return diff >= 0 ? diff : null;
 }
@@ -460,7 +461,8 @@ function shouldReplaceRecommendation(
 function buildResultFromCsv(
   csvData: string,
   aiResults: any[],
-  historyMap?: Map<string, { revenueToday: number; date: string }[]>
+  historyMap?: Map<string, { revenueToday: number; date: string }[]>,
+  analysisDate?: string
 ): AnalysisResult {
   const csvMetrics = buildCsvMetricMap(csvData);
   const aiLookup = buildAiLookup(aiResults);
@@ -474,7 +476,7 @@ function buildResultFromCsv(
     const baseName = compositeKey.split("::")[0].split("#")[0];
     const ai = aiLookup.get(baseName) || aiLookup.get(compositeKey);
     const history = getRelevantHistory(historyMap?.get(baseName) || historyMap?.get(compositeKey));
-    const daysSinceStart = getDaysSinceStart(metrics.startDate);
+    const daysSinceStart = getDaysSinceStart(metrics.startDate, analysisDate);
     const avgPastRevenue = history.length > 0
       ? history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length
       : 0;
@@ -515,7 +517,7 @@ function buildResultFromCsv(
         /ACCOUNT-EINBRUCH/i.test(category) ||
         isZeroRevenueOnlyCategory(category) ||
         (/COMEBACK/i.test(category) && previousZeroRevenueStreak < 3) ||
-        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 0 || daysSinceStart > 5)) ||
+        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 14)) ||
         (/WARNUNG/i.test(category) && metrics.responseDelayDays <= 2);
 
       if (invalidAiCategory) {
@@ -525,8 +527,9 @@ function buildResultFromCsv(
       }
     }
 
-    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override
-    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart > 5)) {
+    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override.
+    // Important: Tag 6-14 must remain Onboarding too.
+    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 14)) {
       const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
       category = fallback.category;
       emoji = fallback.emoji;
@@ -855,6 +858,9 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt (CSV = Quelle)…");
 
+      // Save report to DB — derive analysis date from filename (fallback: today)
+      const analysisDate = extractDateFromFilename(file.name);
+
       // Load chatter history for 0€ streak detection
       const csvMetricsForNames = buildCsvMetricMap(csvData);
       const chatterNames = Array.from(csvMetricsForNames.values()).map(m => m.name);
@@ -877,12 +883,11 @@ export default function UploadPage() {
         }
       }
 
-      const merged = buildResultFromCsv(csvData, validResults, historyMap);
+      const merged = buildResultFromCsv(csvData, validResults, historyMap, analysisDate);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
-      // Save report to DB — derive analysis date from filename (fallback: today)
-      const analysisDate = extractDateFromFilename(file.name);
+      // Persist report with the filename-derived analysis date
       const reportPayload = {
         platform,
         analysis_date: analysisDate,
