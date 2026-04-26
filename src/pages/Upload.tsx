@@ -858,6 +858,9 @@ export default function UploadPage() {
       setProgress({ current: totalBatches + 1, total: totalBatches + 1, step: "Speichern" });
       addStatus("[Step 3] Ergebnisse werden zusammengeführt (CSV = Quelle)…");
 
+      // Save report to DB — derive analysis date from filename (fallback: today)
+      const analysisDate = extractDateFromFilename(file.name);
+
       // Load chatter history for 0€ streak detection
       const csvMetricsForNames = buildCsvMetricMap(csvData);
       const chatterNames = Array.from(csvMetricsForNames.values()).map(m => m.name);
@@ -880,7 +883,7 @@ export default function UploadPage() {
         }
       }
 
-      const merged = buildResultFromCsv(csvData, validResults, historyMap);
+      const merged = buildResultFromCsv(csvData, validResults, historyMap, analysisDate);
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
