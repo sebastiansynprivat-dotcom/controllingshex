@@ -988,7 +988,7 @@ export default function TinderMode() {
     if (selectedCategory) base = base.filter((c) => (c.categoryName || "WEITER SO") === selectedCategory);
     if (selectedTier) base = base.filter((c) => chatterMatchesSelectedTier(c.name, selectedTier));
     if (labelChatterNames) base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
-    if (alertFilterActive) base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+    if (alertFilterActive) base = base.filter((c) => { const k = normalizeName(c.name); return alertChatterNames.has(k) && !dismissedChatterNames.has(k); });
     if (swapTrackFilterActive) base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
     if (recoveryFilterActive) base = base.filter((c) => recoveryMap.has(normalizeName(c.name)));
     return base.length;
