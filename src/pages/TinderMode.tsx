@@ -23,6 +23,7 @@ import { mapToActionCategory } from "@/lib/action-categories";
 import { getCategoryCriteria, SPECIAL_FILTER_CRITERIA } from "@/lib/category-criteria";
 import { onChatterDataUpdated } from "@/lib/data-events";
 import { loadBenchmarks, getChatterBenchmark, type ChatterBenchmark, type BenchmarkBundle } from "@/lib/peer-benchmarks";
+import { loadTodayGoals, upsertDailyGoal, normalizeChatterKey, type DailyGoal, type GoalSuggestion } from "@/lib/daily-goals";
 import { ACCOUNT_TIERS, tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import { loadSwapTracking, formatDelta, deltaTone, tierDirectionLabel, type SwapTrackingEntry } from "@/lib/swap-tracking";
 import { loadRecoveryHistory, computeRecoveryQueue, type RecoveryEntry } from "@/lib/recovery-queue";
