@@ -119,11 +119,11 @@ function sanitizeDelay(raw: number, revenue: number): number {
 
 /* Premium Skeleton — placeholder layout matching the real profile */
 function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
-  const pad = compact ? "p-4 sm:p-6 space-y-6 sm:space-y-8" : "p-5 sm:p-10 space-y-8 sm:space-y-12";
+  const spacing = compact ? "space-y-6 sm:space-y-8" : "space-y-8 sm:space-y-12";
   const kpiPad = compact ? "p-3 sm:p-4" : "p-5";
   const kpiGap = compact ? "gap-2.5 sm:gap-3" : "gap-4";
   return (
-    <div className={pad}>
+    <div className={spacing}>
       {/* KPI Grid 2×2 */}
       <div className={`grid grid-cols-2 ${kpiGap}`}>
         {Array.from({ length: 4 }).map((_, i) => (
@@ -137,7 +137,7 @@ function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
           </div>
         ))}
       </div>
-      {/* Section: Trend Chart */}
+      {/* Chart */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="premium-skel h-3 w-[2px]" />
@@ -147,7 +147,7 @@ function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
           <div className="premium-skel h-40 w-full rounded-lg" />
         </div>
       </div>
-      {/* Section: Notes / List */}
+      {/* List */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="premium-skel h-3 w-[2px]" />
