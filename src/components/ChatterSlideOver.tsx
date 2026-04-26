@@ -754,11 +754,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             className={`${compareWith ? "sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
           >
-            {loading ? (
-              <ProfileSkeleton />
-            ) : (
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
-              {(false as boolean) ? null : null}
+              {loading ? (
+                <ProfileSkeleton />
               ) : history.length === 0 ? (
                 <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
               ) : (
