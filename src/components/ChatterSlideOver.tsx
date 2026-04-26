@@ -676,8 +676,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             left: { duration: 0.65, ease: [0.32, 0.72, 0, 1] },
           }}
           onPointerDown={handleDoubleTapClose}
-          style={{ willChange: "width, left, transform", backfaceVisibility: "hidden" }}
-          className="fixed inset-y-0 right-0 z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
+          style={{ willChange: "width, left, transform", backfaceVisibility: "hidden", touchAction: "pan-y" }}
+          className="fixed inset-y-0 right-0 z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col overscroll-contain"
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
