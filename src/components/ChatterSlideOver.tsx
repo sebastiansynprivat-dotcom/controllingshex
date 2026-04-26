@@ -933,6 +933,48 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           </button>
         </motion.aside>
       )}
+      {open && !inline && (
+        <CommandDialog open={pickerOpen} onOpenChange={setPickerOpen}>
+          <CommandInput
+            placeholder="Chatter suchen…"
+            value={pickerQuery}
+            onValueChange={setPickerQuery}
+          />
+          <CommandList>
+            {chatterList.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground font-light">
+                <span className="h-3 w-3 rounded-full border border-white/15 border-t-white/45 animate-spin" />
+                Lade Chatter…
+              </div>
+            ) : (
+              <>
+                <CommandEmpty>Keine Treffer.</CommandEmpty>
+                {chatterList.slice(0, 200).map((n) => {
+                  const init = getInitials(n);
+                  return (
+                    <CommandItem
+                      key={n}
+                      value={n}
+                      onSelect={() => {
+                        setCompareWith(n);
+                        setPickerOpen(false);
+                        setPickerQuery("");
+                      }}
+                      className="gap-2.5"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] font-light text-primary/70">
+                        {init}
+                      </span>
+                      <span className="flex-1 truncate">{toTitleCase(n)}</span>
+                      <GitCompareArrows className="h-3.5 w-3.5 text-muted-foreground" />
+                    </CommandItem>
+                  );
+                })}
+              </>
+            )}
+          </CommandList>
+        </CommandDialog>
+      )}
     </AnimatePresence>
   );
 
