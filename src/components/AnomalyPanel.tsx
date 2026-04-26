@@ -82,7 +82,9 @@ export default function AnomalyPanel({
     setLoading(true);
     const rid = await loadActiveReportId(user.id, platform);
     setReportId(rid);
-    const [result, modelsRes, accountsRes] = await Promise.all([
+    const fromIso = range.from.toISOString().slice(0, 10);
+    const toIso = range.to.toISOString().slice(0, 10);
+    const [result, modelsRes, accountsRes, totalRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -97,9 +99,21 @@ export default function AnomalyPanel({
         .not("account", "is", null)
         .order("analysis_date", { ascending: false })
         .limit(2000),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .gte("analysis_date", fromIso)
+        .lte("analysis_date", toIso)
+        .limit(5000),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
+
+    const uniq = new Set<string>();
+    for (const r of totalRes.data ?? []) uniq.add(r.chatter_name);
+    setTotalChattersInRange(uniq.size);
 
     const fmap = new Map<string, number>();
     for (const m of modelsRes.data ?? []) {
