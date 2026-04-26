@@ -631,10 +631,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
-        </div>
       </div>
     );
   }
