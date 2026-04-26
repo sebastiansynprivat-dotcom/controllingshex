@@ -6,7 +6,7 @@
  *
  * Abhaken (✓) gilt **bis zum nächsten Report** (per `report_id`-Bindung).
  */
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, RotateCcw, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +63,7 @@ export default function AnomalyPanel({
   const range = rangeProp ?? internalRange;
   const setRange = onRangeChange ?? setInternalRange;
 
+  const sourceIdRef = useRef<string>(`ap-${Math.random().toString(36).slice(2, 10)}`);
   const [loading, setLoading] = useState(true);
   const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>([]);
   const [reportId, setReportId] = useState<string | null>(null);
@@ -142,7 +143,23 @@ export default function AnomalyPanel({
 
   useEffect(() => {
     const offData = onChatterDataUpdated(() => refresh());
-    const offDismiss = onAnomalyDismissed(() => refresh());
+    const offDismiss = onAnomalyDismissed((payload) => {
+      // Eigenes Event ignorieren — wir haben den State lokal schon aktualisiert
+      if (payload.sourceId === sourceIdRef.current) return;
+      // Fremdes Event: lokal filtern statt komplett neu laden
+      if (payload.chatterName) {
+        setAnomalies((prev) =>
+          prev.filter((x) => {
+            if (x.chatter_name !== payload.chatterName) return true;
+            if (payload.alertType && x.alert_type !== payload.alertType) return true;
+            return false;
+          }),
+        );
+      } else {
+        // Kein Payload: Fallback auf Refresh
+        refresh();
+      }
+    });
     return () => {
       offData();
       offDismiss();
@@ -164,7 +181,11 @@ export default function AnomalyPanel({
         alertType: a.alert_type,
         reportId,
       });
-      emitAnomalyDismissed();
+      emitAnomalyDismissed({
+        sourceId: sourceIdRef.current,
+        chatterName: a.chatter_name,
+        alertType: a.alert_type,
+      });
     } catch (err) {
       console.error("[AnomalyPanel] dismiss failed:", err);
       // rollback
@@ -191,7 +212,10 @@ export default function AnomalyPanel({
         alertTypes: items.map((i) => i.alert_type),
         reportId,
       });
-      emitAnomalyDismissed();
+      emitAnomalyDismissed({
+        sourceId: sourceIdRef.current,
+        chatterName,
+      });
     } catch (err) {
       console.error("[AnomalyPanel] dismiss chatter failed:", err);
       refresh();
