@@ -753,6 +753,76 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
           </div>
         )}
 
+        {/* Tagesziel — Peer-Ø + Vorschlag / vergebener Wert */}
+        {(goalSuggestion || dailyGoal) && (
+          <div
+            className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Target className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                <span className="text-[9px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                  Tagesziel
+                </span>
+              </div>
+              {(goalSuggestion?.peerAvgEur || dailyGoal?.suggested_eur) && (
+                <span
+                  className="text-[10px] text-muted-foreground/80 truncate tabular-nums"
+                  title={goalSuggestion?.rationale}
+                >
+                  Peer-Ø: {formatEur(goalSuggestion?.peerAvgEur ?? dailyGoal?.suggested_eur ?? 0)}
+                  {goalSuggestion?.peerLabel && (
+                    <span className="text-muted-foreground/50"> · {goalSuggestion.peerLabel}</span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {dailyGoal ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 shrink-0">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  <span className="text-[13px] font-semibold text-emerald-300 tabular-nums">
+                    {formatEur(dailyGoal.goal_eur)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    · {new Date(dailyGoal.updated_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openGoalEdit(); }}
+                  className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
+                >
+                  <Pencil className="h-2.5 w-2.5" />
+                  ändern
+                </button>
+              </div>
+            ) : goalSuggestion ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); assignGoal(goalSuggestion.eur); }}
+                  disabled={savingGoal}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 text-[12px] font-semibold py-1.5 transition-colors disabled:opacity-50"
+                >
+                  <Check className="h-3 w-3" />
+                  Vorschlag: {formatEur(goalSuggestion.eur)}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openGoalEdit(); }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] text-muted-foreground hover:text-foreground text-[10px] py-1.5 px-2 transition-colors"
+                  title="Ziel anpassen"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         {/* KPIs — 2x2 grid */}
         {kpiEntries.length > 0 && (
           <div className="grid grid-cols-2 gap-1.5">
