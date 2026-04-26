@@ -238,10 +238,11 @@ export default function AnomalyPanel({
   }, [anomalies]);
 
   // Gruppiere pro Chatter — nur wirklich rote Critical-Kandidaten anzeigen.
+  // Sortierung: Chatter mit den meisten Followern (Summe aller Accounts) zuerst,
+  // bei Gleichstand zählt der Score als Tiebreaker.
   const groupedByChatter = useMemo(() => {
-    const map = new Map<string, { name: string; topScore: number; topSeverity: ChatterAnomaly["severity"]; items: ChatterAnomaly[] }>();
+    const map = new Map<string, { name: string; topScore: number; topSeverity: ChatterAnomaly["severity"]; items: ChatterAnomaly[]; totalFollowers: number }>();
     for (const a of anomalies) {
-      // Seite soll nur direkten Handlungsbedarf zeigen — alles andere bleibt ausgeblendet.
       if (a.severity !== "critical") continue;
       const key = a.chatter_name;
       const entry = map.get(key);
@@ -252,11 +253,19 @@ export default function AnomalyPanel({
           entry.topSeverity = a.severity;
         }
       } else {
-        map.set(key, { name: a.chatter_name, topScore: a.score, topSeverity: a.severity, items: [a] });
+        const accs = chatterAccounts.get(a.chatter_name) ?? [];
+        const totalFollowers = accs.reduce(
+          (s, acc) => s + (modelFollowers.get(acc.toLowerCase().trim()) ?? 0),
+          0,
+        );
+        map.set(key, { name: a.chatter_name, topScore: a.score, topSeverity: a.severity, items: [a], totalFollowers });
       }
     }
-    return [...map.values()].sort((a, b) => b.topScore - a.topScore);
-  }, [anomalies]);
+    return [...map.values()].sort((a, b) => {
+      if (b.totalFollowers !== a.totalFollowers) return b.totalFollowers - a.totalFollowers;
+      return b.topScore - a.topScore;
+    });
+  }, [anomalies, chatterAccounts, modelFollowers]);
 
   const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
   const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
