@@ -1542,7 +1542,7 @@ export default function TinderMode() {
                       disabled={isEmpty}
                       onClick={() => toggleTier(tier.id)}
                       title={tier.description}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide transition-all border backdrop-blur-sm ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light tracking-wide transition-all border backdrop-blur-sm shrink-0 ${
                         isActive
                           ? `${tier.activeBg} ${tier.activeBorder} ${tier.activeText} shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_14px_-6px_rgba(0,0,0,0.5)]`
                           : isEmpty
