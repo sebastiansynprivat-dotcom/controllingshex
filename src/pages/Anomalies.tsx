@@ -72,7 +72,9 @@ export default function Anomalies() {
       </div>
 
       <ChatterSlideOver
-        chatterName={selectedChatter}
+        open={!!selectedChatter}
+        chatterName={selectedChatter ?? ""}
+        platform={platform}
         onClose={() => setSelectedChatter(null)}
       />
     </div>
