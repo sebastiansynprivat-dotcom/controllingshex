@@ -333,12 +333,13 @@ function parseStartDate(value: string): Date | null {
   return null;
 }
 
-function getDaysSinceStart(startDate: string): number | null {
+function getDaysSinceStart(startDate: string, referenceDateIso?: string): number | null {
   const parsed = parseStartDate(startDate);
   if (!parsed) return null;
 
+  const reference = referenceDateIso ? parseStartDate(referenceDateIso) : null;
   const now = new Date();
-  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayUtc = reference?.getTime() ?? Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const diff = Math.floor((todayUtc - parsed.getTime()) / 86400000);
   return diff >= 0 ? diff : null;
 }
