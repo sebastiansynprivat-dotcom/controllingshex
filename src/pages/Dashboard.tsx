@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import TrendWidget from "@/components/TrendWidget";
-import AlertCockpit from "@/components/AlertCockpit";
+import AnomalyPanel from "@/components/AnomalyPanel";
 import RecoveryQueueCard from "@/components/RecoveryQueueCard";
 import { ForecastBanner } from "@/components/ForecastBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -262,8 +262,13 @@ export default function Dashboard() {
             {/* Forecast-Frühwarnung Banner */}
             <ForecastBanner platform={platform} />
 
-            {/* Auto-Anomaly Cockpit (datengetrieben aus chatter_history) */}
-            <AlertCockpit platform={platform} onChatterSelect={setSelectedChatter} />
+            {/* Auffälligkeiten — synchron mit /auffaelligkeiten und Swipe-Mode */}
+            <AnomalyPanel
+              platform={platform}
+              variant="compact"
+              compactInitialCount={5}
+              onChatterSelect={setSelectedChatter}
+            />
 
             {/* Statische Kategorie-Alerts (aus aktuellem Report) */}
             {alerts.length > 0 && (
