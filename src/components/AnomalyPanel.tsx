@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, RotateCcw, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
@@ -313,6 +313,39 @@ export default function AnomalyPanel({
                       <div className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light mt-0.5">
                         {group.items.length} {group.items.length === 1 ? "Signal" : "Signale"} · {topSev.label}
                       </div>
+                      {(() => {
+                        const accs = chatterAccounts.get(group.name) ?? [];
+                        if (accs.length === 0) return null;
+                        return (
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {accs.length > 1 && (
+                              <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 font-light">
+                                <Users className="h-2.5 w-2.5" />
+                                {accs.length} Acc.
+                              </span>
+                            )}
+                            {accs.map((acc) => {
+                              const fc = modelFollowers.get(acc.toLowerCase().trim());
+                              return (
+                                <span
+                                  key={acc}
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-white/[0.07] bg-white/[0.025] text-[10px] font-light text-white/70"
+                                  title={fc !== undefined ? `${fc.toLocaleString("de-DE")} Follower` : "Follower-Anzahl unbekannt"}
+                                >
+                                  <span className="text-white/85 font-normal">{acc}</span>
+                                  {fc !== undefined ? (
+                                    <span className="text-white/40 tabular-nums">
+                                      {fc >= 1000 ? `${(fc / 1000).toFixed(fc >= 10000 ? 0 : 1)}k` : fc}
+                                    </span>
+                                  ) : (
+                                    <span className="text-white/25">—</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </button>
                     <button
                       type="button"
