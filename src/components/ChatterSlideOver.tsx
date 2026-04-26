@@ -616,20 +616,19 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           animate={{
             x: 0,
             opacity: 1,
+            width: compareWith ? "100vw" : "min(100vw, 520px)",
             left: compareWith ? 0 : "auto",
           }}
           exit={{ x: 40, opacity: 0 }}
           transition={{
             x: { type: "spring", damping: 32, stiffness: 280 },
             opacity: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
-            left: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+            width: { duration: 0.65, ease: [0.32, 0.72, 0, 1] },
+            left: { duration: 0.65, ease: [0.32, 0.72, 0, 1] },
           }}
           onPointerDown={handleDoubleTapClose}
-          style={{
-            width: compareWith ? "100%" : undefined,
-            transition: "width 0.55s cubic-bezier(0.22, 1, 0.36, 1)",
-          }}
-          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col`}
+          style={{ willChange: "width, left, transform", backfaceVisibility: "hidden" }}
+          className="fixed inset-y-0 right-0 z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
@@ -703,10 +702,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           <div className={`flex-1 min-h-0 ${compareWith ? "flex flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : ""}`}>
           <motion.div
             ref={scrollRef}
-            animate={{ width: compareWith ? "50%" : "100%" }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className={`${compareWith ? "sm:flex-none sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1 w-full"} overflow-y-auto overflow-x-hidden scrollbar-none`}
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
+            animate={{ flexBasis: compareWith ? "50%" : "100%" }}
+            transition={{ duration: 0.65, ease: [0.32, 0.72, 0, 1] }}
+            className={`${compareWith ? "sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
               {loading ? (
@@ -963,10 +962,14 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             {compareWith && (
               <motion.div
                 key="compare-pane"
-                initial={{ opacity: 0, x: 24 }}
+                initial={{ opacity: 0, x: 32 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+                exit={{ opacity: 0, x: 32 }}
+                transition={{
+                  opacity: { duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
+                  x: { duration: 0.6, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
+                }}
+                style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
                 className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden"
               >
                 <ChatterSlideOver
