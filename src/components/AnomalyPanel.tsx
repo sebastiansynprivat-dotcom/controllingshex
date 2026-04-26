@@ -315,6 +315,14 @@ export default function AnomalyPanel({
           </button>
         </>
       )}
+
+      <AnomalyDetailModal
+        open={!!detailAnomaly}
+        onOpenChange={(o) => !o && setDetailAnomaly(null)}
+        anomaly={detailAnomaly}
+        range={range}
+        peerAvgRevenuePerDay={peerAvg}
+      />
     </div>
   );
 }
