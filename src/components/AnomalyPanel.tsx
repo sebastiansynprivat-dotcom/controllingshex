@@ -74,13 +74,17 @@ export default function AnomalyPanel({
   const [modelFollowers, setModelFollowers] = useState<Map<string, number>>(new Map());
   /** chatter_name -> array of account names (raw) */
   const [chatterAccounts, setChatterAccounts] = useState<Map<string, string[]>>(new Map());
+  /** Anzahl unique Chatter im Zeitraum (Basis für Progress Bar) */
+  const [totalChattersInRange, setTotalChattersInRange] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const rid = await loadActiveReportId(user.id, platform);
     setReportId(rid);
-    const [result, modelsRes, accountsRes] = await Promise.all([
+    const fromIso = String(range.from).slice(0, 10);
+    const toIso = String(range.to).slice(0, 10);
+    const [result, modelsRes, accountsRes, totalRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -95,9 +99,21 @@ export default function AnomalyPanel({
         .not("account", "is", null)
         .order("analysis_date", { ascending: false })
         .limit(2000),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .gte("analysis_date", fromIso)
+        .lte("analysis_date", toIso)
+        .limit(5000),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
+
+    const uniq = new Set<string>();
+    for (const r of totalRes.data ?? []) uniq.add(r.chatter_name);
+    setTotalChattersInRange(uniq.size);
 
     const fmap = new Map<string, number>();
     for (const m of modelsRes.data ?? []) {
@@ -226,39 +242,85 @@ export default function AnomalyPanel({
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
       {/* Header */}
-      <div className={`flex items-center justify-between gap-3 ${padding} border-b border-white/[0.04]`}>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="text-xs uppercase tracking-[0.2em] text-white/40 font-light">
-            Auffälligkeiten
+      <div className={`${padding} border-b border-white/[0.04] space-y-3`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3 min-w-0">
+            <div className="text-xs uppercase tracking-[0.2em] text-white/40 font-light">
+              Auffälligkeiten
+            </div>
+            <div className="text-[10px] text-white/35 font-light">{rangeLabel(range)}</div>
           </div>
-          <div className="text-xs text-white/50 font-light">
-            <span className="text-foreground font-normal">{anomalies.length}</span>
-            <span className="text-white/30"> · {rangeLabel(range)}</span>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] text-white/40 font-light">
-            {counts.critical > 0 && (
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                {counts.critical}
-              </span>
-            )}
-            {counts.high > 0 && (
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                {counts.high}
-              </span>
-            )}
-            {counts.medium > 0 && (
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                {counts.medium}
-              </span>
-            )}
-          </div>
+          {!hideTimeControls && (
+            <TimeRangeToggle value={range} onChange={setRange} />
+          )}
         </div>
-        {!hideTimeControls && (
-          <TimeRangeToggle value={range} onChange={setRange} />
-        )}
+
+        {/* Premium Progress Bar: X von Y Chattern auffällig */}
+        {(() => {
+          const flagged = groupedByChatter.length;
+          const total = Math.max(totalChattersInRange, flagged);
+          const pct = total > 0 ? Math.min(100, (flagged / total) * 100) : 0;
+          const tone =
+            counts.critical > 0
+              ? "from-red-500/80 via-red-400/70 to-orange-400/70"
+              : counts.high > 0
+                ? "from-orange-400/80 via-amber-400/70 to-yellow-300/70"
+                : counts.medium > 0
+                  ? "from-yellow-400/80 via-yellow-300/70 to-emerald-300/60"
+                  : "from-emerald-400/80 via-emerald-300/70 to-emerald-200/60";
+          const glow =
+            counts.critical > 0
+              ? "shadow-[0_0_18px_-2px_rgba(248,113,113,0.45)]"
+              : counts.high > 0
+                ? "shadow-[0_0_16px_-2px_rgba(251,146,60,0.4)]"
+                : counts.medium > 0
+                  ? "shadow-[0_0_14px_-2px_rgba(250,204,21,0.35)]"
+                  : "shadow-[0_0_14px_-2px_rgba(52,211,153,0.35)]";
+          return (
+            <div className="space-y-2">
+              <div className="flex items-end justify-between gap-3">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-light tabular-nums text-foreground tracking-tight">
+                    {flagged}
+                  </span>
+                  <span className="text-xs text-white/40 font-light">
+                    von {total} {total === 1 ? "Chatter" : "Chattern"} auffällig
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-white/40 font-light">
+                  {counts.critical > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                      {counts.critical}
+                    </span>
+                  )}
+                  {counts.high > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                      {counts.high}
+                    </span>
+                  )}
+                  {counts.medium > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                      {counts.medium}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="relative h-1.5 w-full rounded-full bg-white/[0.05] overflow-hidden">
+                <motion.div
+                  initial={false}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ type: "spring", stiffness: 140, damping: 22, mass: 0.6 }}
+                  className={`h-full rounded-full bg-gradient-to-r ${tone} ${glow}`}
+                >
+                  <div className="h-full w-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)] bg-[length:200%_100%] animate-[shimmer_2.4s_linear_infinite]" />
+                </motion.div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Body */}
@@ -271,7 +333,9 @@ export default function AnomalyPanel({
         <div className="px-5 py-8 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-white/40 font-light">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
-            Keine Auffälligkeiten im Zeitraum.
+            {totalChattersInRange > 0
+              ? `Alle ${totalChattersInRange} Chatter clean.`
+              : "Keine Auffälligkeiten im Zeitraum."}
           </div>
         </div>
       ) : (
