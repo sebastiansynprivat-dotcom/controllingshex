@@ -237,11 +237,12 @@ export default function AnomalyPanel({
     };
   }, [anomalies]);
 
-  // Gruppiere pro Chatter — nur Chatter mit mind. einem kritisch/hoch Signal anzeigen.
-  // Wenn ein Chatter qualifiziert, zeigen wir ALLE seine Signale (auch medium) als Kontext.
+  // Gruppiere pro Chatter — nur wirklich rote Critical-Kandidaten anzeigen.
   const groupedByChatter = useMemo(() => {
     const map = new Map<string, { name: string; topScore: number; topSeverity: ChatterAnomaly["severity"]; items: ChatterAnomaly[] }>();
     for (const a of anomalies) {
+      // Seite soll nur direkten Handlungsbedarf zeigen — alles andere bleibt ausgeblendet.
+      if (a.severity !== "critical") continue;
       const key = a.chatter_name;
       const entry = map.get(key);
       if (entry) {
@@ -254,9 +255,7 @@ export default function AnomalyPanel({
         map.set(key, { name: a.chatter_name, topScore: a.score, topSeverity: a.severity, items: [a] });
       }
     }
-    return [...map.values()]
-      .filter((g) => g.topSeverity === "critical" || g.topSeverity === "high")
-      .sort((a, b) => b.topScore - a.topScore);
+    return [...map.values()].sort((a, b) => b.topScore - a.topScore);
   }, [anomalies]);
 
   const padding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
