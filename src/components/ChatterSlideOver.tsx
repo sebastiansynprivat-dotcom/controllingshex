@@ -674,9 +674,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           </div>
 
           <div className={`flex-1 min-h-0 ${compareWith ? "flex flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : ""}`}>
-          <div
+          <motion.div
             ref={scrollRef}
-            className={`${compareWith ? "sm:flex-1 sm:min-w-0 sm:max-w-[50%] max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
+            animate={{ width: compareWith ? "50%" : "100%" }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            className={`${compareWith ? "sm:flex-none sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1 w-full"} overflow-y-auto overflow-x-hidden scrollbar-none`}
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
           >
             <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
