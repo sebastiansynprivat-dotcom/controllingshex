@@ -481,14 +481,15 @@ Prüfe von oben nach unten — die ERSTE zutreffende gewinnt, dann STOPP.
 Zusätzlich vergibst du einen "subTag" (kurzer beschreibender Text) und einen "trend" ("rising" | "declining" | "stable" | "volatile" | "unknown").
 
 ──────────────────────────────────────────────
-🔵 ONBOARDING TAG 1-5  (HÖCHSTE PRIORITÄT — überschreibt ALLES)
+🔵 ONBOARDING TAG 1-14  (HÖCHSTE PRIORITÄT — überschreibt ALLES)
 ──────────────────────────────────────────────
-Wenn Startdatum 1, 2, 3, 4 oder 5 Tage her ist (heute = Tag 0 zählt NICHT), MUSS der Chatter in eine eigene Onboarding-Kategorie:
-- categoryName: EXAKT "ONBOARDING TAG 1" / "ONBOARDING TAG 2" / "ONBOARDING TAG 3" / "ONBOARDING TAG 4" / "ONBOARDING TAG 5"
+Wenn Startdatum 1 bis 14 Tage her ist (heute = Tag 0 zählt NICHT), MUSS der Chatter in eine eigene Onboarding-Kategorie:
+- categoryName: EXAKT "ONBOARDING TAG N" wobei N = Anzahl Tage seit Start (1, 2, 3, ..., 14)
+  Beispiele: "ONBOARDING TAG 1", "ONBOARDING TAG 6", "ONBOARDING TAG 12", "ONBOARDING TAG 14"
 - emoji: "🔵"
 - Diese Chatter dürfen NIEMALS in einer anderen Kategorie (PUSHEN, BELOHNEN, BEOBACHTEN etc.) auftauchen — auch nicht bei Top-Performance, auch nicht bei 0€.
-- Startdatum = heute (Tag 0) oder > 5 Tage → NICHT Onboarding (normale Kategorisierung unten).
-subTag-Beispiele: "Tag 3 — 0€", "Tag 2 — 🔥 80€ Start", "Tag 5 — solide"
+- Startdatum = heute (Tag 0) oder > 14 Tage → NICHT Onboarding (normale Kategorisierung unten).
+subTag-Beispiele: "Tag 3 — 0€", "Tag 7 — solide", "Tag 12 — Endspurt"
 
 ──────────────────────────────────────────────
 🆘 SOFORT EINGREIFEN  (categoryName: "SOFORT EINGREIFEN", emoji: "🆘")
