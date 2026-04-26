@@ -131,6 +131,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<number>(0);
 
+  // Compare-Mode (nur im non-inline Slide-Over verfügbar)
+  const [compareWith, setCompareWith] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [chatterList, setChatterList] = useState<string[]>([]);
+
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
     "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
@@ -142,6 +148,39 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       scrollRef.current.scrollTop = 0;
     }
   }, [open, chatterName]);
+
+  // Compare-Auswahl zurücksetzen, wenn Slide-Over schließt oder Hauptchatter wechselt
+  useEffect(() => {
+    if (!open) {
+      setCompareWith(null);
+      setPickerOpen(false);
+      setPickerQuery("");
+    }
+  }, [open]);
+  useEffect(() => {
+    setCompareWith(null);
+    setPickerOpen(false);
+    setPickerQuery("");
+  }, [chatterName]);
+
+  // Liste aller Chatter-Namen für Picker (nur laden, wenn Picker geöffnet wird)
+  useEffect(() => {
+    if (!pickerOpen || inline) return;
+    let cancelled = false;
+    supabase
+      .from("chatter_history")
+      .select("chatter_name")
+      .eq("platform", platform)
+      .order("chatter_name", { ascending: true })
+      .limit(5000)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const uniq = Array.from(new Set(data.map((r: any) => r.chatter_name as string)))
+          .filter((n) => n && n !== chatterName);
+        setChatterList(uniq);
+      });
+    return () => { cancelled = true; };
+  }, [pickerOpen, platform, chatterName, inline]);
 
   const fetchProfile = useCallback(() => {
     if (!chatterName) return;
