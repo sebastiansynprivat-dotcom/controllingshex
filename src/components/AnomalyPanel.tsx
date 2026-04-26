@@ -465,7 +465,7 @@ export default function AnomalyPanel({
                   </div>
 
                   {/* Auffälligkeiten gestapelt */}
-                  <div className={`${variant === "compact" ? "px-3 py-2" : "px-4 py-2.5"} space-y-0.5`}>
+                  <div className={`${variant === "compact" ? "px-2.5 sm:px-3 py-2" : "px-3 sm:px-4 py-2 sm:py-2.5"} space-y-0.5`}>
                     {group.items.map((a) => {
                       const meta = ANOMALY_LABELS[a.alert_type];
                       const sev = SEVERITY_STYLE[a.severity];
