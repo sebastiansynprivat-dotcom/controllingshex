@@ -900,6 +900,93 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Goal-Edit Inline-Sheet */}
+      <AnimatePresence>
+        {goalEditOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-sm rounded-2xl p-3"
+            onClick={(e) => { e.stopPropagation(); setGoalEditOpen(false); }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+              className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-card/95 backdrop-blur-xl p-4 space-y-3 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <p className="text-[12px] uppercase tracking-wider font-semibold text-foreground">
+                    Tagesziel setzen
+                  </p>
+                </div>
+                <button
+                  onClick={() => setGoalEditOpen(false)}
+                  className="text-muted-foreground/60 hover:text-foreground"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+
+              {goalSuggestion && (
+                <p className="text-[11px] text-muted-foreground">
+                  Vorschlag <span className="text-foreground font-medium">{formatEur(goalSuggestion.eur)}</span>
+                  {goalSuggestion.peerLabel && <> · {goalSuggestion.peerLabel}</>}
+                </p>
+              )}
+
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    autoFocus
+                    value={goalEditValue}
+                    onChange={(e) => setGoalEditValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const n = parseFloat(goalEditValue);
+                        if (Number.isFinite(n) && n > 0) assignGoal(n);
+                      }
+                    }}
+                    className="pr-8 text-base font-semibold tabular-nums"
+                    placeholder="z. B. 250"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
+                </div>
+                <button
+                  onClick={() => {
+                    const n = parseFloat(goalEditValue);
+                    if (Number.isFinite(n) && n > 0) assignGoal(n);
+                  }}
+                  disabled={savingGoal || !goalEditValue}
+                  className="rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-300 px-3 py-2 text-[12px] font-semibold disabled:opacity-50 transition-colors"
+                >
+                  {savingGoal ? "…" : "Speichern"}
+                </button>
+              </div>
+
+              {goalSuggestion && goalEditValue !== String(goalSuggestion.eur) && (
+                <button
+                  onClick={() => setGoalEditValue(String(goalSuggestion.eur))}
+                  className="text-[10px] text-muted-foreground/70 hover:text-foreground"
+                >
+                  ↺ auf Vorschlag zurücksetzen
+                </button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
