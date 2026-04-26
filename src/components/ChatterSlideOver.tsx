@@ -580,7 +580,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           exit={{ x: 40, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onPointerDown={handleDoubleTapClose}
-          className="fixed inset-y-0 right-0 w-full sm:w-[520px] z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col"
+          className={`fixed inset-y-0 right-0 ${compareWith ? "w-full sm:w-[min(1040px,100vw)]" : "w-full sm:w-[520px]"} z-50 border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)] flex flex-col transition-[width] duration-300`}
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
