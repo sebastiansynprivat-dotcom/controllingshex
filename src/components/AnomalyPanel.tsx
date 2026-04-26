@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, RotateCcw, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import {
@@ -394,7 +395,15 @@ export default function AnomalyPanel({
                     </span>
                     <button
                       type="button"
-                      onClick={() => onChatterSelect?.(group.name)}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(group.name);
+                          toast.success(`„${group.name}" kopiert`);
+                        } catch {
+                          toast.error("Kopieren fehlgeschlagen");
+                        }
+                        onChatterSelect?.(group.name);
+                      }}
                       className="flex-1 min-w-0 text-left group/name"
                     >
                       <div className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
