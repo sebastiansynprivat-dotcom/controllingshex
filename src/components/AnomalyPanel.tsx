@@ -181,7 +181,11 @@ export default function AnomalyPanel({
         alertType: a.alert_type,
         reportId,
       });
-      emitAnomalyDismissed();
+      emitAnomalyDismissed({
+        sourceId: sourceIdRef.current,
+        chatterName: a.chatter_name,
+        alertType: a.alert_type,
+      });
     } catch (err) {
       console.error("[AnomalyPanel] dismiss failed:", err);
       // rollback
@@ -208,7 +212,10 @@ export default function AnomalyPanel({
         alertTypes: items.map((i) => i.alert_type),
         reportId,
       });
-      emitAnomalyDismissed();
+      emitAnomalyDismissed({
+        sourceId: sourceIdRef.current,
+        chatterName,
+      });
     } catch (err) {
       console.error("[AnomalyPanel] dismiss chatter failed:", err);
       refresh();
