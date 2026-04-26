@@ -355,7 +355,7 @@ export default function SwipeCard({ chatter, alerts = [], lastInputAt = null, la
 
   return (
     <motion.div
-      className={`absolute inset-0 rounded-2xl p-3.5 flex flex-col select-none overflow-hidden ${
+      className={`absolute inset-0 rounded-2xl p-3 sm:p-3.5 flex flex-col select-none overflow-hidden ${
         isTop ? "cursor-grab active:cursor-grabbing touch-none" : "pointer-events-none"
       }`}
       style={{
