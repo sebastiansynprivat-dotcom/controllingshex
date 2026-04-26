@@ -461,7 +461,8 @@ function shouldReplaceRecommendation(
 function buildResultFromCsv(
   csvData: string,
   aiResults: any[],
-  historyMap?: Map<string, { revenueToday: number; date: string }[]>
+  historyMap?: Map<string, { revenueToday: number; date: string }[]>,
+  analysisDate?: string
 ): AnalysisResult {
   const csvMetrics = buildCsvMetricMap(csvData);
   const aiLookup = buildAiLookup(aiResults);
