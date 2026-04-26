@@ -887,8 +887,7 @@ export default function UploadPage() {
       const totalReturned = merged.categories.reduce((s, c) => s + c.chatters.length, 0);
       addStatus(`📊 ${totalReturned} Chatter aus CSV, KI-Empfehlungen zugeordnet.`);
 
-      // Save report to DB — derive analysis date from filename (fallback: today)
-      const analysisDate = extractDateFromFilename(file.name);
+      // Persist report with the filename-derived analysis date
       const reportPayload = {
         platform,
         analysis_date: analysisDate,
