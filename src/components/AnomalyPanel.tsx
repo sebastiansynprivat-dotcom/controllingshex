@@ -74,6 +74,8 @@ export default function AnomalyPanel({
   const [modelFollowers, setModelFollowers] = useState<Map<string, number>>(new Map());
   /** chatter_name -> array of account names (raw) */
   const [chatterAccounts, setChatterAccounts] = useState<Map<string, string[]>>(new Map());
+  /** Anzahl unique Chatter im Zeitraum (Basis für Progress Bar) */
+  const [totalChattersInRange, setTotalChattersInRange] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!user) return;
