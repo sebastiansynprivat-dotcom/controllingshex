@@ -143,7 +143,23 @@ export default function AnomalyPanel({
 
   useEffect(() => {
     const offData = onChatterDataUpdated(() => refresh());
-    const offDismiss = onAnomalyDismissed(() => refresh());
+    const offDismiss = onAnomalyDismissed((payload) => {
+      // Eigenes Event ignorieren — wir haben den State lokal schon aktualisiert
+      if (payload.sourceId === sourceIdRef.current) return;
+      // Fremdes Event: lokal filtern statt komplett neu laden
+      if (payload.chatterName) {
+        setAnomalies((prev) =>
+          prev.filter((x) => {
+            if (x.chatter_name !== payload.chatterName) return true;
+            if (payload.alertType && x.alert_type !== payload.alertType) return true;
+            return false;
+          }),
+        );
+      } else {
+        // Kein Payload: Fallback auf Refresh
+        refresh();
+      }
+    });
     return () => {
       offData();
       offDismiss();
