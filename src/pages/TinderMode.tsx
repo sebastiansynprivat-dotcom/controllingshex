@@ -261,6 +261,43 @@ export default function TinderMode() {
     };
   }, []);
 
+  // Dismissal-Sync: abgehakte Chatter (im Dashboard / Auffälligkeiten-Tab)
+  // werden auch hier aus dem Alert-Filter entfernt — bis zum nächsten Report.
+  const { user: authUser } = useAuth();
+  const [dismissedChatterNames, setDismissedChatterNames] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!authUser) {
+        setDismissedChatterNames(new Set());
+        return;
+      }
+      const reportId = await loadActiveReportId(authUser.id, platform);
+      if (!reportId) {
+        if (!cancelled) setDismissedChatterNames(new Set());
+        return;
+      }
+      const { data } = await supabase
+        .from("alert_dismissals")
+        .select("chatter_name")
+        .eq("user_id", authUser.id)
+        .eq("platform", platform)
+        .eq("report_id", reportId);
+      if (cancelled) return;
+      const set = new Set<string>();
+      for (const r of (data as { chatter_name: string }[]) || []) {
+        set.add(normalizeName(r.chatter_name));
+      }
+      setDismissedChatterNames(set);
+    };
+    load();
+    const off = onAnomalyDismissed(load);
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [authUser, platform]);
+
   // Derive label filter set from allLabelAssignments
   const labelChatterNames = useMemo(() => {
     if (!selectedLabelFilter) return null;
