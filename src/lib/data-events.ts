@@ -26,14 +26,28 @@ export function onChatterDataUpdated(handler: () => void): () => void {
 /** Auffälligkeiten-Dismissal Sync (Dashboard ↔ Auffälligkeiten-Page ↔ Swipe Mode). */
 export const ANOMALY_DISMISSED = "anomaly-dismissed";
 
-export function emitAnomalyDismissed() {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(ANOMALY_DISMISSED));
+export interface AnomalyDismissedPayload {
+  /** Eindeutige Source-ID der Instanz, die das Event ausgelöst hat — andere können dieses Event entsprechend ignorieren wenn sie es selbst gesendet haben. */
+  sourceId?: string;
+  /** Betroffene Chatter-Namen (für lokales Filtern ohne kompletten Refetch). */
+  chatterName?: string;
+  /** Wenn nur ein einzelner Alert-Typ entfernt wurde, sonst alle für den Chatter. */
+  alertType?: string;
 }
 
-export function onAnomalyDismissed(handler: () => void): () => void {
+export function emitAnomalyDismissed(payload: AnomalyDismissedPayload = {}) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(ANOMALY_DISMISSED, { detail: payload }));
+}
+
+export function onAnomalyDismissed(
+  handler: (payload: AnomalyDismissedPayload) => void,
+): () => void {
   if (typeof window === "undefined") return () => {};
-  const wrapped = () => handler();
+  const wrapped = (e: Event) => {
+    const detail = (e as CustomEvent<AnomalyDismissedPayload>).detail ?? {};
+    handler(detail);
+  };
   window.addEventListener(ANOMALY_DISMISSED, wrapped);
   return () => window.removeEventListener(ANOMALY_DISMISSED, wrapped);
 }
