@@ -14,13 +14,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { TimeRange } from "@/lib/timerange-categorize";
 import { rangeDays } from "@/lib/timerange-categorize";
 
-export type AnomalySeverity = "critical" | "high" | "medium" | "info";
+export type AnomalySeverity = "critical" | "high" | "medium" | "info" | "positive";
 export type AnomalyType =
   | "peer_underperform"   // Liegt deutlich unter Peer-Schnitt
   | "self_revenue_drop"   // Eigener Schnitt eingebrochen
   | "persistent_zero"     // Mehrere Tage in Folge unter Ziel
-  | "massdm_low"          // < 6/Tag — verschärft wenn auch Umsatz schwach
-  | "massdm_zero_no_rev"; // Keine MassDMs UND kein Umsatz im Zeitraum
+  | "massdm_low"          // < 4/Tag UND Umsatz schwach
+  | "massdm_zero_no_rev"  // Keine MassDMs UND kein Umsatz im Zeitraum
+  | "high_effort_no_rev"; // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
 
 export interface ChatterAnomaly {
   chatter_name: string;
