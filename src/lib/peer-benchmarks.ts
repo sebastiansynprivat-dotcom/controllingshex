@@ -145,14 +145,24 @@ function buildClusters(accountStats: AccountStat[]): PeerCluster[] {
   }
 
   // Berechne Stats pro Bucket
+  // WICHTIG: Pro Account 1 Repräsentationswert (Account-Ø über alle Tage),
+  // dann Median ÜBER die Account-Ø-Werte im Cluster bilden.
+  // So verzerren Accounts mit viel 0€-History (Onboarding) nicht den Median,
+  // und große Accounts mit viel History dominieren den Cluster nicht.
   const clusters: PeerCluster[] = [];
   for (let i = 0; i < buckets.length; i++) {
     const bucket = buckets[i];
     if (bucket.length === 0) continue;
 
-    const allRevenues: number[] = [];
-    for (const acc of bucket) allRevenues.push(...acc.revenues);
-    allRevenues.sort((a, b) => a - b);
+    const accountAverages: number[] = [];
+    let totalDataPoints = 0;
+    for (const acc of bucket) {
+      if (acc.revenues.length === 0) continue;
+      const avg = acc.revenues.reduce((s, v) => s + v, 0) / acc.revenues.length;
+      accountAverages.push(avg);
+      totalDataPoints += acc.revenues.length;
+    }
+    accountAverages.sort((a, b) => a - b);
 
     const minF = bucket[0].followers;
     const maxF = i === buckets.length - 1 ? Infinity : (buckets[i + 1]?.[0]?.followers ?? Infinity);
@@ -160,12 +170,12 @@ function buildClusters(accountStats: AccountStat[]): PeerCluster[] {
     clusters.push({
       minFollowers: minF,
       maxFollowers: maxF,
-      p25: quantile(allRevenues, 0.25),
-      median: quantile(allRevenues, 0.5),
-      p75: quantile(allRevenues, 0.75),
-      sampleSize: allRevenues.length,
+      p25: quantile(accountAverages, 0.25),
+      median: quantile(accountAverages, 0.5),
+      p75: quantile(accountAverages, 0.75),
+      sampleSize: totalDataPoints,
       accountCount: bucket.length,
-      confidence: confidenceFor(allRevenues.length),
+      confidence: confidenceFor(totalDataPoints),
       label: formatFollowerRange(minF, maxF),
     });
   }
