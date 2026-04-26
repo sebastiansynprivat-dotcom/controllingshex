@@ -40,6 +40,7 @@ interface HistoryRow {
   revenue_today: number | null;
   mass_dms: number | null;
   response_delay_days: number | null;
+  account: string | null;
 }
 
 interface ChatterAggregate {
@@ -52,6 +53,9 @@ interface ChatterAggregate {
   avgMassDmsPerDay: number;
   consecutiveZeroDays: number; // längste 0€-Strecke am Ende des Fensters
   zeroDaysInWindow: number;
+  /** Summe der Follower aller jüngsten Accounts dieses Chatters */
+  totalFollowers: number;
+  accounts: string[];
 }
 
 const PAGE = 1000;
