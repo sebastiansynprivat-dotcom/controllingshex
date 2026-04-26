@@ -958,7 +958,10 @@ export default function TinderMode() {
         base = base.filter((c) => labelChatterNames.has(normalizeName(c.name)));
       }
       if (alertFilterActive) {
-        base = base.filter((c) => alertChatterNames.has(normalizeName(c.name)));
+        base = base.filter((c) => {
+          const k = normalizeName(c.name);
+          return alertChatterNames.has(k) && !dismissedChatterNames.has(k);
+        });
       }
       if (swapTrackFilterActive) {
         base = base.filter((c) => swapTrackingMap.has(normalizeName(c.name)));
@@ -970,7 +973,7 @@ export default function TinderMode() {
       const skipped = base.filter((c) => skippedNames.has(normalizeName(c.name)));
       return [...notSkipped, ...skipped];
     },
-    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]
+    [chatters, checkedNames, selectedCategory, selectedTier, chatterMatchesSelectedTier, skippedNames, labelChatterNames, alertFilterActive, alertChatterNames, dismissedChatterNames, swapTrackFilterActive, swapTrackingMap, recoveryFilterActive, recoveryMap]
   );
 
   const prefetchedChatters = useMemo(
