@@ -618,20 +618,22 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
             {/* Vergleichen-mit Button (nur im non-inline Mode) */}
             {!inline && (
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={() => {
                   if (compareWith) setCompareWith(null);
                   else setPickerOpen(true);
                 }}
-                className="shrink-0 h-9 gap-1.5"
                 title={compareWith ? "Vergleich beenden" : "Mit anderem Chatter vergleichen"}
+                className={`premium-chip shrink-0 inline-flex items-center gap-2 h-11 px-3.5 sm:px-4 rounded-xl border text-[10px] uppercase tracking-[0.2em] font-medium transition-all duration-300 active:scale-[0.97] ${
+                  compareWith
+                    ? "border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.12]"
+                    : "border-white/[0.08] bg-white/[0.02] text-white/55 hover:text-primary hover:border-primary/25 hover:bg-primary/[0.04]"
+                }`}
               >
                 <GitCompareArrows className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{compareWith ? "Vergleich aus" : "Vergleichen"}</span>
-              </Button>
+              </button>
             )}
             {/* Close-Button: 44x44px (Apple HIG), erweiterte Hit-Area über safe-area */}
             <button
