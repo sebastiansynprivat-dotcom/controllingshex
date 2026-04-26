@@ -527,8 +527,9 @@ function buildResultFromCsv(
       }
     }
 
-    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override
-    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart > 5)) {
+    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override.
+    // Important: Tag 6-14 must remain Onboarding too.
+    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 14)) {
       const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
       category = fallback.category;
       emoji = fallback.emoji;
