@@ -476,7 +476,7 @@ function buildResultFromCsv(
     const baseName = compositeKey.split("::")[0].split("#")[0];
     const ai = aiLookup.get(baseName) || aiLookup.get(compositeKey);
     const history = getRelevantHistory(historyMap?.get(baseName) || historyMap?.get(compositeKey));
-    const daysSinceStart = getDaysSinceStart(metrics.startDate);
+    const daysSinceStart = getDaysSinceStart(metrics.startDate, analysisDate);
     const avgPastRevenue = history.length > 0
       ? history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length
       : 0;
