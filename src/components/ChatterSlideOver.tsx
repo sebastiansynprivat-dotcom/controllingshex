@@ -576,6 +576,27 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   {allLabels.length === 0 && !showNewLabel && <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>}
                 </div>
 
+                {/* Notes — direkt unter Labels */}
+                <div className="space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
+                  <div className="flex gap-2">
+                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Was wurde heute besprochen?" rows={2} className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300" />
+                    <button onClick={saveNote} disabled={savingNote || !noteText.trim()} className="self-end px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed">
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {notes.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {notes.map((n) => (
+                        <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-3 py-2.5">
+                          <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
+                          <p className="text-[10px] text-white/20 font-light mt-1.5">{formatDateTime(n.created_at)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
                 <WeekTrendCard history={history} compact />
 
@@ -617,27 +638,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
-
-                {/* Notes */}
-                <div className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
-                  <div className="flex gap-2">
-                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Was wurde heute besprochen?" rows={2} className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300" />
-                    <button onClick={saveNote} disabled={savingNote || !noteText.trim()} className="self-end px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed">
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
-                  {notes.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {notes.map((n) => (
-                        <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-3 py-2.5">
-                          <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
-                          <p className="text-[10px] text-white/20 font-light mt-1.5">{formatDateTime(n.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
