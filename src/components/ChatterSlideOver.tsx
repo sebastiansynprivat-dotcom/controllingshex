@@ -379,9 +379,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const saveNote = async () => {
     if (!noteText.trim()) return;
     setSavingNote(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Nicht eingeloggt.");
+      setSavingNote(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("coaching_notes")
-      .insert({ chatter_name: chatterName, platform, note_text: noteText.trim() })
+      .insert({ user_id: user.id, chatter_name: chatterName, platform, note_text: noteText.trim() })
       .select("id, note_text, created_at")
       .single();
     if (error) {
