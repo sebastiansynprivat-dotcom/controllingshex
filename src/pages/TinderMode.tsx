@@ -1307,8 +1307,12 @@ export default function TinderMode() {
     >
       {/* Left: Card area */}
       <div
-        className={`flex min-h-0 flex-col ${mode === 'swipe' ? 'px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-4 overflow-hidden' : 'px-3 sm:px-4 pt-2 overflow-y-auto'} ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full mx-auto"}`}
-        style={mode === "swipe" ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+        className={`flex min-h-0 flex-col ${mode === 'swipe' ? 'px-3 sm:px-4 pt-2 sm:pt-3 overflow-hidden' : 'px-3 sm:px-4 pt-2 overflow-y-auto'} ${isDesktop ? (mode === "swap" || mode === "compare" ? "w-full" : "w-1/2 max-w-xl") : "w-full mx-auto"}`}
+        style={
+          mode === "swipe"
+            ? { paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }
+            : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }
+        }
       >
       {/* Mode Toggle: Swipe / Wechsel / Vergleich */}
       <div className="relative z-10 mb-2 sm:mb-3 flex shrink-0 p-0.5 rounded-full bg-background/95 border border-white/[0.08] shadow-[0_10px_32px_-22px_rgba(0,0,0,0.85)] backdrop-blur-xl">
@@ -1697,7 +1701,7 @@ export default function TinderMode() {
       </div>
 
       {/* Card stack */}
-      <div className="relative flex-1 min-h-0" key={`stack-${selectedCategory ?? 'all'}`}>
+      <div className="relative flex-1 min-h-[360px] sm:min-h-0" key={`stack-${selectedCategory ?? 'all'}`}>
         {isDone && allDone ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
