@@ -526,6 +526,19 @@ export default function AnomalyPanel({
               const topSev = SEVERITY_STYLE[group.topSeverity];
               const chatterKey = `chatter|${group.name}`;
               const isPending = pendingDismiss.has(chatterKey);
+              const isOpen = openCards.has(group.name);
+              const accs = chatterAccounts.get(group.name) ?? [];
+              const topItem = group.items[0];
+              const topMeta = ANOMALY_LABELS[topItem.alert_type];
+              const message = isOpen
+                ? buildChatterMessage({
+                    chatterName: group.name,
+                    items: group.items,
+                    windowLabel: rangeLabel(range),
+                    windowDays,
+                  })
+                : "";
+              const rank = idx + 1;
               return (
                 <motion.div
                   key={group.name}
@@ -539,121 +552,198 @@ export default function AnomalyPanel({
                   {/* Severity Akzent-Streifen links */}
                   <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
 
-                  {/* Chatter-Header */}
-                  <div className={`flex items-center gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-2.5 sm:py-3"} border-b border-white/[0.05] bg-white/[0.015]`}>
-                    <span className={`relative flex h-2.5 w-2.5 shrink-0`}>
-                      {group.topSeverity === "critical" && (
-                        <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
-                      )}
-                      <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${topSev.dot}`} />
-                    </span>
+                  {/* Chatter-Header — kompakter, mit Impact-Badge & Rank */}
+                  <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-3 sm:py-3.5"}`}>
+                    {/* Rank */}
+                    <div className="shrink-0 flex flex-col items-center pt-0.5">
+                      <span className="text-[9px] uppercase tracking-wider text-white/25 font-light leading-none">#{rank}</span>
+                      <span className={`relative flex h-2 w-2 mt-1.5`}>
+                        {group.topSeverity === "critical" && (
+                          <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
+                        )}
+                        <span className={`relative inline-flex h-2 w-2 rounded-full ${topSev.dot}`} />
+                      </span>
+                    </div>
+
+                    {/* Name + Headline */}
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(group.name);
-                          toast.success(`„${group.name}" kopiert`);
-                        } catch {
-                          toast.error("Kopieren fehlgeschlagen");
-                        }
-                        // Haptic feedback (mobile)
-                        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-                          try { navigator.vibrate(15); } catch { /* noop */ }
-                        }
-                      }}
-                      onDoubleClick={() => onChatterSelect?.(group.name)}
+                      onClick={() => onChatterSelect?.(group.name)}
                       className="flex-1 min-w-0 text-left group/name"
                     >
-                      <div className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
-                        {group.name}
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
+                          {group.name}
+                        </span>
+                        {group.impactPerDay > 0 && (
+                          <span className="inline-flex items-baseline gap-0.5 text-[11px] tabular-nums text-red-300/90 font-medium">
+                            <span>−{group.impactPerDay.toLocaleString("de-DE")}€</span>
+                            <span className="text-[9px] uppercase tracking-wider text-red-300/50 font-light">/Tag</span>
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light mt-0.5">
-                        {group.items.length} {group.items.length === 1 ? "Signal" : "Signale"} · {topSev.label}
+                      <div className="text-[12px] sm:text-[13px] text-white/70 font-light mt-1 leading-snug">
+                        <span className="opacity-80">{topMeta.emoji}</span>{" "}
+                        {topItem.message}
                       </div>
-                      {(() => {
-                        const accs = chatterAccounts.get(group.name) ?? [];
-                        if (accs.length === 0) return null;
-                        return (
-                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                            {accs.length > 1 && (
-                              <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 font-light">
-                                <Users className="h-2.5 w-2.5" />
-                                {accs.length} Acc.
+                      {/* Accounts (kompakt) */}
+                      {accs.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {accs.length > 1 && (
+                            <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/35 font-light">
+                              <Users className="h-2.5 w-2.5" />
+                              {accs.length}
+                            </span>
+                          )}
+                          {accs.slice(0, 3).map((acc) => {
+                            const fc = modelFollowers.get(acc.toLowerCase().trim());
+                            return (
+                              <span
+                                key={acc}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-white/[0.06] bg-white/[0.02] text-[10px] font-light text-white/60"
+                              >
+                                <span className="text-white/75">{acc}</span>
+                                {fc !== undefined && (
+                                  <span className="text-white/35 tabular-nums">
+                                    {fc >= 1000 ? `${(fc / 1000).toFixed(fc >= 10000 ? 0 : 1)}k` : fc}
+                                  </span>
+                                )}
                               </span>
-                            )}
-                            {accs.map((acc) => {
-                              const fc = modelFollowers.get(acc.toLowerCase().trim());
-                              return (
-                                <span
-                                  key={acc}
-                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-white/[0.07] bg-white/[0.025] text-[10px] font-light text-white/70"
-                                  title={fc !== undefined ? `${fc.toLocaleString("de-DE")} Follower` : "Follower-Anzahl unbekannt"}
-                                >
-                                  <span className="text-white/85 font-normal">{acc}</span>
-                                  {fc !== undefined ? (
-                                    <span className="text-white/40 tabular-nums">
-                                      {fc >= 1000 ? `${(fc / 1000).toFixed(fc >= 10000 ? 0 : 1)}k` : fc}
-                                    </span>
-                                  ) : (
-                                    <span className="text-white/25">—</span>
-                                  )}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
+                            );
+                          })}
+                          {accs.length > 3 && (
+                            <span className="text-[10px] text-white/35 font-light">+{accs.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                      {/* Weitere Signale Hint */}
+                      {group.items.length > 1 && (
+                        <div className="text-[10px] uppercase tracking-wider text-white/30 font-light mt-1.5">
+                          +{group.items.length - 1} weitere{group.items.length === 2 ? "s" : ""} Signal{group.items.length === 2 ? "" : "e"}
+                        </div>
+                      )}
                     </button>
+
+                    {/* Erledigt */}
                     <button
                       type="button"
-                      onClick={() => handleDismissChatter(group.name, group.items)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDismissChatter(group.name, group.items);
+                      }}
                       disabled={isPending}
                       title="Chatter komplett abhaken (bis zum nächsten Report)"
-                      className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] text-[10px] uppercase tracking-wider text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
+                      className="shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
                     >
                       <Check className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Erledigt</span>
                     </button>
                   </div>
 
-                  {/* Auffälligkeiten gestapelt */}
-                  <div className={`${variant === "compact" ? "px-2.5 sm:px-3 py-2" : "px-3 sm:px-4 py-2 sm:py-2.5"} space-y-0.5`}>
-                    {group.items.map((a) => {
-                      const meta = ANOMALY_LABELS[a.alert_type];
-                      const sev = SEVERITY_STYLE[a.severity];
-                      const key = `${a.chatter_name}|${a.alert_type}`;
-                      return (
-                        <div
-                          key={key}
-                          className="flex items-start gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-white/[0.025] transition-colors cursor-pointer"
-                          onClick={() => onChatterSelect?.(group.name)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              onChatterSelect?.(group.name);
-                            }
-                          }}
-                        >
-                          <span className="text-base shrink-0 opacity-80 leading-5">{meta.emoji}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[10px] uppercase tracking-[0.15em] font-light ${sev.text}`}>
-                                {meta.label}
-                              </span>
-                              <span className="text-[9px] uppercase tracking-wider text-white/25 font-light">
-                                · {sev.label}
-                              </span>
+                  {/* Action-Bar */}
+                  <div className="flex items-stretch border-t border-white/[0.04] divide-x divide-white/[0.04]">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCard(group.name);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider font-light transition-all ${
+                        isOpen
+                          ? "bg-yellow-400/[0.08] text-yellow-200"
+                          : "text-white/45 hover:text-yellow-200 hover:bg-yellow-400/[0.05]"
+                      }`}
+                    >
+                      <MessageSquareText className="h-3 w-3" />
+                      {isOpen ? "Schließen" : "Nachricht erstellen"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChatterSelect?.(group.name);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider text-white/45 hover:text-white/85 hover:bg-white/[0.03] transition-all font-light"
+                    >
+                      Profil
+                      <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  {/* Aufklappbarer Coaching-Block */}
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        key="coach"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="border-t border-white/[0.04] bg-white/[0.015] overflow-hidden"
+                      >
+                        <div className="px-3.5 sm:px-5 py-3 sm:py-4 space-y-3">
+                          {/* Alle Signale auflisten */}
+                          {group.items.length > 1 && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
+                                Was zusammenkommt
+                              </div>
+                              <div className="space-y-1">
+                                {group.items.map((a) => {
+                                  const meta = ANOMALY_LABELS[a.alert_type];
+                                  const sev = SEVERITY_STYLE[a.severity];
+                                  return (
+                                    <div key={`${a.chatter_name}|${a.alert_type}`} className="flex items-start gap-2 text-[11px] text-white/55 font-light leading-snug">
+                                      <span className="opacity-70">{meta.emoji}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <span className={`${sev.text}`}>{meta.label}</span>
+                                        <span className="text-white/45"> — {a.message}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                            <div className="text-xs text-white/60 font-light mt-0.5 line-clamp-2">
-                              {a.message}
+                          )}
+
+                          {/* Action-Label */}
+                          <div className="flex items-center gap-2">
+                            <div className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
+                              Nächster Schritt
+                            </div>
+                            <div className="text-[11px] text-yellow-200/90 font-light">
+                              {actionLabelFor(topItem.alert_type)}
+                              {group.impactWindow > 0 && (
+                                <span className="text-white/35"> · ~{group.impactWindow.toLocaleString("de-DE")}€ Verlust im {rangeLabel(range)}-Fenster</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Vorformulierte Nachricht */}
+                          <div className="rounded-lg border border-white/[0.06] bg-black/40 overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.04] bg-white/[0.015]">
+                              <span className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
+                                An {group.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyMessage(message, group.name);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-yellow-400/15 hover:bg-yellow-400/25 border border-yellow-400/30 text-yellow-100 text-[10px] uppercase tracking-wider font-light transition-all"
+                              >
+                                <Copy className="h-3 w-3" />
+                                Kopieren
+                              </button>
+                            </div>
+                            <div className="px-3 py-2.5 text-[12px] text-white/75 font-light leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto">
+                              {message}
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               );
             })}
