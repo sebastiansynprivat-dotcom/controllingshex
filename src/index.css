@@ -70,9 +70,18 @@
     max-width: 100vw;
     background-color: hsl(var(--background));
     -webkit-overflow-scrolling: touch;
+    padding: 0;
+    margin: 0;
+    overscroll-behavior: none;
     /* Native Browser-Scrollbars überall ausblenden — Apple-like clean */
     scrollbar-width: none;
     -ms-overflow-style: none;
+  }
+  .app-standalone,
+  .app-standalone body,
+  .app-standalone #root {
+    top: var(--app-viewport-offset-top, 0px);
+    height: var(--app-height, 100dvh);
   }
   html {
     /* Verhindert weißen Bounce/Underscroll auf iOS in den Safe-Area-Bereichen */
