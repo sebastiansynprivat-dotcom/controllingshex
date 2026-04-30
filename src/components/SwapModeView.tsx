@@ -996,6 +996,16 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
       >
         {manualBanner}
+        {/* Zeitfenster-Filter — analog zu Auffälligkeiten/Vergleich */}
+        <div className="mb-2 lg:mb-3 flex flex-wrap items-center gap-2 shrink-0">
+          <span className="text-[9px] lg:text-[10px] uppercase tracking-[0.18em] text-white/35 font-medium mr-1">
+            Zeitfenster
+          </span>
+          <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+          <span className="text-[10px] text-white/35 ml-auto tabular-nums">
+            Ø über {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tage"}
+          </span>
+        </div>
         {/* Header — Mobile: zwei Reihen, Desktop: eine Reihe */}
         <div className="mb-2.5 lg:mb-6 flex shrink-0 flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-3">
           {/* Reihe 1: Label + Counter + +€/Tag (Hauptpill, rechts) */}
