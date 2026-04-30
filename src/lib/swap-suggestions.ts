@@ -150,17 +150,27 @@ function avg(nums: number[]): number {
   return nums.reduce((s, v) => s + v, 0) / nums.length;
 }
 
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
 function aggregate7Day(history?: HistoryRow[]): {
   avgRevenue: number;
   avgMassDms: number;
   avgOpenChats: number;
   avgResponseDelay: number;
 } {
-  const rows = (history || []).slice(-7);
+  const rows = [...(history || [])]
+    .sort((a, b) => String(a.analysis_date).localeCompare(String(b.analysis_date)))
+    .slice(-7);
+  const days = 7;
   return {
-    avgRevenue: avg(rows.map((r) => Number(r.revenue_today) || 0)),
-    avgMassDms: avg(rows.map((r) => Number(r.mass_dms) || 0)),
-    avgOpenChats: avg(rows.map((r) => Number(r.open_chats) || 0)),
+    avgRevenue: rows.reduce((sum, r) => sum + (Number(r.revenue_today) || 0), 0) / days,
+    avgMassDms: rows.reduce((sum, r) => sum + (Number(r.mass_dms) || 0), 0) / days,
+    avgOpenChats: rows.reduce((sum, r) => sum + (Number(r.open_chats) || 0), 0) / days,
     avgResponseDelay: avg(rows.map((r) => Number(r.response_delay_days) || 0)),
   };
 }
