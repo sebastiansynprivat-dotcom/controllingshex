@@ -205,6 +205,7 @@ export default function CompareModeView({
 
   const currentA = orderedA[idxA];
   const currentB = orderedB[idxB];
+  const metricLabel = useMemo(() => `Ø ${rangeLabel(range)}`, [range]);
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto space-y-3" style={{ touchAction: "pan-y", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}>
@@ -247,6 +248,7 @@ export default function CompareModeView({
           stackLength={orderedA.length}
           idx={idxA}
           dismissedCount={dismissedA.size}
+          metricLabel={metricLabel}
           onSwipeDismiss={() => {
             if (currentA) {
               const name = currentA.name;
@@ -276,6 +278,7 @@ export default function CompareModeView({
           stackLength={orderedB.length}
           idx={idxB}
           dismissedCount={dismissedB.size}
+          metricLabel={metricLabel}
           onSwipeDismiss={() => {
             if (currentB) {
               const name = currentB.name;
@@ -448,6 +451,7 @@ function CompareSlot({
   stackLength,
   idx,
   dismissedCount,
+  metricLabel,
   onSwipeDismiss,
   onSwipeSkip,
   onReset,
@@ -460,6 +464,7 @@ function CompareSlot({
   stackLength: number;
   idx: number;
   dismissedCount: number;
+  metricLabel: string;
   onSwipeDismiss: () => void;
   onSwipeSkip: () => void;
   onReset: () => void;
@@ -526,7 +531,7 @@ function CompareSlot({
           accentHsl={accentHsl}
           item={item}
           enriched={enriched}
-            metricLabel={"Ø " + rangeLabel(range)}
+            metricLabel={metricLabel}
           onSwipeLR={onSwipeDismiss}
           onSwipeDown={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
