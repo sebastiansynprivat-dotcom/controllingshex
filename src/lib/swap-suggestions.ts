@@ -697,9 +697,10 @@ function pairUp(
  */
 export function listAllSwapChatters(
   chatters: SwapInput[],
-  models: SwapModelInfo[]
+  models: SwapModelInfo[],
+  window: WindowSpec = DEFAULT_WINDOW
 ): SwapChatter[] {
-  return buildEnriched(chatters, models);
+  return buildEnriched(chatters, models, window);
 }
 
 /**
