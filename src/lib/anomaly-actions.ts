@@ -66,98 +66,43 @@ export function buildChatterMessage(ctx: MessageContext): string {
 
   // Top-Item nach Score
   const top = [...items].sort((a, b) => b.score - a.score)[0];
-  const greet = `Hey ${firstName(chatterName)},`;
-
+  const name = firstName(chatterName);
   const impactDay = estimateDailyImpactEur(items);
   const impactWin = impactDay * Math.max(1, windowDays);
 
   switch (top.alert_type) {
     case "persistent_zero": {
       const days = Math.round(top.metric_value);
-      return [
-        greet,
-        ``,
-        `mir ist aufgefallen, dass du jetzt **${days} Tage in Folge bei 0€** stehst — das müssen wir uns dringend gemeinsam anschauen.`,
-        ``,
-        `Lass mich kurz wissen:`,
-        `1. Ist alles okay bei dir? Gibt's etwas, das gerade blockiert?`,
-        `2. Wie sieht dein Plan für die nächsten 48h aus?`,
-        ``,
-        `Ich helfe dir gern beim Setup — Hauptsache wir kriegen morgen wieder ein Lebenszeichen rein. 💪`,
-      ].join("\n");
+      return `Hey ${name}, mir ist aufgefallen dass du jetzt ${days} Tage in Folge bei 0€ stehst — alles ok bei dir? Lass uns kurz schauen was los ist und wie wir morgen wieder reinkommen. Schreib mir kurz wann's bei dir passt. 💪`;
     }
 
     case "massdm_zero_no_rev": {
-      return [
-        greet,
-        ``,
-        `kurzer Reality-Check: in den letzten ${windowLabel} habe ich von dir **kaum MassDMs und keinen Umsatz** gesehen. Das ist genau die Kombi, die wir nicht wollen.`,
-        ``,
-        `Bitte ab morgen:`,
-        `• **6 MassDMs/Tag minimum** — auch wenn das Setup noch nicht perfekt ist`,
-        `• Schreib mir kurz, wenn du Hilfe bei Templates brauchst`,
-        ``,
-        `MassDMs sind dein wichtigster Hebel. Ohne die passiert nichts.`,
-      ].join("\n");
+      return `Hey ${name}, kurzer Check-in: in den letzten ${windowLabel} sind die MassDMs fast bei null und auch beim Umsatz tut sich nix. Lass uns das gemeinsam angehen — Ziel sind 6 MassDMs am Tag, das ist dein größter Hebel. Sag Bescheid wenn du Templates oder Support brauchst, ich helfe dir gern. 🙌`;
     }
 
     case "massdm_low": {
       const dms = top.metric_value.toFixed(1);
-      return [
-        greet,
-        ``,
-        `du fährst aktuell nur **${dms} MassDMs/Tag** — Ziel sind 6. Das erklärt auch warum der Umsatz hinterherhinkt.`,
-        ``,
-        `Mein Vorschlag: ab morgen konsequent **6 MassDMs/Tag**, gerne auch mehr. Schick mir bitte heute Abend einen kurzen Status, ob das machbar ist und ob du Templates oder Support brauchst.`,
-      ].join("\n");
+      return `Hey ${name}, du fährst gerade nur ${dms} MassDMs am Tag — Ziel sind 6. Wenn wir das hochkriegen, zieht der Umsatz erfahrungsgemäß direkt mit. Lass uns morgen einfach mal konsequent durchziehen, ja? Brauchst du Hilfe bei Templates? 💪`;
     }
 
     case "self_revenue_drop": {
       const drop = Math.abs(top.delta_pct);
       const before = Math.round(top.baseline_value);
       const now = Math.round(top.metric_value);
-      return [
-        greet,
-        ``,
-        `dein Schnitt ist in den letzten ${windowLabel} um **${drop}% eingebrochen** (von ${before}€/Tag auf ${now}€/Tag). Das ist signifikant — was ist passiert?`,
-        ``,
-        `Lass uns kurz zusammen schauen:`,
-        `• Hat sich was am Setup oder an den Accounts geändert?`,
-        `• Brauchst du neue Mass-DM-Templates?`,
-        `• Gibt's Probleme mit bestimmten Models/Subs?`,
-        ``,
-        impactWin > 50
-          ? `Wenn wir das nicht drehen, reden wir über ca. **${impactWin}€ Verlust** alleine im aktuellen ${windowLabel}-Fenster. Lass uns das angehen. 💪`
-          : `Schreib mir, wann wir kurz drüber sprechen können.`,
-      ].join("\n");
+      const impactPart = impactWin > 50
+        ? ` Auf den ${windowLabel} hochgerechnet sind das schon ~${impactWin}€, die wir wieder reinholen können.`
+        : "";
+      return `Hey ${name}, dein Schnitt ist in den letzten ${windowLabel} um ${drop}% runter (von ${before}€ auf ${now}€/Tag). Hat sich was verändert oder hängst du grad an was Bestimmtem fest? Lass uns kurz drüber reden, dann finden wir den Hebel.${impactPart} 🙌`;
     }
 
     case "peer_underperform": {
       const expected = Math.round(top.baseline_value);
       const actual = Math.round(top.metric_value);
-      const pct = Math.abs(top.delta_pct);
-      return [
-        greet,
-        ``,
-        `kurzer Check-in: bei deinen Accounts wären auf Basis der Follower-Zahlen ungefähr **${expected}€/Tag** drin — du liegst gerade bei ${actual}€/Tag, also **${pct}% darunter**.`,
-        ``,
-        `Das ist Potenzial, das du liegen lässt. Bitte schau dir bis Ende der Woche an:`,
-        `1. Sind deine MassDMs wirklich auf 6+/Tag?`,
-        `2. Wann hast du zuletzt deine Templates aktualisiert?`,
-        `3. Gibt es Fans, die du gerade vernachlässigst?`,
-        ``,
-        `Sag Bescheid, wenn du Sparring brauchst.`,
-      ].join("\n");
+      return `Hey ${name}, bei deinen Accounts wären eigentlich so ~${expected}€/Tag drin — du liegst grad bei ${actual}€. Da ist noch richtig Luft nach oben! Hast du Bock dass wir uns kurz die MassDMs und Templates anschauen? Da holen wir locker was raus. 💪`;
     }
 
     case "high_effort_no_rev": {
-      return [
-        greet,
-        ``,
-        `wollte dir nur kurz sagen: ich sehe dass du **voll Gas gibst mit den MassDMs** in den letzten ${windowLabel}. Der Umsatz folgt da erfahrungsgemäß mit ein paar Tagen Verzögerung — bleib genau so dran.`,
-        ``,
-        `Stark. 🙌`,
-      ].join("\n");
+      return `Hey ${name}, wollte dir nur kurz sagen: ich seh wie du gerade Gas gibst mit den MassDMs — stark! Der Umsatz folgt da meist mit ein paar Tagen Verzögerung, also bleib genau so dran. 🙌`;
     }
   }
 }
