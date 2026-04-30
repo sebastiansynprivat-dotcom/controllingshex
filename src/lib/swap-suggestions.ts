@@ -338,7 +338,7 @@ function computeExpectedGain(
   bundle: BenchmarkBundle | null
 ): number {
   // Skill-Faktor: 0.5 = Median-Skill → 1.0× Multiplikator. 1.0 Skill → 2.0×.
-  const skillFactor = Math.max(0.3, left.skillScore / 0.5);
+  const skillFactor = Math.max(0.5, left.skillScore / 0.5);
 
   let baseExpected: number;
   const cluster = bundle ? findCluster(bundle, right.followers) : null;
@@ -349,8 +349,13 @@ function computeExpectedGain(
     const ratio = Math.min(5, right.followers / Math.max(left.followers, 1));
     baseExpected = left.avgRevenue * Math.min(ratio, 3) * skillFactor;
   }
-  // Aktueller Umsatz auf Right-Account = was wir gewinnen abzüglich was schon da ist
-  const current = right.avgRevenue || right.currentRevenue;
+  // Erwarteter Netto-Gain des Tauschs: Verbesserung von links auf dem besseren Account
+  // abzüglich Opportunitätsverlust rechts. Nicht nur right.avgRevenue abziehen, sonst
+  // werden starke Links mit bereits gutem Umsatz fälschlich klein/negativ gerechnet.
+  const leftCurrent = left.avgRevenue || left.currentRevenue;
+  const rightCurrent = right.avgRevenue || right.currentRevenue;
+  const opportunityLoss = Math.max(0, rightCurrent - leftCurrent);
+  const current = leftCurrent + opportunityLoss;
   return baseExpected - current;
 }
 
