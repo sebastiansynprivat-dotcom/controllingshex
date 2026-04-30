@@ -166,9 +166,8 @@ export default function Dashboard() {
     const el = document.querySelector(`[data-chatter-name="${name}"]`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Brief highlight flash
-      el.classList.add("ring-1", "ring-primary/40", "bg-white/[0.04]");
-      setTimeout(() => el.classList.remove("ring-1", "ring-primary/40", "bg-white/[0.04]"), 1500);
+      el.classList.add("spotlight-pulse");
+      setTimeout(() => el.classList.remove("spotlight-pulse"), 1500);
     }
     setTimeout(() => setSelectedChatter(name), 400);
   };
@@ -185,10 +184,13 @@ export default function Dashboard() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-5xl mx-auto space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
-            {/* Header + Date Selector */}
+            {/* Header + Date Selector — auf Mobile schlanker, da Mobile-Header bereits Title zeigt */}
             <div className="space-y-3">
-              <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
-              
+              <div className="hidden sm:block">
+                <span className="eyebrow">Plattform</span>
+                <h1 className="headline-display text-3xl sm:text-5xl text-foreground mt-1">{platform}</h1>
+              </div>
+
               {reports.length > 1 ? (
                 <Select value={selectedId || ""} onValueChange={setSelectedId}>
                   <SelectTrigger className="w-full sm:w-64 bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
@@ -205,7 +207,7 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-white/30 text-sm font-light tracking-wide">
+                <p className="text-white/30 text-xs sm:text-sm font-light tracking-wide">
                   {selectedReport
                     ? `Letzte Analyse: ${new Date(selectedReport.analysis_date).toLocaleDateString("de-DE")}`
                     : "Noch keine Analyse vorhanden."}
