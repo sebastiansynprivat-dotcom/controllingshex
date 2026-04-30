@@ -458,36 +458,27 @@ export default function AnomalyPanel({
           const tone = "from-red-500/80 via-red-400/70 to-orange-400/70";
           const glow = "shadow-[0_0_18px_-2px_rgba(248,113,113,0.45)]";
           return (
-            <div className="space-y-2">
-              <div className="flex items-end justify-between gap-3">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-light tabular-nums text-foreground tracking-tight">
+            <div className="space-y-2.5">
+              <div className="flex items-end justify-between gap-3 flex-wrap">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <span className="text-2xl sm:text-3xl font-light tabular-nums text-foreground tracking-tight">
                     {flagged}
                   </span>
                   <span className="text-xs text-white/40 font-light">
-                    von {total} {total === 1 ? "Chatter" : "Chattern"} kritisch
+                    von {total} {total === 1 ? "Chatter" : "Chattern"} brennt
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-white/40 font-light">
-                  {counts.critical > 0 && (
-                    <span className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                      {counts.critical}
+                {totalImpactPerDay > 0 && (
+                  <div className="flex items-baseline gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/[0.08] border border-red-500/20">
+                    <TrendingDown className="h-3 w-3 text-red-300/80 self-center" />
+                    <span className="text-sm font-medium tabular-nums text-red-200">
+                      ~{totalImpactPerDay.toLocaleString("de-DE")}€
                     </span>
-                  )}
-                  {counts.high > 0 && (
-                    <span className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                      {counts.high}
+                    <span className="text-[10px] uppercase tracking-wider text-red-200/60 font-light">
+                      / Tag offen
                     </span>
-                  )}
-                  {counts.medium > 0 && (
-                    <span className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                      {counts.medium}
-                    </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
               <div className="relative h-1.5 w-full rounded-full bg-white/[0.05] overflow-hidden">
                 <motion.div
@@ -498,6 +489,15 @@ export default function AnomalyPanel({
                 >
                   <div className="h-full w-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)] bg-[length:200%_100%] animate-[shimmer_2.4s_linear_infinite]" />
                 </motion.div>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-white/35 font-light">
+                <span>Sortiert nach Umsatz-Impact</span>
+                {counts.critical > 0 && (
+                  <span className="flex items-center gap-1 ml-auto">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                    {counts.critical} kritisch
+                  </span>
+                )}
               </div>
             </div>
           );
