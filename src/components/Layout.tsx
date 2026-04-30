@@ -8,12 +8,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div
-        className="fixed inset-0 flex w-full bg-depth overflow-hidden max-w-[100vw]"
+        className="fixed inset-0 flex w-screen bg-depth overflow-hidden max-w-[100vw]"
         style={{
           minHeight: "-webkit-fill-available",
           height: "var(--app-height, 100dvh)",
-          paddingLeft: "env(safe-area-inset-left)",
-          paddingRight: "env(safe-area-inset-right)",
         }}
       >
         <AppSidebar />
