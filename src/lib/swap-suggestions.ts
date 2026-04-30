@@ -395,6 +395,23 @@ const BREZZELS_LEVELS: BrezzelsLevel[] = [
   { poolSize: 20 },
 ];
 
+function buildFallbackSkillPools(
+  enriched: SwapChatter[],
+  poolSize: number
+): { underplaced: SwapChatter[]; overplaced: SwapChatter[] } {
+  const valid = enriched.filter((e) => e.followers > 0);
+  const underplaced = [...valid]
+    .sort((a, b) => b.skillScore - a.skillScore || a.followers - b.followers)
+    .slice(0, poolSize);
+  const underKeys = new Set(underplaced.map((u) => u.key));
+  const medianSkill = median(valid.map((e) => e.skillScore));
+  const overplaced = [...valid]
+    .filter((e) => !underKeys.has(e.key) && e.skillScore <= medianSkill)
+    .sort((a, b) => b.followers - a.followers || a.skillScore - b.skillScore)
+    .slice(0, poolSize);
+  return { underplaced, overplaced };
+}
+
 function buildBrezzelsPools(
   enriched: SwapChatter[],
   level: BrezzelsLevel
