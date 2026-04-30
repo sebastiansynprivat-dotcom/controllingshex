@@ -507,7 +507,7 @@ export function computeSwapCandidates(
   const poolFraction = opts.poolFraction ?? 0.4;
   const platform = opts.platform;
 
-  const enriched = buildEnriched(chatters, models);
+  const enriched = buildEnriched(chatters, models, opts.window ?? DEFAULT_WINDOW);
   if (enriched.length < 2) return [];
 
   // ----- Brezzels: Mismatch-Pool + Fallback-Skill-Pool -----
