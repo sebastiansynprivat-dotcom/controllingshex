@@ -335,11 +335,23 @@ export default function AnomalyPanel({
     };
   }, [anomalies]);
 
-  // Gruppiere pro Chatter — nur wirklich rote Critical-Kandidaten anzeigen.
-  // Sortierung: Chatter mit den meisten Followern (Summe aller Accounts) zuerst,
-  // bei Gleichstand zählt der Score als Tiebreaker.
+  // Gruppiere pro Chatter — alle Critical-Kandidaten + alle Items mit Impact.
+  // Sortierung: Geschätzter Umsatz-Impact pro Tag (€) absteigend.
+  // Tiebreaker: Follower-Summe, dann Score.
+  const windowDays = useMemo(() => rangeDays(range), [range]);
   const groupedByChatter = useMemo(() => {
-    const map = new Map<string, { name: string; topScore: number; topSeverity: ChatterAnomaly["severity"]; items: ChatterAnomaly[]; totalFollowers: number }>();
+    const map = new Map<
+      string,
+      {
+        name: string;
+        topScore: number;
+        topSeverity: ChatterAnomaly["severity"];
+        items: ChatterAnomaly[];
+        totalFollowers: number;
+        impactPerDay: number;
+        impactWindow: number;
+      }
+    >();
     for (const a of anomalies) {
       if (a.severity !== "critical") continue;
       const key = a.chatter_name;
@@ -356,14 +368,57 @@ export default function AnomalyPanel({
           (s, acc) => s + (modelFollowers.get(acc.toLowerCase().trim()) ?? 0),
           0,
         );
-        map.set(key, { name: a.chatter_name, topScore: a.score, topSeverity: a.severity, items: [a], totalFollowers });
+        map.set(key, {
+          name: a.chatter_name,
+          topScore: a.score,
+          topSeverity: a.severity,
+          items: [a],
+          totalFollowers,
+          impactPerDay: 0,
+          impactWindow: 0,
+        });
       }
     }
+    // Impact pro Gruppe berechnen
+    for (const entry of map.values()) {
+      entry.impactPerDay = estimateDailyImpactEur(entry.items);
+      entry.impactWindow = entry.impactPerDay * Math.max(1, windowDays);
+    }
     return [...map.values()].sort((a, b) => {
+      if (b.impactPerDay !== a.impactPerDay) return b.impactPerDay - a.impactPerDay;
       if (b.totalFollowers !== a.totalFollowers) return b.totalFollowers - a.totalFollowers;
       return b.topScore - a.topScore;
     });
-  }, [anomalies, chatterAccounts, modelFollowers]);
+  }, [anomalies, chatterAccounts, modelFollowers, windowDays]);
+
+  // Aufgeklappte Karten (Coaching-Block sichtbar)
+  const [openCards, setOpenCards] = useState<Set<string>>(new Set());
+  const toggleCard = useCallback((name: string) => {
+    setOpenCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
+  const copyMessage = useCallback(async (msg: string, chatterName: string) => {
+    try {
+      await navigator.clipboard.writeText(msg);
+      toast.success(`Nachricht für „${chatterName}" kopiert`);
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try { navigator.vibrate(15); } catch { /* noop */ }
+      }
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
+    }
+  }, []);
+
+  // Gesamtsumme Impact pro Tag (für Header)
+  const totalImpactPerDay = useMemo(
+    () => groupedByChatter.reduce((s, g) => s + g.impactPerDay, 0),
+    [groupedByChatter],
+  );
 
   const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
   const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
