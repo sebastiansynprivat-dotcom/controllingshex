@@ -202,22 +202,44 @@ export default function AnomalyPanel({
     refresh();
   }, [refresh, cacheKey]);
 
+  // Hilfs-Funktion: Snapshot mit aktuellem anomalies-State patchen.
+  const patchSnapshotAnomalies = useCallback((next: ChatterAnomaly[]) => {
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (!raw) return;
+      const snap = JSON.parse(raw);
+      snap.anomalies = next;
+      sessionStorage.setItem(cacheKey, JSON.stringify(snap));
+    } catch { /* noop */ }
+  }, [cacheKey]);
+
   useEffect(() => {
-    const offData = onChatterDataUpdated(() => refresh());
+    const offData = onChatterDataUpdated(() => {
+      // Neuer Report → alle Snapshots dieser Plattform invalidieren
+      try {
+        const prefix = `anomaly-snapshot::${platform}::`;
+        const toRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith(prefix)) toRemove.push(k);
+        }
+        toRemove.forEach((k) => sessionStorage.removeItem(k));
+      } catch { /* noop */ }
+      refresh();
+    });
     const offDismiss = onAnomalyDismissed((payload) => {
-      // Eigenes Event ignorieren — wir haben den State lokal schon aktualisiert
       if (payload.sourceId === sourceIdRef.current) return;
-      // Fremdes Event: lokal filtern statt komplett neu laden
       if (payload.chatterName) {
-        setAnomalies((prev) =>
-          prev.filter((x) => {
+        setAnomalies((prev) => {
+          const next = prev.filter((x) => {
             if (x.chatter_name !== payload.chatterName) return true;
             if (payload.alertType && x.alert_type !== payload.alertType) return true;
             return false;
-          }),
-        );
+          });
+          patchSnapshotAnomalies(next);
+          return next;
+        });
       } else {
-        // Kein Payload: Fallback auf Refresh
         refresh();
       }
     });
@@ -225,7 +247,7 @@ export default function AnomalyPanel({
       offData();
       offDismiss();
     };
-  }, [refresh]);
+  }, [refresh, platform, patchSnapshotAnomalies]);
 
   const handleDismiss = async (a: ChatterAnomaly) => {
     if (!user || !reportId) return;
