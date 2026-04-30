@@ -405,6 +405,8 @@ export interface ComputeOptions {
   poolFraction?: number;
   /** Plattform-Name (z.B. "Brezzels") — aktiviert plattform-spezifische Filter */
   platform?: string;
+  /** Zeitfenster über das gemittelt wird (default: letzte 7 Tage). */
+  window?: WindowSpec;
 }
 
 /**
