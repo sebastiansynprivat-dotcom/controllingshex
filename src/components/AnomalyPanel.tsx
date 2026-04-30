@@ -414,6 +414,35 @@ export default function AnomalyPanel({
     }
   }, []);
 
+  /**
+   * Öffnet WhatsApp und kopiert den Chatter-Namen in die Zwischenablage,
+   * damit man ihn direkt in die WhatsApp-Suche einfügen kann.
+   * Mobile: whatsapp:// (öffnet App), Desktop: web.whatsapp.com.
+   */
+  const openWhatsApp = useCallback(async (chatterName: string) => {
+    // Erst Name kopieren — bevor wir das Tab/die App öffnen, sonst geht Clipboard-Permission verloren
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(chatterName);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate(15); } catch { /* noop */ }
+    }
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const url = isMobile ? "whatsapp://" : "https://web.whatsapp.com/";
+    window.open(url, "_blank");
+
+    if (copied) {
+      toast.success(`„${chatterName}" kopiert — in WhatsApp-Suche einfügen`);
+    } else {
+      toast.info(`WhatsApp geöffnet — Name: ${chatterName}`);
+    }
+  }, []);
+
   // Gesamtsumme Impact pro Tag (für Header)
   const totalImpactPerDay = useMemo(
     () => groupedByChatter.reduce((s, g) => s + g.impactPerDay, 0),
