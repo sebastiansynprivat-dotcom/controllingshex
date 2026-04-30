@@ -211,9 +211,21 @@ function splitAccounts(raw?: string): string[] {
     .filter((a) => a.length > 0);
 }
 
+export interface WindowSpec {
+  /** Anzahl Tage über die gemittelt werden soll (z.B. 1, 7, 14, 30) */
+  windowDays: number;
+  /** Optional: ISO-Datum YYYY-MM-DD (inkl.) — wenn gesetzt, wird History strikt auf [from..to] gefiltert */
+  from?: string;
+  /** Optional: ISO-Datum YYYY-MM-DD (inkl.) */
+  to?: string;
+}
+
+const DEFAULT_WINDOW: WindowSpec = { windowDays: 7 };
+
 function buildEnriched(
   chatters: SwapInput[],
-  models: SwapModelInfo[]
+  models: SwapModelInfo[],
+  window: WindowSpec = DEFAULT_WINDOW
 ): SwapChatter[] {
   // Fix 1: Models mit follower_count=0 kriegen Median-Fallback (sonst werden ganze
   // Account-Einträge unsichtbar weil der Brezzels-Pool e.followers > 0 verlangt)
