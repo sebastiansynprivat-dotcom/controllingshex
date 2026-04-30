@@ -1,72 +1,80 @@
+# Tagesziel + Peer-Ø auf Swipe-Karten
+
 ## Ziel
+Auf jeder Swipe-Karte (TinderMode / Onboarding-Mode) soll der Coach
+1. den **Peer-Durchschnitt** des Chatters (€/Tag, basierend auf seinem Cluster bzw. Account-Baseline) immer sichtbar haben,
+2. ein **automatisch vorgeschlagenes Tagesziel** sehen, abgeleitet aus dem Peer-Median des Accounts,
+3. dieses Ziel **direkt auf der Karte eintragen / bestätigen / anpassen** können,
+4. das vergebene Tagesziel **dauerhaft auf der Karte angezeigt** bekommen (mit Datum / "heute vergeben").
 
-Die Mobile-Erfahrung soll sich anfühlen wie eine Premium-iOS-App (Linear / Things 3 / Arc-Niveau) — ruhiger, präziser, hochwertiger. Aktuell ist die Basis schon sehr gut (Glass, Gold-Akzente, dezente Typo), aber es fehlen die Details, die "luxuriös" ausmachen: feinere Typografie, weichere Übergänge, taktiles Feedback, ein eigener Mobile-Header und ein richtiges Bottom-Navigation-Erlebnis.
+## Architektur
 
-## Was sich konkret ändert
+### 1. Neue Tabelle `chatter_daily_goals` (Migration)
+Spalten:
+- `id` uuid pk
+- `user_id` uuid (RLS: auth.uid())
+- `platform` text default 'Maloum'
+- `chatter_name` text
+- `goal_date` date default current_date
+- `goal_eur` numeric (das vergebene Ziel)
+- `suggested_eur` numeric (was das System vorgeschlagen hat — für Auswertung)
+- `source` text ('peer-cluster' | 'account-baseline' | 'global' | 'manual')
+- `note` text nullable
+- `created_at`, `updated_at` timestamps
+- Unique-Index `(user_id, platform, chatter_name, goal_date)` → 1 Ziel pro Tag pro Chatter
+- RLS: Users CRUD nur eigene Rows, Service-Role full access
 
-### 1. Typografie-Upgrade (der größte sichtbare Hebel)
-- **Display-Font** für Überschriften: `Fraunces` (variable serif) oder `Instrument Serif` als Headline-Font, Inter bleibt für Body. Das hebt sich sofort von "generischer SaaS-App" ab und wirkt editorial/luxuriös.
-- Engere `letter-spacing` auf großen Headlines (-0.04em), `font-weight: 200` für Hero-Zahlen mit Tabular-Nums.
-- Kleine Caps-Labels mit erhöhtem `letter-spacing` und Gold-Tönung für Sektions-Header.
+### 2. Neue Helper `src/lib/daily-goals.ts`
+- `suggestDailyGoal(bm: ChatterBenchmark): { eur: number; source: string; rationale: string }`
+  - Priorität: Account-Baseline (avg ×1.1, "Stretch +10%") > Peer-Cluster-Median > Global-Median
+  - Rundung auf nächste 5/10/25 € je nach Größe
+  - Cold-Start (source = "none") → kein Vorschlag, manuelle Eingabe
+- `loadTodayGoals(platform)` → Map<normalizedName, GoalRow> für heute
+- `upsertDailyGoal(platform, chatterName, eur, suggested, source)` → schreibt/aktualisiert Eintrag
 
-### 2. Eigener Mobile-Header (statt aktuellem 56px Hamburger-Header)
-- Größerer, transparenter Header mit Blur und feinem Gradient-Fade nach unten.
-- Aktueller Seitenname als großer Titel (Apple "Large Title"-Stil) der beim Scrollen elegant zur Toolbar zusammenschrumpft.
-- Plattform-Switcher (OnlyFans / Fansly) als pill-shaped Toggle direkt im Header — luxuriös statt versteckt.
-- Sanfter Schatten und Border erscheinen erst beim Scroll.
+### 3. SwipeCard UI (`src/components/SwipeCard.tsx`)
+Neuer kompakter Block direkt **unter dem Hero-KPI**, oberhalb der weiteren KPIs:
 
-### 3. Bottom-Navigation für Mobile (Tab-Bar)
-- Statt Sidebar auf Mobile: floating Bottom-Tab-Bar mit Glass-Effekt, abgerundet, schwebt 12px über dem unteren Rand.
-- 5 Haupt-Tabs (Dashboard / Auffälligkeiten / Upload / Forecast / Mehr) mit feinen Icons und dezentem Gold-Glow auf aktivem Tab.
-- Sidebar bleibt für Tablet/Desktop unverändert.
+```
+┌─ Tagesziel ─────────────────────────────────┐
+│  Peer-Ø: 240 €/Tag  ·  Cluster 10K-30K       │
+│                                               │
+│  [ Vorschlag: 265 € ]   [ ✏️ anpassen ]      │
+│                                               │
+│   …oder bei vergeben:                         │
+│  ✅ Ziel heute vergeben: 280 €  ·  14:32      │
+│                                       [ändern]│
+└───────────────────────────────────────────────┘
+```
 
-### 4. Bewegung & Übergänge
-- Page-Transitions: sanftes 250ms Cross-Fade + 4px Y-Slide zwischen Routen.
-- Card-Reveal: Staggered Fade-In (40ms zwischen Karten) beim ersten Render.
-- Spring-basierte Hover/Tap-States statt linearer Transitions.
-- "Spotlight"-Highlight wenn man auf einen Chatter aus der Suche springt: kurzer Gold-Pulse statt nur Border.
+- **Peer-Ø-Zeile**: zeigt immer `formatBenchmarkLabel`-Wert + Cluster-Label (oder Account-Ø-Tage), egal welche Größe → fällt auf globalen Median zurück.
+- **Vorschlag-Pill**: tap-bar → speichert direkt mit einem Tap (Toast „Tagesziel 265 € vergeben").
+- **„✏️ anpassen"** öffnet ein leichtes Inline-Sheet (kleines Popover/Drawer) mit Number-Input + Speichern. Kein Reload.
+- **Vergeben-State**: ersetzt die Vorschlag-Pill durch grünes Badge mit Wert + Uhrzeit, plus „ändern"-Link.
+- Touch-Bereich groß, kein Drag-Konflikt (`stopPropagation` + `pointer-events`).
+- Reihenfolge: passt zwischen `pickHeroKpi`-Block und `kpiEntries`.
 
-### 5. Haptisches Feedback (iOS PWA)
-- `navigator.vibrate(8)` bei wichtigen Aktionen (Tab-Wechsel, Swipe-Action, Card-Open).
-- Dezent, nur auf erfolgreichen Interaktionen.
+### 4. TinderMode-Loader (`src/pages/TinderMode.tsx`)
+- Nach `loadBenchmarks` zusätzlich `loadTodayGoals(platform)` parallel laden.
+- Map `goalsByChatter` per `useState`, an SwipeCard via Prop weiterreichen (`dailyGoal` + `onAssignGoal`).
+- Auf erfolgreichem Upsert: Map sofort lokal aktualisieren (optimistic) → Karte aktualisiert ohne Reload.
+- Funktioniert in allen Time-Range-Modi; Suggestion bleibt aus aktuellem `peerBm`.
 
-### 6. Pull-to-Refresh (Mobile)
-- Eigener, premium gestalteter Pull-to-Refresh: Gold-Punkte-Spinner statt nativem Browser-Indikator.
-- Lädt aktuelle Daten vom Backend neu.
+### 5. Optional: ChatterSlideOver
+Im Detail-SlideOver oben kleiner Mirror-Block „Heutiges Ziel: 280 €" — read-only, nur falls bereits vergeben. (Hält UX konsistent, ohne Doppelaufwand.)
 
-### 7. Dezente Tiefen-Effekte
-- Sehr subtiler animierter Noise/Grain-Overlay (opacity 0.015) über dem Hintergrund — gibt ein analoges, hochwertiges Gefühl.
-- Radial-Gradient hinter Hero-Bereichen mit ganz dezentem Gold-Schimmer (atmet langsam, 8s Cycle).
-- Karten bekommen einen sehr feinen Inner-Glow am oberen Rand (existiert bereits via `premium-card`, wird auf weitere Komponenten ausgeweitet).
+## Fragen / Annahmen
+- **Goal-Formel**: Account-Baseline × 1.1 (Stretch +10%), sonst Cluster-Median × 1.0. Falls du lieber +20% / +0% willst → leicht änderbar in `suggestDailyGoal`.
+- **Pro Tag 1 Ziel**: Falls jemand mehrfach am Tag drückt → wird aktualisiert, nicht dupliziert.
+- **Sichtbarkeit Peer-Ø**: aktuell zeigt die kleine Pill oben schon `XX% vom Peer-Ø`. Im neuen Block wird der **absolute €-Wert** des Peer-Ø zusätzlich gezeigt — wie gewünscht ("egal welche Größe").
 
-### 8. Form-Inputs & Buttons
-- Inputs: sanfter Focus-Ring mit Gold-Glow statt hartem Border.
-- Buttons: sanfter Inner-Highlight, Spring-Press (scale 0.97), kein flacher Look.
+## Files
+- **NEW** `supabase/migrations/<ts>_chatter_daily_goals.sql` — Tabelle + RLS
+- **NEW** `src/lib/daily-goals.ts` — Suggest/Load/Upsert
+- **EDIT** `src/components/SwipeCard.tsx` — Tagesziel-Block + Inline-Edit + Props
+- **EDIT** `src/pages/TinderMode.tsx` — Goals laden, an Card durchreichen, Optimistic Update
+- **EDIT** `src/components/ChatterSlideOver.tsx` *(optional)* — Read-only Mirror
 
-### 9. Status-Bar Integration (PWA)
-- `apple-mobile-web-app-status-bar-style: black-translucent` (bereits gesetzt) bleibt — wichtig: Content respektiert weiter `safe-area-inset-top` (bereits korrekt).
-
-### 10. Kleine Polish-Details
-- Zahlen mit `font-variant-numeric: tabular-nums` damit nichts springt.
-- Skeleton-Loading-States bekommen den existierenden Shimmer auch in mehr Komponenten (Dashboard-Cards, Trend-Widget).
-- Modals/Sheets: iOS-typischer Drag-Handle oben.
-
-## Was NICHT geändert wird
-
-- Farbschema bleibt (Dark + Gold).
-- Funktionalität / Datenfluss bleibt unverändert.
-- Desktop-Layout bleibt wie es ist (nur Mobile-spezifische Verbesserungen).
-
-## Technische Umsetzung (kurz)
-
-- `index.css`: neue Display-Font einbinden, Noise-Overlay-Utility, Spring-Easings, Gold-Pulse-Keyframe.
-- `Layout.tsx`: Mobile-Detection → eigener Mobile-Header + Bottom-Nav statt Sidebar.
-- Neue Komponenten: `MobileHeader.tsx`, `MobileBottomNav.tsx`, `PullToRefresh.tsx`, `useHaptic.ts` Hook.
-- `Dashboard.tsx` und andere Pages: Stagger-Animations für Card-Listen.
-- Tailwind-Config: neue `font-display`-Family.
-
-## Offene Fragen
-
-Falls du eine bestimmte Richtung bevorzugst, sag Bescheid — sonst gehe ich mit allen 10 Punkten oben. Insbesondere:
-- **Display-Font:** Fraunces (warme Serif, sehr edel) oder Instrument Serif (klassischer, editorial)? Default: **Fraunces**.
-- **Bottom-Nav:** Soll sie immer sichtbar bleiben, oder beim Runter-Scrollen verstecken (wie Safari)? Default: **immer sichtbar**.
+## Out of Scope
+- Auswertung/History-View vergangener Ziele (kann später ein eigener Tab werden, Daten sind dann da).
+- Goals an Chatter automatisch verschicken (Webhook/DM) — nur Eintragen wie gewünscht.

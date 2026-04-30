@@ -14,7 +14,6 @@ import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PullToRefresh } from "@/components/PullToRefresh";
 
 interface AnalysisChatter {
   name: string;
@@ -56,38 +55,29 @@ export default function Dashboard() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("analysis_reports")
-      .select("id, analysis_date, chatter_count, result_json")
-      .eq("platform", platform)
-      .not("result_json", "is", null)
-      .order("analysis_date", { ascending: false });
-
-    if (data && data.length > 0) {
-      const rows = data as unknown as ReportRow[];
-      setReports(rows);
-      setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0].id));
-    } else {
-      setReports([]);
-      setSelectedId(null);
-    }
-    setLoading(false);
-  };
-
   useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("analysis_reports")
+        .select("id, analysis_date, chatter_count, result_json")
+        .eq("platform", platform)
+        .not("result_json", "is", null)
+        .order("analysis_date", { ascending: false });
+
+      if (data && data.length > 0) {
+        const rows = data as unknown as ReportRow[];
+        setReports(rows);
+        setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0].id));
+      } else {
+        setReports([]);
+        setSelectedId(null);
+      }
+      setLoading(false);
+    };
     load();
     return onChatterDataUpdated(load);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform]);
-
-  const handleRefresh = async () => {
-    try {
-      await supabase.functions.invoke("backfill-chatter-history", { body: { platform } });
-    } catch { /* silent */ }
-    await load();
-  };
 
   const selectedIndex = reports.findIndex((r) => r.id === selectedId);
   const selectedReport = selectedIndex >= 0 ? reports[selectedIndex] : null;
@@ -176,8 +166,9 @@ export default function Dashboard() {
     const el = document.querySelector(`[data-chatter-name="${name}"]`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("spotlight-pulse");
-      setTimeout(() => el.classList.remove("spotlight-pulse"), 1500);
+      // Brief highlight flash
+      el.classList.add("ring-1", "ring-primary/40", "bg-white/[0.04]");
+      setTimeout(() => el.classList.remove("ring-1", "ring-primary/40", "bg-white/[0.04]"), 1500);
     }
     setTimeout(() => setSelectedChatter(name), 400);
   };
@@ -185,7 +176,6 @@ export default function Dashboard() {
   return (
     <div className="flex h-full min-h-0">
       <div className="flex-1 min-w-0">
-        <PullToRefresh onRefresh={handleRefresh}>
         <AnimatePresence mode="wait">
           <motion.div
             key={platform}
@@ -195,13 +185,10 @@ export default function Dashboard() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-5xl mx-auto space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
-            {/* Header + Date Selector — auf Mobile schlanker, da Mobile-Header bereits Title zeigt */}
+            {/* Header + Date Selector */}
             <div className="space-y-3">
-              <div className="hidden sm:block">
-                <span className="eyebrow">Plattform</span>
-                <h1 className="headline-display text-3xl sm:text-5xl text-foreground mt-1">{platform}</h1>
-              </div>
-
+              <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
+              
               {reports.length > 1 ? (
                 <Select value={selectedId || ""} onValueChange={setSelectedId}>
                   <SelectTrigger className="w-full sm:w-64 bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
@@ -218,7 +205,7 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-white/30 text-xs sm:text-sm font-light tracking-wide">
+                <p className="text-white/30 text-sm font-light tracking-wide">
                   {selectedReport
                     ? `Letzte Analyse: ${new Date(selectedReport.analysis_date).toLocaleDateString("de-DE")}`
                     : "Noch keine Analyse vorhanden."}
@@ -360,7 +347,6 @@ export default function Dashboard() {
             )}
           </motion.div>
         </AnimatePresence>
-        </PullToRefresh>
       </div>
       <ChatterSlideOver open={!!selectedChatter} onClose={() => setSelectedChatter(null)} chatterName={selectedChatter || ""} platform={platform} />
     </div>
