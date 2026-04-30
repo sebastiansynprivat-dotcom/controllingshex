@@ -34,7 +34,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="sidebar-premium border-r border-white/[0.04]">
-      <SidebarContent style={{ paddingTop: "calc(env(safe-area-inset-top) + 2.5rem)" }} className={`relative transition-all duration-300 ease-in-out flex flex-col h-full ${collapsed ? "px-0 items-center" : "px-3"}`}>
+      <SidebarContent style={{ paddingTop: "calc(max(env(safe-area-inset-top), 0px) + 2.5rem)" }} className={`relative transition-all duration-300 ease-in-out flex flex-col h-full ${collapsed ? "px-0 items-center" : "px-3"}`}>
         {/* Brand */}
         <div className={`mb-10 transition-all duration-300 ease-in-out ${collapsed ? "flex justify-center px-0" : "px-3"}`}>
           {!collapsed ? (
@@ -75,7 +75,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Spacer + Logout */}
-        <div className="mt-auto pb-6 w-full">
+        <div className="mt-auto w-full" style={{ paddingBottom: "calc(max(env(safe-area-inset-bottom), 0px) + 1.5rem)" }}>
           {!collapsed && user && (
             <div className="mx-3 mb-3 pt-3 border-t border-white/[0.04]">
               <p className="text-[11px] text-white/30 font-light truncate tracking-wide">{user.email}</p>

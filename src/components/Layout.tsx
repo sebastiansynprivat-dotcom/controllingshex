@@ -18,13 +18,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <header
             className="min-h-14 flex items-center border-b border-white/[0.04] px-4 sm:px-8 shrink-0 backdrop-blur-2xl bg-background/60 z-10"
-            style={{ paddingTop: "env(safe-area-inset-top)" }}
+            style={{
+              paddingTop: "max(env(safe-area-inset-top), 0px)",
+              paddingLeft: "calc(1rem + max(env(safe-area-inset-left), 0px))",
+              paddingRight: "calc(1rem + max(env(safe-area-inset-right), 0px))",
+            }}
           >
             <SidebarTrigger className="text-white/60 hover:text-white/90 transition-colors duration-500 h-10 w-10 -ml-2" />
           </header>
           <main
             className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-3 sm:px-8 sm:pt-8 lg:px-14 lg:pt-14"
-            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)" }}
+            style={{
+              paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)",
+              paddingLeft: "calc(0.75rem + max(env(safe-area-inset-left), 0px))",
+              paddingRight: "calc(0.75rem + max(env(safe-area-inset-right), 0px))",
+            }}
           >
             <motion.div
               key={location.pathname}
