@@ -297,31 +297,26 @@ function buildEnriched(
   });
 
   // Pass 3: Pro (Chatter, Account) ein Eintrag erzeugen
-  // Stats werden ANTEILIG verteilt: Revenue/OpenChats follower-gewichtet wenn möglich,
-  // sonst gleichmäßig. MassDMs & ResponseDelay = Chatter-weit (Disziplin, nicht trennbar).
+  // Stats bleiben chatter-bezogen. Ein Chatter arbeitet typischerweise mehrere Accounts;
+  // follower-gewichtetes Aufsplitten hat die 7T-Ø-Zahlen künstlich klein gerechnet und
+  // dadurch Wechsel-Vorschläge verfälscht. Der Account definiert hier nur Platzierung/Tier.
   const enriched: SwapChatter[] = [];
   chatterAggs.forEach((b) => {
     const skillEntry = chatterSkill.get(b.name);
     if (!skillEntry) return;
     const followerByAcc = b.accounts.map((acc) => followerLookup.get(acc.toLowerCase()) || 0);
-    const totalFollowers = followerByAcc.reduce((s, v) => s + v, 0);
     b.accounts.forEach((acc, idx) => {
       const followers = followerByAcc[idx];
-      // Anteil: follower-gewichtet, fallback gleichmäßig
-      const share =
-        totalFollowers > 0
-          ? followers / totalFollowers
-          : 1 / b.accounts.length;
       enriched.push({
         key: `${b.name}::${acc}`,
         name: b.name,
         account: acc,
         followers,
         tier: tierOf(followers),
-        currentRevenue: b.currentRevenue * share,
-        avgRevenue: b.avgRevenue * share,
+        currentRevenue: b.currentRevenue,
+        avgRevenue: b.avgRevenue,
         avgMassDms: b.avgMassDms, // Chatter-weit
-        avgOpenChats: b.avgOpenChats * share,
+        avgOpenChats: b.avgOpenChats,
         avgResponseDelay: b.avgResponseDelay, // Chatter-weit
         skillScore: skillEntry.skill,
         firstSeen: b.firstSeen,
