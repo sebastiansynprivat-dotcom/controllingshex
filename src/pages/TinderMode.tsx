@@ -605,7 +605,7 @@ export default function TinderMode() {
       // Follower aus modelPerf wenn vorhanden
       const followers = (c as any).modelPerf?.followerCount || 0;
       if (followers > 0) todaysFollowersByChatter.set(key, followers);
-      const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+      const todayRev = parseLocaleNumber(c.kpis?.["Tagesumsatz"]);
       todaysRevenueByChatter.set(key, todayRev);
     }
     return recategorizeByWindowV2(
@@ -688,7 +688,7 @@ export default function TinderMode() {
           if (c.account) todaysAccountByChatter.set(key, c.account);
           const followers = (c as any).modelPerf?.followerCount || 0;
           if (followers > 0) todaysFollowersByChatter.set(key, followers);
-          const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+          const todayRev = parseLocaleNumber(c.kpis?.["Tagesumsatz"]);
           todaysRevenueByChatter.set(key, todayRev);
         }
 
@@ -930,7 +930,7 @@ export default function TinderMode() {
     return chatters.map((c) => {
       const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
       const revStr = revKey ? c.kpis[revKey] : "0";
-      const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+      const rev = parseLocaleNumber(revStr);
       // Fallback: account aus history ableiten wenn der aktuelle Report keinen liefert.
       // chatter_history hat die accounts pro Tag — wir bauen eine kommagetrennte Liste.
       let account = c.account;
