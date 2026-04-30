@@ -290,7 +290,11 @@ export default function AnomalyPanel({
     if (!user || !reportId || items.length === 0) return;
     const key = `chatter|${chatterName}`;
     setPendingDismiss((p) => new Set(p).add(key));
-    setAnomalies((prev) => prev.filter((x) => x.chatter_name !== chatterName));
+    setAnomalies((prev) => {
+      const next = prev.filter((x) => x.chatter_name !== chatterName);
+      patchSnapshotAnomalies(next);
+      return next;
+    });
     try {
       await dismissChatter({
         userId: user.id,
