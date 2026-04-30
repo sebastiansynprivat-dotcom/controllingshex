@@ -72,6 +72,14 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
+  html {
+    /* Verhindert weißen Bounce/Underscroll auf iOS in den Safe-Area-Bereichen */
+    background-color: hsl(var(--background));
+  }
+  body {
+    /* Erweitert den dunklen Hintergrund auch in die Safe-Area-Bereiche (Notch & Home-Indicator) */
+    background-color: hsl(var(--background));
+  }
   html::-webkit-scrollbar,
   body::-webkit-scrollbar,
   #root::-webkit-scrollbar,
