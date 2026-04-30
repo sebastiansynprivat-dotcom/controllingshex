@@ -21,7 +21,6 @@ import {
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
-import { findCluster } from "@/lib/peer-benchmarks";
 
 interface Props {
   platform: string;
