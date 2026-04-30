@@ -158,13 +158,13 @@ function median(nums: number[]): number {
 }
 
 /**
- * Aggregiert History-Rows in ein Zeitfenster.
+ * Aggregiert History-Rows in ein Zeitfenster zu Tages-Durchschnitten.
  *
- * - Wenn `from`/`to` (ISO YYYY-MM-DD) gesetzt: filtert nach Datum (inklusive Range)
- *   und mittelt über die Anzahl Tage des Fensters (nicht nur über vorhandene Rows).
- *   So werden fehlende Tage als 0 gewertet — sonst würde ein Chatter mit nur 1
- *   Tag Daten in einem 7-Tage-Fenster künstlich überschätzt.
- * - Ohne Range: nutzt die letzten 7 Rows (Legacy-Verhalten).
+ * Wichtig: avg = Summe / Anzahl vorhandener Rows (nicht / windowDays).
+ * Dadurch bleibt `avgRevenue` immer ein echter Tagesschnitt — kompatibel zu
+ * Peer-Benchmarks (die ebenfalls auf Tages-Basis sind) und zu kurzen Fenstern
+ * wie "Heute" (1 Tag), wo sonst alles künstlich hochgerechnet/runtergerechnet
+ * würde und der computeSwapExpectedGain-Vergleich kollabiert.
  */
 function aggregateWindow(
   history: HistoryRow[] | undefined,
@@ -186,14 +186,13 @@ function aggregateWindow(
       return d >= from && d <= to;
     });
   } else {
-    rows = rows.slice(-windowDays);
+    rows = rows.slice(-Math.max(1, windowDays));
   }
-  const days = Math.max(1, windowDays);
+  const denom = Math.max(1, rows.length);
   return {
-    avgRevenue: rows.reduce((sum, r) => sum + (Number(r.revenue_today) || 0), 0) / days,
-    avgMassDms: rows.reduce((sum, r) => sum + (Number(r.mass_dms) || 0), 0) / days,
-    avgOpenChats: rows.reduce((sum, r) => sum + (Number(r.open_chats) || 0), 0) / days,
-    // Response-Delay nur über vorhandene Tage mitteln (sonst würde Standard 0 fälschlich gut wirken)
+    avgRevenue: rows.reduce((sum, r) => sum + (Number(r.revenue_today) || 0), 0) / denom,
+    avgMassDms: rows.reduce((sum, r) => sum + (Number(r.mass_dms) || 0), 0) / denom,
+    avgOpenChats: rows.reduce((sum, r) => sum + (Number(r.open_chats) || 0), 0) / denom,
     avgResponseDelay: avg(rows.map((r) => Number(r.response_delay_days) || 0)),
   };
 }
