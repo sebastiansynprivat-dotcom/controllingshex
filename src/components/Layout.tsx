@@ -25,8 +25,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <SidebarTrigger className="text-white/60 hover:text-white/90 transition-colors duration-500 h-10 w-10 -ml-2" />
           </header>
           <main
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-8 lg:p-14"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-3 sm:px-8 sm:pt-8 lg:px-14 lg:pt-14"
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)" }}
           >
             <motion.div
               key={location.pathname}
