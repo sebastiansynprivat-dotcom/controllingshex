@@ -157,20 +157,43 @@ function median(nums: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-function aggregate7Day(history?: HistoryRow[]): {
+/**
+ * Aggregiert History-Rows in ein Zeitfenster.
+ *
+ * - Wenn `from`/`to` (ISO YYYY-MM-DD) gesetzt: filtert nach Datum (inklusive Range)
+ *   und mittelt über die Anzahl Tage des Fensters (nicht nur über vorhandene Rows).
+ *   So werden fehlende Tage als 0 gewertet — sonst würde ein Chatter mit nur 1
+ *   Tag Daten in einem 7-Tage-Fenster künstlich überschätzt.
+ * - Ohne Range: nutzt die letzten 7 Rows (Legacy-Verhalten).
+ */
+function aggregateWindow(
+  history: HistoryRow[] | undefined,
+  windowDays: number,
+  from?: string,
+  to?: string
+): {
   avgRevenue: number;
   avgMassDms: number;
   avgOpenChats: number;
   avgResponseDelay: number;
 } {
-  const rows = [...(history || [])]
-    .sort((a, b) => String(a.analysis_date).localeCompare(String(b.analysis_date)))
-    .slice(-7);
-  const days = 7;
+  let rows = [...(history || [])].sort((a, b) =>
+    String(a.analysis_date).localeCompare(String(b.analysis_date))
+  );
+  if (from && to) {
+    rows = rows.filter((r) => {
+      const d = String(r.analysis_date);
+      return d >= from && d <= to;
+    });
+  } else {
+    rows = rows.slice(-windowDays);
+  }
+  const days = Math.max(1, windowDays);
   return {
     avgRevenue: rows.reduce((sum, r) => sum + (Number(r.revenue_today) || 0), 0) / days,
     avgMassDms: rows.reduce((sum, r) => sum + (Number(r.mass_dms) || 0), 0) / days,
     avgOpenChats: rows.reduce((sum, r) => sum + (Number(r.open_chats) || 0), 0) / days,
+    // Response-Delay nur über vorhandene Tage mitteln (sonst würde Standard 0 fälschlich gut wirken)
     avgResponseDelay: avg(rows.map((r) => Number(r.response_delay_days) || 0)),
   };
 }
