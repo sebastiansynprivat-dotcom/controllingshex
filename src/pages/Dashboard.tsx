@@ -56,29 +56,38 @@ export default function Dashboard() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("analysis_reports")
-        .select("id, analysis_date, chatter_count, result_json")
-        .eq("platform", platform)
-        .not("result_json", "is", null)
-        .order("analysis_date", { ascending: false });
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("analysis_reports")
+      .select("id, analysis_date, chatter_count, result_json")
+      .eq("platform", platform)
+      .not("result_json", "is", null)
+      .order("analysis_date", { ascending: false });
 
-      if (data && data.length > 0) {
-        const rows = data as unknown as ReportRow[];
-        setReports(rows);
-        setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0].id));
-      } else {
-        setReports([]);
-        setSelectedId(null);
-      }
-      setLoading(false);
-    };
+    if (data && data.length > 0) {
+      const rows = data as unknown as ReportRow[];
+      setReports(rows);
+      setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0].id));
+    } else {
+      setReports([]);
+      setSelectedId(null);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     load();
     return onChatterDataUpdated(load);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform]);
+
+  const handleRefresh = async () => {
+    try {
+      await supabase.functions.invoke("backfill-chatter-history", { body: { platform } });
+    } catch { /* silent */ }
+    await load();
+  };
 
   const selectedIndex = reports.findIndex((r) => r.id === selectedId);
   const selectedReport = selectedIndex >= 0 ? reports[selectedIndex] : null;
