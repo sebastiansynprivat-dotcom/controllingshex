@@ -291,13 +291,18 @@ export function applyCompareFilter(
       if (filter.status === "inactive" && isActive) continue;
     }
 
+    const avgRevWindow = ctx.range.preset === "today" && rows.length === 0 ? revToday : agg.avgRev;
+    const zeroRateWindow = ctx.range.preset === "today" && rows.length === 0
+      ? (revToday > 0 ? 0 : 1)
+      : (agg.totalDays > 0 ? agg.zeroDays / agg.totalDays : 0);
+
     out.push({
       name: c.name,
       account: c.account,
       currentRevenue: revToday,
       history: undefined,
-      avgRevWindow: agg.avgRev,
-      zeroRateWindow: agg.totalDays > 0 ? agg.zeroDays / agg.totalDays : 0,
+      avgRevWindow,
+      zeroRateWindow,
       category: cat,
     });
   }
