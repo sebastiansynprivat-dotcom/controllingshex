@@ -75,7 +75,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Spacer + Logout */}
-        <div className="mt-auto pb-6 w-full">
+        <div className="mt-auto w-full" style={{ paddingBottom: "calc(max(env(safe-area-inset-bottom), 0px) + 1.5rem)" }}>
           {!collapsed && user && (
             <div className="mx-3 mb-3 pt-3 border-t border-white/[0.04]">
               <p className="text-[11px] text-white/30 font-light truncate tracking-wide">{user.email}</p>
