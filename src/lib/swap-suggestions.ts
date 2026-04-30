@@ -332,7 +332,7 @@ function buildEnriched(
  * Erwarteter Gain für left-Chatter auf right-Account.
  * Nutzt Peer-Cluster-Median für das Ziel-Follower-Tier × Skill-Faktor.
  */
-function computeExpectedGain(
+export function computeSwapExpectedGain(
   left: SwapChatter,
   right: SwapChatter,
   bundle: BenchmarkBundle | null
@@ -590,7 +590,7 @@ function pairUp(
       if (ratio > maxFollowerRatio) { cRatioHigh++; continue; }
       if (u.skillScore - o.skillScore < minSkillDiff) { cSkillDiff++; continue; }
 
-      const gain = computeExpectedGain(u, o, bundle);
+      const gain = computeSwapExpectedGain(u, o, bundle);
       if (gain <= gainThreshold) { cGain++; continue; }
       cPassed++;
       if (!best || gain > best.gain) best = { right: o, gain, ratio };
@@ -616,7 +616,7 @@ function pairUp(
       const r = o.followers / uFollowers;
       if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (u.skillScore - o.skillScore < minSkillDiff) return false;
-      return computeExpectedGain(u, o, bundle) > gainThreshold;
+      return computeSwapExpectedGain(u, o, bundle) > gainThreshold;
     });
 
     const rightFollowers = Math.max(best.right.followers, 1);
@@ -626,7 +626,7 @@ function pairUp(
       const r = rightFollowers / Math.max(alt.followers, 1);
       if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (alt.skillScore - best!.right.skillScore < minSkillDiff) return false;
-      return computeExpectedGain(alt, best!.right, bundle) > gainThreshold;
+      return computeSwapExpectedGain(alt, best!.right, bundle) > gainThreshold;
     });
 
     const tierJump = Math.max(0, tierIndex(best.right.tier) - tierIndex(u.tier));
@@ -722,7 +722,7 @@ export function computeManualSwapCandidates(
         right = sel;
       }
 
-      const gain = computeExpectedGain(left, right, bundle);
+      const gain = computeSwapExpectedGain(left, right, bundle);
       // Lockerer Modus: auch negative/kleine Gains zulassen, aber sortieren
       seenKeys.add(k1);
       const followerRatio = right.followers / Math.max(left.followers, 1);
