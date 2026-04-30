@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TimeRangeToggle from "@/components/TimeRangeToggle";
+import { buildTimeRange, rangeDays, type TimeRange } from "@/lib/timerange-categorize";
 import {
   computeSwapCandidates,
   computeManualSwapCandidates,
@@ -237,9 +239,16 @@ function SkillPill({
 }
 
 export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
+  /** Zeitfenster für Skill/Avg-Berechnung — analog zu Auffälligkeiten/Vergleich */
+  const [timeRange, setTimeRange] = useState<TimeRange>(() => buildTimeRange("7d"));
+  const swapWindow = useMemo(
+    () => ({ windowDays: rangeDays(timeRange), from: timeRange.from, to: timeRange.to }),
+    [timeRange]
+  );
+
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform }),
-    [chatters, models, benchmarks, platform]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow }),
+    [chatters, models, benchmarks, platform, swapWindow]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
@@ -248,8 +257,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [manualSearch, setManualSearch] = useState("");
 
   const allChatterOptions = useMemo(
-    () => listAllSwapChatters(chatters, models),
-    [chatters, models]
+    () => listAllSwapChatters(chatters, models, swapWindow),
+    [chatters, models, swapWindow]
   );
   /** Pro Chatter-Name nur 1 Eintrag (mit höchstem Skill) für Auswahl */
   const uniqueChatterOptions = useMemo(() => {
@@ -263,8 +272,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const manualPairs = useMemo(() => {
     if (!manualChatterName) return null;
-    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8);
-  }, [manualChatterName, chatters, models, benchmarks]);
+    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8, swapWindow);
+  }, [manualChatterName, chatters, models, benchmarks, swapWindow]);
 
   const allPairs = manualPairs ?? autoPairs;
   const isManualMode = manualPairs !== null;
@@ -987,6 +996,16 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
       >
         {manualBanner}
+        {/* Zeitfenster-Filter — analog zu Auffälligkeiten/Vergleich */}
+        <div className="mb-2 lg:mb-3 flex flex-wrap items-center gap-2 shrink-0">
+          <span className="text-[9px] lg:text-[10px] uppercase tracking-[0.18em] text-white/35 font-medium mr-1">
+            Zeitfenster
+          </span>
+          <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+          <span className="text-[10px] text-white/35 ml-auto tabular-nums">
+            Ø über {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tage"}
+          </span>
+        </div>
         {/* Header — Mobile: zwei Reihen, Desktop: eine Reihe */}
         <div className="mb-2.5 lg:mb-6 flex shrink-0 flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-3">
           {/* Reihe 1: Label + Counter + +€/Tag (Hauptpill, rechts) */}

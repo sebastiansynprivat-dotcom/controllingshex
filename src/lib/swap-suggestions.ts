@@ -157,20 +157,43 @@ function median(nums: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-function aggregate7Day(history?: HistoryRow[]): {
+/**
+ * Aggregiert History-Rows in ein Zeitfenster.
+ *
+ * - Wenn `from`/`to` (ISO YYYY-MM-DD) gesetzt: filtert nach Datum (inklusive Range)
+ *   und mittelt über die Anzahl Tage des Fensters (nicht nur über vorhandene Rows).
+ *   So werden fehlende Tage als 0 gewertet — sonst würde ein Chatter mit nur 1
+ *   Tag Daten in einem 7-Tage-Fenster künstlich überschätzt.
+ * - Ohne Range: nutzt die letzten 7 Rows (Legacy-Verhalten).
+ */
+function aggregateWindow(
+  history: HistoryRow[] | undefined,
+  windowDays: number,
+  from?: string,
+  to?: string
+): {
   avgRevenue: number;
   avgMassDms: number;
   avgOpenChats: number;
   avgResponseDelay: number;
 } {
-  const rows = [...(history || [])]
-    .sort((a, b) => String(a.analysis_date).localeCompare(String(b.analysis_date)))
-    .slice(-7);
-  const days = 7;
+  let rows = [...(history || [])].sort((a, b) =>
+    String(a.analysis_date).localeCompare(String(b.analysis_date))
+  );
+  if (from && to) {
+    rows = rows.filter((r) => {
+      const d = String(r.analysis_date);
+      return d >= from && d <= to;
+    });
+  } else {
+    rows = rows.slice(-windowDays);
+  }
+  const days = Math.max(1, windowDays);
   return {
     avgRevenue: rows.reduce((sum, r) => sum + (Number(r.revenue_today) || 0), 0) / days,
     avgMassDms: rows.reduce((sum, r) => sum + (Number(r.mass_dms) || 0), 0) / days,
     avgOpenChats: rows.reduce((sum, r) => sum + (Number(r.open_chats) || 0), 0) / days,
+    // Response-Delay nur über vorhandene Tage mitteln (sonst würde Standard 0 fälschlich gut wirken)
     avgResponseDelay: avg(rows.map((r) => Number(r.response_delay_days) || 0)),
   };
 }
@@ -188,9 +211,21 @@ function splitAccounts(raw?: string): string[] {
     .filter((a) => a.length > 0);
 }
 
+export interface WindowSpec {
+  /** Anzahl Tage über die gemittelt werden soll (z.B. 1, 7, 14, 30) */
+  windowDays: number;
+  /** Optional: ISO-Datum YYYY-MM-DD (inkl.) — wenn gesetzt, wird History strikt auf [from..to] gefiltert */
+  from?: string;
+  /** Optional: ISO-Datum YYYY-MM-DD (inkl.) */
+  to?: string;
+}
+
+const DEFAULT_WINDOW: WindowSpec = { windowDays: 7 };
+
 function buildEnriched(
   chatters: SwapInput[],
-  models: SwapModelInfo[]
+  models: SwapModelInfo[],
+  window: WindowSpec = DEFAULT_WINDOW
 ): SwapChatter[] {
   // Fix 1: Models mit follower_count=0 kriegen Median-Fallback (sonst werden ganze
   // Account-Einträge unsichtbar weil der Brezzels-Pool e.followers > 0 verlangt)
@@ -221,7 +256,7 @@ function buildEnriched(
   for (const c of chatters) {
     const accounts = splitAccounts(c.account);
     if (accounts.length === 0) continue;
-    const agg = aggregate7Day(c.history);
+    const agg = aggregateWindow(c.history, window.windowDays, window.from, window.to);
     if (
       agg.avgRevenue === 0 &&
       c.currentRevenue === 0 &&
@@ -370,6 +405,8 @@ export interface ComputeOptions {
   poolFraction?: number;
   /** Plattform-Name (z.B. "Brezzels") — aktiviert plattform-spezifische Filter */
   platform?: string;
+  /** Zeitfenster über das gemittelt wird (default: letzte 7 Tage). */
+  window?: WindowSpec;
 }
 
 /**
@@ -470,7 +507,7 @@ export function computeSwapCandidates(
   const poolFraction = opts.poolFraction ?? 0.4;
   const platform = opts.platform;
 
-  const enriched = buildEnriched(chatters, models);
+  const enriched = buildEnriched(chatters, models, opts.window ?? DEFAULT_WINDOW);
   if (enriched.length < 2) return [];
 
   // ----- Brezzels: Mismatch-Pool + Fallback-Skill-Pool -----
@@ -660,9 +697,10 @@ function pairUp(
  */
 export function listAllSwapChatters(
   chatters: SwapInput[],
-  models: SwapModelInfo[]
+  models: SwapModelInfo[],
+  window: WindowSpec = DEFAULT_WINDOW
 ): SwapChatter[] {
-  return buildEnriched(chatters, models);
+  return buildEnriched(chatters, models, window);
 }
 
 /**
@@ -678,9 +716,10 @@ export function computeManualSwapCandidates(
   models: SwapModelInfo[],
   selectedChatterName: string,
   bundle: BenchmarkBundle | null = null,
-  limit = 8
+  limit = 8,
+  window: WindowSpec = DEFAULT_WINDOW
 ): SwapPair[] {
-  const enriched = buildEnriched(chatters, models);
+  const enriched = buildEnriched(chatters, models, window);
   if (enriched.length < 2) return [];
 
   // Alle Account-Einträge des gewählten Chatters
