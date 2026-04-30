@@ -150,17 +150,27 @@ function avg(nums: number[]): number {
   return nums.reduce((s, v) => s + v, 0) / nums.length;
 }
 
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
 function aggregate7Day(history?: HistoryRow[]): {
   avgRevenue: number;
   avgMassDms: number;
   avgOpenChats: number;
   avgResponseDelay: number;
 } {
-  const rows = (history || []).slice(-7);
+  const rows = [...(history || [])]
+    .sort((a, b) => String(a.analysis_date).localeCompare(String(b.analysis_date)))
+    .slice(-7);
+  const days = 7;
   return {
-    avgRevenue: avg(rows.map((r) => Number(r.revenue_today) || 0)),
-    avgMassDms: avg(rows.map((r) => Number(r.mass_dms) || 0)),
-    avgOpenChats: avg(rows.map((r) => Number(r.open_chats) || 0)),
+    avgRevenue: rows.reduce((sum, r) => sum + (Number(r.revenue_today) || 0), 0) / days,
+    avgMassDms: rows.reduce((sum, r) => sum + (Number(r.mass_dms) || 0), 0) / days,
+    avgOpenChats: rows.reduce((sum, r) => sum + (Number(r.open_chats) || 0), 0) / days,
     avgResponseDelay: avg(rows.map((r) => Number(r.response_delay_days) || 0)),
   };
 }
@@ -287,31 +297,26 @@ function buildEnriched(
   });
 
   // Pass 3: Pro (Chatter, Account) ein Eintrag erzeugen
-  // Stats werden ANTEILIG verteilt: Revenue/OpenChats follower-gewichtet wenn möglich,
-  // sonst gleichmäßig. MassDMs & ResponseDelay = Chatter-weit (Disziplin, nicht trennbar).
+  // Stats bleiben chatter-bezogen. Ein Chatter arbeitet typischerweise mehrere Accounts;
+  // follower-gewichtetes Aufsplitten hat die 7T-Ø-Zahlen künstlich klein gerechnet und
+  // dadurch Wechsel-Vorschläge verfälscht. Der Account definiert hier nur Platzierung/Tier.
   const enriched: SwapChatter[] = [];
   chatterAggs.forEach((b) => {
     const skillEntry = chatterSkill.get(b.name);
     if (!skillEntry) return;
     const followerByAcc = b.accounts.map((acc) => followerLookup.get(acc.toLowerCase()) || 0);
-    const totalFollowers = followerByAcc.reduce((s, v) => s + v, 0);
     b.accounts.forEach((acc, idx) => {
       const followers = followerByAcc[idx];
-      // Anteil: follower-gewichtet, fallback gleichmäßig
-      const share =
-        totalFollowers > 0
-          ? followers / totalFollowers
-          : 1 / b.accounts.length;
       enriched.push({
         key: `${b.name}::${acc}`,
         name: b.name,
         account: acc,
         followers,
         tier: tierOf(followers),
-        currentRevenue: b.currentRevenue * share,
-        avgRevenue: b.avgRevenue * share,
+        currentRevenue: b.currentRevenue,
+        avgRevenue: b.avgRevenue,
         avgMassDms: b.avgMassDms, // Chatter-weit
-        avgOpenChats: b.avgOpenChats * share,
+        avgOpenChats: b.avgOpenChats,
         avgResponseDelay: b.avgResponseDelay, // Chatter-weit
         skillScore: skillEntry.skill,
         firstSeen: b.firstSeen,
@@ -327,13 +332,13 @@ function buildEnriched(
  * Erwarteter Gain für left-Chatter auf right-Account.
  * Nutzt Peer-Cluster-Median für das Ziel-Follower-Tier × Skill-Faktor.
  */
-function computeExpectedGain(
+export function computeSwapExpectedGain(
   left: SwapChatter,
   right: SwapChatter,
   bundle: BenchmarkBundle | null
 ): number {
   // Skill-Faktor: 0.5 = Median-Skill → 1.0× Multiplikator. 1.0 Skill → 2.0×.
-  const skillFactor = Math.max(0.3, left.skillScore / 0.5);
+  const skillFactor = Math.max(0.5, left.skillScore / 0.5);
 
   let baseExpected: number;
   const cluster = bundle ? findCluster(bundle, right.followers) : null;
@@ -344,8 +349,13 @@ function computeExpectedGain(
     const ratio = Math.min(5, right.followers / Math.max(left.followers, 1));
     baseExpected = left.avgRevenue * Math.min(ratio, 3) * skillFactor;
   }
-  // Aktueller Umsatz auf Right-Account = was wir gewinnen abzüglich was schon da ist
-  const current = right.avgRevenue || right.currentRevenue;
+  // Erwarteter Netto-Gain des Tauschs: Verbesserung von links auf dem besseren Account
+  // abzüglich Opportunitätsverlust rechts. Nicht nur right.avgRevenue abziehen, sonst
+  // werden starke Links mit bereits gutem Umsatz fälschlich klein/negativ gerechnet.
+  const leftCurrent = left.avgRevenue || left.currentRevenue;
+  const rightCurrent = right.avgRevenue || right.currentRevenue;
+  const opportunityLoss = Math.max(0, rightCurrent - leftCurrent);
+  const current = leftCurrent + opportunityLoss;
   return baseExpected - current;
 }
 
@@ -384,6 +394,23 @@ const BREZZELS_LEVELS: BrezzelsLevel[] = [
   { poolSize: 16 },
   { poolSize: 20 },
 ];
+
+function buildFallbackSkillPools(
+  enriched: SwapChatter[],
+  poolSize: number
+): { underplaced: SwapChatter[]; overplaced: SwapChatter[] } {
+  const valid = enriched.filter((e) => e.followers > 0);
+  const underplaced = [...valid]
+    .sort((a, b) => b.skillScore - a.skillScore || a.followers - b.followers)
+    .slice(0, poolSize);
+  const underKeys = new Set(underplaced.map((u) => u.key));
+  const medianSkill = median(valid.map((e) => e.skillScore));
+  const overplaced = [...valid]
+    .filter((e) => !underKeys.has(e.key) && e.skillScore <= medianSkill)
+    .sort((a, b) => b.followers - a.followers || a.skillScore - b.skillScore)
+    .slice(0, poolSize);
+  return { underplaced, overplaced };
+}
 
 function buildBrezzelsPools(
   enriched: SwapChatter[],
@@ -446,10 +473,13 @@ export function computeSwapCandidates(
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
 
-  // ----- Brezzels: Mismatch-Pool + Diagnose-Logs -----
+  // ----- Brezzels: Mismatch-Pool + Fallback-Skill-Pool -----
   if (platform === "Brezzels") {
     for (const level of BREZZELS_LEVELS) {
-      const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
+      const mismatchPools = buildBrezzelsPools(enriched, level);
+      const fallbackPools = buildFallbackSkillPools(enriched, level.poolSize);
+      let underplaced = mismatchPools.underplaced;
+      let overplaced = mismatchPools.overplaced;
       const totalEnriched = enriched.length;
       const validFollowers = enriched.filter((e) => e.followers > 0).length;
       const zeroFollowerEntries = totalEnriched - validFollowers;
@@ -460,8 +490,9 @@ export function computeSwapCandidates(
         `[Brezzels swap] poolSize=${level.poolSize} → underplaced=${underplaced.length}, overplaced=${overplaced.length}`
       );
       if (underplaced.length === 0 || overplaced.length === 0) {
-        console.log(`[Brezzels swap] ⚠️ Pool leer — nächstes Lockerungslevel`);
-        continue;
+        underplaced = fallbackPools.underplaced;
+        overplaced = fallbackPools.overplaced;
+        console.log(`[Brezzels swap] ⚠️ Mismatch-Pool leer — nutze Skill/Follower-Fallback`);
       }
       console.log(
         `[Brezzels swap] Underplaced:`,
@@ -474,41 +505,13 @@ export function computeSwapCandidates(
       const result = pairUp(underplaced, overplaced, bundle, {
         minFollowerRatio: 1.0,
         maxFollowerRatio,
-        minSkillDiff: 0,
-        maxRightUses: 3,
-        gainTolerance: -1000,
+        minSkillDiff: 0.05,
+        maxRightUses: 1,
+        gainTolerance: -1,
         debugLabel: `Brezzels L=${level.poolSize}`,
       });
-
-      // Zweiter Pass: für jeden Overplaced der noch in keinem Pair ist,
-      // ein zusätzliches Pair mit dem best-passenden Underplaced erzeugen.
-      // → garantiert dass alle Overplaced aus dem Pool sichtbar werden.
-      const usedRightKeys = new Set(result.map((p) => p.right.key));
-      const unusedOverplaced = overplaced.filter((o) => !usedRightKeys.has(o.key));
-      for (const o of unusedOverplaced) {
-        let bestLeft: { u: SwapChatter; gain: number; ratio: number } | null = null;
-        for (const u of underplaced) {
-          if (u.name === o.name) continue;
-          const uFollowers = Math.max(u.followers, 1);
-          const ratio = o.followers / uFollowers;
-          if (ratio < 1.0 || ratio > maxFollowerRatio) continue;
-          const gain = computeExpectedGain(u, o, bundle);
-          if (!bestLeft || gain > bestLeft.gain) bestLeft = { u, gain, ratio };
-        }
-        if (!bestLeft) continue;
-        const tierJump = Math.max(0, tierIndex(o.tier) - tierIndex(bestLeft.u.tier));
-        result.push({
-          left: bestLeft.u,
-          right: o,
-          expectedGain: bestLeft.gain,
-          followerRatio: bestLeft.ratio,
-          tierJump,
-          leftAlternatives: [],
-          rightAlternatives: [],
-        });
-      }
       result.sort((a, b) => b.expectedGain - a.expectedGain);
-      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize} (incl. ${unusedOverplaced.length} fill-ups)`);
+      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize}`);
       // DOM-Marker für externe Inspektion (falls Console nicht erreichbar)
       if (typeof document !== "undefined") {
         document.documentElement.setAttribute(
@@ -587,7 +590,7 @@ function pairUp(
       if (ratio > maxFollowerRatio) { cRatioHigh++; continue; }
       if (u.skillScore - o.skillScore < minSkillDiff) { cSkillDiff++; continue; }
 
-      const gain = computeExpectedGain(u, o, bundle);
+      const gain = computeSwapExpectedGain(u, o, bundle);
       if (gain <= gainThreshold) { cGain++; continue; }
       cPassed++;
       if (!best || gain > best.gain) best = { right: o, gain, ratio };
@@ -613,7 +616,7 @@ function pairUp(
       const r = o.followers / uFollowers;
       if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (u.skillScore - o.skillScore < minSkillDiff) return false;
-      return computeExpectedGain(u, o, bundle) > gainThreshold;
+      return computeSwapExpectedGain(u, o, bundle) > gainThreshold;
     });
 
     const rightFollowers = Math.max(best.right.followers, 1);
@@ -623,7 +626,7 @@ function pairUp(
       const r = rightFollowers / Math.max(alt.followers, 1);
       if (r < minFollowerRatio || r > maxFollowerRatio) return false;
       if (alt.skillScore - best!.right.skillScore < minSkillDiff) return false;
-      return computeExpectedGain(alt, best!.right, bundle) > gainThreshold;
+      return computeSwapExpectedGain(alt, best!.right, bundle) > gainThreshold;
     });
 
     const tierJump = Math.max(0, tierIndex(best.right.tier) - tierIndex(u.tier));
@@ -719,7 +722,7 @@ export function computeManualSwapCandidates(
         right = sel;
       }
 
-      const gain = computeExpectedGain(left, right, bundle);
+      const gain = computeSwapExpectedGain(left, right, bundle);
       // Lockerer Modus: auch negative/kleine Gains zulassen, aber sortieren
       seenKeys.add(k1);
       const followerRatio = right.followers / Math.max(left.followers, 1);

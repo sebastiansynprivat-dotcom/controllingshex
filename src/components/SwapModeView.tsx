@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
   computeSwapCandidates,
   computeManualSwapCandidates,
+  computeSwapExpectedGain,
   listAllSwapChatters,
   formatEur,
   formatSkill,
@@ -20,7 +21,6 @@ import {
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
-import { findCluster } from "@/lib/peer-benchmarks";
 
 interface Props {
   platform: string;
@@ -534,17 +534,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
-    const skillFactor = Math.max(0.3, visibleLeft.skillScore / 0.5);
-    let baseExpected: number;
-    const cluster = benchmarks ? findCluster(benchmarks, visibleRight.followers) : null;
-    if (cluster && cluster.median > 0 && cluster.confidence !== "low") {
-      baseExpected = cluster.median * skillFactor;
-    } else {
-      const ratio = Math.min(3, visibleRight.followers / Math.max(visibleLeft.followers, 1));
-      baseExpected = visibleLeft.avgRevenue * ratio * skillFactor;
-    }
-    const current = visibleRight.avgRevenue || visibleRight.currentRevenue;
-    return Math.max(0, baseExpected - current);
+    return Math.max(0, computeSwapExpectedGain(visibleLeft, visibleRight, benchmarks ?? null));
   }, [visibleLeft, visibleRight, benchmarks]);
 
   const advancePair = useCallback(() => {
