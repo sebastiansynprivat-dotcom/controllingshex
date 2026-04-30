@@ -150,6 +150,30 @@
 }
 
 @layer utilities {
+  /* ───────── Safe-Area Utilities (iPhone Notch & Home-Indicator) ───────── */
+  .pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .pl-safe { padding-left: max(env(safe-area-inset-left), 0px); }
+  .pr-safe { padding-right: max(env(safe-area-inset-right), 0px); }
+  .px-safe {
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+  .py-safe {
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .mt-safe { margin-top: max(env(safe-area-inset-top), 0px); }
+  .mb-safe { margin-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .h-safe-top { height: max(env(safe-area-inset-top), 0px); }
+  .h-safe-bottom { height: max(env(safe-area-inset-bottom), 0px); }
+  .inset-safe {
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+
   .gold-gradient {
     background: linear-gradient(135deg, hsl(40 45% 55%), hsl(40 50% 65%));
   }
