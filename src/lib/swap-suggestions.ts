@@ -256,7 +256,7 @@ function buildEnriched(
   for (const c of chatters) {
     const accounts = splitAccounts(c.account);
     if (accounts.length === 0) continue;
-    const agg = aggregate7Day(c.history);
+    const agg = aggregateWindow(c.history, window.windowDays, window.from, window.to);
     if (
       agg.avgRevenue === 0 &&
       c.currentRevenue === 0 &&
