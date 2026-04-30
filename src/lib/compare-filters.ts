@@ -10,6 +10,8 @@ import type { SwapInput } from "@/lib/swap-suggestions";
 import type { HistoryRow as RangeHistoryRow, TimeRange } from "@/lib/timerange-categorize";
 import type { ActionCategoryName } from "@/lib/action-categories";
 import type { AccountTierId } from "@/lib/account-tiers";
+import { rangeDays } from "@/lib/timerange-categorize";
+import { parseLocaleNumber } from "@/lib/parse-number";
 
 /* ----------------------------- Types ----------------------------- */
 
@@ -152,6 +154,19 @@ function aggregateChatter(rows: RangeHistoryRow[]): AggregateRow {
   return { avgRev: sum / rows.length, sumRev: sum, zeroDays: zero, totalDays: rows.length, maxDelay: maxD };
 }
 
+function aggregateChatterForRange(rows: RangeHistoryRow[], range: TimeRange): AggregateRow {
+  const agg = aggregateChatter(rows);
+  const days = rangeDays(range);
+  if (rows.length === 0) return { avgRev: 0, sumRev: 0, zeroDays: days, totalDays: days, maxDelay: 0 };
+  const missingDays = Math.max(0, days - rows.length);
+  return {
+    ...agg,
+    avgRev: agg.sumRev / days,
+    zeroDays: agg.zeroDays + missingDays,
+    totalDays: days,
+  };
+}
+
 function buildHistoryIndex(rangeHistory: RangeHistoryRow[]): Map<string, RangeHistoryRow[]> {
   const map = new Map<string, RangeHistoryRow[]>();
   for (const h of rangeHistory) {
@@ -216,7 +231,7 @@ export function applyCompareFilter(
     // Revenue today (from kpis)
     const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
     const revStr = revKey ? c.kpis[revKey] : "0";
-    const revToday = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+    const revToday = parseLocaleNumber(revStr);
     if (filter.revToday) {
       const [lo, hi] = filter.revToday;
       if (revToday < lo || revToday > hi) continue;
@@ -224,7 +239,7 @@ export function applyCompareFilter(
 
     // Window aggregates
     const rows = histIndex.get(key) || [];
-    const agg = aggregateChatter(rows);
+    const agg = aggregateChatterForRange(rows, ctx.range);
 
     // Max delay: bevorzuge History-Aggregat; falls leer (z.B. "Heute"-Preset), falle auf KPI zurück
     let maxDelay = agg.maxDelay;
