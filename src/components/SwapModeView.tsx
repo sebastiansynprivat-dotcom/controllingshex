@@ -848,27 +848,42 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     </div>
   ) : null;
 
+  const timeRangeBar = (
+    <div className="mb-3 flex flex-wrap items-center gap-2 shrink-0">
+      <span className="text-[9px] lg:text-[10px] uppercase tracking-[0.18em] text-white/35 font-medium mr-1">
+        Zeitfenster
+      </span>
+      <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+      <span className="text-[10px] text-white/35 ml-auto tabular-nums">
+        Ø über {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tage"}
+      </span>
+    </div>
+  );
+
   if (allPairs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
-        <Sparkles className="h-8 w-8 text-white/30" />
-        <p className="text-sm text-foreground font-medium">
-          {isManualMode ? "Keine Tausch-Partner gefunden" : "Keine Tausch-Vorschläge"}
-        </p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          {isManualMode
-            ? `Für ${manualChatterName?.replace(/_/g, " ")} gibt es keine Chatter mit passender Skill-/Follower-Konstellation.`
-            : "Es wurden keine Chatter gefunden, die deutlich über- oder unterperformen relativ zu ihren Followern. Stelle sicher, dass Models mit Follower-Zahlen gepflegt sind und ein aktueller Report vorliegt."}
-        </p>
-        <div className="flex gap-2 mt-2">
-          <Button variant="outline" size="sm" onClick={() => setManualPickerOpen(true)}>
-            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Chatter manuell wählen
-          </Button>
-          {isManualMode && (
-            <Button variant="ghost" size="sm" onClick={() => setManualChatterName(null)}>
-              Zurück
+      <div className="flex flex-col h-full min-h-0 px-3 sm:px-6 lg:px-10 pt-1.5 sm:pt-3 lg:pt-6">
+        {timeRangeBar}
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center">
+          <Sparkles className="h-8 w-8 text-white/30" />
+          <p className="text-sm text-foreground font-medium">
+            {isManualMode ? "Keine Tausch-Partner gefunden" : "Keine Tausch-Vorschläge"}
+          </p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            {isManualMode
+              ? `Für ${manualChatterName?.replace(/_/g, " ")} gibt es keine Chatter mit passender Skill-/Follower-Konstellation im gewählten Zeitfenster.`
+              : "Im gewählten Zeitfenster gibt es keine deutlich über- oder unterperformenden Chatter. Probier ein größeres Fenster (z.B. 14T oder 30T) oder stell sicher, dass Models mit Follower-Zahlen gepflegt sind und ein aktueller Report vorliegt."}
+          </p>
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => setManualPickerOpen(true)}>
+              <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Chatter manuell wählen
             </Button>
-          )}
+            {isManualMode && (
+              <Button variant="ghost" size="sm" onClick={() => setManualChatterName(null)}>
+                Zurück
+              </Button>
+            )}
+          </div>
         </div>
         {renderManualPicker()}
       </div>
@@ -877,16 +892,19 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   if (!currentPair || !visibleLeft || !visibleRight) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3">
-        <div className="text-4xl">✅</div>
-        <p className="text-sm text-foreground font-medium">Alle Tausch-Vorschläge durch</p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setPairIdx(0); setDismissed(new Set()); }}>
-            Nochmal durchgehen
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setManualPickerOpen(true)}>
-            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Chatter manuell wählen
-          </Button>
+      <div className="flex flex-col h-full min-h-0 px-3 sm:px-6 lg:px-10 pt-1.5 sm:pt-3 lg:pt-6">
+        {timeRangeBar}
+        <div className="flex flex-col items-center justify-center flex-1 gap-3">
+          <div className="text-4xl">✅</div>
+          <p className="text-sm text-foreground font-medium">Alle Tausch-Vorschläge durch</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setPairIdx(0); setDismissed(new Set()); }}>
+              Nochmal durchgehen
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setManualPickerOpen(true)}>
+              <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Chatter manuell wählen
+            </Button>
+          </div>
         </div>
         {renderManualPicker()}
       </div>
