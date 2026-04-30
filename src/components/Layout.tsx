@@ -1,7 +1,10 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { motion } from "framer-motion";
+import { useLocation } from "react-router-dom";
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
   return (
     <SidebarProvider>
       <div className="h-[100dvh] flex w-full bg-depth overflow-hidden max-w-[100vw]" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
@@ -11,7 +14,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <SidebarTrigger className="text-white/60 hover:text-white/90 transition-colors duration-500 h-10 w-10 -ml-2" />
           </header>
           <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-8 lg:p-14">
-            {children}
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
           </main>
         </div>
       </div>
