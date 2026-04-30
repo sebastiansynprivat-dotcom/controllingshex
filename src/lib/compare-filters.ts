@@ -314,18 +314,19 @@ export function computeCompareStats(
   if (filtered.length === 0) return EMPTY_STATS;
 
   const wantNames = new Set(filtered.map((f) => normalizeName(f.name)));
-  let sumRev = 0, totalDays = 0, zeroDays = 0;
+  let sumRev = 0, totalDays = filtered.length * rangeDays(ctx.range), zeroDays = 0;
   // For trend: split window halves by date
   const fromTs = new Date(ctx.range.from + "T00:00:00Z").getTime();
   const toTs = new Date(ctx.range.to + "T00:00:00Z").getTime();
   const midTs = (fromTs + toTs) / 2;
   let firstHalfSum = 0, firstHalfRows = 0, secondHalfSum = 0, secondHalfRows = 0;
 
+  const rowsByName = new Map<string, number>();
   for (const h of ctx.rangeHistory) {
     if (!wantNames.has(normalizeName(h.chatter_name))) continue;
     const rev = h.revenue_today || 0;
     sumRev += rev;
-    totalDays++;
+    rowsByName.set(normalizeName(h.chatter_name), (rowsByName.get(normalizeName(h.chatter_name)) || 0) + 1);
     if (rev === 0) zeroDays++;
     const ts = new Date(h.analysis_date + "T00:00:00Z").getTime();
     if (ts <= midTs) {
@@ -333,6 +334,10 @@ export function computeCompareStats(
     } else {
       secondHalfSum += rev; secondHalfRows++;
     }
+  }
+
+  for (const name of wantNames) {
+    zeroDays += Math.max(0, rangeDays(ctx.range) - (rowsByName.get(name) || 0));
   }
 
   const avgRev = totalDays > 0 ? sumRev / totalDays : 0;
