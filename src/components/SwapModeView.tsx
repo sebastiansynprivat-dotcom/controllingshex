@@ -239,9 +239,16 @@ function SkillPill({
 }
 
 export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
+  /** Zeitfenster für Skill/Avg-Berechnung — analog zu Auffälligkeiten/Vergleich */
+  const [timeRange, setTimeRange] = useState<TimeRange>(() => buildTimeRange("7d"));
+  const swapWindow = useMemo(
+    () => ({ windowDays: rangeDays(timeRange), from: timeRange.from, to: timeRange.to }),
+    [timeRange]
+  );
+
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform }),
-    [chatters, models, benchmarks, platform]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow }),
+    [chatters, models, benchmarks, platform, swapWindow]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
@@ -250,8 +257,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [manualSearch, setManualSearch] = useState("");
 
   const allChatterOptions = useMemo(
-    () => listAllSwapChatters(chatters, models),
-    [chatters, models]
+    () => listAllSwapChatters(chatters, models, swapWindow),
+    [chatters, models, swapWindow]
   );
   /** Pro Chatter-Name nur 1 Eintrag (mit höchstem Skill) für Auswahl */
   const uniqueChatterOptions = useMemo(() => {
@@ -265,8 +272,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const manualPairs = useMemo(() => {
     if (!manualChatterName) return null;
-    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8);
-  }, [manualChatterName, chatters, models, benchmarks]);
+    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8, swapWindow);
+  }, [manualChatterName, chatters, models, benchmarks, swapWindow]);
 
   const allPairs = manualPairs ?? autoPairs;
   const isManualMode = manualPairs !== null;
