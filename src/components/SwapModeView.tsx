@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TimeRangeToggle from "@/components/TimeRangeToggle";
+import { buildTimeRange, rangeDays, type TimeRange } from "@/lib/timerange-categorize";
 import {
   computeSwapCandidates,
   computeManualSwapCandidates,
