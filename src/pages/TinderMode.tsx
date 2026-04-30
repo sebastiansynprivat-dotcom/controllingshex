@@ -426,7 +426,8 @@ export default function TinderMode() {
           if (!firstSeenMap.has(nKey)) firstSeenMap.set(nKey, h.analysis_date);
         }
         for (const ch of allChatters) {
-          ch.history = histMap.get(normalizeName(ch.name))?.slice(-7);
+          // Bis zu 30 Tage History (für Wechsel-Mode-Filter Heute/Gestern/7T/14T/30T/Custom)
+          ch.history = histMap.get(normalizeName(ch.name))?.slice(-30);
         }
         setFirstSeenByChatter(firstSeenMap);
       }
