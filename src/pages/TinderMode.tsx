@@ -47,6 +47,7 @@ import type { CategoryDecision } from "@/lib/categorize-v2";
 import { categorizeChatters } from "@/lib/categorize-v2";
 import type { StabilizedDecision } from "@/lib/category-state";
 import { stabilizeAndPersist } from "@/lib/category-state";
+import { parseLocaleNumber } from "@/lib/parse-number";
 
 interface ChatterData {
   name: string;
@@ -412,10 +413,10 @@ export default function TinderMode() {
           if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
           histMap.get(h.chatter_name)!.push({
             analysis_date: h.analysis_date,
-            revenue_today: Number(h.revenue_today) || 0,
-            mass_dms: Number(h.mass_dms) || 0,
-            open_chats: Number((h as any).open_chats) || 0,
-            response_delay_days: Number(h.response_delay_days) || 0,
+            revenue_today: parseLocaleNumber(h.revenue_today),
+            mass_dms: parseLocaleNumber(h.mass_dms),
+            open_chats: parseLocaleNumber((h as any).open_chats),
+            response_delay_days: parseLocaleNumber(h.response_delay_days),
             account: (h as any).account ?? undefined,
           });
           // Da history asc sortiert ist, ist das erste Vorkommen das früheste
@@ -491,7 +492,7 @@ export default function TinderMode() {
             const accLabel = accountNames.join(", ");
             const revKey = Object.keys(ch.kpis).find((k) => /umsatz|revenue/i.test(k));
             const revStr = revKey ? ch.kpis[revKey] : "0";
-            const rev = parseFloat(revStr.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+            const rev = parseLocaleNumber(revStr);
             ch.peerBm = getChatterBenchmark(bundle, accLabel, followers, rev);
           }
         } catch (err) {
@@ -604,7 +605,7 @@ export default function TinderMode() {
       // Follower aus modelPerf wenn vorhanden
       const followers = (c as any).modelPerf?.followerCount || 0;
       if (followers > 0) todaysFollowersByChatter.set(key, followers);
-      const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+      const todayRev = parseLocaleNumber(c.kpis?.["Tagesumsatz"]);
       todaysRevenueByChatter.set(key, todayRev);
     }
     return recategorizeByWindowV2(
@@ -687,7 +688,7 @@ export default function TinderMode() {
           if (c.account) todaysAccountByChatter.set(key, c.account);
           const followers = (c as any).modelPerf?.followerCount || 0;
           if (followers > 0) todaysFollowersByChatter.set(key, followers);
-          const todayRev = Number(c.kpis?.["Tagesumsatz"]?.replace(/[^\d.-]/g, "")) || 0;
+          const todayRev = parseLocaleNumber(c.kpis?.["Tagesumsatz"]);
           todaysRevenueByChatter.set(key, todayRev);
         }
 
@@ -929,7 +930,7 @@ export default function TinderMode() {
     return chatters.map((c) => {
       const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
       const revStr = revKey ? c.kpis[revKey] : "0";
-      const rev = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+      const rev = parseLocaleNumber(revStr);
       // Fallback: account aus history ableiten wenn der aktuelle Report keinen liefert.
       // chatter_history hat die accounts pro Tag — wir bauen eine kommagetrennte Liste.
       let account = c.account;

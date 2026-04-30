@@ -10,6 +10,8 @@ import type { SwapInput } from "@/lib/swap-suggestions";
 import type { HistoryRow as RangeHistoryRow, TimeRange } from "@/lib/timerange-categorize";
 import type { ActionCategoryName } from "@/lib/action-categories";
 import type { AccountTierId } from "@/lib/account-tiers";
+import { rangeDays } from "@/lib/timerange-categorize";
+import { parseLocaleNumber } from "@/lib/parse-number";
 
 /* ----------------------------- Types ----------------------------- */
 
@@ -152,6 +154,19 @@ function aggregateChatter(rows: RangeHistoryRow[]): AggregateRow {
   return { avgRev: sum / rows.length, sumRev: sum, zeroDays: zero, totalDays: rows.length, maxDelay: maxD };
 }
 
+function aggregateChatterForRange(rows: RangeHistoryRow[], range: TimeRange): AggregateRow {
+  const agg = aggregateChatter(rows);
+  const days = rangeDays(range);
+  if (rows.length === 0) return { avgRev: 0, sumRev: 0, zeroDays: days, totalDays: days, maxDelay: 0 };
+  const missingDays = Math.max(0, days - rows.length);
+  return {
+    ...agg,
+    avgRev: agg.sumRev / days,
+    zeroDays: agg.zeroDays + missingDays,
+    totalDays: days,
+  };
+}
+
 function buildHistoryIndex(rangeHistory: RangeHistoryRow[]): Map<string, RangeHistoryRow[]> {
   const map = new Map<string, RangeHistoryRow[]>();
   for (const h of rangeHistory) {
@@ -216,7 +231,7 @@ export function applyCompareFilter(
     // Revenue today (from kpis)
     const revKey = Object.keys(c.kpis).find((k) => /umsatz|revenue/i.test(k));
     const revStr = revKey ? c.kpis[revKey] : "0";
-    const revToday = parseFloat(String(revStr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+    const revToday = parseLocaleNumber(revStr);
     if (filter.revToday) {
       const [lo, hi] = filter.revToday;
       if (revToday < lo || revToday > hi) continue;
@@ -224,7 +239,7 @@ export function applyCompareFilter(
 
     // Window aggregates
     const rows = histIndex.get(key) || [];
-    const agg = aggregateChatter(rows);
+    const agg = aggregateChatterForRange(rows, ctx.range);
 
     // Max delay: bevorzuge History-Aggregat; falls leer (z.B. "Heute"-Preset), falle auf KPI zurück
     let maxDelay = agg.maxDelay;
@@ -276,13 +291,18 @@ export function applyCompareFilter(
       if (filter.status === "inactive" && isActive) continue;
     }
 
+    const avgRevWindow = ctx.range.preset === "today" && rows.length === 0 ? revToday : agg.avgRev;
+    const zeroRateWindow = ctx.range.preset === "today" && rows.length === 0
+      ? (revToday > 0 ? 0 : 1)
+      : (agg.totalDays > 0 ? agg.zeroDays / agg.totalDays : 0);
+
     out.push({
       name: c.name,
       account: c.account,
       currentRevenue: revToday,
       history: undefined,
-      avgRevWindow: agg.avgRev,
-      zeroRateWindow: agg.totalDays > 0 ? agg.zeroDays / agg.totalDays : 0,
+      avgRevWindow,
+      zeroRateWindow,
       category: cat,
     });
   }
@@ -299,18 +319,19 @@ export function computeCompareStats(
   if (filtered.length === 0) return EMPTY_STATS;
 
   const wantNames = new Set(filtered.map((f) => normalizeName(f.name)));
-  let sumRev = 0, totalDays = 0, zeroDays = 0;
+  let sumRev = 0, totalDays = filtered.length * rangeDays(ctx.range), zeroDays = 0;
   // For trend: split window halves by date
   const fromTs = new Date(ctx.range.from + "T00:00:00Z").getTime();
   const toTs = new Date(ctx.range.to + "T00:00:00Z").getTime();
   const midTs = (fromTs + toTs) / 2;
   let firstHalfSum = 0, firstHalfRows = 0, secondHalfSum = 0, secondHalfRows = 0;
 
+  const rowsByName = new Map<string, number>();
   for (const h of ctx.rangeHistory) {
     if (!wantNames.has(normalizeName(h.chatter_name))) continue;
     const rev = h.revenue_today || 0;
     sumRev += rev;
-    totalDays++;
+    rowsByName.set(normalizeName(h.chatter_name), (rowsByName.get(normalizeName(h.chatter_name)) || 0) + 1);
     if (rev === 0) zeroDays++;
     const ts = new Date(h.analysis_date + "T00:00:00Z").getTime();
     if (ts <= midTs) {
@@ -318,6 +339,10 @@ export function computeCompareStats(
     } else {
       secondHalfSum += rev; secondHalfRows++;
     }
+  }
+
+  for (const name of wantNames) {
+    zeroDays += Math.max(0, rangeDays(ctx.range) - (rowsByName.get(name) || 0));
   }
 
   const avgRev = totalDays > 0 ? sumRev / totalDays : 0;

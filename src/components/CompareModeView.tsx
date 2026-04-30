@@ -25,6 +25,7 @@ import {
   type SwapModelInfo,
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
+import { rangeLabel } from "@/lib/timerange-categorize";
 import type { TimeRange, HistoryRow as RangeHistoryRow } from "@/lib/timerange-categorize";
 import type { ActionCategoryName } from "@/lib/action-categories";
 import type { AccountTierId } from "@/lib/account-tiers";
@@ -204,6 +205,7 @@ export default function CompareModeView({
 
   const currentA = orderedA[idxA];
   const currentB = orderedB[idxB];
+  const metricLabel = useMemo(() => `Ø ${rangeLabel(range)}`, [range]);
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto space-y-3" style={{ touchAction: "pan-y", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}>
@@ -246,6 +248,7 @@ export default function CompareModeView({
           stackLength={orderedA.length}
           idx={idxA}
           dismissedCount={dismissedA.size}
+          metricLabel={metricLabel}
           onSwipeDismiss={() => {
             if (currentA) {
               const name = currentA.name;
@@ -275,6 +278,7 @@ export default function CompareModeView({
           stackLength={orderedB.length}
           idx={idxB}
           dismissedCount={dismissedB.size}
+          metricLabel={metricLabel}
           onSwipeDismiss={() => {
             if (currentB) {
               const name = currentB.name;
@@ -447,6 +451,7 @@ function CompareSlot({
   stackLength,
   idx,
   dismissedCount,
+  metricLabel,
   onSwipeDismiss,
   onSwipeSkip,
   onReset,
@@ -459,6 +464,7 @@ function CompareSlot({
   stackLength: number;
   idx: number;
   dismissedCount: number;
+  metricLabel: string;
   onSwipeDismiss: () => void;
   onSwipeSkip: () => void;
   onReset: () => void;
@@ -521,10 +527,11 @@ function CompareSlot({
     <div className="space-y-1.5">
       {/* Slot-Container: clipped — Drag der Karte bleibt INNERHALB dieses Slots sichtbar */}
       <div className="relative w-full overflow-hidden rounded-2xl">
-        <CompareSwipeCard
+          <CompareSwipeCard
           accentHsl={accentHsl}
           item={item}
           enriched={enriched}
+            metricLabel={metricLabel}
           onSwipeLR={onSwipeDismiss}
           onSwipeDown={onSwipeSkip}
           onSingleClick={() => onTap(item.name)}
@@ -555,6 +562,7 @@ function CompareSwipeCard({
   accentHsl,
   item,
   enriched,
+  metricLabel,
   onSwipeLR,
   onSwipeDown,
   onSingleClick,
@@ -563,6 +571,7 @@ function CompareSwipeCard({
   accentHsl: string;
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
+  metricLabel: string;
   onSwipeLR: () => void;
   onSwipeDown: () => void;
   onSingleClick: () => void;
@@ -632,7 +641,7 @@ function CompareSwipeCard({
   const tier = enriched?.tier ?? "—";
   const followers = enriched?.followers ?? 0;
   const skill = enriched?.skillScore ?? 0;
-  const avgRev = enriched?.avgRevenue ?? item.avgRevWindow;
+  const avgRev = item.avgRevWindow;
   const today = enriched?.currentRevenue ?? item.currentRevenue ?? 0;
   const firstSeen = enriched?.firstSeen ?? null;
   const account = enriched?.account ?? item.account ?? "";
@@ -709,7 +718,7 @@ function CompareSwipeCard({
         {/* Stats */}
         <div className="grid grid-cols-2 gap-1.5 md:gap-2 mt-auto">
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
-            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">7T-Ø</p>
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">{metricLabel}</p>
             <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgRev)}</p>
           </div>
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
@@ -744,8 +753,8 @@ function LiveDeltaBox({
   const ea = enrichedMap.get(normalizeName(a.name));
   const eb = enrichedMap.get(normalizeName(b.name));
 
-  const avgA = ea?.avgRevenue ?? a.avgRevWindow;
-  const avgB = eb?.avgRevenue ?? b.avgRevWindow;
+  const avgA = a.avgRevWindow;
+  const avgB = b.avgRevWindow;
   const skillA = ea?.skillScore ?? 0;
   const skillB = eb?.skillScore ?? 0;
   const todayA = ea?.currentRevenue ?? a.currentRevenue ?? 0;
