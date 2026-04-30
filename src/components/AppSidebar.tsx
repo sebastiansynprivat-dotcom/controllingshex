@@ -34,7 +34,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="sidebar-premium border-r border-white/[0.04]">
-      <SidebarContent style={{ paddingTop: "calc(env(safe-area-inset-top) + 2.5rem)" }} className={`relative transition-all duration-300 ease-in-out flex flex-col h-full ${collapsed ? "px-0 items-center" : "px-3"}`}>
+      <SidebarContent style={{ paddingTop: "calc(max(env(safe-area-inset-top), 0px) + 2.5rem)" }} className={`relative transition-all duration-300 ease-in-out flex flex-col h-full ${collapsed ? "px-0 items-center" : "px-3"}`}>
         {/* Brand */}
         <div className={`mb-10 transition-all duration-300 ease-in-out ${collapsed ? "flex justify-center px-0" : "px-3"}`}>
           {!collapsed ? (
