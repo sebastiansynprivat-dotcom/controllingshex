@@ -253,9 +253,13 @@ export default function AnomalyPanel({
     if (!user || !reportId) return;
     const key = `${a.chatter_name}|${a.alert_type}`;
     setPendingDismiss((p) => new Set(p).add(key));
-    setAnomalies((prev) =>
-      prev.filter((x) => !(x.chatter_name === a.chatter_name && x.alert_type === a.alert_type)),
-    );
+    setAnomalies((prev) => {
+      const next = prev.filter(
+        (x) => !(x.chatter_name === a.chatter_name && x.alert_type === a.alert_type),
+      );
+      patchSnapshotAnomalies(next);
+      return next;
+    });
     try {
       await dismissAnomaly({
         userId: user.id,
