@@ -11,9 +11,34 @@ import AnomalyPanel from "@/components/AnomalyPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { buildTimeRange, rangeLabel, type TimeRange } from "@/lib/timerange-categorize";
 
+const RANGE_STORAGE_KEY = "anomalies-page-range-v1";
+
+function loadPersistedRange(): TimeRange {
+  if (typeof sessionStorage === "undefined") return buildTimeRange("7d");
+  try {
+    const raw = sessionStorage.getItem(RANGE_STORAGE_KEY);
+    if (!raw) return buildTimeRange("7d");
+    const parsed = JSON.parse(raw);
+    if (parsed?.preset === "custom" && parsed.from && parsed.to) {
+      return buildTimeRange("custom", parsed.from, parsed.to);
+    }
+    if (parsed?.preset) return buildTimeRange(parsed.preset);
+  } catch { /* noop */ }
+  return buildTimeRange("7d");
+}
+
 export default function Anomalies() {
   const { platform } = usePlatform();
-  const [range, setRange] = useState<TimeRange>(() => buildTimeRange("7d"));
+  const [range, setRangeRaw] = useState<TimeRange>(() => loadPersistedRange());
+  const setRange = (r: TimeRange) => {
+    setRangeRaw(r);
+    try {
+      sessionStorage.setItem(
+        RANGE_STORAGE_KEY,
+        JSON.stringify({ preset: r.preset, from: r.from, to: r.to }),
+      );
+    } catch { /* noop */ }
+  };
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
 
   const subtitle = useMemo(
