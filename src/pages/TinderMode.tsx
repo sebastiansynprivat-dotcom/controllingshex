@@ -393,12 +393,13 @@ export default function TinderMode() {
 
       // Parallel: history + models
       const names = allChatters.map((c) => c.name);
+      const historyNames = Array.from(new Set(names.flatMap((name) => [name, normalizeName(name)])));
       const [historyRes, modelsRes] = await Promise.all([
         supabase
           .from("chatter_history")
           .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
           .eq("platform", platform)
-          .in("chatter_name", names)
+          .in("chatter_name", historyNames)
           .order("analysis_date", { ascending: true }),
         supabase
           .from("models")
@@ -410,8 +411,9 @@ export default function TinderMode() {
         const histMap = new Map<string, { analysis_date: string; revenue_today: number; mass_dms: number; open_chats: number; response_delay_days: number; account?: string }[]>();
         const firstSeenMap = new Map<string, string>();
         for (const h of historyRes.data) {
-          if (!histMap.has(h.chatter_name)) histMap.set(h.chatter_name, []);
-          histMap.get(h.chatter_name)!.push({
+          const hKey = normalizeName(h.chatter_name);
+          if (!histMap.has(hKey)) histMap.set(hKey, []);
+          histMap.get(hKey)!.push({
             analysis_date: h.analysis_date,
             revenue_today: parseLocaleNumber(h.revenue_today),
             mass_dms: parseLocaleNumber(h.mass_dms),
@@ -424,7 +426,7 @@ export default function TinderMode() {
           if (!firstSeenMap.has(nKey)) firstSeenMap.set(nKey, h.analysis_date);
         }
         for (const ch of allChatters) {
-          ch.history = histMap.get(ch.name)?.slice(-7);
+          ch.history = histMap.get(normalizeName(ch.name))?.slice(-7);
         }
         setFirstSeenByChatter(firstSeenMap);
       }
