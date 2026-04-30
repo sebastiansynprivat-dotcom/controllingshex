@@ -7,6 +7,7 @@
  */
 import type { ActionCategoryName } from "@/lib/action-categories";
 import { supabase } from "@/integrations/supabase/client";
+import { parseLocaleNumber } from "@/lib/parse-number";
 
 export type TimeRangePreset = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
 
@@ -22,6 +23,8 @@ export interface HistoryRow {
   chatter_name: string;
   analysis_date: string;
   revenue_today: number;
+  mass_dms?: number;
+  open_chats?: number;
   response_delay_days?: number;
   /** Account zu dem Zeitpunkt — für Wechsel-Tracking (Punkt 7) */
   account?: string | null;
@@ -99,7 +102,7 @@ export async function loadHistoryForRange(
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, response_delay_days, account")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
       .eq("platform", platform)
       .gte("analysis_date", fromIso)
       .lte("analysis_date", toIso)
@@ -111,8 +114,10 @@ export async function loadHistoryForRange(
       all.push({
         chatter_name: r.chatter_name,
         analysis_date: r.analysis_date,
-        revenue_today: Number(r.revenue_today) || 0,
-        response_delay_days: Number(r.response_delay_days) || 0,
+        revenue_today: parseLocaleNumber(r.revenue_today),
+        mass_dms: parseLocaleNumber(r.mass_dms),
+        open_chats: parseLocaleNumber(r.open_chats),
+        response_delay_days: parseLocaleNumber(r.response_delay_days),
         account: r.account ?? null,
       });
     }
