@@ -473,10 +473,13 @@ export function computeSwapCandidates(
   const enriched = buildEnriched(chatters, models);
   if (enriched.length < 2) return [];
 
-  // ----- Brezzels: Mismatch-Pool + Diagnose-Logs -----
+  // ----- Brezzels: Mismatch-Pool + Fallback-Skill-Pool -----
   if (platform === "Brezzels") {
     for (const level of BREZZELS_LEVELS) {
-      const { underplaced, overplaced } = buildBrezzelsPools(enriched, level);
+      const mismatchPools = buildBrezzelsPools(enriched, level);
+      const fallbackPools = buildFallbackSkillPools(enriched, level.poolSize);
+      let underplaced = mismatchPools.underplaced;
+      let overplaced = mismatchPools.overplaced;
       const totalEnriched = enriched.length;
       const validFollowers = enriched.filter((e) => e.followers > 0).length;
       const zeroFollowerEntries = totalEnriched - validFollowers;
@@ -487,8 +490,9 @@ export function computeSwapCandidates(
         `[Brezzels swap] poolSize=${level.poolSize} → underplaced=${underplaced.length}, overplaced=${overplaced.length}`
       );
       if (underplaced.length === 0 || overplaced.length === 0) {
-        console.log(`[Brezzels swap] ⚠️ Pool leer — nächstes Lockerungslevel`);
-        continue;
+        underplaced = fallbackPools.underplaced;
+        overplaced = fallbackPools.overplaced;
+        console.log(`[Brezzels swap] ⚠️ Mismatch-Pool leer — nutze Skill/Follower-Fallback`);
       }
       console.log(
         `[Brezzels swap] Underplaced:`,
@@ -501,41 +505,13 @@ export function computeSwapCandidates(
       const result = pairUp(underplaced, overplaced, bundle, {
         minFollowerRatio: 1.0,
         maxFollowerRatio,
-        minSkillDiff: 0,
-        maxRightUses: 3,
-        gainTolerance: -1000,
+        minSkillDiff: 0.05,
+        maxRightUses: 1,
+        gainTolerance: -1,
         debugLabel: `Brezzels L=${level.poolSize}`,
       });
-
-      // Zweiter Pass: für jeden Overplaced der noch in keinem Pair ist,
-      // ein zusätzliches Pair mit dem best-passenden Underplaced erzeugen.
-      // → garantiert dass alle Overplaced aus dem Pool sichtbar werden.
-      const usedRightKeys = new Set(result.map((p) => p.right.key));
-      const unusedOverplaced = overplaced.filter((o) => !usedRightKeys.has(o.key));
-      for (const o of unusedOverplaced) {
-        let bestLeft: { u: SwapChatter; gain: number; ratio: number } | null = null;
-        for (const u of underplaced) {
-          if (u.name === o.name) continue;
-          const uFollowers = Math.max(u.followers, 1);
-          const ratio = o.followers / uFollowers;
-          if (ratio < 1.0 || ratio > maxFollowerRatio) continue;
-          const gain = computeExpectedGain(u, o, bundle);
-          if (!bestLeft || gain > bestLeft.gain) bestLeft = { u, gain, ratio };
-        }
-        if (!bestLeft) continue;
-        const tierJump = Math.max(0, tierIndex(o.tier) - tierIndex(bestLeft.u.tier));
-        result.push({
-          left: bestLeft.u,
-          right: o,
-          expectedGain: bestLeft.gain,
-          followerRatio: bestLeft.ratio,
-          tierJump,
-          leftAlternatives: [],
-          rightAlternatives: [],
-        });
-      }
       result.sort((a, b) => b.expectedGain - a.expectedGain);
-      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize} (incl. ${unusedOverplaced.length} fill-ups)`);
+      console.log(`[Brezzels swap] → ${result.length} pairs at poolSize=${level.poolSize}`);
       // DOM-Marker für externe Inspektion (falls Console nicht erreichbar)
       if (typeof document !== "undefined") {
         document.documentElement.setAttribute(
