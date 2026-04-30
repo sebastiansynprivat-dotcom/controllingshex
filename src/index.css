@@ -77,6 +77,12 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
+  #root {
+    /* Landscape-Notch (iPhone quer): Inhalt aus dem Notch-Bereich raushalten,
+       Hintergrund läuft trotzdem bis an den Rand (auf html/body). */
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
   .app-standalone,
   .app-standalone body,
   .app-standalone #root {
