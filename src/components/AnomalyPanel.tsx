@@ -65,19 +65,51 @@ export default function AnomalyPanel({
   const setRange = onRangeChange ?? setInternalRange;
 
   const sourceIdRef = useRef<string>(`ap-${Math.random().toString(36).slice(2, 10)}`);
-  const [loading, setLoading] = useState(true);
-  const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>([]);
-  const [reportId, setReportId] = useState<string | null>(null);
+
+  // Cache-Key für Snapshot in sessionStorage (überlebt PWA Background / Tab-Wechsel).
+  const cacheKey = useMemo(() => {
+    const fromIso = String(range.from).slice(0, 10);
+    const toIso = String(range.to).slice(0, 10);
+    return `anomaly-snapshot::${platform}::${fromIso}::${toIso}`;
+  }, [platform, range]);
+
+  type Snapshot = {
+    anomalies: ChatterAnomaly[];
+    peerAvg: number;
+    totalChattersInRange: number;
+    modelFollowers: [string, number][];
+    chatterAccounts: [string, string[]][];
+    reportId: string | null;
+    savedAt: number;
+  };
+
+  const loadSnapshot = (key: string): Snapshot | null => {
+    if (typeof sessionStorage === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      return JSON.parse(raw) as Snapshot;
+    } catch { return null; }
+  };
+
+  const initialSnap = typeof window !== "undefined" ? loadSnapshot(cacheKey) : null;
+
+  const [loading, setLoading] = useState(!initialSnap);
+  const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>(initialSnap?.anomalies ?? []);
+  const [reportId, setReportId] = useState<string | null>(initialSnap?.reportId ?? null);
   const [expanded, setExpanded] = useState(false);
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
-  const [peerAvg, setPeerAvg] = useState(0);
+  const [peerAvg, setPeerAvg] = useState(initialSnap?.peerAvg ?? 0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
-  /** model_name (lowercased) -> follower_count */
-  const [modelFollowers, setModelFollowers] = useState<Map<string, number>>(new Map());
-  /** chatter_name -> array of account names (raw) */
-  const [chatterAccounts, setChatterAccounts] = useState<Map<string, string[]>>(new Map());
-  /** Anzahl unique Chatter im Zeitraum (Basis für Progress Bar) */
-  const [totalChattersInRange, setTotalChattersInRange] = useState(0);
+  const [modelFollowers, setModelFollowers] = useState<Map<string, number>>(
+    () => new Map(initialSnap?.modelFollowers ?? []),
+  );
+  const [chatterAccounts, setChatterAccounts] = useState<Map<string, string[]>>(
+    () => new Map(initialSnap?.chatterAccounts ?? []),
+  );
+  const [totalChattersInRange, setTotalChattersInRange] = useState(
+    initialSnap?.totalChattersInRange ?? 0,
+  );
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -123,7 +155,6 @@ export default function AnomalyPanel({
     }
     setModelFollowers(fmap);
 
-    // Pro Chatter den jüngsten account-Eintrag nehmen (history ist desc sortiert)
     const amap = new Map<string, string[]>();
     for (const row of accountsRes.data ?? []) {
       if (amap.has(row.chatter_name)) continue;
@@ -135,29 +166,80 @@ export default function AnomalyPanel({
     }
     setChatterAccounts(amap);
 
+    // Persist snapshot
+    try {
+      const snap: Snapshot = {
+        anomalies: result.anomalies,
+        peerAvg: result.peerAvgRevenuePerDay,
+        totalChattersInRange: uniq.size,
+        modelFollowers: [...fmap.entries()],
+        chatterAccounts: [...amap.entries()],
+        reportId: rid,
+        savedAt: Date.now(),
+      };
+      sessionStorage.setItem(cacheKey, JSON.stringify(snap));
+    } catch { /* quota or unavailable */ }
+
     setLoading(false);
-  }, [user, platform, range]);
+  }, [user, platform, range, cacheKey]);
 
+  // Mount / range change: nur refreshen wenn kein gültiger Snapshot vorhanden.
+  // Snapshot gilt als gültig solange er für genau diesen cacheKey existiert.
+  // Neue Reports invalidieren via `onChatterDataUpdated` (Event löscht Cache).
   useEffect(() => {
+    const snap = loadSnapshot(cacheKey);
+    if (snap) {
+      // Hydrate (für den Fall dass cacheKey sich geändert hat ohne Remount)
+      setAnomalies(snap.anomalies);
+      setPeerAvg(snap.peerAvg);
+      setTotalChattersInRange(snap.totalChattersInRange);
+      setModelFollowers(new Map(snap.modelFollowers));
+      setChatterAccounts(new Map(snap.chatterAccounts));
+      setReportId(snap.reportId);
+      setLoading(false);
+      return;
+    }
     refresh();
-  }, [refresh]);
+  }, [refresh, cacheKey]);
+
+  // Hilfs-Funktion: Snapshot mit aktuellem anomalies-State patchen.
+  const patchSnapshotAnomalies = useCallback((next: ChatterAnomaly[]) => {
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (!raw) return;
+      const snap = JSON.parse(raw);
+      snap.anomalies = next;
+      sessionStorage.setItem(cacheKey, JSON.stringify(snap));
+    } catch { /* noop */ }
+  }, [cacheKey]);
 
   useEffect(() => {
-    const offData = onChatterDataUpdated(() => refresh());
+    const offData = onChatterDataUpdated(() => {
+      // Neuer Report → alle Snapshots dieser Plattform invalidieren
+      try {
+        const prefix = `anomaly-snapshot::${platform}::`;
+        const toRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith(prefix)) toRemove.push(k);
+        }
+        toRemove.forEach((k) => sessionStorage.removeItem(k));
+      } catch { /* noop */ }
+      refresh();
+    });
     const offDismiss = onAnomalyDismissed((payload) => {
-      // Eigenes Event ignorieren — wir haben den State lokal schon aktualisiert
       if (payload.sourceId === sourceIdRef.current) return;
-      // Fremdes Event: lokal filtern statt komplett neu laden
       if (payload.chatterName) {
-        setAnomalies((prev) =>
-          prev.filter((x) => {
+        setAnomalies((prev) => {
+          const next = prev.filter((x) => {
             if (x.chatter_name !== payload.chatterName) return true;
             if (payload.alertType && x.alert_type !== payload.alertType) return true;
             return false;
-          }),
-        );
+          });
+          patchSnapshotAnomalies(next);
+          return next;
+        });
       } else {
-        // Kein Payload: Fallback auf Refresh
         refresh();
       }
     });
@@ -165,15 +247,19 @@ export default function AnomalyPanel({
       offData();
       offDismiss();
     };
-  }, [refresh]);
+  }, [refresh, platform, patchSnapshotAnomalies]);
 
   const handleDismiss = async (a: ChatterAnomaly) => {
     if (!user || !reportId) return;
     const key = `${a.chatter_name}|${a.alert_type}`;
     setPendingDismiss((p) => new Set(p).add(key));
-    setAnomalies((prev) =>
-      prev.filter((x) => !(x.chatter_name === a.chatter_name && x.alert_type === a.alert_type)),
-    );
+    setAnomalies((prev) => {
+      const next = prev.filter(
+        (x) => !(x.chatter_name === a.chatter_name && x.alert_type === a.alert_type),
+      );
+      patchSnapshotAnomalies(next);
+      return next;
+    });
     try {
       await dismissAnomaly({
         userId: user.id,
@@ -204,7 +290,11 @@ export default function AnomalyPanel({
     if (!user || !reportId || items.length === 0) return;
     const key = `chatter|${chatterName}`;
     setPendingDismiss((p) => new Set(p).add(key));
-    setAnomalies((prev) => prev.filter((x) => x.chatter_name !== chatterName));
+    setAnomalies((prev) => {
+      const next = prev.filter((x) => x.chatter_name !== chatterName);
+      patchSnapshotAnomalies(next);
+      return next;
+    });
     try {
       await dismissChatter({
         userId: user.id,
