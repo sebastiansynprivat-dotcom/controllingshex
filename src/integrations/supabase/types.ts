@@ -220,7 +220,7 @@ export type Database = {
       }
       chatter_history: {
         Row: {
-          account: string | null
+          account: string
           analysis_date: string
           category: string | null
           chatter_name: string
@@ -235,7 +235,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          account?: string | null
+          account?: string
           analysis_date?: string
           category?: string | null
           chatter_name: string
@@ -250,7 +250,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          account?: string | null
+          account?: string
           analysis_date?: string
           category?: string | null
           chatter_name?: string
