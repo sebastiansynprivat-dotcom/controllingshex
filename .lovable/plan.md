@@ -1,80 +1,43 @@
-# Tagesziel + Peer-Ø auf Swipe-Karten
-
 ## Ziel
-Auf jeder Swipe-Karte (TinderMode / Onboarding-Mode) soll der Coach
-1. den **Peer-Durchschnitt** des Chatters (€/Tag, basierend auf seinem Cluster bzw. Account-Baseline) immer sichtbar haben,
-2. ein **automatisch vorgeschlagenes Tagesziel** sehen, abgeleitet aus dem Peer-Median des Accounts,
-3. dieses Ziel **direkt auf der Karte eintragen / bestätigen / anpassen** können,
-4. das vergebene Tagesziel **dauerhaft auf der Karte angezeigt** bekommen (mit Datum / "heute vergeben").
+Layout nutzt iPhone-Notch & Home-Indicator korrekt: dunkler Hintergrund läuft randlos in die Safe Areas, Inhalte (Header, Main, Sidebar, Sheets, Bottom-Bars) respektieren `env(safe-area-inset-*)` — keine schwarzen Ränder, kein abgeschnittener Content.
 
-## Architektur
+## Änderungen
 
-### 1. Neue Tabelle `chatter_daily_goals` (Migration)
-Spalten:
-- `id` uuid pk
-- `user_id` uuid (RLS: auth.uid())
-- `platform` text default 'Maloum'
-- `chatter_name` text
-- `goal_date` date default current_date
-- `goal_eur` numeric (das vergebene Ziel)
-- `suggested_eur` numeric (was das System vorgeschlagen hat — für Auswertung)
-- `source` text ('peer-cluster' | 'account-baseline' | 'global' | 'manual')
-- `note` text nullable
-- `created_at`, `updated_at` timestamps
-- Unique-Index `(user_id, platform, chatter_name, goal_date)` → 1 Ziel pro Tag pro Chatter
-- RLS: Users CRUD nur eigene Rows, Service-Role full access
+### 1. `index.html`
+- Sicherstellen, dass `viewport-fit=cover` gesetzt bleibt (ist schon da).
+- `theme-color` bleibt auf `#0a0a0b`, damit iOS/Android die System-UI in derselben Farbe einfärbt → kein sichtbarer Übergang zur Safe Area.
 
-### 2. Neue Helper `src/lib/daily-goals.ts`
-- `suggestDailyGoal(bm: ChatterBenchmark): { eur: number; source: string; rationale: string }`
-  - Priorität: Account-Baseline (avg ×1.1, "Stretch +10%") > Peer-Cluster-Median > Global-Median
-  - Rundung auf nächste 5/10/25 € je nach Größe
-  - Cold-Start (source = "none") → kein Vorschlag, manuelle Eingabe
-- `loadTodayGoals(platform)` → Map<normalizedName, GoalRow> für heute
-- `upsertDailyGoal(platform, chatterName, eur, suggested, source)` → schreibt/aktualisiert Eintrag
+### 2. `src/index.css`
+- Tailwind-Tokens für Safe-Area ergänzen (über `@layer utilities`):
+  - `.pt-safe`, `.pb-safe`, `.pl-safe`, `.pr-safe`, `.px-safe`, `.py-safe`, sowie `.mt-safe`, `.mb-safe`, jeweils `max(env(safe-area-inset-*), 0px)`.
+  - `.h-safe-top`, `.h-safe-bottom` als Hilfs-Spacer.
+- Globale Regel: `html, body` behalten `background: hsl(var(--background))` — füllt die Safe Areas dunkel (verhindert weiße/schwarze Streifen).
+- `#root` bekommt `padding-left: env(safe-area-inset-left)` und `padding-right: env(safe-area-inset-right)` für Landscape-Notch (iPhone quer).
+- Bestehende `--app-height`-Logik unangetastet lassen.
 
-### 3. SwipeCard UI (`src/components/SwipeCard.tsx`)
-Neuer kompakter Block direkt **unter dem Hero-KPI**, oberhalb der weiteren KPIs:
+### 3. `src/components/Layout.tsx`
+- Wrapper-Div: kein eigenes Padding für Safe Areas mehr — der Hintergrund (`bg-depth`) reicht weiter bis zum Rand.
+- Header: 
+  - `padding-top: max(env(safe-area-inset-top), 0px)` (statt nur `env(...)`, damit kein NaN auf Geräten ohne Notch).
+  - Mindesthöhe Inhalt 56 px, dazu kommt der Inset → Notch-Bereich ist dunkel + leichter Blur, ohne Inhalt zu überdecken.
+- Main:
+  - `padding-bottom: max(env(safe-area-inset-bottom), 1.5rem)` bleibt.
+  - Zusätzlich `padding-left/right: max(env(safe-area-inset-left/right), 0px)` für Landscape.
 
-```
-┌─ Tagesziel ─────────────────────────────────┐
-│  Peer-Ø: 240 €/Tag  ·  Cluster 10K-30K       │
-│                                               │
-│  [ Vorschlag: 265 € ]   [ ✏️ anpassen ]      │
-│                                               │
-│   …oder bei vergeben:                         │
-│  ✅ Ziel heute vergeben: 280 €  ·  14:32      │
-│                                       [ändern]│
-└───────────────────────────────────────────────┘
-```
+### 4. `src/components/AppSidebar.tsx`
+- `SidebarContent` paddingTop auf `max(env(safe-area-inset-top), 0px) + 2.5rem` umstellen (`max(...)` statt `calc(env(...) + ...)`, damit Geräte ohne Notch nicht zu wenig Abstand bekommen → korrekt: `calc(max(env(safe-area-inset-top), 0px) + 2.5rem)`).
+- Logout-Bereich (`pb-6`) ersetzen durch `padding-bottom: calc(max(env(safe-area-inset-bottom), 0px) + 1.5rem)`, damit Home-Indicator nicht den Logout-Button überdeckt.
 
-- **Peer-Ø-Zeile**: zeigt immer `formatBenchmarkLabel`-Wert + Cluster-Label (oder Account-Ø-Tage), egal welche Größe → fällt auf globalen Median zurück.
-- **Vorschlag-Pill**: tap-bar → speichert direkt mit einem Tap (Toast „Tagesziel 265 € vergeben").
-- **„✏️ anpassen"** öffnet ein leichtes Inline-Sheet (kleines Popover/Drawer) mit Number-Input + Speichern. Kein Reload.
-- **Vergeben-State**: ersetzt die Vorschlag-Pill durch grünes Badge mit Wert + Uhrzeit, plus „ändern"-Link.
-- Touch-Bereich groß, kein Drag-Konflikt (`stopPropagation` + `pointer-events`).
-- Reihenfolge: passt zwischen `pickHeroKpi`-Block und `kpiEntries`.
+### 5. Globale Komponenten mit Bottom-Fixierung prüfen
+- Suche nach `fixed bottom-0`, `Sheet`, `Drawer`, `Toast` — und Safe-Area-Bottom-Padding ergänzen wo nötig:
+  - Bottom-Sheets/Drawer: `padding-bottom: max(env(safe-area-inset-bottom), 1rem)`.
+  - Toast-Container: `bottom: max(env(safe-area-inset-bottom), 1rem)`.
 
-### 4. TinderMode-Loader (`src/pages/TinderMode.tsx`)
-- Nach `loadBenchmarks` zusätzlich `loadTodayGoals(platform)` parallel laden.
-- Map `goalsByChatter` per `useState`, an SwipeCard via Prop weiterreichen (`dailyGoal` + `onAssignGoal`).
-- Auf erfolgreichem Upsert: Map sofort lokal aktualisieren (optimistic) → Karte aktualisiert ohne Reload.
-- Funktioniert in allen Time-Range-Modi; Suggestion bleibt aus aktuellem `peerBm`.
-
-### 5. Optional: ChatterSlideOver
-Im Detail-SlideOver oben kleiner Mirror-Block „Heutiges Ziel: 280 €" — read-only, nur falls bereits vergeben. (Hält UX konsistent, ohne Doppelaufwand.)
-
-## Fragen / Annahmen
-- **Goal-Formel**: Account-Baseline × 1.1 (Stretch +10%), sonst Cluster-Median × 1.0. Falls du lieber +20% / +0% willst → leicht änderbar in `suggestDailyGoal`.
-- **Pro Tag 1 Ziel**: Falls jemand mehrfach am Tag drückt → wird aktualisiert, nicht dupliziert.
-- **Sichtbarkeit Peer-Ø**: aktuell zeigt die kleine Pill oben schon `XX% vom Peer-Ø`. Im neuen Block wird der **absolute €-Wert** des Peer-Ø zusätzlich gezeigt — wie gewünscht ("egal welche Größe").
-
-## Files
-- **NEW** `supabase/migrations/<ts>_chatter_daily_goals.sql` — Tabelle + RLS
-- **NEW** `src/lib/daily-goals.ts` — Suggest/Load/Upsert
-- **EDIT** `src/components/SwipeCard.tsx` — Tagesziel-Block + Inline-Edit + Props
-- **EDIT** `src/pages/TinderMode.tsx` — Goals laden, an Card durchreichen, Optimistic Update
-- **EDIT** `src/components/ChatterSlideOver.tsx` *(optional)* — Read-only Mirror
+## Technische Details
+- `max(env(safe-area-inset-*), 0px)` statt nackt `env(...)` verwenden, damit der Wert in CSS `calc()` immer numerisch ist (Safari-Quirk).
+- `viewport-fit=cover` ist Voraussetzung — bereits gesetzt.
+- Hintergrundfarbe via `html`/`body` deckt alle Safe-Area-Bereiche dunkel — daher entstehen keine schwarzen Ränder, sondern eine homogene Fläche.
 
 ## Out of Scope
-- Auswertung/History-View vergangener Ziele (kann später ein eigener Tab werden, Daten sind dann da).
-- Goals an Chatter automatisch verschicken (Webhook/DM) — nur Eintragen wie gewünscht.
+- Keine Änderung am Manifest, an Icons oder am PWA-Service-Worker.
+- Keine Änderung an der bestehenden `--app-height`-Höhenlogik.
