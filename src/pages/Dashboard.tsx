@@ -14,6 +14,7 @@ import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 interface AnalysisChatter {
   name: string;
