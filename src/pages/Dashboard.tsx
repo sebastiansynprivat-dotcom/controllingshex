@@ -360,6 +360,7 @@ export default function Dashboard() {
             )}
           </motion.div>
         </AnimatePresence>
+        </PullToRefresh>
       </div>
       <ChatterSlideOver open={!!selectedChatter} onClose={() => setSelectedChatter(null)} chatterName={selectedChatter || ""} platform={platform} />
     </div>
