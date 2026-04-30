@@ -716,9 +716,10 @@ export function computeManualSwapCandidates(
   models: SwapModelInfo[],
   selectedChatterName: string,
   bundle: BenchmarkBundle | null = null,
-  limit = 8
+  limit = 8,
+  window: WindowSpec = DEFAULT_WINDOW
 ): SwapPair[] {
-  const enriched = buildEnriched(chatters, models);
+  const enriched = buildEnriched(chatters, models, window);
   if (enriched.length < 2) return [];
 
   // Alle Account-Einträge des gewählten Chatters
