@@ -449,6 +449,14 @@ export default function AnomalyPanel({
   // Sortierung: Geschätzter Umsatz-Impact pro Tag (€) absteigend.
   // Tiebreaker: Follower-Summe, dann Score.
   const windowDays = useMemo(() => rangeDays(range), [range]);
+  const prevPeriodLabel = useMemo(() => {
+    const days = Math.max(1, rangeDays(range));
+    const fromIso = String(range.from).slice(0, 10);
+    const prevTo = new Date(new Date(fromIso).getTime() - 86_400_000);
+    const prevFrom = new Date(prevTo.getTime() - (days - 1) * 86_400_000);
+    const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+    return days === 1 ? fmt(prevFrom) : `${fmt(prevFrom)}–${fmt(prevTo)}`;
+  }, [range]);
   const groupedByChatter = useMemo(() => {
     const map = new Map<
       string,
