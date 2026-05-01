@@ -430,22 +430,53 @@
     opacity: 0;
   }
   .sidebar-item:hover::before {
-    height: 40%;
-    opacity: 0.5;
+    height: 50%;
+    opacity: 0.65;
   }
   .sidebar-item-active {
-    background: linear-gradient(90deg, hsl(40 45% 55% / 0.08) 0%, hsl(0 0% 100% / 0.02) 100%);
+    background: linear-gradient(90deg, hsl(40 45% 55% / 0.10) 0%, hsl(0 0% 100% / 0.025) 100%);
     box-shadow:
-      0 1px 0 0 hsl(0 0% 100% / 0.04) inset,
-      0 0 24px -8px hsl(40 50% 60% / 0.18);
+      0 1px 0 0 hsl(0 0% 100% / 0.05) inset,
+      0 0 28px -8px hsl(40 50% 60% / 0.22);
   }
   .sidebar-item-active::before {
-    height: 60%;
+    height: 65%;
     opacity: 1;
   }
   .sidebar-item-active svg {
-    color: hsl(40 50% 65%);
-    filter: drop-shadow(0 0 6px hsl(40 50% 60% / 0.4));
+    color: hsl(40 55% 68%);
+    filter: drop-shadow(0 0 8px hsl(40 50% 60% / 0.5));
+  }
+
+  /* ───────── Desktop content frame ───────── */
+  .content-frame {
+    width: 100%;
+    max-width: var(--content-max);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ───────── Tabular numerals for KPIs ───────── */
+  .nums-tabular { font-variant-numeric: tabular-nums; }
+
+  /* ───────── Readability lift (Apple-Pro pass) ─────────
+     Anhebung der zu blassen Wei\00df-Stufen auf besser lesbare Werte.
+     Headlines (font-light) bleiben elegant, weil hier nur die Farbe steigt. */
+  .text-white\/30 { color: hsl(0 0% 100% / 0.55) !important; }
+  .text-white\/35 { color: hsl(0 0% 100% / 0.58) !important; }
+  .text-white\/40 { color: hsl(0 0% 100% / 0.62) !important; }
+  .text-white\/45 { color: hsl(0 0% 100% / 0.66) !important; }
+  /* Hover-Zust\00e4nde ebenfalls ein wenig anheben */
+  .hover\:text-white\/40:hover { color: hsl(0 0% 100% / 0.68) !important; }
+  .hover\:text-white\/55:hover { color: hsl(0 0% 100% / 0.78) !important; }
+  .hover\:text-white\/60:hover { color: hsl(0 0% 100% / 0.82) !important; }
+
+  /* Body-Text (kleine Schriften) wirkt mit font-light auf Retina d\00fcnn — leicht st\00e4rken.
+     Headings (h1-h4) und explizit gewollte light-Akzente bleiben unber\00fchrt. */
+  @media (min-width: 1024px) {
+    p.font-light, span.font-light, div.font-light, label.font-light, button.font-light, a.font-light {
+      font-weight: 400;
+    }
   }
 }
 
