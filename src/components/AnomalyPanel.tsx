@@ -146,7 +146,14 @@ export default function AnomalyPanel({
     setReportId(rid);
     const fromIso = String(range.from).slice(0, 10);
     const toIso = String(range.to).slice(0, 10);
-    const [result, modelsRes, accountsRes, totalRes] = await Promise.all([
+    const days = Math.max(1, rangeDays(range));
+    // Vorperioden-Fenster (gleiche Länge direkt davor)
+    const prevTo = new Date(new Date(fromIso).getTime() - 86_400_000);
+    const prevFrom = new Date(prevTo.getTime() - (days - 1) * 86_400_000);
+    const prevFromIso = prevFrom.toISOString().slice(0, 10);
+    const prevToIso = prevTo.toISOString().slice(0, 10);
+
+    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -169,6 +176,40 @@ export default function AnomalyPanel({
         .gte("analysis_date", fromIso)
         .lte("analysis_date", toIso)
         .limit(5000),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .gte("analysis_date", prevFromIso)
+        .lte("analysis_date", prevToIso)
+        .limit(5000),
+      supabase
+        .from("daily_chatter_checks")
+        .select("chatter_name, check_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("check_date", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("coaching_notes")
+        .select("chatter_name, note_text, created_at")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("video_coachings")
+        .select("chatter_name, sent_at")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("sent_at", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("chatter_category_state")
+        .select("chatter_name, current_category, since_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
@@ -194,6 +235,48 @@ export default function AnomalyPanel({
     }
     setChatterAccounts(amap);
 
+    // Letzte Aktivität — first occurrence wins (Daten kommen sortiert DESC)
+    const cmap = new Map<string, string>();
+    for (const row of checksRes.data ?? []) {
+      if (!cmap.has(row.chatter_name)) cmap.set(row.chatter_name, row.check_date);
+    }
+    setLastChecks(cmap);
+
+    const nmap = new Map<string, { date: string; snippet: string }>();
+    for (const row of notesRes.data ?? []) {
+      if (nmap.has(row.chatter_name)) continue;
+      const text = String(row.note_text ?? "").trim();
+      const snippet = text.length > 80 ? text.slice(0, 80) + "…" : text;
+      nmap.set(row.chatter_name, { date: row.created_at, snippet });
+    }
+    setLastNotes(nmap);
+
+    const vmap = new Map<string, string>();
+    for (const row of coachingsRes.data ?? []) {
+      if (!vmap.has(row.chatter_name)) vmap.set(row.chatter_name, row.sent_at);
+    }
+    setLastCoachings(vmap);
+
+    const smap = new Map<string, { since: string; category: string }>();
+    for (const row of catStateRes.data ?? []) {
+      smap.set(row.chatter_name, { since: row.since_date, category: row.current_category });
+    }
+    setCategorySince(smap);
+
+    // Vorperioden-Ø pro Chatter (Summe / Tage_mit_Eintrag)
+    const prevAgg = new Map<string, { sum: number; days: number }>();
+    for (const row of prevHistRes.data ?? []) {
+      const cur = prevAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
+      cur.sum += Number(row.revenue_today ?? 0);
+      cur.days += 1;
+      prevAgg.set(row.chatter_name, cur);
+    }
+    const pmap = new Map<string, number>();
+    for (const [name, { sum, days }] of prevAgg) {
+      pmap.set(name, days > 0 ? sum / days : 0);
+    }
+    setPrevWindowAvg(pmap);
+
     // Persist snapshot
     try {
       const snap: Snapshot = {
@@ -203,6 +286,11 @@ export default function AnomalyPanel({
         modelFollowers: [...fmap.entries()],
         chatterAccounts: [...amap.entries()],
         reportId: rid,
+        lastChecks: [...cmap.entries()],
+        lastNotes: [...nmap.entries()],
+        lastCoachings: [...vmap.entries()],
+        categorySince: [...smap.entries()],
+        prevWindowAvg: [...pmap.entries()],
         savedAt: Date.now(),
       };
       sessionStorage.setItem(cacheKey, JSON.stringify(snap));
@@ -212,18 +300,20 @@ export default function AnomalyPanel({
   }, [user, platform, range, cacheKey]);
 
   // Mount / range change: nur refreshen wenn kein gültiger Snapshot vorhanden.
-  // Snapshot gilt als gültig solange er für genau diesen cacheKey existiert.
-  // Neue Reports invalidieren via `onChatterDataUpdated` (Event löscht Cache).
   useEffect(() => {
     const snap = loadSnapshot(cacheKey);
     if (snap) {
-      // Hydrate (für den Fall dass cacheKey sich geändert hat ohne Remount)
       setAnomalies(snap.anomalies);
       setPeerAvg(snap.peerAvg);
       setTotalChattersInRange(snap.totalChattersInRange);
       setModelFollowers(new Map(snap.modelFollowers));
       setChatterAccounts(new Map(snap.chatterAccounts));
       setReportId(snap.reportId);
+      setLastChecks(new Map(snap.lastChecks ?? []));
+      setLastNotes(new Map(snap.lastNotes ?? []));
+      setLastCoachings(new Map(snap.lastCoachings ?? []));
+      setCategorySince(new Map(snap.categorySince ?? []));
+      setPrevWindowAvg(new Map(snap.prevWindowAvg ?? []));
       setLoading(false);
       return;
     }
