@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
-type FilterMode = "today" | "week" | "month" | "custom";
+type FilterMode = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
 
 interface LeaderboardEntry {
   name: string;
@@ -42,7 +42,7 @@ const displayName = (n: string) =>
 export default function Leaderboard() {
   const { platform } = usePlatform();
   const { session } = useAuth();
-  const [filter, setFilter] = useState<FilterMode>("month");
+  const [filter, setFilter] = useState<FilterMode>("7d");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
 
@@ -52,10 +52,17 @@ export default function Leaderboard() {
     switch (filter) {
       case "today":
         from = startOfDay(now); to = now; break;
-      case "week":
-        from = startOfWeek(now, { weekStartsOn: 1 }); to = now; break;
-      case "month":
-        from = startOfMonth(now); to = now; break;
+      case "yesterday":
+        from = startOfDay(subDays(now, 1));
+        to = subDays(startOfDay(now), 0); // bis Tagesende gestern via lte date
+        to = new Date(from.getTime() + 24 * 60 * 60 * 1000 - 1);
+        break;
+      case "7d":
+        from = startOfDay(subDays(now, 6)); to = now; break;
+      case "14d":
+        from = startOfDay(subDays(now, 13)); to = now; break;
+      case "30d":
+        from = startOfDay(subDays(now, 29)); to = now; break;
       case "custom":
         from = customRange?.from ?? subDays(now, 30);
         to = customRange?.to ?? now;
@@ -236,8 +243,10 @@ export default function Leaderboard() {
 
   const filterButtons: { label: string; mode: FilterMode }[] = [
     { label: "Heute", mode: "today" },
-    { label: "Woche", mode: "week" },
-    { label: "Monat", mode: "month" },
+    { label: "Gestern", mode: "yesterday" },
+    { label: "7 Tage", mode: "7d" },
+    { label: "14 Tage", mode: "14d" },
+    { label: "30 Tage", mode: "30d" },
     { label: "Custom", mode: "custom" },
   ];
 
@@ -249,7 +258,12 @@ export default function Leaderboard() {
   };
 
   const periodLabel =
-    filter === "today" ? "Heute" : filter === "week" ? "Diese Woche" : filter === "month" ? "Dieser Monat" : "Zeitraum";
+    filter === "today" ? "Heute"
+    : filter === "yesterday" ? "Gestern"
+    : filter === "7d" ? "Letzte 7 Tage"
+    : filter === "14d" ? "Letzte 14 Tage"
+    : filter === "30d" ? "Letzte 30 Tage"
+    : "Zeitraum";
 
   const totalRevenue = leaderboard.reduce((s, e) => s + e.total, 0);
   const leader = leaderboard[0];
