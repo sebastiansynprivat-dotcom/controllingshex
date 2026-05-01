@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertOctagon, TrendingDown, MessageSquare, Clock, Inbox, Users, Sparkles, ChevronRight, Target, CheckCircle2, XCircle, CalendarX, Brain, ChevronDown, Check } from "lucide-react";
+import CountUp from "@/components/CountUp";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { onChatterDataUpdated } from "@/lib/data-events";
@@ -394,21 +395,21 @@ export default function Forecast() {
                         <p className="text-white/40 text-[11px] sm:text-xs font-light">in den nächsten 3 Tagen</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="gold-text font-medium text-lg sm:text-xl tabular-nums">
-                          ~{totalEuroAtRisk}€
+                        <p className="gold-text font-medium text-lg sm:text-2xl tabular-nums">
+                          ~<CountUp value={totalEuroAtRisk} duration={1100} />€
                         </p>
-                        <p className="text-white/40 text-[11px] sm:text-xs font-light">Geld-Risiko</p>
+                        <p className="text-white/55 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] font-medium mt-0.5">Geld-Risiko</p>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 reveal-stagger">
                       {risks.map((r) => {
                         const isOpen = expanded.has(r.chatter);
-                        const glowClass = r.band === "critical" ? "glow-band-critical" : r.band === "high" ? "glow-band-high" : "";
+                        const glowClass = r.band === "critical" ? "glow-band-critical critical-pulse" : r.band === "high" ? "glow-band-high" : "";
                         return (
                           <div
                             key={r.chatter}
-                            className={`premium-card premium-card-interactive rounded-xl overflow-hidden ${glowClass}`}
+                            className={`premium-card premium-card-interactive soft-lift rounded-xl overflow-hidden ${glowClass}`}
                           >
                             <button
                               onClick={() => toggle(r.chatter)}

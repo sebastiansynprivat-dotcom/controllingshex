@@ -1,71 +1,72 @@
 ## Ziel
 
-Das App-Gefühl am Desktop spürbar hochwertiger und lesbarer machen — ohne Layouts inhaltlich umzubauen. Apple-Pro-Stil: tiefere Glas-Effekte, feinere Borders, edle Schatten, klarere Hierarchie. Lesbarkeit moderat anheben (nur zu blasse Stellen). Inhalt auf großen Monitoren mit Maximalbreite ~1400 px zentrieren.
+Apple-feines Premium-Gefühl überall, ohne Layout-Bruch. Subtile Mount-Reveals, butterweiche Hover-States, animierte KPI-Counter, kritischer Puls — und eine schärfere Typo-Hierarchie, damit die Wichtigkeit auf einen Blick sichtbar ist.
 
 ## Was du sehen wirst
 
-- Auf großen Monitoren klebt nichts mehr am Rand — Inhalte sitzen in einem ruhigen, zentrierten Frame mit großzügigen Innenabständen.
-- Karten wirken plastischer: feinere helle Innenkanten, weicherer Schatten-Falloff, leichter Tiefenverlauf, sauberer Hover-Lift.
-- Alle „fast unsichtbaren" Texte (z. B. `text-white/30`, `text-white/40`, blasse Labels in Recovery/Leaderboard/Dashboard) sind klar lesbar — Headlines bleiben aber elegant dünn.
-- Headlines bekommen am Desktop eine Stufe mehr Größe und engere Letterspacing-Werte → wirkt redaktioneller, weniger „Webapp".
-- Goldener Akzent wird gezielter eingesetzt: nur für aktive Zustände, Top-Ranks und KPI-Highlights — wirkt dadurch wertvoller statt beliebig.
+- **Beim Seitenwechsel** gleitet der Inhalt wie aus einer leichten Tiefenunschärfe sanft nach oben rein (Fade + Slide + Blur-Out, ~480 ms, Apple-Easing).
+- **Listen/Karten erscheinen gestaffelt** (60–80 ms Versatz pro Element). Das Auge bekommt Rhythmus statt eines harten Knalls.
+- **KPI-Zahlen zählen hoch**, sobald sie sichtbar werden oder sich ändern — z. B. „127 Chatter analysiert", „4.820 € Recovery". Tabular-Nums verhindern Springen.
+- **Hover auf Karten** lupft sie nur 1,5 px an mit weichem Schatten-Übergang — fast unsichtbar, aber spürbar.
+- **Kritische Karten** (Risk-Band „critical") bekommen einen dezent pulsierenden, dunkelroten Akzent am linken Rand.
+- **KPIs werden visuell groß**, Labels schrumpfen auf Mini-Caps. Du erkennst sofort, wo die Hauptzahl ist.
+- Alles respektiert `prefers-reduced-motion` — wer in System-Settings Animationen aus hat, bekommt keine.
 
-## Umfang (was ich anfasse)
+## Umfang
 
-1. **Design-Tokens** (`src/index.css`)
-   - Neue Text-Stufen-Variablen: `--text-strong` (95%), `--text` (82%), `--text-muted` (62%), `--text-subtle` (44%) — ersetzt das wilde `text-white/30…/70`.
-   - Verfeinerte Surface-Stufen + zwei neue Schatten-Tokens (`--shadow-card`, `--shadow-card-hover`) für konsistente Tiefe.
-   - Neue Container-Variable `--content-max: 1400px` plus großzügigerer Desktop-Padding-Wert.
+### 1. Globale Animations-Schicht (`src/index.css`)
+Neue Utilities am Ende des `@layer utilities`-Blocks:
 
-2. **Typografie-Pass** (`src/index.css`, `tailwind.config.ts`)
-   - Heading-Skala für `lg`/`xl`-Breakpoints leicht anheben (h1/h2/h3), Letterspacing feiner.
-   - Body-Default von `font-light` → `font-normal` (Headlines bleiben light, wie gewünscht).
-   - Tabular-Nums-Utility für KPI-Zahlen (verhindert „springende" Ziffern).
+- `@keyframes reveal-up` — Fade + Slide-up + Blur-out (480 ms, Apple-Easing).
+- `.reveal` — einzelne Element-Reveals.
+- `.reveal-stagger > *` — automatischer Stagger (20 → 680 ms) für bis zu 12+ Kinder. Ein Container-Klassen-Switch reicht.
+- `.soft-lift` — Hover-Lift (−1,5 px) mit weichem Schatten-Crossfade. Universell auf Karten/Listenitems.
+- `@keyframes critical-pulse` + `.critical-pulse` — atmender roter Akzent am linken Karten-Rand.
+- `.nums-anim` — `font-variant-numeric: tabular-nums` (Counter springen nicht).
+- `@media (prefers-reduced-motion: reduce)` — schaltet alles ab.
 
-3. **Container & Layout** (`src/components/Layout.tsx`)
-   - `<main>` bekommt einen inneren Wrapper mit `max-w-[1400px] mx-auto w-full` und gestufftem Padding (`px-6 lg:px-10 xl:px-14`).
-   - Header-Leiste folgt derselben Maximalbreite, damit Sidebar-Trigger und Inhalt visuell auf derselben Achse sitzen.
+### 2. Reusable Komponenten
 
-4. **Card-System aufwerten** (`src/index.css`)
-   - `.premium-card`: feinere Innenkante (1 px helle Top-Linie via `::before` bleibt, aber sanfter), weicherer Mehrlagen-Schatten, leicht tieferer Backdrop-Blur (32 → 40 px) und +Saturation für edleren Glas-Look.
-   - `.premium-card-interactive:hover`: dezenterer Lift (−1 px → −2 px), Schatten wechselt sauber, kein Gold-Glow im Default-Hover (nur bei aktiven Karten).
-   - Neue Variante `.premium-card-flush` für dichte Datenblöcke (Leaderboard-Reihen) — gleiche Materialität, ohne extra Padding.
+**`src/components/CountUp.tsx`** — animierte Zahl. Props: `value: number`, `decimals?: number`, `prefix?: string`, `suffix?: string`, `duration?: number` (default 900 ms). Easing `easeOutCubic`. Zählt von altem auf neuen Wert hoch (auch bei Re-Render). Respektiert reduced-motion (springt direkt).
 
-5. **Lesbarkeits-Refactor (gezielt, moderat)**
-   - Nur Stellen mit `text-white/30`, `text-white/35`, `text-white/40`, `text-white/45` werden auf neue Skala (`text-muted` ~62 %) angehoben.
-   - Betroffene Hot-Spots, die ich gesehen habe: `RecoveryQueueCard.tsx`, `Leaderboard.tsx`, `Dashboard.tsx`, `AppSidebar.tsx`, `RiskBadge.tsx`, `WeekTrendCard.tsx`, `TrendWidget.tsx`, `ForecastBanner.tsx`, `AnomalyPanel.tsx`.
-   - Headlines / Brand-Schriftzug behalten ihr `font-light` / `font-semibold tracking-[0.2em]`.
-   - `font-light` auf Body-Text (≤14 px) wird zu `font-normal` — auf Retina am PC dadurch deutlich klarer.
+**`src/components/SectionHeader.tsx`** — kleines Eyebrow-Label + großer Titel + optionaler rechter Status-Chip. Damit kann jede Sektion in 1 Zeile auf das neue Hierarchie-Schema umgestellt werden.
 
-6. **Sidebar-Politur** (`src/components/AppSidebar.tsx`, `index.css`)
-   - Inaktive Items von `text-white/40` → `text-white/55`, Hover auf `/90`.
-   - Aktiver Zustand: stärkerer Gold-Drop-Shadow auf Icon, etwas kräftigerer linker Akzent-Strich.
+### 3. Anwendung auf Hero-Seiten
+
+- **`Layout.tsx`** — die bestehende `motion.div`-Page-Transition bekommt einen `reveal-stagger`-Wrapper als Default für direkte Hauptkinder.
+- **`Dashboard.tsx`** — Header bekommt `<SectionHeader>`; Kategorie-Karten-Grid bekommt `reveal-stagger`; Recovery-Total nutzt `<CountUp>`.
+- **`Leaderboard.tsx`** — Top-3-Podest-Zahlen via `<CountUp>`, Tabellen-Reihen `reveal-stagger`, kritische Drop-Reihen ggf. `critical-pulse`.
+- **`RecoveryQueueCard.tsx`** — Total-Eur via `<CountUp>`, Liste `reveal-stagger`.
+- **`Forecast.tsx`** — Risk-Karten mit Band „critical" bekommen `critical-pulse`. „Geld-Risiko"-Wert via `<CountUp>`.
+- **Karten allgemein**: `.premium-card-interactive` bekommt zusätzlich `.soft-lift` als Default-Klasse (in `index.css` direkt mitgeliefert), damit überall ein konsistenter Hover wirkt.
+
+### 4. Typo-Hierarchie-Schärfung
+
+Im `@layer base` (oder in der Sektion „Apple-Pro readability"):
+- Neue Helper-Klassen `.kpi-xl` (text-3xl/4xl, font-medium, tracking-tight, nums-anim) und `.kpi-label` (text-[10px], uppercase, tracking-[0.18em], font-medium, text-white/55).
+- Diese werden gezielt in den drei Hero-Seiten eingesetzt — keine globale Typo-Änderung, damit Risiko klein bleibt.
 
 ## Technische Details
 
-- Keine Routing- oder Datenflüsse berührt, rein visuell.
-- `text-white/XX`-Klassen werden via projektweiter Suche & gezieltem Replace ersetzt (nur Werte ≤ /45). Klassen wie `/60`, `/70`, `/80` bleiben unangetastet.
-- Tailwind-Config bekommt nur additive Erweiterungen (neue Schatten, neue `maxWidth.content`, `fontSize.display-*`). Keine Breaking Changes.
-- `src/index.css`: bestehende Klassen (`.premium-card`, `.glass-card`, `.gold-text`) werden überschrieben, nicht entfernt → kein Cleanup-Risiko in Komponenten.
-- Layout-Wrapper in `Layout.tsx` ist additiv — falls eine Seite den vollen Bleed braucht, kann sie per `className="-mx-6 lg:-mx-10"` ausbrechen.
-- Mobile/iPhone-Look bleibt 1:1 erhalten: alle Änderungen greifen über `lg:`/`xl:`-Prefixes oder sind so dezent, dass sie auf kleinen Screens nicht stören.
+- Reine CSS-Animationen wo möglich (kein JS-Re-Render-Overhead). `<CountUp>` nutzt `requestAnimationFrame` mit Cleanup und `easeOutCubic`.
+- `reveal-stagger` ist content-agnostisch — wer 30 Items hat, bekommt ab dem 13. konstant 680 ms (alles danach „schon sichtbar wirkend"). Vermeidet endlose Wartezeit auf langen Listen.
+- `soft-lift` nutzt `will-change: transform` nur am Element selbst, kein Compositing-Layer-Spam.
+- Keine Library-Dependencies neu — Framer ist schon da, wir nutzen aber meist CSS für Performance auf Mobil.
+- Alle Änderungen sind additiv: bestehende Klassen wie `.premium-card`, `.glow-band-critical`, `.gold-text` bleiben unangetastet.
 
 ## Reihenfolge
 
 ```text
-1. Tokens & Typo (index.css, tailwind.config.ts)
-2. Layout-Container (Layout.tsx)
-3. Card-System Update (index.css)
-4. Lesbarkeits-Sweep (RecoveryQueueCard, Leaderboard, Dashboard,
-   AppSidebar, RiskBadge, WeekTrendCard, TrendWidget,
-   ForecastBanner, AnomalyPanel)
-5. Sidebar-Politur
+1. CSS-Utilities + Keyframes (index.css)
+2. CountUp + SectionHeader Komponenten
+3. Layout.tsx wrap
+4. Dashboard / Leaderboard / Recovery / Forecast verkabeln
 ```
 
 ## Außerhalb des Scopes
 
-- Keine Komponenten-Restrukturierung, keine neuen Features, keine Inhaltsänderungen.
-- Mobile-Layout bleibt unverändert.
-- Leaderboard/Recovery-Logik bleibt unverändert (nur Optik der Reihen).
+- Keine Library-Installs (kein react-spring, kein react-countup — wir bauen 30-Zeiler).
+- Keine inhaltliche Restrukturierung der Seiten.
+- Keine Änderung der Daten-Logik (Recovery, ML, Leaderboard).
 
-Nach Freigabe baue ich das in einem Durchgang.
+Nach Freigabe baue ich das in einem Rutsch.

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { TrendingDown, ChevronRight, Sparkles, ChevronDown } from "lucide-react";
+import CountUp from "@/components/CountUp";
 import {
   computeRecoveryQueue,
   loadRecoveryHistory,
@@ -117,22 +118,22 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
           </p>
         </div>
         <div className="text-right">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-medium">Erreichbar</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-white/55 font-medium">Erreichbar</p>
           <p
-            className="text-3xl font-extralight tabular-nums leading-none mt-1"
+            className="text-3xl md:text-4xl font-extralight tabular-nums leading-none mt-1"
             style={{
               background: "linear-gradient(135deg, hsl(45 95% 70%) 0%, hsl(38 92% 55%) 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
           >
-            +{formatEur(total)} €
+            +<CountUp value={total} duration={1100} /> €
           </p>
         </div>
       </div>
 
       {/* List */}
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-white/[0.04] reveal-stagger">
         {visible.map((e, i) => {
           const tone: "warn" | "crit" = e.gapPct >= 0.5 ? "crit" : "warn";
           const accent =
@@ -140,13 +141,12 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
               ? "text-rose-300/90"
               : "text-amber-300/90";
           return (
-            <motion.button
+            <button
               key={e.chatterName}
-              initial={{ opacity: 0, x: -4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => onChatterSelect(e.chatterName)}
-              className="group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-white/[0.02]"
+              className={`group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-white/[0.025] soft-lift ${
+                tone === "crit" ? "critical-pulse" : ""
+              }`}
             >
               <span className="text-[10px] tabular-nums text-white/25 font-light w-4">{i + 1}</span>
 
@@ -193,7 +193,7 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
               </div>
 
               <ChevronRight className="h-3.5 w-3.5 text-white/15 group-hover:text-white/40 transition-colors shrink-0" />
-            </motion.button>
+            </button>
           );
         })}
       </div>

@@ -183,12 +183,13 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-5xl mx-auto space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
+            className="max-w-5xl mx-auto reveal-stagger space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
             {/* Header + Date Selector */}
             <div className="space-y-3">
-              <h1 className="text-2xl sm:text-3xl font-extralight tracking-tight text-foreground">{platform}</h1>
-              
+              <div className="kpi-label">Übersicht</div>
+              <h1 className="text-3xl sm:text-4xl font-extralight tracking-tight text-foreground leading-none">{platform}</h1>
+
               {reports.length > 1 ? (
                 <Select value={selectedId || ""} onValueChange={setSelectedId}>
                   <SelectTrigger className="w-full sm:w-64 bg-white/[0.02] border-white/[0.06] text-foreground/70 text-sm">
@@ -205,7 +206,7 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-white/30 text-sm font-light tracking-wide">
+                <p className="text-white/55 text-sm font-light tracking-wide">
                   {selectedReport
                     ? `Letzte Analyse: ${new Date(selectedReport.analysis_date).toLocaleDateString("de-DE")}`
                     : "Noch keine Analyse vorhanden."}
