@@ -816,7 +816,7 @@ export default function AnomalyPanel({
                           {currentAvg > 0 ? `${Math.round(currentAvg).toLocaleString("de-DE")} €` : "—"}
                         </div>
                       </div>
-                      <div className="min-w-0 border-l border-white/[0.05] pl-2" title={`Vergleich mit Vorperiode (${prevPeriodLabel}, gleiche Länge)`}>
+                      <div className="min-w-0 border-l border-white/[0.05] pl-2" title={prevPeriodTooltip}>
                         <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. {prevPeriodLabel}</div>
                         <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
                           deltaPct === null
