@@ -85,6 +85,12 @@ export default function AnomalyPanel({
     modelFollowers: [string, number][];
     chatterAccounts: [string, string[]][];
     reportId: string | null;
+    // Controlling-Erweiterungen
+    lastChecks: [string, string][];        // chatter -> ISO date
+    lastNotes: [string, { date: string; snippet: string }][];
+    lastCoachings: [string, string][];     // chatter -> ISO timestamp
+    categorySince: [string, { since: string; category: string }][];
+    prevWindowAvg: [string, number][];     // chatter -> avg eur/day in previous window
     savedAt: number;
   };
 
@@ -114,6 +120,23 @@ export default function AnomalyPanel({
   );
   const [totalChattersInRange, setTotalChattersInRange] = useState(
     initialSnap?.totalChattersInRange ?? 0,
+  );
+
+  // Controlling-Daten
+  const [lastChecks, setLastChecks] = useState<Map<string, string>>(
+    () => new Map(initialSnap?.lastChecks ?? []),
+  );
+  const [lastNotes, setLastNotes] = useState<Map<string, { date: string; snippet: string }>>(
+    () => new Map(initialSnap?.lastNotes ?? []),
+  );
+  const [lastCoachings, setLastCoachings] = useState<Map<string, string>>(
+    () => new Map(initialSnap?.lastCoachings ?? []),
+  );
+  const [categorySince, setCategorySince] = useState<Map<string, { since: string; category: string }>>(
+    () => new Map(initialSnap?.categorySince ?? []),
+  );
+  const [prevWindowAvg, setPrevWindowAvg] = useState<Map<string, number>>(
+    () => new Map(initialSnap?.prevWindowAvg ?? []),
   );
 
   const refresh = useCallback(async () => {
