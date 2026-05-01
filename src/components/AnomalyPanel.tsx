@@ -650,19 +650,30 @@ export default function AnomalyPanel({
               const topSev = SEVERITY_STYLE[group.topSeverity];
               const chatterKey = `chatter|${group.name}`;
               const isPending = pendingDismiss.has(chatterKey);
-              const isOpen = openCards.has(group.name);
               const accs = chatterAccounts.get(group.name) ?? [];
               const topItem = group.items[0];
               const topMeta = ANOMALY_LABELS[topItem.alert_type];
-              const message = isOpen
-                ? buildChatterMessage({
-                    chatterName: group.name,
-                    items: group.items,
-                    windowLabel: rangeLabel(range),
-                    windowDays,
-                  })
-                : "";
               const rank = idx + 1;
+
+              // Controlling-Daten
+              const since = categorySince.get(group.name);
+              const sinceRel = since ? relDays(since.since) : null;
+              const lastCheckRel = relDays(lastChecks.get(group.name));
+              const lastNote = lastNotes.get(group.name);
+              const lastCoachingRel = relDays(lastCoachings.get(group.name));
+
+              // Zahlen-Trio
+              const currentAvg = group.items[0]?.metric_value ?? 0;
+              const prevAvg = prevWindowAvg.get(group.name) ?? 0;
+              const deltaPct = prevAvg > 0
+                ? Math.round(((currentAvg - prevAvg) / prevAvg) * 100)
+                : null;
+              // 0€-Tage: Anzahl Items mit alert_type "persistent_zero" als Proxy nicht ideal —
+              // wir nutzen consecutiveZeroDays über metric_value/baseline-Heuristik:
+              // Fallback: aus message extrahieren falls vorhanden, sonst null.
+              const zeroAlert = group.items.find((a) => a.alert_type === "persistent_zero");
+              const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
+
               return (
                 <motion.div
                   key={group.name}
@@ -671,17 +682,18 @@ export default function AnomalyPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.22, delay: idx * 0.02 }}
+                  onDoubleClick={() => onChatterSelect?.(group.name)}
                   className={`relative rounded-xl border border-white/[0.06] ${topSev.border.split(" ").slice(1).join(" ")} overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.4)] hover:border-white/[0.12] transition-colors`}
                 >
                   {/* Severity Akzent-Streifen links */}
                   <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
 
-                  {/* Chatter-Header — kompakter, mit Impact-Badge & Rank */}
+                  {/* Chatter-Header */}
                   <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-3 sm:py-3.5"}`}>
                     {/* Rank */}
                     <div className="shrink-0 flex flex-col items-center pt-0.5">
                       <span className="text-[9px] uppercase tracking-wider text-white/25 font-light leading-none">#{rank}</span>
-                      <span className={`relative flex h-2 w-2 mt-1.5`}>
+                      <span className="relative flex h-2 w-2 mt-1.5">
                         {group.topSeverity === "critical" && (
                           <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
                         )}
@@ -689,12 +701,18 @@ export default function AnomalyPanel({
                       </span>
                     </div>
 
-                    {/* Name + Headline */}
+                    {/* Name + Headline + Stats — Klick = kopieren, Doppelklick = Profil */}
                     <button
                       type="button"
-                      onClick={() => onChatterSelect?.(group.name)}
-                      className="flex-1 min-w-0 text-left group/name"
+                      onClick={() => copyName(group.name)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onChatterSelect?.(group.name);
+                      }}
+                      title="Klick: Name kopieren · Doppelklick: Profil öffnen"
+                      className="flex-1 min-w-0 text-left group/name cursor-copy"
                     >
+                      {/* Top row: Name + Impact + Status-Pill */}
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
                           {group.name}
@@ -705,11 +723,20 @@ export default function AnomalyPanel({
                             <span className="text-[9px] uppercase tracking-wider text-red-300/50 font-light">/Tag</span>
                           </span>
                         )}
+                        {sinceRel && sinceRel.days >= 1 && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/[0.08] border border-red-500/15 text-[9px] uppercase tracking-wider text-red-200/85 font-medium">
+                            <Flame className="h-2.5 w-2.5" />
+                            seit {sinceRel.days} {sinceRel.days === 1 ? "Tag" : "Tagen"}
+                          </span>
+                        )}
                       </div>
+
+                      {/* Headline-Message */}
                       <div className="text-[12px] sm:text-[13px] text-white/70 font-light mt-1 leading-snug">
                         <span className="opacity-80">{topMeta.emoji}</span>{" "}
                         {topItem.message}
                       </div>
+
                       {/* Accounts (kompakt) */}
                       {accs.length > 0 && (
                         <div className="flex items-center gap-1 mt-1.5 flex-wrap">
@@ -740,6 +767,7 @@ export default function AnomalyPanel({
                           )}
                         </div>
                       )}
+
                       {/* Weitere Signale Hint */}
                       {group.items.length > 1 && (
                         <div className="text-[10px] uppercase tracking-wider text-white/30 font-light mt-1.5">
@@ -763,111 +791,75 @@ export default function AnomalyPanel({
                     </button>
                   </div>
 
-                  {/* Action-Bar */}
-                  <div className="flex items-stretch border-t border-white/[0.04] divide-x divide-white/[0.04]">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleCard(group.name);
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider font-light transition-all ${
-                        isOpen
-                          ? "bg-yellow-400/[0.08] text-yellow-200"
-                          : "text-white/45 hover:text-yellow-200 hover:bg-yellow-400/[0.05]"
-                      }`}
-                    >
-                      <MessageSquareText className="h-3 w-3" />
-                      {isOpen ? "Schließen" : "Nachricht erstellen"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onChatterSelect?.(group.name);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider text-white/45 hover:text-white/85 hover:bg-white/[0.03] transition-all font-light"
-                    >
-                      Profil
-                      <ArrowRight className="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  {/* Aufklappbarer Coaching-Block */}
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        key="coach"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.22 }}
-                        className="border-t border-white/[0.04] bg-white/[0.015] overflow-hidden"
-                      >
-                        <div className="px-3.5 sm:px-5 py-3 sm:py-4 space-y-3">
-                          {/* Alle Signale auflisten */}
-                          {group.items.length > 1 && (
-                            <div className="space-y-1">
-                              <div className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
-                                Was zusammenkommt
-                              </div>
-                              <div className="space-y-1">
-                                {group.items.map((a) => {
-                                  const meta = ANOMALY_LABELS[a.alert_type];
-                                  const sev = SEVERITY_STYLE[a.severity];
-                                  return (
-                                    <div key={`${a.chatter_name}|${a.alert_type}`} className="flex items-start gap-2 text-[11px] text-white/55 font-light leading-snug">
-                                      <span className="opacity-70">{meta.emoji}</span>
-                                      <div className="flex-1 min-w-0">
-                                        <span className={`${sev.text}`}>{meta.label}</span>
-                                        <span className="text-white/45"> — {a.message}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Action-Label */}
-                          <div className="flex items-center gap-2">
-                            <div className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
-                              Nächster Schritt
-                            </div>
-                            <div className="text-[11px] text-yellow-200/90 font-light">
-                              {actionLabelFor(topItem.alert_type)}
-                              {group.impactWindow > 0 && (
-                                <span className="text-white/35"> · ~{group.impactWindow.toLocaleString("de-DE")}€ Verlust im {rangeLabel(range)}-Fenster</span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Vorformulierte Nachricht */}
-                          <div className="rounded-lg border border-white/[0.06] bg-black/40 overflow-hidden">
-                            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.04] bg-white/[0.015]">
-                              <span className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
-                                An {group.name}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyMessage(message, group.name);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-yellow-400/15 hover:bg-yellow-400/25 border border-yellow-400/30 text-yellow-100 text-[10px] uppercase tracking-wider font-light transition-all"
-                              >
-                                <Copy className="h-3 w-3" />
-                                Kopieren
-                              </button>
-                            </div>
-                            <div className="px-3 py-2.5 text-[12px] text-white/75 font-light leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto">
-                              {message}
-                            </div>
-                          </div>
+                  {/* Zahlen-Trio */}
+                  {(currentAvg > 0 || deltaPct !== null || zeroDays !== null) && (
+                    <div className="grid grid-cols-3 gap-2 px-3.5 sm:px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.012]">
+                      <div className="min-w-0">
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag</div>
+                        <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
+                          {currentAvg > 0 ? `${Math.round(currentAvg).toLocaleString("de-DE")} €` : "—"}
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      </div>
+                      <div className="min-w-0 border-l border-white/[0.05] pl-2">
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. Vorperiode</div>
+                        <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
+                          deltaPct === null
+                            ? "text-white/40"
+                            : deltaPct < -10
+                            ? "text-red-300/90"
+                            : deltaPct < 0
+                            ? "text-amber-300/85"
+                            : "text-emerald-300/85"
+                        }`}>
+                          {deltaPct === null ? "—" : `${deltaPct > 0 ? "+" : ""}${deltaPct} %`}
+                        </div>
+                      </div>
+                      <div className="min-w-0 border-l border-white/[0.05] pl-2">
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">0 €-Tage</div>
+                        <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
+                          zeroDays === null ? "text-white/40" : zeroDays >= 3 ? "text-red-300/90" : "text-foreground/85"
+                        }`}>
+                          {zeroDays === null ? "—" : `${zeroDays}×`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Letzte-Aktivität-Footer */}
+                  {(lastCheckRel || lastNote || lastCoachingRel) && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 sm:px-5 py-2 border-t border-white/[0.04] bg-white/[0.008] text-[10px] font-light">
+                      {lastCheckRel ? (
+                        <span
+                          className={`inline-flex items-center gap-1 ${
+                            lastCheckRel.days <= 1 ? "text-emerald-300/80" : lastCheckRel.days <= 7 ? "text-white/55" : "text-amber-300/75"
+                          }`}
+                        >
+                          <ClipboardCheck className="h-2.5 w-2.5" />
+                          Check {lastCheckRel.label}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-red-300/70">
+                          <ClipboardCheck className="h-2.5 w-2.5" />
+                          noch kein Check
+                        </span>
+                      )}
+                      {lastNote && (
+                        <span
+                          className="inline-flex items-center gap-1 text-white/55"
+                          title={lastNote.snippet}
+                        >
+                          <FileText className="h-2.5 w-2.5" />
+                          Notiz {fmtShortDate(lastNote.date)}
+                        </span>
+                      )}
+                      {lastCoachingRel && (
+                        <span className="inline-flex items-center gap-1 text-white/55">
+                          <Video className="h-2.5 w-2.5" />
+                          Coaching {lastCoachingRel.label}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
