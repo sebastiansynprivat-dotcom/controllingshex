@@ -104,8 +104,12 @@ export async function loadRecoveryHistory(platform: string): Promise<HistoryRow[
   return all;
 }
 
-export function computeRecoveryQueue(history: HistoryRow[]): RecoveryEntry[] {
+export function computeRecoveryQueue(
+  history: HistoryRow[],
+  ranks?: Map<string, number>,
+): RecoveryEntry[] {
   const today = isoDaysAgo(0);
+  const rankMap = ranks ?? computeLeaderboardRanks(history);
 
   const byChatter = new Map<string, HistoryRow[]>();
   for (const r of history) {
@@ -121,13 +125,11 @@ export function computeRecoveryQueue(history: HistoryRow[]): RecoveryEntry[] {
     const staleness = daysBetween(lastDate, today);
     if (staleness > MAX_STALENESS_DAYS) continue;
 
-    // Baseline: Median über 30 Tage, ohne 0€-Tage (Wochenend-/Aussetzer-resistent)
     const nonZero = rows.map((r) => r.revenue_today).filter((v) => v > 0);
-    if (nonZero.length < 5) continue; // zu wenig Datenpunkte
+    if (nonZero.length < 5) continue;
     const baseline = median(nonZero);
-    if (baseline < 30) continue; // irrelevant
+    if (baseline < 30) continue;
 
-    // Current: Schnitt der letzten 3 Datenpunkte (egal ob 0 oder nicht — 0er sind Teil des Problems)
     const recent = rows.slice(-RECENT_DAYS).map((r) => r.revenue_today);
     const currentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
 
@@ -140,13 +142,15 @@ export function computeRecoveryQueue(history: HistoryRow[]): RecoveryEntry[] {
     const recoveryEur = gap * 7 * confidence;
     if (recoveryEur < MIN_RECOVERY_EUR) continue;
 
-    // Sparkline: letzte 14 Tage (oldest → newest), mit Lücken als 0
     const spark: number[] = [];
     const map = new Map(rows.map((r) => [r.analysis_date, r.revenue_today]));
     for (let i = 13; i >= 0; i--) {
       const iso = isoDaysAgo(i);
       spark.push(map.get(iso) ?? 0);
     }
+
+    const leaderboardRank = rankMap.get(name);
+    const isTopPerformer = leaderboardRank !== undefined && leaderboardRank <= 10;
 
     results.push({
       chatterName: name,
@@ -159,6 +163,8 @@ export function computeRecoveryQueue(history: HistoryRow[]): RecoveryEntry[] {
       dataPoints: rows.length,
       lastDate,
       spark,
+      leaderboardRank,
+      isTopPerformer,
     });
   }
 
