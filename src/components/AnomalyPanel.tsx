@@ -30,7 +30,6 @@ import {
 } from "@/lib/anomaly-window";
 import {
   estimateDailyImpactEur,
-  estimateWindowImpactEur,
 } from "@/lib/anomaly-actions";
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
