@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, RotateCcw, Users, Copy, MessageSquareText, ArrowRight, TrendingDown } from "lucide-react";
+import { Check, ChevronDown, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,10 +29,7 @@ import {
   type ChatterAnomaly,
 } from "@/lib/anomaly-window";
 import {
-  buildChatterMessage,
   estimateDailyImpactEur,
-  estimateWindowImpactEur,
-  actionLabelFor,
 } from "@/lib/anomaly-actions";
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
@@ -87,6 +84,12 @@ export default function AnomalyPanel({
     modelFollowers: [string, number][];
     chatterAccounts: [string, string[]][];
     reportId: string | null;
+    // Controlling-Erweiterungen
+    lastChecks: [string, string][];        // chatter -> ISO date
+    lastNotes: [string, { date: string; snippet: string }][];
+    lastCoachings: [string, string][];     // chatter -> ISO timestamp
+    categorySince: [string, { since: string; category: string }][];
+    prevWindowAvg: [string, number][];     // chatter -> avg eur/day in previous window
     savedAt: number;
   };
 
@@ -118,6 +121,23 @@ export default function AnomalyPanel({
     initialSnap?.totalChattersInRange ?? 0,
   );
 
+  // Controlling-Daten
+  const [lastChecks, setLastChecks] = useState<Map<string, string>>(
+    () => new Map(initialSnap?.lastChecks ?? []),
+  );
+  const [lastNotes, setLastNotes] = useState<Map<string, { date: string; snippet: string }>>(
+    () => new Map(initialSnap?.lastNotes ?? []),
+  );
+  const [lastCoachings, setLastCoachings] = useState<Map<string, string>>(
+    () => new Map(initialSnap?.lastCoachings ?? []),
+  );
+  const [categorySince, setCategorySince] = useState<Map<string, { since: string; category: string }>>(
+    () => new Map(initialSnap?.categorySince ?? []),
+  );
+  const [prevWindowAvg, setPrevWindowAvg] = useState<Map<string, number>>(
+    () => new Map(initialSnap?.prevWindowAvg ?? []),
+  );
+
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -125,7 +145,14 @@ export default function AnomalyPanel({
     setReportId(rid);
     const fromIso = String(range.from).slice(0, 10);
     const toIso = String(range.to).slice(0, 10);
-    const [result, modelsRes, accountsRes, totalRes] = await Promise.all([
+    const days = Math.max(1, rangeDays(range));
+    // Vorperioden-Fenster (gleiche Länge direkt davor)
+    const prevTo = new Date(new Date(fromIso).getTime() - 86_400_000);
+    const prevFrom = new Date(prevTo.getTime() - (days - 1) * 86_400_000);
+    const prevFromIso = prevFrom.toISOString().slice(0, 10);
+    const prevToIso = prevTo.toISOString().slice(0, 10);
+
+    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -148,6 +175,40 @@ export default function AnomalyPanel({
         .gte("analysis_date", fromIso)
         .lte("analysis_date", toIso)
         .limit(5000),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .gte("analysis_date", prevFromIso)
+        .lte("analysis_date", prevToIso)
+        .limit(5000),
+      supabase
+        .from("daily_chatter_checks")
+        .select("chatter_name, check_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("check_date", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("coaching_notes")
+        .select("chatter_name, note_text, created_at")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("video_coachings")
+        .select("chatter_name, sent_at")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .order("sent_at", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("chatter_category_state")
+        .select("chatter_name, current_category, since_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
@@ -173,6 +234,48 @@ export default function AnomalyPanel({
     }
     setChatterAccounts(amap);
 
+    // Letzte Aktivität — first occurrence wins (Daten kommen sortiert DESC)
+    const cmap = new Map<string, string>();
+    for (const row of checksRes.data ?? []) {
+      if (!cmap.has(row.chatter_name)) cmap.set(row.chatter_name, row.check_date);
+    }
+    setLastChecks(cmap);
+
+    const nmap = new Map<string, { date: string; snippet: string }>();
+    for (const row of notesRes.data ?? []) {
+      if (nmap.has(row.chatter_name)) continue;
+      const text = String(row.note_text ?? "").trim();
+      const snippet = text.length > 80 ? text.slice(0, 80) + "…" : text;
+      nmap.set(row.chatter_name, { date: row.created_at, snippet });
+    }
+    setLastNotes(nmap);
+
+    const vmap = new Map<string, string>();
+    for (const row of coachingsRes.data ?? []) {
+      if (!vmap.has(row.chatter_name)) vmap.set(row.chatter_name, row.sent_at);
+    }
+    setLastCoachings(vmap);
+
+    const smap = new Map<string, { since: string; category: string }>();
+    for (const row of catStateRes.data ?? []) {
+      smap.set(row.chatter_name, { since: row.since_date, category: row.current_category });
+    }
+    setCategorySince(smap);
+
+    // Vorperioden-Ø pro Chatter (Summe / Tage_mit_Eintrag)
+    const prevAgg = new Map<string, { sum: number; days: number }>();
+    for (const row of prevHistRes.data ?? []) {
+      const cur = prevAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
+      cur.sum += Number(row.revenue_today ?? 0);
+      cur.days += 1;
+      prevAgg.set(row.chatter_name, cur);
+    }
+    const pmap = new Map<string, number>();
+    for (const [name, { sum, days }] of prevAgg) {
+      pmap.set(name, days > 0 ? sum / days : 0);
+    }
+    setPrevWindowAvg(pmap);
+
     // Persist snapshot
     try {
       const snap: Snapshot = {
@@ -182,6 +285,11 @@ export default function AnomalyPanel({
         modelFollowers: [...fmap.entries()],
         chatterAccounts: [...amap.entries()],
         reportId: rid,
+        lastChecks: [...cmap.entries()],
+        lastNotes: [...nmap.entries()],
+        lastCoachings: [...vmap.entries()],
+        categorySince: [...smap.entries()],
+        prevWindowAvg: [...pmap.entries()],
         savedAt: Date.now(),
       };
       sessionStorage.setItem(cacheKey, JSON.stringify(snap));
@@ -191,18 +299,20 @@ export default function AnomalyPanel({
   }, [user, platform, range, cacheKey]);
 
   // Mount / range change: nur refreshen wenn kein gültiger Snapshot vorhanden.
-  // Snapshot gilt als gültig solange er für genau diesen cacheKey existiert.
-  // Neue Reports invalidieren via `onChatterDataUpdated` (Event löscht Cache).
   useEffect(() => {
     const snap = loadSnapshot(cacheKey);
     if (snap) {
-      // Hydrate (für den Fall dass cacheKey sich geändert hat ohne Remount)
       setAnomalies(snap.anomalies);
       setPeerAvg(snap.peerAvg);
       setTotalChattersInRange(snap.totalChattersInRange);
       setModelFollowers(new Map(snap.modelFollowers));
       setChatterAccounts(new Map(snap.chatterAccounts));
       setReportId(snap.reportId);
+      setLastChecks(new Map(snap.lastChecks ?? []));
+      setLastNotes(new Map(snap.lastNotes ?? []));
+      setLastCoachings(new Map(snap.lastCoachings ?? []));
+      setCategorySince(new Map(snap.categorySince ?? []));
+      setPrevWindowAvg(new Map(snap.prevWindowAvg ?? []));
       setLoading(false);
       return;
     }
@@ -391,28 +501,41 @@ export default function AnomalyPanel({
     });
   }, [anomalies, chatterAccounts, modelFollowers, windowDays]);
 
-  // Aufgeklappte Karten (Coaching-Block sichtbar)
-  const [openCards, setOpenCards] = useState<Set<string>>(new Set());
-  const toggleCard = useCallback((name: string) => {
-    setOpenCards((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-
-  const copyMessage = useCallback(async (msg: string, chatterName: string) => {
+  const copyName = useCallback(async (name: string) => {
     try {
-      await navigator.clipboard.writeText(msg);
-      toast.success(`Nachricht für „${chatterName}" kopiert`);
+      await navigator.clipboard.writeText(name);
+      toast.success(`„${name}" kopiert`);
       if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        try { navigator.vibrate(15); } catch { /* noop */ }
+        try { navigator.vibrate(10); } catch { /* noop */ }
       }
     } catch {
       toast.error("Kopieren fehlgeschlagen");
     }
   }, []);
+
+  // Relative Datums-Helfer
+  const relDays = (iso: string | undefined): { days: number; label: string } | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    const diff = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+    if (diff <= 0) return { days: 0, label: "heute" };
+    if (diff === 1) return { days: 1, label: "gestern" };
+    if (diff < 30) return { days: diff, label: `vor ${diff} Tagen` };
+    if (diff < 365) return { days: diff, label: `vor ${Math.round(diff / 7)} Wo.` };
+    return { days: diff, label: `vor ${Math.round(diff / 30)} Mon.` };
+  };
+
+  const fmtShortDate = (iso: string | undefined): string => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  };
 
   // Gesamtsumme Impact pro Tag (für Header)
   const totalImpactPerDay = useMemo(
@@ -526,19 +649,30 @@ export default function AnomalyPanel({
               const topSev = SEVERITY_STYLE[group.topSeverity];
               const chatterKey = `chatter|${group.name}`;
               const isPending = pendingDismiss.has(chatterKey);
-              const isOpen = openCards.has(group.name);
               const accs = chatterAccounts.get(group.name) ?? [];
               const topItem = group.items[0];
               const topMeta = ANOMALY_LABELS[topItem.alert_type];
-              const message = isOpen
-                ? buildChatterMessage({
-                    chatterName: group.name,
-                    items: group.items,
-                    windowLabel: rangeLabel(range),
-                    windowDays,
-                  })
-                : "";
               const rank = idx + 1;
+
+              // Controlling-Daten
+              const since = categorySince.get(group.name);
+              const sinceRel = since ? relDays(since.since) : null;
+              const lastCheckRel = relDays(lastChecks.get(group.name));
+              const lastNote = lastNotes.get(group.name);
+              const lastCoachingRel = relDays(lastCoachings.get(group.name));
+
+              // Zahlen-Trio
+              const currentAvg = group.items[0]?.metric_value ?? 0;
+              const prevAvg = prevWindowAvg.get(group.name) ?? 0;
+              const deltaPct = prevAvg > 0
+                ? Math.round(((currentAvg - prevAvg) / prevAvg) * 100)
+                : null;
+              // 0€-Tage: Anzahl Items mit alert_type "persistent_zero" als Proxy nicht ideal —
+              // wir nutzen consecutiveZeroDays über metric_value/baseline-Heuristik:
+              // Fallback: aus message extrahieren falls vorhanden, sonst null.
+              const zeroAlert = group.items.find((a) => a.alert_type === "persistent_zero");
+              const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
+
               return (
                 <motion.div
                   key={group.name}
@@ -547,17 +681,18 @@ export default function AnomalyPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.22, delay: idx * 0.02 }}
+                  onDoubleClick={() => onChatterSelect?.(group.name)}
                   className={`relative rounded-xl border border-white/[0.06] ${topSev.border.split(" ").slice(1).join(" ")} overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.4)] hover:border-white/[0.12] transition-colors`}
                 >
                   {/* Severity Akzent-Streifen links */}
                   <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
 
-                  {/* Chatter-Header — kompakter, mit Impact-Badge & Rank */}
+                  {/* Chatter-Header */}
                   <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-3 sm:py-3.5"}`}>
                     {/* Rank */}
                     <div className="shrink-0 flex flex-col items-center pt-0.5">
                       <span className="text-[9px] uppercase tracking-wider text-white/25 font-light leading-none">#{rank}</span>
-                      <span className={`relative flex h-2 w-2 mt-1.5`}>
+                      <span className="relative flex h-2 w-2 mt-1.5">
                         {group.topSeverity === "critical" && (
                           <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
                         )}
@@ -565,12 +700,18 @@ export default function AnomalyPanel({
                       </span>
                     </div>
 
-                    {/* Name + Headline */}
+                    {/* Name + Headline + Stats — Klick = kopieren, Doppelklick = Profil */}
                     <button
                       type="button"
-                      onClick={() => onChatterSelect?.(group.name)}
-                      className="flex-1 min-w-0 text-left group/name"
+                      onClick={() => copyName(group.name)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onChatterSelect?.(group.name);
+                      }}
+                      title="Klick: Name kopieren · Doppelklick: Profil öffnen"
+                      className="flex-1 min-w-0 text-left group/name cursor-copy"
                     >
+                      {/* Top row: Name + Impact + Status-Pill */}
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
                           {group.name}
@@ -581,11 +722,20 @@ export default function AnomalyPanel({
                             <span className="text-[9px] uppercase tracking-wider text-red-300/50 font-light">/Tag</span>
                           </span>
                         )}
+                        {sinceRel && sinceRel.days >= 1 && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/[0.08] border border-red-500/15 text-[9px] uppercase tracking-wider text-red-200/85 font-medium">
+                            <Flame className="h-2.5 w-2.5" />
+                            seit {sinceRel.days} {sinceRel.days === 1 ? "Tag" : "Tagen"}
+                          </span>
+                        )}
                       </div>
+
+                      {/* Headline-Message */}
                       <div className="text-[12px] sm:text-[13px] text-white/70 font-light mt-1 leading-snug">
                         <span className="opacity-80">{topMeta.emoji}</span>{" "}
                         {topItem.message}
                       </div>
+
                       {/* Accounts (kompakt) */}
                       {accs.length > 0 && (
                         <div className="flex items-center gap-1 mt-1.5 flex-wrap">
@@ -616,6 +766,7 @@ export default function AnomalyPanel({
                           )}
                         </div>
                       )}
+
                       {/* Weitere Signale Hint */}
                       {group.items.length > 1 && (
                         <div className="text-[10px] uppercase tracking-wider text-white/30 font-light mt-1.5">
@@ -639,111 +790,75 @@ export default function AnomalyPanel({
                     </button>
                   </div>
 
-                  {/* Action-Bar */}
-                  <div className="flex items-stretch border-t border-white/[0.04] divide-x divide-white/[0.04]">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleCard(group.name);
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider font-light transition-all ${
-                        isOpen
-                          ? "bg-yellow-400/[0.08] text-yellow-200"
-                          : "text-white/45 hover:text-yellow-200 hover:bg-yellow-400/[0.05]"
-                      }`}
-                    >
-                      <MessageSquareText className="h-3 w-3" />
-                      {isOpen ? "Schließen" : "Nachricht erstellen"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onChatterSelect?.(group.name);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] uppercase tracking-wider text-white/45 hover:text-white/85 hover:bg-white/[0.03] transition-all font-light"
-                    >
-                      Profil
-                      <ArrowRight className="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  {/* Aufklappbarer Coaching-Block */}
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        key="coach"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.22 }}
-                        className="border-t border-white/[0.04] bg-white/[0.015] overflow-hidden"
-                      >
-                        <div className="px-3.5 sm:px-5 py-3 sm:py-4 space-y-3">
-                          {/* Alle Signale auflisten */}
-                          {group.items.length > 1 && (
-                            <div className="space-y-1">
-                              <div className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
-                                Was zusammenkommt
-                              </div>
-                              <div className="space-y-1">
-                                {group.items.map((a) => {
-                                  const meta = ANOMALY_LABELS[a.alert_type];
-                                  const sev = SEVERITY_STYLE[a.severity];
-                                  return (
-                                    <div key={`${a.chatter_name}|${a.alert_type}`} className="flex items-start gap-2 text-[11px] text-white/55 font-light leading-snug">
-                                      <span className="opacity-70">{meta.emoji}</span>
-                                      <div className="flex-1 min-w-0">
-                                        <span className={`${sev.text}`}>{meta.label}</span>
-                                        <span className="text-white/45"> — {a.message}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Action-Label */}
-                          <div className="flex items-center gap-2">
-                            <div className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
-                              Nächster Schritt
-                            </div>
-                            <div className="text-[11px] text-yellow-200/90 font-light">
-                              {actionLabelFor(topItem.alert_type)}
-                              {group.impactWindow > 0 && (
-                                <span className="text-white/35"> · ~{group.impactWindow.toLocaleString("de-DE")}€ Verlust im {rangeLabel(range)}-Fenster</span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Vorformulierte Nachricht */}
-                          <div className="rounded-lg border border-white/[0.06] bg-black/40 overflow-hidden">
-                            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.04] bg-white/[0.015]">
-                              <span className="text-[9px] uppercase tracking-[0.18em] text-white/35 font-light">
-                                An {group.name}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyMessage(message, group.name);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-yellow-400/15 hover:bg-yellow-400/25 border border-yellow-400/30 text-yellow-100 text-[10px] uppercase tracking-wider font-light transition-all"
-                              >
-                                <Copy className="h-3 w-3" />
-                                Kopieren
-                              </button>
-                            </div>
-                            <div className="px-3 py-2.5 text-[12px] text-white/75 font-light leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto">
-                              {message}
-                            </div>
-                          </div>
+                  {/* Zahlen-Trio */}
+                  {(currentAvg > 0 || deltaPct !== null || zeroDays !== null) && (
+                    <div className="grid grid-cols-3 gap-2 px-3.5 sm:px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.012]">
+                      <div className="min-w-0">
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag</div>
+                        <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
+                          {currentAvg > 0 ? `${Math.round(currentAvg).toLocaleString("de-DE")} €` : "—"}
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      </div>
+                      <div className="min-w-0 border-l border-white/[0.05] pl-2">
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. Vorperiode</div>
+                        <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
+                          deltaPct === null
+                            ? "text-white/40"
+                            : deltaPct < -10
+                            ? "text-red-300/90"
+                            : deltaPct < 0
+                            ? "text-amber-300/85"
+                            : "text-emerald-300/85"
+                        }`}>
+                          {deltaPct === null ? "—" : `${deltaPct > 0 ? "+" : ""}${deltaPct} %`}
+                        </div>
+                      </div>
+                      <div className="min-w-0 border-l border-white/[0.05] pl-2">
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">0 €-Tage</div>
+                        <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
+                          zeroDays === null ? "text-white/40" : zeroDays >= 3 ? "text-red-300/90" : "text-foreground/85"
+                        }`}>
+                          {zeroDays === null ? "—" : `${zeroDays}×`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Letzte-Aktivität-Footer */}
+                  {(lastCheckRel || lastNote || lastCoachingRel) && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 sm:px-5 py-2 border-t border-white/[0.04] bg-white/[0.008] text-[10px] font-light">
+                      {lastCheckRel ? (
+                        <span
+                          className={`inline-flex items-center gap-1 ${
+                            lastCheckRel.days <= 1 ? "text-emerald-300/80" : lastCheckRel.days <= 7 ? "text-white/55" : "text-amber-300/75"
+                          }`}
+                        >
+                          <ClipboardCheck className="h-2.5 w-2.5" />
+                          Check {lastCheckRel.label}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-red-300/70">
+                          <ClipboardCheck className="h-2.5 w-2.5" />
+                          noch kein Check
+                        </span>
+                      )}
+                      {lastNote && (
+                        <span
+                          className="inline-flex items-center gap-1 text-white/55"
+                          title={lastNote.snippet}
+                        >
+                          <FileText className="h-2.5 w-2.5" />
+                          Notiz {fmtShortDate(lastNote.date)}
+                        </span>
+                      )}
+                      {lastCoachingRel && (
+                        <span className="inline-flex items-center gap-1 text-white/55">
+                          <Video className="h-2.5 w-2.5" />
+                          Coaching {lastCoachingRel.label}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
