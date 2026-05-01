@@ -87,7 +87,7 @@ function useMLData(): { loading: boolean; data: MLData | null; error: string | n
         }
 
         const since = new Date();
-        since.setDate(since.getDate() - 30);
+        since.setDate(since.getDate() - 60);
         const sinceStr = since.toISOString().split("T")[0];
 
         const { data: histRows } = await supabase
