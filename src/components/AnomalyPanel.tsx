@@ -502,28 +502,41 @@ export default function AnomalyPanel({
     });
   }, [anomalies, chatterAccounts, modelFollowers, windowDays]);
 
-  // Aufgeklappte Karten (Coaching-Block sichtbar)
-  const [openCards, setOpenCards] = useState<Set<string>>(new Set());
-  const toggleCard = useCallback((name: string) => {
-    setOpenCards((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-
-  const copyMessage = useCallback(async (msg: string, chatterName: string) => {
+  const copyName = useCallback(async (name: string) => {
     try {
-      await navigator.clipboard.writeText(msg);
-      toast.success(`Nachricht für „${chatterName}" kopiert`);
+      await navigator.clipboard.writeText(name);
+      toast.success(`„${name}" kopiert`);
       if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        try { navigator.vibrate(15); } catch { /* noop */ }
+        try { navigator.vibrate(10); } catch { /* noop */ }
       }
     } catch {
       toast.error("Kopieren fehlgeschlagen");
     }
   }, []);
+
+  // Relative Datums-Helfer
+  const relDays = (iso: string | undefined): { days: number; label: string } | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    const diff = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+    if (diff <= 0) return { days: 0, label: "heute" };
+    if (diff === 1) return { days: 1, label: "gestern" };
+    if (diff < 30) return { days: diff, label: `vor ${diff} Tagen` };
+    if (diff < 365) return { days: diff, label: `vor ${Math.round(diff / 7)} Wo.` };
+    return { days: diff, label: `vor ${Math.round(diff / 30)} Mon.` };
+  };
+
+  const fmtShortDate = (iso: string | undefined): string => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  };
 
   // Gesamtsumme Impact pro Tag (für Header)
   const totalImpactPerDay = useMemo(
