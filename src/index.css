@@ -52,6 +52,28 @@
     --sidebar-accent-foreground: 0 0% 93%;
     --sidebar-border: 0 0% 100% / 0.04;
     --sidebar-ring: 40 45% 55%;
+
+    /* Text hierarchy tokens (Apple-Pro readability) */
+    --text-strong: 0 0% 96%;
+    --text: 0 0% 84%;
+    --text-muted: 0 0% 64%;
+    --text-subtle: 0 0% 46%;
+
+    /* Layered card shadows */
+    --shadow-card:
+      0 1px 0 0 hsl(0 0% 100% / 0.06) inset,
+      0 0 0 1px hsl(0 0% 0% / 0.25),
+      0 12px 32px -16px hsl(0 0% 0% / 0.55),
+      0 2px 6px -2px hsl(0 0% 0% / 0.35);
+    --shadow-card-hover:
+      0 1px 0 0 hsl(0 0% 100% / 0.09) inset,
+      0 0 0 1px hsl(0 0% 0% / 0.25),
+      0 22px 44px -18px hsl(0 0% 0% / 0.65),
+      0 4px 10px -2px hsl(0 0% 0% / 0.4),
+      0 0 32px -10px hsl(40 50% 60% / 0.06);
+
+    /* Desktop content frame */
+    --content-max: 1400px;
   }
 }
 
