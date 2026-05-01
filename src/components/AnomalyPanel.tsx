@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, RotateCcw, Users, Copy, MessageSquareText, ArrowRight, TrendingDown } from "lucide-react";
+import { Check, ChevronDown, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,10 +29,8 @@ import {
   type ChatterAnomaly,
 } from "@/lib/anomaly-window";
 import {
-  buildChatterMessage,
   estimateDailyImpactEur,
   estimateWindowImpactEur,
-  actionLabelFor,
 } from "@/lib/anomaly-actions";
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
