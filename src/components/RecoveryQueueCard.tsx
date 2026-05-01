@@ -193,7 +193,7 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
               </div>
 
               <ChevronRight className="h-3.5 w-3.5 text-white/15 group-hover:text-white/40 transition-colors shrink-0" />
-            </motion.button>
+            </button>
           );
         })}
       </div>
