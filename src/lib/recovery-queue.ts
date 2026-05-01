@@ -21,6 +21,25 @@ export interface RecoveryEntry {
   dataPoints: number;     // Anzahl Tage im Fenster
   lastDate: string;       // ISO
   spark: number[];        // letzte 14 Tage revenue (oldest → newest)
+  leaderboardRank?: number;   // Platz im 30T-Leaderboard (1 = top)
+  isTopPerformer?: boolean;   // rank <= 10
+}
+
+/**
+ * Berechnet den Leaderboard-Rang (1 = höchster 30T-Umsatz) pro Chatter
+ * basierend auf der bereits geladenen History.
+ */
+export function computeLeaderboardRanks(history: HistoryRow[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const r of history) {
+    totals.set(r.chatter_name, (totals.get(r.chatter_name) || 0) + (Number(r.revenue_today) || 0));
+  }
+  const sorted = [...totals.entries()]
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const ranks = new Map<string, number>();
+  sorted.forEach(([name], i) => ranks.set(name, i + 1));
+  return ranks;
 }
 
 interface HistoryRow {
