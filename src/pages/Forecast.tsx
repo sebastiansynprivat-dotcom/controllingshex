@@ -401,14 +401,14 @@ export default function Forecast() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 reveal-stagger">
                       {risks.map((r) => {
                         const isOpen = expanded.has(r.chatter);
-                        const glowClass = r.band === "critical" ? "glow-band-critical" : r.band === "high" ? "glow-band-high" : "";
+                        const glowClass = r.band === "critical" ? "glow-band-critical critical-pulse" : r.band === "high" ? "glow-band-high" : "";
                         return (
                           <div
                             key={r.chatter}
-                            className={`premium-card premium-card-interactive rounded-xl overflow-hidden ${glowClass}`}
+                            className={`premium-card premium-card-interactive soft-lift rounded-xl overflow-hidden ${glowClass}`}
                           >
                             <button
                               onClick={() => toggle(r.chatter)}
