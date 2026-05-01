@@ -299,13 +299,9 @@
   }
 
   .premium-card-interactive:hover {
-    transform: translateY(-1px);
-    border-color: hsl(0 0% 100% / 0.12);
-    box-shadow:
-      0 1px 0 0 hsl(0 0% 100% / 0.07) inset,
-      0 0 0 1px hsl(0 0% 0% / 0.2),
-      0 14px 32px -14px hsl(0 0% 0% / 0.6),
-      0 0 28px -8px hsl(40 45% 55% / 0.08);
+    transform: translateY(-2px);
+    border-color: hsl(0 0% 100% / 0.14);
+    box-shadow: var(--shadow-card-hover);
   }
   .premium-card-interactive:active {
     transform: translateY(0) scale(0.992);
