@@ -118,16 +118,16 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
           </p>
         </div>
         <div className="text-right">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-medium">Erreichbar</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-white/55 font-medium">Erreichbar</p>
           <p
-            className="text-3xl font-extralight tabular-nums leading-none mt-1"
+            className="text-3xl md:text-4xl font-extralight tabular-nums leading-none mt-1"
             style={{
               background: "linear-gradient(135deg, hsl(45 95% 70%) 0%, hsl(38 92% 55%) 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
           >
-            +{formatEur(total)} €
+            +<CountUp value={total} duration={1100} /> €
           </p>
         </div>
       </div>
