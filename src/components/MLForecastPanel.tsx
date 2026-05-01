@@ -87,7 +87,7 @@ function useMLData(): { loading: boolean; data: MLData | null; error: string | n
         }
 
         const since = new Date();
-        since.setDate(since.getDate() - 30);
+        since.setDate(since.getDate() - 60);
         const sinceStr = since.toISOString().split("T")[0];
 
         const { data: histRows } = await supabase
@@ -140,11 +140,39 @@ function useMLData(): { loading: boolean; data: MLData | null; error: string | n
           });
         }
 
+        // Fallback: für alle History-Chatter, die NICHT im aktuellen Report stehen,
+        // trotzdem leere Meta anlegen — sonst werden sie aus dem Training gefiltert.
+        for (const name of fullHistMap.keys()) {
+          if (!meta.has(name)) {
+            meta.set(name, {
+              account: null,
+              followers: 0,
+              daysSinceStart: null,
+              peerMedian: bm.globalMedian ?? null,
+              peerP25: bm.globalP25 ?? null,
+            });
+          }
+        }
+
+        // Diagnose
+        const chattersWithEnoughHistory = [...fullHistMap.values()].filter(h => h.length >= 10).length;
+        console.info("[ML] history chatters total:", fullHistMap.size,
+          "| ≥10 days:", chattersWithEnoughHistory,
+          "| active in report:", activeChatters.length);
+
         // 1) Training-Samples bauen
         const samples = buildTrainingSamples(fullHistMap, meta, 30, true);
+        console.info("[ML] samples built:", samples.length,
+          "| positives:", samples.filter(s => s.label === 1).length);
+
         if (samples.length === 0) {
           if (!cancelled) {
-            setError("Noch nicht genug History für ML-Training (mindestens 10 Tage pro Chatter).");
+            const maxDays = Math.max(0, ...[...fullHistMap.values()].map(h => h.length));
+            setError(
+              `Noch zu wenig History für ML-Training. ` +
+              `Längste Chatter-History: ${maxDays} Tage (mindestens 10 nötig). ` +
+              `Chatter mit ≥10 Tagen: ${chattersWithEnoughHistory}.`
+            );
             setLoading(false);
           }
           return;
