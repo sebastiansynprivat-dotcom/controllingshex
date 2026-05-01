@@ -14,6 +14,7 @@ import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import CountUp from "@/components/CountUp";
 
 type FilterMode = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
 
@@ -286,7 +287,7 @@ export default function Leaderboard() {
             <div className="hidden md:flex flex-col items-end gap-1">
               <span className="text-[10px] uppercase tracking-[0.28em] text-white/35 font-medium">Gesamt</span>
               <span className="text-2xl font-extralight tabular-nums tracking-tight gold-text">
-                {totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €
+                <CountUp value={totalRevenue} duration={1200} /> €
               </span>
             </div>
           )}
@@ -445,7 +446,7 @@ export default function Leaderboard() {
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-3xl md:text-4xl font-extralight gold-text tabular-nums tracking-tight leading-none">
-                    {leader.total.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    <CountUp value={leader.total} duration={1300} />
                     <span className="text-xl ml-1 opacity-70">€</span>
                   </div>
                   <p className="text-[10px] uppercase tracking-[0.28em] text-white/30 mt-2 font-medium">Periode</p>
