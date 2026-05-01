@@ -1,34 +1,71 @@
 ## Ziel
-In der **Revenue Recovery** Liste wird neben jedem Chatter-Namen ein kleines Badge mit der **Leaderboard-Platzierung über 30 Tage** angezeigt (z.B. `#3`). Wenn ein Chatter aktuell zu den Top-Performern (Top 10) gehört und trotzdem unter Baseline läuft, bekommt er zusätzlich das Label **„Top-Performer im Dip"** als Warnsignal.
 
-## Was passiert
+Das App-Gefühl am Desktop spürbar hochwertiger und lesbarer machen — ohne Layouts inhaltlich umzubauen. Apple-Pro-Stil: tiefere Glas-Effekte, feinere Borders, edle Schatten, klarere Hierarchie. Lesbarkeit moderat anheben (nur zu blasse Stellen). Inhalt auf großen Monitoren mit Maximalbreite ~1400 px zentrieren.
 
-1. **Leaderboard-Daten laden (30 Tage rolling)**
-   - Beim Mount der `RecoveryQueueCard` wird parallel zur bestehenden History-Abfrage ein 30-Tage-Umsatz pro Chatter aus `chatter_history` aggregiert (gleiche Logik wie auf der Leaderboard-Seite: Summe `revenue_today` der letzten 30 Tage).
-   - Daraus wird ein Rang-Mapping `chatterName → rank` gebaut (1 = höchster Umsatz).
+## Was du sehen wirst
 
-2. **Mapping in die Recovery-Einträge mergen**
-   - Jeder `RecoveryEntry` bekommt zwei optionale Felder: `leaderboardRank?: number` und `isTopPerformer?: boolean` (true wenn `rank ≤ 10`).
-   - Top-Performer werden **nicht** ausgefiltert — sie bleiben sichtbar mit zusätzlichem Hinweis.
+- Auf großen Monitoren klebt nichts mehr am Rand — Inhalte sitzen in einem ruhigen, zentrierten Frame mit großzügigen Innenabständen.
+- Karten wirken plastischer: feinere helle Innenkanten, weicherer Schatten-Falloff, leichter Tiefenverlauf, sauberer Hover-Lift.
+- Alle „fast unsichtbaren" Texte (z. B. `text-white/30`, `text-white/40`, blasse Labels in Recovery/Leaderboard/Dashboard) sind klar lesbar — Headlines bleiben aber elegant dünn.
+- Headlines bekommen am Desktop eine Stufe mehr Größe und engere Letterspacing-Werte → wirkt redaktioneller, weniger „Webapp".
+- Goldener Akzent wird gezielter eingesetzt: nur für aktive Zustände, Top-Ranks und KPI-Highlights — wirkt dadurch wertvoller statt beliebig.
 
-3. **UI-Erweiterung in `RecoveryQueueCard`**
-   - Neben dem Chatter-Namen: kleines Badge `#3` (subtil, dezenter Stil passend zum bestehenden minimalistischen Design).
-   - Falls kein Rang gefunden (Chatter nicht in Top 50 / keine Daten): kein Badge, nur „—" oder gar nichts.
-   - Falls `isTopPerformer === true`: zusätzliches kleines amber/gold Label „Top-Performer im Dip" unter dem Namen, damit klar wird, dass das ein wichtiger Chatter ist, der gerade schwächelt.
+## Umfang (was ich anfasse)
 
-4. **Tooltip / Mini-Info**
-   - Hover/Tap auf das Rang-Badge zeigt Tooltip: „Platz 3 im 30-Tage-Leaderboard".
+1. **Design-Tokens** (`src/index.css`)
+   - Neue Text-Stufen-Variablen: `--text-strong` (95%), `--text` (82%), `--text-muted` (62%), `--text-subtle` (44%) — ersetzt das wilde `text-white/30…/70`.
+   - Verfeinerte Surface-Stufen + zwei neue Schatten-Tokens (`--shadow-card`, `--shadow-card-hover`) für konsistente Tiefe.
+   - Neue Container-Variable `--content-max: 1400px` plus großzügigerer Desktop-Padding-Wert.
+
+2. **Typografie-Pass** (`src/index.css`, `tailwind.config.ts`)
+   - Heading-Skala für `lg`/`xl`-Breakpoints leicht anheben (h1/h2/h3), Letterspacing feiner.
+   - Body-Default von `font-light` → `font-normal` (Headlines bleiben light, wie gewünscht).
+   - Tabular-Nums-Utility für KPI-Zahlen (verhindert „springende" Ziffern).
+
+3. **Container & Layout** (`src/components/Layout.tsx`)
+   - `<main>` bekommt einen inneren Wrapper mit `max-w-[1400px] mx-auto w-full` und gestufftem Padding (`px-6 lg:px-10 xl:px-14`).
+   - Header-Leiste folgt derselben Maximalbreite, damit Sidebar-Trigger und Inhalt visuell auf derselben Achse sitzen.
+
+4. **Card-System aufwerten** (`src/index.css`)
+   - `.premium-card`: feinere Innenkante (1 px helle Top-Linie via `::before` bleibt, aber sanfter), weicherer Mehrlagen-Schatten, leicht tieferer Backdrop-Blur (32 → 40 px) und +Saturation für edleren Glas-Look.
+   - `.premium-card-interactive:hover`: dezenterer Lift (−1 px → −2 px), Schatten wechselt sauber, kein Gold-Glow im Default-Hover (nur bei aktiven Karten).
+   - Neue Variante `.premium-card-flush` für dichte Datenblöcke (Leaderboard-Reihen) — gleiche Materialität, ohne extra Padding.
+
+5. **Lesbarkeits-Refactor (gezielt, moderat)**
+   - Nur Stellen mit `text-white/30`, `text-white/35`, `text-white/40`, `text-white/45` werden auf neue Skala (`text-muted` ~62 %) angehoben.
+   - Betroffene Hot-Spots, die ich gesehen habe: `RecoveryQueueCard.tsx`, `Leaderboard.tsx`, `Dashboard.tsx`, `AppSidebar.tsx`, `RiskBadge.tsx`, `WeekTrendCard.tsx`, `TrendWidget.tsx`, `ForecastBanner.tsx`, `AnomalyPanel.tsx`.
+   - Headlines / Brand-Schriftzug behalten ihr `font-light` / `font-semibold tracking-[0.2em]`.
+   - `font-light` auf Body-Text (≤14 px) wird zu `font-normal` — auf Retina am PC dadurch deutlich klarer.
+
+6. **Sidebar-Politur** (`src/components/AppSidebar.tsx`, `index.css`)
+   - Inaktive Items von `text-white/40` → `text-white/55`, Hover auf `/90`.
+   - Aktiver Zustand: stärkerer Gold-Drop-Shadow auf Icon, etwas kräftigerer linker Akzent-Strich.
 
 ## Technische Details
 
-**Datei: `src/lib/recovery-queue.ts`**
-- Neue Funktion `loadLeaderboard30dRanks(platform, history?)`: Aggregiert 30T-Revenue pro Chatter und gibt `Map<string, number>` (name → rank) zurück. Kann die bereits geladene History wiederverwenden, um keinen zweiten DB-Call zu machen.
-- `RecoveryEntry` Interface erweitern um `leaderboardRank?: number` und `isTopPerformer?: boolean`.
-- `computeRecoveryQueue` bekommt optional die Rank-Map und merged sie in die Ergebnisse.
+- Keine Routing- oder Datenflüsse berührt, rein visuell.
+- `text-white/XX`-Klassen werden via projektweiter Suche & gezieltem Replace ersetzt (nur Werte ≤ /45). Klassen wie `/60`, `/70`, `/80` bleiben unangetastet.
+- Tailwind-Config bekommt nur additive Erweiterungen (neue Schatten, neue `maxWidth.content`, `fontSize.display-*`). Keine Breaking Changes.
+- `src/index.css`: bestehende Klassen (`.premium-card`, `.glass-card`, `.gold-text`) werden überschrieben, nicht entfernt → kein Cleanup-Risiko in Komponenten.
+- Layout-Wrapper in `Layout.tsx` ist additiv — falls eine Seite den vollen Bleed braucht, kann sie per `className="-mx-6 lg:-mx-10"` ausbrechen.
+- Mobile/iPhone-Look bleibt 1:1 erhalten: alle Änderungen greifen über `lg:`/`xl:`-Prefixes oder sind so dezent, dass sie auf kleinen Screens nicht stören.
 
-**Datei: `src/components/RecoveryQueueCard.tsx`**
-- `useEffect` lädt History → berechnet Recovery + Ranks gleichzeitig (kein zusätzlicher Roundtrip nötig, da History bereits 30 Tage abdeckt).
-- Render-Logik für Badge: kleines `<span>` mit `text-[10px] tabular-nums` neben Name, Stil konsistent zum bestehenden glassy Look.
-- Top-Performer-Label nur wenn `rank ≤ 10`.
+## Reihenfolge
 
-**Keine DB-Änderungen.** Keine neuen Tabellen, kein Migration nötig.
+```text
+1. Tokens & Typo (index.css, tailwind.config.ts)
+2. Layout-Container (Layout.tsx)
+3. Card-System Update (index.css)
+4. Lesbarkeits-Sweep (RecoveryQueueCard, Leaderboard, Dashboard,
+   AppSidebar, RiskBadge, WeekTrendCard, TrendWidget,
+   ForecastBanner, AnomalyPanel)
+5. Sidebar-Politur
+```
+
+## Außerhalb des Scopes
+
+- Keine Komponenten-Restrukturierung, keine neuen Features, keine Inhaltsänderungen.
+- Mobile-Layout bleibt unverändert.
+- Leaderboard/Recovery-Logik bleibt unverändert (nur Optik der Reihen).
+
+Nach Freigabe baue ich das in einem Durchgang.
