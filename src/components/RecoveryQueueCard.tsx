@@ -133,7 +133,7 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
       </div>
 
       {/* List */}
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-white/[0.04] reveal-stagger">
         {visible.map((e, i) => {
           const tone: "warn" | "crit" = e.gapPct >= 0.5 ? "crit" : "warn";
           const accent =
@@ -141,13 +141,12 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
               ? "text-rose-300/90"
               : "text-amber-300/90";
           return (
-            <motion.button
+            <button
               key={e.chatterName}
-              initial={{ opacity: 0, x: -4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => onChatterSelect(e.chatterName)}
-              className="group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-white/[0.02]"
+              className={`group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-white/[0.025] soft-lift ${
+                tone === "crit" ? "critical-pulse" : ""
+              }`}
             >
               <span className="text-[10px] tabular-nums text-white/25 font-light w-4">{i + 1}</span>
 
