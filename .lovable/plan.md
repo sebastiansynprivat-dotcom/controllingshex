@@ -1,43 +1,34 @@
 ## Ziel
-Layout nutzt iPhone-Notch & Home-Indicator korrekt: dunkler Hintergrund läuft randlos in die Safe Areas, Inhalte (Header, Main, Sidebar, Sheets, Bottom-Bars) respektieren `env(safe-area-inset-*)` — keine schwarzen Ränder, kein abgeschnittener Content.
+In der **Revenue Recovery** Liste wird neben jedem Chatter-Namen ein kleines Badge mit der **Leaderboard-Platzierung über 30 Tage** angezeigt (z.B. `#3`). Wenn ein Chatter aktuell zu den Top-Performern (Top 10) gehört und trotzdem unter Baseline läuft, bekommt er zusätzlich das Label **„Top-Performer im Dip"** als Warnsignal.
 
-## Änderungen
+## Was passiert
 
-### 1. `index.html`
-- Sicherstellen, dass `viewport-fit=cover` gesetzt bleibt (ist schon da).
-- `theme-color` bleibt auf `#0a0a0b`, damit iOS/Android die System-UI in derselben Farbe einfärbt → kein sichtbarer Übergang zur Safe Area.
+1. **Leaderboard-Daten laden (30 Tage rolling)**
+   - Beim Mount der `RecoveryQueueCard` wird parallel zur bestehenden History-Abfrage ein 30-Tage-Umsatz pro Chatter aus `chatter_history` aggregiert (gleiche Logik wie auf der Leaderboard-Seite: Summe `revenue_today` der letzten 30 Tage).
+   - Daraus wird ein Rang-Mapping `chatterName → rank` gebaut (1 = höchster Umsatz).
 
-### 2. `src/index.css`
-- Tailwind-Tokens für Safe-Area ergänzen (über `@layer utilities`):
-  - `.pt-safe`, `.pb-safe`, `.pl-safe`, `.pr-safe`, `.px-safe`, `.py-safe`, sowie `.mt-safe`, `.mb-safe`, jeweils `max(env(safe-area-inset-*), 0px)`.
-  - `.h-safe-top`, `.h-safe-bottom` als Hilfs-Spacer.
-- Globale Regel: `html, body` behalten `background: hsl(var(--background))` — füllt die Safe Areas dunkel (verhindert weiße/schwarze Streifen).
-- `#root` bekommt `padding-left: env(safe-area-inset-left)` und `padding-right: env(safe-area-inset-right)` für Landscape-Notch (iPhone quer).
-- Bestehende `--app-height`-Logik unangetastet lassen.
+2. **Mapping in die Recovery-Einträge mergen**
+   - Jeder `RecoveryEntry` bekommt zwei optionale Felder: `leaderboardRank?: number` und `isTopPerformer?: boolean` (true wenn `rank ≤ 10`).
+   - Top-Performer werden **nicht** ausgefiltert — sie bleiben sichtbar mit zusätzlichem Hinweis.
 
-### 3. `src/components/Layout.tsx`
-- Wrapper-Div: kein eigenes Padding für Safe Areas mehr — der Hintergrund (`bg-depth`) reicht weiter bis zum Rand.
-- Header: 
-  - `padding-top: max(env(safe-area-inset-top), 0px)` (statt nur `env(...)`, damit kein NaN auf Geräten ohne Notch).
-  - Mindesthöhe Inhalt 56 px, dazu kommt der Inset → Notch-Bereich ist dunkel + leichter Blur, ohne Inhalt zu überdecken.
-- Main:
-  - `padding-bottom: max(env(safe-area-inset-bottom), 1.5rem)` bleibt.
-  - Zusätzlich `padding-left/right: max(env(safe-area-inset-left/right), 0px)` für Landscape.
+3. **UI-Erweiterung in `RecoveryQueueCard`**
+   - Neben dem Chatter-Namen: kleines Badge `#3` (subtil, dezenter Stil passend zum bestehenden minimalistischen Design).
+   - Falls kein Rang gefunden (Chatter nicht in Top 50 / keine Daten): kein Badge, nur „—" oder gar nichts.
+   - Falls `isTopPerformer === true`: zusätzliches kleines amber/gold Label „Top-Performer im Dip" unter dem Namen, damit klar wird, dass das ein wichtiger Chatter ist, der gerade schwächelt.
 
-### 4. `src/components/AppSidebar.tsx`
-- `SidebarContent` paddingTop auf `max(env(safe-area-inset-top), 0px) + 2.5rem` umstellen (`max(...)` statt `calc(env(...) + ...)`, damit Geräte ohne Notch nicht zu wenig Abstand bekommen → korrekt: `calc(max(env(safe-area-inset-top), 0px) + 2.5rem)`).
-- Logout-Bereich (`pb-6`) ersetzen durch `padding-bottom: calc(max(env(safe-area-inset-bottom), 0px) + 1.5rem)`, damit Home-Indicator nicht den Logout-Button überdeckt.
-
-### 5. Globale Komponenten mit Bottom-Fixierung prüfen
-- Suche nach `fixed bottom-0`, `Sheet`, `Drawer`, `Toast` — und Safe-Area-Bottom-Padding ergänzen wo nötig:
-  - Bottom-Sheets/Drawer: `padding-bottom: max(env(safe-area-inset-bottom), 1rem)`.
-  - Toast-Container: `bottom: max(env(safe-area-inset-bottom), 1rem)`.
+4. **Tooltip / Mini-Info**
+   - Hover/Tap auf das Rang-Badge zeigt Tooltip: „Platz 3 im 30-Tage-Leaderboard".
 
 ## Technische Details
-- `max(env(safe-area-inset-*), 0px)` statt nackt `env(...)` verwenden, damit der Wert in CSS `calc()` immer numerisch ist (Safari-Quirk).
-- `viewport-fit=cover` ist Voraussetzung — bereits gesetzt.
-- Hintergrundfarbe via `html`/`body` deckt alle Safe-Area-Bereiche dunkel — daher entstehen keine schwarzen Ränder, sondern eine homogene Fläche.
 
-## Out of Scope
-- Keine Änderung am Manifest, an Icons oder am PWA-Service-Worker.
-- Keine Änderung an der bestehenden `--app-height`-Höhenlogik.
+**Datei: `src/lib/recovery-queue.ts`**
+- Neue Funktion `loadLeaderboard30dRanks(platform, history?)`: Aggregiert 30T-Revenue pro Chatter und gibt `Map<string, number>` (name → rank) zurück. Kann die bereits geladene History wiederverwenden, um keinen zweiten DB-Call zu machen.
+- `RecoveryEntry` Interface erweitern um `leaderboardRank?: number` und `isTopPerformer?: boolean`.
+- `computeRecoveryQueue` bekommt optional die Rank-Map und merged sie in die Ergebnisse.
+
+**Datei: `src/components/RecoveryQueueCard.tsx`**
+- `useEffect` lädt History → berechnet Recovery + Ranks gleichzeitig (kein zusätzlicher Roundtrip nötig, da History bereits 30 Tage abdeckt).
+- Render-Logik für Badge: kleines `<span>` mit `text-[10px] tabular-nums` neben Name, Stil konsistent zum bestehenden glassy Look.
+- Top-Performer-Label nur wenn `rank ≤ 10`.
+
+**Keine DB-Änderungen.** Keine neuen Tabellen, kein Migration nötig.

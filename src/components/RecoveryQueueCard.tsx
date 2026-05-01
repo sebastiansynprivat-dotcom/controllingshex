@@ -151,7 +151,28 @@ export default function RecoveryQueueCard({ platform, onChatterSelect }: Props) 
               <span className="text-[10px] tabular-nums text-white/25 font-light w-4">{i + 1}</span>
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-white/85 font-light truncate">{e.chatterName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm text-white/85 font-light truncate">{e.chatterName}</p>
+                  {e.leaderboardRank !== undefined && (
+                    <span
+                      title={`Platz ${e.leaderboardRank} im 30-Tage-Leaderboard`}
+                      className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium tabular-nums border ${
+                        e.isTopPerformer
+                          ? "border-amber-300/30 bg-amber-300/10 text-amber-200/90"
+                          : e.leaderboardRank <= 25
+                          ? "border-white/10 bg-white/[0.04] text-white/55"
+                          : "border-white/[0.06] bg-white/[0.02] text-white/35"
+                      }`}
+                    >
+                      #{e.leaderboardRank}
+                    </span>
+                  )}
+                </div>
+                {e.isTopPerformer && (
+                  <p className="text-[9px] uppercase tracking-[0.18em] text-amber-300/70 font-medium mt-0.5">
+                    Top-Performer im Dip
+                  </p>
+                )}
                 <p className="text-[10px] text-white/35 font-light tabular-nums mt-0.5">
                   Ø {formatEur(e.baseline)} € · aktuell {formatEur(e.currentAvg)} €
                 </p>
