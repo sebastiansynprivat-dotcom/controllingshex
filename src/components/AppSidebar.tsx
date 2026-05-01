@@ -59,7 +59,7 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      className={`sidebar-item group relative flex items-center rounded-lg text-white/40 transition-all duration-300 ease-out hover:text-white/85 ${
+                      className={`sidebar-item group relative flex items-center rounded-lg text-white/55 transition-all duration-300 ease-out hover:text-white/90 ${
                         collapsed ? "justify-center px-0 py-2.5 w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5"
                       }`}
                       activeClassName="sidebar-item-active text-foreground"
