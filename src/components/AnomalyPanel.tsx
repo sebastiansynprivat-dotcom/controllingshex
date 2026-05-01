@@ -449,13 +449,22 @@ export default function AnomalyPanel({
   // Sortierung: Geschätzter Umsatz-Impact pro Tag (€) absteigend.
   // Tiebreaker: Follower-Summe, dann Score.
   const windowDays = useMemo(() => rangeDays(range), [range]);
-  const prevPeriodLabel = useMemo(() => {
+  const { prevPeriodLabel, prevPeriodTooltip } = useMemo(() => {
     const days = Math.max(1, rangeDays(range));
     const fromIso = String(range.from).slice(0, 10);
-    const prevTo = new Date(new Date(fromIso).getTime() - 86_400_000);
+    const toIso = String(range.to).slice(0, 10);
+    const curFrom = new Date(fromIso);
+    const curTo = new Date(toIso);
+    const prevTo = new Date(curFrom.getTime() - 86_400_000);
     const prevFrom = new Date(prevTo.getTime() - (days - 1) * 86_400_000);
-    const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-    return days === 1 ? fmt(prevFrom) : `${fmt(prevFrom)}–${fmt(prevTo)}`;
+    const fmtShort = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+    const fmtFull = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const label = days === 1 ? fmtShort(prevFrom) : `${fmtShort(prevFrom)}–${fmtShort(prevTo)}`;
+    const dayWord = days === 1 ? "Tag" : "Tage";
+    const curRange = days === 1 ? fmtFull(curFrom) : `${fmtFull(curFrom)} – ${fmtFull(curTo)}`;
+    const prevRange = days === 1 ? fmtFull(prevFrom) : `${fmtFull(prevFrom)} – ${fmtFull(prevTo)}`;
+    const tooltip = `Vergleich gleicher Länge (${days} ${dayWord})\nAktuell: ${curRange}\nVorperiode: ${prevRange}`;
+    return { prevPeriodLabel: label, prevPeriodTooltip: tooltip };
   }, [range]);
   const groupedByChatter = useMemo(() => {
     const map = new Map<
@@ -807,7 +816,7 @@ export default function AnomalyPanel({
                           {currentAvg > 0 ? `${Math.round(currentAvg).toLocaleString("de-DE")} €` : "—"}
                         </div>
                       </div>
-                      <div className="min-w-0 border-l border-white/[0.05] pl-2" title={`Vergleich mit Vorperiode (${prevPeriodLabel}, gleiche Länge)`}>
+                      <div className="min-w-0 border-l border-white/[0.05] pl-2" title={prevPeriodTooltip}>
                         <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. {prevPeriodLabel}</div>
                         <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
                           deltaPct === null
