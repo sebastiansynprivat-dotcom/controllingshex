@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { TrendingDown, ChevronRight, Sparkles, ChevronDown } from "lucide-react";
+import CountUp from "@/components/CountUp";
 import {
   computeRecoveryQueue,
   loadRecoveryHistory,
