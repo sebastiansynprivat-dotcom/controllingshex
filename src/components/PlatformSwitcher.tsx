@@ -5,6 +5,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 const platformIcons: Record<Platform, string> = {
   Maloum: "M",
   Brezzels: "B",
+  "4Based": "4",
 };
 
 export function PlatformSwitcher() {
