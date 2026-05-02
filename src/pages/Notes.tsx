@@ -779,7 +779,7 @@ function SnippetCard({
   onToggleRecipients: () => void;
   onMarkSent: (chatterName: string) => void;
   onMarkAllSent: (chatterNames: string[]) => void;
-  onCopy: () => void;
+  onCopy: (label?: string) => void;
   onEdit: () => void;
   onDelete: () => void;
   onMediaClick: (path: string) => void;
