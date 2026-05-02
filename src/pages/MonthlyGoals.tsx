@@ -452,6 +452,79 @@ export default function MonthlyGoals() {
     return () => { cancelled = true; };
   }, [platform, reloadKey]);
 
+  async function acceptSuggestion(chatter: string, goal: number) {
+    if (goal <= 0) {
+      toast.error("Ziel muss > 0 sein");
+      return;
+    }
+    setAcceptingChatter(chatter);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error("Nicht angemeldet");
+
+      // 1) Label sicherstellen
+      let labelId: string | null = null;
+      const { data: existing, error: lErr } = await supabase
+        .from("chatter_labels")
+        .select("id")
+        .eq("platform", platform)
+        .eq("label_name", LABEL_NAME)
+        .maybeSingle();
+      if (lErr) throw lErr;
+      if (existing?.id) {
+        labelId = existing.id;
+      } else {
+        const { data: created, error: cErr } = await supabase
+          .from("chatter_labels")
+          .insert({
+            platform,
+            label_name: LABEL_NAME,
+            color: "#10B981",
+            user_id: user.id,
+          })
+          .select("id")
+          .single();
+        if (cErr) throw cErr;
+        labelId = created.id;
+      }
+
+      // 2) Assignment + Notiz parallel
+      const today = new Date();
+      const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+      const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
+      const [assignRes, noteRes] = await Promise.all([
+        supabase.from("chatter_label_assignments").insert({
+          platform,
+          chatter_name: chatter,
+          label_id: labelId!,
+          user_id: user.id,
+        }),
+        supabase.from("coaching_notes").insert({
+          platform,
+          chatter_name: chatter,
+          note_text: noteText,
+          user_id: user.id,
+        }),
+      ]);
+      if (assignRes.error) throw assignRes.error;
+      if (noteRes.error) throw noteRes.error;
+
+      toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
+      setReloadKey((k) => k + 1);
+    } catch (e: any) {
+      console.error("[MonthlyGoals] accept failed", e);
+      toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
+    } finally {
+      setAcceptingChatter(null);
+    }
+  }
+
+  const visibleSuggestions = useMemo(
+    () => suggestions.filter((s) => !skipped.has(s.chatter)),
+    [suggestions, skipped],
+  );
+
   const filteredRows = useMemo(
     () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
     [rows, statusFilter],
