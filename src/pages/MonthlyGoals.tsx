@@ -19,6 +19,7 @@ import {
   computeGoalProgress,
   formatEUR,
   type GoalProgress,
+  type GoalStatus,
 } from "@/lib/monthly-goals";
 
 const LABEL_NAME = "Monatsziel";
@@ -184,6 +185,7 @@ export default function MonthlyGoals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
+  const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
@@ -310,8 +312,13 @@ export default function MonthlyGoals() {
     return () => { cancelled = true; };
   }, [platform]);
 
+  const filteredRows = useMemo(
+    () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
+    [rows, statusFilter],
+  );
+
   const sortedRows = useMemo(() => {
-    const arr = [...rows];
+    const arr = [...filteredRows];
     arr.sort((a, b) => {
       switch (sortKey) {
         case "progress": return b.progress.progressPct - a.progress.progressPct;
@@ -322,7 +329,13 @@ export default function MonthlyGoals() {
       }
     });
     return arr;
-  }, [rows, sortKey]);
+  }, [filteredRows, sortKey]);
+
+  const statusCounts = useMemo(() => ({
+    on_track: rows.filter((r) => r.progress.status === "on_track").length,
+    close: rows.filter((r) => r.progress.status === "close").length,
+    off_track: rows.filter((r) => r.progress.status === "off_track").length,
+  }), [rows]);
 
   const today = new Date();
   const trackedThrough = new Date(today);
@@ -362,6 +375,31 @@ export default function MonthlyGoals() {
             </div>
           </div>
         </div>
+
+        {/* Status filter */}
+        {rows.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
+              ["on_track", "On Track", statusCounts.on_track, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+              ["close", "Knapp", statusCounts.close, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
+              ["off_track", "Off Track", statusCounts.off_track, "border-red-300/30 bg-red-400/10 text-red-200"],
+            ] as [GoalStatus | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
+              <button
+                key={k}
+                onClick={() => setStatusFilter(k)}
+                className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                  statusFilter === k
+                    ? activeCls
+                    : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                }`}
+              >
+                {label}
+                <span className="tabular-nums opacity-70">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Sort */}
         {rows.length > 0 && (
@@ -406,6 +444,12 @@ export default function MonthlyGoals() {
             </p>
             <p className="text-xs text-white/35 font-light mt-2">
               Die neueste Notiz mit einer Zahl gilt als aktuelles Ziel.
+            </p>
+          </div>
+        ) : sortedRows.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
+            <p className="text-sm text-white/55 font-light">
+              Keine Chatter im aktuellen Filter.
             </p>
           </div>
         ) : (
