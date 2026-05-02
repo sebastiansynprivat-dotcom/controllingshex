@@ -938,7 +938,7 @@ function SnippetCard({
                 {recipients.map((r) => (
                   <div
                     key={r.chatter_name}
-                    onClick={onCopy}
+                    onClick={() => onCopy(r.chatter_name)}
                     role="button"
                     tabIndex={0}
                     title="Click to copy text"
