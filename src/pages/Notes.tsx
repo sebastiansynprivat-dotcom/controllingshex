@@ -332,7 +332,6 @@ export default function Notes() {
   };
 
   const deleteSnippet = async (s: Snippet) => {
-    if (!confirm("Really delete this text?")) return;
     if (s.media_urls?.length) {
       await supabase.storage.from(BUCKET).remove(s.media_urls);
     }
