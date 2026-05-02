@@ -107,6 +107,9 @@ export default function Notes() {
   // Recipients dropdown state per snippet
   const [openRecipients, setOpenRecipients] = useState<Record<string, boolean>>({});
 
+  // Delete confirmation
+  const [pendingDelete, setPendingDelete] = useState<Snippet | null>(null);
+
   useEffect(() => {
     try {
       const c = localStorage.getItem(COLLAPSED_KEY);
