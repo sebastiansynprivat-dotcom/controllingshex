@@ -331,12 +331,12 @@ export default function Notes() {
     fetchSnippets();
   };
 
-  const copyText = async (text: string) => {
+  const copyText = async (text: string, label?: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      sonner.success("Text copied");
+      sonner.success(label ? `${label} kopiert` : "Text kopiert");
     } catch {
-      sonner.error("Copy failed");
+      sonner.error("Kopieren fehlgeschlagen");
     }
   };
 
