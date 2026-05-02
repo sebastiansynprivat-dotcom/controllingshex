@@ -157,7 +157,22 @@ export default function MonthlyGoals() {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // Auf Session warten (race condition fix)
+        let { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          // kurz auf Auth-State warten, falls Session noch wiederhergestellt wird
+          session = await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(null), 2000);
+            const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+              if (s) {
+                clearTimeout(timeout);
+                sub.subscription.unsubscribe();
+                resolve(s);
+              }
+            });
+          });
+        }
+        const user = session?.user;
         if (!user) throw new Error("Nicht angemeldet");
 
         // 1) Label-ID finden
