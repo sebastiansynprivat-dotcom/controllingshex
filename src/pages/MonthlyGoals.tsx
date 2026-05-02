@@ -8,8 +8,9 @@
  *  - Soll-Tagesumsatz, benötigter Ø bis Monatsende
  *  - On-Track-Status (grün / amber / rot)
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Target, Sparkles, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
