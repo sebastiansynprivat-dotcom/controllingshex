@@ -230,7 +230,7 @@ export default function Notes() {
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground/90 tracking-wide">Notizen</h1>
+        <h1 className="text-xl font-semibold text-foreground/90 tracking-wide">Texte</h1>
         <button
           onClick={handleLock}
           className="text-white/30 hover:text-white/60 transition-colors flex items-center gap-1.5 text-[11px] tracking-wider uppercase"
