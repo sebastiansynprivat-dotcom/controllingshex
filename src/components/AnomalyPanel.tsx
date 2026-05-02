@@ -138,6 +138,9 @@ export default function AnomalyPanel({
   const [prevWindowAvg, setPrevWindowAvg] = useState<Map<string, number>>(
     () => new Map(initialSnap?.prevWindowAvg ?? []),
   );
+  const [allTimeAvg, setAllTimeAvg] = useState<Map<string, number>>(
+    () => new Map(initialSnap?.allTimeAvg ?? []),
+  );
 
   const refresh = useCallback(async () => {
     if (!user) return;
