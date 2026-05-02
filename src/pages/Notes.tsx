@@ -846,7 +846,7 @@ function SnippetCard({
       )}
 
       <button
-        onClick={onCopy}
+        onClick={() => onCopy()}
         className="w-full text-left p-4 pr-12"
         title="Click to copy text"
       >
