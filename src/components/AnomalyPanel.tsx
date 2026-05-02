@@ -34,6 +34,31 @@ import {
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
+const SNAPSHOT_VERSION = 2;
+const PAGE_SIZE = 1000;
+
+async function loadAllTimeRevenueRows(userId: string, platform: string) {
+  const rows: { chatter_name: string; revenue_today: number | null }[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, revenue_today")
+      .eq("user_id", userId)
+      .eq("platform", platform)
+      .order("analysis_date", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error || !data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 interface Props {
   platform: string;
   /** Default time range. */
@@ -78,6 +103,7 @@ export default function AnomalyPanel({
   }, [platform, range]);
 
   type Snapshot = {
+    version: number;
     anomalies: ChatterAnomaly[];
     peerAvg: number;
     totalChattersInRange: number;
@@ -99,7 +125,8 @@ export default function AnomalyPanel({
     try {
       const raw = sessionStorage.getItem(key);
       if (!raw) return null;
-      return JSON.parse(raw) as Snapshot;
+      const snap = JSON.parse(raw) as Snapshot;
+      return snap.version === SNAPSHOT_VERSION ? snap : null;
     } catch { return null; }
   };
 
@@ -156,7 +183,7 @@ export default function AnomalyPanel({
     const prevFromIso = prevFrom.toISOString().slice(0, 10);
     const prevToIso = prevTo.toISOString().slice(0, 10);
 
-    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes, allHistRes] = await Promise.all([
+    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes, allTimeRows] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -213,12 +240,7 @@ export default function AnomalyPanel({
         .select("chatter_name, current_category, since_date")
         .eq("user_id", user.id)
         .eq("platform", platform),
-      supabase
-        .from("chatter_history")
-        .select("chatter_name, revenue_today")
-        .eq("user_id", user.id)
-        .eq("platform", platform)
-        .limit(50000),
+      loadAllTimeRevenueRows(user.id, platform),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
@@ -288,7 +310,7 @@ export default function AnomalyPanel({
 
     // All-Time Ø pro Chatter (Summe aller Reports / Tage_mit_Eintrag)
     const allAgg = new Map<string, { sum: number; days: number }>();
-    for (const row of allHistRes.data ?? []) {
+    for (const row of allTimeRows) {
       const cur = allAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
       cur.sum += Number(row.revenue_today ?? 0);
       cur.days += 1;
@@ -303,6 +325,7 @@ export default function AnomalyPanel({
     // Persist snapshot
     try {
       const snap: Snapshot = {
+        version: SNAPSHOT_VERSION,
         anomalies: result.anomalies,
         peerAvg: result.peerAvgRevenuePerDay,
         totalChattersInRange: uniq.size,
