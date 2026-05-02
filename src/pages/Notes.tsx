@@ -2,10 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Trash2,
-  Lock,
-  LockOpen,
-  Eye,
-  EyeOff,
   Copy,
   ChevronDown,
   ChevronRight,
@@ -37,15 +33,6 @@ interface Snippet {
   position: number;
 }
 
-async function hashPassword(pw: string): Promise<string> {
-  const buf = new TextEncoder().encode(pw);
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-const STORAGE_KEY = "notes_pw_hash_v1";
 const COLLAPSED_KEY = "text_snippets_collapsed_v1";
 
 export default function Notes() {
@@ -55,14 +42,6 @@ export default function Notes() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
-
-  // Lock
-  const [storedHash, setStoredHash] = useState<string | null>(null);
-  const [unlocked, setUnlocked] = useState(false);
-  const [pwInput, setPwInput] = useState("");
-  const [pwConfirm, setPwConfirm] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [verifying, setVerifying] = useState(false);
 
   // Editor dialog
   const [editorOpen, setEditorOpen] = useState(false);
@@ -75,7 +54,6 @@ export default function Notes() {
   const [newBucketDay, setNewBucketDay] = useState("");
 
   useEffect(() => {
-    setStoredHash(localStorage.getItem(STORAGE_KEY));
     try {
       const c = localStorage.getItem(COLLAPSED_KEY);
       if (c) setCollapsed(JSON.parse(c));
@@ -102,8 +80,8 @@ export default function Notes() {
   };
 
   useEffect(() => {
-    if (unlocked) fetchSnippets();
-  }, [user, platform, unlocked]);
+    fetchSnippets();
+  }, [user, platform]);
 
   // Group by day_offset
   const buckets = useMemo(() => {
