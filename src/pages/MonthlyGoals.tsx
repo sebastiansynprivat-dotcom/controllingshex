@@ -211,7 +211,7 @@ function SuggestionCard({
             {row.chatter}
           </h3>
           <p className="text-[11px] text-white/35 font-light mt-0.5">
-            Vorschlag basierend auf Ø der letzten 30 Tage
+            Vorschlag basierend auf All-Time-Durchschnitt
           </p>
         </div>
         <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 font-light shrink-0">
@@ -220,7 +220,7 @@ function SuggestionCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <Stat label="Ø Tag (30d)" value={formatEUR(row.avg30)} />
+        <Stat label="Ø Tag (gesamt)" value={formatEUR(row.avg30)} />
         <Stat label="Monat bisher" value={formatEUR(row.monthRevenue)} />
       </div>
 
@@ -322,9 +322,7 @@ export default function MonthlyGoals() {
         const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
         const reportStartIso = toIsoDateLocal(reportStart);
         const todayIso = toIsoDateLocal(today);
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        const thirtyDaysAgoIso = toIsoDateLocal(thirtyDaysAgo);
+        // (kein 30-Tage-Fenster mehr — Vorschlag = All-Time-Durchschnitt)
 
         // 1) Label finden / anlegen
         const { data: labels, error: lErr } = await supabase
@@ -347,14 +345,12 @@ export default function MonthlyGoals() {
           labelChatters = Array.from(new Set((assigns ?? []).map((a) => a.chatter_name)));
         }
 
-        // 3) Alle Chatter der letzten 30 Tage + Notizen für gelabelte parallel
+        // 3) All-Time-Historie + Notizen für gelabelte parallel
         const [histAllRes, notesRes, histMonthRes] = await Promise.all([
           supabase
             .from("chatter_history")
             .select("chatter_name, revenue_today, analysis_date")
-            .eq("platform", platform)
-            .gte("analysis_date", thirtyDaysAgoIso)
-            .lte("analysis_date", todayIso),
+            .eq("platform", platform),
           labelChatters.length > 0
             ? supabase
                 .from("coaching_notes")
@@ -410,22 +406,27 @@ export default function MonthlyGoals() {
           });
         }
 
-        // === Zukünftige Monatsziele (Vorschläge) ===
-        // Aggregate: pro Chatter Summe + Anzahl Tage
+        // === Zukünftige Monatsziele (Vorschläge, All-Time-Schnitt) ===
+        // Pro Chatter: Summe Umsatz und Anzahl unterschiedlicher analysis_date-Tage.
         const sumByChatter = new Map<string, number>();
+        const daysByChatter = new Map<string, Set<string>>();
         for (const h of histAllRes.data ?? []) {
           sumByChatter.set(
             h.chatter_name,
             (sumByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
           );
+          if (!daysByChatter.has(h.chatter_name)) {
+            daysByChatter.set(h.chatter_name, new Set());
+          }
+          daysByChatter.get(h.chatter_name)!.add(h.analysis_date);
         }
-        // Anzahl der Tage im Fenster (fix 30, da die Reports tägliche Werte sind und auch 0er drinstehen können)
-        const windowDays = 30;
         const labelSet = new Set(labelChatters);
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
           if (labelSet.has(chatter)) continue;
-          const avg = sum / windowDays;
+          const days = daysByChatter.get(chatter)?.size ?? 0;
+          if (days === 0) continue;
+          const avg = sum / days;
           if (avg <= 1) continue; // > 1 € / Tag Schwelle
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
           sugg.push({
@@ -725,7 +726,7 @@ export default function MonthlyGoals() {
             ) : (
               <>
                 <p className="text-[11px] text-white/40 font-light">
-                  Vorschläge basierend auf Ø Tagesumsatz × Tage im Monat × 110 % (auf 50 € gerundet).
+                  Vorschläge basierend auf All-Time Ø Tagesumsatz × Tage im Monat × 110 % (auf 50 € gerundet).
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {visibleSuggestions.map((s) => (
