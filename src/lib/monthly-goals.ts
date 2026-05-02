@@ -62,14 +62,17 @@ export function computeGoalProgress(
   const year = today.getFullYear();
   const month = today.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysPassed = today.getDate(); // 1..daysInMonth
-  const daysRemainingIncToday = Math.max(1, daysInMonth - daysPassed + 1);
+  // Reports kommen mit 1 Tag Verzögerung: am 2. Mai liegt erst der Report vom 1. Mai vor.
+  // Stichtag = gestern. Am 1. eines Monats gibt es noch keine erfassten Tage (daysPassed = 0).
+  const daysPassed = Math.max(0, today.getDate() - 1);
+  // Verbleibende Tage inkl. heute (heute generiert noch Umsatz, ist aber noch nicht erfasst).
+  const daysRemainingIncToday = Math.max(1, daysInMonth - daysPassed);
 
   const dailyTarget = goal / daysInMonth;
   const expectedSoFar = dailyTarget * daysPassed;
   const requiredPerRemainingDay = Math.max(0, (goal - currentRevenue) / daysRemainingIncToday);
   const progressPct = goal > 0 ? (currentRevenue / goal) * 100 : 0;
-  const pacePct = expectedSoFar > 0 ? (currentRevenue / expectedSoFar) * 100 : 0;
+  const pacePct = expectedSoFar > 0 ? (currentRevenue / expectedSoFar) * 100 : 100;
   const deficit = expectedSoFar - currentRevenue;
 
   let status: GoalStatus;

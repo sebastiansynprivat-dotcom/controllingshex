@@ -202,10 +202,13 @@ export default function MonthlyGoals() {
         }
 
         // 3) Coaching-Notes & Monatsumsatz parallel laden
+        // Reports kommen 1 Tag verzögert -> nur bis gestern abfragen.
         const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
           .toISOString().slice(0, 10);
-        const todayIso = today.toISOString().slice(0, 10);
+        const yesterdayIso = yesterday.toISOString().slice(0, 10);
 
         const [notesRes, histRes] = await Promise.all([
           supabase
@@ -220,7 +223,7 @@ export default function MonthlyGoals() {
             .eq("platform", platform)
             .in("chatter_name", chatters)
             .gte("analysis_date", monthStart)
-            .lte("analysis_date", todayIso),
+            .lte("analysis_date", yesterdayIso),
         ]);
         if (notesRes.error) throw notesRes.error;
         if (histRes.error) throw histRes.error;

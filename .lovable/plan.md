@@ -1,51 +1,32 @@
-## Neuer Tab: Monatsziele
+## Problem
 
-Neuer Sidebar-Eintrag + Seite, die alle Chatter mit dem Label **"Monatsziel"** auflistet, das Ziel aus den Notizen extrahiert und Fortschritt vs. Soll anzeigt.
+Reports werden mit 1 Tag Verzögerung hochgeladen. Heute (2. Mai) liegt erst der Report vom 1. Mai vor. Das Dashboard rechnet aber so, als wäre heute schon erfasst — dadurch erscheinen alle Chatter künstlich „im Rückstand".
 
-### Datenfluss
+## Lösung
 
-1. Lade `chatter_labels` → finde ID des Labels `Monatsziel` (`12ea8447-…`).
-2. Lade alle `chatter_label_assignments` mit dieser `label_id` → Liste der Chatter-Namen.
-3. Für jeden Chatter:
-   - Lade `coaching_notes` (neueste zuerst), extrahiere die erste Note, in der eine Zahl steht. Regex: `/-?\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d+)?|\d+/` — danach Tausender-Trenner (`.`/Space) entfernen, Komma → Punkt, parseFloat. Beispiel: `"2.000"` → `2000`.
-   - Lade `chatter_history` für den **aktuellen Monat** (vom 1. bis heute), summiere `revenue_today` → `currentRevenue`.
-4. Berechne pro Chatter:
-   - `daysInMonth`, `daysPassed`, `daysRemaining`
-   - `dailyTarget = goal / daysInMonth`
-   - `requiredPerRemainingDay = (goal − currentRevenue) / daysRemaining`
-   - `expectedSoFar = dailyTarget * daysPassed`
-   - `progressPct = currentRevenue / goal * 100`
-   - **On Track**: `currentRevenue >= expectedSoFar * 0.95` (grün), `>= 0.8` (amber), sonst rot.
+Den effektiven Stichtag um einen Tag zurücksetzen: Statt `today` als Berechnungsbasis nutzen wir `effectiveDay = today - 1` (= letzter Tag mit vorhandenen Daten).
 
-### UI
+### Änderungen in `src/lib/monthly-goals.ts`
 
-- Header mit Monats-Name + Anzahl Chatter mit Ziel.
-- Sortierung: Default „Am weitesten hinten" (größtes Defizit zuerst). Toggle: Name / Fortschritt / Ziel.
-- Karten-Grid (responsive: 1 / 2 / 3 Spalten):
-  - Chatter-Name + Status-Badge (On Track / Knapp / Off Track)
-  - Großer Progress-Bar (% des Ziels)
-  - Stats-Trio:
-    - **Ziel**: 2.000 €
-    - **Aktuell**: 1.234 € (X% erreicht)
-    - **Soll heute**: Y € (Differenz farbig)
-  - Footer-Zeile: „Ø nötig/Tag bis Monatsende: Z €" + „Tage übrig: N"
-- Klick auf Karte öffnet existierendes `ChatterSlideOver`.
-- Leerer Zustand: Hinweis, wie man das Label vergibt + Zahl in Notiz schreibt.
+`computeGoalProgress` bekommt einen zweiten Parameter (oder die Logik wird intern angepasst), sodass:
 
-### Technische Details
+- `daysPassed` = `effectiveDay.getDate()` (= 1 am 2. Mai, nicht 2)
+- `daysRemaining` = `daysInMonth - daysPassed` (Tage ab inkl. heute, an denen noch Umsatz gemacht werden kann — heute zählt als verbleibender Tag, weil dessen Umsatz noch entsteht)
+- `expectedSoFar` = `dailyTarget * daysPassed` (Soll bis Ende des letzten erfassten Tages)
+- `requiredPerRemainingDay` = `(goal - currentRevenue) / daysRemaining`
 
-- **Neue Datei**: `src/pages/MonthlyGoals.tsx`
-- **Helper** (inline oder neue `src/lib/monthly-goals.ts`):
-  - `parseGoalFromNote(text: string): number | null`
-  - `computeGoalProgress(goal, revenueSoFar, today): { dailyTarget, requiredPerRemainingDay, expectedSoFar, progressPct, status }`
-- **Sidebar** (`src/components/AppSidebar.tsx`): neuer Eintrag „Monatsziele" mit `Target`-Icon (lucide), Position direkt nach „Auffälligkeiten".
-- **Route** (`src/App.tsx`): `/monatsziele` → `MonthlyGoals`.
-- Plattform-aware via `usePlatform()`, Reload bei Plattform-Wechsel.
-- Filter `platform=eq.{platform}` und `user_id=auth.uid()` (RLS regelt das).
+Edge Case: Am 1. eines Monats gibt es noch keine erfassten Tage → `daysPassed = 0`, `expectedSoFar = 0`, `pacePct` = 100 (nichts erwartet, nichts geliefert → on track). Wird sauber behandelt.
 
-### Edge Cases
+### Änderungen in `src/pages/MonthlyGoals.tsx`
 
-- Notiz ohne Zahl → Chatter wird übersprungen (mit Hinweis im leeren Zustand).
-- Mehrere Zahlen in einer Notiz → erste Zahl im Text wird genommen (neueste Notiz hat Priorität).
-- Ziel = 0 → ausblenden.
-- Letzter Tag des Monats → `daysRemaining = max(1, …)` zur Vermeidung Division durch 0.
+- Beim Laden der `chatter_history` den Bereich nur bis `effectiveDay` (gestern) abfragen statt bis `today` — verhindert, dass ein versehentlich vorhandener Heute-Eintrag mitgezählt wird und die Berechnung inkonsistent macht.
+- Im UI-Header / Card-Footer kleinen Hinweis ergänzen: „Stand: <gestriges Datum>" (dezent, in `text-white/35`), damit transparent ist, worauf sich „Soll heute" / „Pace" beziehen.
+
+### Daten-Check
+
+Kurz per `read_query` verifizieren, dass für den aktuellen Monat tatsächlich keine Einträge mit `analysis_date = today` existieren (nur bis gestern). Falls doch, bleibt die Logik trotzdem korrekt — der Lag-Shift ist konservativ.
+
+## Betroffene Dateien
+
+- `src/lib/monthly-goals.ts` — `computeGoalProgress` um Lag-Tag verschieben
+- `src/pages/MonthlyGoals.tsx` — `todayIso` → `yesterdayIso` für History-Query, kleiner „Stand"-Hinweis im UI
