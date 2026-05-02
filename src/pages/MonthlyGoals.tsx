@@ -22,6 +22,13 @@ import {
 
 const LABEL_NAME = "Monatsziel";
 
+function toIsoDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 interface ChatterGoalRow {
   chatter: string;
   noteText: string;
@@ -202,13 +209,12 @@ export default function MonthlyGoals() {
         }
 
         // 3) Coaching-Notes & Monatsumsatz parallel laden
-        // Reports kommen 1 Tag verzögert -> nur bis gestern abfragen.
+        // Reports kommen 1 Tag verzögert: analysis_date 02.05. enthält den realen Tracking-Tag 01.05.
+        // Für das Monatsziel Mai zählen deshalb Upload-Reports vom 02.05. bis heute.
         const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-          .toISOString().slice(0, 10);
-        const yesterdayIso = yesterday.toISOString().slice(0, 10);
+        const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
+        const reportStartIso = toIsoDateLocal(reportStart);
+        const todayIso = toIsoDateLocal(today);
 
         const [notesRes, histRes] = await Promise.all([
           supabase
@@ -222,8 +228,8 @@ export default function MonthlyGoals() {
             .select("chatter_name, revenue_today, analysis_date")
             .eq("platform", platform)
             .in("chatter_name", chatters)
-            .gte("analysis_date", monthStart)
-            .lte("analysis_date", yesterdayIso),
+            .gte("analysis_date", reportStartIso)
+            .lte("analysis_date", todayIso),
         ]);
         if (notesRes.error) throw notesRes.error;
         if (histRes.error) throw histRes.error;
@@ -290,7 +296,10 @@ export default function MonthlyGoals() {
     return arr;
   }, [rows, sortKey]);
 
-  const monthName = new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  const today = new Date();
+  const trackedThrough = new Date(today);
+  trackedThrough.setDate(today.getDate() - 1);
+  const monthName = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
   const totalGoal = rows.reduce((s, r) => s + r.progress.goal, 0);
   const totalRev = rows.reduce((s, r) => s + r.progress.currentRevenue, 0);
   const onTrackCount = rows.filter((r) => r.progress.status === "on_track").length;
@@ -320,7 +329,7 @@ export default function MonthlyGoals() {
                   : `${rows.length} Chatter im Tracking · ${onTrackCount} on track · ${formatEUR(totalRev)} von ${formatEUR(totalGoal)} erreicht.`}
               </p>
               <p className="text-[10px] sm:text-[11px] text-white/35 font-light mt-1">
-                Stand: {new Date(Date.now() - 86400000).toLocaleDateString("de-DE")} (Reports kommen 1 Tag verzögert)
+                Tracking bis: {trackedThrough.toLocaleDateString("de-DE")} · Upload-Report bis: {today.toLocaleDateString("de-DE")}
               </p>
             </div>
           </div>
