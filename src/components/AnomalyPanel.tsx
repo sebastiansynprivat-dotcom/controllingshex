@@ -286,6 +286,20 @@ export default function AnomalyPanel({
     }
     setPrevWindowAvg(pmap);
 
+    // All-Time Ø pro Chatter (Summe aller Reports / Tage_mit_Eintrag)
+    const allAgg = new Map<string, { sum: number; days: number }>();
+    for (const row of allHistRes.data ?? []) {
+      const cur = allAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
+      cur.sum += Number(row.revenue_today ?? 0);
+      cur.days += 1;
+      allAgg.set(row.chatter_name, cur);
+    }
+    const atmap = new Map<string, number>();
+    for (const [name, { sum, days }] of allAgg) {
+      atmap.set(name, days > 0 ? sum / days : 0);
+    }
+    setAllTimeAvg(atmap);
+
     // Persist snapshot
     try {
       const snap: Snapshot = {
@@ -300,6 +314,7 @@ export default function AnomalyPanel({
         lastCoachings: [...vmap.entries()],
         categorySince: [...smap.entries()],
         prevWindowAvg: [...pmap.entries()],
+        allTimeAvg: [...atmap.entries()],
         savedAt: Date.now(),
       };
       sessionStorage.setItem(cacheKey, JSON.stringify(snap));
