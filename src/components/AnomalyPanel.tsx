@@ -326,7 +326,8 @@ export default function AnomalyPanel({
   // Mount / range change: nur refreshen wenn kein gültiger Snapshot vorhanden.
   useEffect(() => {
     const snap = loadSnapshot(cacheKey);
-    if (snap) {
+    // Migration: alte Snapshots ohne allTimeAvg verwerfen, damit der neue Wert geladen wird.
+    if (snap && Array.isArray(snap.allTimeAvg)) {
       setAnomalies(snap.anomalies);
       setPeerAvg(snap.peerAvg);
       setTotalChattersInRange(snap.totalChattersInRange);
