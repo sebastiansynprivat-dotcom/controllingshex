@@ -446,6 +446,12 @@ export default function MonthlyGoals() {
               Die neueste Notiz mit einer Zahl gilt als aktuelles Ziel.
             </p>
           </div>
+        ) : sortedRows.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
+            <p className="text-sm text-white/55 font-light">
+              Keine Chatter im aktuellen Filter.
+            </p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {sortedRows.map((row) => (
