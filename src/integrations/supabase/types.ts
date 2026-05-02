@@ -475,6 +475,41 @@ export type Database = {
         }
         Relationships: []
       }
+      snippet_sends: {
+        Row: {
+          chatter_name: string
+          id: string
+          platform: string
+          sent_at: string
+          snippet_id: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          id?: string
+          platform?: string
+          sent_at?: string
+          snippet_id: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          id?: string
+          platform?: string
+          sent_at?: string
+          snippet_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "snippet_sends_snippet_id_fkey"
+            columns: ["snippet_id"]
+            isOneToOne: false
+            referencedRelation: "text_snippets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       swap_decisions: {
         Row: {
           chatter_a: string
