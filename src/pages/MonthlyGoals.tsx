@@ -322,9 +322,7 @@ export default function MonthlyGoals() {
         const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
         const reportStartIso = toIsoDateLocal(reportStart);
         const todayIso = toIsoDateLocal(today);
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        const thirtyDaysAgoIso = toIsoDateLocal(thirtyDaysAgo);
+        // (kein 30-Tage-Fenster mehr — Vorschlag = All-Time-Durchschnitt)
 
         // 1) Label finden / anlegen
         const { data: labels, error: lErr } = await supabase
@@ -347,14 +345,12 @@ export default function MonthlyGoals() {
           labelChatters = Array.from(new Set((assigns ?? []).map((a) => a.chatter_name)));
         }
 
-        // 3) Alle Chatter der letzten 30 Tage + Notizen für gelabelte parallel
+        // 3) All-Time-Historie + Notizen für gelabelte parallel
         const [histAllRes, notesRes, histMonthRes] = await Promise.all([
           supabase
             .from("chatter_history")
             .select("chatter_name, revenue_today, analysis_date")
-            .eq("platform", platform)
-            .gte("analysis_date", thirtyDaysAgoIso)
-            .lte("analysis_date", todayIso),
+            .eq("platform", platform),
           labelChatters.length > 0
             ? supabase
                 .from("coaching_notes")
