@@ -833,35 +833,46 @@ export default function AnomalyPanel({
                     </button>
                   </div>
 
-                  {/* Zahlen-Trio */}
-                  {(currentAvg > 0 || deltaPct !== null || zeroDays !== null) && (
+                  {/* Zahlen-Trio: All-Time Ø · Zeitraum Ø · Abfall % */}
+                  {(allAvg > 0 || currentAvg > 0 || dropPct !== null) && (
                     <div className="grid grid-cols-3 gap-2 px-3.5 sm:px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.012]">
-                      <div className="min-w-0">
-                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag</div>
+                      <div
+                        className="min-w-0"
+                        title="Durchschnittlicher Tagesumsatz über alle bisherigen Reports dieses Chatters (Lebenszeit-Schnitt, unabhängig vom Zeitraumfilter)."
+                      >
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag · All-Time</div>
+                        <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
+                          {allAvg > 0 ? `${Math.round(allAvg).toLocaleString("de-DE")} €` : "—"}
+                        </div>
+                      </div>
+                      <div
+                        className="min-w-0 border-l border-white/[0.05] pl-2"
+                        title={`Durchschnittlicher Tagesumsatz im aktuell gewählten Zeitraum (${rangeLabelText})${zeroDays !== null ? ` · ${zeroDays}× 0€-Tage in Folge` : ""}.`}
+                      >
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag · Zeitraum</div>
                         <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
                           {currentAvg > 0 ? `${Math.round(currentAvg).toLocaleString("de-DE")} €` : "—"}
                         </div>
                       </div>
-                      <div className="min-w-0 border-l border-white/[0.05] pl-2" title={prevPeriodTooltip}>
-                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. {prevPeriodLabel}</div>
+                      <div
+                        className="min-w-0 border-l border-white/[0.05] pl-2"
+                        title={
+                          dropPct === null
+                            ? "Kein All-Time-Vergleich möglich — zu wenig Historie."
+                            : `Zeitraum: Ø ${Math.round(currentAvg).toLocaleString("de-DE")}€/Tag · All-Time: Ø ${Math.round(allAvg).toLocaleString("de-DE")}€/Tag → ${dropPct > 0 ? "+" : ""}${dropPct}%`
+                        }
+                      >
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. All-Time</div>
                         <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
-                          deltaPct === null
+                          dropPct === null
                             ? "text-white/40"
-                            : deltaPct < -10
+                            : dropPct < -10
                             ? "text-red-300/90"
-                            : deltaPct < 0
+                            : dropPct < 0
                             ? "text-amber-300/85"
                             : "text-emerald-300/85"
                         }`}>
-                          {deltaPct === null ? "—" : `${deltaPct > 0 ? "+" : ""}${deltaPct} %`}
-                        </div>
-                      </div>
-                      <div className="min-w-0 border-l border-white/[0.05] pl-2">
-                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">0 €-Tage</div>
-                        <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
-                          zeroDays === null ? "text-white/40" : zeroDays >= 3 ? "text-red-300/90" : "text-foreground/85"
-                        }`}>
-                          {zeroDays === null ? "—" : `${zeroDays}×`}
+                          {dropPct === null ? "—" : `${dropPct > 0 ? "+" : ""}${dropPct} %`}
                         </div>
                       </div>
                     </div>
