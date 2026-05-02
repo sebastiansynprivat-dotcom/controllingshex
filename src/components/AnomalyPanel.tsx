@@ -704,15 +704,12 @@ export default function AnomalyPanel({
               const lastNote = lastNotes.get(group.name);
               const lastCoachingRel = relDays(lastCoachings.get(group.name));
 
-              // Zahlen-Trio
+              // Zahlen-Trio: All-Time vs. Zeitraum
               const currentAvg = group.items[0]?.metric_value ?? 0;
-              const prevAvg = prevWindowAvg.get(group.name) ?? 0;
-              const deltaPct = prevAvg > 0
-                ? Math.round(((currentAvg - prevAvg) / prevAvg) * 100)
+              const allAvg = allTimeAvg.get(group.name) ?? 0;
+              const dropPct = allAvg > 0
+                ? Math.round(((currentAvg - allAvg) / allAvg) * 100)
                 : null;
-              // 0€-Tage: Anzahl Items mit alert_type "persistent_zero" als Proxy nicht ideal —
-              // wir nutzen consecutiveZeroDays über metric_value/baseline-Heuristik:
-              // Fallback: aus message extrahieren falls vorhanden, sonst null.
               const zeroAlert = group.items.find((a) => a.alert_type === "persistent_zero");
               const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
 
