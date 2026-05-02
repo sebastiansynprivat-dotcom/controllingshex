@@ -103,3 +103,14 @@ export function formatEUR(n: number): string {
     maximumFractionDigits: n >= 100 ? 0 : 2,
   }).format(n);
 }
+
+/**
+ * Schlägt ein Monatsziel basierend auf dem Ø Tagesumsatz der letzten 30 Tage vor.
+ * Formel: avgDaily * Tage im aktuellen Monat * 1.10, gerundet auf 50 €.
+ */
+export function suggestMonthlyGoal(avgDailyRevenue: number, today: Date = new Date()): number {
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const raw = avgDailyRevenue * daysInMonth * 1.10;
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.max(50, Math.round(raw / 50) * 50);
+}

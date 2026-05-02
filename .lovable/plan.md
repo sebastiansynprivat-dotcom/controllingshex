@@ -1,32 +1,78 @@
-## Problem
+# Monatsziele: Tabs + Vorschlag-Flow
 
-Reports werden mit 1 Tag Verzögerung hochgeladen. Heute (2. Mai) liegt erst der Report vom 1. Mai vor. Das Dashboard rechnet aber so, als wäre heute schon erfasst — dadurch erscheinen alle Chatter künstlich „im Rückstand".
+## Ziel
+Auf der Seite `/monatsziele` zwei Tabs einbauen:
+1. **Aktuelle Monatsziele** — die bisherige Ansicht (Chatter mit Label "Monatsziel" + Notiz-Zahl).
+2. **Zukünftige Monatsziele** — alle anderen aktiven Chatter, mit automatisch berechnetem Vorschlag und einem "Annehmen"-Flow.
 
-## Lösung
+Status-Filter (On Track / Knapp / Off Track) bleibt nur im Tab "Aktuelle".
 
-Den effektiven Stichtag um einen Tag zurücksetzen: Statt `today` als Berechnungsbasis nutzen wir `effectiveDay = today - 1` (= letzter Tag mit vorhandenen Daten).
+## Tab "Zukünftige Monatsziele"
 
-### Änderungen in `src/lib/monthly-goals.ts`
+### Welche Chatter werden gelistet
+- Alle Chatter aus `chatter_history` der letzten 30 Tage, die **noch kein** Label "Monatsziel" haben.
+- Nur "aktive" Chatter: **Ø Tagesumsatz > 1 €** über die letzten 30 Tage (Reports berücksichtigen 1-Tag-Lag wie bisher).
 
-`computeGoalProgress` bekommt einen zweiten Parameter (oder die Logik wird intern angepasst), sodass:
+### Berechneter Vorschlag
+Formel: `Ø Tagesumsatz (letzte 30 Tage) × Tage im aktuellen Monat × 1.10`  
+Auf 50 € gerundet (sieht hübscher aus, z. B. „3.450 €" statt „3.428,17 €").
 
-- `daysPassed` = `effectiveDay.getDate()` (= 1 am 2. Mai, nicht 2)
-- `daysRemaining` = `daysInMonth - daysPassed` (Tage ab inkl. heute, an denen noch Umsatz gemacht werden kann — heute zählt als verbleibender Tag, weil dessen Umsatz noch entsteht)
-- `expectedSoFar` = `dailyTarget * daysPassed` (Soll bis Ende des letzten erfassten Tages)
-- `requiredPerRemainingDay` = `(goal - currentRevenue) / daysRemaining`
+Karte zeigt:
+- Chatter-Name
+- Ø Tagesumsatz (30 d)
+- Aktueller Monatsumsatz bisher
+- **Vorgeschlagenes Monatsziel** (groß, prominent)
+- Button **"Annehmen"** → öffnet Mini-Edit
+- Button **"Überspringen"** (nur lokal, blendet Karte für Session aus)
 
-Edge Case: Am 1. eines Monats gibt es noch keine erfassten Tage → `daysPassed = 0`, `expectedSoFar = 0`, `pacePct` = 100 (nichts erwartet, nichts geliefert → on track). Wird sauber behandelt.
+### Annehmen-Flow (Edit-vor-Annehmen)
+1. Klick auf "Annehmen" → Inline-Edit mit dem Vorschlag als Default.
+2. User kann Zahl anpassen.
+3. Bestätigen → in einer Aktion:
+   - Label "Monatsziel" zuweisen (`chatter_label_assignments`)
+   - Notiz anlegen in `coaching_notes`: `"Monatsziel <Monat Jahr>: <Betrag> €"`
+4. Toast "Monatsziel für <Chatter> gesetzt".
+5. Chatter verschwindet aus "Zukünftige" und taucht im Tab "Aktuelle" auf (Refresh nach Insert).
 
-### Änderungen in `src/pages/MonthlyGoals.tsx`
+## Tab "Aktuelle Monatsziele"
+Unverändert: Karten, Status-Filter, Sort, Klick = Name kopieren / Doppelklick = Profil.
 
-- Beim Laden der `chatter_history` den Bereich nur bis `effectiveDay` (gestern) abfragen statt bis `today` — verhindert, dass ein versehentlich vorhandener Heute-Eintrag mitgezählt wird und die Berechnung inkonsistent macht.
-- Im UI-Header / Card-Footer kleinen Hinweis ergänzen: „Stand: <gestriges Datum>" (dezent, in `text-white/35`), damit transparent ist, worauf sich „Soll heute" / „Pace" beziehen.
+## Technische Details
 
-### Daten-Check
+### Datenladen
+Eine zusätzliche Query parallel zum bestehenden Load:
+```sql
+-- Ø der letzten 30 Tage pro Chatter
+SELECT chatter_name, AVG(revenue_today) AS avg30, SUM(revenue_today) AS sum30
+FROM chatter_history
+WHERE platform = $1
+  AND analysis_date >= today - 30 days
+  AND analysis_date <= today
+GROUP BY chatter_name
+HAVING AVG(revenue_today) > 1;
+```
+Im Code als `.gte/.lte` + clientseitiges Group-by (wie bestehende Patterns).
 
-Kurz per `read_query` verifizieren, dass für den aktuellen Monat tatsächlich keine Einträge mit `analysis_date = today` existieren (nur bis gestern). Falls doch, bleibt die Logik trotzdem korrekt — der Lag-Shift ist konservativ.
+### Vorschlag-Logik (`src/lib/monthly-goals.ts`)
+Neue Helper-Funktion:
+```ts
+export function suggestMonthlyGoal(avgDailyRevenue: number, today = new Date()): number {
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const raw = avgDailyRevenue * daysInMonth * 1.10;
+  return Math.round(raw / 50) * 50; // auf 50 € runden
+}
+```
 
-## Betroffene Dateien
+### Annehmen-Aktion
+- `chatter_label_assignments` insert (label_id = bestehendes Monatsziel-Label, ggf. on-the-fly anlegen falls noch nicht existiert für die Plattform).
+- `coaching_notes` insert mit `note_text = "Monatsziel <Monat Jahr>: <formatEUR(Ziel)>"`.
+- Beide Inserts mit `user_id = session.user.id`.
 
-- `src/lib/monthly-goals.ts` — `computeGoalProgress` um Lag-Tag verschieben
-- `src/pages/MonthlyGoals.tsx` — `todayIso` → `yesterdayIso` für History-Query, kleiner „Stand"-Hinweis im UI
+### UI
+- Neuer Tab-Switcher direkt unter dem Hero (wie bestehende Filter-Pill-Style).
+- Status-Filter und Sort-Bar nur im Tab "Aktuelle" rendern.
+- Vorschlag-Karte = neue Komponente `SuggestionCard` im selben Stil wie `GoalCard` (dunkles Glas, abgerundet), aber mit grün-getöntem Vorschlagswert + Action-Buttons.
+
+## Files
+- `src/pages/MonthlyGoals.tsx` — Tabs + zweite Liste + Annehmen-Logik
+- `src/lib/monthly-goals.ts` — `suggestMonthlyGoal()` Helper
