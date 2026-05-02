@@ -156,7 +156,7 @@ export default function AnomalyPanel({
     const prevFromIso = prevFrom.toISOString().slice(0, 10);
     const prevToIso = prevTo.toISOString().slice(0, 10);
 
-    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes] = await Promise.all([
+    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes, allHistRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -213,6 +213,12 @@ export default function AnomalyPanel({
         .select("chatter_name, current_category, since_date")
         .eq("user_id", user.id)
         .eq("platform", platform),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .limit(50000),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
