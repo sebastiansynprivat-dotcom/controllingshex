@@ -298,7 +298,7 @@ export default function MonthlyGoals() {
               </h1>
               <p className="text-[12px] sm:text-sm text-white/55 font-light mt-1 sm:mt-1.5 max-w-2xl leading-relaxed">
                 {rows.length === 0
-                  ? "Noch keine Chatter mit dem Label „Monatsziel" und einer Zahl in den Notizen."
+                  ? 'Noch keine Chatter mit dem Label „Monatsziel" und einer Zahl in den Notizen.'
                   : `${rows.length} Chatter im Tracking · ${onTrackCount} on track · ${formatEUR(totalRev)} von ${formatEUR(totalGoal)} erreicht.`}
               </p>
             </div>
