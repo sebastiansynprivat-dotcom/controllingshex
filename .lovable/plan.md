@@ -1,75 +1,54 @@
-## Ziel
+## Was passiert
 
-Die Seite **Texte** wird zu einem sauberen Snippet-System: vorformulierte Texte, gruppiert nach „Tag X" (wann sie an den Chatter rausgehen sollen), mit One-Click-Copy.
+**1. Bilder/Videos hochladen (Backend)**
 
-## UI / UX
+Migration:
+```sql
+ALTER TABLE public.text_snippets
+  ADD COLUMN IF NOT EXISTS media_urls TEXT[] NOT NULL DEFAULT '{}';
 
-```text
-┌─ Texte ──────────────────────────── [Sperren] ┐
-│                                                │
-│  [+ Neuer Text]   [+ Neuer Tag-Bucket]         │
-│                                                │
-│  ▼ Tag 0  (Erstkontakt)                    ⋮  │
-│    ┌────────────────────────────────────────┐  │
-│    │ Hey Süßer, schön dich kennenzulernen…  │  │
-│    │                                  [Copy]│  │
-│    └────────────────────────────────────────┘  │
-│    ┌────────────────────────────────────────┐  │
-│    │ Wie war dein Tag? …              [Copy]│  │
-│    └────────────────────────────────────────┘  │
-│                                                │
-│  ▼ Tag 2  (Follow-up)                      ⋮  │
-│    ...                                         │
-│                                                │
-│  ▼ Tag 3                                   ⋮  │
-│  ▼ Tag 7                                   ⋮  │
-└────────────────────────────────────────────────┘
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('snippet-media', 'snippet-media', false)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Users can view own snippet media"   ON storage.objects FOR SELECT TO authenticated USING (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can upload own snippet media" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can update own snippet media" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can delete own snippet media" ON storage.objects FOR DELETE TO authenticated USING (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
 ```
 
-- Buckets sind **kollabierbar** und nach `day_offset` aufsteigend sortiert
-- Jede Karte: kompletter Text sichtbar (max-height + scroll bei langen Texten), großer **„Kopieren"**-Button → schreibt Text in Zwischenablage + Toast „Kopiert"
-- Hover/Klick auf Karte: **Bearbeiten** (inline) und **Löschen** (Trash-Icon)
-- Drag-Handle zum Umsortieren innerhalb eines Buckets (`position`-Feld)
-- Optionaler **Titel/Label** pro Snippet (z. B. „Sexy Opener", „Soft Reminder") — wird über dem Text als kleines Tag angezeigt
-- Bucket-Header zeigt Anzahl Snippets + optional kurze Beschreibung („Erstkontakt", „Follow-up" …)
+- Privater Bucket `snippet-media`, jeder Nutzer hat seinen eigenen Ordner = `userId/…`
+- Neue Spalte `media_urls TEXT[]` speichert die Storage-Pfade pro Snippet
+- Anzeige läuft über **Signed URLs** (1 h gültig, on-demand erzeugt)
 
-## Neuer Text / neuer Bucket
+**2. Frontend (`src/pages/Notes.tsx`)**
 
-- **„+ Neuer Text"**: Modal/Sheet mit
-  - Tag-Auswahl (Dropdown mit existierenden Tag-Werten + „Anderer Tag…" für freie Zahl)
-  - Optionaler Titel
-  - Großes Textarea
-  - Speichern → erscheint sofort im richtigen Bucket
-- **„+ Neuer Tag-Bucket"**: nur Zahl eingeben (z. B. 14) — leerer Bucket erscheint
+Editor-Dialog:
+- „Datei hinzufügen"-Button mit `accept="image/*,video/*"` (Multi-Select)
+- Upload nach `snippet-media/{userId}/{uuid}-{filename}`
+- Thumbnails der hochgeladenen Medien direkt im Editor mit Lösch-X
+- Speichern aktualisiert auch `media_urls`
 
-## Datenbank
+Snippet-Karte:
+- Mediengrid (1–3 Spalten) oberhalb des Texts
+- Bilder als `<img>`, Videos als `<video controls muted>`
+- Klick auf Medium → Lightbox mit großer Vorschau + „URL kopieren"
+- Text-Klick kopiert weiterhin nur den Text
 
-Neue Tabelle `text_snippets`:
+**3. UI Premium-Polish (Buttons lesbar)**
 
-| Spalte | Typ | Notizen |
-|---|---|---|
-| id | uuid PK | gen_random_uuid() |
-| user_id | uuid | RLS-Owner |
-| platform | text | default 'Maloum' |
-| day_offset | int | 0, 2, 3, 7, 14 … |
-| title | text nullable | optionales Label |
-| body | text | der Text selbst |
-| position | int default 0 | Reihenfolge im Bucket |
-| created_at / updated_at | timestamptz |
+Aktuelle Buttons sind teilweise zu transparent → Anpassungen:
+- „Neuer Text"-Hauptbutton: voller Primary-Hintergrund mit `text-primary-foreground` (statt Primary-auf-Primary)
+- „Bucket"-Button: dezenter Border statt nur Ghost
+- Bucket-Header-Aktionen (Plus, X) bekommen sichtbaren Hintergrund-Chip statt nur Hover
+- Snippet-Card: „Klick zum Kopieren"-Hint mit besserem Kontrast (`text-white/55` statt `/30`)
+- Edit/Delete-Floating-Buttons immer sichtbar (nicht nur on hover) auf Touch-Geräten — opacity 60 → 100 on hover
 
-RLS-Policies analog zu `todos` (user_id = auth.uid() für SELECT/INSERT/UPDATE/DELETE). Tabelle wird per Migration angelegt.
+## Geänderte Dateien
 
-Die bestehende `todos`-Tabelle bleibt unverändert. Falls der Lock-Schutz (Passwort) für die Texte-Seite weiter gewünscht ist, behalten wir ihn — die neue Snippet-Liste lebt einfach unter dem gleichen Schutz.
+- Migration (oben)
+- `src/pages/Notes.tsx` — Upload, Mediengrid, Lightbox, lesbare Buttons
 
-**Frage:** Behalten wir den Passwort-Schutz für die Texte-Seite, oder soll die Seite frei zugänglich sein?
+## Limits
 
-## Geänderte / neue Dateien
-
-- **Migration**: Tabelle `text_snippets` + RLS
-- **`src/pages/Notes.tsx`** (umgebaut): zeigt jetzt das Snippet-System statt Todos. Lock-Logik bleibt, falls gewünscht. Todo-CRUD raus.
-- ggf. neue kleine Komponenten `SnippetCard.tsx`, `SnippetEditor.tsx` (Sheet)
-
-## Offen
-
-- Passwort-Schutz behalten? (Default: ja)
-- Sollen Todos komplett verschwinden oder weiter als zweiter Reiter auf der Seite verfügbar bleiben?
+- Max 50 MB pro Datei (Storage-Default). Größere Videos vorher komprimieren.

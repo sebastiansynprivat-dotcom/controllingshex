@@ -520,6 +520,7 @@ export type Database = {
           created_at: string
           day_offset: number
           id: string
+          media_urls: string[]
           platform: string
           position: number
           title: string | null
@@ -531,6 +532,7 @@ export type Database = {
           created_at?: string
           day_offset?: number
           id?: string
+          media_urls?: string[]
           platform?: string
           position?: number
           title?: string | null
@@ -542,6 +544,7 @@ export type Database = {
           created_at?: string
           day_offset?: number
           id?: string
+          media_urls?: string[]
           platform?: string
           position?: number
           title?: string | null
