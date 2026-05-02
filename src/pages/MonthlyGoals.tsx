@@ -68,16 +68,43 @@ function ProgressBar({ pct, status }: { pct: number; status: GoalProgress["statu
   );
 }
 
-function GoalCard({ row, onClick }: { row: ChatterGoalRow; onClick: () => void }) {
+function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) {
   const p = row.progress;
   const deficitColor =
     p.deficit <= 0 ? "text-emerald-300"
     : p.pacePct >= 80 ? "text-amber-300"
     : "text-red-300";
 
+  const clickTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClick = () => {
+    if (clickTimer.current) {
+      // Double click: open profile
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      onOpen();
+      return;
+    }
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null;
+      // Single click: copy name
+      navigator.clipboard?.writeText(row.chatter).then(
+        () => toast.success(`"${row.chatter}" kopiert`),
+        () => toast.error("Kopieren fehlgeschlagen"),
+      );
+    }, 220);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (clickTimer.current) clearTimeout(clickTimer.current);
+    };
+  }, []);
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
+      title="1× Klick: Name kopieren · 2× Klick: Profil öffnen"
       className="text-left w-full rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] via-white/[0.02] to-transparent p-4 sm:p-5 hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-300 group"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
