@@ -589,92 +589,158 @@ export default function MonthlyGoals() {
           </div>
         </div>
 
-        {/* Status filter */}
-        {rows.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {([
-              ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
-              ["on_track", "On Track", statusCounts.on_track, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
-              ["close", "Knapp", statusCounts.close, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
-              ["off_track", "Off Track", statusCounts.off_track, "border-red-300/30 bg-red-400/10 text-red-200"],
-            ] as [GoalStatus | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
-              <button
-                key={k}
-                onClick={() => setStatusFilter(k)}
-                className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
-                  statusFilter === k
-                    ? activeCls
-                    : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
-                }`}
-              >
-                {label}
-                <span className="tabular-nums opacity-70">{count}</span>
-              </button>
-            ))}
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-1.5 border-b border-white/[0.06] pb-0">
+          {([
+            ["current", "Aktuelle Monatsziele", rows.length],
+            ["future", "Zukünftige Monatsziele", visibleSuggestions.length],
+          ] as ["current" | "future", string, number][]).map(([k, label, count]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`relative text-[12px] sm:text-sm px-4 py-2.5 font-light transition-colors flex items-center gap-2 ${
+                tab === k
+                  ? "text-white"
+                  : "text-white/45 hover:text-white/75"
+              }`}
+            >
+              {label}
+              <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full ${
+                tab === k ? "bg-white/[0.08] text-white/80" : "bg-white/[0.03] text-white/40"
+              }`}>{count}</span>
+              {tab === k && (
+                <span className="absolute -bottom-px left-0 right-0 h-px bg-emerald-300/60" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {tab === "current" && (
+          <>
+            {/* Status filter */}
+            {rows.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
+                  ["on_track", "On Track", statusCounts.on_track, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+                  ["close", "Knapp", statusCounts.close, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
+                  ["off_track", "Off Track", statusCounts.off_track, "border-red-300/30 bg-red-400/10 text-red-200"],
+                ] as [GoalStatus | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
+                  <button
+                    key={k}
+                    onClick={() => setStatusFilter(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                      statusFilter === k
+                        ? activeCls
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Sort */}
+            {rows.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  ["deficit", "Größter Rückstand"],
+                  ["progress", "Fortschritt"],
+                  ["goal", "Höchstes Ziel"],
+                  ["name", "Name"],
+                ] as [SortKey, string][]).map(([k, label]) => (
+                  <button
+                    key={k}
+                    onClick={() => setSortKey(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light ${
+                      sortKey === k
+                        ? "border-white/20 bg-white/[0.06] text-white/90"
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="flex items-center justify-center py-20 text-white/40">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <span className="text-sm font-light">Lade Monatsziele…</span>
+              </div>
+            ) : error ? (
+              <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-6 text-sm text-red-200">
+                {error}
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
+                <Target className="h-8 w-8 mx-auto text-white/20 mb-3" />
+                <p className="text-sm text-white/55 font-light">
+                  Vergib im Swipe-Mode oder Slide-Over das Label <span className="text-white/80">„Monatsziel"</span>{" "}
+                  und schreibe eine Zahl in die Coaching-Notizen — oder nutze den Tab{" "}
+                  <span className="text-white/80">„Zukünftige Monatsziele"</span>.
+                </p>
+              </div>
+            ) : sortedRows.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
+                <p className="text-sm text-white/55 font-light">
+                  Keine Chatter im aktuellen Filter.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                {sortedRows.map((row) => (
+                  <GoalCard
+                    key={row.chatter}
+                    row={row}
+                    onOpen={() => setSelected(row.chatter)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Sort */}
-        {rows.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {([
-              ["deficit", "Größter Rückstand"],
-              ["progress", "Fortschritt"],
-              ["goal", "Höchstes Ziel"],
-              ["name", "Name"],
-            ] as [SortKey, string][]).map(([k, label]) => (
-              <button
-                key={k}
-                onClick={() => setSortKey(k)}
-                className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light ${
-                  sortKey === k
-                    ? "border-white/20 bg-white/[0.06] text-white/90"
-                    : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Content */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-white/40">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-            <span className="text-sm font-light">Lade Monatsziele…</span>
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-6 text-sm text-red-200">
-            {error}
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
-            <Target className="h-8 w-8 mx-auto text-white/20 mb-3" />
-            <p className="text-sm text-white/55 font-light">
-              Vergib im Swipe-Mode oder Slide-Over das Label <span className="text-white/80">„Monatsziel"</span>{" "}
-              und schreibe eine Zahl in die Coaching-Notizen (z.B. <span className="text-white/80">„2.000"</span>).
-            </p>
-            <p className="text-xs text-white/35 font-light mt-2">
-              Die neueste Notiz mit einer Zahl gilt als aktuelles Ziel.
-            </p>
-          </div>
-        ) : sortedRows.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
-            <p className="text-sm text-white/55 font-light">
-              Keine Chatter im aktuellen Filter.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-            {sortedRows.map((row) => (
-              <GoalCard
-                key={row.chatter}
-                row={row}
-                onOpen={() => setSelected(row.chatter)}
-              />
-            ))}
-          </div>
+        {tab === "future" && (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-20 text-white/40">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <span className="text-sm font-light">Berechne Vorschläge…</span>
+              </div>
+            ) : error ? (
+              <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-6 text-sm text-red-200">
+                {error}
+              </div>
+            ) : visibleSuggestions.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
+                <Sparkles className="h-8 w-8 mx-auto text-white/20 mb-3" />
+                <p className="text-sm text-white/55 font-light">
+                  Keine offenen Vorschläge. Alle aktiven Chatter haben bereits ein Monatsziel oder machen weniger als 1 € / Tag im Schnitt.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-[11px] text-white/40 font-light">
+                  Vorschläge basierend auf Ø Tagesumsatz × Tage im Monat × 110 % (auf 50 € gerundet).
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                  {visibleSuggestions.map((s) => (
+                    <SuggestionCard
+                      key={s.chatter}
+                      row={s}
+                      busy={acceptingChatter === s.chatter}
+                      onAccept={(goal) => acceptSuggestion(s.chatter, goal)}
+                      onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
 
