@@ -319,6 +319,9 @@ export default function MonthlyGoals() {
                   ? 'Noch keine Chatter mit dem Label „Monatsziel" und einer Zahl in den Notizen.'
                   : `${rows.length} Chatter im Tracking · ${onTrackCount} on track · ${formatEUR(totalRev)} von ${formatEUR(totalGoal)} erreicht.`}
               </p>
+              <p className="text-[10px] sm:text-[11px] text-white/35 font-light mt-1">
+                Stand: {new Date(Date.now() - 86400000).toLocaleDateString("de-DE")} (Reports kommen 1 Tag verzögert)
+              </p>
             </div>
           </div>
         </div>
