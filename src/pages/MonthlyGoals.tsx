@@ -284,11 +284,16 @@ function SuggestionCard({
 export default function MonthlyGoals() {
   const { platform } = usePlatform();
   const [rows, setRows] = useState<ChatterGoalRow[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
+  const [tab, setTab] = useState<"current" | "future">("current");
   const [selected, setSelected] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,7 +304,6 @@ export default function MonthlyGoals() {
         // Auf Session warten (race condition fix)
         let { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          // kurz auf Auth-State warten, falls Session noch wiederhergestellt wird
           session = await new Promise((resolve) => {
             const timeout = setTimeout(() => resolve(null), 2000);
             const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -314,59 +318,66 @@ export default function MonthlyGoals() {
         const user = session?.user;
         if (!user) throw new Error("Nicht angemeldet");
 
-        // 1) Label-ID finden
+        const today = new Date();
+        const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
+        const reportStartIso = toIsoDateLocal(reportStart);
+        const todayIso = toIsoDateLocal(today);
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        const thirtyDaysAgoIso = toIsoDateLocal(thirtyDaysAgo);
+
+        // 1) Label finden / anlegen
         const { data: labels, error: lErr } = await supabase
           .from("chatter_labels")
           .select("id, label_name")
           .eq("platform", platform)
           .eq("label_name", LABEL_NAME);
         if (lErr) throw lErr;
-        const labelId = labels?.[0]?.id;
-        if (!labelId) {
-          if (!cancelled) { setRows([]); setLoading(false); }
-          return;
-        }
+        const labelId = labels?.[0]?.id ?? null;
 
-        // 2) Assignments laden
-        const { data: assigns, error: aErr } = await supabase
-          .from("chatter_label_assignments")
-          .select("chatter_name")
-          .eq("platform", platform)
-          .eq("label_id", labelId);
-        if (aErr) throw aErr;
-        const chatters = Array.from(new Set((assigns ?? []).map((a) => a.chatter_name)));
-        if (chatters.length === 0) {
-          if (!cancelled) { setRows([]); setLoading(false); }
-          return;
-        }
-
-        // 3) Coaching-Notes & Monatsumsatz parallel laden
-        // Reports kommen 1 Tag verzögert: analysis_date 02.05. enthält den realen Tracking-Tag 01.05.
-        // Für das Monatsziel Mai zählen deshalb Upload-Reports vom 02.05. bis heute.
-        const today = new Date();
-        const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
-        const reportStartIso = toIsoDateLocal(reportStart);
-        const todayIso = toIsoDateLocal(today);
-
-        const [notesRes, histRes] = await Promise.all([
-          supabase
-            .from("coaching_notes")
-            .select("chatter_name, note_text, created_at")
+        // 2) Assignments für Monatsziel-Label laden (kann leer sein)
+        let labelChatters: string[] = [];
+        if (labelId) {
+          const { data: assigns, error: aErr } = await supabase
+            .from("chatter_label_assignments")
+            .select("chatter_name")
             .eq("platform", platform)
-            .in("chatter_name", chatters)
-            .order("created_at", { ascending: false }),
+            .eq("label_id", labelId);
+          if (aErr) throw aErr;
+          labelChatters = Array.from(new Set((assigns ?? []).map((a) => a.chatter_name)));
+        }
+
+        // 3) Alle Chatter der letzten 30 Tage + Notizen für gelabelte parallel
+        const [histAllRes, notesRes, histMonthRes] = await Promise.all([
           supabase
             .from("chatter_history")
             .select("chatter_name, revenue_today, analysis_date")
             .eq("platform", platform)
-            .in("chatter_name", chatters)
-            .gte("analysis_date", reportStartIso)
+            .gte("analysis_date", thirtyDaysAgoIso)
             .lte("analysis_date", todayIso),
+          labelChatters.length > 0
+            ? supabase
+                .from("coaching_notes")
+                .select("chatter_name, note_text, created_at")
+                .eq("platform", platform)
+                .in("chatter_name", labelChatters)
+                .order("created_at", { ascending: false })
+            : Promise.resolve({ data: [], error: null } as any),
+          labelChatters.length > 0
+            ? supabase
+                .from("chatter_history")
+                .select("chatter_name, revenue_today, analysis_date")
+                .eq("platform", platform)
+                .in("chatter_name", labelChatters)
+                .gte("analysis_date", reportStartIso)
+                .lte("analysis_date", todayIso)
+            : Promise.resolve({ data: [], error: null } as any),
         ]);
+        if (histAllRes.error) throw histAllRes.error;
         if (notesRes.error) throw notesRes.error;
-        if (histRes.error) throw histRes.error;
+        if (histMonthRes.error) throw histMonthRes.error;
 
-        // Pro Chatter: neueste Notiz mit Zahl
+        // === Aktuelle Monatsziele ===
         const goalByChatter = new Map<string, { goal: number; text: string; date: string }>();
         for (const n of notesRes.data ?? []) {
           if (goalByChatter.has(n.chatter_name)) continue;
@@ -379,21 +390,18 @@ export default function MonthlyGoals() {
             });
           }
         }
-
-        // Monatsumsatz aggregieren
-        const revByChatter = new Map<string, number>();
-        for (const h of histRes.data ?? []) {
-          revByChatter.set(
+        const monthRevByChatter = new Map<string, number>();
+        for (const h of histMonthRes.data ?? []) {
+          monthRevByChatter.set(
             h.chatter_name,
-            (revByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
+            (monthRevByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
           );
         }
-
         const built: ChatterGoalRow[] = [];
-        for (const c of chatters) {
+        for (const c of labelChatters) {
           const g = goalByChatter.get(c);
           if (!g) continue;
-          const rev = revByChatter.get(c) ?? 0;
+          const rev = monthRevByChatter.get(c) ?? 0;
           built.push({
             chatter: c,
             noteText: g.text,
@@ -402,7 +410,37 @@ export default function MonthlyGoals() {
           });
         }
 
-        if (!cancelled) setRows(built);
+        // === Zukünftige Monatsziele (Vorschläge) ===
+        // Aggregate: pro Chatter Summe + Anzahl Tage
+        const sumByChatter = new Map<string, number>();
+        for (const h of histAllRes.data ?? []) {
+          sumByChatter.set(
+            h.chatter_name,
+            (sumByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
+          );
+        }
+        // Anzahl der Tage im Fenster (fix 30, da die Reports tägliche Werte sind und auch 0er drinstehen können)
+        const windowDays = 30;
+        const labelSet = new Set(labelChatters);
+        const sugg: SuggestionRow[] = [];
+        for (const [chatter, sum] of sumByChatter) {
+          if (labelSet.has(chatter)) continue;
+          const avg = sum / windowDays;
+          if (avg <= 1) continue; // > 1 € / Tag Schwelle
+          const monthRev = monthRevByChatter.get(chatter) ?? 0;
+          sugg.push({
+            chatter,
+            avg30: avg,
+            monthRevenue: monthRev,
+            suggested: suggestMonthlyGoal(avg, today),
+          });
+        }
+        sugg.sort((a, b) => b.suggested - a.suggested);
+
+        if (!cancelled) {
+          setRows(built);
+          setSuggestions(sugg);
+        }
       } catch (e: any) {
         console.error("[MonthlyGoals] load failed", e);
         if (!cancelled) setError(e?.message ?? "Fehler beim Laden");
@@ -412,7 +450,7 @@ export default function MonthlyGoals() {
     }
     load();
     return () => { cancelled = true; };
-  }, [platform]);
+  }, [platform, reloadKey]);
 
   const filteredRows = useMemo(
     () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
