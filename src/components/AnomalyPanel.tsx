@@ -90,6 +90,7 @@ export default function AnomalyPanel({
     lastCoachings: [string, string][];     // chatter -> ISO timestamp
     categorySince: [string, { since: string; category: string }][];
     prevWindowAvg: [string, number][];     // chatter -> avg eur/day in previous window
+    allTimeAvg: [string, number][];        // chatter -> avg eur/day across full history
     savedAt: number;
   };
 
