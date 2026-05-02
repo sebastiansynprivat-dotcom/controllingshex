@@ -186,6 +186,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [pickerQuery, setPickerQuery] = useState("");
   const [chatterList, setChatterList] = useState<string[]>([]);
 
+  // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
+  const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>([]);
+
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
     "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
@@ -314,6 +317,53 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       fetchProfile();
     });
   }, [open, fetchProfile]);
+
+  // Fetch zugeordnete Models (über chatter_history.account) inkl. Logindaten
+  useEffect(() => {
+    if (!open || !chatterName) {
+      setChatterModels([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: histRows } = await supabase
+        .from("chatter_history")
+        .select("account")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform);
+      if (cancelled) return;
+      const accounts = Array.from(
+        new Set(
+          (histRows || [])
+            .map((r: any) => (r.account || "").trim())
+            .filter((a: string) => a.length > 0)
+        )
+      );
+      if (accounts.length === 0) {
+        setChatterModels([]);
+        return;
+      }
+      const { data: modelRows } = await supabase
+        .from("models")
+        .select("model_name, email, password")
+        .eq("platform", platform)
+        .in("model_name", accounts);
+      if (cancelled) return;
+      const byName = new Map<string, { email: string | null; password: string | null }>();
+      for (const m of (modelRows || []) as any[]) {
+        byName.set(m.model_name, { email: m.email ?? null, password: m.password ?? null });
+      }
+      const list = accounts
+        .map((name) => ({
+          name,
+          email: byName.get(name)?.email ?? null,
+          password: byName.get(name)?.password ?? null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      setChatterModels(list);
+    })();
+    return () => { cancelled = true; };
+  }, [open, chatterName, platform]);
 
   // Fetch labels
   useEffect(() => {
@@ -475,6 +525,57 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const initials = useMemo(() => getInitials(chatterName), [chatterName]);
   const trendAccent = trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
+  const copyToClipboard = (value: string, label: string) => {
+    navigator.clipboard.writeText(value).then(
+      () => toast.success(`${label} kopiert`),
+      () => toast.error(`${label} konnte nicht kopiert werden`)
+    );
+  };
+
+  const modelsLoginsBlock = chatterModels.length > 0 ? (
+    <div className="space-y-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">
+        Models & Logins
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {chatterModels.map((m) => (
+          <div
+            key={m.name}
+            className="rounded-xl bg-white/[0.02] border border-white/[0.05] px-3 py-2.5 space-y-1.5"
+          >
+            <p className="text-[12px] text-foreground/80 font-light tracking-wide truncate">{m.name}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {m.email ? (
+                <button
+                  onClick={() => copyToClipboard(m.email!, "E-Mail")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide max-w-full"
+                  title={`E-Mail kopieren: ${m.email}`}
+                >
+                  <span className="text-primary/60">✉</span>
+                  <span className="truncate max-w-[140px]">{m.email}</span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">keine Mail</span>
+              )}
+              {m.password ? (
+                <button
+                  onClick={() => copyToClipboard(m.password!, "Passwort")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide"
+                  title="Passwort kopieren"
+                >
+                  <span className="text-primary/60">🔑</span>
+                  <span>{"•".repeat(Math.min(m.password.length, 10))}</span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">kein Passwort</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   if (inline) {
     // Inline mode: render directly without portal/overlay
     return (
@@ -534,6 +635,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     );
                   })}
                 </div>
+
+                {modelsLoginsBlock}
 
                 {/* Labels */}
                 <div className="space-y-3">
@@ -784,6 +887,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       );
                     })}
                   </div>
+
+                  {modelsLoginsBlock}
 
                   {/* ── Labels ── */}
                   <div className="space-y-3">
