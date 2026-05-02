@@ -847,7 +847,7 @@ export default function AnomalyPanel({
                       </div>
                       <div
                         className="min-w-0 border-l border-white/[0.05] pl-2"
-                        title={`Durchschnittlicher Tagesumsatz im aktuell gewählten Zeitraum (${rangeLabelText})${zeroDays !== null ? ` · ${zeroDays}× 0€-Tage in Folge` : ""}.`}
+                        title={`Durchschnittlicher Tagesumsatz im aktuell gewählten Zeitraum (${rangeLabel(range)})${zeroDays !== null ? ` · ${zeroDays}× 0€-Tage in Folge` : ""}.`}
                       >
                         <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag · Zeitraum</div>
                         <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
