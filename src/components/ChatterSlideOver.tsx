@@ -525,6 +525,57 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const initials = useMemo(() => getInitials(chatterName), [chatterName]);
   const trendAccent = trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
+  const copyToClipboard = (value: string, label: string) => {
+    navigator.clipboard.writeText(value).then(
+      () => toast.success(`${label} kopiert`),
+      () => toast.error(`${label} konnte nicht kopiert werden`)
+    );
+  };
+
+  const modelsLoginsBlock = chatterModels.length > 0 ? (
+    <div className="space-y-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">
+        Models & Logins
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {chatterModels.map((m) => (
+          <div
+            key={m.name}
+            className="rounded-xl bg-white/[0.02] border border-white/[0.05] px-3 py-2.5 space-y-1.5"
+          >
+            <p className="text-[12px] text-foreground/80 font-light tracking-wide truncate">{m.name}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {m.email ? (
+                <button
+                  onClick={() => copyToClipboard(m.email!, "E-Mail")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide max-w-full"
+                  title={`E-Mail kopieren: ${m.email}`}
+                >
+                  <span className="text-primary/60">✉</span>
+                  <span className="truncate max-w-[140px]">{m.email}</span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">keine Mail</span>
+              )}
+              {m.password ? (
+                <button
+                  onClick={() => copyToClipboard(m.password!, "Passwort")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide"
+                  title="Passwort kopieren"
+                >
+                  <span className="text-primary/60">🔑</span>
+                  <span>{"•".repeat(Math.min(m.password.length, 10))}</span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">kein Passwort</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   if (inline) {
     // Inline mode: render directly without portal/overlay
     return (
