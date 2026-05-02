@@ -312,8 +312,13 @@ export default function MonthlyGoals() {
     return () => { cancelled = true; };
   }, [platform]);
 
+  const filteredRows = useMemo(
+    () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
+    [rows, statusFilter],
+  );
+
   const sortedRows = useMemo(() => {
-    const arr = [...rows];
+    const arr = [...filteredRows];
     arr.sort((a, b) => {
       switch (sortKey) {
         case "progress": return b.progress.progressPct - a.progress.progressPct;
@@ -324,7 +329,13 @@ export default function MonthlyGoals() {
       }
     });
     return arr;
-  }, [rows, sortKey]);
+  }, [filteredRows, sortKey]);
+
+  const statusCounts = useMemo(() => ({
+    on_track: rows.filter((r) => r.progress.status === "on_track").length,
+    close: rows.filter((r) => r.progress.status === "close").length,
+    off_track: rows.filter((r) => r.progress.status === "off_track").length,
+  }), [rows]);
 
   const today = new Date();
   const trackedThrough = new Date(today);
