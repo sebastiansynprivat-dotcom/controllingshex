@@ -186,6 +186,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [pickerQuery, setPickerQuery] = useState("");
   const [chatterList, setChatterList] = useState<string[]>([]);
 
+  // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
+  const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>([]);
+
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
     "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
