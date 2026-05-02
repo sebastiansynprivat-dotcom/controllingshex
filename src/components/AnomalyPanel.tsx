@@ -37,6 +37,28 @@ import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 const SNAPSHOT_VERSION = 2;
 const PAGE_SIZE = 1000;
 
+async function loadAllTimeRevenueRows(userId: string, platform: string) {
+  const rows: { chatter_name: string; revenue_today: number | null }[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, revenue_today")
+      .eq("user_id", userId)
+      .eq("platform", platform)
+      .order("analysis_date", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error || !data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 interface Props {
   platform: string;
   /** Default time range. */
