@@ -406,22 +406,27 @@ export default function MonthlyGoals() {
           });
         }
 
-        // === Zukünftige Monatsziele (Vorschläge) ===
-        // Aggregate: pro Chatter Summe + Anzahl Tage
+        // === Zukünftige Monatsziele (Vorschläge, All-Time-Schnitt) ===
+        // Pro Chatter: Summe Umsatz und Anzahl unterschiedlicher analysis_date-Tage.
         const sumByChatter = new Map<string, number>();
+        const daysByChatter = new Map<string, Set<string>>();
         for (const h of histAllRes.data ?? []) {
           sumByChatter.set(
             h.chatter_name,
             (sumByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
           );
+          if (!daysByChatter.has(h.chatter_name)) {
+            daysByChatter.set(h.chatter_name, new Set());
+          }
+          daysByChatter.get(h.chatter_name)!.add(h.analysis_date);
         }
-        // Anzahl der Tage im Fenster (fix 30, da die Reports tägliche Werte sind und auch 0er drinstehen können)
-        const windowDays = 30;
         const labelSet = new Set(labelChatters);
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
           if (labelSet.has(chatter)) continue;
-          const avg = sum / windowDays;
+          const days = daysByChatter.get(chatter)?.size ?? 0;
+          if (days === 0) continue;
+          const avg = sum / days;
           if (avg <= 1) continue; // > 1 € / Tag Schwelle
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
           sugg.push({
