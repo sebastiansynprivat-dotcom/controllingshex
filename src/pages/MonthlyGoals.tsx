@@ -296,7 +296,10 @@ export default function MonthlyGoals() {
     return arr;
   }, [rows, sortKey]);
 
-  const monthName = new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  const today = new Date();
+  const trackedThrough = new Date(today);
+  trackedThrough.setDate(today.getDate() - 1);
+  const monthName = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
   const totalGoal = rows.reduce((s, r) => s + r.progress.goal, 0);
   const totalRev = rows.reduce((s, r) => s + r.progress.currentRevenue, 0);
   const onTrackCount = rows.filter((r) => r.progress.status === "on_track").length;
@@ -326,7 +329,7 @@ export default function MonthlyGoals() {
                   : `${rows.length} Chatter im Tracking · ${onTrackCount} on track · ${formatEUR(totalRev)} von ${formatEUR(totalGoal)} erreicht.`}
               </p>
               <p className="text-[10px] sm:text-[11px] text-white/35 font-light mt-1">
-                Stand: {new Date(Date.now() - 86400000).toLocaleDateString("de-DE")} (Reports kommen 1 Tag verzögert)
+                Tracking bis: {trackedThrough.toLocaleDateString("de-DE")} · Upload-Report bis: {today.toLocaleDateString("de-DE")}
               </p>
             </div>
           </div>
