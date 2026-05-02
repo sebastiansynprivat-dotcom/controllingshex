@@ -19,6 +19,7 @@ import {
   computeGoalProgress,
   formatEUR,
   type GoalProgress,
+  type GoalStatus,
 } from "@/lib/monthly-goals";
 
 const LABEL_NAME = "Monatsziel";
