@@ -211,7 +211,7 @@ function SuggestionCard({
             {row.chatter}
           </h3>
           <p className="text-[11px] text-white/35 font-light mt-0.5">
-            Vorschlag basierend auf Ø der letzten 30 Tage
+            Vorschlag basierend auf All-Time-Durchschnitt
           </p>
         </div>
         <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 font-light shrink-0">
@@ -220,7 +220,7 @@ function SuggestionCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <Stat label="Ø Tag (30d)" value={formatEUR(row.avg30)} />
+        <Stat label="Ø Tag (gesamt)" value={formatEUR(row.avg30)} />
         <Stat label="Monat bisher" value={formatEUR(row.monthRevenue)} />
       </div>
 
