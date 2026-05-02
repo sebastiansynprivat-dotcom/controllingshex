@@ -740,9 +740,12 @@ export default function AnomalyPanel({
                           </span>
                         )}
                         {sinceRel && sinceRel.days >= 1 && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/[0.08] border border-red-500/15 text-[9px] uppercase tracking-wider text-red-200/85 font-medium">
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/[0.08] border border-red-500/15 text-[9px] uppercase tracking-wider text-red-200/85 font-medium"
+                            title={`Dauer der Auffälligkeit: ${sinceRel.days} ${sinceRel.days === 1 ? "Tag" : "Tage"} in Folge auffällig (z. B. 0€-Umsatz, unter Peer-Schnitt oder keine MassDMs). Je länger, desto dringender.`}
+                          >
                             <Flame className="h-2.5 w-2.5" />
-                            seit {sinceRel.days} {sinceRel.days === 1 ? "Tag" : "Tagen"}
+                            auffällig seit {sinceRel.days} {sinceRel.days === 1 ? "Tag" : "Tagen"}
                           </span>
                         )}
                       </div>
