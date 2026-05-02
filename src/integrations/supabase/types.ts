@@ -653,7 +653,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_chatter_onboarding: {
+        Args: { p_platform: string }
+        Returns: {
+          chatter_name: string
+          onboarded_on: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
