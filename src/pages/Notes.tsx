@@ -29,6 +29,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonner } from "sonner";
 
@@ -96,6 +106,9 @@ export default function Notes() {
 
   // Recipients dropdown state per snippet
   const [openRecipients, setOpenRecipients] = useState<Record<string, boolean>>({});
+
+  // Delete confirmation
+  const [pendingDelete, setPendingDelete] = useState<Snippet | null>(null);
 
   useEffect(() => {
     try {
@@ -319,7 +332,6 @@ export default function Notes() {
   };
 
   const deleteSnippet = async (s: Snippet) => {
-    if (!confirm("Really delete this text?")) return;
     if (s.media_urls?.length) {
       await supabase.storage.from(BUCKET).remove(s.media_urls);
     }
@@ -562,7 +574,7 @@ export default function Notes() {
                           onMarkAllSent={(names) => markAllSent(s.id, names)}
                           onCopy={(label) => copyText(s.body, label)}
                           onEdit={() => openEditor(s.day_offset, s)}
-                          onDelete={() => deleteSnippet(s)}
+                          onDelete={() => setPendingDelete(s)}
                           onMediaClick={(p) => setLightbox(p)}
                         />
                       ))
@@ -755,6 +767,63 @@ export default function Notes() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+      >
+        <AlertDialogContent className="bg-[hsl(var(--surface-1))] border-white/[0.1] backdrop-blur-xl shadow-2xl shadow-black/40 max-w-md">
+          <div className="absolute -top-px left-1/2 -translate-x-1/2 h-px w-32 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+          <AlertDialogHeader>
+            <div className="mx-auto h-11 w-11 rounded-2xl bg-gradient-to-br from-red-500/20 to-red-500/5 border border-red-500/25 flex items-center justify-center mb-2">
+              <Trash2 className="h-5 w-5 text-red-400" />
+            </div>
+            <AlertDialogTitle className="text-center text-base font-semibold text-foreground tracking-tight">
+              Text wirklich löschen?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-[13px] text-foreground/60 font-light leading-relaxed">
+              {pendingDelete?.title ? (
+                <>
+                  „<span className="text-foreground/85 font-medium">{pendingDelete.title}</span>" wird dauerhaft entfernt.
+                </>
+              ) : (
+                <>Dieser Text wird dauerhaft entfernt.</>
+              )}
+              {pendingDelete?.media_urls?.length ? (
+                <>
+                  {" "}Inkl.{" "}
+                  <span className="text-foreground/85 font-medium">
+                    {pendingDelete.media_urls.length} {pendingDelete.media_urls.length === 1 ? "Datei" : "Dateien"}
+                  </span>.
+                </>
+              ) : null}
+              <br />
+              <span className="text-[11px] text-foreground/40 uppercase tracking-wider">
+                Diese Aktion kann nicht rückgängig gemacht werden.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel className="bg-white/[0.04] hover:bg-white/[0.08] text-foreground border-white/[0.12] font-medium">
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingDelete) {
+                  const s = pendingDelete;
+                  setPendingDelete(null);
+                  await deleteSnippet(s);
+                }
+              }}
+              className="bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white border-0 shadow-lg shadow-red-500/30 font-semibold"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
