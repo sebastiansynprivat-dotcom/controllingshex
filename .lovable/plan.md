@@ -1,27 +1,46 @@
-## Ziel
-Ein drittes Workspace „4Based" neben Maloum und Brezzels einführen. Beim ersten Wechsel dorthin sind alle Daten leer (keine Reports, keine Chatter, keine Notes etc.) — exakt wie ein frisches Setup.
+# Auffälligkeiten-Karten: All-Time vs. Zeitraum-Vergleich
 
-## Umsetzung
+Im aktuellen Zahlen-Trio jeder Listenkarte (`AnomalyPanel.tsx`) steht:
+`Ø €/Tag` (Zeitraum) · `vs. Vorperiode (%)` · `0€-Tage`.
 
-### 1. Platform-Typ erweitern
-**`src/contexts/PlatformContext.tsx`**
-- `Platform` Union → `"Maloum" | "Brezzels" | "4Based"`
-- `PLATFORMS`-Array um `"4Based"` ergänzen
+Ziel: Den Vergleich auf **All-Time** umstellen, damit man sofort sieht, wie stark der aktuell gewählte Zeitraum vom langfristigen Niveau abweicht.
 
-### 2. Sidebar-Switcher
-**`src/components/PlatformSwitcher.tsx`**
-- `platformIcons` um `"4Based": "4"` erweitern (Buchstabe/Ziffer im Badge)
+## Neue Karten-Struktur (3 Spalten)
 
-### 3. Daten-Isolation
-Keine Migration nötig. Alle Tabellen (`analysis_reports`, `chatter_history`, `coaching_notes`, `daily_chatter_checks`, `chatter_category_state`, `models`, `todos`, `swap_decisions`, `chatter_labels`, `chatter_inputs`, `video_coachings`, `chatter_daily_goals`, `anomaly_alerts`, `alert_dismissals`) filtern bereits per `platform`-Spalte. Da noch keine Zeile mit `platform = '4Based'` existiert, ist der Workspace automatisch komplett leer — Upload, Dashboard, Anomalien, Notes etc. zeigen den jeweiligen Empty-State.
+```text
+| Ø €/Tag (All-Time) | Ø €/Tag (Zeitraum)  | Abfall %       |
+|  124 €             |  48 €               |  −61 %         |
+|  alle Reports      |  letzte 7 Tage      |  vs. All-Time  |
+```
 
-### 4. Quick-Check
-- Suchen, ob irgendwo ein hartkodiertes `["Maloum","Brezzels"]`-Array außerhalb von `PlatformContext` liegt, das zusätzlich erweitert werden müsste. Falls ja, mitziehen.
+- **Spalte 1 — All-Time Ø/Tag**: Summe aller `revenue_today` aus `chatter_history` für diesen Chatter (gesamte Workspace-Historie), geteilt durch Anzahl Tage mit Eintrag. Wert ist unabhängig vom Filter und ändert sich nicht beim Umschalten.
+- **Spalte 2 — Zeitraum Ø/Tag**: Bisheriger `currentAvg` (Summe im aktuell gewählten Range / Tage).
+- **Spalte 3 — Abfall %**: `(zeitraumAvg − allTimeAvg) / allTimeAvg × 100`. Farbcodes wie bisher: <−10% rot, <0% amber, ≥0% grün. Tooltip zeigt beide Rohwerte und den Zeitraum.
 
-## Nicht enthalten
-- Kein Seed/Demo-Daten — bewusst leer.
-- Keine Änderung an RLS oder Schema.
-- Kein Löschen oder Verschieben von bestehenden Maloum/Brezzels-Daten.
+Die `0€-Tage`-Info wandert in einen kleinen Footer-Chip oder Tooltip auf Spalte 2 — bleibt sichtbar, blockiert aber keine Spalte mehr.
 
-## Ergebnis
-Im Sidebar-Switcher erscheint ein dritter Eintrag „4Based". Beim Klick: leere Dashboards überall, bereit für den ersten CSV-Upload.
+## Implementierung
+
+**Datenladen** (`AnomalyPanel.tsx`, Block ab Zeile ~155):
+- Neue Supabase-Query parallel zu den bestehenden:
+  ```ts
+  supabase.from("chatter_history")
+    .select("chatter_name, revenue_today, analysis_date")
+    .eq("user_id", user.id).eq("platform", platform)
+    .limit(50000)
+  ```
+- Aggregation analog zu `prevAgg`: `Map<chatter, { sum, days }>` → `allTimeAvg`-Map.
+- Im `Snapshot`-Type + sessionStorage-Cache neues Feld `allTimeAvg: [string, number][]` ergänzen.
+
+**Render-Logik** (Block ab Zeile ~681):
+- `const allTimeAvg = allTimeAvgMap.get(group.name) ?? 0;`
+- `const dropPct = allTimeAvg > 0 ? Math.round(((currentAvg - allTimeAvg) / allTimeAvg) * 100) : null;`
+- `prevWindowAvg` + `prevPeriodLabel/Tooltip` bleiben im Code (für ggf. spätere Re-Use), werden in der UI aber durch den All-Time-Vergleich ersetzt.
+
+**JSX** (Zeilen ~813–845): Die drei `<div>`-Spalten werden ausgetauscht gegen All-Time / Zeitraum / Drop%. Tooltip auf der Drop-Spalte: „Ø {currentAvg}€/Tag im Zeitraum {rangeLabel} vs. Ø {allTimeAvg}€/Tag über alle bisherigen Reports".
+
+## Außer Reichweite
+
+- Detail-Modal bleibt unverändert.
+- Sortier-Reihenfolge der Liste bleibt (weiterhin nach `impactPerDay`).
+- `prevWindowAvg`-Query bleibt vorerst im Code, wird nur nicht mehr angezeigt — falls du Vorperiode später zurück willst, ist's ein One-Liner.

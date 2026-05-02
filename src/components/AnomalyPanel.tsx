@@ -90,6 +90,7 @@ export default function AnomalyPanel({
     lastCoachings: [string, string][];     // chatter -> ISO timestamp
     categorySince: [string, { since: string; category: string }][];
     prevWindowAvg: [string, number][];     // chatter -> avg eur/day in previous window
+    allTimeAvg: [string, number][];        // chatter -> avg eur/day across full history
     savedAt: number;
   };
 
@@ -137,6 +138,9 @@ export default function AnomalyPanel({
   const [prevWindowAvg, setPrevWindowAvg] = useState<Map<string, number>>(
     () => new Map(initialSnap?.prevWindowAvg ?? []),
   );
+  const [allTimeAvg, setAllTimeAvg] = useState<Map<string, number>>(
+    () => new Map(initialSnap?.allTimeAvg ?? []),
+  );
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -152,7 +156,7 @@ export default function AnomalyPanel({
     const prevFromIso = prevFrom.toISOString().slice(0, 10);
     const prevToIso = prevTo.toISOString().slice(0, 10);
 
-    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes] = await Promise.all([
+    const [result, modelsRes, accountsRes, totalRes, prevHistRes, checksRes, notesRes, coachingsRes, catStateRes, allHistRes] = await Promise.all([
       computeAnomaliesForWindow(user.id, platform, range, rid),
       supabase
         .from("models")
@@ -209,6 +213,12 @@ export default function AnomalyPanel({
         .select("chatter_name, current_category, since_date")
         .eq("user_id", user.id)
         .eq("platform", platform),
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .limit(50000),
     ]);
     setAnomalies(result.anomalies);
     setPeerAvg(result.peerAvgRevenuePerDay);
@@ -276,6 +286,20 @@ export default function AnomalyPanel({
     }
     setPrevWindowAvg(pmap);
 
+    // All-Time Ø pro Chatter (Summe aller Reports / Tage_mit_Eintrag)
+    const allAgg = new Map<string, { sum: number; days: number }>();
+    for (const row of allHistRes.data ?? []) {
+      const cur = allAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
+      cur.sum += Number(row.revenue_today ?? 0);
+      cur.days += 1;
+      allAgg.set(row.chatter_name, cur);
+    }
+    const atmap = new Map<string, number>();
+    for (const [name, { sum, days }] of allAgg) {
+      atmap.set(name, days > 0 ? sum / days : 0);
+    }
+    setAllTimeAvg(atmap);
+
     // Persist snapshot
     try {
       const snap: Snapshot = {
@@ -290,6 +314,7 @@ export default function AnomalyPanel({
         lastCoachings: [...vmap.entries()],
         categorySince: [...smap.entries()],
         prevWindowAvg: [...pmap.entries()],
+        allTimeAvg: [...atmap.entries()],
         savedAt: Date.now(),
       };
       sessionStorage.setItem(cacheKey, JSON.stringify(snap));
@@ -313,6 +338,7 @@ export default function AnomalyPanel({
       setLastCoachings(new Map(snap.lastCoachings ?? []));
       setCategorySince(new Map(snap.categorySince ?? []));
       setPrevWindowAvg(new Map(snap.prevWindowAvg ?? []));
+      setAllTimeAvg(new Map(snap.allTimeAvg ?? []));
       setLoading(false);
       return;
     }
@@ -678,15 +704,12 @@ export default function AnomalyPanel({
               const lastNote = lastNotes.get(group.name);
               const lastCoachingRel = relDays(lastCoachings.get(group.name));
 
-              // Zahlen-Trio
+              // Zahlen-Trio: All-Time vs. Zeitraum
               const currentAvg = group.items[0]?.metric_value ?? 0;
-              const prevAvg = prevWindowAvg.get(group.name) ?? 0;
-              const deltaPct = prevAvg > 0
-                ? Math.round(((currentAvg - prevAvg) / prevAvg) * 100)
+              const allAvg = allTimeAvg.get(group.name) ?? 0;
+              const dropPct = allAvg > 0
+                ? Math.round(((currentAvg - allAvg) / allAvg) * 100)
                 : null;
-              // 0€-Tage: Anzahl Items mit alert_type "persistent_zero" als Proxy nicht ideal —
-              // wir nutzen consecutiveZeroDays über metric_value/baseline-Heuristik:
-              // Fallback: aus message extrahieren falls vorhanden, sonst null.
               const zeroAlert = group.items.find((a) => a.alert_type === "persistent_zero");
               const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
 
@@ -810,35 +833,46 @@ export default function AnomalyPanel({
                     </button>
                   </div>
 
-                  {/* Zahlen-Trio */}
-                  {(currentAvg > 0 || deltaPct !== null || zeroDays !== null) && (
+                  {/* Zahlen-Trio: All-Time Ø · Zeitraum Ø · Abfall % */}
+                  {(allAvg > 0 || currentAvg > 0 || dropPct !== null) && (
                     <div className="grid grid-cols-3 gap-2 px-3.5 sm:px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.012]">
-                      <div className="min-w-0">
-                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag</div>
+                      <div
+                        className="min-w-0"
+                        title="Durchschnittlicher Tagesumsatz über alle bisherigen Reports dieses Chatters (Lebenszeit-Schnitt, unabhängig vom Zeitraumfilter)."
+                      >
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag · All-Time</div>
+                        <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
+                          {allAvg > 0 ? `${Math.round(allAvg).toLocaleString("de-DE")} €` : "—"}
+                        </div>
+                      </div>
+                      <div
+                        className="min-w-0 border-l border-white/[0.05] pl-2"
+                        title={`Durchschnittlicher Tagesumsatz im aktuell gewählten Zeitraum (${rangeLabel(range)})${zeroDays !== null ? ` · ${zeroDays}× 0€-Tage in Folge` : ""}.`}
+                      >
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">Ø €/Tag · Zeitraum</div>
                         <div className="text-[13px] tabular-nums text-foreground/85 font-medium mt-1 leading-none">
                           {currentAvg > 0 ? `${Math.round(currentAvg).toLocaleString("de-DE")} €` : "—"}
                         </div>
                       </div>
-                      <div className="min-w-0 border-l border-white/[0.05] pl-2" title={prevPeriodTooltip}>
-                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. {prevPeriodLabel}</div>
+                      <div
+                        className="min-w-0 border-l border-white/[0.05] pl-2"
+                        title={
+                          dropPct === null
+                            ? "Kein All-Time-Vergleich möglich — zu wenig Historie."
+                            : `Zeitraum: Ø ${Math.round(currentAvg).toLocaleString("de-DE")}€/Tag · All-Time: Ø ${Math.round(allAvg).toLocaleString("de-DE")}€/Tag → ${dropPct > 0 ? "+" : ""}${dropPct}%`
+                        }
+                      >
+                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">vs. All-Time</div>
                         <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
-                          deltaPct === null
+                          dropPct === null
                             ? "text-white/40"
-                            : deltaPct < -10
+                            : dropPct < -10
                             ? "text-red-300/90"
-                            : deltaPct < 0
+                            : dropPct < 0
                             ? "text-amber-300/85"
                             : "text-emerald-300/85"
                         }`}>
-                          {deltaPct === null ? "—" : `${deltaPct > 0 ? "+" : ""}${deltaPct} %`}
-                        </div>
-                      </div>
-                      <div className="min-w-0 border-l border-white/[0.05] pl-2">
-                        <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light leading-none">0 €-Tage</div>
-                        <div className={`text-[13px] tabular-nums font-medium mt-1 leading-none ${
-                          zeroDays === null ? "text-white/40" : zeroDays >= 3 ? "text-red-300/90" : "text-foreground/85"
-                        }`}>
-                          {zeroDays === null ? "—" : `${zeroDays}×`}
+                          {dropPct === null ? "—" : `${dropPct > 0 ? "+" : ""}${dropPct} %`}
                         </div>
                       </div>
                     </div>
