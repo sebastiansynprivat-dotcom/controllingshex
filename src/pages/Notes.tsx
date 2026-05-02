@@ -938,7 +938,11 @@ function SnippetCard({
                 {recipients.map((r) => (
                   <div
                     key={r.chatter_name}
-                    className="flex items-center justify-between gap-2 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 hover:bg-white/[0.05] transition-colors"
+                    onClick={onCopy}
+                    role="button"
+                    tabIndex={0}
+                    title="Click to copy text"
+                    className="cursor-pointer flex items-center justify-between gap-2 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 hover:bg-primary/10 hover:border-primary/30 transition-colors"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] text-foreground font-medium truncate">
@@ -949,7 +953,10 @@ function SnippetCard({
                       </div>
                     </div>
                     <button
-                      onClick={() => onMarkSent(r.chatter_name)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkSent(r.chatter_name);
+                      }}
                       className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/15 hover:bg-primary/25 border border-primary/25 transition-colors px-2.5 py-1.5 rounded-md shrink-0"
                       title="Mark as sent"
                     >
