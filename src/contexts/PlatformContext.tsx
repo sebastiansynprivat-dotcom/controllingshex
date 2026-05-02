@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-export type Platform = "Maloum" | "Brezzels" | "FansyMe";
+export type Platform = "Maloum" | "Brezzels";
 
-const PLATFORMS: Platform[] = ["Maloum", "Brezzels", "FansyMe"];
+const PLATFORMS: Platform[] = ["Maloum", "Brezzels"];
 
 interface PlatformContextType {
   platform: Platform;
