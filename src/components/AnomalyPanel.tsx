@@ -34,6 +34,9 @@ import {
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
+const SNAPSHOT_VERSION = 2;
+const PAGE_SIZE = 1000;
+
 interface Props {
   platform: string;
   /** Default time range. */
@@ -78,6 +81,7 @@ export default function AnomalyPanel({
   }, [platform, range]);
 
   type Snapshot = {
+    version: number;
     anomalies: ChatterAnomaly[];
     peerAvg: number;
     totalChattersInRange: number;
@@ -99,7 +103,8 @@ export default function AnomalyPanel({
     try {
       const raw = sessionStorage.getItem(key);
       if (!raw) return null;
-      return JSON.parse(raw) as Snapshot;
+      const snap = JSON.parse(raw) as Snapshot;
+      return snap.version === SNAPSHOT_VERSION ? snap : null;
     } catch { return null; }
   };
 
