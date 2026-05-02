@@ -318,6 +318,53 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     });
   }, [open, fetchProfile]);
 
+  // Fetch zugeordnete Models (über chatter_history.account) inkl. Logindaten
+  useEffect(() => {
+    if (!open || !chatterName) {
+      setChatterModels([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: histRows } = await supabase
+        .from("chatter_history")
+        .select("account")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform);
+      if (cancelled) return;
+      const accounts = Array.from(
+        new Set(
+          (histRows || [])
+            .map((r: any) => (r.account || "").trim())
+            .filter((a: string) => a.length > 0)
+        )
+      );
+      if (accounts.length === 0) {
+        setChatterModels([]);
+        return;
+      }
+      const { data: modelRows } = await supabase
+        .from("models")
+        .select("model_name, email, password")
+        .eq("platform", platform)
+        .in("model_name", accounts);
+      if (cancelled) return;
+      const byName = new Map<string, { email: string | null; password: string | null }>();
+      for (const m of (modelRows || []) as any[]) {
+        byName.set(m.model_name, { email: m.email ?? null, password: m.password ?? null });
+      }
+      const list = accounts
+        .map((name) => ({
+          name,
+          email: byName.get(name)?.email ?? null,
+          password: byName.get(name)?.password ?? null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      setChatterModels(list);
+    })();
+    return () => { cancelled = true; };
+  }, [open, chatterName, platform]);
+
   // Fetch labels
   useEffect(() => {
     if (!open) return;
