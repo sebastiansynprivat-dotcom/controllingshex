@@ -338,6 +338,7 @@ export default function AnomalyPanel({
       setLastCoachings(new Map(snap.lastCoachings ?? []));
       setCategorySince(new Map(snap.categorySince ?? []));
       setPrevWindowAvg(new Map(snap.prevWindowAvg ?? []));
+      setAllTimeAvg(new Map(snap.allTimeAvg ?? []));
       setLoading(false);
       return;
     }
