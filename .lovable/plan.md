@@ -1,35 +1,75 @@
 ## Ziel
 
-Im Chatter-Profil (Slide-Over) wird ein neuer Bereich **"Models & Logins"** angezeigt, der alle Models listet, die dieser Chatter laut `chatter_history.account` betreut. Pro Model: zwei Klick-Aktionen — **Mail kopieren** und **Passwort kopieren**.
+Die Seite **Texte** wird zu einem sauberen Snippet-System: vorformulierte Texte, gruppiert nach „Tag X" (wann sie an den Chatter rausgehen sollen), mit One-Click-Copy.
 
-## Verhalten
+## UI / UX
 
-- Beim Öffnen des Chatters werden die Distinct-`account`-Werte aus `chatter_history` (für diesen Chatter + Plattform) geladen.
-- Diese werden gegen `models.model_name` gematcht und Mail/Passwort daraus gezogen.
-- Pro Model eine kleine Karte:
-  - Modelname als Titel
-  - Button **"✉ Mail"** → `navigator.clipboard.writeText(email)` + Toast "Mail kopiert"
-  - Button **"🔑 Passwort"** → `navigator.clipboard.writeText(password)` + Toast "Passwort kopiert"
-  - Buttons zeigen den Wert maskiert/abgekürzt (z. B. erste Zeichen der Mail, Punkte für Passwort) — kein Vollklartext im UI.
-- Models ohne Logindaten werden nur namentlich gelistet, ohne Buttons.
-- Wenn kein Account zugeordnet ist, wird der ganze Bereich nicht angezeigt.
+```text
+┌─ Texte ──────────────────────────── [Sperren] ┐
+│                                                │
+│  [+ Neuer Text]   [+ Neuer Tag-Bucket]         │
+│                                                │
+│  ▼ Tag 0  (Erstkontakt)                    ⋮  │
+│    ┌────────────────────────────────────────┐  │
+│    │ Hey Süßer, schön dich kennenzulernen…  │  │
+│    │                                  [Copy]│  │
+│    └────────────────────────────────────────┘  │
+│    ┌────────────────────────────────────────┐  │
+│    │ Wie war dein Tag? …              [Copy]│  │
+│    └────────────────────────────────────────┘  │
+│                                                │
+│  ▼ Tag 2  (Follow-up)                      ⋮  │
+│    ...                                         │
+│                                                │
+│  ▼ Tag 3                                   ⋮  │
+│  ▼ Tag 7                                   ⋮  │
+└────────────────────────────────────────────────┘
+```
 
-## Technische Umsetzung
+- Buckets sind **kollabierbar** und nach `day_offset` aufsteigend sortiert
+- Jede Karte: kompletter Text sichtbar (max-height + scroll bei langen Texten), großer **„Kopieren"**-Button → schreibt Text in Zwischenablage + Toast „Kopiert"
+- Hover/Klick auf Karte: **Bearbeiten** (inline) und **Löschen** (Trash-Icon)
+- Drag-Handle zum Umsortieren innerhalb eines Buckets (`position`-Feld)
+- Optionaler **Titel/Label** pro Snippet (z. B. „Sexy Opener", „Soft Reminder") — wird über dem Text als kleines Tag angezeigt
+- Bucket-Header zeigt Anzahl Snippets + optional kurze Beschreibung („Erstkontakt", „Follow-up" …)
 
-**Datei:** `src/components/ChatterSlideOver.tsx`
+## Neuer Text / neuer Bucket
 
-1. Neuen State `models: { name: string; email: string|null; password: string|null }[]` hinzufügen.
-2. Neuer Effect (analog zu bestehenden Loads), getriggert von `chatterName` + `platform`:
-   - `select('account').from('chatter_history').eq('chatter_name', chatterName).eq('platform', platform)` → Distinct-Accounts.
-   - `select('model_name,email,password').from('models').in('model_name', accounts).eq('platform', platform)`.
-   - Reihenfolge: alphabetisch.
-3. Neuer Render-Block direkt unter dem Header (über Notes/Charts), nur wenn `models.length > 0`:
-   - `SectionHeader` "Models & Logins" mit goldenem Akzent
-   - Grid (1 Spalte mobile, 2 Spalten ab `sm`) mit Model-Cards
-4. Copy-Handler (gleiches Pattern wie `Models.tsx` Z. 463–480): `navigator.clipboard.writeText` + `toast.success`.
+- **„+ Neuer Text"**: Modal/Sheet mit
+  - Tag-Auswahl (Dropdown mit existierenden Tag-Werten + „Anderer Tag…" für freie Zahl)
+  - Optionaler Titel
+  - Großes Textarea
+  - Speichern → erscheint sofort im richtigen Bucket
+- **„+ Neuer Tag-Bucket"**: nur Zahl eingeben (z. B. 14) — leerer Bucket erscheint
 
-**Keine** Backend-/DB-Änderungen nötig — `models.email` und `models.password` existieren bereits.
+## Datenbank
 
-## Files
+Neue Tabelle `text_snippets`:
 
-- `src/components/ChatterSlideOver.tsx` (einziger Eingriff)
+| Spalte | Typ | Notizen |
+|---|---|---|
+| id | uuid PK | gen_random_uuid() |
+| user_id | uuid | RLS-Owner |
+| platform | text | default 'Maloum' |
+| day_offset | int | 0, 2, 3, 7, 14 … |
+| title | text nullable | optionales Label |
+| body | text | der Text selbst |
+| position | int default 0 | Reihenfolge im Bucket |
+| created_at / updated_at | timestamptz |
+
+RLS-Policies analog zu `todos` (user_id = auth.uid() für SELECT/INSERT/UPDATE/DELETE). Tabelle wird per Migration angelegt.
+
+Die bestehende `todos`-Tabelle bleibt unverändert. Falls der Lock-Schutz (Passwort) für die Texte-Seite weiter gewünscht ist, behalten wir ihn — die neue Snippet-Liste lebt einfach unter dem gleichen Schutz.
+
+**Frage:** Behalten wir den Passwort-Schutz für die Texte-Seite, oder soll die Seite frei zugänglich sein?
+
+## Geänderte / neue Dateien
+
+- **Migration**: Tabelle `text_snippets` + RLS
+- **`src/pages/Notes.tsx`** (umgebaut): zeigt jetzt das Snippet-System statt Todos. Lock-Logik bleibt, falls gewünscht. Todo-CRUD raus.
+- ggf. neue kleine Komponenten `SnippetCard.tsx`, `SnippetEditor.tsx` (Sheet)
+
+## Offen
+
+- Passwort-Schutz behalten? (Default: ja)
+- Sollen Todos komplett verschwinden oder weiter als zweiter Reiter auf der Seite verfügbar bleiben?
