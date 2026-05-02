@@ -23,7 +23,7 @@ const items = [
   { title: "Upload", url: "/upload", icon: Upload },
   { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
   { title: "Swipe Mode", url: "/tinder", icon: Flame },
-  { title: "Notizen", url: "/notes", icon: StickyNote },
+  { title: "Texte", url: "/notes", icon: StickyNote },
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
