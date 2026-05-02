@@ -331,12 +331,12 @@ export default function Notes() {
     fetchSnippets();
   };
 
-  const copyText = async (text: string) => {
+  const copyText = async (text: string, label?: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      sonner.success("Text copied");
+      sonner.success(label ? `${label} kopiert` : "Text kopiert");
     } catch {
-      sonner.error("Copy failed");
+      sonner.error("Kopieren fehlgeschlagen");
     }
   };
 
@@ -560,7 +560,7 @@ export default function Notes() {
                           }
                           onMarkSent={(name) => markSent(s.id, name)}
                           onMarkAllSent={(names) => markAllSent(s.id, names)}
-                          onCopy={() => copyText(s.body)}
+                          onCopy={(label) => copyText(s.body, label)}
                           onEdit={() => openEditor(s.day_offset, s)}
                           onDelete={() => deleteSnippet(s)}
                           onMediaClick={(p) => setLightbox(p)}
@@ -779,7 +779,7 @@ function SnippetCard({
   onToggleRecipients: () => void;
   onMarkSent: (chatterName: string) => void;
   onMarkAllSent: (chatterNames: string[]) => void;
-  onCopy: () => void;
+  onCopy: (label?: string) => void;
   onEdit: () => void;
   onDelete: () => void;
   onMediaClick: (path: string) => void;
@@ -846,7 +846,7 @@ function SnippetCard({
       )}
 
       <button
-        onClick={onCopy}
+        onClick={() => onCopy()}
         className="w-full text-left p-4 pr-12"
         title="Click to copy text"
       >
@@ -938,7 +938,7 @@ function SnippetCard({
                 {recipients.map((r) => (
                   <div
                     key={r.chatter_name}
-                    onClick={onCopy}
+                    onClick={() => onCopy(r.chatter_name)}
                     role="button"
                     tabIndex={0}
                     title="Click to copy text"
