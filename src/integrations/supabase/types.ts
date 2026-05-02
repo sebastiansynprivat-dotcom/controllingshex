@@ -514,6 +514,42 @@ export type Database = {
         }
         Relationships: []
       }
+      text_snippets: {
+        Row: {
+          body: string
+          created_at: string
+          day_offset: number
+          id: string
+          platform: string
+          position: number
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          day_offset?: number
+          id?: string
+          platform?: string
+          position?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          day_offset?: number
+          id?: string
+          platform?: string
+          position?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       todos: {
         Row: {
           created_at: string
