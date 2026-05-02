@@ -123,27 +123,19 @@ export default function Notes() {
     setLoading(false);
   };
 
-  // Build onboarding map: earliest analysis_date per chatter_name from chatter_history
+  // Build onboarding map via RPC (avoids 1000-row select limit)
   const fetchOnboarding = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date")
-      .eq("platform", platform)
-      .order("analysis_date", { ascending: true });
-    if (!data) return;
-    const earliest = new Map<string, string>();
-    for (const row of data) {
-      const name = (row.chatter_name || "").trim();
-      if (!name) continue;
-      if (!earliest.has(name)) earliest.set(name, row.analysis_date as string);
-    }
+    const { data, error } = await supabase.rpc("get_chatter_onboarding", {
+      p_platform: platform,
+    });
+    if (error || !data) return;
     const today = new Date();
-    const list: ChatterOnboarding[] = Array.from(earliest.entries()).map(
-      ([chatter_name, onboarded_on]) => ({
-        chatter_name,
-        onboarded_on,
-        daysSince: daysBetween(onboarded_on, today),
+    const list: ChatterOnboarding[] = (data as { chatter_name: string; onboarded_on: string }[]).map(
+      (row) => ({
+        chatter_name: row.chatter_name,
+        onboarded_on: row.onboarded_on,
+        daysSince: daysBetween(row.onboarded_on, today),
       }),
     );
     list.sort((a, b) => a.chatter_name.localeCompare(b.chatter_name));
