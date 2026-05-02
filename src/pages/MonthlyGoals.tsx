@@ -180,6 +180,107 @@ function Stat({
   );
 }
 
+interface SuggestionRow {
+  chatter: string;
+  avg30: number;
+  monthRevenue: number;
+  suggested: number;
+}
+
+function SuggestionCard({
+  row,
+  onAccept,
+  onSkip,
+  busy,
+}: {
+  row: SuggestionRow;
+  onAccept: (goal: number) => void;
+  onSkip: () => void;
+  busy: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<string>(String(row.suggested));
+
+  const parsed = Math.max(0, Math.round(parseFloat(value.replace(/[^\d.,]/g, "").replace(",", ".")) || 0));
+
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-emerald-500/[0.04] via-white/[0.02] to-transparent p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold text-white/90 truncate">
+            {row.chatter}
+          </h3>
+          <p className="text-[11px] text-white/35 font-light mt-0.5">
+            Vorschlag basierend auf Ø der letzten 30 Tage
+          </p>
+        </div>
+        <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 font-light shrink-0">
+          Vorschlag
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <Stat label="Ø Tag (30d)" value={formatEUR(row.avg30)} />
+        <Stat label="Monat bisher" value={formatEUR(row.monthRevenue)} />
+      </div>
+
+      <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/[0.06] px-4 py-3 mb-3">
+        <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-light mb-1">
+          Vorgeschlagenes Monatsziel
+        </div>
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoFocus
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-lg font-semibold tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
+              placeholder="z.B. 3500"
+            />
+            <span className="text-white/55 text-sm">€</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-2xl sm:text-3xl font-semibold tabular-nums text-emerald-200">
+              {formatEUR(parsed || row.suggested)}
+            </span>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-[11px] text-white/45 hover:text-white/80 font-light flex items-center gap-1 transition-colors"
+              title="Ziel anpassen"
+            >
+              <Pencil className="h-3 w-3" />
+              ändern
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          disabled={busy || parsed <= 0}
+          onClick={() => onAccept(parsed)}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-sm font-light hover:bg-emerald-400/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          Annehmen
+        </button>
+        <button
+          disabled={busy}
+          onClick={onSkip}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.06] bg-white/[0.02] text-white/55 text-sm font-light hover:bg-white/[0.05] hover:text-white/80 transition-colors disabled:opacity-50"
+          title="Vorschlag ausblenden"
+        >
+          <X className="h-3.5 w-3.5" />
+          Skip
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MonthlyGoals() {
   const { platform } = usePlatform();
   const [rows, setRows] = useState<ChatterGoalRow[]>([]);
