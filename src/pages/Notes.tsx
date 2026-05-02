@@ -8,6 +8,7 @@ import {
   Pencil,
   Check,
   X,
+  MessageSquareText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -198,116 +199,140 @@ export default function Notes() {
   };
 
   const dayLabel = (d: number) => (d === 0 ? "Tag 0 · Erstkontakt" : `Tag ${d}`);
+  const totalSnippets = snippets.length;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground/90 tracking-wide">Texte</h1>
-          <p className="text-[11px] text-white/30 font-light mt-1">
-            Vorformulierte Nachrichten · gruppiert nach Tag · ein Klick = kopiert
-          </p>
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-10 space-y-3 sm:space-y-6">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-4 sm:p-8">
+        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/[0.06] blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
+          <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 border border-primary/20 flex items-center justify-center shrink-0">
+              <MessageSquareText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-semibold text-foreground/95 tracking-tight">
+                Texte
+              </h1>
+              <p className="text-[12px] sm:text-sm text-white/55 font-light mt-1 sm:mt-1.5 max-w-xl leading-relaxed">
+                Vorformulierte Nachrichten · gruppiert nach Tag · ein Klick kopiert in die Zwischenablage.
+              </p>
+              <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[11px] text-white/35">
+                <span>{totalSnippets} {totalSnippets === 1 ? "Text" : "Texte"}</span>
+                <span className="h-1 w-1 rounded-full bg-white/15" />
+                <span>{allBuckets.length} {allBuckets.length === 1 ? "Bucket" : "Buckets"}</span>
+              </div>
+            </div>
+          </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          onClick={() => openEditor(0, null)}
-          size="sm"
-          className="bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 font-light text-xs"
-        >
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Neuer Text
-        </Button>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            addBucket();
-          }}
-          className="flex items-center gap-1.5"
-        >
-          <Input
-            type="number"
-            min={0}
-            value={newBucketDay}
-            onChange={(e) => setNewBucketDay(e.target.value)}
-            placeholder="Tag …"
-            className="h-8 w-24 bg-white/[0.03] border-white/[0.06] text-xs"
-          />
-          <Button
-            type="submit"
-            size="sm"
-            variant="ghost"
-            className="h-8 text-xs text-white/50 hover:text-white/80"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Bucket
-          </Button>
-        </form>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              onClick={() => openEditor(0, null)}
+              size="sm"
+              className="h-9 bg-gradient-to-br from-primary/30 to-primary/15 hover:from-primary/40 hover:to-primary/20 text-primary border border-primary/30 font-medium text-xs shadow-lg shadow-primary/10"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Neuer Text
+            </Button>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                addBucket();
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <Input
+                type="number"
+                min={0}
+                value={newBucketDay}
+                onChange={(e) => setNewBucketDay(e.target.value)}
+                placeholder="Tag …"
+                className="h-9 w-20 bg-white/[0.04] border-white/[0.08] text-xs text-center"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                variant="ghost"
+                className="h-9 text-xs text-white/55 hover:text-white/90 hover:bg-white/[0.04]"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Bucket
+              </Button>
+            </form>
+          </div>
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-16">
           <div className="h-5 w-5 border border-white/20 border-t-white/60 rounded-full animate-spin" />
         </div>
       ) : allBuckets.length === 0 ? (
-        <div className="py-16 text-center text-white/30 text-sm">
-          Noch keine Texte. Lege deinen ersten an.
+        <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.015] py-20 text-center">
+          <MessageSquareText className="h-8 w-8 text-white/15 mx-auto mb-3" />
+          <p className="text-sm text-white/40 font-light">Noch keine Texte angelegt.</p>
+          <p className="text-[11px] text-white/25 font-light mt-1">
+            Klick auf „Neuer Text" um loszulegen.
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {allBuckets.map((day) => {
             const items = snippets.filter((s) => s.day_offset === day);
             const isCollapsed = !!collapsed[day];
             return (
               <div
                 key={day}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden"
+                className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] via-white/[0.015] to-transparent overflow-hidden hover:border-white/[0.1] transition-colors"
               >
-                <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4">
                   <button
                     onClick={() =>
                       persistCollapsed({ ...collapsed, [day]: !isCollapsed })
                     }
-                    className="flex items-center gap-2 text-left flex-1 group"
+                    className="flex items-center gap-3 text-left flex-1 group"
                   >
-                    {isCollapsed ? (
-                      <ChevronRight className="h-3.5 w-3.5 text-white/30 group-hover:text-white/60" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-white/30 group-hover:text-white/60" />
-                    )}
-                    <span className="text-sm font-medium text-foreground/85">
-                      {dayLabel(day)}
-                    </span>
-                    <span className="text-[10px] text-white/30 ml-1">
-                      {items.length} {items.length === 1 ? "Text" : "Texte"}
-                    </span>
+                    <div className="h-7 w-7 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center group-hover:bg-white/[0.07] transition-colors shrink-0">
+                      {isCollapsed ? (
+                        <ChevronRight className="h-3.5 w-3.5 text-white/50" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-white/50" />
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2 min-w-0">
+                      <span className="text-sm sm:text-[15px] font-semibold text-foreground/90 tracking-tight">
+                        {dayLabel(day)}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-white/30">
+                        {items.length} {items.length === 1 ? "Text" : "Texte"}
+                      </span>
+                    </div>
                   </button>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEditor(day, null)}
-                      className="text-white/30 hover:text-primary transition-colors p-1.5 rounded-md hover:bg-white/[0.04]"
+                      className="text-white/40 hover:text-primary transition-colors p-2 rounded-lg hover:bg-white/[0.05]"
                       title="Text in diesem Bucket"
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     </button>
                     {items.length === 0 && (
                       <button
                         onClick={() => removeEmptyBucket(day)}
-                        className="text-white/20 hover:text-red-400/60 transition-colors p-1.5 rounded-md hover:bg-white/[0.04]"
+                        className="text-white/25 hover:text-red-400/70 transition-colors p-2 rounded-lg hover:bg-white/[0.05]"
                         title="Leeren Bucket entfernen"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-4 w-4" />
                       </button>
                     )}
                   </div>
                 </div>
 
                 {!isCollapsed && (
-                  <div className="px-3 pb-3 space-y-2">
+                  <div className="px-3 sm:px-4 pb-4 pt-1 space-y-2">
                     {items.length === 0 ? (
-                      <p className="text-[11px] text-white/25 italic px-2 py-3">
+                      <p className="text-[11px] text-white/25 italic px-3 py-4">
                         Noch keine Texte für diesen Tag.
                       </p>
                     ) : (
@@ -409,39 +434,36 @@ function SnippetCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="group relative rounded-lg border border-white/[0.05] bg-white/[0.02] hover:border-white/[0.1] hover:bg-white/[0.035] transition-colors">
+    <div className="group relative rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] via-white/[0.02] to-transparent hover:border-primary/25 hover:from-white/[0.05] transition-all duration-200 shadow-sm">
       <button
         onClick={onCopy}
-        className="w-full text-left p-3 pr-3"
+        className="w-full text-left p-4 pr-12"
         title="Klick = kopieren"
       >
         {snippet.title && (
-          <div className="text-[10px] uppercase tracking-wider text-primary/70 font-medium mb-1.5">
+          <div className="text-[10px] uppercase tracking-[0.15em] text-primary/80 font-semibold mb-2">
             {snippet.title}
           </div>
         )}
-        <p className="text-sm text-foreground/85 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+        <p className="text-[13px] sm:text-sm text-foreground/85 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
           {snippet.body}
         </p>
+        <div className="flex items-center gap-1.5 mt-3 text-[10px] text-white/30 group-hover:text-primary/70 transition-colors">
+          <Copy className="h-3 w-3" />
+          <span className="uppercase tracking-wider font-medium">Klick zum Kopieren</span>
+        </div>
       </button>
-      <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={onCopy}
-          className="p-1.5 rounded-md bg-black/30 backdrop-blur-sm text-white/60 hover:text-primary hover:bg-black/50"
-          title="Kopieren"
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </button>
+      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={onEdit}
-          className="p-1.5 rounded-md bg-black/30 backdrop-blur-sm text-white/60 hover:text-white hover:bg-black/50"
+          className="p-1.5 rounded-md bg-black/40 backdrop-blur-sm border border-white/[0.06] text-white/60 hover:text-white hover:bg-black/60"
           title="Bearbeiten"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={onDelete}
-          className="p-1.5 rounded-md bg-black/30 backdrop-blur-sm text-white/60 hover:text-red-400 hover:bg-black/50"
+          className="p-1.5 rounded-md bg-black/40 backdrop-blur-sm border border-white/[0.06] text-white/60 hover:text-red-400 hover:bg-black/60"
           title="Löschen"
         >
           <Trash2 className="h-3.5 w-3.5" />
