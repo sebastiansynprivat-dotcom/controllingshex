@@ -560,7 +560,7 @@ export default function Notes() {
                           }
                           onMarkSent={(name) => markSent(s.id, name)}
                           onMarkAllSent={(names) => markAllSent(s.id, names)}
-                          onCopy={() => copyText(s.body)}
+                          onCopy={(label) => copyText(s.body, label)}
                           onEdit={() => openEditor(s.day_offset, s)}
                           onDelete={() => deleteSnippet(s)}
                           onMediaClick={(p) => setLightbox(p)}
