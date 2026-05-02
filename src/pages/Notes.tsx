@@ -123,27 +123,19 @@ export default function Notes() {
     setLoading(false);
   };
 
-  // Build onboarding map: earliest analysis_date per chatter_name from chatter_history
+  // Build onboarding map via RPC (avoids 1000-row select limit)
   const fetchOnboarding = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date")
-      .eq("platform", platform)
-      .order("analysis_date", { ascending: true });
-    if (!data) return;
-    const earliest = new Map<string, string>();
-    for (const row of data) {
-      const name = (row.chatter_name || "").trim();
-      if (!name) continue;
-      if (!earliest.has(name)) earliest.set(name, row.analysis_date as string);
-    }
+    const { data, error } = await supabase.rpc("get_chatter_onboarding", {
+      p_platform: platform,
+    });
+    if (error || !data) return;
     const today = new Date();
-    const list: ChatterOnboarding[] = Array.from(earliest.entries()).map(
-      ([chatter_name, onboarded_on]) => ({
-        chatter_name,
-        onboarded_on,
-        daysSince: daysBetween(onboarded_on, today),
+    const list: ChatterOnboarding[] = (data as { chatter_name: string; onboarded_on: string }[]).map(
+      (row) => ({
+        chatter_name: row.chatter_name,
+        onboarded_on: row.onboarded_on,
+        daysSince: daysBetween(row.onboarded_on, today),
       }),
     );
     list.sort((a, b) => a.chatter_name.localeCompare(b.chatter_name));
@@ -798,45 +790,56 @@ function SnippetCard({
   return (
     <div className="group relative rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent hover:border-primary/30 hover:from-white/[0.06] transition-all duration-200 shadow-sm">
       {media.length > 0 && (
-        <div
-          className={`grid gap-1.5 p-3 pb-0 ${
-            media.length === 1 ? "grid-cols-1" : media.length === 2 ? "grid-cols-2" : "grid-cols-3"
-          }`}
-        >
+        <div className="flex flex-wrap gap-2 p-3 pb-0">
           {media.map((path) => {
             const url = signedUrls[path];
             const isVideo = isVideoPath(path);
+            const fileName = path.split("/").pop() || "media";
             return (
-              <button
+              <div
                 key={path}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMediaClick(path);
-                }}
-                className={`relative rounded-lg overflow-hidden border border-white/[0.08] bg-black/30 hover:border-primary/40 transition-colors ${
-                  media.length === 1 ? "aspect-video" : "aspect-square"
-                }`}
+                className="relative group/media h-16 w-16 rounded-lg overflow-hidden border border-white/[0.08] bg-black/30 hover:border-primary/40 transition-colors shrink-0"
               >
-                {url ? (
-                  isVideo ? (
-                    <video src={url} className="h-full w-full object-cover" muted />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMediaClick(path);
+                  }}
+                  className="absolute inset-0"
+                  title="Preview"
+                >
+                  {url ? (
+                    isVideo ? (
+                      <video src={url} className="h-full w-full object-cover" muted />
+                    ) : (
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    )
                   ) : (
-                    <img src={url} alt="" className="h-full w-full object-cover" />
-                  )
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-foreground/40" />
-                  </div>
-                )}
-                {isVideo && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                      <Play className="h-4 w-4 text-white fill-white" />
+                    <div className="h-full w-full flex items-center justify-center">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground/40" />
                     </div>
-                  </div>
+                  )}
+                  {isVideo && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="h-5 w-5 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                        <Play className="h-2.5 w-2.5 text-white fill-white" />
+                      </div>
+                    </div>
+                  )}
+                </button>
+                {url && (
+                  <a
+                    href={url}
+                    download={fileName}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute bottom-0.5 right-0.5 p-1 rounded-md bg-black/75 hover:bg-primary/80 text-white border border-white/15 backdrop-blur-sm opacity-0 group-hover/media:opacity-100 transition-opacity"
+                    title="Download"
+                  >
+                    <Download className="h-3 w-3" />
+                  </a>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
