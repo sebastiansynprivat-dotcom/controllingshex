@@ -726,7 +726,7 @@ export default function MonthlyGoals() {
             ) : (
               <>
                 <p className="text-[11px] text-white/40 font-light">
-                  Vorschläge basierend auf Ø Tagesumsatz × Tage im Monat × 110 % (auf 50 € gerundet).
+                  Vorschläge basierend auf All-Time Ø Tagesumsatz × Tage im Monat × 110 % (auf 50 € gerundet).
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {visibleSuggestions.map((s) => (
