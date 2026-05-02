@@ -184,6 +184,7 @@ export default function MonthlyGoals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
+  const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
