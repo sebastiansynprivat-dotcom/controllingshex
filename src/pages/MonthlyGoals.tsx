@@ -76,7 +76,7 @@ function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) 
     : p.pacePct >= 80 ? "text-amber-300"
     : "text-red-300";
 
-  const clickTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClick = () => {
     if (clickTimer.current) {
@@ -96,7 +96,7 @@ function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) 
     }, 220);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (clickTimer.current) clearTimeout(clickTimer.current);
     };
@@ -414,7 +414,7 @@ export default function MonthlyGoals() {
               <GoalCard
                 key={row.chatter}
                 row={row}
-                onClick={() => setSelected(row.chatter)}
+                onOpen={() => setSelected(row.chatter)}
               />
             ))}
           </div>
