@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ export default function StandardTab() {
   const [draftMedia, setDraftMedia] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchNotes = async () => {
@@ -204,6 +204,23 @@ export default function StandardTab() {
     const { error } = await supabase.from("standard_notes").delete().eq("id", id);
     if (error) return sonner.error(error.message);
     fetchNotes();
+  };
+
+  const downloadImage = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage.from(BUCKET).download(path);
+      if (error || !data) throw error || new Error("Download fehlgeschlagen");
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = path.split("/").pop() || "bild";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      sonner.error(e?.message || "Download fehlgeschlagen");
+    }
   };
 
   const copy = async (text: string) => {
@@ -387,13 +404,16 @@ export default function StandardTab() {
                                 <div key={path} className="h-16 w-16 rounded bg-white/[0.04] animate-pulse" />
                               );
                               return (
-                                <button
-                                  key={path}
-                                  onClick={() => setLightbox(url)}
-                                  className="h-16 w-16 rounded overflow-hidden border border-white/[0.08] hover:border-white/[0.2] transition-colors"
-                                >
+                                <div key={path} className="relative group/img h-16 w-16 rounded overflow-hidden border border-white/[0.08]">
                                   <img src={url} alt="" className="h-full w-full object-cover" />
-                                </button>
+                                  <button
+                                    onClick={() => downloadImage(path)}
+                                    title="Herunterladen"
+                                    className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 group-hover/img:opacity-100 transition-opacity"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -515,14 +535,6 @@ export default function StandardTab() {
         </DialogContent>
       </Dialog>
 
-      {lightbox && (
-        <div
-          onClick={() => setLightbox(null)}
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
-        >
-          <img src={lightbox} alt="" className="max-h-full max-w-full object-contain" />
-        </div>
-      )}
     </div>
   );
 }
