@@ -506,8 +506,48 @@ export default function Models() {
           )}
         </div>
 
-        {/* Table */}
+        {/* Datenbank */}
         <div className="premium-card rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-8 py-4 border-b border-white/[0.05]">
+            <div className="flex items-center gap-2">
+              <Database className="h-3.5 w-3.5 text-primary/60" />
+              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Datenbank · {filteredModels.length}{filteredModels.length !== models.length && <span className="opacity-50">/{models.length}</span>}</span>
+            </div>
+            <button
+              onClick={() => setShowAddForm((v) => !v)}
+              className="text-[10px] uppercase tracking-[0.18em] text-white/40 hover:text-primary transition-colors inline-flex items-center gap-1.5 font-light"
+            >
+              <Plus className={cn("h-3 w-3 transition-transform", showAddForm && "rotate-45")} />
+              {showAddForm ? "Schließen" : "Model hinzufügen"}
+            </button>
+          </div>
+
+          {showAddForm && (
+            <div className="px-4 sm:px-8 py-5 border-b border-white/[0.05] bg-white/[0.015] space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input placeholder="Name" value={newName} onChange={(e) => setNewName(capitalizeName(e.target.value))} className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm" />
+                <Input placeholder="Follower" type="number" value={newFollowers} onChange={(e) => setNewFollowers(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm" />
+                <Input placeholder="E-Mail" type="email" autoComplete="off" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm" />
+                <Input placeholder="Passwort" type="text" autoComplete="off" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm" />
+              </div>
+              <Input
+                placeholder="Maloum-Profil-URL (optional, z.B. https://app.maloum.com/creator/...)"
+                value={newProfileUrl}
+                onChange={(e) => setNewProfileUrl(e.target.value)}
+                className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
+              />
+              <div className="flex justify-end">
+                <Button
+                  onClick={addModel}
+                  className="premium-chip bg-white/[0.04] hover:bg-white/[0.07] text-foreground/80 border border-white/[0.08] hover:border-primary/25 font-light text-[12px] tracking-wider transition-all duration-300 shrink-0 active:scale-[0.98]"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Hinzufügen
+                </Button>
+              </div>
+            </div>
+          )}
+
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.05]">
