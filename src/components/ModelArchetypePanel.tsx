@@ -192,9 +192,9 @@ export default function ModelArchetypePanel({
       ) : (
         <button
           onClick={() => setShowEditor((v) => !v)}
-          className="text-[10px] text-white/30 hover:text-primary/70 inline-flex items-center gap-1 transition-colors"
+          className="text-[11px] px-2.5 py-1 rounded-md bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary/90 hover:text-primary inline-flex items-center gap-1.5 transition-colors font-light"
         >
-          <Sparkles className="h-2.5 w-2.5" /> Archetyp analysieren
+          <Sparkles className="h-3 w-3" /> Archetyp analysieren
         </button>
       )}
 
