@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Sparkles, Loader2, CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { generatePlan, nextMondayISO } from "@/lib/channel-plan";
 
@@ -68,7 +72,37 @@ export default function ChannelPlanGenerator({ platform, onGenerated }: Props) {
         <div className="space-y-4 pt-2">
           <div>
             <label className="text-[11px] uppercase tracking-wider text-foreground/55 font-medium">Wochenstart</label>
-            <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} className="mt-1 bg-white/[0.05] border-white/[0.12] text-sm" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "mt-1 w-full justify-start text-left font-normal h-10 bg-white/[0.05] border-white/[0.12] text-sm text-foreground hover:bg-white/[0.08]",
+                    !weekStart && "text-foreground/50"
+                  )}
+                >
+                  <CalendarDays className="mr-2 h-4 w-4 text-primary" />
+                  {weekStart
+                    ? format(new Date(weekStart + "T00:00:00"), "EEEE, d. MMMM yyyy", { locale: de })
+                    : "Datum wählen"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-[hsl(var(--surface-1))] border-white/[0.1]" align="start">
+                <Calendar
+                  mode="single"
+                  selected={weekStart ? new Date(weekStart + "T00:00:00") : undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                      setWeekStart(iso);
+                    }
+                  }}
+                  weekStartsOn={1}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <label className="text-[11px] uppercase tracking-wider text-foreground/55 font-medium">Posting-Tage</label>
