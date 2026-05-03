@@ -180,6 +180,15 @@ export default function Models() {
     loadAttributes(models.map((m) => m.id));
   }, [models]);
 
+  // Trouble detection (always run; used for filter pill count + filter)
+  useEffect(() => {
+    const names = models.map((m) => m.model_name);
+    if (names.length === 0) { setTroubles([]); return; }
+    detectModelTroubles(platform, names).then(setTroubles).catch(() => setTroubles([]));
+  }, [platform, models.map((m) => m.model_name).join("|")]);
+
+  const troubleNames = useMemo(() => new Set(troubles.map((t) => t.modelName)), [troubles]);
+
   const archetypeStats = useMemo(() => {
     // Average daily revenue per archetype value
     const buckets: Record<string, Record<string, { rev: number; count: number }>> = {
