@@ -551,10 +551,18 @@ export default function StandardTab() {
                 <div className="flex flex-wrap gap-2">
                   {draftMedia.map((path) => {
                     const url = signedUrls[path];
+                    const isVideo = /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(path);
                     return (
-                      <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1]">
+                      <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1] bg-black/40">
                         {url ? (
-                          <img src={url} alt="" className="h-full w-full object-cover" />
+                          isVideo ? (
+                            <>
+                              <video src={url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                              <Play className="absolute inset-0 m-auto h-5 w-5 text-white/80 pointer-events-none drop-shadow" />
+                            </>
+                          ) : (
+                            <img src={url} alt="" className="h-full w-full object-cover" />
+                          )
                         ) : (
                           <div className="h-full w-full bg-white/[0.04] animate-pulse" />
                         )}
