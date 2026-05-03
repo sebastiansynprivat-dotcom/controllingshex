@@ -149,9 +149,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, compact
                     {meta.label}
                   </span>
                 </div>
-                {!compact && (
-                  <p className="text-[11px] text-white/45 font-light mt-1 leading-relaxed">{t.why}</p>
-                )}
+                <p className="text-[11px] text-white/45 font-light mt-1 leading-relaxed">{t.why}</p>
               </div>
 
               <div className="flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">

@@ -75,6 +75,35 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
 
+  // Models + Follower laden, um sie auf der Karte anzuzeigen.
+  const { data: modelRowsForLookup } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("platform", platform);
+  const followersByModel = new Map<string, number>();
+  for (const m of modelRowsForLookup || []) {
+    followersByModel.set(m.model_name.toLowerCase().trim(), Number(m.follower_count) || 0);
+  }
+  const formatFollowers = (n: number): string => {
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "")}k`;
+    return String(n);
+  };
+  /** Liefert die heutigen Accounts (Models) eines Chatters mit Follower-Anzeige. */
+  const modelInfoFor = (todayEntries: HistoryRow[]): string => {
+    const accs = new Set<string>();
+    for (const e of todayEntries) {
+      const a = (e.account || "").trim();
+      if (a) accs.add(a);
+    }
+    if (accs.size === 0) return "";
+    const parts: string[] = [];
+    for (const a of accs) {
+      const f = followersByModel.get(a.toLowerCase());
+      parts.push(f ? `${a} (${formatFollowers(f)})` : a);
+    }
+    return parts.join(", ");
+  };
+
   const byChatter = new Map<string, HistoryRow[]>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
@@ -117,10 +146,16 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const todos: DailyTodo[] = [];
 
   for (const [name, entries] of byChatter) {
-    const todayEntry = entries.find((e) => e.analysis_date === latestDate);
+    const todayEntries = entries.filter((e) => e.analysis_date === latestDate);
+    const todayEntry = todayEntries[0];
     const historical = entries.filter((e) => e.analysis_date !== latestDate);
     const importance = importanceFor(name);
     const tag = importanceLabel(name);
+    const modelInfo = modelInfoFor(todayEntries);
+    const modelSuffix = modelInfo ? ` · Model: ${modelInfo}` : "";
+    // Aggregierte Tageswerte über alle Account-Zeilen
+    const todayOpenChats = todayEntries.reduce((s, e) => s + (e.open_chats ?? 0), 0);
+    const todayMaxDelay = todayEntries.reduce((m, e) => Math.max(m, e.response_delay_days ?? 0), 0);
 
     // Inaktivität — fehlt heute, war aber regelmäßig da
     if (!todayEntry && historical.length >= 5) {
@@ -137,20 +172,20 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     if (!todayEntry || historical.length < 2) continue;
 
     // Verzug
-    const delay = todayEntry.response_delay_days ?? 0;
+    const delay = todayMaxDelay;
     if (delay >= 3) {
       todos.push({
         key: `verzug:${name}:${today}`,
         category: "verzug",
         score: Math.round((90 + delay * 5) * importance),
         title: `${name} dringend — ${delay} Tage Verzug${tag}`,
-        why: `Antwortverzug ${delay} Tage. Sofort entlasten oder Ursache klären.`,
+        why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${modelSuffix}. Sofort entlasten oder Ursache klären.`,
         chatterName: name,
       });
     }
 
     // Mass-DM Drop
-    const todayDm = todayEntry.mass_dms ?? 0;
+    const todayDm = todayEntries.reduce((s, e) => s + (e.mass_dms ?? 0), 0);
     const baseDm = median(historical.map((e) => e.mass_dms ?? 0));
     if (baseDm >= 3) {
       const drop = ((baseDm - todayDm) / baseDm) * 100;
@@ -160,14 +195,14 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           category: "activity",
           score: Math.round((70 + Math.min(30, drop / 3)) * importance),
           title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)${tag}`,
-          why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%).`,
+          why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%)${modelSuffix}.`,
           chatterName: name,
         });
       }
     }
 
     // Revenue Drop
-    const todayRev = Number(todayEntry.revenue_today ?? 0);
+    const todayRev = todayEntries.reduce((s, e) => s + Number(e.revenue_today ?? 0), 0);
     const baseRev = median(historical.map((e) => Number(e.revenue_today ?? 0)));
     if (baseRev >= 50) {
       const drop = ((baseRev - todayRev) / baseRev) * 100;
@@ -177,7 +212,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           category: "revenue",
           score: Math.round((75 + Math.min(25, drop / 4)) * importance),
           title: `${name} checken — Umsatz −${Math.round(drop)}%${tag}`,
-          why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€.`,
+          why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix}.`,
           chatterName: name,
         });
       }
@@ -189,14 +224,14 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           category: "positive",
           score: Math.round(40 * importance),
           title: `Was läuft bei ${name} richtig? (+${up}%)`,
-          why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€ — Erfolgsrezept abgreifen.`,
+          why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix} — Erfolgsrezept abgreifen.`,
           chatterName: name,
         });
       }
     }
 
     // Chat Jam
-    const todayChats = todayEntry.open_chats ?? 0;
+    const todayChats = todayOpenChats;
     const baseChats = median(historical.map((e) => e.open_chats ?? 0));
     if (todayChats >= 30 && baseChats > 0 && todayChats > baseChats * 1.5) {
       const up = Math.round(((todayChats - baseChats) / baseChats) * 100);
@@ -205,7 +240,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         category: "activity",
         score: Math.round(65 * importance),
         title: `${name} entlasten — ${todayChats} offene Chats${tag}`,
-        why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats.`,
+        why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats${modelSuffix}.`,
         chatterName: name,
       });
     }
