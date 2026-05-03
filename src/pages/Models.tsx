@@ -18,6 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
+import ModelsInTroubleCard from "@/components/ModelsInTroubleCard";
 import { LineChart as LineChartIcon, Sparkles } from "lucide-react";
 import ModelArchetypePanel, {
   type ModelAttributes,
