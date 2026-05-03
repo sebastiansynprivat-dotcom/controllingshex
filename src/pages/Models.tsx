@@ -222,6 +222,7 @@ export default function Models() {
         if (revenueFilter === "earning" && !(rev && rev.totalRevenue > 0)) return false;
         if (revenueFilter === "zero" && rev && rev.totalRevenue > 0) return false;
       }
+      if (troubleFilter && !troubleNames.has(m.model_name)) return false;
       const a = attributesByModel[m.id];
       if (archetypeFilter.age && a?.age_group !== archetypeFilter.age) return false;
       if (archetypeFilter.body && a?.body_type !== archetypeFilter.body) return false;
@@ -229,7 +230,7 @@ export default function Models() {
       if (archetypeFilter.style && a?.style !== archetypeFilter.style) return false;
       return true;
     });
-  }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter]);
+  }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter, troubleFilter, troubleNames]);
 
   const addModel = async () => {
     if (!newName.trim()) return;
@@ -244,6 +245,7 @@ export default function Models() {
       user_id: user.id,
       email: newEmail.trim() || null,
       password: newPassword.trim() || null,
+      profile_url: newProfileUrl.trim() || null,
     });
     if (error) {
       console.error("[addModel] insert error:", error);
@@ -255,6 +257,8 @@ export default function Models() {
     setNewFollowers("");
     setNewEmail("");
     setNewPassword("");
+    setNewProfileUrl("");
+    setShowAddForm(false);
     fetchModels();
   };
 
@@ -264,6 +268,7 @@ export default function Models() {
     setEditFollowers(String(m.follower_count));
     setEditEmail(m.email || "");
     setEditPassword(m.password || "");
+    setEditProfileUrl(m.profile_url || "");
   };
 
   const saveEdit = async () => {
@@ -273,6 +278,7 @@ export default function Models() {
       follower_count: parseInt(editFollowers) || 0,
       email: editEmail.trim() || null,
       password: editPassword.trim() || null,
+      profile_url: editProfileUrl.trim() || null,
     }).eq("id", editId);
     if (error) { toast.error("Fehler beim Speichern"); return; }
     toast.success("Aktualisiert");
