@@ -315,7 +315,7 @@ export default function StandardTab() {
                 <div className="space-y-2">
                   {items.map((n) => {
                     const isOpen = !!expanded[n.id];
-                    const preview = n.body.replace(/\s+/g, " ").trim();
+                    const hasMedia = (n.media_urls?.length || 0) > 0;
                     return (
                       <div key={n.id} className="group rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-start gap-1.5 px-2 py-1.5">
@@ -335,6 +335,12 @@ export default function StandardTab() {
                             >
                               {n.body}
                             </span>
+                            {hasMedia && !isOpen && (
+                              <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-foreground/45">
+                                <ImagePlus className="h-3 w-3" />
+                                {n.media_urls.length} {n.media_urls.length === 1 ? "Bild" : "Bilder"}
+                              </span>
+                            )}
                           </button>
                           <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
                             <Button
@@ -373,6 +379,25 @@ export default function StandardTab() {
                             </button>
                           </div>
                         </div>
+                        {isOpen && hasMedia && (
+                          <div className="px-2 pb-2 flex flex-wrap gap-1.5">
+                            {n.media_urls.map((path) => {
+                              const url = signedUrls[path];
+                              if (!url) return (
+                                <div key={path} className="h-16 w-16 rounded bg-white/[0.04] animate-pulse" />
+                              );
+                              return (
+                                <button
+                                  key={path}
+                                  onClick={() => setLightbox(url)}
+                                  className="h-16 w-16 rounded overflow-hidden border border-white/[0.08] hover:border-white/[0.2] transition-colors"
+                                >
+                                  <img src={url} alt="" className="h-full w-full object-cover" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
