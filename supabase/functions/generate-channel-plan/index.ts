@@ -186,7 +186,13 @@ BESTE POSTING-ZEITEN (für Hook/Timing/Stimmung – nicht wörtlich im Post nenn
 - Mo–Fr: abends 19:00–20:00 Uhr ist die stärkste Zeit (Feierabend-Vibe)
 - Sa: Vormittag & Mittag laufen gut, abends spät / Nachtstunden geht nochmal richtig was
 - So: ganztägig top, entspannte Sonntags-Stimmung
-Nutze diese Slots, um Hook, Call-to-Action und Tonalität passend zum Tag zu gestalten.`;
+Nutze diese Slots, um Hook, Call-to-Action und Tonalität passend zum Tag zu gestalten.
+
+ZIELGRUPPE / LEBENSREALITÄT:
+Die meisten Follower gehen ganz normal arbeiten (klassischer 9–17 Uhr Job, Schichtdienst etc.).
+Sprich sie NICHT von oben herab an, mach KEINEN Druck Richtung "warum bist du nicht hier", "geh nicht zur Arbeit", "Arbeit ist langweilig vs. ich" o.ä.
+Kein Hacken auf den Arbeitsalltag, kein Bashing von Job/Chef/Montag.
+Stattdessen: empathisch, augenzwinkernd, abholen wo sie gerade sind (Feierabend, Pause, Pendeln, Wochenende). Arbeit darf erwähnt werden – aber wertschätzend / verständnisvoll, nie abwertend.`;
 
     const userPrompt = `WISSENSBASIS (NUR STIL-/KONTEXT-REFERENZ – NICHT WÖRTLICH ÜBERNEHMEN):
 ${knowledgeText}
