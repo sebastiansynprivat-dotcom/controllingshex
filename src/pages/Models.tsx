@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelsInTroubleCard from "@/components/ModelsInTroubleCard";
-import { LineChart as LineChartIcon } from "lucide-react";
+import { LineChart as LineChartIcon, Sparkles } from "lucide-react";
+import ModelArchetypePanel, {
+  type ModelAttributes,
+  AGE_LABELS, BODY_LABELS, HAIR_LABELS, STYLE_LABELS,
+} from "@/components/ModelArchetypePanel";
 
 interface Model {
   id: string;
@@ -28,7 +32,16 @@ interface Model {
   created_at: string;
   email?: string | null;
   password?: string | null;
+  profile_url?: string | null;
+  profile_image_url?: string | null;
 }
+
+type ArchetypeFilter = {
+  age?: string;
+  body?: string;
+  hair?: string;
+  style?: string;
+};
 
 interface ModelRevenue {
   totalRevenue: number;
@@ -76,6 +89,8 @@ export default function Models() {
   const [searchQuery, setSearchQuery] = useState("");
   const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
   const [perfModelName, setPerfModelName] = useState<string | null>(null);
+  const [attributesByModel, setAttributesByModel] = useState<Record<string, ModelAttributes>>({});
+  const [archetypeFilter, setArchetypeFilter] = useState<ArchetypeFilter>({});
 
   const dateRange = useMemo(() => {
     if (period === "custom") {
@@ -141,16 +156,65 @@ export default function Models() {
     setEditId(null);
   }, [platform]);
 
+  const loadAttributes = async (modelIds: string[]) => {
+    if (modelIds.length === 0) {
+      setAttributesByModel({});
+      return;
+    }
+    const { data } = await supabase
+      .from("model_attributes")
+      .select("*")
+      .in("model_id", modelIds);
+    const map: Record<string, ModelAttributes> = {};
+    (data ?? []).forEach((a: ModelAttributes) => { map[a.model_id] = a; });
+    setAttributesByModel(map);
+  };
+
+  useEffect(() => {
+    loadAttributes(models.map((m) => m.id));
+  }, [models]);
+
+  const archetypeStats = useMemo(() => {
+    // Average daily revenue per archetype value
+    const buckets: Record<string, Record<string, { rev: number; count: number }>> = {
+      age: {}, body: {}, hair: {}, style: {},
+    };
+    for (const m of models) {
+      const a = attributesByModel[m.id];
+      const r = modelRevenues[m.model_name];
+      if (!a || !r || r.days === 0) continue;
+      const perDay = r.totalRevenue / r.days;
+      const add = (cat: keyof typeof buckets, key?: string | null) => {
+        if (!key) return;
+        if (!buckets[cat][key]) buckets[cat][key] = { rev: 0, count: 0 };
+        buckets[cat][key].rev += perDay;
+        buckets[cat][key].count += 1;
+      };
+      add("age", a.age_group);
+      add("body", a.body_type);
+      add("hair", a.hair_color);
+      add("style", a.style);
+    }
+    return buckets;
+  }, [models, attributesByModel, modelRevenues]);
+
   const filteredModels = useMemo(() => {
     const q = searchQuery.trim().toLocaleLowerCase("de-DE");
     return models.filter((m) => {
       if (q && !m.model_name.toLocaleLowerCase("de-DE").includes(q)) return false;
-      if (revenueFilter === "all") return true;
-      const rev = modelRevenues[m.model_name];
-      if (revenueFilter === "earning") return rev && rev.totalRevenue > 0;
-      return !rev || rev.totalRevenue === 0;
+      if (revenueFilter !== "all") {
+        const rev = modelRevenues[m.model_name];
+        if (revenueFilter === "earning" && !(rev && rev.totalRevenue > 0)) return false;
+        if (revenueFilter === "zero" && rev && rev.totalRevenue > 0) return false;
+      }
+      const a = attributesByModel[m.id];
+      if (archetypeFilter.age && a?.age_group !== archetypeFilter.age) return false;
+      if (archetypeFilter.body && a?.body_type !== archetypeFilter.body) return false;
+      if (archetypeFilter.hair && a?.hair_color !== archetypeFilter.hair) return false;
+      if (archetypeFilter.style && a?.style !== archetypeFilter.style) return false;
+      return true;
     });
-  }, [models, revenueFilter, modelRevenues, searchQuery]);
+  }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter]);
 
   const addModel = async () => {
     if (!newName.trim()) return;
@@ -413,6 +477,60 @@ export default function Models() {
           )}
         </div>
 
+        {/* Archetyp-Filter */}
+        {Object.values(attributesByModel).length > 0 && (
+          <div className="premium-card rounded-2xl p-4 sm:p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary/60" />
+              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Archetyp-Filter</span>
+              {(archetypeFilter.age || archetypeFilter.body || archetypeFilter.hair || archetypeFilter.style) && (
+                <button
+                  onClick={() => setArchetypeFilter({})}
+                  className="ml-auto text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            {([
+              { cat: "age" as const, labels: AGE_LABELS, title: "Alter" },
+              { cat: "body" as const, labels: BODY_LABELS, title: "Körper" },
+              { cat: "hair" as const, labels: HAIR_LABELS, title: "Haare" },
+              { cat: "style" as const, labels: STYLE_LABELS, title: "Stil" },
+            ]).map(({ cat, labels, title }) => {
+              const stats = archetypeStats[cat];
+              const keys = Object.keys(labels).filter((k) => stats[k]);
+              if (keys.length === 0) return null;
+              return (
+                <div key={cat} className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-white/30 font-light">{title}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {keys.map((k) => {
+                      const s = stats[k];
+                      const avg = s.rev / s.count;
+                      const active = archetypeFilter[cat] === k;
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => setArchetypeFilter((f) => ({ ...f, [cat]: active ? undefined : k }))}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-[10px] font-light tracking-wide border transition-all duration-300 active:scale-[0.97]",
+                            active
+                              ? "bg-primary/15 border-primary/40 text-primary"
+                              : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/85 hover:border-white/[0.12]"
+                          )}
+                        >
+                          {labels[k]} <span className="opacity-60">· ⌀ {formatEur(avg)}/Tag</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Models in Trouble */}
         <ModelsInTroubleCard
           platform={platform}
@@ -497,6 +615,14 @@ export default function Models() {
                             </button>
                           )}
                           <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
+                          <ModelArchetypePanel
+                            modelId={m.id}
+                            modelName={m.model_name}
+                            profileUrl={m.profile_url ?? null}
+                            profileImageUrl={m.profile_image_url ?? null}
+                            attributes={attributesByModel[m.id] ?? null}
+                            onChange={() => { fetchModels(); loadAttributes(models.map((mm) => mm.id)); }}
+                          />
                         </td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight align-top">{m.follower_count.toLocaleString()}</td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 align-top">
