@@ -125,6 +125,8 @@ export default function ChannelKnowledgeList({ platform }: Props) {
           ))}
         </div>
       )}
+      </div>
+      )}
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-w-lg bg-[hsl(var(--surface-1))] border-white/[0.1]">
