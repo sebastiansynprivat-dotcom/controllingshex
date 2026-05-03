@@ -180,7 +180,13 @@ Schreibe jeden Post komplett neu und eigenständig – nur der Schreibstil soll 
 Keine Zitate, keine Paraphrasen nahe am Original.
 
 Berücksichtige für jeden Tag Wochentag, Datum, Jahreszeit und ggf. Feiertage/Anlässe.
-Variiere Themen und Hooks über die Woche, vermeide Wiederholungen.`;
+Variiere Themen und Hooks über die Woche, vermeide Wiederholungen.
+
+BESTE POSTING-ZEITEN (für Hook/Timing/Stimmung – nicht wörtlich im Post nennen):
+- Mo–Fr: abends 19:00–20:00 Uhr ist die stärkste Zeit (Feierabend-Vibe)
+- Sa: Vormittag & Mittag laufen gut, abends spät / Nachtstunden geht nochmal richtig was
+- So: ganztägig top, entspannte Sonntags-Stimmung
+Nutze diese Slots, um Hook, Call-to-Action und Tonalität passend zum Tag zu gestalten.`;
 
     const userPrompt = `WISSENSBASIS (NUR STIL-/KONTEXT-REFERENZ – NICHT WÖRTLICH ÜBERNEHMEN):
 ${knowledgeText}
