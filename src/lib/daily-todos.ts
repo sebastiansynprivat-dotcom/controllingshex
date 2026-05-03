@@ -225,7 +225,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           key: `model:${t.modelName}:${today}`,
           category: "model",
           score: t.severity === "high" ? 85 : 78,
-          title: `Model "${t.modelName}" absäuft`,
+          title: `Model "${t.modelName}" im Rückgang`,
           why: t.reason,
           modelName: t.modelName,
           chatterName: t.currentChatter,
