@@ -615,6 +615,14 @@ export default function Models() {
                             </button>
                           )}
                           <span className="block sm:hidden text-[10px] text-white/20 font-light mt-0.5">seit {new Date(m.created_at).toLocaleDateString("de-DE")}</span>
+                          <ModelArchetypePanel
+                            modelId={m.id}
+                            modelName={m.model_name}
+                            profileUrl={m.profile_url ?? null}
+                            profileImageUrl={m.profile_image_url ?? null}
+                            attributes={attributesByModel[m.id] ?? null}
+                            onChange={() => { fetchModels(); loadAttributes(models.map((mm) => mm.id)); }}
+                          />
                         </td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight align-top">{m.follower_count.toLocaleString()}</td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 align-top">
