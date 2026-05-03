@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ export default function StandardTab() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("");
   const [filter, setFilter] = useState<string>(ALL);
+  const [query, setQuery] = useState("");
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -59,9 +60,17 @@ export default function StandardTab() {
   }, [notes]);
 
   const filtered = useMemo(() => {
-    if (filter === ALL) return notes;
-    return notes.filter((n) => (n.category?.trim() || UNCATEGORIZED) === filter);
-  }, [notes, filter]);
+    const q = query.trim().toLowerCase();
+    return notes.filter((n) => {
+      if (filter !== ALL && (n.category?.trim() || UNCATEGORIZED) !== filter) return false;
+      if (!q) return true;
+      return (
+        (n.title || "").toLowerCase().includes(q) ||
+        n.body.toLowerCase().includes(q) ||
+        (n.category || "").toLowerCase().includes(q)
+      );
+    });
+  }, [notes, filter, query]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Note[]>();
@@ -162,6 +171,26 @@ export default function StandardTab() {
             Neue Notiz
           </Button>
         </div>
+
+        {notes.length > 0 && (
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-foreground/40 pointer-events-none" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Suchen…"
+              className="h-9 pl-9 pr-9 bg-white/[0.05] border-white/[0.12] text-xs"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
         {notes.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap mb-4">
