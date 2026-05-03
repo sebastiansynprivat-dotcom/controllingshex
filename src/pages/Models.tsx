@@ -470,7 +470,14 @@ export default function Models() {
                     ) : (
                       <>
                         <td className="py-4 sm:py-5 px-4 sm:px-8">
-                          <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
+                          <button
+                            onClick={() => setPerfModelName(m.model_name)}
+                            className="text-foreground/85 font-light text-[13px] tracking-wide hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
+                            title="Performance ansehen"
+                          >
+                            {m.model_name}
+                            <LineChartIcon className="h-3 w-3 text-white/20 group-hover:text-primary/70 transition-colors" />
+                          </button>
                           {m.email && (
                             <button
                               onClick={() => { navigator.clipboard.writeText(m.email!); toast.success("E-Mail kopiert"); }}
