@@ -260,6 +260,30 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Smart Daily To-Dos — Top 3 */}
+            <div className="premium-card rounded-2xl p-5 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-3.5 w-3.5 text-primary/70" />
+                  <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+                    Heute zu tun
+                  </span>
+                </div>
+                <Link
+                  to="/today"
+                  className="text-[11px] text-white/45 hover:text-primary font-light tracking-wide inline-flex items-center gap-1 transition-colors"
+                >
+                  Alle ansehen <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+              <DailyTodoList
+                platform={platform}
+                limit={3}
+                compact
+                onChatterClick={(name) => setSelectedChatter(name)}
+              />
+            </div>
+
             {/* Revenue Recovery Queue — Tagesziel mit konkretem €-Hebel */}
             <RecoveryQueueCard platform={platform} onChatterSelect={setSelectedChatter} />
 
