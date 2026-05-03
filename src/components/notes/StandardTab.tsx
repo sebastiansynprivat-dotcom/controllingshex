@@ -535,14 +535,6 @@ export default function StandardTab() {
         </DialogContent>
       </Dialog>
 
-      {lightbox && (
-        <div
-          onClick={() => setLightbox(null)}
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
-        >
-          <img src={lightbox} alt="" className="max-h-full max-w-full object-contain" />
-        </div>
-      )}
     </div>
   );
 }
