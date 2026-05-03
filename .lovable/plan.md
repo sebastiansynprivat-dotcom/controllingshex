@@ -1,74 +1,76 @@
-## Texts → 2 Tabs: "Onboarding" + "Channel"
+## Models & Follower — Layout-Refresh
 
-Aktuelle `/notes`-Seite wird in zwei Tabs aufgeteilt. Der bisherige Content (Day-Buckets, Snippets, Senden) wandert in Tab **Onboarding**. Neuer Tab **Channel** = AI-basierte Wochenplanung.
+Ziel: Cleanes Layout. Filter oben (inkl. "Models in Trouble" als Toggle), Datenbank-Sektion unten mit kompaktem Add-Bereich. Profil-URL ist beim Anlegen direkt mit dabei.
 
-### Tab 1 – Onboarding (= heutige Funktionalität, unverändert)
-Komplette aktuelle Notes-Logik bleibt 1:1, nur in einen Tab gewrappt.
+### 1. "Neues Model"-Formular erweitern
+Im Add-Card kommt ein zusätzliches Feld **"Maloum-Profil-URL"** dazu (optional). Beim Speichern wird `profile_url` direkt mit gesetzt.
 
-### Tab 2 – Channel (neu)
+Felder im Formular:
+- Name
+- Follower
+- E-Mail
+- Passwort
+- **Profil-URL** (neu, full-width unter dem Grid)
 
-**A) AI-Datenbank (Wissensbasis)**
-- Freitext-Notizen, die der User anlegt (Themen, Tonalität, Briefings, Beispiele, Do/Don'ts).
-- Liste mit Add / Edit / Delete, jeder Eintrag hat optional Titel + Body.
-- Wird beim Generieren komplett als Kontext an die AI übergeben.
+### 2. Edit-Modus erweitern
+Klick auf den Stift unten in einer Model-Zeile öffnet wie bisher den Inline-Editor — zusätzlich erscheint dort ein Feld **Profil-URL**, sodass der Link nachträglich ergänzt/geändert werden kann.
 
-**B) Wochenplan-Generator**
-- Button "Neue Woche generieren" öffnet Dialog:
-  - Startdatum (Default: kommender Montag)
-  - Tages-Auswahl (Mo–So Checkboxen) → an welchen Tagen soll ein Channel-Post kommen
-  - Optionaler Kontext-Hinweis (Freitext, z.B. "Fokus auf Promo XY")
-- Edge Function `generate-channel-plan`:
-  - Lädt alle AI-DB-Einträge des Users + Platform
-  - Berechnet automatisch: Wochentag, Datum, Jahreszeit, Monat, deutsche Feiertage (statische Liste der gängigen DE-Feiertage im Code, bewegliche per Berechnung) für jeden ausgewählten Tag
-  - Schickt an Lovable AI (`google/gemini-3-flash-preview`) per Tool-Calling für strukturierte Output: pro Tag → `{ date, theme, post_text, context_notes }`
-  - Speichert Plan in neue Tabelle `channel_plans`
+### 3. Layout-Reorg im Models-Tab
 
-**C) Anzeige & Historie**
-- Aktuelle Woche oben als Karten (eine pro Tag mit Datum, Wochentag, Thema, Text, Copy-Button)
-- Edit pro Tag (Text manuell anpassen → speichert in `channel_plan_days`)
-- Dropdown "Vorherige Wochen" zeigt gespeicherte Pläne, anklickbar zum Anschauen
-
-### Datenbank (neue Tabellen)
+Neue Reihenfolge von oben nach unten:
 
 ```text
-channel_knowledge
-  id, user_id, platform, title (nullable), body, created_at, updated_at
-
-channel_plans
-  id, user_id, platform, week_start (date), generation_context (text, nullable),
-  created_at
-
-channel_plan_days
-  id, plan_id, user_id, plan_date (date), weekday (int), theme, post_text,
-  context_notes (jsonb: {season, holiday, day_of_month, ...}), position, updated_at
+─────────────────────────────────
+Header: Models & Follower · X Models
+─────────────────────────────────
+[ Filter-Bar ]  ← kompakt, eine Sektion
+  • Suche
+  • Zeitraum (7/14/30/90/Custom)
+  • Umsatz-Status (Alle / Mit / Ohne)
+  • Toggle "Models in Trouble"  ← neu, als Filter-Pille
+  • Archetyp-Filter (collapsible, nur wenn Daten da)
+─────────────────────────────────
+[ Datenbank ]  ← Hauptsektion
+  Header: "Datenbank · X Models"  
+  + dezenter Button "Model hinzufügen" (öffnet collapsible Add-Form)
+  
+  Tabelle mit allen (gefilterten) Models
+─────────────────────────────────
 ```
-RLS auf allen drei Tabellen: nur eigene Reihen.
 
-### Edge Function
+### 4. "Models in Trouble" wird Filter, nicht Card
 
-`supabase/functions/generate-channel-plan/index.ts`
-- Input: `{ platform, week_start, selected_weekdays: [1..7], extra_context? }`
-- Lädt `channel_knowledge`, baut System-Prompt mit Wissensbasis + Tages-Kontext (Datum, Wochentag DE, Jahreszeit, Monat, Feiertag-Hinweis falls zutrifft)
-- Lovable AI mit Tool-Call `create_week_plan` → Array von `{ date, theme, post_text }`
-- Schreibt `channel_plans` + `channel_plan_days` per Service-Role
+- `ModelsInTroubleCard` wird **nicht mehr als eigene große Karte** gezeigt
+- Stattdessen: Filter-Pille **"Im Rückgang"** in der Filter-Bar
+  - Aus: alle Models in Tabelle
+  - An: Tabelle zeigt nur Models, die laut Trouble-Detection im Rückgang sind
+- Logik aus `ModelsInTroubleCard` wird in einen kleinen Helper extrahiert (`useModelsInTrouble(platform, modelNames)`), liefert `Set<string>` der betroffenen Model-Namen
+- Click auf Model in Tabelle öffnet weiterhin die Performance-Slide-Over
 
-### Deutsche Feiertage
-Helper im Edge Function: feste Daten (Neujahr, Tag der Arbeit, Tag der Dt. Einheit, Heiligabend, Weihnachten, Silvester) + bewegliche per Gauß-Algo (Ostern → Karfreitag, Ostermontag, Pfingsten, Christi Himmelfahrt). Reicht als Default.
+### 5. Add-Form clean integrieren
 
-### Frontend
+- Add-Form ist **standardmäßig eingeklappt**
+- Im Header der Datenbank-Sektion: kleiner Button `+ Model hinzufügen`
+- Klick → Form klappt auf (innerhalb der Datenbank-Card, oben)
+- Nach erfolgreichem Insert → Form klappt automatisch wieder zu, Felder geleert
 
-- `src/pages/Notes.tsx`: Wrap aktuelle Inhalte in `<Tabs>` mit `TabsList` (Onboarding | Channel) und `TabsContent`.
-- Aktuellen Code in neue Komponente `src/components/notes/OnboardingTab.tsx` extrahieren.
-- Neue Komponenten:
-  - `src/components/notes/ChannelTab.tsx` — orchestriert Knowledge + Plan
-  - `src/components/notes/ChannelKnowledgeList.tsx` — CRUD Wissensbasis
-  - `src/components/notes/ChannelPlanGenerator.tsx` — Dialog mit Tagesauswahl
-  - `src/components/notes/ChannelPlanView.tsx` — Karten der Woche + Historie-Dropdown
-- `src/lib/channel-plan.ts` — Client-seitige Helper (laden, speichern Edits, Edge-Function-Aufruf)
+### 6. Archetyp-Panel in Tabelle bleibt
+Der "Archetyp analysieren"-Button unter jedem Model-Namen bleibt wie er jetzt ist (sichtbare Primary-Pille). Die Profil-URL-Eingabe im Panel wird redundant, weil der Link jetzt schon beim Anlegen oder via Stift gepflegt wird — bleibt aber als Fallback-Edit drin.
 
-### Sidebar
-"Texts" bleibt als Eintrag — kein neuer Routen-Eintrag nötig.
+---
 
-### Out of Scope
-- Auto-Posting / Scheduler in echte Plattform
-- Bilder/Media-Generierung für Channel-Plan (nur Text-Vorschläge)
+### Technische Details
+
+**Files:**
+- `src/pages/Models.tsx`
+  - State: `newProfileUrl`, `editProfileUrl`, `showAddForm` (default `false`), `troubleFilter` (default `false`), `troubleNames: Set<string>`
+  - `addModel`: `profile_url: newProfileUrl.trim() || null`
+  - `saveEdit`: `profile_url: editProfileUrl.trim() || null`
+  - `filteredModels`: zusätzlich `if (troubleFilter && !troubleNames.has(m.model_name)) return false`
+  - JSX-Reorg: Filter-Bar zusammenfassen, Datenbank-Card mit collapsible Add
+- `src/components/ModelsInTroubleCard.tsx`
+  - Logik (Detection) in einen exportierten Hook `useModelsInTrouble` extrahieren
+  - Card-Variante kann bleiben (wird nicht mehr verwendet) oder entfernt werden
+- DB: keine Schema-Änderung nötig — `profile_url` existiert schon auf `models`
+
+**Filter-Bar Aufbau:** Eine `premium-card` mit Search oben, dann zwei Reihen Pillen (Zeitraum + Status + Trouble), dann optional Archetyp-Sektion (collapsible per Default zu, falls vorhanden).
