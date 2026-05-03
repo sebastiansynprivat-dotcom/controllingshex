@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { onChatterDataUpdated } from "@/lib/data-events";
 import { FileSpreadsheet, Upload, Search, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AnalysisChatter {
   name: string;
