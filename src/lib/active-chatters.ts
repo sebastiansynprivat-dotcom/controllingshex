@@ -66,3 +66,9 @@ export function invalidateActiveChattersCache(platform?: string): void {
   if (platform) cache.delete(platform);
   else cache.clear();
 }
+
+// Bei neuem Upload alle Caches verwerfen, damit der gerade entfernte Chatter
+// sofort verschwindet.
+if (typeof window !== "undefined") {
+  onChatterDataUpdated(() => invalidateActiveChattersCache());
+}
