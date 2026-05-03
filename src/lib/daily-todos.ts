@@ -82,7 +82,10 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     .eq("platform", platform);
   const followersByModel = new Map<string, number>();
   for (const m of modelRowsForLookup || []) {
-    followersByModel.set(m.model_name.toLowerCase().trim(), Number(m.follower_count) || 0);
+    const key = m.model_name.toLowerCase().trim();
+    const v = Number(m.follower_count) || 0;
+    const prev = followersByModel.get(key) ?? 0;
+    if (v > prev) followersByModel.set(key, v);
   }
   const formatFollowers = (n: number): string => {
     if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "")}k`;
@@ -92,8 +95,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const modelInfoFor = (todayEntries: HistoryRow[]): string => {
     const accs = new Set<string>();
     for (const e of todayEntries) {
-      const a = (e.account || "").trim();
-      if (a) accs.add(a);
+      const raw = (e.account || "").trim();
+      if (!raw) continue;
+      // account kann mehrere Models per Komma enthalten — splitten
+      for (const part of raw.split(",")) {
+        const a = part.trim();
+        if (a) accs.add(a);
+      }
     }
     if (accs.size === 0) return "";
     const parts: string[] = [];
