@@ -404,13 +404,16 @@ export default function StandardTab() {
                                 <div key={path} className="h-16 w-16 rounded bg-white/[0.04] animate-pulse" />
                               );
                               return (
-                                <button
-                                  key={path}
-                                  onClick={() => setLightbox(url)}
-                                  className="h-16 w-16 rounded overflow-hidden border border-white/[0.08] hover:border-white/[0.2] transition-colors"
-                                >
+                                <div key={path} className="relative group/img h-16 w-16 rounded overflow-hidden border border-white/[0.08]">
                                   <img src={url} alt="" className="h-full w-full object-cover" />
-                                </button>
+                                  <button
+                                    onClick={() => downloadImage(path)}
+                                    title="Herunterladen"
+                                    className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 group-hover/img:opacity-100 transition-opacity"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
