@@ -134,16 +134,21 @@ export default function Models() {
     const modelNames = models.map((m) => m.model_name);
 
     const loadRevenues = async () => {
-      const { data } = await supabase
-        .from("chatter_history")
-        .select("account, revenue_today, analysis_date")
-        .eq("platform", platform)
-        .in("account", modelNames)
-        .gte("analysis_date", dateRange.from!)
-        .lte("analysis_date", dateRange.to);
-
       const revMap: Record<string, ModelRevenue> = {};
-      if (data) {
+      const PAGE = 1000;
+      let from = 0;
+      // Paginate to avoid Supabase's default 1000-row limit
+      // (with 80+ models × 30+ days this is easily exceeded)
+      while (true) {
+        const { data, error } = await supabase
+          .from("chatter_history")
+          .select("account, revenue_today")
+          .eq("platform", platform)
+          .in("account", modelNames)
+          .gte("analysis_date", dateRange.from!)
+          .lte("analysis_date", dateRange.to)
+          .range(from, from + PAGE - 1);
+        if (error || !data) break;
         for (const row of data) {
           const acc = (row.account || "").trim();
           if (!acc) continue;
@@ -151,6 +156,8 @@ export default function Models() {
           revMap[acc].totalRevenue += Number(row.revenue_today) || 0;
           revMap[acc].days++;
         }
+        if (data.length < PAGE) break;
+        from += PAGE;
       }
       setModelRevenues(revMap);
     };
