@@ -18,6 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
+import ModelsInTroubleCard from "@/components/ModelsInTroubleCard";
 import { LineChart as LineChartIcon, Sparkles } from "lucide-react";
 import ModelArchetypePanel, {
   type ModelAttributes,
@@ -505,6 +506,15 @@ export default function Models() {
             </div>
           )}
         </div>
+
+        {/* Im Rückgang — Analyse-Card */}
+        {troubleFilter && (
+          <ModelsInTroubleCard
+            platform={platform}
+            modelNames={models.map((m) => m.model_name)}
+            onSelectModel={setPerfModelName}
+          />
+        )}
 
         {/* Datenbank */}
         <div className="premium-card rounded-2xl overflow-hidden">
