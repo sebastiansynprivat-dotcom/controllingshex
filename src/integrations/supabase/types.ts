@@ -650,6 +650,7 @@ export type Database = {
       standard_notes: {
         Row: {
           body: string
+          category: string | null
           created_at: string
           id: string
           platform: string
@@ -660,6 +661,7 @@ export type Database = {
         }
         Insert: {
           body?: string
+          category?: string | null
           created_at?: string
           id?: string
           platform?: string
@@ -670,6 +672,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          category?: string | null
           created_at?: string
           id?: string
           platform?: string

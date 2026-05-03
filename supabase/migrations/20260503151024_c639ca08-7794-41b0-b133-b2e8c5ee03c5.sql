@@ -1,0 +1,1 @@
+ALTER TABLE public.standard_notes ADD COLUMN category TEXT;
