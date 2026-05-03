@@ -578,6 +578,7 @@ export default function Models() {
                           <Input value={editName} onChange={(e) => setEditName(capitalizeName(e.target.value))} placeholder="Name" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-sm font-light" />
                           <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-Mail" type="email" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                           <Input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Passwort" type="text" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
+                          <Input value={editProfileUrl} onChange={(e) => setEditProfileUrl(e.target.value)} placeholder="Maloum-Profil-URL" type="url" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                         </td>
                         <td className="py-3 sm:py-4 px-4 sm:px-8 align-top">
                           <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
