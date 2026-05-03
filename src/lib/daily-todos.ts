@@ -89,6 +89,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const chatterTotals = new Map<string, number>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
+    if (!isActive(r.chatter_name)) continue;
     chatterTotals.set(r.chatter_name, (chatterTotals.get(r.chatter_name) ?? 0) + (Number(r.revenue_today) || 0));
   }
   const totalsArr = Array.from(chatterTotals.values()).filter((v) => v > 0).sort((a, b) => b - a);
