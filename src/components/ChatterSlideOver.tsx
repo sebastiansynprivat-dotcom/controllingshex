@@ -907,6 +907,32 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
               ) : (
                 <>
+                  {/* ── Live KPI Grid (Echtzeit) ── */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      </span>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">Echtzeit · Heute</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {liveKpis.map((kpi) => {
+                        const Icon = kpi.icon;
+                        return (
+                          <div key={kpi.label} className="relative rounded-xl p-5 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] to-transparent pointer-events-none" />
+                            <div className="relative flex items-center gap-1.5">
+                              <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">{kpi.label}</p>
+                            </div>
+                            <p className={`relative text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}>{kpi.value}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* ── 2. KPI Grid (2×2) ── */}
                   <div className="grid grid-cols-2 gap-4">
                     {kpis.map((kpi) => {
