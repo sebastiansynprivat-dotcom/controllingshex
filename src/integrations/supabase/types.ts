@@ -549,6 +549,62 @@ export type Database = {
         }
         Relationships: []
       }
+      model_attributes: {
+        Row: {
+          age_group: string | null
+          ai_summary: string | null
+          analyzed_at: string
+          body_type: string | null
+          created_at: string
+          hair_color: string | null
+          id: string
+          model_id: string
+          source_image_url: string | null
+          specials: string[] | null
+          style: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age_group?: string | null
+          ai_summary?: string | null
+          analyzed_at?: string
+          body_type?: string | null
+          created_at?: string
+          hair_color?: string | null
+          id?: string
+          model_id: string
+          source_image_url?: string | null
+          specials?: string[] | null
+          style?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age_group?: string | null
+          ai_summary?: string | null
+          analyzed_at?: string
+          body_type?: string | null
+          created_at?: string
+          hair_color?: string | null
+          id?: string
+          model_id?: string
+          source_image_url?: string | null
+          specials?: string[] | null
+          style?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_attributes_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: true
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       models: {
         Row: {
           created_at: string
@@ -558,6 +614,8 @@ export type Database = {
           model_name: string
           password: string | null
           platform: string
+          profile_image_url: string | null
+          profile_url: string | null
           updated_at: string
           user_id: string | null
         }
@@ -569,6 +627,8 @@ export type Database = {
           model_name: string
           password?: string | null
           platform?: string
+          profile_image_url?: string | null
+          profile_url?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -580,6 +640,8 @@ export type Database = {
           model_name?: string
           password?: string | null
           platform?: string
+          profile_image_url?: string | null
+          profile_url?: string | null
           updated_at?: string
           user_id?: string | null
         }
