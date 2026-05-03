@@ -89,6 +89,8 @@ export default function Models() {
   const [searchQuery, setSearchQuery] = useState("");
   const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
   const [perfModelName, setPerfModelName] = useState<string | null>(null);
+  const [attributesByModel, setAttributesByModel] = useState<Record<string, ModelAttributes>>({});
+  const [archetypeFilter, setArchetypeFilter] = useState<ArchetypeFilter>({});
 
   const dateRange = useMemo(() => {
     if (period === "custom") {
