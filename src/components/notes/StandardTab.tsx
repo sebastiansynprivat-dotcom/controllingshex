@@ -32,6 +32,7 @@ export default function StandardTab() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("");
   const [filter, setFilter] = useState<string>(ALL);
+  const [query, setQuery] = useState("");
 
   const fetchNotes = async () => {
     setLoading(true);
