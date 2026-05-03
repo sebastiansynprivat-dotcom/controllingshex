@@ -206,6 +206,23 @@ export default function StandardTab() {
     fetchNotes();
   };
 
+  const downloadImage = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage.from(BUCKET).download(path);
+      if (error || !data) throw error || new Error("Download fehlgeschlagen");
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = path.split("/").pop() || "bild";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      sonner.error(e?.message || "Download fehlgeschlagen");
+    }
+  };
+
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
