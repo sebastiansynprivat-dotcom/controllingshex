@@ -318,62 +318,37 @@ export default function Models() {
           </p>
         </div>
 
-        {/* Add New */}
-        <div className="premium-card rounded-2xl p-5 sm:p-8">
-          <h2 className="text-[11px] gold-text-subtle mb-4 sm:mb-5 tracking-[0.2em] uppercase font-medium">Neues Model</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              placeholder="Name"
-              value={newName}
-              onChange={(e) => setNewName(capitalizeName(e.target.value))}
-              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
-            />
-            <Input
-              placeholder="Follower"
-              type="number"
-              value={newFollowers}
-              onChange={(e) => setNewFollowers(e.target.value)}
-              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
-            />
-            <Input
-              placeholder="E-Mail"
-              type="email"
-              autoComplete="off"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
-            />
-            <Input
-              placeholder="Passwort"
-              type="text"
-              autoComplete="off"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
-            />
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={addModel}
-              className="premium-chip bg-white/[0.04] hover:bg-white/[0.07] text-foreground/80 border border-white/[0.08] hover:border-primary/25 font-light text-[12px] tracking-wider transition-all duration-300 shrink-0 active:scale-[0.98]"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Hinzufügen
-            </Button>
-          </div>
-        </div>
-
-        {/* Revenue Filter Bar */}
+        {/* Filter-Bar */}
         <div className="premium-card rounded-2xl p-4 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <DollarSign className="h-3.5 w-3.5 text-primary/60" />
-              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Umsatz-Filter</span>
+              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Filter</span>
             </div>
             <div className="text-right">
               <span className="text-base font-extralight gold-text tracking-tight tabular-nums">{formatEur(totalRevAll)}</span>
               <span className="text-[10px] text-white/25 ml-2 font-light">{earningCount}/{models.length} aktiv</span>
             </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/25 pointer-events-none" />
+            <Input
+              placeholder="Model suchen..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/25 font-light text-sm h-9"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                aria-label="Suche löschen"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Period Pills */}
@@ -394,63 +369,36 @@ export default function Models() {
             ))}
           </div>
 
-          {/* Custom Date Range */}
           {period === "custom" && (
             <div className="flex flex-wrap gap-3 items-center">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-9 px-3 text-xs font-light bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]",
-                      !customFrom && "text-white/30"
-                    )}
-                  >
+                  <Button variant="outline" className={cn("h-9 px-3 text-xs font-light bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]", !customFrom && "text-white/30")}>
                     <CalendarIcon className="h-3.5 w-3.5 mr-2 text-white/25" />
                     {customFrom ? format(customFrom, "dd.MM.yyyy") : "Von"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customFrom}
-                    onSelect={setCustomFrom}
-                    disabled={(date) => date > new Date()}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} disabled={(date) => date > new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
               <span className="text-white/20 text-xs">–</span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-9 px-3 text-xs font-light bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]",
-                      !customTo && "text-white/30"
-                    )}
-                  >
+                  <Button variant="outline" className={cn("h-9 px-3 text-xs font-light bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]", !customTo && "text-white/30")}>
                     <CalendarIcon className="h-3.5 w-3.5 mr-2 text-white/25" />
                     {customTo ? format(customTo, "dd.MM.yyyy") : "Bis"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customTo}
-                    onSelect={setCustomTo}
-                    disabled={(date) => date > new Date()}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={customTo} onSelect={setCustomTo} disabled={(date) => date > new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
             </div>
           )}
 
-          {/* Earning Status Filter */}
-          <div className="flex gap-2">
+          {/* Status & Trouble Pills */}
+          <div className="flex flex-wrap gap-2">
             {([
               { key: "all" as const, label: "Alle" },
               { key: "earning" as const, label: "Mit Umsatz" },
@@ -475,89 +423,88 @@ export default function Models() {
                 {opt.key === "zero" && <span className="ml-1 text-[10px] opacity-60">{models.length - earningCount}</span>}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/25 pointer-events-none" />
-          <Input
-            placeholder="Model suchen..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 premium-card text-foreground placeholder:text-white/25 font-light text-sm h-10 border-0"
-          />
-          {searchQuery && (
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-              aria-label="Suche löschen"
+              onClick={() => troubles.length > 0 && setTroubleFilter((v) => !v)}
+              disabled={troubles.length === 0}
+              className={cn(
+                "premium-chip px-3 py-1.5 rounded-lg text-[11px] font-light tracking-wide transition-all duration-300 border whitespace-nowrap active:scale-[0.97] inline-flex items-center gap-1.5",
+                troubleFilter
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                  : "bg-white/[0.03] border-white/[0.06] text-white/45 hover:text-white/70 hover:bg-white/[0.05] hover:border-white/[0.1]",
+                troubles.length === 0 && "opacity-40 cursor-not-allowed"
+              )}
             >
-              <X className="h-3.5 w-3.5" />
+              <AlertTriangle className="h-3 w-3" />
+              Im Rückgang
+              <span className="text-[10px] opacity-60">{troubles.length}</span>
             </button>
-          )}
-        </div>
+          </div>
 
-        {/* Archetyp-Filter */}
-        {Object.values(attributesByModel).length > 0 && (
-          <div className="premium-card rounded-2xl p-4 sm:p-6 space-y-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-primary/60" />
-              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Archetyp-Filter</span>
-              {(archetypeFilter.age || archetypeFilter.body || archetypeFilter.hair || archetypeFilter.style) && (
-                <button
-                  onClick={() => setArchetypeFilter({})}
-                  className="ml-auto text-[10px] text-white/30 hover:text-white/60 transition-colors"
-                >
-                  Reset
-                </button>
+          {/* Archetyp-Filter (collapsible) */}
+          {Object.values(attributesByModel).length > 0 && (
+            <div className="pt-2 border-t border-white/[0.04]">
+              <button
+                onClick={() => setShowArchetypeFilter((v) => !v)}
+                className="w-full flex items-center gap-2 text-left"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary/60" />
+                <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Archetyp</span>
+                {(archetypeFilter.age || archetypeFilter.body || archetypeFilter.hair || archetypeFilter.style) && (
+                  <span className="text-[10px] text-primary/70 font-light">aktiv</span>
+                )}
+                <ChevronDown className={cn("h-3.5 w-3.5 ml-auto text-white/30 transition-transform", showArchetypeFilter && "rotate-180")} />
+              </button>
+              {showArchetypeFilter && (
+                <div className="mt-3 space-y-3">
+                  {(archetypeFilter.age || archetypeFilter.body || archetypeFilter.hair || archetypeFilter.style) && (
+                    <button
+                      onClick={() => setArchetypeFilter({})}
+                      className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  {([
+                    { cat: "age" as const, labels: AGE_LABELS, title: "Alter" },
+                    { cat: "body" as const, labels: BODY_LABELS, title: "Körper" },
+                    { cat: "hair" as const, labels: HAIR_LABELS, title: "Haare" },
+                    { cat: "style" as const, labels: STYLE_LABELS, title: "Stil" },
+                  ]).map(({ cat, labels, title }) => {
+                    const stats = archetypeStats[cat];
+                    const keys = Object.keys(labels).filter((k) => stats[k]);
+                    if (keys.length === 0) return null;
+                    return (
+                      <div key={cat} className="space-y-1.5">
+                        <div className="text-[10px] uppercase tracking-wider text-white/30 font-light">{title}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {keys.map((k) => {
+                            const s = stats[k];
+                            const avg = s.rev / s.count;
+                            const active = archetypeFilter[cat] === k;
+                            return (
+                              <button
+                                key={k}
+                                onClick={() => setArchetypeFilter((f) => ({ ...f, [cat]: active ? undefined : k }))}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg text-[10px] font-light tracking-wide border transition-all duration-300 active:scale-[0.97]",
+                                  active
+                                    ? "bg-primary/15 border-primary/40 text-primary"
+                                    : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/85 hover:border-white/[0.12]"
+                                )}
+                              >
+                                {labels[k]} <span className="opacity-60">· ⌀ {formatEur(avg)}/Tag</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
-            {([
-              { cat: "age" as const, labels: AGE_LABELS, title: "Alter" },
-              { cat: "body" as const, labels: BODY_LABELS, title: "Körper" },
-              { cat: "hair" as const, labels: HAIR_LABELS, title: "Haare" },
-              { cat: "style" as const, labels: STYLE_LABELS, title: "Stil" },
-            ]).map(({ cat, labels, title }) => {
-              const stats = archetypeStats[cat];
-              const keys = Object.keys(labels).filter((k) => stats[k]);
-              if (keys.length === 0) return null;
-              return (
-                <div key={cat} className="space-y-1.5">
-                  <div className="text-[10px] uppercase tracking-wider text-white/30 font-light">{title}</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {keys.map((k) => {
-                      const s = stats[k];
-                      const avg = s.rev / s.count;
-                      const active = archetypeFilter[cat] === k;
-                      return (
-                        <button
-                          key={k}
-                          onClick={() => setArchetypeFilter((f) => ({ ...f, [cat]: active ? undefined : k }))}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-[10px] font-light tracking-wide border transition-all duration-300 active:scale-[0.97]",
-                            active
-                              ? "bg-primary/15 border-primary/40 text-primary"
-                              : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/85 hover:border-white/[0.12]"
-                          )}
-                        >
-                          {labels[k]} <span className="opacity-60">· ⌀ {formatEur(avg)}/Tag</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Models in Trouble */}
-        <ModelsInTroubleCard
-          platform={platform}
-          modelNames={models.map((m) => m.model_name)}
-          onSelectModel={setPerfModelName}
-        />
+          )}
+        </div>
 
         {/* Table */}
         <div className="premium-card rounded-2xl overflow-hidden">
