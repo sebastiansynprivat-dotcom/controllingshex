@@ -412,6 +412,8 @@ export async function computeAnomaliesForWindow(
   const anomalies: ChatterAnomaly[] = [];
 
   for (const a of agg.values()) {
+    // Chatter, die nicht mehr im aktuellen Report stehen, sind „raus" → ausblenden.
+    if (activeNames !== null && !activeNames.has(normalize(a.name))) continue;
     const totalDays = totalDaysByChatter.get(normalize(a.name))?.size ?? 0;
     if (totalDays < ONBOARDING_MIN_DAYS) continue;
     const baseHere = baseline.get(normalize(a.name));
