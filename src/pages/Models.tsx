@@ -539,6 +539,13 @@ export default function Models() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <ModelPerformanceSlideOver
+      open={!!perfModelName}
+      onClose={() => setPerfModelName(null)}
+      modelName={perfModelName}
+      platform={platform}
+    />
     </>
   );
 }
