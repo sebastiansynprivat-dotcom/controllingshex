@@ -653,6 +653,7 @@ export type Database = {
           category: string | null
           created_at: string
           id: string
+          media_urls: string[]
           platform: string
           position: number
           title: string | null
@@ -664,6 +665,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           id?: string
+          media_urls?: string[]
           platform?: string
           position?: number
           title?: string | null
@@ -675,6 +677,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           id?: string
+          media_urls?: string[]
           platform?: string
           position?: number
           title?: string | null
