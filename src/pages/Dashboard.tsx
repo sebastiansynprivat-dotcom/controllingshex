@@ -380,6 +380,13 @@ export default function Dashboard() {
         </AnimatePresence>
       </div>
       <ChatterSlideOver open={!!selectedChatter} onClose={() => setSelectedChatter(null)} chatterName={selectedChatter || ""} platform={platform} />
+      <ModelPerformanceSlideOver
+        open={!!selectedModel}
+        onClose={() => setSelectedModel(null)}
+        modelName={selectedModel?.name ?? null}
+        focusChatter={selectedModel?.chatter ?? null}
+        platform={platform}
+      />
     </div>
   );
 }
