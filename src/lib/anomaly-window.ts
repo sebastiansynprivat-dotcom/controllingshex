@@ -13,6 +13,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TimeRange } from "@/lib/timerange-categorize";
 import { rangeDays } from "@/lib/timerange-categorize";
+import { loadActiveChatterNames } from "@/lib/active-chatters";
 
 export type AnomalySeverity = "critical" | "high" | "medium" | "info" | "positive";
 export type AnomalyType =
