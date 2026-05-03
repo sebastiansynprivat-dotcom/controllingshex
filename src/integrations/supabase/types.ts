@@ -412,6 +412,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_todo_state: {
+        Row: {
+          acted_at: string
+          created_at: string
+          id: string
+          platform: string
+          snoozed_until: string | null
+          status: string
+          todo_key: string
+          user_id: string
+        }
+        Insert: {
+          acted_at?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          snoozed_until?: string | null
+          status?: string
+          todo_key: string
+          user_id: string
+        }
+        Update: {
+          acted_at?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          snoozed_until?: string | null
+          status?: string
+          todo_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           created_at: string
