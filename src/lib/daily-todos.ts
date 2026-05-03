@@ -7,6 +7,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { detectModelTroubles } from "@/lib/model-tracking";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive";
 
