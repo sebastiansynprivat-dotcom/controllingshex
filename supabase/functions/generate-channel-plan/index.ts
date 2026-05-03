@@ -172,11 +172,17 @@ Deno.serve(async (req) => {
     const systemPrompt = `Du bist ein erfahrener Social-Media / Channel-Content-Planer für Creator auf der Plattform "${platform}".
 Du erstellst Channel-Posts (kurze, direkte Broadcast-Nachrichten an alle Follower).
 Sprache: Deutsch, Du-Form, locker, persönlich, anschlussstark.
-Halte dich strikt an die hinterlegte Wissensbasis (Tonalität, Themen, Do/Don'ts).
-Berücksichtige für jeden Tag Wochentag, Datum, Jahreszeit und ggf. Feiertage/Anlässe.
-Variiere Themen über die Woche, vermeide Wiederholungen.`;
 
-    const userPrompt = `WISSENSBASIS:
+WICHTIG ZUR WISSENSBASIS:
+Die Wissensbasis dient AUSSCHLIESSLICH als STIL- und KONTEXT-REFERENZ – sie zeigt dir, WIE der Creator schreibt (Tonalität, Wortwahl, Satzbau, typische Themen, Do's & Don'ts).
+Du darfst Formulierungen, Sätze oder Passagen aus der Wissensbasis NIEMALS 1:1 oder fast wörtlich übernehmen.
+Schreibe jeden Post komplett neu und eigenständig – nur der Schreibstil soll sich anfühlen wie in der Wissensbasis.
+Keine Zitate, keine Paraphrasen nahe am Original.
+
+Berücksichtige für jeden Tag Wochentag, Datum, Jahreszeit und ggf. Feiertage/Anlässe.
+Variiere Themen und Hooks über die Woche, vermeide Wiederholungen.`;
+
+    const userPrompt = `WISSENSBASIS (NUR STIL-/KONTEXT-REFERENZ – NICHT WÖRTLICH ÜBERNEHMEN):
 ${knowledgeText}
 
 ZUSÄTZLICHER KONTEXT FÜR DIESE WOCHE:
@@ -185,7 +191,7 @@ ${extraContext || "(keiner)"}
 ZU PLANENDE TAGE (${dayContexts.length} Posts):
 ${dayList}
 
-Erstelle für JEDEN dieser Tage genau einen Channel-Post.`;
+Erstelle für JEDEN dieser Tage genau einen Channel-Post. Schreibe die Posts eigenständig im Stil der Wissensbasis – ohne Formulierungen daraus zu kopieren oder nur leicht umzuformulieren.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
