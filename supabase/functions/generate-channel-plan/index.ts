@@ -152,12 +152,11 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Load knowledge
+    // Load knowledge (shared across all workspaces for this user)
     const { data: knowledge } = await admin
       .from("channel_knowledge")
       .select("title, body")
       .eq("user_id", userId)
-      .eq("platform", platform)
       .order("created_at", { ascending: true });
 
     const dayContexts = buildDayContexts(weekStart, selectedWeekdays);

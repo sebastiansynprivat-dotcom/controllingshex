@@ -32,21 +32,23 @@ export interface ChannelPlanDay {
   position: number;
 }
 
-export async function listKnowledge(platform: string): Promise<ChannelKnowledge[]> {
+// Channel data is shared across all workspaces (platforms) per user.
+const SHARED_PLATFORM = "__shared__";
+
+export async function listKnowledge(_platform?: string): Promise<ChannelKnowledge[]> {
   const { data, error } = await supabase
     .from("channel_knowledge")
     .select("id, title, body, created_at, updated_at")
-    .eq("platform", platform)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data || []) as ChannelKnowledge[];
 }
 
-export async function createKnowledge(platform: string, title: string | null, body: string) {
+export async function createKnowledge(_platform: string, title: string | null, body: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("not auth");
   const { error } = await supabase.from("channel_knowledge").insert({
-    user_id: user.id, platform, title, body,
+    user_id: user.id, platform: SHARED_PLATFORM, title, body,
   });
   if (error) throw error;
 }
@@ -61,11 +63,10 @@ export async function deleteKnowledge(id: string) {
   if (error) throw error;
 }
 
-export async function listPlans(platform: string): Promise<ChannelPlan[]> {
+export async function listPlans(_platform?: string): Promise<ChannelPlan[]> {
   const { data, error } = await supabase
     .from("channel_plans")
     .select("id, week_start, generation_context, created_at")
-    .eq("platform", platform)
     .order("week_start", { ascending: false })
     .limit(50);
   if (error) throw error;
