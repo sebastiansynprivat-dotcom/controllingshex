@@ -95,18 +95,21 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const totalsArr = Array.from(chatterTotals.values()).filter((v) => v > 0).sort((a, b) => b - a);
   const topRev = totalsArr[0] ?? 0;
   const medianRev = totalsArr.length > 0 ? totalsArr[Math.floor(totalsArr.length / 2)] : 0;
+  // Härter gewichten: 0€-Chatter sollen praktisch nie über Umsatzträgern stehen.
+  // Top-Umsatz: bis 3.0x. Kein Umsatz: 0.15x. Skala stark gespreizt.
   const importanceFor = (name: string): number => {
     const v = chatterTotals.get(name) ?? 0;
     if (topRev <= 0) return 1.0;
-    if (v <= 0) return 0.5;
-    // log-skaliert relativ zu Top: top = 1.8, median = ~1.0, schwache = ~0.6
+    if (v <= 0) return 0.15;
     const ratio = v / topRev;
-    const m = 0.55 + 1.25 * Math.sqrt(ratio);
-    return Math.min(1.8, Math.max(0.5, m));
+    // sqrt-Kurve, stärker gespreizt: top = 3.0, 25% von top ≈ 1.5, 5% von top ≈ 0.7
+    const m = 0.4 + 2.6 * Math.sqrt(ratio);
+    return Math.min(3.0, Math.max(0.2, m));
   };
   const importanceLabel = (name: string): string => {
     const v = chatterTotals.get(name) ?? 0;
     if (topRev > 0 && v >= topRev * 0.6) return " · Top-Umsatz";
+    if (v <= 0) return " · 0€";
     if (medianRev > 0 && v >= medianRev) return "";
     return " · Low-Umsatz";
   };
