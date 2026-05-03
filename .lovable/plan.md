@@ -1,54 +1,73 @@
-## Was passiert
+# Model Performance Tracking
 
-**1. Bilder/Videos hochladen (Backend)**
+Ziel: Jedes Model soll eine fortlaufende Umsatz-Historie haben, die zeigt **wann welcher Chatter dran war** und **wie sich der Umsatz dadurch verändert hat**. Damit erkennst du sofort: "Model X lief unter Chatter A super, ist seit Wechsel zu Chatter B am absaufen."
 
-Migration:
-```sql
-ALTER TABLE public.text_snippets
-  ADD COLUMN IF NOT EXISTS media_urls TEXT[] NOT NULL DEFAULT '{}';
+## Wo das landet
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('snippet-media', 'snippet-media', false)
-ON CONFLICT (id) DO NOTHING;
+Neuer Tab **"Performance"** auf der `/models` Seite (zusätzlich zur bestehenden Liste). Dazu pro Model-Karte eine kleine Trend-Mini-Anzeige + Klick öffnet Detail-Slide-Over.
 
-CREATE POLICY "Users can view own snippet media"   ON storage.objects FOR SELECT TO authenticated USING (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can upload own snippet media" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can update own snippet media" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can delete own snippet media" ON storage.objects FOR DELETE TO authenticated USING (bucket_id='snippet-media' AND auth.uid()::text = (storage.foldername(name))[1]);
-```
+## Was du siehst
 
-- Privater Bucket `snippet-media`, jeder Nutzer hat seinen eigenen Ordner = `userId/…`
-- Neue Spalte `media_urls TEXT[]` speichert die Storage-Pfade pro Snippet
-- Anzeige läuft über **Signed URLs** (1 h gültig, on-demand erzeugt)
+### 1. Model-Liste mit Trend-Indikator (Übersicht)
+Pro Model-Karte zusätzlich:
+- **Trend-Badge**: ↑ Steigend / → Stabil / ↓ Fallend (basiert auf letzte 7T vs. davor 7T)
+- **Aktueller Chatter** + seit wann er das Model hat
+- **Status-Dot**: Grün (läuft besser als Vorgänger), Rot (läuft schlechter), Grau (erster Chatter / neutral)
 
-**2. Frontend (`src/pages/Notes.tsx`)**
+### 2. Detail-Ansicht pro Model (Slide-Over bei Klick)
 
-Editor-Dialog:
-- „Datei hinzufügen"-Button mit `accept="image/*,video/*"` (Multi-Select)
-- Upload nach `snippet-media/{userId}/{uuid}-{filename}`
-- Thumbnails der hochgeladenen Medien direkt im Editor mit Lösch-X
-- Speichern aktualisiert auch `media_urls`
+**a) Revenue-Timeline (Chart)**
+- Linien-Chart: täglicher Umsatz über Zeitraum (7T/14T/30T/90T/Custom)
+- Farbige Hintergrund-Bänder markieren, welcher Chatter wann dran war
+- Vertikale Linien an Chatter-Wechsel-Tagen mit Label "→ Wechsel zu [Name]"
 
-Snippet-Karte:
-- Mediengrid (1–3 Spalten) oberhalb des Texts
-- Bilder als `<img>`, Videos als `<video controls muted>`
-- Klick auf Medium → Lightbox mit großer Vorschau + „URL kopieren"
-- Text-Klick kopiert weiterhin nur den Text
+**b) Chatter-History-Tabelle** (alle Chatter die das Model je hatten)
+| Chatter | Zeitraum | Tage | Ø Umsatz/Tag | Gesamtumsatz | vs. Vorgänger |
+|---|---|---|---|---|---|
+| Lisa | 12.04 – heute | 21 | 142 € | 2.982 € | −18 % |
+| Max  | 01.03 – 11.04 | 42 | 173 € | 7.266 € | +24 % |
+| Tom  | 15.01 – 28.02 | 45 | 139 € | 6.255 € | — (erster) |
 
-**3. UI Premium-Polish (Buttons lesbar)**
+**c) Krisen-Alarm** (oben prominent wenn zutreffend)
+- "🔻 Seit Wechsel zu [Chatter] vor X Tagen: −Y % Umsatz vs. vorherige Periode"
+- "📉 Letzte 7 Tage deutlich unter eigenem 30T-Schnitt"
 
-Aktuelle Buttons sind teilweise zu transparent → Anpassungen:
-- „Neuer Text"-Hauptbutton: voller Primary-Hintergrund mit `text-primary-foreground` (statt Primary-auf-Primary)
-- „Bucket"-Button: dezenter Border statt nur Ghost
-- Bucket-Header-Aktionen (Plus, X) bekommen sichtbaren Hintergrund-Chip statt nur Hover
-- Snippet-Card: „Klick zum Kopieren"-Hint mit besserem Kontrast (`text-white/55` statt `/30`)
-- Edit/Delete-Floating-Buttons immer sichtbar (nicht nur on hover) auf Touch-Geräten — opacity 60 → 100 on hover
+### 3. Globaler "Models in Trouble"-Block (oben auf Performance-Tab)
+Liste aller Models, bei denen mind. einer dieser Trigger feuert:
+- Aktueller Chatter macht ≥20 % weniger als letzter Vorgänger (gleicher Vergleichszeitraum)
+- Letzte 7T unter 60 % des 30T-Schnitts des Models
+- 3+ Tage in Folge Umsatz = 0 obwohl davor regelmäßig Umsatz lief
 
-## Geänderte Dateien
+So siehst du ohne klicken sofort, wo du eingreifen musst.
 
-- Migration (oben)
-- `src/pages/Notes.tsx` — Upload, Mediengrid, Lightbox, lesbare Buttons
+## Technische Umsetzung
 
-## Limits
+### Datenquelle
+Alles existiert bereits in `chatter_history` (account, chatter_name, revenue_today, analysis_date). Keine neue Tabelle nötig. Wir leiten "Chatter-Wechsel" aus den Daten ab: pro Model die Tage gruppieren, jeder Chatter-Name = eine "Phase".
 
-- Max 50 MB pro Datei (Storage-Default). Größere Videos vorher komprimieren.
+### Gewichtete Aufteilung
+Wiederverwenden der Logik aus `src/lib/model-performance.ts` (Umsatz wird gewichtet aufgeteilt wenn ein Chatter mehrere Accounts gleichzeitig hatte). Für die Timeline: pro Tag pro Model den gewichteten Anteil berechnen.
+
+### Neue Files
+- `src/lib/model-tracking.ts` — Funktionen:
+  - `loadModelTimeline(platform, modelName, fromDate, toDate)` → tägliche Datenpunkte mit Chatter-Zuordnung
+  - `loadModelChatterPhases(platform, modelName)` → Phasen pro Chatter mit Aggregaten
+  - `detectModelTroubles(platform, allModels)` → Liste der Krisen-Models
+- `src/components/ModelPerformanceSlideOver.tsx` — Detail-Ansicht (Chart + Tabelle + Alarm)
+- `src/components/ModelsInTroubleCard.tsx` — Block oben
+
+### Modifikationen
+- `src/pages/Models.tsx`: Tabs ("Übersicht" / "Performance") einbauen, Trend-Badge + Status-Dot in bestehende Karten, Klick öffnet Slide-Over.
+
+### Chart
+Recharts `LineChart` (bereits via shadcn `chart.tsx` verfügbar) mit `ReferenceArea` für Chatter-Phasen-Bänder und `ReferenceLine` für Wechsel-Tage.
+
+### Zeitraumfilter
+Wiederverwendung von `TimeRangeToggle` mit Optionen 7T / 14T / 30T / 90T / Custom (entspricht Memory-Regel).
+
+## Was nicht passiert
+- Keine DB-Änderungen
+- Keine Edge-Function (alles client-side aus vorhandenen Daten)
+- Keine Änderung an Upload/Pipeline
+
+Sag Bescheid wenn du loslegen sollen oder etwas anders haben willst (z.B. Performance-Block direkt aufs Dashboard statt in `/models`).

@@ -16,6 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
+import ModelsInTroubleCard from "@/components/ModelsInTroubleCard";
+import { LineChart as LineChartIcon } from "lucide-react";
 
 interface Model {
   id: string;
@@ -72,6 +75,7 @@ export default function Models() {
   const [revenueFilter, setRevenueFilter] = useState<"all" | "earning" | "zero">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
+  const [perfModelName, setPerfModelName] = useState<string | null>(null);
 
   const dateRange = useMemo(() => {
     if (period === "custom") {
@@ -409,6 +413,13 @@ export default function Models() {
           )}
         </div>
 
+        {/* Models in Trouble */}
+        <ModelsInTroubleCard
+          platform={platform}
+          modelNames={models.map((m) => m.model_name)}
+          onSelectModel={setPerfModelName}
+        />
+
         {/* Table */}
         <div className="premium-card rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
@@ -459,7 +470,14 @@ export default function Models() {
                     ) : (
                       <>
                         <td className="py-4 sm:py-5 px-4 sm:px-8">
-                          <span className="text-foreground/85 font-light text-[13px] tracking-wide">{m.model_name}</span>
+                          <button
+                            onClick={() => setPerfModelName(m.model_name)}
+                            className="text-foreground/85 font-light text-[13px] tracking-wide hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
+                            title="Performance ansehen"
+                          >
+                            {m.model_name}
+                            <LineChartIcon className="h-3 w-3 text-white/20 group-hover:text-primary/70 transition-colors" />
+                          </button>
                           {m.email && (
                             <button
                               onClick={() => { navigator.clipboard.writeText(m.email!); toast.success("E-Mail kopiert"); }}
@@ -521,6 +539,13 @@ export default function Models() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <ModelPerformanceSlideOver
+      open={!!perfModelName}
+      onClose={() => setPerfModelName(null)}
+      modelName={perfModelName}
+      platform={platform}
+    />
     </>
   );
 }
