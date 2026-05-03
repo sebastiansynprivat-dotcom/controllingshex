@@ -73,7 +73,7 @@ function daysBetween(fromISO: string, toDate: Date) {
   return Math.floor((to.getTime() - from.getTime()) / 86400000);
 }
 
-export default function Notes() {
+export default function OnboardingTab() {
   const { user } = useAuth();
   const { platform } = usePlatform();
   const { toast } = useToast();
