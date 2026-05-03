@@ -523,11 +523,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   // Echtzeit-Karten (Heute) — Platzhalter: letzte verfügbare Tageswerte
   const today = history.length ? history[history.length - 1] : null;
+  const todayIso = new Date().toISOString().split("T")[0];
+  const isActiveToday = !!today && today.analysis_date === todayIso && (
+    (today.revenue_today ?? 0) > 0 || (today.mass_dms ?? 0) > 0 || (today.open_chats ?? 0) > 0
+  );
   const liveKpis = [
     { label: "Tagesumsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
     { label: "Höchster Umsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Trophy, accent: "45 75% 55%", gold: true },
     { label: "MassDMs", value: today ? String(today.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
-    { label: "Antwort-Verzug", value: today ? `${today.response_delay_days} Tage` : "—", icon: Clock, accent: "0 84% 60%", gold: false },
+    { label: "Offene Chats", value: today ? String(today.open_chats) : "—", icon: MessageSquare, accent: "0 84% 60%", gold: false },
   ];
 
   const displayName = toTitleCase(chatterName);
@@ -652,6 +656,18 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                         </div>
                       );
                     })}
+                  </div>
+                  <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        {isActiveToday && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />}
+                        <span className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`} />
+                      </span>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
+                    </div>
+                    <p className={`text-[11px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}>
+                      {isActiveToday ? "Aktiv" : "Inaktiv"}
+                    </p>
                   </div>
                 </div>
 
@@ -930,6 +946,18 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                           </div>
                         );
                       })}
+                    </div>
+                    <div className={`flex items-center justify-between rounded-xl px-4 py-3 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="relative flex h-2 w-2">
+                          {isActiveToday && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />}
+                          <span className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`} />
+                        </span>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
+                      </div>
+                      <p className={`text-[12px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}>
+                        {isActiveToday ? "Aktiv" : "Inaktiv"}
+                      </p>
                     </div>
                   </div>
 
