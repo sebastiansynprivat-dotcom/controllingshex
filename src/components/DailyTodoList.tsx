@@ -16,6 +16,7 @@ interface Props {
   platform: string;
   limit?: number;
   onChatterClick?: (name: string) => void;
+  onModelClick?: (modelName: string, chatterName: string | null) => void;
   compact?: boolean;
 }
 
