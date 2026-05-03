@@ -216,6 +216,17 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                 )}
               </div>
 
+              {/* Vergleich Chatter ↔ Model */}
+              {focusChatter && (
+                <ChatterCompareCard
+                  platform={platform}
+                  chatterName={focusChatter}
+                  modelName={modelName!}
+                  fromDate={dateRange.from}
+                  toDate={dateRange.to}
+                />
+              )}
+
               {/* Chatter-History */}
               <div className="premium-card rounded-2xl overflow-hidden">
                 <div className="p-4 sm:p-5 border-b border-white/[0.05]">
