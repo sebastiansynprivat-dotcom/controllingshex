@@ -376,11 +376,12 @@ export async function computeAnomaliesForWindow(
   activeReportId: string | null,
 ): Promise<ComputeResult> {
   const days = rangeDays(range);
-  const [windowRows, baselineRows, fullHistory, modelFollowers] = await Promise.all([
+  const [windowRows, baselineRows, fullHistory, modelFollowers, activeNames] = await Promise.all([
     loadWindow(userId, platform, range),
     loadBaseline(userId, platform, range.from, 30),
     loadFullHistory(userId, platform),
     loadModels(userId, platform),
+    loadActiveChatterNames(platform),
   ]);
 
   const agg = aggregate(windowRows, range, modelFollowers);
