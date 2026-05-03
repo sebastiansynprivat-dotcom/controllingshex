@@ -95,8 +95,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const modelInfoFor = (todayEntries: HistoryRow[]): string => {
     const accs = new Set<string>();
     for (const e of todayEntries) {
-      const a = (e.account || "").trim();
-      if (a) accs.add(a);
+      const raw = (e.account || "").trim();
+      if (!raw) continue;
+      // account kann mehrere Models per Komma enthalten — splitten
+      for (const part of raw.split(",")) {
+        const a = part.trim();
+        if (a) accs.add(a);
+      }
     }
     if (accs.size === 0) return "";
     const parts: string[] = [];
