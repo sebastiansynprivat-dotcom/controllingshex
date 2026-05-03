@@ -413,6 +413,13 @@ export default function Models() {
           )}
         </div>
 
+        {/* Models in Trouble */}
+        <ModelsInTroubleCard
+          platform={platform}
+          modelNames={models.map((m) => m.model_name)}
+          onSelectModel={setPerfModelName}
+        />
+
         {/* Table */}
         <div className="premium-card rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
