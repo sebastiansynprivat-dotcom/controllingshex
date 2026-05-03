@@ -21,6 +21,7 @@ import MonthlyGoals from "@/pages/MonthlyGoals";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
+import Today from "@/pages/Today";
 
 const queryClient = new QueryClient();
 
