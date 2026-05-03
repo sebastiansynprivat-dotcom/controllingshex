@@ -60,9 +60,17 @@ export default function StandardTab() {
   }, [notes]);
 
   const filtered = useMemo(() => {
-    if (filter === ALL) return notes;
-    return notes.filter((n) => (n.category?.trim() || UNCATEGORIZED) === filter);
-  }, [notes, filter]);
+    const q = query.trim().toLowerCase();
+    return notes.filter((n) => {
+      if (filter !== ALL && (n.category?.trim() || UNCATEGORIZED) !== filter) return false;
+      if (!q) return true;
+      return (
+        (n.title || "").toLowerCase().includes(q) ||
+        n.body.toLowerCase().includes(q) ||
+        (n.category || "").toLowerCase().includes(q)
+      );
+    });
+  }, [notes, filter, query]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Note[]>();
