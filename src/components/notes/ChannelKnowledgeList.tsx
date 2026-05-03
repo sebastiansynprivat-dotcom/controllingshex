@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Database, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Database, Check, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,7 @@ export default function ChannelKnowledgeList({ platform }: Props) {
   const [draftBody, setDraftBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ChannelKnowledge | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -68,21 +69,31 @@ export default function ChannelKnowledgeList({ platform }: Props) {
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center justify-between gap-4">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-3 min-w-0 flex-1 text-left"
+        >
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/30 to-primary/5 border border-primary/25 flex items-center justify-center shrink-0">
             <Database className="h-4 w-4 text-primary" />
           </div>
-          <div className="min-w-0">
-            <h3 className="text-[15px] font-semibold text-foreground tracking-tight">AI-Wissensbasis</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[15px] font-semibold text-foreground tracking-tight flex items-center gap-2">
+              AI-Wissensbasis
+              <ChevronDown className={`h-4 w-4 text-foreground/50 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            </h3>
             <p className="text-[11px] text-foreground/55 font-light">Notizen, Themen, Tonalität, Beispiele — Kontext für die Wochenplanung.</p>
           </div>
-        </div>
-        <Button size="sm" onClick={openNew} className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-lg shadow-primary/25 text-xs font-medium shrink-0">
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> Eintrag
-        </Button>
+        </button>
+        {expanded && (
+          <Button size="sm" onClick={openNew} className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-lg shadow-primary/25 text-xs font-medium shrink-0">
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Eintrag
+          </Button>
+        )}
       </div>
 
+      {expanded && (
+      <div className="mt-4">
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-4 w-4 animate-spin text-foreground/40" /></div>
       ) : items.length === 0 ? (
@@ -113,6 +124,8 @@ export default function ChannelKnowledgeList({ platform }: Props) {
             </div>
           ))}
         </div>
+      )}
+      </div>
       )}
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
