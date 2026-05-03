@@ -7,6 +7,7 @@ import TrendWidget from "@/components/TrendWidget";
 import AnomalyPanel from "@/components/AnomalyPanel";
 import RecoveryQueueCard from "@/components/RecoveryQueueCard";
 import DailyTodoList from "@/components/DailyTodoList";
+import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import { Link } from "react-router-dom";
 import { ListChecks, ArrowRight } from "lucide-react";
 import { ForecastBanner } from "@/components/ForecastBanner";
