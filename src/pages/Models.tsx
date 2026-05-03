@@ -74,12 +74,18 @@ export default function Models() {
   const [newFollowers, setNewFollowers] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newProfileUrl, setNewProfileUrl] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editFollowers, setEditFollowers] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
+  const [editProfileUrl, setEditProfileUrl] = useState("");
+  const [troubleFilter, setTroubleFilter] = useState(false);
+  const [troubles, setTroubles] = useState<ModelTrouble[]>([]);
+  const [showArchetypeFilter, setShowArchetypeFilter] = useState(false);
 
   // Revenue filter state
   const [period, setPeriod] = useState<PeriodKey>("30");
