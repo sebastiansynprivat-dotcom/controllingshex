@@ -443,9 +443,17 @@ export default function StandardTab() {
                               if (!url) return (
                                 <div key={path} className="h-16 w-16 rounded bg-white/[0.04] animate-pulse" />
                               );
+                              const isVideo = /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(path);
                               return (
-                                <div key={path} className="relative group/img h-16 w-16 rounded overflow-hidden border border-white/[0.08]">
-                                  <img src={url} alt="" className="h-full w-full object-cover" />
+                                <div key={path} className="relative group/img h-16 w-16 rounded overflow-hidden border border-white/[0.08] bg-black/40">
+                                  {isVideo ? (
+                                    <>
+                                      <video src={url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                                      <Play className="absolute inset-0 m-auto h-5 w-5 text-white/80 pointer-events-none drop-shadow" />
+                                    </>
+                                  ) : (
+                                    <img src={url} alt="" className="h-full w-full object-cover" />
+                                  )}
                                   <button
                                     onClick={() => downloadImage(path)}
                                     title="Herunterladen"
