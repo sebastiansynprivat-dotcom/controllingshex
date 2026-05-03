@@ -7,6 +7,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { detectModelTroubles } from "@/lib/model-tracking";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive";
 
@@ -64,12 +65,20 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const rows = (history || []) as HistoryRow[];
   if (rows.length === 0) return [];
 
+  // Nur Chatter berücksichtigen, die im neuesten Report noch enthalten sind.
+  // Wer nicht mehr im aktuellen Report auftaucht, ist „raus" und wird komplett
+  // aus den To-Dos gefiltert.
+  const activeNames = await loadActiveChatterNames(platform);
+  const isActive = (name: string) =>
+    activeNames === null ? true : activeNames.has(normalizeChatterName(name));
+
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
 
   const byChatter = new Map<string, HistoryRow[]>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
+    if (!isActive(r.chatter_name)) continue;
     const list = byChatter.get(r.chatter_name) || [];
     list.push(r);
     byChatter.set(r.chatter_name, list);
@@ -80,6 +89,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const chatterTotals = new Map<string, number>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
+    if (!isActive(r.chatter_name)) continue;
     chatterTotals.set(r.chatter_name, (chatterTotals.get(r.chatter_name) ?? 0) + (Number(r.revenue_today) || 0));
   }
   const totalsArr = Array.from(chatterTotals.values()).filter((v) => v > 0).sort((a, b) => b - a);

@@ -9,6 +9,7 @@
  * Keine Vorhersage, keine ML — nur sauberer Vergleich Baseline vs. aktuell.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export interface RecoveryEntry {
   chatterName: string;
@@ -78,6 +79,7 @@ function daysBetween(aIso: string, bIso: string): number {
 export async function loadRecoveryHistory(platform: string): Promise<HistoryRow[]> {
   const fromIso = isoDaysAgo(WINDOW_DAYS - 1);
   const toIso = isoDaysAgo(0);
+  const activeNames = await loadActiveChatterNames(platform);
   const all: HistoryRow[] = [];
   let offset = 0;
   while (true) {
@@ -92,6 +94,8 @@ export async function loadRecoveryHistory(platform: string): Promise<HistoryRow[
     if (error) throw error;
     const rows = (data || []) as HistoryRow[];
     for (const r of rows) {
+      // Chatter, die im aktuellsten Report nicht mehr vorkommen, ausblenden.
+      if (activeNames !== null && !activeNames.has(normalizeChatterName(r.chatter_name))) continue;
       all.push({
         chatter_name: r.chatter_name,
         analysis_date: r.analysis_date,

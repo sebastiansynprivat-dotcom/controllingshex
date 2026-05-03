@@ -13,6 +13,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TimeRange } from "@/lib/timerange-categorize";
 import { rangeDays } from "@/lib/timerange-categorize";
+import { loadActiveChatterNames } from "@/lib/active-chatters";
 
 export type AnomalySeverity = "critical" | "high" | "medium" | "info" | "positive";
 export type AnomalyType =
@@ -375,11 +376,12 @@ export async function computeAnomaliesForWindow(
   activeReportId: string | null,
 ): Promise<ComputeResult> {
   const days = rangeDays(range);
-  const [windowRows, baselineRows, fullHistory, modelFollowers] = await Promise.all([
+  const [windowRows, baselineRows, fullHistory, modelFollowers, activeNames] = await Promise.all([
     loadWindow(userId, platform, range),
     loadBaseline(userId, platform, range.from, 30),
     loadFullHistory(userId, platform),
     loadModels(userId, platform),
+    loadActiveChatterNames(platform),
   ]);
 
   const agg = aggregate(windowRows, range, modelFollowers);
@@ -410,6 +412,8 @@ export async function computeAnomaliesForWindow(
   const anomalies: ChatterAnomaly[] = [];
 
   for (const a of agg.values()) {
+    // Chatter, die nicht mehr im aktuellen Report stehen, sind „raus" → ausblenden.
+    if (activeNames !== null && !activeNames.has(normalize(a.name))) continue;
     const totalDays = totalDaysByChatter.get(normalize(a.name))?.size ?? 0;
     if (totalDays < ONBOARDING_MIN_DAYS) continue;
     const baseHere = baseline.get(normalize(a.name));
