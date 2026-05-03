@@ -647,6 +647,39 @@ export type Database = {
           },
         ]
       }
+      standard_notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          platform: string
+          position: number
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          position?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          position?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       swap_decisions: {
         Row: {
           chatter_a: string
