@@ -114,8 +114,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       todos.push({
         key: `inactive:${name}:${today}`,
         category: "activity",
-        score: 60,
-        title: `${name} fehlt im Report`,
+        score: Math.round(60 * importance),
+        title: `${name} fehlt im Report${tag}`,
         why: `Letzte Tage regelmäßig dabei, heute nicht — Status klären.`,
         chatterName: name,
       });
@@ -129,8 +129,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       todos.push({
         key: `verzug:${name}:${today}`,
         category: "verzug",
-        score: 90 + delay * 5,
-        title: `${name} dringend — ${delay} Tage Verzug`,
+        score: Math.round((90 + delay * 5) * importance),
+        title: `${name} dringend — ${delay} Tage Verzug${tag}`,
         why: `Antwortverzug ${delay} Tage. Sofort entlasten oder Ursache klären.`,
         chatterName: name,
       });
@@ -145,8 +145,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         todos.push({
           key: `dm:${name}:${today}`,
           category: "activity",
-          score: 70 + Math.min(30, Math.round(drop / 3)),
-          title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)`,
+          score: Math.round((70 + Math.min(30, drop / 3)) * importance),
+          title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)${tag}`,
           why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%).`,
           chatterName: name,
         });
@@ -162,8 +162,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         todos.push({
           key: `rev:${name}:${today}`,
           category: "revenue",
-          score: 75 + Math.min(25, Math.round(drop / 4)),
-          title: `${name} checken — Umsatz −${Math.round(drop)}%`,
+          score: Math.round((75 + Math.min(25, drop / 4)) * importance),
+          title: `${name} checken — Umsatz −${Math.round(drop)}%${tag}`,
           why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€.`,
           chatterName: name,
         });
@@ -174,7 +174,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         todos.push({
           key: `pos:${name}:${today}`,
           category: "positive",
-          score: 40,
+          score: Math.round(40 * importance),
           title: `Was läuft bei ${name} richtig? (+${up}%)`,
           why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€ — Erfolgsrezept abgreifen.`,
           chatterName: name,
@@ -190,8 +190,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       todos.push({
         key: `jam:${name}:${today}`,
         category: "activity",
-        score: 65,
-        title: `${name} entlasten — ${todayChats} offene Chats`,
+        score: Math.round(65 * importance),
+        title: `${name} entlasten — ${todayChats} offene Chats${tag}`,
         why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats.`,
         chatterName: name,
       });
