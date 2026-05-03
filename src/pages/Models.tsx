@@ -75,6 +75,7 @@ export default function Models() {
   const [revenueFilter, setRevenueFilter] = useState<"all" | "earning" | "zero">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [modelRevenues, setModelRevenues] = useState<Record<string, ModelRevenue>>({});
+  const [perfModelName, setPerfModelName] = useState<string | null>(null);
 
   const dateRange = useMemo(() => {
     if (period === "custom") {
