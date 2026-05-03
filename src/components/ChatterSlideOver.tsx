@@ -521,6 +521,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     { label: "Ø Antwort-Verzug", value: `${avgDelay} Tage`, icon: Clock, accent: "0 84% 60%", gold: false },
   ];
 
+  // Echtzeit-Karten (Heute) — Platzhalter: letzte verfügbare Tageswerte
+  const today = history.length ? history[history.length - 1] : null;
+  const liveKpis = [
+    { label: "Tagesumsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
+    { label: "Höchster Umsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Trophy, accent: "45 75% 55%", gold: true },
+    { label: "MassDMs", value: today ? String(today.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
+    { label: "Antwort-Verzug", value: today ? `${today.response_delay_days} Tage` : "—", icon: Clock, accent: "0 84% 60%", gold: false },
+  ];
+
   const displayName = toTitleCase(chatterName);
   const initials = useMemo(() => getInitials(chatterName), [chatterName]);
   const trendAccent = trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
