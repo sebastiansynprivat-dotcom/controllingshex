@@ -98,8 +98,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     if (accs.size === 0) return "";
     const parts: string[] = [];
     for (const a of accs) {
-      const f = followersByModel.get(a.toLowerCase());
-      parts.push(f ? `${a} (${formatFollowers(f)})` : a);
+      const f = followersByModel.get(a.toLowerCase()) ?? 0;
+      parts.push(`${a} (${formatFollowers(f)})`);
     }
     return parts.join(", ");
   };
