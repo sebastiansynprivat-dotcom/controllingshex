@@ -16,6 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
+import ModelsInTroubleCard from "@/components/ModelsInTroubleCard";
+import { LineChart as LineChartIcon } from "lucide-react";
 
 interface Model {
   id: string;
