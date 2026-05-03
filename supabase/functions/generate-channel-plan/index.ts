@@ -182,6 +182,15 @@ Keine Zitate, keine Paraphrasen nahe am Original.
 Berücksichtige für jeden Tag Wochentag, Datum, Jahreszeit und ggf. Feiertage/Anlässe.
 Variiere Themen und Hooks über die Woche, vermeide Wiederholungen.
 
+ABWECHSLUNGS-REGELN (sehr wichtig – die Woche darf sich NICHT gleich anhören):
+- Jeder Post bekommt einen klar anderen Hook-Typ. Rotiere bewusst zwischen z.B.: persönliche Story / Anekdote, Frage an die Community, freches Tease, Behind-the-Scenes, Geständnis, kleine Umfrage, Mini-Rant, sinnliche Beobachtung, Spiel/Challenge, Erinnerung/Reminder, Mood-Update, Insider-Witz.
+- Kein Post darf mit dem gleichen Wort/Satzbau starten wie ein anderer Post derselben Woche. Variiere Satzanfänge stark (nicht jeder Post mit "Hey...", "Na...", "Ich..." anfangen).
+- Variiere Länge: mische kurze knackige Posts (1–2 Sätze) mit längeren (4–6 Sätze).
+- Variiere Tonalität über die Woche: mal verspielt, mal direkt/frech, mal soft/intim, mal lustig, mal nachdenklich.
+- Variiere Call-to-Action: nicht jedes Mal "schreib mir", auch mal nur Frage, nur Andeutung, nur Cliffhanger, oder gar kein CTA.
+- Variiere Emoji-Einsatz: nicht jeder Post braucht gleich viele Emojis, manche Posts dürfen ganz ohne Emoji bleiben.
+- Wiederhole keine Phrasen, Bilder oder Metaphern aus anderen Posts derselben Woche.
+
 BESTE POSTING-ZEITEN (für Hook/Timing/Stimmung – nicht wörtlich im Post nennen):
 - Mo–Fr: abends 19:00–20:00 Uhr ist die stärkste Zeit (Feierabend-Vibe)
 - Sa: Vormittag & Mittag laufen gut, abends spät / Nachtstunden geht nochmal richtig was
