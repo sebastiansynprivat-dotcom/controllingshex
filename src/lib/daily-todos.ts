@@ -78,6 +78,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const byChatter = new Map<string, HistoryRow[]>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
+    if (!isActive(r.chatter_name)) continue;
     const list = byChatter.get(r.chatter_name) || [];
     list.push(r);
     byChatter.set(r.chatter_name, list);
