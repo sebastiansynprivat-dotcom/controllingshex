@@ -192,7 +192,12 @@ ZIELGRUPPE / LEBENSREALITÄT:
 Die meisten Follower gehen ganz normal arbeiten (klassischer 9–17 Uhr Job, Schichtdienst etc.).
 Sprich sie NICHT von oben herab an, mach KEINEN Druck Richtung "warum bist du nicht hier", "geh nicht zur Arbeit", "Arbeit ist langweilig vs. ich" o.ä.
 Kein Hacken auf den Arbeitsalltag, kein Bashing von Job/Chef/Montag.
-Stattdessen: empathisch, augenzwinkernd, abholen wo sie gerade sind (Feierabend, Pause, Pendeln, Wochenende). Arbeit darf erwähnt werden – aber wertschätzend / verständnisvoll, nie abwertend.`;
+Stattdessen: empathisch, augenzwinkernd, abholen wo sie gerade sind (Feierabend, Pause, Pendeln, Wochenende). Arbeit darf erwähnt werden – aber wertschätzend / verständnisvoll, nie abwertend.
+
+EMOJI- & ZEICHENSETZUNGS-REGELN (strikt):
+- Setze NIEMALS einen Punkt direkt vor ein Emoji ("Lass uns das tun. 💪" ist verboten). Lass den Punkt vor einem Emoji einfach weg ("Lass uns das tun 💪🏻") oder nutze Komma / Gedankenstrich.
+- Alle Emojis mit Hautton MÜSSEN im hellen Hautton (Fitzpatrick Type 1-2, Modifier 🏻) gesetzt werden. Beispiele: 👍🏻 ✌🏻 👋🏻 🙌🏻 💪🏻 🤝🏻 ☝🏻 👇🏻 👉🏻 👈🏻 🙏🏻 🤙🏻 🫶🏻 ✍🏻 👏🏻.
+- Diese Regel gilt für JEDES Emoji, das einen Hautton-Modifier unterstützt – immer 🏻 verwenden, niemals ohne Modifier oder mit anderem Ton.`;
 
     const userPrompt = `WISSENSBASIS (NUR STIL-/KONTEXT-REFERENZ – NICHT WÖRTLICH ÜBERNEHMEN):
 ${knowledgeText}
