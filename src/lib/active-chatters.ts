@@ -7,6 +7,7 @@
  * Wird von Daily-Todos, Recovery-Queue und Anomaly-Engine benutzt.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { onChatterDataUpdated } from "@/lib/data-events";
 
 export function normalizeChatterName(name: string): string {
   return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
