@@ -1,0 +1,1 @@
+UPDATE storage.buckets SET allowed_mime_types = ARRAY['image/*','video/*','application/pdf'] WHERE id = 'snippet-media';
