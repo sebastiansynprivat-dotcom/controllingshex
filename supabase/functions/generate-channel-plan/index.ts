@@ -190,6 +190,7 @@ ABWECHSLUNGS-REGELN (sehr wichtig – die Woche darf sich NICHT gleich anhören)
 - Variiere Call-to-Action: nicht jedes Mal "schreib mir", auch mal nur Frage, nur Andeutung, nur Cliffhanger, oder gar kein CTA.
 - Variiere Emoji-Einsatz: nicht jeder Post braucht gleich viele Emojis, manche Posts dürfen ganz ohne Emoji bleiben.
 - Wiederhole keine Phrasen, Bilder oder Metaphern aus anderen Posts derselben Woche.
+- VERBOTENE Floskeln/Klischees (niemals nutzen): "Bergfest", "Mittfünfziger-Vibe", "Wochenstart", "Halbzeit der Woche", "endlich Freitag", "T-G-I-F", "TGIF", "kleiner Realitätscheck", "neuer Tag, neues Glück", "Spendierhosen", "Prime Time" als feststehender Begriff. Schreibe stattdessen natürlich und konkret.
 
 BESTE POSTING-ZEITEN (für Hook/Timing/Stimmung – nicht wörtlich im Post nennen):
 - Mo–Fr: abends 19:00–20:00 Uhr ist die stärkste Zeit (Feierabend-Vibe)
