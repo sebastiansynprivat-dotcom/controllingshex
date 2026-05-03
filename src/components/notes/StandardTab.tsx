@@ -255,48 +255,58 @@ export default function StandardTab() {
                         <div className="flex items-start gap-1.5 px-2 py-1.5">
                           <button
                             onClick={() => setExpanded((p) => ({ ...p, [n.id]: !isOpen }))}
-                            className="h-6 w-6 shrink-0 rounded flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06] mt-0.5"
+                            className="min-w-0 flex-1 text-left py-0.5"
                             title={isOpen ? "Einklappen" : "Ausklappen"}
-                          >
-                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
-                          </button>
-                          <button
-                            onClick={() => copy(n.body)}
-                            title="Klick zum Kopieren"
-                            className="min-w-0 flex-1 text-left cursor-pointer py-0.5"
                           >
                             {n.title && (
                               <span className="text-[12px] font-medium text-foreground/90 truncate block mb-0.5">{n.title}</span>
                             )}
-                            {!isOpen && (
-                              <span className="text-[12px] text-foreground/65 block whitespace-pre-wrap line-clamp-3 leading-snug">
-                                {n.body}
-                              </span>
-                            )}
-                          </button>
-                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-foreground" onClick={() => copy(n.body)}>
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-foreground" onClick={() => openEdit(n)}>
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-destructive" onClick={() => remove(n.id)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        {isOpen && (
-                          <div className="px-2 pb-2 pl-9">
-                            <p
-                              onClick={() => copy(n.body)}
-                              title="Klick zum Kopieren"
-                              className="text-[12px] text-foreground/80 whitespace-pre-wrap cursor-pointer hover:text-foreground transition-colors"
+                            <span
+                              className={cn(
+                                "text-[12px] text-foreground/65 block whitespace-pre-wrap leading-snug",
+                                !isOpen && "line-clamp-3",
+                              )}
                             >
                               {n.body}
-                            </p>
+                            </span>
+                          </button>
+                          <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-foreground/50 hover:text-foreground"
+                              onClick={() => copy(n.body)}
+                              title="Kopieren"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-foreground/40 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => openEdit(n)}
+                              title="Bearbeiten"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-foreground/40 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => remove(n.id)}
+                              title="Löschen"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                            <button
+                              onClick={() => setExpanded((p) => ({ ...p, [n.id]: !isOpen }))}
+                              className="h-6 w-6 rounded flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06]"
+                              title={isOpen ? "Einklappen" : "Ausklappen"}
+                            >
+                              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
+                            </button>
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
