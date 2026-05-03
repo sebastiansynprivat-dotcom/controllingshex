@@ -75,6 +75,35 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
 
+  // Models + Follower laden, um sie auf der Karte anzuzeigen.
+  const { data: modelRowsForLookup } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("platform", platform);
+  const followersByModel = new Map<string, number>();
+  for (const m of modelRowsForLookup || []) {
+    followersByModel.set(m.model_name.toLowerCase().trim(), Number(m.follower_count) || 0);
+  }
+  const formatFollowers = (n: number): string => {
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "")}k`;
+    return String(n);
+  };
+  /** Liefert die heutigen Accounts (Models) eines Chatters mit Follower-Anzeige. */
+  const modelInfoFor = (todayEntries: HistoryRow[]): string => {
+    const accs = new Set<string>();
+    for (const e of todayEntries) {
+      const a = (e.account || "").trim();
+      if (a) accs.add(a);
+    }
+    if (accs.size === 0) return "";
+    const parts: string[] = [];
+    for (const a of accs) {
+      const f = followersByModel.get(a.toLowerCase());
+      parts.push(f ? `${a} (${formatFollowers(f)})` : a);
+    }
+    return parts.join(", ");
+  };
+
   const byChatter = new Map<string, HistoryRow[]>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
