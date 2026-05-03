@@ -283,6 +283,7 @@ export default function Dashboard() {
                 limit={3}
                 compact
                 onChatterClick={(name) => setSelectedChatter(name)}
+                onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
               />
             </div>
 
