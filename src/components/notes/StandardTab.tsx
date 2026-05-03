@@ -39,7 +39,7 @@ export default function StandardTab() {
   const [draftMedia, setDraftMedia] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchNotes = async () => {
