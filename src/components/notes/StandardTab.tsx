@@ -252,10 +252,10 @@ export default function StandardTab() {
                     const preview = n.body.replace(/\s+/g, " ").trim();
                     return (
                       <div key={n.id} className="group rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                        <div className="flex items-center gap-1.5 px-2 py-1.5">
+                        <div className="flex items-start gap-1.5 px-2 py-1.5">
                           <button
                             onClick={() => setExpanded((p) => ({ ...p, [n.id]: !isOpen }))}
-                            className="h-6 w-6 shrink-0 rounded flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06]"
+                            className="h-6 w-6 shrink-0 rounded flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06] mt-0.5"
                             title={isOpen ? "Einklappen" : "Ausklappen"}
                           >
                             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
@@ -263,15 +263,18 @@ export default function StandardTab() {
                           <button
                             onClick={() => copy(n.body)}
                             title="Klick zum Kopieren"
-                            className="min-w-0 flex-1 text-left cursor-pointer"
+                            className="min-w-0 flex-1 text-left cursor-pointer py-0.5"
                           >
-                            {n.title ? (
-                              <span className="text-[12px] font-medium text-foreground/90 truncate block">{n.title}</span>
-                            ) : (
-                              <span className="text-[12px] text-foreground/70 truncate block">{preview}</span>
+                            {n.title && (
+                              <span className="text-[12px] font-medium text-foreground/90 truncate block mb-0.5">{n.title}</span>
+                            )}
+                            {!isOpen && (
+                              <span className="text-[12px] text-foreground/65 block whitespace-pre-wrap line-clamp-3 leading-snug">
+                                {n.body}
+                              </span>
                             )}
                           </button>
-                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
                             <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-foreground" onClick={() => copy(n.body)}>
                               <Copy className="h-3 w-3" />
                             </Button>
