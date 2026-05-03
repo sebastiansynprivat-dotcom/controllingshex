@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelsInTroubleCard from "@/components/ModelsInTroubleCard";
-import { LineChart as LineChartIcon } from "lucide-react";
+import { LineChart as LineChartIcon, Sparkles } from "lucide-react";
+import ModelArchetypePanel, {
+  type ModelAttributes,
+  AGE_LABELS, BODY_LABELS, HAIR_LABELS, STYLE_LABELS,
+} from "@/components/ModelArchetypePanel";
 
 interface Model {
   id: string;
@@ -28,7 +32,16 @@ interface Model {
   created_at: string;
   email?: string | null;
   password?: string | null;
+  profile_url?: string | null;
+  profile_image_url?: string | null;
 }
+
+type ArchetypeFilter = {
+  age?: string;
+  body?: string;
+  hair?: string;
+  style?: string;
+};
 
 interface ModelRevenue {
   totalRevenue: number;
