@@ -543,12 +543,12 @@ export default function StandardTab() {
                   className="h-8 text-xs bg-white/[0.04] border-white/[0.12]"
                 >
                   {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5 mr-1.5" />}
-                  Bilder hinzufügen
+                  Datei hinzufügen
                 </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*,video/*,application/pdf"
                   multiple
                   className="hidden"
                   onChange={(e) => handleFiles(e.target.files)}
@@ -559,9 +559,16 @@ export default function StandardTab() {
                   {draftMedia.map((path) => {
                     const url = signedUrls[path];
                     const isVideo = /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(path);
+                    const isPdf = /\.pdf$/i.test(path);
+                    const fileName = path.split("/").pop() || "Datei";
                     return (
                       <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1] bg-black/40">
-                        {url ? (
+                        {isPdf ? (
+                          <div className="h-full w-full flex flex-col items-center justify-center gap-1 px-1 bg-gradient-to-br from-red-500/15 to-red-500/5">
+                            <FileType className="h-6 w-6 text-red-400" />
+                            <span className="text-[9px] text-foreground/70 font-medium truncate max-w-full">PDF</span>
+                          </div>
+                        ) : url ? (
                           isVideo ? (
                             <>
                               <video src={url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
