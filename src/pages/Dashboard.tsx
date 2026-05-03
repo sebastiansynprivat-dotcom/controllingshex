@@ -7,6 +7,7 @@ import TrendWidget from "@/components/TrendWidget";
 import AnomalyPanel from "@/components/AnomalyPanel";
 import RecoveryQueueCard from "@/components/RecoveryQueueCard";
 import DailyTodoList from "@/components/DailyTodoList";
+import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import { Link } from "react-router-dom";
 import { ListChecks, ArrowRight } from "lucide-react";
 import { ForecastBanner } from "@/components/ForecastBanner";
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -281,6 +283,7 @@ export default function Dashboard() {
                 limit={3}
                 compact
                 onChatterClick={(name) => setSelectedChatter(name)}
+                onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
               />
             </div>
 
@@ -377,6 +380,13 @@ export default function Dashboard() {
         </AnimatePresence>
       </div>
       <ChatterSlideOver open={!!selectedChatter} onClose={() => setSelectedChatter(null)} chatterName={selectedChatter || ""} platform={platform} />
+      <ModelPerformanceSlideOver
+        open={!!selectedModel}
+        onClose={() => setSelectedModel(null)}
+        modelName={selectedModel?.name ?? null}
+        focusChatter={selectedModel?.chatter ?? null}
+        platform={platform}
+      />
     </div>
   );
 }

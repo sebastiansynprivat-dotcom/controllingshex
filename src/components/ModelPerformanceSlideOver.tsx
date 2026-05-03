@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, CartesianGrid } from "recharts";
-import { TrendingDown, TrendingUp, AlertTriangle, ArrowRight } from "lucide-react";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, CartesianGrid, AreaChart, Area } from "recharts";
+import { TrendingDown, TrendingUp, AlertTriangle, User } from "lucide-react";
 import { loadModelTimeline, formatEur, type ModelTimeline, type ChatterPhase } from "@/lib/model-tracking";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   onClose: () => void;
   modelName: string | null;
   platform: string;
+  /** Wenn gesetzt, wird unter dem Model-Verlauf eine Vergleichsansicht für diesen Chatter eingeblendet. */
+  focusChatter?: string | null;
 }
 
 const PHASE_COLORS = [
@@ -26,7 +29,7 @@ function formatDateShort(iso: string): string {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
 
-export default function ModelPerformanceSlideOver({ open, onClose, modelName, platform }: Props) {
+export default function ModelPerformanceSlideOver({ open, onClose, modelName, platform, focusChatter }: Props) {
   const [period, setPeriod] = useState<7 | 14 | 30 | 90>(30);
   const [tl, setTl] = useState<ModelTimeline | null>(null);
   const [loading, setLoading] = useState(false);
@@ -213,6 +216,17 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                 )}
               </div>
 
+              {/* Vergleich Chatter ↔ Model */}
+              {focusChatter && (
+                <ChatterCompareCard
+                  platform={platform}
+                  chatterName={focusChatter}
+                  modelName={modelName!}
+                  fromDate={dateRange.from}
+                  toDate={dateRange.to}
+                />
+              )}
+
               {/* Chatter-History */}
               <div className="premium-card rounded-2xl overflow-hidden">
                 <div className="p-4 sm:p-5 border-b border-white/[0.05]">
@@ -291,6 +305,216 @@ function PhaseRow({ phase, isCurrent, vsPrev, color }: {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+interface ChatterDay {
+  date: string;
+  thisModel: number;
+  others: number;
+  total: number;
+}
+
+function ChatterCompareCard({
+  platform,
+  chatterName,
+  modelName,
+  fromDate,
+  toDate,
+}: {
+  platform: string;
+  chatterName: string;
+  modelName: string;
+  fromDate: string;
+  toDate: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [days, setDays] = useState<ChatterDay[]>([]);
+  const [otherModels, setOtherModels] = useState<{ name: string; revenue: number }[]>([]);
+
+  useEffect(() => {
+    let cancel = false;
+    setLoading(true);
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history")
+        .select("analysis_date, account, revenue_today")
+        .eq("platform", platform)
+        .eq("chatter_name", chatterName)
+        .gte("analysis_date", fromDate)
+        .lte("analysis_date", toDate)
+        .order("analysis_date", { ascending: true });
+
+      const byDay = new Map<string, ChatterDay>();
+      const byOther = new Map<string, number>();
+      for (const r of data || []) {
+        const d = r.analysis_date as string;
+        const acc = (r.account || "").trim();
+        const rev = Number(r.revenue_today) || 0;
+        const isThis = acc.toLowerCase() === modelName.toLowerCase();
+        const cur = byDay.get(d) || { date: d, thisModel: 0, others: 0, total: 0 };
+        if (isThis) cur.thisModel += rev;
+        else {
+          cur.others += rev;
+          if (acc) byOther.set(acc, (byOther.get(acc) ?? 0) + rev);
+        }
+        cur.total = cur.thisModel + cur.others;
+        byDay.set(d, cur);
+      }
+      if (cancel) return;
+      setDays([...byDay.values()].sort((a, b) => a.date.localeCompare(b.date)));
+      setOtherModels(
+        [...byOther.entries()]
+          .map(([name, revenue]) => ({ name, revenue }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 5),
+      );
+      setLoading(false);
+    })().catch(() => !cancel && setLoading(false));
+    return () => { cancel = true; };
+  }, [platform, chatterName, modelName, fromDate, toDate]);
+
+  const totals = useMemo(() => {
+    const thisModel = days.reduce((s, d) => s + d.thisModel, 0);
+    const others = days.reduce((s, d) => s + d.others, 0);
+    const activeDays = days.filter((d) => d.total > 0).length;
+    return { thisModel, others, total: thisModel + others, activeDays };
+  }, [days]);
+
+  return (
+    <div className="premium-card rounded-2xl overflow-hidden">
+      <div className="p-4 sm:p-5 border-b border-white/[0.05] flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 border border-primary/20 shrink-0">
+            <User className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+              Vergleich Chatter
+            </p>
+            <p className="text-[14px] text-foreground/85 font-light truncate mt-0.5">{chatterName}</p>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[10px] uppercase tracking-wider text-white/30 font-light">Ø/Tag</p>
+          <p className="text-[13px] gold-text font-light tabular-nums">
+            {formatEur(totals.activeDays > 0 ? totals.total / totals.activeDays : 0)}
+          </p>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="p-6 text-center text-white/30 text-sm font-light">Lade Vergleich …</div>
+      )}
+
+      {!loading && days.length === 0 && (
+        <div className="p-6 text-center text-white/30 text-sm font-light">
+          Keine Daten für {chatterName} im Zeitraum.
+        </div>
+      )}
+
+      {!loading && days.length > 0 && (
+        <div className="p-4 sm:p-5 space-y-4">
+          {/* Split-Anteil */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
+              <p className="text-[10px] uppercase tracking-wider text-primary/70 font-light">
+                Bei {modelName}
+              </p>
+              <p className="text-lg gold-text font-light tabular-nums mt-1">{formatEur(totals.thisModel)}</p>
+              <p className="text-[10px] text-white/30 font-light">
+                {totals.total > 0 ? Math.round((totals.thisModel / totals.total) * 100) : 0}% von Gesamt
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <p className="text-[10px] uppercase tracking-wider text-white/40 font-light">
+                Andere Models
+              </p>
+              <p className="text-lg text-foreground/80 font-light tabular-nums mt-1">{formatEur(totals.others)}</p>
+              <p className="text-[10px] text-white/30 font-light">
+                {otherModels.length} {otherModels.length === 1 ? "Model" : "Models"}
+              </p>
+            </div>
+          </div>
+
+          {/* Chart Vergleich */}
+          <div>
+            <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">
+              Umsatz {chatterName} · {modelName} vs. andere Models
+            </p>
+            <div className="h-44 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={days} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="hsl(0 0% 100% / 0.04)" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDateShort}
+                    tick={{ fill: "hsl(0 0% 100% / 0.3)", fontSize: 10 }}
+                    stroke="hsl(0 0% 100% / 0.05)"
+                  />
+                  <YAxis
+                    tick={{ fill: "hsl(0 0% 100% / 0.3)", fontSize: 10 }}
+                    stroke="hsl(0 0% 100% / 0.05)"
+                    tickFormatter={(v) => `${v}€`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#141414",
+                      border: "1px solid hsl(0 0% 100% / 0.08)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number, n: string) => [
+                      `${(v as number).toFixed(0)} €`,
+                      n === "thisModel" ? modelName : "Andere",
+                    ]}
+                    labelFormatter={(v) => `Datum: ${v}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="others"
+                    stackId="1"
+                    stroke="hsl(0 0% 100% / 0.25)"
+                    fill="hsl(0 0% 100% / 0.08)"
+                    strokeWidth={1}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="thisModel"
+                    stackId="1"
+                    stroke="hsl(45, 90%, 60%)"
+                    fill="hsl(45, 90%, 60% / 0.25)"
+                    strokeWidth={1.5}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Andere Models breakdown */}
+          {otherModels.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+                Andere Models von {chatterName}
+              </p>
+              <div className="space-y-1">
+                {otherModels.map((m) => (
+                  <div
+                    key={m.name}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+                  >
+                    <span className="text-[12px] text-foreground/75 font-light truncate">{m.name}</span>
+                    <span className="text-[12px] text-foreground/55 font-light tabular-nums">
+                      {formatEur(m.revenue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

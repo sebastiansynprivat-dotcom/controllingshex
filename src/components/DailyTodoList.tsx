@@ -16,6 +16,7 @@ interface Props {
   platform: string;
   limit?: number;
   onChatterClick?: (name: string) => void;
+  onModelClick?: (modelName: string, chatterName: string | null) => void;
   compact?: boolean;
 }
 
@@ -28,7 +29,7 @@ const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: 
   positive: { label: "Win", color: "text-emerald-300 bg-emerald-500/10 border-emerald-500/25", icon: Sparkles },
 };
 
-export default function DailyTodoList({ platform, limit, onChatterClick, compact }: Props) {
+export default function DailyTodoList({ platform, limit, onChatterClick, onModelClick, compact }: Props) {
   const [todos, setTodos] = useState<DailyTodo[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
@@ -135,7 +136,14 @@ export default function DailyTodoList({ platform, limit, onChatterClick, compact
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {t.chatterName && onChatterClick ? (
+                  {t.category === "model" && t.modelName && onModelClick ? (
+                    <button
+                      onClick={() => onModelClick(t.modelName!, t.chatterName ?? null)}
+                      className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left"
+                    >
+                      {t.title}
+                    </button>
+                  ) : t.chatterName && onChatterClick ? (
                     <button
                       onClick={() => onChatterClick(t.chatterName!)}
                       className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left"

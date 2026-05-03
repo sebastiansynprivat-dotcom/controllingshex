@@ -4,10 +4,12 @@ import { ListChecks } from "lucide-react";
 import { usePlatform } from "@/contexts/PlatformContext";
 import DailyTodoList from "@/components/DailyTodoList";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 
 export default function Today() {
   const { platform } = usePlatform();
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
     weekday: "long",
@@ -41,6 +43,7 @@ export default function Today() {
           <DailyTodoList
             platform={platform}
             onChatterClick={(name) => setSelectedChatter(name)}
+            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
           />
         </motion.div>
       </AnimatePresence>
@@ -53,6 +56,14 @@ export default function Today() {
           platform={platform}
         />
       )}
+
+      <ModelPerformanceSlideOver
+        open={!!selectedModel}
+        onClose={() => setSelectedModel(null)}
+        modelName={selectedModel?.name ?? null}
+        focusChatter={selectedModel?.chatter ?? null}
+        platform={platform}
+      />
     </>
   );
 }
