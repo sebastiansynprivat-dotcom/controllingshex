@@ -455,6 +455,54 @@ export default function StandardTab() {
               rows={8}
               className="bg-white/[0.05] border-white/[0.12]"
             />
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-foreground/55">Bilder ({draftMedia.length})</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="h-8 text-xs bg-white/[0.04] border-white/[0.12]"
+                >
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5 mr-1.5" />}
+                  Bilder hinzufügen
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+              </div>
+              {draftMedia.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {draftMedia.map((path) => {
+                    const url = signedUrls[path];
+                    return (
+                      <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1]">
+                        {url ? (
+                          <img src={url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-white/[0.04] animate-pulse" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeDraftMedia(path)}
+                          className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover/media:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditorOpen(false)}>
@@ -466,6 +514,15 @@ export default function StandardTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          <img src={lightbox} alt="" className="max-h-full max-w-full object-contain" />
+        </div>
+      )}
     </div>
   );
 }
