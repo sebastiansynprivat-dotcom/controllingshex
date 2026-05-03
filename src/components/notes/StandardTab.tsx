@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,13 @@ interface Note {
   category: string | null;
   position: number;
   created_at: string;
+  media_urls: string[];
 }
 
 const SHARED_PLATFORM = "__shared__";
 const ALL = "__all__";
 const UNCATEGORIZED = "Ohne Kategorie";
+const BUCKET = "snippet-media";
 
 export default function StandardTab() {
   const { user } = useAuth();
@@ -34,12 +36,17 @@ export default function StandardTab() {
   const [filter, setFilter] = useState<string>(ALL);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [draftMedia, setDraftMedia] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchNotes = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("standard_notes")
-      .select("id, title, body, category, position, created_at")
+      .select("id, title, body, category, position, created_at, media_urls")
       .order("position", { ascending: true })
       .order("created_at", { ascending: false });
     setNotes((data || []) as Note[]);
@@ -49,6 +56,22 @@ export default function StandardTab() {
   useEffect(() => {
     if (user) fetchNotes();
   }, [user]);
+
+  // Sign URLs whenever notes change
+  useEffect(() => {
+    const allPaths = Array.from(new Set(notes.flatMap((n) => n.media_urls || [])));
+    const missing = allPaths.filter((p) => !signedUrls[p]);
+    if (missing.length === 0) return;
+    (async () => {
+      const { data } = await supabase.storage.from(BUCKET).createSignedUrls(missing, 3600);
+      if (!data) return;
+      const next: Record<string, string> = {};
+      data.forEach((d, i) => {
+        if (d.signedUrl) next[missing[i]] = d.signedUrl;
+      });
+      setSignedUrls((prev) => ({ ...prev, ...next }));
+    })();
+  }, [notes]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -92,6 +115,7 @@ export default function StandardTab() {
     setTitle("");
     setBody("");
     setCategory(filter !== ALL && filter !== UNCATEGORIZED ? filter : "");
+    setDraftMedia([]);
     setEditorOpen(true);
   };
 
@@ -100,7 +124,42 @@ export default function StandardTab() {
     setTitle(n.title ?? "");
     setBody(n.body);
     setCategory(n.category ?? "");
+    setDraftMedia(n.media_urls ?? []);
     setEditorOpen(true);
+  };
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || !user) return;
+    setUploading(true);
+    const newPaths: string[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 20 * 1024 * 1024) {
+        sonner.error(`${file.name} zu groß (max. 20 MB)`);
+        continue;
+      }
+      const safe = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const path = `${user.id}/standard/${crypto.randomUUID()}-${safe}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+      if (error) {
+        sonner.error(error.message);
+        continue;
+      }
+      newPaths.push(path);
+      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+      if (signed?.signedUrl) {
+        setSignedUrls((prev) => ({ ...prev, [path]: signed.signedUrl }));
+      }
+    }
+    setDraftMedia((prev) => [...prev, ...newPaths]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeDraftMedia = async (path: string) => {
+    setDraftMedia((prev) => prev.filter((p) => p !== path));
+    if (!editing || !editing.media_urls.includes(path)) {
+      await supabase.storage.from(BUCKET).remove([path]);
+    }
   };
 
   const save = async () => {
@@ -108,14 +167,16 @@ export default function StandardTab() {
     const t = title.trim() || null;
     const b = body.trim();
     const c = category.trim() || null;
-    if (!b && !t) {
-      sonner.error("Bitte Text eingeben");
+    if (!b && !t && draftMedia.length === 0) {
+      sonner.error("Bitte Text oder Bild hinzufügen");
       return;
     }
     if (editing) {
+      const removed = editing.media_urls.filter((p) => !draftMedia.includes(p));
+      if (removed.length) await supabase.storage.from(BUCKET).remove(removed);
       const { error } = await supabase
         .from("standard_notes")
-        .update({ title: t, body: b, category: c })
+        .update({ title: t, body: b, category: c, media_urls: draftMedia })
         .eq("id", editing.id);
       if (error) return sonner.error(error.message);
     } else {
@@ -127,6 +188,7 @@ export default function StandardTab() {
         body: b,
         category: c,
         position: maxPos + 1,
+        media_urls: draftMedia,
       });
       if (error) return sonner.error(error.message);
     }
@@ -135,6 +197,10 @@ export default function StandardTab() {
   };
 
   const remove = async (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (note?.media_urls?.length) {
+      await supabase.storage.from(BUCKET).remove(note.media_urls);
+    }
     const { error } = await supabase.from("standard_notes").delete().eq("id", id);
     if (error) return sonner.error(error.message);
     fetchNotes();
