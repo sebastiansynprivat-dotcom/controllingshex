@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function StandardTab() {
   const [category, setCategory] = useState("");
   const [filter, setFilter] = useState<string>(ALL);
   const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -246,35 +247,56 @@ export default function StandardTab() {
                   <span className="text-[10px] text-foreground/45">{items.length}</span>
                 </div>
                 <div className="space-y-2">
-                  {items.map((n) => (
-                    <div key={n.id} className="group rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-colors p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          {n.title && (
-                            <div className="text-[13px] font-medium text-foreground mb-1">{n.title}</div>
-                          )}
-                          <p
+                  {items.map((n) => {
+                    const isOpen = !!expanded[n.id];
+                    const preview = n.body.replace(/\s+/g, " ").trim();
+                    return (
+                      <div key={n.id} className="group rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                        <div className="flex items-center gap-1.5 px-2 py-1.5">
+                          <button
+                            onClick={() => setExpanded((p) => ({ ...p, [n.id]: !isOpen }))}
+                            className="h-6 w-6 shrink-0 rounded flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06]"
+                            title={isOpen ? "Einklappen" : "Ausklappen"}
+                          >
+                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
+                          </button>
+                          <button
                             onClick={() => copy(n.body)}
                             title="Klick zum Kopieren"
-                            className="text-[13px] text-foreground/85 whitespace-pre-wrap cursor-pointer hover:text-foreground transition-colors"
+                            className="min-w-0 flex-1 text-left cursor-pointer"
                           >
-                            {n.body}
-                          </p>
+                            {n.title ? (
+                              <span className="text-[12px] font-medium text-foreground/90 truncate block">{n.title}</span>
+                            ) : (
+                              <span className="text-[12px] text-foreground/70 truncate block">{preview}</span>
+                            )}
+                          </button>
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-foreground" onClick={() => copy(n.body)}>
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-foreground" onClick={() => openEdit(n)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-foreground/60 hover:text-destructive" onClick={() => remove(n.id)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-foreground/60 hover:text-foreground" onClick={() => copy(n.body)}>
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-foreground/60 hover:text-foreground" onClick={() => openEdit(n)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-foreground/60 hover:text-destructive" onClick={() => remove(n.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                        {isOpen && (
+                          <div className="px-2 pb-2 pl-9">
+                            <p
+                              onClick={() => copy(n.body)}
+                              title="Klick zum Kopieren"
+                              className="text-[12px] text-foreground/80 whitespace-pre-wrap cursor-pointer hover:text-foreground transition-colors"
+                            >
+                              {n.body}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
