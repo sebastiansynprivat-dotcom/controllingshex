@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Sparkles, Loader2, CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { generatePlan, nextMondayISO } from "@/lib/channel-plan";
 
