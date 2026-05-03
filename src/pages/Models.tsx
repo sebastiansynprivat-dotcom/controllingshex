@@ -477,6 +477,60 @@ export default function Models() {
           )}
         </div>
 
+        {/* Archetyp-Filter */}
+        {Object.values(attributesByModel).length > 0 && (
+          <div className="premium-card rounded-2xl p-4 sm:p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary/60" />
+              <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Archetyp-Filter</span>
+              {(archetypeFilter.age || archetypeFilter.body || archetypeFilter.hair || archetypeFilter.style) && (
+                <button
+                  onClick={() => setArchetypeFilter({})}
+                  className="ml-auto text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            {([
+              { cat: "age" as const, labels: AGE_LABELS, title: "Alter" },
+              { cat: "body" as const, labels: BODY_LABELS, title: "Körper" },
+              { cat: "hair" as const, labels: HAIR_LABELS, title: "Haare" },
+              { cat: "style" as const, labels: STYLE_LABELS, title: "Stil" },
+            ]).map(({ cat, labels, title }) => {
+              const stats = archetypeStats[cat];
+              const keys = Object.keys(labels).filter((k) => stats[k]);
+              if (keys.length === 0) return null;
+              return (
+                <div key={cat} className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-white/30 font-light">{title}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {keys.map((k) => {
+                      const s = stats[k];
+                      const avg = s.rev / s.count;
+                      const active = archetypeFilter[cat] === k;
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => setArchetypeFilter((f) => ({ ...f, [cat]: active ? undefined : k }))}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-[10px] font-light tracking-wide border transition-all duration-300 active:scale-[0.97]",
+                            active
+                              ? "bg-primary/15 border-primary/40 text-primary"
+                              : "bg-white/[0.03] border-white/[0.06] text-white/55 hover:text-white/85 hover:border-white/[0.12]"
+                          )}
+                        >
+                          {labels[k]} <span className="opacity-60">· ⌀ {formatEur(avg)}/Tag</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Models in Trouble */}
         <ModelsInTroubleCard
           platform={platform}
