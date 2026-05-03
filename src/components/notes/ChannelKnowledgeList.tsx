@@ -26,6 +26,7 @@ export default function ChannelKnowledgeList({ platform }: Props) {
   const [draftBody, setDraftBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ChannelKnowledge | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
