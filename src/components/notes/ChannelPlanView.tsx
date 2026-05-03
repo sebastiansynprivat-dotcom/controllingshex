@@ -162,7 +162,13 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
                 ) : (
                   <>
                     {d.theme && <div className="text-[12px] text-primary font-medium mb-1.5">{d.theme}</div>}
-                    <p className="text-[13px] text-foreground/85 whitespace-pre-wrap leading-relaxed">{d.post_text}</p>
+                    <p
+                      onClick={() => copy(d.post_text)}
+                      title="Klick zum Kopieren"
+                      className="text-[13px] text-foreground/85 whitespace-pre-wrap leading-relaxed cursor-pointer hover:text-foreground transition-colors"
+                    >
+                      {d.post_text}
+                    </p>
                   </>
                 )}
               </div>
