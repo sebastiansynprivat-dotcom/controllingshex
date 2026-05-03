@@ -75,11 +75,39 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     byChatter.set(r.chatter_name, list);
   }
 
+  // Importance pro Chatter: relativer Umsatz-Anteil (14T) → Multiplier 0.5x – 1.8x.
+  // Sortiert die wichtigen Umsatz-Träger nach oben, drückt low-revenue Chatter nach unten.
+  const chatterTotals = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.chatter_name) continue;
+    chatterTotals.set(r.chatter_name, (chatterTotals.get(r.chatter_name) ?? 0) + (Number(r.revenue_today) || 0));
+  }
+  const totalsArr = Array.from(chatterTotals.values()).filter((v) => v > 0).sort((a, b) => b - a);
+  const topRev = totalsArr[0] ?? 0;
+  const medianRev = totalsArr.length > 0 ? totalsArr[Math.floor(totalsArr.length / 2)] : 0;
+  const importanceFor = (name: string): number => {
+    const v = chatterTotals.get(name) ?? 0;
+    if (topRev <= 0) return 1.0;
+    if (v <= 0) return 0.5;
+    // log-skaliert relativ zu Top: top = 1.8, median = ~1.0, schwache = ~0.6
+    const ratio = v / topRev;
+    const m = 0.55 + 1.25 * Math.sqrt(ratio);
+    return Math.min(1.8, Math.max(0.5, m));
+  };
+  const importanceLabel = (name: string): string => {
+    const v = chatterTotals.get(name) ?? 0;
+    if (topRev > 0 && v >= topRev * 0.6) return " · Top-Umsatz";
+    if (medianRev > 0 && v >= medianRev) return "";
+    return " · Low-Umsatz";
+  };
+
   const todos: DailyTodo[] = [];
 
   for (const [name, entries] of byChatter) {
     const todayEntry = entries.find((e) => e.analysis_date === latestDate);
     const historical = entries.filter((e) => e.analysis_date !== latestDate);
+    const importance = importanceFor(name);
+    const tag = importanceLabel(name);
 
     // Inaktivität — fehlt heute, war aber regelmäßig da
     if (!todayEntry && historical.length >= 5) {
