@@ -240,7 +240,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         category: "activity",
         score: Math.round(65 * importance),
         title: `${name} entlasten — ${todayChats} offene Chats${tag}`,
-        why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats.`,
+        why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats${modelSuffix}.`,
         chatterName: name,
       });
     }
