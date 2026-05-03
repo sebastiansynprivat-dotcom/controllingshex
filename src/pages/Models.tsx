@@ -156,16 +156,65 @@ export default function Models() {
     setEditId(null);
   }, [platform]);
 
+  const loadAttributes = async (modelIds: string[]) => {
+    if (modelIds.length === 0) {
+      setAttributesByModel({});
+      return;
+    }
+    const { data } = await supabase
+      .from("model_attributes")
+      .select("*")
+      .in("model_id", modelIds);
+    const map: Record<string, ModelAttributes> = {};
+    (data ?? []).forEach((a: ModelAttributes) => { map[a.model_id] = a; });
+    setAttributesByModel(map);
+  };
+
+  useEffect(() => {
+    loadAttributes(models.map((m) => m.id));
+  }, [models]);
+
+  const archetypeStats = useMemo(() => {
+    // Average daily revenue per archetype value
+    const buckets: Record<string, Record<string, { rev: number; count: number }>> = {
+      age: {}, body: {}, hair: {}, style: {},
+    };
+    for (const m of models) {
+      const a = attributesByModel[m.id];
+      const r = modelRevenues[m.model_name];
+      if (!a || !r || r.days === 0) continue;
+      const perDay = r.totalRevenue / r.days;
+      const add = (cat: keyof typeof buckets, key?: string | null) => {
+        if (!key) return;
+        if (!buckets[cat][key]) buckets[cat][key] = { rev: 0, count: 0 };
+        buckets[cat][key].rev += perDay;
+        buckets[cat][key].count += 1;
+      };
+      add("age", a.age_group);
+      add("body", a.body_type);
+      add("hair", a.hair_color);
+      add("style", a.style);
+    }
+    return buckets;
+  }, [models, attributesByModel, modelRevenues]);
+
   const filteredModels = useMemo(() => {
     const q = searchQuery.trim().toLocaleLowerCase("de-DE");
     return models.filter((m) => {
       if (q && !m.model_name.toLocaleLowerCase("de-DE").includes(q)) return false;
-      if (revenueFilter === "all") return true;
-      const rev = modelRevenues[m.model_name];
-      if (revenueFilter === "earning") return rev && rev.totalRevenue > 0;
-      return !rev || rev.totalRevenue === 0;
+      if (revenueFilter !== "all") {
+        const rev = modelRevenues[m.model_name];
+        if (revenueFilter === "earning" && !(rev && rev.totalRevenue > 0)) return false;
+        if (revenueFilter === "zero" && rev && rev.totalRevenue > 0) return false;
+      }
+      const a = attributesByModel[m.id];
+      if (archetypeFilter.age && a?.age_group !== archetypeFilter.age) return false;
+      if (archetypeFilter.body && a?.body_type !== archetypeFilter.body) return false;
+      if (archetypeFilter.hair && a?.hair_color !== archetypeFilter.hair) return false;
+      if (archetypeFilter.style && a?.style !== archetypeFilter.style) return false;
+      return true;
     });
-  }, [models, revenueFilter, modelRevenues, searchQuery]);
+  }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter]);
 
   const addModel = async () => {
     if (!newName.trim()) return;
