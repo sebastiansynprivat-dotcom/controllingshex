@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2, Download } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2, Download, Play } from "lucide-react";
+import * as tus from "tus-js-client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -128,26 +129,65 @@ export default function StandardTab() {
     setEditorOpen(true);
   };
 
+  const uploadResumable = (file: File, path: string, onProgress?: (pct: number) => void) =>
+    new Promise<void>(async (resolve, reject) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return reject(new Error("Nicht angemeldet"));
+      const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+      const upload = new tus.Upload(file, {
+        endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-upsert": "true",
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: BUCKET,
+          objectName: path,
+          contentType: file.type,
+          cacheControl: "3600",
+        },
+        chunkSize: 6 * 1024 * 1024,
+        onError: (err) => reject(err),
+        onProgress: (sent, total) => onProgress?.(Math.round((sent / total) * 100)),
+        onSuccess: () => resolve(),
+      });
+      upload.start();
+    });
+
   const handleFiles = async (files: FileList | null) => {
     if (!files || !user) return;
     setUploading(true);
     const newPaths: string[] = [];
     for (const file of Array.from(files)) {
-      if (file.size > 20 * 1024 * 1024) {
-        sonner.error(`${file.name} zu groß (max. 20 MB)`);
+      if (file.size > 500 * 1024 * 1024) {
+        sonner.error(`${file.name} zu groß (max. 500 MB)`);
         continue;
       }
       const safe = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
       const path = `${user.id}/standard/${crypto.randomUUID()}-${safe}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
-      if (error) {
-        sonner.error(error.message);
-        continue;
-      }
-      newPaths.push(path);
-      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
-      if (signed?.signedUrl) {
-        setSignedUrls((prev) => ({ ...prev, [path]: signed.signedUrl }));
+      const isLarge = file.size > 6 * 1024 * 1024;
+      try {
+        if (isLarge) {
+          const toastId = sonner.loading(`${file.name} 0%`);
+          await uploadResumable(file, path, (pct) => {
+            sonner.loading(`${file.name} ${pct}%`, { id: toastId });
+          });
+          sonner.success(`${file.name} hochgeladen`, { id: toastId });
+        } else {
+          const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+          if (error) throw error;
+        }
+        newPaths.push(path);
+        const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+        if (signed?.signedUrl) {
+          setSignedUrls((prev) => ({ ...prev, [path]: signed.signedUrl }));
+        }
+      } catch (err: any) {
+        sonner.error(err?.message || `${file.name} fehlgeschlagen`);
       }
     }
     setDraftMedia((prev) => [...prev, ...newPaths]);
@@ -403,9 +443,17 @@ export default function StandardTab() {
                               if (!url) return (
                                 <div key={path} className="h-16 w-16 rounded bg-white/[0.04] animate-pulse" />
                               );
+                              const isVideo = /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(path);
                               return (
-                                <div key={path} className="relative group/img h-16 w-16 rounded overflow-hidden border border-white/[0.08]">
-                                  <img src={url} alt="" className="h-full w-full object-cover" />
+                                <div key={path} className="relative group/img h-16 w-16 rounded overflow-hidden border border-white/[0.08] bg-black/40">
+                                  {isVideo ? (
+                                    <>
+                                      <video src={url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                                      <Play className="absolute inset-0 m-auto h-5 w-5 text-white/80 pointer-events-none drop-shadow" />
+                                    </>
+                                  ) : (
+                                    <img src={url} alt="" className="h-full w-full object-cover" />
+                                  )}
                                   <button
                                     onClick={() => downloadImage(path)}
                                     title="Herunterladen"
@@ -493,7 +541,7 @@ export default function StandardTab() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/*"
                   multiple
                   className="hidden"
                   onChange={(e) => handleFiles(e.target.files)}
@@ -503,10 +551,18 @@ export default function StandardTab() {
                 <div className="flex flex-wrap gap-2">
                   {draftMedia.map((path) => {
                     const url = signedUrls[path];
+                    const isVideo = /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(path);
                     return (
-                      <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1]">
+                      <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1] bg-black/40">
                         {url ? (
-                          <img src={url} alt="" className="h-full w-full object-cover" />
+                          isVideo ? (
+                            <>
+                              <video src={url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                              <Play className="absolute inset-0 m-auto h-5 w-5 text-white/80 pointer-events-none drop-shadow" />
+                            </>
+                          ) : (
+                            <img src={url} alt="" className="h-full w-full object-cover" />
+                          )
                         ) : (
                           <div className="h-full w-full bg-white/[0.04] animate-pulse" />
                         )}
