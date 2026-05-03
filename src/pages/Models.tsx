@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Pencil, Trash2, Save, X, CalendarIcon, DollarSign, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, X, CalendarIcon, DollarSign, Search, AlertTriangle, ChevronDown, Database } from "lucide-react";
+import { detectModelTroubles, type ModelTrouble } from "@/lib/model-tracking";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
