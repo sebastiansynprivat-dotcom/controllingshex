@@ -173,6 +173,26 @@ export default function StandardTab() {
         </div>
 
         {notes.length > 0 && (
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-foreground/40 pointer-events-none" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Suchen…"
+              className="h-9 pl-9 pr-9 bg-white/[0.05] border-white/[0.12] text-xs"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-white/[0.06]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {notes.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap mb-4">
             <button
               onClick={() => setFilter(ALL)}
