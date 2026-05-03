@@ -102,8 +102,11 @@ export async function generatePlan(opts: {
   selected_weekdays: number[]; // 1..7 (Mon..Sun)
   extra_context?: string;
 }): Promise<{ plan_id: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Nicht eingeloggt");
   const { data, error } = await supabase.functions.invoke("generate-channel-plan", {
     body: opts,
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
   if (error) {
     const msg = (data as any)?.error || error.message || "Generation failed";
