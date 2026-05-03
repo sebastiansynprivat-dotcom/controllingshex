@@ -507,6 +507,15 @@ export default function Models() {
           )}
         </div>
 
+        {/* Im Rückgang — Analyse-Card */}
+        {troubleFilter && (
+          <ModelsInTroubleCard
+            platform={platform}
+            modelNames={models.map((m) => m.model_name)}
+            onSelectModel={setPerfModelName}
+          />
+        )}
+
         {/* Datenbank */}
         <div className="premium-card rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 sm:px-8 py-4 border-b border-white/[0.05]">
