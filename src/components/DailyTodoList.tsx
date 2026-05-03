@@ -7,7 +7,6 @@ import {
   generateDailyTodos,
   loadTodoStates,
   setTodoStatus,
-  clearTodoStatus,
   type DailyTodo,
   type TodoState,
   type TodoCategory,
