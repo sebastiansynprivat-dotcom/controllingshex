@@ -1,0 +1,1 @@
+ALTER TABLE public.standard_notes ADD COLUMN media_urls TEXT[] NOT NULL DEFAULT '{}';

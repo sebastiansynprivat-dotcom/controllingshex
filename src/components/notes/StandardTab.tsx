@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,13 @@ interface Note {
   category: string | null;
   position: number;
   created_at: string;
+  media_urls: string[];
 }
 
 const SHARED_PLATFORM = "__shared__";
 const ALL = "__all__";
 const UNCATEGORIZED = "Ohne Kategorie";
+const BUCKET = "snippet-media";
 
 export default function StandardTab() {
   const { user } = useAuth();
@@ -34,12 +36,17 @@ export default function StandardTab() {
   const [filter, setFilter] = useState<string>(ALL);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [draftMedia, setDraftMedia] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchNotes = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("standard_notes")
-      .select("id, title, body, category, position, created_at")
+      .select("id, title, body, category, position, created_at, media_urls")
       .order("position", { ascending: true })
       .order("created_at", { ascending: false });
     setNotes((data || []) as Note[]);
@@ -49,6 +56,22 @@ export default function StandardTab() {
   useEffect(() => {
     if (user) fetchNotes();
   }, [user]);
+
+  // Sign URLs whenever notes change
+  useEffect(() => {
+    const allPaths = Array.from(new Set(notes.flatMap((n) => n.media_urls || [])));
+    const missing = allPaths.filter((p) => !signedUrls[p]);
+    if (missing.length === 0) return;
+    (async () => {
+      const { data } = await supabase.storage.from(BUCKET).createSignedUrls(missing, 3600);
+      if (!data) return;
+      const next: Record<string, string> = {};
+      data.forEach((d, i) => {
+        if (d.signedUrl) next[missing[i]] = d.signedUrl;
+      });
+      setSignedUrls((prev) => ({ ...prev, ...next }));
+    })();
+  }, [notes]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -92,6 +115,7 @@ export default function StandardTab() {
     setTitle("");
     setBody("");
     setCategory(filter !== ALL && filter !== UNCATEGORIZED ? filter : "");
+    setDraftMedia([]);
     setEditorOpen(true);
   };
 
@@ -100,7 +124,42 @@ export default function StandardTab() {
     setTitle(n.title ?? "");
     setBody(n.body);
     setCategory(n.category ?? "");
+    setDraftMedia(n.media_urls ?? []);
     setEditorOpen(true);
+  };
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || !user) return;
+    setUploading(true);
+    const newPaths: string[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 20 * 1024 * 1024) {
+        sonner.error(`${file.name} zu groß (max. 20 MB)`);
+        continue;
+      }
+      const safe = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const path = `${user.id}/standard/${crypto.randomUUID()}-${safe}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+      if (error) {
+        sonner.error(error.message);
+        continue;
+      }
+      newPaths.push(path);
+      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+      if (signed?.signedUrl) {
+        setSignedUrls((prev) => ({ ...prev, [path]: signed.signedUrl }));
+      }
+    }
+    setDraftMedia((prev) => [...prev, ...newPaths]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeDraftMedia = async (path: string) => {
+    setDraftMedia((prev) => prev.filter((p) => p !== path));
+    if (!editing || !editing.media_urls.includes(path)) {
+      await supabase.storage.from(BUCKET).remove([path]);
+    }
   };
 
   const save = async () => {
@@ -108,14 +167,16 @@ export default function StandardTab() {
     const t = title.trim() || null;
     const b = body.trim();
     const c = category.trim() || null;
-    if (!b && !t) {
-      sonner.error("Bitte Text eingeben");
+    if (!b && !t && draftMedia.length === 0) {
+      sonner.error("Bitte Text oder Bild hinzufügen");
       return;
     }
     if (editing) {
+      const removed = editing.media_urls.filter((p) => !draftMedia.includes(p));
+      if (removed.length) await supabase.storage.from(BUCKET).remove(removed);
       const { error } = await supabase
         .from("standard_notes")
-        .update({ title: t, body: b, category: c })
+        .update({ title: t, body: b, category: c, media_urls: draftMedia })
         .eq("id", editing.id);
       if (error) return sonner.error(error.message);
     } else {
@@ -127,6 +188,7 @@ export default function StandardTab() {
         body: b,
         category: c,
         position: maxPos + 1,
+        media_urls: draftMedia,
       });
       if (error) return sonner.error(error.message);
     }
@@ -135,6 +197,10 @@ export default function StandardTab() {
   };
 
   const remove = async (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (note?.media_urls?.length) {
+      await supabase.storage.from(BUCKET).remove(note.media_urls);
+    }
     const { error } = await supabase.from("standard_notes").delete().eq("id", id);
     if (error) return sonner.error(error.message);
     fetchNotes();
@@ -249,7 +315,7 @@ export default function StandardTab() {
                 <div className="space-y-2">
                   {items.map((n) => {
                     const isOpen = !!expanded[n.id];
-                    const preview = n.body.replace(/\s+/g, " ").trim();
+                    const hasMedia = (n.media_urls?.length || 0) > 0;
                     return (
                       <div key={n.id} className="group rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-start gap-1.5 px-2 py-1.5">
@@ -269,6 +335,12 @@ export default function StandardTab() {
                             >
                               {n.body}
                             </span>
+                            {hasMedia && !isOpen && (
+                              <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-foreground/45">
+                                <ImagePlus className="h-3 w-3" />
+                                {n.media_urls.length} {n.media_urls.length === 1 ? "Bild" : "Bilder"}
+                              </span>
+                            )}
                           </button>
                           <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
                             <Button
@@ -307,6 +379,25 @@ export default function StandardTab() {
                             </button>
                           </div>
                         </div>
+                        {isOpen && hasMedia && (
+                          <div className="px-2 pb-2 flex flex-wrap gap-1.5">
+                            {n.media_urls.map((path) => {
+                              const url = signedUrls[path];
+                              if (!url) return (
+                                <div key={path} className="h-16 w-16 rounded bg-white/[0.04] animate-pulse" />
+                              );
+                              return (
+                                <button
+                                  key={path}
+                                  onClick={() => setLightbox(url)}
+                                  className="h-16 w-16 rounded overflow-hidden border border-white/[0.08] hover:border-white/[0.2] transition-colors"
+                                >
+                                  <img src={url} alt="" className="h-full w-full object-cover" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -364,6 +455,54 @@ export default function StandardTab() {
               rows={8}
               className="bg-white/[0.05] border-white/[0.12]"
             />
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-foreground/55">Bilder ({draftMedia.length})</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="h-8 text-xs bg-white/[0.04] border-white/[0.12]"
+                >
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5 mr-1.5" />}
+                  Bilder hinzufügen
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+              </div>
+              {draftMedia.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {draftMedia.map((path) => {
+                    const url = signedUrls[path];
+                    return (
+                      <div key={path} className="relative group/media h-20 w-20 rounded-lg overflow-hidden border border-white/[0.1]">
+                        {url ? (
+                          <img src={url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-white/[0.04] animate-pulse" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeDraftMedia(path)}
+                          className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover/media:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditorOpen(false)}>
@@ -375,6 +514,15 @@ export default function StandardTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          <img src={lightbox} alt="" className="max-h-full max-w-full object-contain" />
+        </div>
+      )}
     </div>
   );
 }
