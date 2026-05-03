@@ -9,6 +9,7 @@
  * Keine Vorhersage, keine ML — nur sauberer Vergleich Baseline vs. aktuell.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export interface RecoveryEntry {
   chatterName: string;
