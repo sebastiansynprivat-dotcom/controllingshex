@@ -947,6 +947,18 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                         );
                       })}
                     </div>
+                    <div className={`flex items-center justify-between rounded-xl px-4 py-3 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="relative flex h-2 w-2">
+                          {isActiveToday && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />}
+                          <span className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`} />
+                        </span>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
+                      </div>
+                      <p className={`text-[12px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}>
+                        {isActiveToday ? "Aktiv" : "Inaktiv"}
+                      </p>
+                    </div>
                   </div>
 
                   {/* ── 2. KPI Grid (2×2) ── */}
