@@ -137,6 +137,110 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_knowledge: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          platform: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      channel_plan_days: {
+        Row: {
+          context_notes: Json
+          id: string
+          plan_date: string
+          plan_id: string
+          position: number
+          post_text: string
+          theme: string
+          updated_at: string
+          user_id: string
+          weekday: number
+        }
+        Insert: {
+          context_notes?: Json
+          id?: string
+          plan_date: string
+          plan_id: string
+          position?: number
+          post_text?: string
+          theme?: string
+          updated_at?: string
+          user_id: string
+          weekday: number
+        }
+        Update: {
+          context_notes?: Json
+          id?: string
+          plan_date?: string
+          plan_id?: string
+          position?: number
+          post_text?: string
+          theme?: string
+          updated_at?: string
+          user_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_plan_days_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "channel_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_plans: {
+        Row: {
+          created_at: string
+          generation_context: string | null
+          id: string
+          platform: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          generation_context?: string | null
+          id?: string
+          platform?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          generation_context?: string | null
+          id?: string
+          platform?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       chatter_category_state: {
         Row: {
           chatter_name: string

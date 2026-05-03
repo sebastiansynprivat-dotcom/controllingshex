@@ -1,77 +1,74 @@
-# Smart Daily To-Do — auto-generierte Aufgabenliste
+## Texts → 2 Tabs: "Onboarding" + "Channel"
 
-Ziel: Beim Öffnen der App siehst du eine **priorisierte Liste konkreter Aktionen für heute**, automatisch berechnet aus heutigem Report + Historie. Keine Datenwand, sondern "Mach das, dann das, dann das".
+Aktuelle `/notes`-Seite wird in zwei Tabs aufgeteilt. Der bisherige Content (Day-Buckets, Snippets, Senden) wandert in Tab **Onboarding**. Neuer Tab **Channel** = AI-basierte Wochenplanung.
 
-## Wo das landet
+### Tab 1 – Onboarding (= heutige Funktionalität, unverändert)
+Komplette aktuelle Notes-Logik bleibt 1:1, nur in einen Tab gewrappt.
 
-Neue Seite **`/today`** als erster Eintrag in der Sidebar (Icon: ListChecks). Zusätzlich kompaktes **"Heute zu tun"-Widget** ganz oben auf dem Dashboard mit Top-3 + Link zur Vollansicht.
+### Tab 2 – Channel (neu)
 
-## Wie eine Aufgabe aussieht
+**A) AI-Datenbank (Wissensbasis)**
+- Freitext-Notizen, die der User anlegt (Themen, Tonalität, Briefings, Beispiele, Do/Don'ts).
+- Liste mit Add / Edit / Delete, jeder Eintrag hat optional Titel + Body.
+- Wird beim Generieren komplett als Kontext an die AI übergeben.
 
-Jede To-Do hat:
-- **Titel** (action-orientiert): z.B. *"Lisa pushen — Mass-DMs auf 6 hochziehen"*
-- **Warum** (1 Satz Beleg aus Daten): *"Heute nur 1 Mass-DM (Ø 4,5 / Tag, −78%)"*
-- **Chatter** (chip, klickbar → öffnet ChatterSlideOver)
-- **Priority-Score** 0–100 (treibt Sortierung)
-- **Kategorie-Tag**: Umsatz / Aktivität / Verzug / Model / Recovery
-- **Aktionen rechts**: ✓ Erledigt · ⏰ Snooze (heute / morgen) · ✕ Heute irrelevant
+**B) Wochenplan-Generator**
+- Button "Neue Woche generieren" öffnet Dialog:
+  - Startdatum (Default: kommender Montag)
+  - Tages-Auswahl (Mo–So Checkboxen) → an welchen Tagen soll ein Channel-Post kommen
+  - Optionaler Kontext-Hinweis (Freitext, z.B. "Fokus auf Promo XY")
+- Edge Function `generate-channel-plan`:
+  - Lädt alle AI-DB-Einträge des Users + Platform
+  - Berechnet automatisch: Wochentag, Datum, Jahreszeit, Monat, deutsche Feiertage (statische Liste der gängigen DE-Feiertage im Code, bewegliche per Berechnung) für jeden ausgewählten Tag
+  - Schickt an Lovable AI (`google/gemini-3-flash-preview`) per Tool-Calling für strukturierte Output: pro Tag → `{ date, theme, post_text, context_notes }`
+  - Speichert Plan in neue Tabelle `channel_plans`
 
-Layout ähnlich `RecoveryQueueCard` aber als eigenständige sortierte Liste.
+**C) Anzeige & Historie**
+- Aktuelle Woche oben als Karten (eine pro Tag mit Datum, Wochentag, Thema, Text, Copy-Button)
+- Edit pro Tag (Text manuell anpassen → speichert in `channel_plan_days`)
+- Dropdown "Vorherige Wochen" zeigt gespeicherte Pläne, anklickbar zum Anschauen
 
-## Wie die To-Dos generiert werden
+### Datenbank (neue Tabellen)
 
-Reine Client-Side Aggregation aus existierenden Daten — **keine neue Edge Function**. Quellen:
-1. `chatter_history` (heute + 14T Baseline)
-2. `anomaly_alerts` (status = new/seen)
-3. `model-tracking` Trouble-Detector (bereits gebaut)
-4. `chatter_daily_goals` (heutige Ziele)
-5. `recovery-queue` (bereits vorhanden)
+```text
+channel_knowledge
+  id, user_id, platform, title (nullable), body, created_at, updated_at
 
-### Regeln (jede produziert max. 1 To-Do pro Chatter/Model):
+channel_plans
+  id, user_id, platform, week_start (date), generation_context (text, nullable),
+  created_at
 
-| Regel | Score | Beispiel |
-|---|---|---|
-| Verzug ≥ 3 Tage | 90 + (Tage·5) | "Sarah dringend — 5 Tage Verzug" |
-| Mass-DM Drop ≥ 50% | 70 + drop% | "Tom Mass-DMs auf Soll bringen (1 statt Ø 5)" |
-| Revenue-Drop ≥ 40% (heute vs. 14T-Median) | 75 + drop% | "Max checken — Umsatz −60%" |
-| Chat-Jam (offene > 1.5× Ø, ≥ 30 abs.) | 65 | "Lisa entlasten — 47 offene Chats" |
-| Model in Trouble (aus model-tracking) | 80 | "Account 'Mia' absäuft seit Wechsel zu Tom (−35%)" |
-| Inaktivität (chatter fehlt heute aber Vortage da) | 60 | "Anna fehlt im Report — Status klären" |
-| Positive Outlier (Revenue ≥ 1.8× Ø) | 40 | "Was läuft bei Jana richtig? (+120%) — fragen" |
-| Tagesziel verfehlt > 30% | 55 | "Max: 80€ statt Ziel 200€" |
-| Recovery-Queue Top-Eintrag | 50 | "Recovery: Account X reaktivieren" |
-| Mass-DMs Team-Total < 70% Ø | 35 | "Team-MassDMs heute nur 18 (Ø 32)" |
+channel_plan_days
+  id, plan_id, user_id, plan_date (date), weekday (int), theme, post_text,
+  context_notes (jsonb: {season, holiday, day_of_month, ...}), position, updated_at
+```
+RLS auf allen drei Tabellen: nur eigene Reihen.
 
-Score wird zum Sortieren benutzt; Top 10 fett angezeigt, Rest collapsable.
+### Edge Function
 
-### Snooze / Done Tracking
+`supabase/functions/generate-channel-plan/index.ts`
+- Input: `{ platform, week_start, selected_weekdays: [1..7], extra_context? }`
+- Lädt `channel_knowledge`, baut System-Prompt mit Wissensbasis + Tages-Kontext (Datum, Wochentag DE, Jahreszeit, Monat, Feiertag-Hinweis falls zutrifft)
+- Lovable AI mit Tool-Call `create_week_plan` → Array von `{ date, theme, post_text }`
+- Schreibt `channel_plans` + `channel_plan_days` per Service-Role
 
-Neue Tabelle `daily_todo_state` (klein):
-- `user_id`, `platform`, `todo_key` (z.B. `"verzug:Sarah:2026-05-03"`)
-- `status` (`done` | `snoozed` | `dismissed`)
-- `snoozed_until`, `acted_at`
+### Deutsche Feiertage
+Helper im Edge Function: feste Daten (Neujahr, Tag der Arbeit, Tag der Dt. Einheit, Heiligabend, Weihnachten, Silvester) + bewegliche per Gauß-Algo (Ostern → Karfreitag, Ostermontag, Pfingsten, Christi Himmelfahrt). Reicht als Default.
 
-So bleibt eine erledigte To-Do heute weg, taucht aber morgen ggf. wieder auf wenn das Problem persistiert. `todo_key` enthält das Datum → automatisches Reset jeden Tag (außer du dismisst explizit).
+### Frontend
 
-## Tech / Files
+- `src/pages/Notes.tsx`: Wrap aktuelle Inhalte in `<Tabs>` mit `TabsList` (Onboarding | Channel) und `TabsContent`.
+- Aktuellen Code in neue Komponente `src/components/notes/OnboardingTab.tsx` extrahieren.
+- Neue Komponenten:
+  - `src/components/notes/ChannelTab.tsx` — orchestriert Knowledge + Plan
+  - `src/components/notes/ChannelKnowledgeList.tsx` — CRUD Wissensbasis
+  - `src/components/notes/ChannelPlanGenerator.tsx` — Dialog mit Tagesauswahl
+  - `src/components/notes/ChannelPlanView.tsx` — Karten der Woche + Historie-Dropdown
+- `src/lib/channel-plan.ts` — Client-seitige Helper (laden, speichern Edits, Edge-Function-Aufruf)
 
-**Neu:**
-- `src/lib/daily-todos.ts` — `generateDailyTodos(platform, userId)` + Regel-Engine
-- `src/pages/Today.tsx` — die Seite
-- `src/components/DailyTodoList.tsx` — die Liste (wiederverwendbar fürs Dashboard-Widget)
-- `src/components/DailyTodoWidget.tsx` — kompakte Top-3 Variante
+### Sidebar
+"Texts" bleibt als Eintrag — kein neuer Routen-Eintrag nötig.
 
-**Modifikationen:**
-- `src/App.tsx` — Route `/today`
-- `src/components/AppSidebar.tsx` — Sidebar-Eintrag oben
-- `src/pages/Dashboard.tsx` — Widget oben einfügen
-
-**DB-Migration:**
-- Tabelle `daily_todo_state` mit RLS (user_id basiert, wie alle anderen Tabellen)
-
-## Was nicht passiert
-- Keine Edge Function (Client reicht — Daten sind eh schon im Browser)
-- Kein KI-Call (Regeln sind deterministisch, schnell, transparent)
-- Keine Push-Notifications (kann später kommen)
-
-Sag Bescheid wenn ich loslegen soll, oder ob du Regeln streichen / ergänzen willst (z.B. eigene Regel "alle Models mit Tier-A in Trouble priorisieren").
+### Out of Scope
+- Auto-Posting / Scheduler in echte Plattform
+- Bilder/Media-Generierung für Channel-Plan (nur Text-Vorschläge)
