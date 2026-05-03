@@ -1,0 +1,279 @@
+/**
+ * Smart Daily To-Dos
+ *
+ * Generiert eine priorisierte Tagesaufgaben-Liste aus heutigem Report + 14T Historie.
+ * Reine Client-Side Aggregation, deterministisch, transparent.
+ */
+
+import { supabase } from "@/integrations/supabase/client";
+import { detectModelTroubles } from "@/lib/model-tracking";
+
+export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive";
+
+export interface DailyTodo {
+  /** Stabiler Schlüssel inkl. Datum, z.B. "verzug:Sarah:2026-05-03" */
+  key: string;
+  category: TodoCategory;
+  /** Score 0-100+, höher = wichtiger */
+  score: number;
+  title: string;
+  why: string;
+  chatterName?: string | null;
+  modelName?: string | null;
+}
+
+export interface TodoState {
+  status: "done" | "snoozed" | "dismissed";
+  snoozed_until: string | null;
+}
+
+interface HistoryRow {
+  chatter_name: string;
+  analysis_date: string;
+  revenue_today: number | null;
+  mass_dms: number | null;
+  open_chats: number | null;
+  response_delay_days: number | null;
+  account: string | null;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function todayStr(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+export async function generateDailyTodos(platform: string): Promise<DailyTodo[]> {
+  const today = todayStr();
+  const fourteenAgo = new Date();
+  fourteenAgo.setDate(fourteenAgo.getDate() - 14);
+  const sinceStr = fourteenAgo.toISOString().split("T")[0];
+
+  const { data: history } = await supabase
+    .from("chatter_history")
+    .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
+    .eq("platform", platform)
+    .gte("analysis_date", sinceStr)
+    .order("analysis_date", { ascending: false });
+
+  const rows = (history || []) as HistoryRow[];
+  if (rows.length === 0) return [];
+
+  // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
+  const latestDate = rows[0].analysis_date;
+
+  const byChatter = new Map<string, HistoryRow[]>();
+  for (const r of rows) {
+    if (!r.chatter_name) continue;
+    const list = byChatter.get(r.chatter_name) || [];
+    list.push(r);
+    byChatter.set(r.chatter_name, list);
+  }
+
+  const todos: DailyTodo[] = [];
+
+  for (const [name, entries] of byChatter) {
+    const todayEntry = entries.find((e) => e.analysis_date === latestDate);
+    const historical = entries.filter((e) => e.analysis_date !== latestDate);
+
+    // Inaktivität — fehlt heute, war aber regelmäßig da
+    if (!todayEntry && historical.length >= 5) {
+      todos.push({
+        key: `inactive:${name}:${today}`,
+        category: "activity",
+        score: 60,
+        title: `${name} fehlt im Report`,
+        why: `Letzte Tage regelmäßig dabei, heute nicht — Status klären.`,
+        chatterName: name,
+      });
+      continue;
+    }
+    if (!todayEntry || historical.length < 2) continue;
+
+    // Verzug
+    const delay = todayEntry.response_delay_days ?? 0;
+    if (delay >= 3) {
+      todos.push({
+        key: `verzug:${name}:${today}`,
+        category: "verzug",
+        score: 90 + delay * 5,
+        title: `${name} dringend — ${delay} Tage Verzug`,
+        why: `Antwortverzug ${delay} Tage. Sofort entlasten oder Ursache klären.`,
+        chatterName: name,
+      });
+    }
+
+    // Mass-DM Drop
+    const todayDm = todayEntry.mass_dms ?? 0;
+    const baseDm = median(historical.map((e) => e.mass_dms ?? 0));
+    if (baseDm >= 3) {
+      const drop = ((baseDm - todayDm) / baseDm) * 100;
+      if (drop >= 50) {
+        todos.push({
+          key: `dm:${name}:${today}`,
+          category: "activity",
+          score: 70 + Math.min(30, Math.round(drop / 3)),
+          title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)`,
+          why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%).`,
+          chatterName: name,
+        });
+      }
+    }
+
+    // Revenue Drop
+    const todayRev = Number(todayEntry.revenue_today ?? 0);
+    const baseRev = median(historical.map((e) => Number(e.revenue_today ?? 0)));
+    if (baseRev >= 50) {
+      const drop = ((baseRev - todayRev) / baseRev) * 100;
+      if (drop >= 40) {
+        todos.push({
+          key: `rev:${name}:${today}`,
+          category: "revenue",
+          score: 75 + Math.min(25, Math.round(drop / 4)),
+          title: `${name} checken — Umsatz −${Math.round(drop)}%`,
+          why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€.`,
+          chatterName: name,
+        });
+      }
+      // Positive Outlier
+      if (todayRev >= baseRev * 1.8) {
+        const up = Math.round(((todayRev - baseRev) / baseRev) * 100);
+        todos.push({
+          key: `pos:${name}:${today}`,
+          category: "positive",
+          score: 40,
+          title: `Was läuft bei ${name} richtig? (+${up}%)`,
+          why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€ — Erfolgsrezept abgreifen.`,
+          chatterName: name,
+        });
+      }
+    }
+
+    // Chat Jam
+    const todayChats = todayEntry.open_chats ?? 0;
+    const baseChats = median(historical.map((e) => e.open_chats ?? 0));
+    if (todayChats >= 30 && baseChats > 0 && todayChats > baseChats * 1.5) {
+      const up = Math.round(((todayChats - baseChats) / baseChats) * 100);
+      todos.push({
+        key: `jam:${name}:${today}`,
+        category: "activity",
+        score: 65,
+        title: `${name} entlasten — ${todayChats} offene Chats`,
+        why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats.`,
+        chatterName: name,
+      });
+    }
+  }
+
+  // Models in Trouble
+  const { data: modelRows } = await supabase
+    .from("models")
+    .select("model_name")
+    .eq("platform", platform);
+  const modelNames = (modelRows || []).map((m) => m.model_name);
+  if (modelNames.length > 0) {
+    try {
+      const troubles = await detectModelTroubles(platform, modelNames);
+      for (const t of troubles.slice(0, 8)) {
+        todos.push({
+          key: `model:${t.modelName}:${today}`,
+          category: "model",
+          score: t.severity === "high" ? 85 : 78,
+          title: `Model "${t.modelName}" absäuft`,
+          why: t.reason,
+          modelName: t.modelName,
+          chatterName: t.currentChatter,
+        });
+      }
+    } catch (e) {
+      console.warn("[daily-todos] model trouble detection failed", e);
+    }
+  }
+
+  // Team Mass-DM Total
+  const todayRows = rows.filter((r) => r.analysis_date === latestDate);
+  if (todayRows.length >= 3) {
+    const totalToday = todayRows.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
+    const dailyTotals = new Map<string, number>();
+    for (const r of rows) {
+      if (r.analysis_date === latestDate) continue;
+      dailyTotals.set(r.analysis_date, (dailyTotals.get(r.analysis_date) ?? 0) + (r.mass_dms ?? 0));
+    }
+    const avgTeam = median(Array.from(dailyTotals.values()));
+    if (avgTeam >= 10 && totalToday < avgTeam * 0.7) {
+      todos.push({
+        key: `team-dm:${today}`,
+        category: "team",
+        score: 35,
+        title: `Team-MassDMs heute schwach`,
+        why: `${totalToday} statt Ø ${avgTeam.toFixed(0)} — Team aktivieren.`,
+      });
+    }
+  }
+
+  // Sortieren
+  todos.sort((a, b) => b.score - a.score);
+  return todos;
+}
+
+export async function loadTodoStates(
+  platform: string
+): Promise<Record<string, TodoState>> {
+  const today = todayStr();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return {};
+
+  const { data } = await supabase
+    .from("daily_todo_state")
+    .select("todo_key, status, snoozed_until")
+    .eq("user_id", user.id)
+    .eq("platform", platform)
+    .gte("acted_at", today + "T00:00:00Z");
+
+  const map: Record<string, TodoState> = {};
+  for (const r of data || []) {
+    map[r.todo_key] = {
+      status: r.status as TodoState["status"],
+      snoozed_until: r.snoozed_until,
+    };
+  }
+  return map;
+}
+
+export async function setTodoStatus(
+  platform: string,
+  todoKey: string,
+  status: TodoState["status"],
+  snoozedUntil?: string | null
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  await supabase.from("daily_todo_state").upsert(
+    {
+      user_id: user.id,
+      platform,
+      todo_key: todoKey,
+      status,
+      snoozed_until: snoozedUntil ?? null,
+      acted_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,platform,todo_key" }
+  );
+}
+
+export async function clearTodoStatus(platform: string, todoKey: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase
+    .from("daily_todo_state")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("platform", platform)
+    .eq("todo_key", todoKey);
+}

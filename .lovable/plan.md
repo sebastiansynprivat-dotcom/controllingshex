@@ -1,73 +1,77 @@
-# Model Performance Tracking
+# Smart Daily To-Do — auto-generierte Aufgabenliste
 
-Ziel: Jedes Model soll eine fortlaufende Umsatz-Historie haben, die zeigt **wann welcher Chatter dran war** und **wie sich der Umsatz dadurch verändert hat**. Damit erkennst du sofort: "Model X lief unter Chatter A super, ist seit Wechsel zu Chatter B am absaufen."
+Ziel: Beim Öffnen der App siehst du eine **priorisierte Liste konkreter Aktionen für heute**, automatisch berechnet aus heutigem Report + Historie. Keine Datenwand, sondern "Mach das, dann das, dann das".
 
 ## Wo das landet
 
-Neuer Tab **"Performance"** auf der `/models` Seite (zusätzlich zur bestehenden Liste). Dazu pro Model-Karte eine kleine Trend-Mini-Anzeige + Klick öffnet Detail-Slide-Over.
+Neue Seite **`/today`** als erster Eintrag in der Sidebar (Icon: ListChecks). Zusätzlich kompaktes **"Heute zu tun"-Widget** ganz oben auf dem Dashboard mit Top-3 + Link zur Vollansicht.
 
-## Was du siehst
+## Wie eine Aufgabe aussieht
 
-### 1. Model-Liste mit Trend-Indikator (Übersicht)
-Pro Model-Karte zusätzlich:
-- **Trend-Badge**: ↑ Steigend / → Stabil / ↓ Fallend (basiert auf letzte 7T vs. davor 7T)
-- **Aktueller Chatter** + seit wann er das Model hat
-- **Status-Dot**: Grün (läuft besser als Vorgänger), Rot (läuft schlechter), Grau (erster Chatter / neutral)
+Jede To-Do hat:
+- **Titel** (action-orientiert): z.B. *"Lisa pushen — Mass-DMs auf 6 hochziehen"*
+- **Warum** (1 Satz Beleg aus Daten): *"Heute nur 1 Mass-DM (Ø 4,5 / Tag, −78%)"*
+- **Chatter** (chip, klickbar → öffnet ChatterSlideOver)
+- **Priority-Score** 0–100 (treibt Sortierung)
+- **Kategorie-Tag**: Umsatz / Aktivität / Verzug / Model / Recovery
+- **Aktionen rechts**: ✓ Erledigt · ⏰ Snooze (heute / morgen) · ✕ Heute irrelevant
 
-### 2. Detail-Ansicht pro Model (Slide-Over bei Klick)
+Layout ähnlich `RecoveryQueueCard` aber als eigenständige sortierte Liste.
 
-**a) Revenue-Timeline (Chart)**
-- Linien-Chart: täglicher Umsatz über Zeitraum (7T/14T/30T/90T/Custom)
-- Farbige Hintergrund-Bänder markieren, welcher Chatter wann dran war
-- Vertikale Linien an Chatter-Wechsel-Tagen mit Label "→ Wechsel zu [Name]"
+## Wie die To-Dos generiert werden
 
-**b) Chatter-History-Tabelle** (alle Chatter die das Model je hatten)
-| Chatter | Zeitraum | Tage | Ø Umsatz/Tag | Gesamtumsatz | vs. Vorgänger |
-|---|---|---|---|---|---|
-| Lisa | 12.04 – heute | 21 | 142 € | 2.982 € | −18 % |
-| Max  | 01.03 – 11.04 | 42 | 173 € | 7.266 € | +24 % |
-| Tom  | 15.01 – 28.02 | 45 | 139 € | 6.255 € | — (erster) |
+Reine Client-Side Aggregation aus existierenden Daten — **keine neue Edge Function**. Quellen:
+1. `chatter_history` (heute + 14T Baseline)
+2. `anomaly_alerts` (status = new/seen)
+3. `model-tracking` Trouble-Detector (bereits gebaut)
+4. `chatter_daily_goals` (heutige Ziele)
+5. `recovery-queue` (bereits vorhanden)
 
-**c) Krisen-Alarm** (oben prominent wenn zutreffend)
-- "🔻 Seit Wechsel zu [Chatter] vor X Tagen: −Y % Umsatz vs. vorherige Periode"
-- "📉 Letzte 7 Tage deutlich unter eigenem 30T-Schnitt"
+### Regeln (jede produziert max. 1 To-Do pro Chatter/Model):
 
-### 3. Globaler "Models in Trouble"-Block (oben auf Performance-Tab)
-Liste aller Models, bei denen mind. einer dieser Trigger feuert:
-- Aktueller Chatter macht ≥20 % weniger als letzter Vorgänger (gleicher Vergleichszeitraum)
-- Letzte 7T unter 60 % des 30T-Schnitts des Models
-- 3+ Tage in Folge Umsatz = 0 obwohl davor regelmäßig Umsatz lief
+| Regel | Score | Beispiel |
+|---|---|---|
+| Verzug ≥ 3 Tage | 90 + (Tage·5) | "Sarah dringend — 5 Tage Verzug" |
+| Mass-DM Drop ≥ 50% | 70 + drop% | "Tom Mass-DMs auf Soll bringen (1 statt Ø 5)" |
+| Revenue-Drop ≥ 40% (heute vs. 14T-Median) | 75 + drop% | "Max checken — Umsatz −60%" |
+| Chat-Jam (offene > 1.5× Ø, ≥ 30 abs.) | 65 | "Lisa entlasten — 47 offene Chats" |
+| Model in Trouble (aus model-tracking) | 80 | "Account 'Mia' absäuft seit Wechsel zu Tom (−35%)" |
+| Inaktivität (chatter fehlt heute aber Vortage da) | 60 | "Anna fehlt im Report — Status klären" |
+| Positive Outlier (Revenue ≥ 1.8× Ø) | 40 | "Was läuft bei Jana richtig? (+120%) — fragen" |
+| Tagesziel verfehlt > 30% | 55 | "Max: 80€ statt Ziel 200€" |
+| Recovery-Queue Top-Eintrag | 50 | "Recovery: Account X reaktivieren" |
+| Mass-DMs Team-Total < 70% Ø | 35 | "Team-MassDMs heute nur 18 (Ø 32)" |
 
-So siehst du ohne klicken sofort, wo du eingreifen musst.
+Score wird zum Sortieren benutzt; Top 10 fett angezeigt, Rest collapsable.
 
-## Technische Umsetzung
+### Snooze / Done Tracking
 
-### Datenquelle
-Alles existiert bereits in `chatter_history` (account, chatter_name, revenue_today, analysis_date). Keine neue Tabelle nötig. Wir leiten "Chatter-Wechsel" aus den Daten ab: pro Model die Tage gruppieren, jeder Chatter-Name = eine "Phase".
+Neue Tabelle `daily_todo_state` (klein):
+- `user_id`, `platform`, `todo_key` (z.B. `"verzug:Sarah:2026-05-03"`)
+- `status` (`done` | `snoozed` | `dismissed`)
+- `snoozed_until`, `acted_at`
 
-### Gewichtete Aufteilung
-Wiederverwenden der Logik aus `src/lib/model-performance.ts` (Umsatz wird gewichtet aufgeteilt wenn ein Chatter mehrere Accounts gleichzeitig hatte). Für die Timeline: pro Tag pro Model den gewichteten Anteil berechnen.
+So bleibt eine erledigte To-Do heute weg, taucht aber morgen ggf. wieder auf wenn das Problem persistiert. `todo_key` enthält das Datum → automatisches Reset jeden Tag (außer du dismisst explizit).
 
-### Neue Files
-- `src/lib/model-tracking.ts` — Funktionen:
-  - `loadModelTimeline(platform, modelName, fromDate, toDate)` → tägliche Datenpunkte mit Chatter-Zuordnung
-  - `loadModelChatterPhases(platform, modelName)` → Phasen pro Chatter mit Aggregaten
-  - `detectModelTroubles(platform, allModels)` → Liste der Krisen-Models
-- `src/components/ModelPerformanceSlideOver.tsx` — Detail-Ansicht (Chart + Tabelle + Alarm)
-- `src/components/ModelsInTroubleCard.tsx` — Block oben
+## Tech / Files
 
-### Modifikationen
-- `src/pages/Models.tsx`: Tabs ("Übersicht" / "Performance") einbauen, Trend-Badge + Status-Dot in bestehende Karten, Klick öffnet Slide-Over.
+**Neu:**
+- `src/lib/daily-todos.ts` — `generateDailyTodos(platform, userId)` + Regel-Engine
+- `src/pages/Today.tsx` — die Seite
+- `src/components/DailyTodoList.tsx` — die Liste (wiederverwendbar fürs Dashboard-Widget)
+- `src/components/DailyTodoWidget.tsx` — kompakte Top-3 Variante
 
-### Chart
-Recharts `LineChart` (bereits via shadcn `chart.tsx` verfügbar) mit `ReferenceArea` für Chatter-Phasen-Bänder und `ReferenceLine` für Wechsel-Tage.
+**Modifikationen:**
+- `src/App.tsx` — Route `/today`
+- `src/components/AppSidebar.tsx` — Sidebar-Eintrag oben
+- `src/pages/Dashboard.tsx` — Widget oben einfügen
 
-### Zeitraumfilter
-Wiederverwendung von `TimeRangeToggle` mit Optionen 7T / 14T / 30T / 90T / Custom (entspricht Memory-Regel).
+**DB-Migration:**
+- Tabelle `daily_todo_state` mit RLS (user_id basiert, wie alle anderen Tabellen)
 
 ## Was nicht passiert
-- Keine DB-Änderungen
-- Keine Edge-Function (alles client-side aus vorhandenen Daten)
-- Keine Änderung an Upload/Pipeline
+- Keine Edge Function (Client reicht — Daten sind eh schon im Browser)
+- Kein KI-Call (Regeln sind deterministisch, schnell, transparent)
+- Keine Push-Notifications (kann später kommen)
 
-Sag Bescheid wenn du loslegen sollen oder etwas anders haben willst (z.B. Performance-Block direkt aufs Dashboard statt in `/models`).
+Sag Bescheid wenn ich loslegen soll, oder ob du Regeln streichen / ergänzen willst (z.B. eigene Regel "alle Models mit Tier-A in Trouble priorisieren").

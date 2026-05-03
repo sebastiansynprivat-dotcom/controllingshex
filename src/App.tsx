@@ -21,6 +21,7 @@ import MonthlyGoals from "@/pages/MonthlyGoals";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
+import Today from "@/pages/Today";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const AppRoutes = () => (
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/today" element={<Today />} />
               <Route path="/forecast" element={<Forecast />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
               <Route path="/monatsziele" element={<MonthlyGoals />} />
