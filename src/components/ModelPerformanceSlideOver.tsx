@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, CartesianGrid } from "recharts";
-import { TrendingDown, TrendingUp, AlertTriangle, ArrowRight } from "lucide-react";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, CartesianGrid, AreaChart, Area } from "recharts";
+import { TrendingDown, TrendingUp, AlertTriangle, User } from "lucide-react";
 import { loadModelTimeline, formatEur, type ModelTimeline, type ChatterPhase } from "@/lib/model-tracking";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   onClose: () => void;
   modelName: string | null;
   platform: string;
+  /** Wenn gesetzt, wird unter dem Model-Verlauf eine Vergleichsansicht für diesen Chatter eingeblendet. */
+  focusChatter?: string | null;
 }
 
 const PHASE_COLORS = [
