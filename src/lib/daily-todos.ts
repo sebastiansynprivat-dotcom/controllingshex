@@ -65,6 +65,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const rows = (history || []) as HistoryRow[];
   if (rows.length === 0) return [];
 
+  // Nur Chatter berücksichtigen, die im neuesten Report noch enthalten sind.
+  // Wer nicht mehr im aktuellen Report auftaucht, ist „raus" und wird komplett
+  // aus den To-Dos gefiltert.
+  const activeNames = await loadActiveChatterNames(platform);
+  const isActive = (name: string) =>
+    activeNames === null ? true : activeNames.has(normalizeChatterName(name));
+
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
 
