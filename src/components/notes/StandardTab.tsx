@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2, Download, Play } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, FileText, Check, X, Tag, Search, ChevronDown, ImagePlus, Loader2, Download, Play, FileType } from "lucide-react";
 import * as tus from "tus-js-client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
