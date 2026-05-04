@@ -571,10 +571,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     (today.revenue_today ?? 0) > 0 || (today.mass_dms ?? 0) > 0 || (today.open_chats ?? 0) > 0
   );
   const liveKpis = [
-    { label: "Tagesumsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
-    { label: "Höchster Umsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Trophy, accent: "45 75% 55%", gold: true },
-    { label: "MassDMs", value: today ? String(today.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
-    { label: "Offene Chats", value: today ? String(today.open_chats) : "—", icon: MessageSquare, accent: "0 84% 60%", gold: false },
+    { label: "Tagesumsatz", value: liveProfile && liveProfile.revenue != null ? formatCurrency(Number(liveProfile.revenue)) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
+    { label: "MassDMs", value: liveProfile && liveProfile.mass_dms != null ? String(liveProfile.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
+    { label: "Offene Chats", value: liveProfile && liveProfile.unread_chats != null ? String(liveProfile.unread_chats) : "—", icon: MessageSquare, accent: "0 84% 60%", gold: false },
+    { label: "Ältester Chat", value: liveProfile && liveProfile.oldest_chat != null ? `${liveProfile.oldest_chat}h` : "—", icon: Clock, accent: "30 80% 55%", gold: false },
   ];
 
   const displayName = toTitleCase(chatterName);
