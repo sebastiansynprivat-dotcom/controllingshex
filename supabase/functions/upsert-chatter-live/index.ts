@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
       revenue: Number(r.revenue ?? 0),
       mass_dms: Number(r.mass_dms ?? 0),
       unread_chats: Number(r.unread_chats ?? 0),
+      oldest_chat: r.oldest_chat ?? null,
       date: r.date ?? today,
       updated_at: new Date().toISOString(),
     };
