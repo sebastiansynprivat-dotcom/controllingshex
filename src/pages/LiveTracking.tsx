@@ -12,7 +12,7 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "escalation" | "lost";
+type FilterKey = "all" | "escalation" | "lost" | "inactive";
 
 function secondsSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -37,7 +37,7 @@ export default function LiveTracking() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [runningOpen, setRunningOpen] = useState(false);
+  const [runningOpen, setRunningOpen] = useState(true);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
 
@@ -136,9 +136,11 @@ export default function LiveTracking() {
       if (search && !s.row.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filter === "escalation" && (s.row.oldest_chat ?? 0) < 1) return false;
       if (filter === "lost" && s.potentialLoss < 20) return false;
+      if (filter === "inactive" && secondsSince(s.row.updated_at) < 30 * 60) return false;
       return true;
     });
-  }, [scored, search, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scored, search, filter, tick]);
 
   const buckets = useMemo(
     () => ({
@@ -243,8 +245,8 @@ export default function LiveTracking() {
       )}
 
       {/* Filter pills */}
-      <div className="flex items-center gap-2">
-        {(["all", "escalation", "lost"] as FilterKey[]).map((k) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        {(["all", "escalation", "lost", "inactive"] as FilterKey[]).map((k) => (
           <button
             key={k}
             onClick={() => setFilter(k)}
@@ -254,7 +256,13 @@ export default function LiveTracking() {
                 : "text-white/40 border-white/[0.06] hover:text-white/75 hover:border-white/12"
             }`}
           >
-            {k === "all" ? "Alle" : k === "escalation" ? "Eskalation" : "Lost Potential"}
+            {k === "all"
+              ? `Alle · ${scored.length}`
+              : k === "escalation"
+              ? "Eskalation"
+              : k === "lost"
+              ? "Lost Potential"
+              : "Inaktiv"}
           </button>
         ))}
       </div>
@@ -263,7 +271,14 @@ export default function LiveTracking() {
       {loading ? (
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Lade Live-Daten…</p>
       ) : visible.length === 0 ? (
-        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter heute aktiv.</p>
+        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter passen zum Filter.</p>
+      ) : filter !== "all" ? (
+        // Flache Liste bei aktivem Filter
+        <div className="space-y-2">
+          {visible.map((s) => (
+            <Row key={s.row.chatter_name} item={s} tone={s.bucket === "now" ? "urgent" : s.bucket === "watch" ? "watch" : "running"} onSelect={setSelected} />
+          ))}
+        </div>
       ) : (
         <div className="space-y-12">
           {buckets.now.length > 0 && <Bucket label="Sofort handeln" tone="urgent" items={buckets.now} onSelect={setSelected} />}
@@ -285,8 +300,10 @@ export default function LiveTracking() {
                 )}
               </button>
               {runningOpen && (
-                <div className="mt-4">
-                  <Bucket label="" tone="running" items={buckets.running} onSelect={setSelected} />
+                <div className="mt-4 space-y-2">
+                  {buckets.running.map((s) => (
+                    <Row key={s.row.chatter_name} item={s} tone="running" onSelect={setSelected} />
+                  ))}
                 </div>
               )}
             </div>
@@ -391,20 +408,6 @@ function Row({
   const online = sec < 5 * 60;
   const offline = sec >= 30 * 60;
 
-  // Score visual: ring-style number with tone-based color
-  const scoreColor =
-    tone === "urgent"
-      ? "text-rose-200"
-      : tone === "watch"
-      ? "text-amber-100"
-      : "text-white/55";
-  const scoreRing =
-    tone === "urgent"
-      ? "border-rose-400/30 bg-gradient-to-b from-rose-500/[0.08] to-rose-500/[0.02] shadow-[0_0_24px_-8px_hsl(0_70%_60%/0.35)]"
-      : tone === "watch"
-      ? "border-amber-300/25 bg-gradient-to-b from-amber-400/[0.06] to-amber-400/[0.01]"
-      : "border-white/[0.08] bg-white/[0.02]";
-
   const cardBase = "group relative w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left transition-all duration-300 border backdrop-blur-xl";
   const cardTone =
     tone === "urgent"
@@ -412,6 +415,13 @@ function Row({
       : tone === "watch"
       ? "premium-card border-amber-300/10 hover:border-amber-300/22"
       : "border-white/[0.04] bg-white/[0.012] hover:bg-white/[0.025] hover:border-white/[0.08]";
+
+  const reasonColor =
+    tone === "urgent"
+      ? "text-rose-200/90"
+      : tone === "watch"
+      ? "text-amber-100/85"
+      : "text-white/55";
 
   return (
     <button
@@ -430,35 +440,43 @@ function Row({
         />
       </span>
 
-      {/* Name + reasons */}
+      {/* Main content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[15px] text-white/95 font-light tracking-wide truncate">
-            {item.row.chatter_name}
-          </span>
-          {item.hotStreak && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-300/85 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 tracking-wider uppercase">
-              <ArrowUpRight className="h-2.5 w-2.5" /> Hot
+        {/* Top row: Name + hot + time --- live metrics right */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[15px] text-white/95 font-light tracking-wide truncate">
+              {item.row.chatter_name}
             </span>
-          )}
-          <span className="text-[10px] text-white/25 tracking-wider">
-            · vor {relTime(sec)}
-          </span>
+            {item.hotStreak && (
+              <span className="flex items-center gap-1 text-[10px] text-emerald-300/85 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 tracking-wider uppercase shrink-0">
+                <ArrowUpRight className="h-2.5 w-2.5" /> Hot
+              </span>
+            )}
+            <span className="text-[10px] text-white/25 tracking-wider shrink-0">
+              · vor {relTime(sec)}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] tabular-nums shrink-0">
+            <span className="text-white/80 font-light">{fmtEur(Number(item.row.revenue))}</span>
+            <span className="text-white/15">·</span>
+            <span className={`font-light ${(item.row.unread_chats ?? 0) >= 10 ? "text-rose-200/90" : "text-white/55"}`}>
+              {item.row.unread_chats} <span className="text-white/30 text-[10px] uppercase tracking-wider">ungel.</span>
+            </span>
+            <span className="text-white/15">·</span>
+            <span className="text-white/55 font-light">
+              {item.row.mass_dms} <span className="text-white/30 text-[10px] uppercase tracking-wider">dm</span>
+            </span>
+          </div>
         </div>
+
+        {/* Reasons */}
         {item.reasons.length > 0 && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             {item.reasons.map((r, i) => (
               <span
                 key={i}
-                className={`text-[11px] font-light tracking-wide ${
-                  i === 0
-                    ? tone === "urgent"
-                      ? "text-rose-200/90"
-                      : tone === "watch"
-                      ? "text-amber-100/85"
-                      : "text-white/55"
-                    : "text-white/40"
-                }`}
+                className={`text-[11px] font-light tracking-wide ${i === 0 ? reasonColor : "text-white/40"}`}
               >
                 {i > 0 && <span className="text-white/15 mr-2">·</span>}
                 {r}
@@ -466,20 +484,6 @@ function Row({
             ))}
           </div>
         )}
-        {/* Live mini-metrics */}
-        <div className="mt-2 flex items-center gap-4 text-[10px] text-white/30 tracking-wider uppercase font-light">
-          <span><span className="text-white/50 tabular-nums">{fmtEur(Number(item.row.revenue))}</span> heute</span>
-          <span><span className="text-white/50 tabular-nums">{item.row.unread_chats}</span> ungelesen</span>
-          <span><span className="text-white/50 tabular-nums">{item.row.mass_dms}</span> mass-dms</span>
-        </div>
-      </div>
-
-      {/* Score badge */}
-      <div className={`flex flex-col items-center justify-center h-14 w-14 rounded-2xl border shrink-0 ${scoreRing}`}>
-        <span className={`text-xl font-extralight tabular-nums leading-none ${scoreColor}`}>
-          {item.score}
-        </span>
-        <span className="text-[8px] uppercase tracking-[0.2em] text-white/30 mt-1">Score</span>
       </div>
     </button>
   );

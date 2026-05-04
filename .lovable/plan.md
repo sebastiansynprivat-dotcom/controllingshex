@@ -1,121 +1,45 @@
-## Live-Tracking 2.0 — Priorisierte Action-Queue
+## Live-Tracking Fixes
 
-Komplett-Redesign: Aus der Tabelle wird eine schlanke, nach Wichtigkeit sortierte Liste. Kleiner, luxuriöser, übersichtlicher.
+Drei kleine, gezielte Anpassungen — keine Re-Designs.
 
-### Priority-Score (0–100)
+### 1. „Alle" zeigt wirklich alle
 
-Score wird live clientseitig pro Chatter berechnet, basierend auf Live-Daten + 14-Tage-Schnitt aus `chatter_history`.
+Aktuell: Wenn Filter = `Alle` aktiv ist, landen Chatter mit Score < 40 trotzdem im eingeklappten „laufen sauber"-Bereich. Das verbirgt sie.
 
-**Eskalation und Lost Potential gleich gewichtet (je 35%)**, Rest verteilt:
+Fix: Sobald **explizit** ein Filter gewählt ist (auch `Alle`, sobald Suche aktiv ist oder ein anderer Filter als Default), bekommen alle gefilterten Treffer **eine flache Liste ohne Buckets** und ohne eingeklappten Running-Bucket.
 
-| Signal | Gewicht | Logik |
-|---|---|---|
-| Eskalation | 35 | `oldest_chat` Stunden, normalisiert: 0=0pt, ≥4h=full |
-| Lost Potential | 35 | `(avg14d − todayRevenue) / avg14d`, gekappt auf 0–1 |
-| Stau | 15 | `unread_chats / max(personalAvgUnread, 5)`, gekappt |
-| AFK-Risk | 10 | Min seit `updated_at` × Erwartungsfaktor zur Uhrzeit |
-| Mass-DM-Lücke | 5 | sendet sonst >0/Tag, heute = 0 |
+Konkret:
+- `Alle` → 3 Buckets bleiben, aber „laufen sauber" wird **standardmäßig aufgeklappt** (statt zu) — sonst sieht man die Mehrheit nicht.
+- `Eskalation`, `Lost Potential`, `Inaktiv` → flache Liste, keine Bucket-Trennung, alle Treffer sichtbar.
 
-Hot-Streak (`todayRevenue > 1.5× avg14d`) → Score wird auf max 30 gedeckelt → landet automatisch im „Läuft"-Bucket.
+### 2. Neuer Filter „Inaktiv"
 
-### „Noch nicht am Start" (kombiniert)
+Vierte Pille rechts neben den drei bestehenden. Logik: `secondsSince(updated_at) >= 30 * 60` (kein Update seit ≥ 30 min, basierend auf der bestehenden offline-Schwelle).
 
-Banner-Warnung wenn Chatter **beides** zeigt:
-1. Keine Zeile in `chatter_history_live` heute  **ODER** Revenue heute < 20% des erwarteten Stands für die aktuelle Uhrzeit
-2. Ist im 14-Tage-Schnitt normalerweise um diese Uhrzeit aktiv
+### 3. Score-Badge entfernen
 
-Stundenweiser Erwartungswert: aus historischer Verteilung (vereinfacht: linear über den Tag basierend auf avg14d).
+Die runde Score-Box rechts in jeder Zeile wird komplett entfernt. Der Score bleibt intern als Sortierkriterium und für die Bucket-Zuordnung — er wird nur **nicht mehr angezeigt**.
 
-### 3 Buckets
+Stattdessen rückt das Layout so:
+- Name + Hot-Pille + relative Zeit links
+- Reasons-Zeile darunter
+- Mini-Metriken (Revenue, Ungelesen, Mass-DMs) bleiben — aber rücken **rechtsbündig in die Hauptzeile** als kompakte Kennzahlen-Reihe für bessere Lesbarkeit:
 
 ```text
-🔴 SOFORT       Score ≥ 70   immer expanded
-🟡 BEOBACHTEN   40–69        immer expanded
-🟢 LÄUFT        < 40         eingeklappt, „X Chatter laufen sauber" — Klick öffnet
+●  Sylvia Ja  · vor 2min                    66€  ·  3 ungelesen  ·  1 dm
+   3 Std Stau · 14 ungelesen · −60€
 ```
 
-Hot-Streak-Chatter im Läuft-Bucket bekommen ein dezentes ↑-Icon.
-
-### Layout
-
-Eine zentrierte Spalte, max ~720px. Keine Tabelle.
-
-```text
-                Live · Maloum
-       vor 2min · 23 aktiv · 1.847€ heute
-
-   ────────────────────────────────────
-
-   ⚠ 3 Top-Chatter heute noch nicht am Start
-     ~890€ erwartetes Potential offen
-
-   ────────────────────────────────────
-   SOFORT
-   
-   ●  Sylvia Ja                       92
-      3 Std Stau · 14 ungelesen · −60€
-   
-   ●  björn da                        78
-      AFK 32min · sonst 290€/Tag · −210€
-   
-   ────────────────────────────────────
-   BEOBACHTEN
-   
-   ○  wencke wa                       54
-      keine Mass-DMs · 28€ · −45€
-   
-   ○  martin mo                       42
-      Stau steigt · 8 ungelesen
-   
-   ────────────────────────────────────
-   ▸ 9 Chatter laufen sauber          ↑3
-```
-
-Pro Zeile:
-- Status-Dot links (gefüllt = online, leer = idle/offline)
-- Name in einer Zeile, Score rechts groß tabular-nums
-- Sub-Zeile: Top-Reason + max 2 Sub-Signale, getrennt mit `·`
-- Trennlinien `border-white/[0.04]`, kein Hintergrund pro Zeile
-- Klick → existierender ChatterSlideOver
-
-Header schrumpft auf eine Zeile (Plattform · Sync-Zeit · Aktiv-Count · Σ Revenue heute).
-
-### Filter (minimal)
-
-Drei Pillen rechts oben:
-- Alle (Default)
-- Nur Eskalation
-- Lost Potential
-
-Suche als Icon-Button, expandiert bei Klick. Keine Sort-Buttons (Score-Sort fix).
-
-### Smart-Banner oben
-
-Eine diskrete Zeile direkt unter dem Header, nur wenn Trigger feuert:
-- „X Top-Chatter heute noch nicht am Start · ~Y€ Potential offen"
-- „Höchstes Stau-Volumen seit 7 Tagen"
-- „Z Chatter über 10 ungelesen"
-
-Banner verschwindet automatisch sobald Bedingung nicht mehr gilt.
+Die Mini-Metriken sind dezent (text-white/45, tabular-nums), Hot-Pille bleibt grün.
 
 ---
 
-### Technisches
+### Was unverändert bleibt
 
-**Datei:** `src/pages/LiveTracking.tsx` (komplett neu)
-**Helper neu:** `src/lib/live-priority.ts` — Score-Berechnung + Bucket-Zuordnung + Top-Reason-String
+- Score-Berechnung (`live-priority.ts`)
+- Bucket-Logik & Sortierung
+- KPIs oben, Smart-Banner, Realtime, Datenfluss
+- Premium-Karten-Look, Farben pro Bucket
 
-**Datenfluss:**
-1. Mount: Fetch `chatter_history_live` für heute + Plattform (wie jetzt)
-2. Mount: Fetch `chatter_history` letzte 14 Tage für Plattform → Map<chatter_name, {avgRevenue, avgMassDms, avgUnread}>
-3. Score-Compute pro Live-Row aus beiden
-4. Realtime bleibt (filtered auf platform)
-5. 1s-Tick für AFK-Berechnung & relative Zeiten
-
-**Was bleibt unverändert:**
-- Edge Function `upsert-chatter-live`
-- Tabelle `chatter_history_live` + RLS
-- Sidebar-Eintrag, Route `/live`
-- ChatterSlideOver-Integration
-
-Keine DB-Änderungen nötig.
+### Files
+- `src/pages/LiveTracking.tsx` — Filter erweitern, Visible-Logik, Running-Bucket Default-State, Score-Badge entfernen, Row-Layout umbauen
