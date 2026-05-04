@@ -376,6 +376,7 @@ export type Database = {
           date: string
           id: string
           mass_dms: number
+          oldest_chat: number | null
           platform: string
           revenue: number
           telegram_id: string | null
@@ -387,6 +388,7 @@ export type Database = {
           date?: string
           id?: string
           mass_dms?: number
+          oldest_chat?: number | null
           platform?: string
           revenue?: number
           telegram_id?: string | null
@@ -398,6 +400,7 @@ export type Database = {
           date?: string
           id?: string
           mass_dms?: number
+          oldest_chat?: number | null
           platform?: string
           revenue?: number
           telegram_id?: string | null

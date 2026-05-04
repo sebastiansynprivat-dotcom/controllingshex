@@ -13,6 +13,7 @@ interface LiveRow {
   revenue?: number;
   mass_dms?: number;
   unread_chats?: number;
+  oldest_chat?: number | null;
   date?: string; // YYYY-MM-DD
 }
 
