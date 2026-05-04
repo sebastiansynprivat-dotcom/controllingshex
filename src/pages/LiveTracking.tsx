@@ -330,6 +330,7 @@ export default function LiveTracking() {
         open={!!selected}
         onClose={() => setSelected(null)}
         chatterName={selected?.name ?? ""}
+        platform={(selected?.platform as Platform) ?? platform}
       />
     </div>
   );
