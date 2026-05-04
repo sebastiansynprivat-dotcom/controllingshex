@@ -187,24 +187,9 @@ export default function LiveTracking() {
             Live-Tracking
           </h1>
           <p className="text-sm text-white/40 mt-1 font-light">
-            {filteredSorted.length} Chatter ·{" "}
+            {platform} · {filteredSorted.length} Chatter ·{" "}
             {lastSync !== null ? `letzte Sync vor ${relTime(lastSync)}` : "keine Daten heute"}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {(["all", "Maloum", "Brezzels", "4Based"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPlatformFilter(p as Platform | "all")}
-              className={`px-3 py-1.5 rounded-full text-xs font-light tracking-wide transition-all border ${
-                platformFilter === p
-                  ? "bg-white/10 text-white border-white/20"
-                  : "bg-transparent text-white/50 border-white/[0.06] hover:text-white/80 hover:border-white/15"
-              }`}
-            >
-              {p === "all" ? "Alle" : p}
-            </button>
-          ))}
         </div>
       </header>
 
