@@ -132,7 +132,6 @@ export default function LiveTracking() {
     );
 
     let out = rows.filter((r) => {
-      if (platformFilter !== "all" && r.platform !== platformFilter) return false;
       if (search && !r.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
       const sec = secondsSince(r.updated_at);
       if (filters.has("online") && sec >= 5 * 60) return false;
