@@ -136,9 +136,11 @@ export default function LiveTracking() {
       if (search && !s.row.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filter === "escalation" && (s.row.oldest_chat ?? 0) < 1) return false;
       if (filter === "lost" && s.potentialLoss < 20) return false;
+      if (filter === "inactive" && secondsSince(s.row.updated_at) < 30 * 60) return false;
       return true;
     });
-  }, [scored, search, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scored, search, filter, tick]);
 
   const buckets = useMemo(
     () => ({
