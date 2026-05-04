@@ -1,20 +1,24 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Send, Plus, Tag, TrendingUp, TrendingDown, Minus, Coins, Trophy, MessageSquare, Clock, GitCompareArrows, Search } from "lucide-react";
+import {
+  X,
+  Send,
+  Plus,
+  Tag,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Coins,
+  Trophy,
+  MessageSquare,
+  Clock,
+  GitCompareArrows,
+  Search,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import {
-  ResponsiveContainer,
-  LineChart,
-  AreaChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ReferenceLine,
-} from "recharts";
+import { ResponsiveContainer, LineChart, AreaChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import { onChatterDataUpdated } from "@/lib/data-events";
 
@@ -60,7 +64,10 @@ function getInitials(name: string): string {
 function SectionHeader({ children, accent = "240 5% 60%" }: { children: React.ReactNode; accent?: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="h-3 w-[2px] rounded-full" style={{ background: `hsl(${accent} / 0.7)`, boxShadow: `0 0 8px hsl(${accent} / 0.5)` }} />
+      <span
+        className="h-3 w-[2px] rounded-full"
+        style={{ background: `hsl(${accent} / 0.7)`, boxShadow: `0 0 8px hsl(${accent} / 0.5)` }}
+      />
       <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-medium">{children}</p>
     </div>
   );
@@ -87,11 +94,17 @@ function RevenueTooltip({ active, payload }: any) {
   if (!row) return null;
   return (
     <div className="premium-card rounded-xl px-5 py-3.5 max-w-[240px]">
-      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">{formatDate(row.analysis_date)}</p>
-      <p className="text-lg font-extralight gold-text tracking-tight tabular-nums">{formatCurrency(row.revenue_today)}</p>
+      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">
+        {formatDate(row.analysis_date)}
+      </p>
+      <p className="text-lg font-extralight gold-text tracking-tight tabular-nums">
+        {formatCurrency(row.revenue_today)}
+      </p>
       <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.mass_dms} MassDMs</p>
       {row.note && (
-        <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">📝 {row.note}</p>
+        <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">
+          📝 {row.note}
+        </p>
       )}
     </div>
   );
@@ -103,8 +116,12 @@ function GhostChatTooltip({ active, payload }: any) {
   if (!row) return null;
   return (
     <div className="premium-card rounded-xl px-5 py-3.5">
-      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">{formatDate(row.analysis_date)}</p>
-      <p className="text-lg font-extralight tracking-tight tabular-nums" style={{ color: "#E25822" }}>{row.open_chats} Offene Chats</p>
+      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">
+        {formatDate(row.analysis_date)}
+      </p>
+      <p className="text-lg font-extralight tracking-tight tabular-nums" style={{ color: "#E25822" }}>
+        {row.open_chats} Offene Chats
+      </p>
       <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.response_delay_days} Tage Verzug</p>
     </div>
   );
@@ -187,7 +204,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [chatterList, setChatterList] = useState<string[]>([]);
 
   // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
-  const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>([]);
+  const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>(
+    [],
+  );
   const [liveProfile, setLiveProfile] = useState<{
     revenue: number | null;
     mass_dms: number | null;
@@ -232,10 +251,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     };
   }, [open, chatterName, platform]);
 
-  const LABEL_COLORS = [
-    "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
-    "#8B5CF6", "#F97316", "#EC4899", "#06B6D4",
-  ];
+  const LABEL_COLORS = ["#EF4444", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#F97316", "#EC4899", "#06B6D4"];
 
   // Auto-scroll to top when a new chatter is selected
   useEffect(() => {
@@ -301,14 +317,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .sort((a, b) => a.localeCompare(b, "de"));
       setChatterList(uniq);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [pickerOpen, platform, chatterName, inline]);
 
   // ESC schließt den Picker
   useEffect(() => {
     if (!pickerOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); setPickerOpen(false); setPickerQuery(""); }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setPickerOpen(false);
+        setPickerQuery("");
+      }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
@@ -341,7 +363,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             open_chats: Number(r.open_chats) || 0,
             response_delay_days: sanitizeDelay(Number(r.response_delay_days) || 0, rev),
           };
-        })
+        }),
       );
       setNotes((notesRes.data as CoachingNote[]) || []);
       setLoading(false);
@@ -376,11 +398,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .eq("platform", platform);
       if (cancelled) return;
       const accounts = Array.from(
-        new Set(
-          (histRows || [])
-            .map((r: any) => (r.account || "").trim())
-            .filter((a: string) => a.length > 0)
-        )
+        new Set((histRows || []).map((r: any) => (r.account || "").trim()).filter((a: string) => a.length > 0)),
       );
       if (accounts.length === 0) {
         setChatterModels([]);
@@ -405,7 +423,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .sort((a, b) => a.name.localeCompare(b.name, "de"));
       setChatterModels(list);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [open, chatterName, platform]);
 
   // Fetch labels
@@ -431,14 +451,19 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   const createLabel = async () => {
     if (!newLabelName.trim()) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
     const { data, error } = await supabase
       .from("chatter_labels")
       .insert({ user_id: user.id, platform, label_name: newLabelName.trim(), color: newLabelColor })
       .select("id, label_name, color")
       .single();
-    if (error) { toast.error("Label konnte nicht erstellt werden."); return; }
+    if (error) {
+      toast.error("Label konnte nicht erstellt werden.");
+      return;
+    }
     if (data) {
       setAllLabels((prev) => [...prev, data as ChatterLabel]);
       setNewLabelName("");
@@ -448,16 +473,27 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   };
 
   const toggleLabel = async (labelId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
     const isAssigned = assignedLabelIds.has(labelId);
     if (isAssigned) {
-      setAssignedLabelIds((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
-      await supabase.from("chatter_label_assignments").delete()
-        .eq("chatter_name", chatterName).eq("platform", platform).eq("label_id", labelId);
+      setAssignedLabelIds((prev) => {
+        const next = new Set(prev);
+        next.delete(labelId);
+        return next;
+      });
+      await supabase
+        .from("chatter_label_assignments")
+        .delete()
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .eq("label_id", labelId);
     } else {
       setAssignedLabelIds((prev) => new Set(prev).add(labelId));
-      await supabase.from("chatter_label_assignments")
+      await supabase
+        .from("chatter_label_assignments")
         .insert({ user_id: user.id, chatter_name: chatterName, platform, label_id: labelId });
     }
   };
@@ -465,14 +501,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const deleteLabel = async (labelId: string) => {
     await supabase.from("chatter_labels").delete().eq("id", labelId);
     setAllLabels((prev) => prev.filter((l) => l.id !== labelId));
-    setAssignedLabelIds((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
+    setAssignedLabelIds((prev) => {
+      const next = new Set(prev);
+      next.delete(labelId);
+      return next;
+    });
     toast.success("Label gelöscht");
   };
 
   const saveNote = async () => {
     if (!noteText.trim()) return;
     setSavingNote(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       toast.error("Nicht eingeloggt.");
       setSavingNote(false);
@@ -518,11 +560,13 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const maxRevenue = history.length ? Math.max(...history.map((r) => r.revenue_today)) : 0;
   const avgDMs = history.length ? Math.round(history.reduce((s, r) => s + r.mass_dms, 0) / history.length) : 0;
   const avgChats = history.length ? (history.reduce((s, r) => s + r.open_chats, 0) / history.length).toFixed(1) : "0";
-  
+
   const avgDelay = history.length
     ? (() => {
         const withDelay = history.filter((r) => r.response_delay_days > 0);
-        return withDelay.length ? (withDelay.reduce((s, r) => s + r.response_delay_days, 0) / withDelay.length).toFixed(1) : "0";
+        return withDelay.length
+          ? (withDelay.reduce((s, r) => s + r.response_delay_days, 0) / withDelay.length).toFixed(1)
+          : "0";
       })()
     : "0";
 
@@ -536,7 +580,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     const avgSecond = second.reduce((s, r) => s + r.revenue_today, 0) / second.length;
     if (avgFirst === 0) return { pct: 0, direction: "stable" as const };
     const pct = ((avgSecond - avgFirst) / avgFirst) * 100;
-    const direction = pct > 5 ? "up" as const : pct < -5 ? "down" as const : "stable" as const;
+    const direction = pct > 5 ? ("up" as const) : pct < -5 ? ("down" as const) : ("stable" as const);
     return { pct: Math.round(pct), direction };
   }, [last30]);
 
@@ -567,70 +611,96 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   // Echtzeit-Karten (Heute) — Platzhalter: letzte verfügbare Tageswerte
   const today = history.length ? history[history.length - 1] : null;
   const todayIso = new Date().toISOString().split("T")[0];
-  const isActiveToday = !!today && today.analysis_date === todayIso && (
-    (today.revenue_today ?? 0) > 0 || (today.mass_dms ?? 0) > 0 || (today.open_chats ?? 0) > 0
-  );
+  const isActiveToday =
+    !!today &&
+    today.analysis_date === todayIso &&
+    ((today.revenue_today ?? 0) > 0 || (today.mass_dms ?? 0) > 0 || (today.open_chats ?? 0) > 0);
   const liveKpis = [
-    { label: "Tagesumsatz", value: liveProfile && liveProfile.revenue != null ? formatCurrency(Number(liveProfile.revenue)) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
-    { label: "MassDMs", value: liveProfile && liveProfile.mass_dms != null ? String(liveProfile.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
-    { label: "Offene Chats", value: liveProfile && liveProfile.unread_chats != null ? String(liveProfile.unread_chats) : "—", icon: MessageSquare, accent: "0 84% 60%", gold: false },
-    { label: "Ältester Chat", value: liveProfile && liveProfile.oldest_chat != null ? `${liveProfile.oldest_chat}h` : "—", icon: Clock, accent: "30 80% 55%", gold: false },
+    {
+      label: "Tagesumsatz",
+      value: liveProfile && liveProfile.revenue != null ? formatCurrency(Number(liveProfile.revenue)) : "—",
+      icon: Coins,
+      accent: "45 75% 55%",
+      gold: true,
+    },
+    {
+      label: "MassDMs",
+      value: liveProfile && liveProfile.mass_dms != null ? String(liveProfile.mass_dms) : "—",
+      icon: MessageSquare,
+      accent: "212 90% 60%",
+      gold: false,
+    },
+    {
+      label: "Offene Chats",
+      value: liveProfile && liveProfile.unread_chats != null ? String(liveProfile.unread_chats) : "—",
+      icon: MessageSquare,
+      accent: "0 84% 60%",
+      gold: false,
+    },
+    {
+      label: "Ältester Chat",
+      value: liveProfile && liveProfile.oldest_chat != null ? `${liveProfile.oldest_chat}h` : "—",
+      icon: Clock,
+      accent: "30 80% 55%",
+      gold: false,
+    },
   ];
 
   const displayName = toTitleCase(chatterName);
   const initials = useMemo(() => getInitials(chatterName), [chatterName]);
-  const trendAccent = trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
+  const trendAccent =
+    trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
   const copyToClipboard = (value: string, label: string) => {
     navigator.clipboard.writeText(value).then(
       () => toast.success(`${label} kopiert`),
-      () => toast.error(`${label} konnte nicht kopiert werden`)
+      () => toast.error(`${label} konnte nicht kopiert werden`),
     );
   };
 
-  const modelsLoginsBlock = chatterModels.length > 0 ? (
-    <div className="space-y-3">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">
-        Models & Logins
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {chatterModels.map((m) => (
-          <div
-            key={m.name}
-            className="rounded-xl bg-white/[0.02] border border-white/[0.05] px-3 py-2.5 space-y-1.5"
-          >
-            <p className="text-[12px] text-foreground/80 font-light tracking-wide truncate">{m.name}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {m.email ? (
-                <button
-                  onClick={() => copyToClipboard(m.email!, "E-Mail")}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide max-w-full"
-                  title={`E-Mail kopieren: ${m.email}`}
-                >
-                  <span className="text-primary/60">✉</span>
-                  <span className="truncate max-w-[140px]">{m.email}</span>
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">keine Mail</span>
-              )}
-              {m.password ? (
-                <button
-                  onClick={() => copyToClipboard(m.password!, "Passwort")}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide"
-                  title="Passwort kopieren"
-                >
-                  <span className="text-primary/60">🔑</span>
-                  <span>{"•".repeat(Math.min(m.password.length, 10))}</span>
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">kein Passwort</span>
-              )}
+  const modelsLoginsBlock =
+    chatterModels.length > 0 ? (
+      <div className="space-y-3">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Models & Logins</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {chatterModels.map((m) => (
+            <div key={m.name} className="rounded-xl bg-white/[0.02] border border-white/[0.05] px-3 py-2.5 space-y-1.5">
+              <p className="text-[12px] text-foreground/80 font-light tracking-wide truncate">{m.name}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {m.email ? (
+                  <button
+                    onClick={() => copyToClipboard(m.email!, "E-Mail")}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide max-w-full"
+                    title={`E-Mail kopieren: ${m.email}`}
+                  >
+                    <span className="text-primary/60">✉</span>
+                    <span className="truncate max-w-[140px]">{m.email}</span>
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">
+                    keine Mail
+                  </span>
+                )}
+                {m.password ? (
+                  <button
+                    onClick={() => copyToClipboard(m.password!, "Passwort")}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide"
+                    title="Passwort kopieren"
+                  >
+                    <span className="text-primary/60">🔑</span>
+                    <span>{"•".repeat(Math.min(m.password.length, 10))}</span>
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">
+                    kein Passwort
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  ) : null;
+    ) : null;
 
   if (inline) {
     // Inline mode: render directly without portal/overlay
@@ -640,13 +710,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
           <div
             className="premium-stat flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-light tracking-wide text-primary/80"
-            style={{ filter: 'drop-shadow(0 0 8px hsl(40 50% 60% / 0.15))' }}
+            style={{ filter: "drop-shadow(0 0 8px hsl(40 50% 60% / 0.15))" }}
           >
             {initials}
           </div>
           <div className="min-w-0 flex-1">
             <h2
-              onClick={() => { navigator.clipboard.writeText(displayName); toast.success("Name kopiert"); }}
+              onClick={() => {
+                navigator.clipboard.writeText(displayName);
+                toast.success("Name kopiert");
+              }}
               className="text-lg font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
               title="Klicken zum Kopieren"
             >
@@ -655,11 +728,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">{platform} · Profil</p>
               {trend30.direction !== "stable" && (
-                <span className={`premium-chip inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-md ${
-                  trend30.direction === "up" ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/20" : "text-red-300 bg-red-500/10 border border-red-500/20"
-                }`}>
-                  {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                  {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
+                <span
+                  className={`premium-chip inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-md ${
+                    trend30.direction === "up"
+                      ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
+                      : "text-red-300 bg-red-500/10 border border-red-500/20"
+                  }`}
+                >
+                  {trend30.direction === "up" ? (
+                    <TrendingUp className="h-2.5 w-2.5" />
+                  ) : (
+                    <TrendingDown className="h-2.5 w-2.5" />
+                  )}
+                  {trend30.pct > 0 ? "+" : ""}
+                  {trend30.pct}%
                 </span>
               )}
             </div>
@@ -672,173 +754,303 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
           ) : history.length === 0 ? (
             <div className="p-4 sm:p-6">
-              <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
+              <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">
+                Noch keine historischen Daten vorhanden.
+              </p>
             </div>
           ) : (
             <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
-                {/* Live KPI Grid */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    </span>
-                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">Echtzeit · Heute</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                    {liveKpis.map((kpi) => {
-                      const Icon = kpi.icon;
-                      return (
-                        <div key={kpi.label} className="relative rounded-xl p-3 sm:p-4 min-w-0 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.04] to-transparent pointer-events-none" />
-                          <div className="relative flex items-center gap-1.5">
-                            <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                            <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/55 font-medium leading-snug">{kpi.label}</p>
-                          </div>
-                          <p className={`relative text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}>{kpi.value}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}>
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        {isActiveToday && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />}
-                        <span className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`} />
-                      </span>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
-                    </div>
-                    <p className={`text-[11px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}>
-                      {isActiveToday ? "Aktiv" : "Inaktiv"}
-                    </p>
-                  </div>
+              {/* Live KPI Grid */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                  <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">
+                    Echtzeit · Heute
+                  </p>
                 </div>
-
-                {/* KPI Grid */}
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                  {kpis.map((kpi) => {
+                  {liveKpis.map((kpi) => {
                     const Icon = kpi.icon;
                     return (
-                      <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-3 sm:p-4 min-w-0">
-                        <div className="flex items-center gap-1.5">
+                      <div
+                        key={kpi.label}
+                        className="relative rounded-xl p-3 sm:p-4 min-w-0 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.04] to-transparent pointer-events-none" />
+                        <div className="relative flex items-center gap-1.5">
                           <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug">{kpi.label}</p>
+                          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/55 font-medium leading-snug">
+                            {kpi.label}
+                          </p>
                         </div>
-                        <p className={`text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
+                        <p
+                          className={`relative text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
+                        >
+                          {kpi.value}
+                        </p>
                       </div>
                     );
                   })}
                 </div>
-
-                {modelsLoginsBlock}
-
-                {/* Labels */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
-                      <Tag className="h-3 w-3" /> Labels
-                    </p>
-                    <button onClick={() => setShowNewLabel(!showNewLabel)} className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1">
-                      <Plus className="h-3 w-3" /> Neu
-                    </button>
+                <div
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      {isActiveToday && (
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                      )}
+                      <span
+                        className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`}
+                      />
+                    </span>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
                   </div>
-                  {showNewLabel && (
-                    <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
-                      <input value={newLabelName} onChange={(e) => setNewLabelName(e.target.value)} placeholder="Label-Name" className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors" onKeyDown={(e) => e.key === "Enter" && createLabel()} />
-                      <div className="flex gap-2">
-                        {LABEL_COLORS.map((c) => (
-                          <button key={c} onClick={() => setNewLabelColor(c)} className={`w-5 h-5 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`} style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                      <button onClick={createLabel} disabled={!newLabelName.trim()} className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed">Erstellen</button>
-                    </div>
-                  )}
-                  {allLabels.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {allLabels.map((label) => {
-                        const isAssigned = assignedLabelIds.has(label.id);
-                        return (
-                          <button key={label.id} onClick={() => toggleLabel(label.id)} onContextMenu={(e) => { e.preventDefault(); deleteLabel(label.id); }}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${isAssigned ? "border-white/20 text-white shadow-sm" : "border-white/[0.06] text-white/30 hover:text-white/50"}`}
-                            style={isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}}
-                            title="Rechtsklick zum Löschen"
-                          >
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                            {label.label_name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {allLabels.length === 0 && !showNewLabel && <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>}
-                </div>
-
-                {/* Notes — direkt unter Labels */}
-                <div className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
-                  <div className="flex gap-2">
-                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Was wurde heute besprochen?" rows={2} className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300" />
-                    <button onClick={saveNote} disabled={savingNote || !noteText.trim()} className="self-end px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed">
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
-                  {notes.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {notes.map((n) => (
-                        <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-3 py-2.5">
-                          <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
-                          <p className="text-[10px] text-white/20 font-light mt-1.5">{formatDateTime(n.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
-                <WeekTrendCard history={history} compact />
-
-                {/* 30-Tage-Trend */}
-                {last30.length >= 4 && (
-                  <div className="premium-card rounded-2xl p-5 relative">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">30-Tage-Trend</p>
-                      <span className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${trend30.direction === "up" ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25" : trend30.direction === "down" ? "bg-red-500/12 text-red-300 border border-red-500/25" : "bg-white/[0.05] text-white/55 border border-white/[0.08]"}`}>
-                        {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"} {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
-                      </span>
-                    </div>
-                    <ResponsiveContainer width="100%" height={120}>
-                      <AreaChart data={last30}>
-                        <defs>
-                          <linearGradient id="trend30FillInline" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.25} />
-                            <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
-                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
-                        <Area type="monotone" dataKey="revenue_today" stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"} strokeWidth={2} fill="url(#trend30FillInline)" dot={false} activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.15)", strokeWidth: 4 }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Revenue Chart */}
-                <div className="premium-card rounded-2xl p-5">
-                  <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">Umsatzverlauf</p>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={enrichedHistory}>
-                      <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={45} />
-                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
-                      {noteDates.map((date) => <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />)}
-                      <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <p
+                    className={`text-[11px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}
+                  >
+                    {isActiveToday ? "Aktiv" : "Inaktiv"}
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* KPI Grid */}
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                {kpis.map((kpi) => {
+                  const Icon = kpi.icon;
+                  return (
+                    <div
+                      key={kpi.label}
+                      className="premium-card premium-card-interactive rounded-xl p-3 sm:p-4 min-w-0"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug">
+                          {kpi.label}
+                        </p>
+                      </div>
+                      <p
+                        className={`text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                      >
+                        {kpi.value}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {modelsLoginsBlock}
+
+              {/* Labels */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" /> Labels
+                  </p>
+                  <button
+                    onClick={() => setShowNewLabel(!showNewLabel)}
+                    className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Neu
+                  </button>
+                </div>
+                {showNewLabel && (
+                  <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
+                    <input
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      placeholder="Label-Name"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
+                      onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                    />
+                    <div className="flex gap-2">
+                      {LABEL_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setNewLabelColor(c)}
+                          className={`w-5 h-5 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={createLabel}
+                      disabled={!newLabelName.trim()}
+                      className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      Erstellen
+                    </button>
+                  </div>
+                )}
+                {allLabels.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {allLabels.map((label) => {
+                      const isAssigned = assignedLabelIds.has(label.id);
+                      return (
+                        <button
+                          key={label.id}
+                          onClick={() => toggleLabel(label.id)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            deleteLabel(label.id);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${isAssigned ? "border-white/20 text-white shadow-sm" : "border-white/[0.06] text-white/30 hover:text-white/50"}`}
+                          style={
+                            isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}
+                          }
+                          title="Rechtsklick zum Löschen"
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                          {label.label_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {allLabels.length === 0 && !showNewLabel && (
+                  <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
+                )}
+              </div>
+
+              {/* Notes — direkt unter Labels */}
+              <div className="space-y-4">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
+                <div className="flex gap-2">
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Was wurde heute besprochen?"
+                    rows={2}
+                    className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                  />
+                  <button
+                    onClick={saveNote}
+                    disabled={savingNote || !noteText.trim()}
+                    className="self-end px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+                {notes.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {notes.map((n) => (
+                      <div key={n.id} className="rounded-xl bg-white/[0.015] border border-white/[0.04] px-3 py-2.5">
+                        <p className="text-xs text-foreground/70 font-light leading-relaxed">{n.note_text}</p>
+                        <p className="text-[10px] text-white/20 font-light mt-1.5">{formatDateTime(n.created_at)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
+              <WeekTrendCard history={history} compact />
+
+              {/* 30-Tage-Trend */}
+              {last30.length >= 4 && (
+                <div className="premium-card rounded-2xl p-5 relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">30-Tage-Trend</p>
+                    <span
+                      className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${trend30.direction === "up" ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25" : trend30.direction === "down" ? "bg-red-500/12 text-red-300 border border-red-500/25" : "bg-white/[0.05] text-white/55 border border-white/[0.08]"}`}
+                    >
+                      {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
+                      {trend30.pct > 0 ? "+" : ""}
+                      {trend30.pct}%
+                    </span>
+                  </div>
+                  <ResponsiveContainer width="100%" height={120}>
+                    <AreaChart data={last30}>
+                      <defs>
+                        <linearGradient id="trend30FillInline" x1="0" y1="0" x2="0" y2="1">
+                          <stop
+                            offset="0%"
+                            stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                            stopOpacity={0.25}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                            stopOpacity={0}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <XAxis
+                        dataKey="analysis_date"
+                        tickFormatter={formatDate}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                        tickFormatter={(v) => `${v}€`}
+                        width={45}
+                      />
+                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="revenue_today"
+                        stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                        strokeWidth={2}
+                        fill="url(#trend30FillInline)"
+                        dot={false}
+                        activeDot={{
+                          r: 4,
+                          fill: trend30.direction === "down" ? "#ef4444" : "#10b981",
+                          stroke: "rgba(255,255,255,0.15)",
+                          strokeWidth: 4,
+                        }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Revenue Chart */}
+              <div className="premium-card rounded-2xl p-5">
+                <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">
+                  Umsatzverlauf
+                </p>
+                <ResponsiveContainer width="100%" height={160}>
+                  <LineChart data={enrichedHistory}>
+                    <XAxis
+                      dataKey="analysis_date"
+                      tickFormatter={formatDate}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                      tickFormatter={(v) => `${v}€`}
+                      width={45}
+                    />
+                    <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
+                    {noteDates.map((date) => (
+                      <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
+                    ))}
+                    <Line
+                      type="monotone"
+                      dataKey="revenue_today"
+                      stroke="#D4AF37"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -889,7 +1101,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           >
             <div
               className="premium-stat flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-light tracking-wide text-primary/85"
-              style={{ filter: 'drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))' }}
+              style={{ filter: "drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))" }}
             >
               {initials}
             </div>
@@ -905,13 +1117,24 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 {displayName}
               </h2>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">{platform} · Profil</p>
+                <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+                  {platform} · Profil
+                </p>
                 {trend30.direction !== "stable" && (
-                  <span className={`premium-chip inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-md tabular-nums ${
-                    trend30.direction === "up" ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/25" : "text-red-300 bg-red-500/10 border border-red-500/25"
-                  }`}>
-                    {trend30.direction === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                    {trend30.pct > 0 ? "+" : ""}{trend30.pct}% / 30T
+                  <span
+                    className={`premium-chip inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-md tabular-nums ${
+                      trend30.direction === "up"
+                        ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/25"
+                        : "text-red-300 bg-red-500/10 border border-red-500/25"
+                    }`}
+                  >
+                    {trend30.direction === "up" ? (
+                      <TrendingUp className="h-2.5 w-2.5" />
+                    ) : (
+                      <TrendingDown className="h-2.5 w-2.5" />
+                    )}
+                    {trend30.pct > 0 ? "+" : ""}
+                    {trend30.pct}% / 30T
                   </span>
                 )}
               </div>
@@ -951,327 +1174,475 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </button>
           </div>
 
-          <div className={`flex-1 min-h-0 flex ${compareWith ? "flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : "flex-col"}`}>
-          <motion.div
-            ref={scrollRef}
-            animate={{ flexBasis: compareWith ? "50%" : "100%" }}
-            transition={{ duration: 0.65, ease: [0.32, 0.72, 0, 1] }}
-            className={`${compareWith ? "sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
+          <div
+            className={`flex-1 min-h-0 flex ${compareWith ? "flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : "flex-col"}`}
           >
-            <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
-              {loading ? (
-                <ProfileSkeleton />
-              ) : history.length === 0 ? (
-                <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">Noch keine historischen Daten vorhanden.</p>
-              ) : (
-                <>
-                  {/* ── Live KPI Grid (Echtzeit) ── */}
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      </span>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">Echtzeit · Heute</p>
+            <motion.div
+              ref={scrollRef}
+              animate={{ flexBasis: compareWith ? "50%" : "100%" }}
+              transition={{ duration: 0.65, ease: [0.32, 0.72, 0, 1] }}
+              className={`${compareWith ? "sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
+              style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
+            >
+              <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
+                {loading ? (
+                  <ProfileSkeleton />
+                ) : history.length === 0 ? (
+                  <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">
+                    Noch keine historischen Daten vorhanden.
+                  </p>
+                ) : (
+                  <>
+                    {/* ── Live KPI Grid (Echtzeit) ── */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        </span>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">
+                          Echtzeit · Heute
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {liveKpis.map((kpi) => {
+                          const Icon = kpi.icon;
+                          return (
+                            <div
+                              key={kpi.label}
+                              className="relative rounded-xl p-5 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] to-transparent pointer-events-none" />
+                              <div className="relative flex items-center gap-1.5">
+                                <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">
+                                  {kpi.label}
+                                </p>
+                              </div>
+                              <p
+                                className={`relative text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
+                              >
+                                {kpi.value}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div
+                        className={`flex items-center justify-between rounded-xl px-4 py-3 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="relative flex h-2 w-2">
+                            {isActiveToday && (
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                            )}
+                            <span
+                              className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`}
+                            />
+                          </span>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">
+                            Heute aktiv
+                          </p>
+                        </div>
+                        <p
+                          className={`text-[12px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}
+                        >
+                          {isActiveToday ? "Aktiv" : "Inaktiv"}
+                        </p>
+                      </div>
                     </div>
+
+                    {/* ── 2. KPI Grid (2×2) ── */}
                     <div className="grid grid-cols-2 gap-4">
-                      {liveKpis.map((kpi) => {
+                      {kpis.map((kpi) => {
                         const Icon = kpi.icon;
                         return (
-                          <div key={kpi.label} className="relative rounded-xl p-5 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] to-transparent pointer-events-none" />
-                            <div className="relative flex items-center gap-1.5">
+                          <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-5">
+                            <div className="flex items-center gap-1.5">
                               <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">{kpi.label}</p>
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">
+                                {kpi.label}
+                              </p>
                             </div>
-                            <p className={`relative text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}>{kpi.value}</p>
+                            <p
+                              className={`text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                            >
+                              {kpi.value}
+                            </p>
                           </div>
                         );
                       })}
                     </div>
-                    <div className={`flex items-center justify-between rounded-xl px-4 py-3 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}>
-                      <div className="flex items-center gap-2.5">
-                        <span className="relative flex h-2 w-2">
-                          {isActiveToday && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />}
-                          <span className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`} />
-                        </span>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
-                      </div>
-                      <p className={`text-[12px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}>
-                        {isActiveToday ? "Aktiv" : "Inaktiv"}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* ── 2. KPI Grid (2×2) ── */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {kpis.map((kpi) => {
-                      const Icon = kpi.icon;
-                      return (
-                        <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-5">
-                          <div className="flex items-center gap-1.5">
-                            <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">{kpi.label}</p>
-                          </div>
-                          <p className={`text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}>{kpi.value}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+                    {modelsLoginsBlock}
 
-                  {modelsLoginsBlock}
-
-                  {/* ── Labels ── */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
-                        <Tag className="h-3 w-3" /> Labels
-                      </p>
-                      <button
-                        onClick={() => setShowNewLabel(!showNewLabel)}
-                        className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
-                      >
-                        <Plus className="h-3 w-3" /> Neu
-                      </button>
-                    </div>
-
-                    {showNewLabel && (
-                      <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
-                        <input
-                          value={newLabelName}
-                          onChange={(e) => setNewLabelName(e.target.value)}
-                          placeholder="Label-Name"
-                          className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
-                          onKeyDown={(e) => e.key === "Enter" && createLabel()}
-                        />
-                        <div className="flex gap-2">
-                          {LABEL_COLORS.map((c) => (
-                            <button
-                              key={c}
-                              onClick={() => setNewLabelColor(c)}
-                              className={`w-6 h-6 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
-                              style={{ backgroundColor: c }}
-                            />
-                          ))}
-                        </div>
+                    {/* ── Labels ── */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
+                          <Tag className="h-3 w-3" /> Labels
+                        </p>
                         <button
-                          onClick={createLabel}
-                          disabled={!newLabelName.trim()}
-                          className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                          onClick={() => setShowNewLabel(!showNewLabel)}
+                          className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
                         >
-                          Erstellen
+                          <Plus className="h-3 w-3" /> Neu
                         </button>
                       </div>
-                    )}
 
-                    {allLabels.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {allLabels.map((label) => {
-                          const isAssigned = assignedLabelIds.has(label.id);
-                          return (
-                            <button
-                              key={label.id}
-                              onClick={() => toggleLabel(label.id)}
-                              onContextMenu={(e) => { e.preventDefault(); deleteLabel(label.id); }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${
-                                isAssigned
-                                  ? "border-white/20 text-white shadow-sm"
-                                  : "border-white/[0.06] text-white/30 hover:text-white/50"
-                              }`}
-                              style={isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}}
-                              title="Rechtsklick zum Löschen"
-                            >
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                              {label.label_name}
-                            </button>
-                          );
-                        })}
+                      {showNewLabel && (
+                        <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
+                          <input
+                            value={newLabelName}
+                            onChange={(e) => setNewLabelName(e.target.value)}
+                            placeholder="Label-Name"
+                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
+                            onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                          />
+                          <div className="flex gap-2">
+                            {LABEL_COLORS.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => setNewLabelColor(c)}
+                                className={`w-6 h-6 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                          <button
+                            onClick={createLabel}
+                            disabled={!newLabelName.trim()}
+                            className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                          >
+                            Erstellen
+                          </button>
+                        </div>
+                      )}
+
+                      {allLabels.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {allLabels.map((label) => {
+                            const isAssigned = assignedLabelIds.has(label.id);
+                            return (
+                              <button
+                                key={label.id}
+                                onClick={() => toggleLabel(label.id)}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  deleteLabel(label.id);
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${
+                                  isAssigned
+                                    ? "border-white/20 text-white shadow-sm"
+                                    : "border-white/[0.06] text-white/30 hover:text-white/50"
+                                }`}
+                                style={
+                                  isAssigned
+                                    ? { backgroundColor: label.color + "25", borderColor: label.color + "50" }
+                                    : {}
+                                }
+                                title="Rechtsklick zum Löschen"
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: label.color }}
+                                />
+                                {label.label_name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {allLabels.length === 0 && !showNewLabel && (
+                        <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
+                      )}
+                    </div>
+
+                    {/* ── Management-Logbuch — direkt unter Labels ── */}
+                    <div className="space-y-5">
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
+                        Management-Logbuch
+                      </p>
+                      <div className="flex gap-3">
+                        <textarea
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          placeholder="Was wurde heute besprochen?"
+                          rows={2}
+                          className="premium-card flex-1 rounded-xl px-4 py-3 text-sm text-foreground/85 font-light placeholder:text-white/25 resize-none focus:outline-none focus:border-primary/30 transition-colors duration-300"
+                        />
+                        <button
+                          onClick={saveNote}
+                          disabled={savingNote || !noteText.trim()}
+                          className="premium-chip self-end px-4 py-3 rounded-xl bg-primary/12 border border-primary/25 text-primary hover:bg-primary/18 transition-all duration-300 disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.97]"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {notes.length > 0 && (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {notes.map((n) => (
+                            <div key={n.id} className="premium-card rounded-xl px-4 py-3">
+                              <p className="text-xs text-foreground/80 font-light leading-relaxed">{n.note_text}</p>
+                              <p className="text-[10px] text-white/30 font-light mt-2 tracking-wide">
+                                {formatDateTime(n.created_at)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) ── */}
+                    <WeekTrendCard history={history} />
+
+                    {/* ── 30-Tage-Trend ── */}
+                    {last30.length >= 4 && (
+                      <div className="premium-card rounded-2xl p-7 relative">
+                        <div className="flex items-center justify-between mb-5">
+                          <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
+                            30-Tage-Trend
+                          </p>
+                          <span
+                            className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${
+                              trend30.direction === "up"
+                                ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25"
+                                : trend30.direction === "down"
+                                  ? "bg-red-500/12 text-red-300 border border-red-500/25"
+                                  : "bg-white/[0.05] text-white/55 border border-white/[0.08]"
+                            }`}
+                          >
+                            {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
+                            {trend30.pct > 0 ? "+" : ""}
+                            {trend30.pct}%
+                          </span>
+                        </div>
+                        <ResponsiveContainer width="100%" height={140}>
+                          <AreaChart data={last30}>
+                            <defs>
+                              <linearGradient id="trend30Fill" x1="0" y1="0" x2="0" y2="1">
+                                <stop
+                                  offset="0%"
+                                  stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                                  stopOpacity={0.25}
+                                />
+                                <stop
+                                  offset="100%"
+                                  stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                                  stopOpacity={0}
+                                />
+                              </linearGradient>
+                            </defs>
+                            <XAxis
+                              dataKey="analysis_date"
+                              tickFormatter={formatDate}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                            />
+                            <YAxis
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                              tickFormatter={(v) => `${v}€`}
+                              width={50}
+                            />
+                            <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+                            <Area
+                              type="monotone"
+                              dataKey="revenue_today"
+                              stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+                              strokeWidth={2}
+                              fill="url(#trend30Fill)"
+                              dot={false}
+                              activeDot={{
+                                r: 4,
+                                fill: trend30.direction === "down" ? "#ef4444" : "#10b981",
+                                stroke: "rgba(255,255,255,0.15)",
+                                strokeWidth: 4,
+                              }}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       </div>
                     )}
 
-                    {allLabels.length === 0 && !showNewLabel && (
-                      <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
-                    )}
-                  </div>
-
-                  {/* ── Management-Logbuch — direkt unter Labels ── */}
-                  <div className="space-y-5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Management-Logbuch</p>
-                    <div className="flex gap-3">
-                      <textarea
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="Was wurde heute besprochen?"
-                        rows={2}
-                        className="premium-card flex-1 rounded-xl px-4 py-3 text-sm text-foreground/85 font-light placeholder:text-white/25 resize-none focus:outline-none focus:border-primary/30 transition-colors duration-300"
-                      />
-                      <button
-                        onClick={saveNote}
-                        disabled={savingNote || !noteText.trim()}
-                        className="premium-chip self-end px-4 py-3 rounded-xl bg-primary/12 border border-primary/25 text-primary hover:bg-primary/18 transition-all duration-300 disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.97]"
-                      >
-                        <Send className="h-4 w-4" />
-                      </button>
+                    {/* ── 3. Revenue Chart ── */}
+                    <div className="premium-card rounded-2xl p-7">
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-7">
+                        Umsatzverlauf
+                      </p>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={enrichedHistory}>
+                          <XAxis
+                            dataKey="analysis_date"
+                            tickFormatter={formatDate}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                          />
+                          <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                            tickFormatter={(v) => `${v}€`}
+                            width={50}
+                          />
+                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
+                          {noteDates.map((date) => (
+                            <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
+                          ))}
+                          <Line
+                            type="monotone"
+                            dataKey="revenue_today"
+                            stroke="#D4AF37"
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      {noteDates.length > 0 && (
+                        <p className="text-[10px] text-white/30 font-light mt-4 tracking-wide">
+                          Gestrichelte Linien = Coaching-Notizen
+                        </p>
+                      )}
                     </div>
-                    {notes.length > 0 && (
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {notes.map((n) => (
-                          <div key={n.id} className="premium-card rounded-xl px-4 py-3">
-                            <p className="text-xs text-foreground/80 font-light leading-relaxed">{n.note_text}</p>
-                            <p className="text-[10px] text-white/30 font-light mt-2 tracking-wide">{formatDateTime(n.created_at)}</p>
+
+                    {/* ── 4. Postfach-Disziplin ── */}
+                    <div className="space-y-5">
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
+                        Postfach-Disziplin
+                      </p>
+                      <div className="premium-card rounded-2xl p-7">
+                        <ResponsiveContainer width="100%" height={170}>
+                          <AreaChart data={history}>
+                            <defs>
+                              <linearGradient id="ghostFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#E25822" stopOpacity={0.28} />
+                                <stop offset="100%" stopColor="#E25822" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis
+                              dataKey="analysis_date"
+                              tickFormatter={formatDate}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                            />
+                            <YAxis
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                              width={30}
+                            />
+                            <Tooltip content={<GhostChatTooltip />} cursor={{ stroke: "rgba(226,88,34,0.2)" }} />
+                            <Area
+                              type="monotone"
+                              dataKey="open_chats"
+                              stroke="#E25822"
+                              strokeWidth={2}
+                              fill="url(#ghostFill)"
+                              dot={false}
+                              activeDot={{ r: 4, fill: "#E25822", stroke: "rgba(226,88,34,0.4)", strokeWidth: 6 }}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      {ghostSummary && (
+                        <div className="premium-card rounded-xl p-5">
+                          <p className="text-xs text-white/55 font-light leading-relaxed tracking-wide">
+                            Letzte 7 Tage: Ø{" "}
+                            <span className="font-medium tabular-nums" style={{ color: "#E25822" }}>
+                              {ghostSummary.avgChats} Chats
+                            </span>{" "}
+                            offen,{" "}
+                            <span className="font-medium tabular-nums" style={{ color: "#E25822" }}>
+                              {ghostSummary.avgDelay} Tage
+                            </span>{" "}
+                            Verzug. Trend: <span className="font-medium text-white/80">{ghostSummary.trend}</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── 6. Verlauf-Tabelle ── */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">
+                        Verlauf
+                      </p>
+                      <div className="premium-card rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.06]">
+                          {["Datum", "Umsatz", "DMs"].map((h) => (
+                            <span
+                              key={h}
+                              className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium"
+                            >
+                              {h}
+                            </span>
+                          ))}
+                          {["Chats", "Verzug"].map((h) => (
+                            <span
+                              key={h}
+                              className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium hidden sm:block"
+                            >
+                              {h}
+                            </span>
+                          ))}
+                        </div>
+                        {[...history].reverse().map((row, i) => (
+                          <div
+                            key={i}
+                            className="row-accent grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.03] last:border-0"
+                          >
+                            <span className="text-xs text-white/55 font-light tabular-nums">
+                              {formatDate(row.analysis_date)}
+                            </span>
+                            <span className="text-xs font-light gold-text tabular-nums">
+                              {formatCurrency(row.revenue_today)}
+                            </span>
+                            <span className="text-xs text-white/50 font-light tabular-nums">{row.mass_dms}</span>
+                            <span className="text-xs text-white/50 font-light hidden sm:block tabular-nums">
+                              {row.open_chats}
+                            </span>
+                            <span
+                              className={`text-xs font-light hidden sm:block tabular-nums ${row.response_delay_days > 0 ? "text-[#E25822]/85" : "text-white/25"}`}
+                            >
+                              {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
+                            </span>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-
-                  {/* ── 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) ── */}
-                  <WeekTrendCard history={history} />
-
-                  {/* ── 30-Tage-Trend ── */}
-                  {last30.length >= 4 && (
-                    <div className="premium-card rounded-2xl p-7 relative">
-                      <div className="flex items-center justify-between mb-5">
-                        <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">30-Tage-Trend</p>
-                        <span className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${
-                          trend30.direction === "up"
-                            ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25"
-                            : trend30.direction === "down"
-                            ? "bg-red-500/12 text-red-300 border border-red-500/25"
-                            : "bg-white/[0.05] text-white/55 border border-white/[0.08]"
-                        }`}>
-                          {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
-                          {trend30.pct > 0 ? "+" : ""}{trend30.pct}%
-                        </span>
-                      </div>
-                      <ResponsiveContainer width="100%" height={140}>
-                        <AreaChart data={last30}>
-                          <defs>
-                            <linearGradient id="trend30Fill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.25} />
-                              <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
-                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
-                          <Area
-                            type="monotone"
-                            dataKey="revenue_today"
-                            stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                            strokeWidth={2}
-                            fill="url(#trend30Fill)"
-                            dot={false}
-                            activeDot={{ r: 4, fill: trend30.direction === "down" ? "#ef4444" : "#10b981", stroke: "rgba(255,255,255,0.15)", strokeWidth: 4 }}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
                     </div>
-                  )}
-
-                  {/* ── 3. Revenue Chart ── */}
-                  <div className="premium-card rounded-2xl p-7">
-                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-7">Umsatzverlauf</p>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={enrichedHistory}>
-                        <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v) => `${v}€`} width={50} />
-                        <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
-                        {noteDates.map((date) => (
-                          <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
-                        ))}
-                        <Line type="monotone" dataKey="revenue_today" stroke="#D4AF37" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                    {noteDates.length > 0 && (
-                      <p className="text-[10px] text-white/30 font-light mt-4 tracking-wide">Gestrichelte Linien = Coaching-Notizen</p>
-                    )}
-                  </div>
-
-                  {/* ── 4. Postfach-Disziplin ── */}
-                  <div className="space-y-5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Postfach-Disziplin</p>
-                    <div className="premium-card rounded-2xl p-7">
-                      <ResponsiveContainer width="100%" height={170}>
-                        <AreaChart data={history}>
-                          <defs>
-                            <linearGradient id="ghostFill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#E25822" stopOpacity={0.28} />
-                              <stop offset="100%" stopColor="#E25822" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <XAxis dataKey="analysis_date" tickFormatter={formatDate} axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} width={30} />
-                          <Tooltip content={<GhostChatTooltip />} cursor={{ stroke: "rgba(226,88,34,0.2)" }} />
-                          <Area type="monotone" dataKey="open_chats" stroke="#E25822" strokeWidth={2} fill="url(#ghostFill)" dot={false} activeDot={{ r: 4, fill: "#E25822", stroke: "rgba(226,88,34,0.4)", strokeWidth: 6 }} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {ghostSummary && (
-                      <div className="premium-card rounded-xl p-5">
-                        <p className="text-xs text-white/55 font-light leading-relaxed tracking-wide">
-                          Letzte 7 Tage: Ø <span className="font-medium tabular-nums" style={{ color: "#E25822" }}>{ghostSummary.avgChats} Chats</span> offen,{" "}
-                          <span className="font-medium tabular-nums" style={{ color: "#E25822" }}>{ghostSummary.avgDelay} Tage</span> Verzug.{" "}
-                          Trend: <span className="font-medium text-white/80">{ghostSummary.trend}</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── 6. Verlauf-Tabelle ── */}
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">Verlauf</p>
-                    <div className="premium-card rounded-xl overflow-hidden">
-                      <div className="grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.06]">
-                        {["Datum", "Umsatz", "DMs"].map((h) => (
-                          <span key={h} className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">{h}</span>
-                        ))}
-                        {["Chats", "Verzug"].map((h) => (
-                          <span key={h} className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium hidden sm:block">{h}</span>
-                        ))}
-                      </div>
-                      {[...history].reverse().map((row, i) => (
-                        <div key={i} className="row-accent grid grid-cols-3 sm:grid-cols-5 px-3 sm:px-5 py-3 border-b border-white/[0.03] last:border-0">
-                          <span className="text-xs text-white/55 font-light tabular-nums">{formatDate(row.analysis_date)}</span>
-                          <span className="text-xs font-light gold-text tabular-nums">{formatCurrency(row.revenue_today)}</span>
-                          <span className="text-xs text-white/50 font-light tabular-nums">{row.mass_dms}</span>
-                          <span className="text-xs text-white/50 font-light hidden sm:block tabular-nums">{row.open_chats}</span>
-                          <span className={`text-xs font-light hidden sm:block tabular-nums ${row.response_delay_days > 0 ? "text-[#E25822]/85" : "text-white/25"}`}>
-                            {row.response_delay_days > 0 ? `${row.response_delay_days}d` : "—"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
+                  </>
+                )}
+              </div>
+            </motion.div>
+            <AnimatePresence>
+              {compareWith && (
+                <motion.div
+                  key="compare-pane"
+                  initial={{ opacity: 0, x: 32 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 32 }}
+                  transition={{
+                    opacity: { duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
+                    x: { duration: 0.6, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
+                  }}
+                  style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
+                  className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden"
+                >
+                  <ChatterSlideOver
+                    inline
+                    open
+                    chatterName={compareWith}
+                    platform={platform}
+                    onClose={() => setCompareWith(null)}
+                  />
+                </motion.div>
               )}
-            </div>
-          </motion.div>
-          <AnimatePresence>
-            {compareWith && (
-              <motion.div
-                key="compare-pane"
-                initial={{ opacity: 0, x: 32 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 32 }}
-                transition={{
-                  opacity: { duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
-                  x: { duration: 0.6, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
-                }}
-                style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
-                className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden"
-              >
-                <ChatterSlideOver
-                  inline
-                  open
-                  chatterName={compareWith}
-                  platform={platform}
-                  onClose={() => setCompareWith(null)}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+            </AnimatePresence>
           </div>
 
           {/* Floating-Close-Pill — immer erreichbar auf Mobile, auch wenn der Header verdeckt ist */}
@@ -1286,94 +1657,118 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           </button>
         </motion.aside>
       )}
-      {open && !inline && pickerOpen && (() => {
-        const filtered = chatterList.filter((n) => !pickerQuery.trim() || n.toLowerCase().includes(pickerQuery.toLowerCase()));
-        return (
-          <motion.div
-            key="cmp-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-[60] flex items-start justify-center px-4 sm:pt-[12vh] pt-[8vh]"
-            style={{ background: "radial-gradient(ellipse 80% 60% at 50% 30%, hsl(40 30% 12% / 0.5) 0%, hsl(0 0% 0% / 0.78) 70%)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
-            onClick={() => { setPickerOpen(false); setPickerQuery(""); }}
-          >
+      {open &&
+        !inline &&
+        pickerOpen &&
+        (() => {
+          const filtered = chatterList.filter(
+            (n) => !pickerQuery.trim() || n.toLowerCase().includes(pickerQuery.toLowerCase()),
+          );
+          return (
             <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.14 } }}
-              transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              onClick={(e) => e.stopPropagation()}
-              className="premium-card gold-glow-sm w-full max-w-[480px] max-h-[70vh] rounded-2xl flex flex-col overflow-hidden"
+              key="cmp-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-[60] flex items-start justify-center px-4 sm:pt-[12vh] pt-[8vh]"
+              style={{
+                background:
+                  "radial-gradient(ellipse 80% 60% at 50% 30%, hsl(40 30% 12% / 0.5) 0%, hsl(0 0% 0% / 0.78) 70%)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+              }}
+              onClick={() => {
+                setPickerOpen(false);
+                setPickerQuery("");
+              }}
             >
-              {/* Goldener Akzent-Strich oben */}
-              <span aria-hidden className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-primary/55 to-transparent" />
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.14 } }}
+                transition={{ type: "spring", damping: 26, stiffness: 320 }}
+                onClick={(e) => e.stopPropagation()}
+                className="premium-card gold-glow-sm w-full max-w-[480px] max-h-[70vh] rounded-2xl flex flex-col overflow-hidden"
+              >
+                {/* Goldener Akzent-Strich oben */}
+                <span
+                  aria-hidden
+                  className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-primary/55 to-transparent"
+                />
 
-              {/* Header */}
-              <div className="px-6 pt-5 pb-4 border-b border-white/[0.05] shrink-0">
-                <p className="text-[10px] uppercase tracking-[0.25em] gold-text-subtle font-medium">Vergleichen mit</p>
-                <p className="text-[11px] text-white/35 font-light mt-1 tracking-wide">
-                  Wähle einen zweiten Chatter für direkten Vergleich
-                </p>
-                <div className="mt-4 flex items-center gap-2.5 px-3.5 h-11 rounded-xl bg-white/[0.025] border border-white/[0.06] focus-within:border-primary/30 focus-within:bg-white/[0.04] transition-colors">
-                  <Search className="h-4 w-4 text-white/35 shrink-0" />
-                  <input
-                    autoFocus
-                    value={pickerQuery}
-                    onChange={(e) => setPickerQuery(e.target.value)}
-                    placeholder="Chatter suchen…"
-                    className="flex-1 bg-transparent text-sm text-foreground/90 font-light placeholder:text-white/25 focus:outline-none"
-                  />
-                  <kbd className="hidden sm:inline-flex items-center px-1.5 h-5 rounded text-[9px] font-medium text-white/35 bg-white/[0.04] border border-white/[0.06] tracking-wider">ESC</kbd>
-                </div>
-              </div>
-
-              {/* Liste */}
-              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none py-2 px-2">
-                {chatterList.length === 0 ? (
-                  <div className="flex items-center justify-center gap-2 py-12 text-xs text-white/30 font-light">
-                    <span className="h-3 w-3 rounded-full border border-white/15 border-t-primary/60 animate-spin" />
-                    Lade Chatter…
+                {/* Header */}
+                <div className="px-6 pt-5 pb-4 border-b border-white/[0.05] shrink-0">
+                  <p className="text-[10px] uppercase tracking-[0.25em] gold-text-subtle font-medium">
+                    Vergleichen mit
+                  </p>
+                  <p className="text-[11px] text-white/35 font-light mt-1 tracking-wide">
+                    Wähle einen zweiten Chatter für direkten Vergleich
+                  </p>
+                  <div className="mt-4 flex items-center gap-2.5 px-3.5 h-11 rounded-xl bg-white/[0.025] border border-white/[0.06] focus-within:border-primary/30 focus-within:bg-white/[0.04] transition-colors">
+                    <Search className="h-4 w-4 text-white/35 shrink-0" />
+                    <input
+                      autoFocus
+                      value={pickerQuery}
+                      onChange={(e) => setPickerQuery(e.target.value)}
+                      placeholder="Chatter suchen…"
+                      className="flex-1 bg-transparent text-sm text-foreground/90 font-light placeholder:text-white/25 focus:outline-none"
+                    />
+                    <kbd className="hidden sm:inline-flex items-center px-1.5 h-5 rounded text-[9px] font-medium text-white/35 bg-white/[0.04] border border-white/[0.06] tracking-wider">
+                      ESC
+                    </kbd>
                   </div>
-                ) : filtered.length === 0 ? (
-                  <p className="px-3 py-12 text-center text-xs text-white/30 font-light italic tracking-wide">Keine Treffer</p>
-                ) : (
-                  filtered.slice(0, 200).map((n) => {
-                    const init = getInitials(n);
-                    return (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => {
-                          setCompareWith(n);
-                          setPickerOpen(false);
-                          setPickerQuery("");
-                        }}
-                        className="group/row w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-xl hover:bg-white/[0.035] transition-all duration-200"
-                      >
-                        <span className="premium-stat flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-light tracking-wide text-primary/75 group-hover/row:text-primary transition-colors">
-                          {init}
-                        </span>
-                        <span className="flex-1 min-w-0 text-sm text-foreground/80 font-light tracking-tight truncate group-hover/row:text-foreground transition-colors">
-                          {toTitleCase(n)}
-                        </span>
-                        <GitCompareArrows className="h-3.5 w-3.5 text-white/15 group-hover/row:text-primary/65 transition-colors" />
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+                </div>
 
-              {/* Footer-Hint */}
-              <div className="px-6 py-3 border-t border-white/[0.05] shrink-0 flex items-center justify-between text-[10px] text-white/30 font-light tracking-wide">
-                <span>{filtered.length} {filtered.length === 1 ? "Chatter" : "Chatter"}</span>
-                <span>Klick zum Vergleichen</span>
-              </div>
+                {/* Liste */}
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none py-2 px-2">
+                  {chatterList.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 py-12 text-xs text-white/30 font-light">
+                      <span className="h-3 w-3 rounded-full border border-white/15 border-t-primary/60 animate-spin" />
+                      Lade Chatter…
+                    </div>
+                  ) : filtered.length === 0 ? (
+                    <p className="px-3 py-12 text-center text-xs text-white/30 font-light italic tracking-wide">
+                      Keine Treffer
+                    </p>
+                  ) : (
+                    filtered.slice(0, 200).map((n) => {
+                      const init = getInitials(n);
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => {
+                            setCompareWith(n);
+                            setPickerOpen(false);
+                            setPickerQuery("");
+                          }}
+                          className="group/row w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-xl hover:bg-white/[0.035] transition-all duration-200"
+                        >
+                          <span className="premium-stat flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-light tracking-wide text-primary/75 group-hover/row:text-primary transition-colors">
+                            {init}
+                          </span>
+                          <span className="flex-1 min-w-0 text-sm text-foreground/80 font-light tracking-tight truncate group-hover/row:text-foreground transition-colors">
+                            {toTitleCase(n)}
+                          </span>
+                          <GitCompareArrows className="h-3.5 w-3.5 text-white/15 group-hover/row:text-primary/65 transition-colors" />
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer-Hint */}
+                <div className="px-6 py-3 border-t border-white/[0.05] shrink-0 flex items-center justify-between text-[10px] text-white/30 font-light tracking-wide">
+                  <span>
+                    {filtered.length} {filtered.length === 1 ? "Chatter" : "Chatter"}
+                  </span>
+                  <span>Klick zum Vergleichen</span>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        );
-      })()}
+          );
+        })()}
     </AnimatePresence>
   );
 
