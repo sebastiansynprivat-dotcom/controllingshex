@@ -1,76 +1,100 @@
-## Models & Follower — Layout-Refresh
+## Live-Tracking Tab
 
-Ziel: Cleanes Layout. Filter oben (inkl. "Models in Trouble" als Toggle), Datenbank-Sektion unten mit kompaktem Add-Bereich. Profil-URL ist beim Anlegen direkt mit dabei.
+Neuer Bereich in der Sidebar direkt unter „Dashboard": **Live-Tracking** (`/live`). Zeigt in Echtzeit, was die Chatter gerade tun — auf Basis von `chatter_history_live` (Revenue, Mass-DMs, Unread Chats, Oldest Chat, updated_at).
 
-### 1. "Neues Model"-Formular erweitern
-Im Add-Card kommt ein zusätzliches Feld **"Maloum-Profil-URL"** dazu (optional). Beim Speichern wird `profile_url` direkt mit gesetzt.
+### Was sinnvoll ist mit den Live-Daten
 
-Felder im Formular:
-- Name
-- Follower
-- E-Mail
-- Passwort
-- **Profil-URL** (neu, full-width unter dem Grid)
+Die Tabelle hat 5 starke Signale pro Chatter:
+- **revenue** — Tagesumsatz live
+- **mass_dms** — gesendete Mass-DMs heute
+- **unread_chats** — wie viele Kunden warten gerade
+- **oldest_chat** — ältester unbeantworteter Chat (Stunden/Tage)
+- **updated_at** — wann zuletzt Daten gepusht
 
-### 2. Edit-Modus erweitern
-Klick auf den Stift unten in einer Model-Zeile öffnet wie bisher den Inline-Editor — zusätzlich erscheint dort ein Feld **Profil-URL**, sodass der Link nachträglich ergänzt/geändert werden kann.
-
-### 3. Layout-Reorg im Models-Tab
-
-Neue Reihenfolge von oben nach unten:
+Daraus lassen sich vier Live-Use-Cases bauen, die im Tab als smarte Filter-Pillen oben sitzen:
 
 ```text
-─────────────────────────────────
-Header: Models & Follower · X Models
-─────────────────────────────────
-[ Filter-Bar ]  ← kompakt, eine Sektion
-  • Suche
-  • Zeitraum (7/14/30/90/Custom)
-  • Umsatz-Status (Alle / Mit / Ohne)
-  • Toggle "Models in Trouble"  ← neu, als Filter-Pille
-  • Archetyp-Filter (collapsible, nur wenn Daten da)
-─────────────────────────────────
-[ Datenbank ]  ← Hauptsektion
-  Header: "Datenbank · X Models"  
-  + dezenter Button "Model hinzufügen" (öffnet collapsible Add-Form)
-  
-  Tabelle mit allen (gefilterten) Models
-─────────────────────────────────
+┌─────────────────────────────────────────────────────────┐
+│ Live-Tracking · 23 Chatter aktiv · letzte Sync vor 2min │
+├─────────────────────────────────────────────────────────┤
+│ [ Suche ] [ Plattform: Alle / Maloum / Brezzels ]       │
+│                                                         │
+│ Smarte Filter:                                          │
+│  ◉ Alle                                                 │
+│  ○ Eskalation (oldest_chat ≥ 2)                         │
+│  ○ Überlastet (unread ≥ 10)                             │
+│  ○ Inaktiv (kein Update > 30min)                        │
+│  ○ Top Performer heute (Revenue Top 5)                  │
+│  ○ Keine Mass-DMs heute                                 │
+│  ○ Online jetzt (Update < 5min)                         │
+│                                                         │
+│ Sortierung: Revenue ↓ / Unread ↓ / Oldest ↓ / Letzte    │
+├─────────────────────────────────────────────────────────┤
+│ KPI-Strip: Σ Revenue heute · Σ Mass-DMs · Σ Unread ·    │
+│            Ø Oldest · Anzahl aktiv (<15min)             │
+├─────────────────────────────────────────────────────────┤
+│ Live-Tabelle                                            │
+│  ● Status | Chatter | Plattform | Revenue | Mass-DMs |  │
+│    Unread | Oldest | Letzte Sync                        │
+│                                                         │
+│  ● grün  = Update < 5min   (online)                     │
+│  ● gelb  = 5–30min         (idle)                       │
+│  ● grau  = > 30min         (offline)                    │
+│  ● rot-Badge auf Oldest ≥ 2  bzw. Unread ≥ 10           │
+│                                                         │
+│ Klick auf Zeile → ChatterSlideOver (existiert)          │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 4. "Models in Trouble" wird Filter, nicht Card
+### Smarte Filter im Detail
 
-- `ModelsInTroubleCard` wird **nicht mehr als eigene große Karte** gezeigt
-- Stattdessen: Filter-Pille **"Im Rückgang"** in der Filter-Bar
-  - Aus: alle Models in Tabelle
-  - An: Tabelle zeigt nur Models, die laut Trouble-Detection im Rückgang sind
-- Logik aus `ModelsInTroubleCard` wird in einen kleinen Helper extrahiert (`useModelsInTrouble(platform, modelNames)`), liefert `Set<string>` der betroffenen Model-Namen
-- Click auf Model in Tabelle öffnet weiterhin die Performance-Slide-Over
+| Filter | Logik | Zweck |
+|---|---|---|
+| **Eskalation** | `oldest_chat ≥ 2` | Kunden warten zu lange — sofort handeln |
+| **Überlastet** | `unread_chats ≥ 10` | Chatter braucht Support / Umverteilung |
+| **Inaktiv** | `now() - updated_at > 30min` | Pause/AFK erkennen |
+| **Online jetzt** | `now() - updated_at < 5min` | Wer ist gerade aktiv am Chatten |
+| **Top Performer** | Top 5 nach `revenue` heute | Wer läuft heiß |
+| **Keine Mass-DMs** | `mass_dms = 0` und Revenue niedrig | Wer schiebt nicht |
+| **Stille Goldgruben** | `revenue > Median` und `unread = 0` | Effiziente Chatter |
 
-### 5. Add-Form clean integrieren
+Filter sind als Toggle-Pillen kombinierbar (AND).
 
-- Add-Form ist **standardmäßig eingeklappt**
-- Im Header der Datenbank-Sektion: kleiner Button `+ Model hinzufügen`
-- Klick → Form klappt auf (innerhalb der Datenbank-Card, oben)
-- Nach erfolgreichem Insert → Form klappt automatisch wieder zu, Felder geleert
+### Live-Aktualisierung
 
-### 6. Archetyp-Panel in Tabelle bleibt
-Der "Archetyp analysieren"-Button unter jedem Model-Namen bleibt wie er jetzt ist (sichtbare Primary-Pille). Die Profil-URL-Eingabe im Panel wird redundant, weil der Link jetzt schon beim Anlegen oder via Stift gepflegt wird — bleibt aber als Fallback-Edit drin.
+Realtime via Supabase Channel auf `chatter_history_live` — Tabelle aktualisiert sich automatisch sobald neue Pushes via Edge Function reinkommen. Zusätzlich „Letzte Sync vor X" relativ-Timer, der jede Sekunde tickt.
+
+### Verbindung zu existierenden Daten
+
+- Spalte „Heute" zeigt zusätzlich aus `chatter_history` den letzten Report-Wert in klein darunter (z.B. „Live: 66€ · Report: 0€") — macht Diskrepanzen sichtbar.
+- Zeilen-Klick öffnet das bestehende `ChatterSlideOver` (zeigt schon Live-KPIs).
 
 ---
 
-### Technische Details
+### Technisches
 
-**Files:**
-- `src/pages/Models.tsx`
-  - State: `newProfileUrl`, `editProfileUrl`, `showAddForm` (default `false`), `troubleFilter` (default `false`), `troubleNames: Set<string>`
-  - `addModel`: `profile_url: newProfileUrl.trim() || null`
-  - `saveEdit`: `profile_url: editProfileUrl.trim() || null`
-  - `filteredModels`: zusätzlich `if (troubleFilter && !troubleNames.has(m.model_name)) return false`
-  - JSX-Reorg: Filter-Bar zusammenfassen, Datenbank-Card mit collapsible Add
-- `src/components/ModelsInTroubleCard.tsx`
-  - Logik (Detection) in einen exportierten Hook `useModelsInTrouble` extrahieren
-  - Card-Variante kann bleiben (wird nicht mehr verwendet) oder entfernt werden
-- DB: keine Schema-Änderung nötig — `profile_url` existiert schon auf `models`
+**Neue Datei:** `src/pages/LiveTracking.tsx`
+- State: `rows` (aus `chatter_history_live`), `filter` (Set), `sort`, `search`, Platform aus `PlatformContext`
+- Initial-Fetch: heutiges Datum, optional plattform-gefiltert
+- Realtime-Subscription auf Tabelle, payload merged in `rows`
+- Tick-Interval (1s) für relative Zeitanzeigen
+- Helper: `secondsSinceUpdate(updated_at)`, `statusOf(row)` → 'online'|'idle'|'offline'
 
-**Filter-Bar Aufbau:** Eine `premium-card` mit Search oben, dann zwei Reihen Pillen (Zeitraum + Status + Trouble), dann optional Archetyp-Sektion (collapsible per Default zu, falls vorhanden).
+**Sidebar:** `src/components/AppSidebar.tsx` — neuer Eintrag „Live-Tracking" (Icon `Activity` o. `Radio`) direkt nach „Dashboard".
+
+**Routing:** `src/App.tsx` — Route `/live` → `<LiveTracking />`.
+
+**RLS-Hinweis:** `chatter_history_live` hat aktuell **keine RLS-Policies**. Da Daten von extern via Edge Function geschrieben werden und alle Workspace-Nutzer sie sehen sollen, brauchen wir eine SELECT-Policy für `authenticated` (sonst sieht der Browser-Client nichts):
+
+```sql
+ALTER TABLE chatter_history_live ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can view live data"
+ON chatter_history_live FOR SELECT TO authenticated USING (true);
+```
+
+Realtime aktivieren:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE chatter_history_live;
+```
+
+Keine weiteren Schema-Änderungen.
