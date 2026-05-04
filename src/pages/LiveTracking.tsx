@@ -157,7 +157,7 @@ export default function LiveTracking() {
     return out;
     // tick included to refresh time-based filters
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filters, sort, search, platformFilter, tick]);
+  }, [rows, filters, sort, search, tick]);
 
   const stats = useMemo(() => {
     const sumRev = filteredSorted.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
