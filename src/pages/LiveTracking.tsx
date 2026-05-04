@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Radio, Search, Flame, AlertTriangle, MoonStar, Trophy, MailX, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform, type Platform } from "@/contexts/PlatformContext";
-import { ChatterSlideOver } from "@/components/ChatterSlideOver";
+import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Input } from "@/components/ui/input";
 
 interface LiveRow {
