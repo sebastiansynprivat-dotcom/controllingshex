@@ -53,7 +53,7 @@ function fmtEur(n: number): string {
 
 export default function LiveTracking() {
   const { platform } = usePlatform();
-  const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
+  
   const [rows, setRows] = useState<LiveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -68,7 +68,7 @@ export default function LiveTracking() {
     return () => clearInterval(id);
   }, []);
 
-  // Initial fetch (today)
+  // Initial fetch (today, current platform)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     setLoading(true);
@@ -76,17 +76,18 @@ export default function LiveTracking() {
       .from("chatter_history_live")
       .select("*")
       .eq("date", today)
+      .ilike("platform", platform)
       .order("updated_at", { ascending: false })
       .then(({ data }) => {
         setRows((data as LiveRow[]) ?? []);
         setLoading(false);
       });
-  }, []);
+  }, [platform]);
 
-  // Realtime
+  // Realtime (filtered to current platform)
   useEffect(() => {
     const channel = supabase
-      .channel("chatter-history-live")
+      .channel(`chatter-history-live-${platform}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chatter_history_live" },
@@ -98,6 +99,7 @@ export default function LiveTracking() {
             }
             const next = payload.new as LiveRow;
             if (next.date !== today) return prev;
+            if ((next.platform ?? "").toLowerCase() !== platform.toLowerCase()) return prev;
             const idx = prev.findIndex((r) => r.id === next.id);
             if (idx === -1) return [next, ...prev];
             const copy = [...prev];
@@ -110,7 +112,7 @@ export default function LiveTracking() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [platform]);
 
   const toggleFilter = (k: FilterKey) =>
     setFilters((s) => {
@@ -130,7 +132,6 @@ export default function LiveTracking() {
     );
 
     let out = rows.filter((r) => {
-      if (platformFilter !== "all" && r.platform !== platformFilter) return false;
       if (search && !r.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
       const sec = secondsSince(r.updated_at);
       if (filters.has("online") && sec >= 5 * 60) return false;
@@ -156,7 +157,7 @@ export default function LiveTracking() {
     return out;
     // tick included to refresh time-based filters
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filters, sort, search, platformFilter, tick]);
+  }, [rows, filters, sort, search, tick]);
 
   const stats = useMemo(() => {
     const sumRev = filteredSorted.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
@@ -186,24 +187,9 @@ export default function LiveTracking() {
             Live-Tracking
           </h1>
           <p className="text-sm text-white/40 mt-1 font-light">
-            {filteredSorted.length} Chatter ·{" "}
+            {platform} · {filteredSorted.length} Chatter ·{" "}
             {lastSync !== null ? `letzte Sync vor ${relTime(lastSync)}` : "keine Daten heute"}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {(["all", "Maloum", "Brezzels", "4Based"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPlatformFilter(p as Platform | "all")}
-              className={`px-3 py-1.5 rounded-full text-xs font-light tracking-wide transition-all border ${
-                platformFilter === p
-                  ? "bg-white/10 text-white border-white/20"
-                  : "bg-transparent text-white/50 border-white/[0.06] hover:text-white/80 hover:border-white/15"
-              }`}
-            >
-              {p === "all" ? "Alle" : p}
-            </button>
-          ))}
         </div>
       </header>
 
