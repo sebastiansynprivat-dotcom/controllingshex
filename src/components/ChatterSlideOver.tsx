@@ -188,6 +188,49 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
   const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>([]);
+  const [liveProfile, setLiveProfile] = useState<{
+    revenue: number | null;
+    mass_dms: number | null;
+    unread_chats: number | null;
+    oldest_chat: number | null;
+    updated_at: string | null;
+    date: string | null;
+  } | null>(null);
+
+  // Live-Profile aus chatter_history_live laden, wenn das Panel geöffnet wird
+  useEffect(() => {
+    if (!open || !chatterName) {
+      setLiveProfile(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history_live")
+        .select("revenue, mass_dms, unread_chats, oldest_chat, updated_at, date")
+        .eq("platform", platform)
+        .eq("chatter_name", chatterName)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      setLiveProfile(
+        data
+          ? {
+              revenue: data.revenue ?? null,
+              mass_dms: data.mass_dms ?? null,
+              unread_chats: data.unread_chats ?? null,
+              oldest_chat: (data as any).oldest_chat ?? null,
+              updated_at: data.updated_at ?? null,
+              date: data.date ?? null,
+            }
+          : null,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, chatterName, platform]);
 
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
