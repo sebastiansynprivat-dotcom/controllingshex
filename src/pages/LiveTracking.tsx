@@ -245,8 +245,8 @@ export default function LiveTracking() {
       )}
 
       {/* Filter pills */}
-      <div className="flex items-center gap-2">
-        {(["all", "escalation", "lost"] as FilterKey[]).map((k) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        {(["all", "escalation", "lost", "inactive"] as FilterKey[]).map((k) => (
           <button
             key={k}
             onClick={() => setFilter(k)}
@@ -256,7 +256,13 @@ export default function LiveTracking() {
                 : "text-white/40 border-white/[0.06] hover:text-white/75 hover:border-white/12"
             }`}
           >
-            {k === "all" ? "Alle" : k === "escalation" ? "Eskalation" : "Lost Potential"}
+            {k === "all"
+              ? `Alle · ${scored.length}`
+              : k === "escalation"
+              ? "Eskalation"
+              : k === "lost"
+              ? "Lost Potential"
+              : "Inaktiv"}
           </button>
         ))}
       </div>
@@ -265,7 +271,14 @@ export default function LiveTracking() {
       {loading ? (
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Lade Live-Daten…</p>
       ) : visible.length === 0 ? (
-        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter heute aktiv.</p>
+        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter passen zum Filter.</p>
+      ) : filter !== "all" ? (
+        // Flache Liste bei aktivem Filter
+        <div className="space-y-2">
+          {visible.map((s) => (
+            <Row key={s.row.chatter_name} item={s} tone={s.bucket === "now" ? "urgent" : s.bucket === "watch" ? "watch" : "running"} onSelect={setSelected} />
+          ))}
+        </div>
       ) : (
         <div className="space-y-12">
           {buckets.now.length > 0 && <Bucket label="Sofort handeln" tone="urgent" items={buckets.now} onSelect={setSelected} />}
@@ -287,8 +300,10 @@ export default function LiveTracking() {
                 )}
               </button>
               {runningOpen && (
-                <div className="mt-4">
-                  <Bucket label="" tone="running" items={buckets.running} onSelect={setSelected} />
+                <div className="mt-4 space-y-2">
+                  {buckets.running.map((s) => (
+                    <Row key={s.row.chatter_name} item={s} tone="running" onSelect={setSelected} />
+                  ))}
                 </div>
               )}
             </div>
