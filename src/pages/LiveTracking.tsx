@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, AlertTriangle, TrendingDown, ChevronDown, ChevronRight, ArrowUpRight } from "lucide-react";
+import { Search, AlertTriangle, ChevronDown, ChevronRight, ArrowUpRight, Flame, Clock, Inbox, EuroIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
@@ -20,13 +20,13 @@ function secondsSince(iso: string): number {
 
 function relTime(sec: number): string {
   if (sec < 60) return `${sec}s`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}min`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-  return `${Math.floor(sec / 86400)}d`;
+  if (sec < 3600) return `${Math.floor(sec / 60)} min`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)} h`;
+  return `${Math.floor(sec / 86400)} d`;
 }
 
 function fmtEur(n: number): string {
-  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(n) + "€";
+  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(n) + " €";
 }
 
 export default function LiveTracking() {
@@ -41,13 +41,11 @@ export default function LiveTracking() {
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
 
-  // 1s tick for relative time + score recompute
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Fetch live rows for today + platform
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     setLoading(true);
@@ -63,7 +61,6 @@ export default function LiveTracking() {
       });
   }, [platform]);
 
-  // Fetch 14d averages from chatter_history
   useEffect(() => {
     const since = new Date();
     since.setDate(since.getDate() - 14);
@@ -97,7 +94,6 @@ export default function LiveTracking() {
       });
   }, [platform]);
 
-  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel(`live-${platform}`)
@@ -127,7 +123,6 @@ export default function LiveTracking() {
     };
   }, [platform]);
 
-  // Score everything
   const scored: ScoredChatter[] = useMemo(() => {
     const now = new Date();
     return rows
@@ -136,7 +131,6 @@ export default function LiveTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, avgs, tick]);
 
-  // Filter (search + filter pill)
   const visible = useMemo(() => {
     return scored.filter((s) => {
       if (search && !s.row.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -146,23 +140,21 @@ export default function LiveTracking() {
     });
   }, [scored, search, filter]);
 
-  const buckets = useMemo(() => {
-    return {
+  const buckets = useMemo(
+    () => ({
       now: visible.filter((s) => s.bucket === "now"),
       watch: visible.filter((s) => s.bucket === "watch"),
       running: visible.filter((s) => s.bucket === "running"),
-    };
-  }, [visible]);
+    }),
+    [visible],
+  );
 
-  // Header KPIs
   const sumRevenue = rows.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
+  const sumUnread = rows.reduce((s, r) => s + (r.unread_chats ?? 0), 0);
   const activeCount = rows.filter((r) => secondsSince(r.updated_at) < 15 * 60).length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
 
-  // Smart banner: high-avg chatters not started yet
   const notStarted = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const liveToday = new Set(rows.filter((r) => r.date === today).map((r) => r.chatter_name.trim().toLowerCase()));
     const out: { name: string; expected: number }[] = [];
     avgs.forEach((avg, name) => {
       if (avg.avgRevenue < 30) return;
@@ -171,7 +163,7 @@ export default function LiveTracking() {
       const hour = new Date().getHours() + new Date().getMinutes() / 60;
       const dayProgress = Math.max(0, Math.min(1, (hour - 6) / 18));
       const expected = avg.avgRevenue * dayProgress;
-      if (!liveToday.has(name) || todayRev < expected * 0.2) {
+      if (!liveRow || todayRev < expected * 0.2) {
         if (expected >= 30) out.push({ name, expected });
       }
     });
@@ -182,100 +174,118 @@ export default function LiveTracking() {
   const hotStreakCount = scored.filter((s) => s.hotStreak).length;
 
   return (
-    <div className="mx-auto w-full max-w-[720px] space-y-8 pb-16">
-      {/* Header */}
-      <header className="text-center space-y-2 pt-2">
-        <div className="flex items-center justify-center gap-2.5">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/70 opacity-75 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-          </span>
-          <h1 className="text-base font-light tracking-[0.18em] uppercase text-white/80">
-            Live · {platform}
-          </h1>
+    <div className="mx-auto w-full max-w-[860px] space-y-10 pb-20">
+      {/* Hero header */}
+      <header className="space-y-6 pt-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/70 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_hsl(var(--primary)/0.5)]" />
+            </span>
+            <div>
+              <h1 className="text-xs font-light tracking-[0.28em] uppercase gold-text-subtle">
+                Live Tracking
+              </h1>
+              <p className="text-[10px] text-white/30 tracking-[0.2em] uppercase mt-0.5">
+                {platform} · {lastSync !== null ? `Sync vor ${relTime(lastSync)}` : "—"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center">
+            {searchOpen ? (
+              <Input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onBlur={() => !search && setSearchOpen(false)}
+                placeholder="Suchen…"
+                className="h-8 w-44 text-xs bg-white/[0.03] border-white/[0.08]"
+              />
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="text-white/40 hover:text-white/80 p-2 rounded-full hover:bg-white/[0.04] transition-colors"
+                aria-label="Suchen"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="text-xs text-white/35 font-light tracking-wide">
-          {lastSync !== null ? `vor ${relTime(lastSync)}` : "keine Daten"} · {activeCount} aktiv · {fmtEur(sumRevenue)} heute
-        </p>
+
+        {/* KPI grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat icon={EuroIcon} label="Revenue heute" value={fmtEur(sumRevenue)} accent />
+          <Stat icon={Flame} label="Aktiv jetzt" value={String(activeCount)} sub={`von ${rows.length}`} />
+          <Stat icon={Inbox} label="Σ Ungelesen" value={String(sumUnread)} />
+          <Stat icon={Clock} label="Sofort handeln" value={String(buckets.now.length)} tone={buckets.now.length > 0 ? "warn" : undefined} />
+        </div>
       </header>
 
       {/* Smart banner */}
       {notStarted.length > 0 && (
-        <div className="border-y border-amber-400/15 bg-amber-400/[0.03] px-4 py-3 -mx-4">
+        <div className="premium-card rounded-2xl px-5 py-4 border border-amber-300/15">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-4 w-4 text-amber-300/80 mt-0.5 shrink-0" />
-            <div className="text-sm text-white/70 font-light">
-              <span className="text-amber-200/90">{notStarted.length} Top-Chatter</span> heute noch nicht am Start ·{" "}
-              <span className="text-white/45">~{fmtEur(notStarted.reduce((s, n) => s + n.expected, 0))} erwartetes Potential offen</span>
+            <div className="h-8 w-8 rounded-full bg-amber-300/10 border border-amber-300/20 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-4 w-4 text-amber-200/90" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-light text-white/85">
+                <span className="text-amber-100/95">{notStarted.length} Top-Chatter</span> heute noch nicht am Start
+              </p>
+              <p className="text-xs text-white/45 font-light mt-0.5 tracking-wide">
+                ~{fmtEur(notStarted.reduce((s, n) => s + n.expected, 0))} erwartetes Potenzial offen
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Filter row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          {(["all", "escalation", "lost"] as FilterKey[]).map((k) => (
-            <button
-              key={k}
-              onClick={() => setFilter(k)}
-              className={`px-3 py-1 rounded-full text-[11px] font-light tracking-wide transition-colors ${
-                filter === k ? "bg-white/10 text-white/90" : "text-white/40 hover:text-white/70"
-              }`}
-            >
-              {k === "all" ? "Alle" : k === "escalation" ? "Eskalation" : "Lost Potential"}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center">
-          {searchOpen ? (
-            <Input
-              autoFocus
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onBlur={() => !search && setSearchOpen(false)}
-              placeholder="Suchen…"
-              className="h-7 w-40 text-xs bg-white/[0.03] border-white/[0.06]"
-            />
-          ) : (
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="text-white/40 hover:text-white/70 p-1.5"
-              aria-label="Suchen"
-            >
-              <Search className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
+      {/* Filter pills */}
+      <div className="flex items-center gap-2">
+        {(["all", "escalation", "lost"] as FilterKey[]).map((k) => (
+          <button
+            key={k}
+            onClick={() => setFilter(k)}
+            className={`px-4 py-1.5 rounded-full text-[11px] font-light tracking-[0.12em] uppercase transition-all border ${
+              filter === k
+                ? "bg-gradient-to-b from-white/[0.08] to-white/[0.02] text-white/95 border-white/15 shadow-[0_2px_12px_-4px_hsl(40_45%_55%/0.15)]"
+                : "text-white/40 border-white/[0.06] hover:text-white/75 hover:border-white/12"
+            }`}
+          >
+            {k === "all" ? "Alle" : k === "escalation" ? "Eskalation" : "Lost Potential"}
+          </button>
+        ))}
       </div>
 
       {/* Content */}
       {loading ? (
-        <p className="text-center text-sm text-white/30 py-12">Lade Live-Daten…</p>
+        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Lade Live-Daten…</p>
       ) : visible.length === 0 ? (
-        <p className="text-center text-sm text-white/30 py-12">Keine Chatter heute aktiv.</p>
+        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter heute aktiv.</p>
       ) : (
-        <div className="space-y-10">
-          {buckets.now.length > 0 && <Bucket label="Sofort" tone="urgent" items={buckets.now} onSelect={setSelected} />}
+        <div className="space-y-12">
+          {buckets.now.length > 0 && <Bucket label="Sofort handeln" tone="urgent" items={buckets.now} onSelect={setSelected} />}
           {buckets.watch.length > 0 && <Bucket label="Beobachten" tone="watch" items={buckets.watch} onSelect={setSelected} />}
           {buckets.running.length > 0 && (
             <div>
               <button
                 onClick={() => setRunningOpen((o) => !o)}
-                className="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-white/35 hover:text-white/60 transition-colors py-2"
+                className="w-full flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/30 hover:text-white/55 transition-colors py-3 border-t border-white/[0.04]"
               >
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-2">
                   {runningOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   {buckets.running.length} laufen sauber
                 </span>
                 {hotStreakCount > 0 && (
-                  <span className="flex items-center gap-1 text-emerald-300/70 normal-case tracking-normal text-xs">
+                  <span className="flex items-center gap-1.5 text-emerald-300/70 normal-case tracking-normal text-[11px]">
                     <ArrowUpRight className="h-3 w-3" /> {hotStreakCount} hot
                   </span>
                 )}
               </button>
               {runningOpen && (
-                <div className="mt-3">
+                <div className="mt-4">
                   <Bucket label="" tone="running" items={buckets.running} onSelect={setSelected} />
                 </div>
               )}
@@ -294,6 +304,45 @@ export default function LiveTracking() {
   );
 }
 
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accent,
+  tone,
+}: {
+  icon: typeof Flame;
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+  tone?: "warn";
+}) {
+  return (
+    <div className="premium-stat rounded-xl px-4 py-3.5">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/35 font-light">
+        <Icon className="h-3 w-3" />
+        {label}
+      </div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span
+          className={`text-2xl font-extralight tabular-nums ${
+            tone === "warn"
+              ? "text-rose-200"
+              : accent
+              ? "gold-text"
+              : "text-white/95"
+          }`}
+        >
+          {value}
+        </span>
+        {sub && <span className="text-[10px] text-white/35 tracking-wide">{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
 function Bucket({
   label,
   tone,
@@ -308,18 +357,19 @@ function Bucket({
   return (
     <div>
       {label && (
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-4">
           <span
-            className={`text-[10px] uppercase tracking-[0.25em] font-light ${
-              tone === "urgent" ? "text-rose-300/80" : tone === "watch" ? "text-amber-200/70" : "text-white/30"
+            className={`text-[10px] uppercase tracking-[0.28em] font-light ${
+              tone === "urgent" ? "text-rose-300/85" : "text-amber-200/75"
             }`}
           >
             {label}
           </span>
-          <span className="flex-1 h-px bg-white/[0.05]" />
+          <span className={`flex-1 h-px ${tone === "urgent" ? "bg-gradient-to-r from-rose-400/25 to-transparent" : "bg-gradient-to-r from-amber-300/20 to-transparent"}`} />
+          <span className="text-[10px] tabular-nums text-white/30 tracking-wider">{items.length}</span>
         </div>
       )}
-      <div className="divide-y divide-white/[0.04]">
+      <div className="space-y-2">
         {items.map((s) => (
           <Row key={s.row.chatter_name} item={s} tone={tone} onSelect={onSelect} />
         ))}
@@ -340,33 +390,97 @@ function Row({
   const sec = secondsSince(item.row.updated_at);
   const online = sec < 5 * 60;
   const offline = sec >= 30 * 60;
+
+  // Score visual: ring-style number with tone-based color
   const scoreColor =
-    tone === "urgent" ? "text-rose-200" : tone === "watch" ? "text-amber-100/90" : "text-white/40";
+    tone === "urgent"
+      ? "text-rose-200"
+      : tone === "watch"
+      ? "text-amber-100"
+      : "text-white/55";
+  const scoreRing =
+    tone === "urgent"
+      ? "border-rose-400/30 bg-gradient-to-b from-rose-500/[0.08] to-rose-500/[0.02] shadow-[0_0_24px_-8px_hsl(0_70%_60%/0.35)]"
+      : tone === "watch"
+      ? "border-amber-300/25 bg-gradient-to-b from-amber-400/[0.06] to-amber-400/[0.01]"
+      : "border-white/[0.08] bg-white/[0.02]";
+
+  const cardBase = "group relative w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left transition-all duration-300 border backdrop-blur-xl";
+  const cardTone =
+    tone === "urgent"
+      ? "premium-card border-rose-400/12 hover:border-rose-400/25"
+      : tone === "watch"
+      ? "premium-card border-amber-300/10 hover:border-amber-300/22"
+      : "border-white/[0.04] bg-white/[0.012] hover:bg-white/[0.025] hover:border-white/[0.08]";
 
   return (
     <button
       onClick={() => onSelect({ name: item.row.chatter_name, platform: (item.row as any).platform })}
-      className="w-full flex items-center gap-4 py-3 group text-left hover:bg-white/[0.015] transition-colors px-2 -mx-2 rounded"
+      className={`${cardBase} ${cardTone} hover:translate-y-[-1px]`}
     >
-      <span
-        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-          online ? "bg-emerald-400" : offline ? "bg-white/15" : "bg-amber-300/60"
-        }`}
-      />
+      {/* Status dot */}
+      <span className="relative flex h-2 w-2 shrink-0">
+        {online && (
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/50 opacity-75 animate-ping" />
+        )}
+        <span
+          className={`relative inline-flex h-2 w-2 rounded-full ${
+            online ? "bg-emerald-400" : offline ? "bg-white/15" : "bg-amber-300/70"
+          }`}
+        />
+      </span>
+
+      {/* Name + reasons */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm text-white/85 font-light truncate">{item.row.chatter_name}</span>
-          {item.hotStreak && <ArrowUpRight className="h-3 w-3 text-emerald-300/70 shrink-0" />}
+        <div className="flex items-center gap-2">
+          <span className="text-[15px] text-white/95 font-light tracking-wide truncate">
+            {item.row.chatter_name}
+          </span>
+          {item.hotStreak && (
+            <span className="flex items-center gap-1 text-[10px] text-emerald-300/85 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 tracking-wider uppercase">
+              <ArrowUpRight className="h-2.5 w-2.5" /> Hot
+            </span>
+          )}
+          <span className="text-[10px] text-white/25 tracking-wider">
+            · vor {relTime(sec)}
+          </span>
         </div>
         {item.reasons.length > 0 && (
-          <p className="text-[11px] text-white/40 font-light truncate mt-0.5">
-            {item.reasons.join(" · ")}
-          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {item.reasons.map((r, i) => (
+              <span
+                key={i}
+                className={`text-[11px] font-light tracking-wide ${
+                  i === 0
+                    ? tone === "urgent"
+                      ? "text-rose-200/90"
+                      : tone === "watch"
+                      ? "text-amber-100/85"
+                      : "text-white/55"
+                    : "text-white/40"
+                }`}
+              >
+                {i > 0 && <span className="text-white/15 mr-2">·</span>}
+                {r}
+              </span>
+            ))}
+          </div>
         )}
+        {/* Live mini-metrics */}
+        <div className="mt-2 flex items-center gap-4 text-[10px] text-white/30 tracking-wider uppercase font-light">
+          <span><span className="text-white/50 tabular-nums">{fmtEur(Number(item.row.revenue))}</span> heute</span>
+          <span><span className="text-white/50 tabular-nums">{item.row.unread_chats}</span> ungelesen</span>
+          <span><span className="text-white/50 tabular-nums">{item.row.mass_dms}</span> mass-dms</span>
+        </div>
       </div>
-      <span className={`text-lg font-light tabular-nums ${scoreColor} shrink-0`}>
-        {item.score}
-      </span>
+
+      {/* Score badge */}
+      <div className={`flex flex-col items-center justify-center h-14 w-14 rounded-2xl border shrink-0 ${scoreRing}`}>
+        <span className={`text-xl font-extralight tabular-nums leading-none ${scoreColor}`}>
+          {item.score}
+        </span>
+        <span className="text-[8px] uppercase tracking-[0.2em] text-white/30 mt-1">Score</span>
+      </div>
     </button>
   );
 }
