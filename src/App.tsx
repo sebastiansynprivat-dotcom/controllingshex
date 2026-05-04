@@ -22,6 +22,7 @@ import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 import Today from "@/pages/Today";
+import LiveTracking from "@/pages/LiveTracking";
 
 const queryClient = new QueryClient();
 
