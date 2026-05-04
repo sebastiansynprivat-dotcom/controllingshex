@@ -13,6 +13,7 @@ interface LiveRow {
   revenue?: number;
   mass_dms?: number;
   unread_chats?: number;
+  oldest_chat?: number | null;
   date?: string; // YYYY-MM-DD
 }
 
@@ -73,6 +74,7 @@ Deno.serve(async (req) => {
       revenue: Number(r.revenue ?? 0),
       mass_dms: Number(r.mass_dms ?? 0),
       unread_chats: Number(r.unread_chats ?? 0),
+      oldest_chat: r.oldest_chat ?? null,
       date: r.date ?? today,
       updated_at: new Date().toISOString(),
     };
