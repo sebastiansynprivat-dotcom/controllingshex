@@ -68,7 +68,7 @@ export default function LiveTracking() {
     return () => clearInterval(id);
   }, []);
 
-  // Initial fetch (today)
+  // Initial fetch (today, current platform)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     setLoading(true);
@@ -76,12 +76,13 @@ export default function LiveTracking() {
       .from("chatter_history_live")
       .select("*")
       .eq("date", today)
+      .ilike("platform", platform)
       .order("updated_at", { ascending: false })
       .then(({ data }) => {
         setRows((data as LiveRow[]) ?? []);
         setLoading(false);
       });
-  }, []);
+  }, [platform]);
 
   // Realtime
   useEffect(() => {
