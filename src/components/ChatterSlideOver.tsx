@@ -188,6 +188,49 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
   const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>([]);
+  const [liveProfile, setLiveProfile] = useState<{
+    revenue: number | null;
+    mass_dms: number | null;
+    unread_chats: number | null;
+    oldest_chat: number | null;
+    updated_at: string | null;
+    date: string | null;
+  } | null>(null);
+
+  // Live-Profile aus chatter_history_live laden, wenn das Panel geöffnet wird
+  useEffect(() => {
+    if (!open || !chatterName) {
+      setLiveProfile(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history_live")
+        .select("revenue, mass_dms, unread_chats, oldest_chat, updated_at, date")
+        .eq("platform", platform)
+        .eq("chatter_name", chatterName)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      setLiveProfile(
+        data
+          ? {
+              revenue: data.revenue ?? null,
+              mass_dms: data.mass_dms ?? null,
+              unread_chats: data.unread_chats ?? null,
+              oldest_chat: (data as any).oldest_chat ?? null,
+              updated_at: data.updated_at ?? null,
+              date: data.date ?? null,
+            }
+          : null,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, chatterName, platform]);
 
   const LABEL_COLORS = [
     "#EF4444", "#3B82F6", "#10B981", "#F59E0B",
@@ -528,10 +571,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     (today.revenue_today ?? 0) > 0 || (today.mass_dms ?? 0) > 0 || (today.open_chats ?? 0) > 0
   );
   const liveKpis = [
-    { label: "Tagesumsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
-    { label: "Höchster Umsatz", value: today ? formatCurrency(today.revenue_today) : "—", icon: Trophy, accent: "45 75% 55%", gold: true },
-    { label: "MassDMs", value: today ? String(today.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
-    { label: "Offene Chats", value: today ? String(today.open_chats) : "—", icon: MessageSquare, accent: "0 84% 60%", gold: false },
+    { label: "Tagesumsatz", value: liveProfile && liveProfile.revenue != null ? formatCurrency(Number(liveProfile.revenue)) : "—", icon: Coins, accent: "45 75% 55%", gold: true },
+    { label: "MassDMs", value: liveProfile && liveProfile.mass_dms != null ? String(liveProfile.mass_dms) : "—", icon: MessageSquare, accent: "212 90% 60%", gold: false },
+    { label: "Offene Chats", value: liveProfile && liveProfile.unread_chats != null ? String(liveProfile.unread_chats) : "—", icon: MessageSquare, accent: "0 84% 60%", gold: false },
+    { label: "Ältester Chat", value: liveProfile && liveProfile.oldest_chat != null ? `${liveProfile.oldest_chat}h` : "—", icon: Clock, accent: "30 80% 55%", gold: false },
   ];
 
   const displayName = toTitleCase(chatterName);
