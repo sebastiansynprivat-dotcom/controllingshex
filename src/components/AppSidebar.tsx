@@ -16,6 +16,7 @@ import {
 const items = [
   { title: "Heute", url: "/today", icon: ListChecks },
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Live-Tracking", url: "/live", icon: Radio },
   { title: "Auffälligkeiten", url: "/auffaelligkeiten", icon: AlertOctagon },
   { title: "Monatsziele", url: "/monatsziele", icon: Target },
   { title: "Frühwarnung", url: "/forecast", icon: AlertOctagon },
