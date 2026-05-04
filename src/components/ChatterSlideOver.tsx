@@ -227,8 +227,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       const { data } = await supabase
         .from("chatter_history_live")
         .select("revenue, mass_dms, unread_chats, oldest_chat, updated_at, date")
-        .eq("platform", platform)
-        .eq("chatter_name", chatterName)
+        .ilike("platform", platform)
+        .ilike("chatter_name", chatterName.trim())
         .order("date", { ascending: false })
         .limit(1)
         .maybeSingle();
