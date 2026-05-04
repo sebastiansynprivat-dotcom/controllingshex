@@ -50,6 +50,7 @@ const AppRoutes = () => (
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/live" element={<LiveTracking />} />
               <Route path="/today" element={<Today />} />
               <Route path="/forecast" element={<Forecast />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
