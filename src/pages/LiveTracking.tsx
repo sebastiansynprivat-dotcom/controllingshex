@@ -84,10 +84,10 @@ export default function LiveTracking() {
       });
   }, [platform]);
 
-  // Realtime
+  // Realtime (filtered to current platform)
   useEffect(() => {
     const channel = supabase
-      .channel("chatter-history-live")
+      .channel(`chatter-history-live-${platform}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chatter_history_live" },
@@ -99,6 +99,7 @@ export default function LiveTracking() {
             }
             const next = payload.new as LiveRow;
             if (next.date !== today) return prev;
+            if ((next.platform ?? "").toLowerCase() !== platform.toLowerCase()) return prev;
             const idx = prev.findIndex((r) => r.id === next.id);
             if (idx === -1) return [next, ...prev];
             const copy = [...prev];
@@ -111,7 +112,7 @@ export default function LiveTracking() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [platform]);
 
   const toggleFilter = (k: FilterKey) =>
     setFilters((s) => {
