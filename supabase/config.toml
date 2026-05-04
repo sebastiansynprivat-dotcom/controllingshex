@@ -1,1 +1,4 @@
 project_id = "kgtbciqqvctjrelgbdvx"
+
+[functions.upsert-chatter-live]
+verify_jwt = false
