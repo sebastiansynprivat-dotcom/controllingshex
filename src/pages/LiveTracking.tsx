@@ -37,7 +37,7 @@ export default function LiveTracking() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [runningOpen, setRunningOpen] = useState(false);
+  const [runningOpen, setRunningOpen] = useState(true);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
 
