@@ -53,7 +53,7 @@ function fmtEur(n: number): string {
 
 export default function LiveTracking() {
   const { platform } = usePlatform();
-  const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
+  
   const [rows, setRows] = useState<LiveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
