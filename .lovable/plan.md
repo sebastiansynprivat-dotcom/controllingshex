@@ -1,100 +1,121 @@
-## Live-Tracking Tab
+## Live-Tracking 2.0 — Priorisierte Action-Queue
 
-Neuer Bereich in der Sidebar direkt unter „Dashboard": **Live-Tracking** (`/live`). Zeigt in Echtzeit, was die Chatter gerade tun — auf Basis von `chatter_history_live` (Revenue, Mass-DMs, Unread Chats, Oldest Chat, updated_at).
+Komplett-Redesign: Aus der Tabelle wird eine schlanke, nach Wichtigkeit sortierte Liste. Kleiner, luxuriöser, übersichtlicher.
 
-### Was sinnvoll ist mit den Live-Daten
+### Priority-Score (0–100)
 
-Die Tabelle hat 5 starke Signale pro Chatter:
-- **revenue** — Tagesumsatz live
-- **mass_dms** — gesendete Mass-DMs heute
-- **unread_chats** — wie viele Kunden warten gerade
-- **oldest_chat** — ältester unbeantworteter Chat (Stunden/Tage)
-- **updated_at** — wann zuletzt Daten gepusht
+Score wird live clientseitig pro Chatter berechnet, basierend auf Live-Daten + 14-Tage-Schnitt aus `chatter_history`.
 
-Daraus lassen sich vier Live-Use-Cases bauen, die im Tab als smarte Filter-Pillen oben sitzen:
+**Eskalation und Lost Potential gleich gewichtet (je 35%)**, Rest verteilt:
+
+| Signal | Gewicht | Logik |
+|---|---|---|
+| Eskalation | 35 | `oldest_chat` Stunden, normalisiert: 0=0pt, ≥4h=full |
+| Lost Potential | 35 | `(avg14d − todayRevenue) / avg14d`, gekappt auf 0–1 |
+| Stau | 15 | `unread_chats / max(personalAvgUnread, 5)`, gekappt |
+| AFK-Risk | 10 | Min seit `updated_at` × Erwartungsfaktor zur Uhrzeit |
+| Mass-DM-Lücke | 5 | sendet sonst >0/Tag, heute = 0 |
+
+Hot-Streak (`todayRevenue > 1.5× avg14d`) → Score wird auf max 30 gedeckelt → landet automatisch im „Läuft"-Bucket.
+
+### „Noch nicht am Start" (kombiniert)
+
+Banner-Warnung wenn Chatter **beides** zeigt:
+1. Keine Zeile in `chatter_history_live` heute  **ODER** Revenue heute < 20% des erwarteten Stands für die aktuelle Uhrzeit
+2. Ist im 14-Tage-Schnitt normalerweise um diese Uhrzeit aktiv
+
+Stundenweiser Erwartungswert: aus historischer Verteilung (vereinfacht: linear über den Tag basierend auf avg14d).
+
+### 3 Buckets
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│ Live-Tracking · 23 Chatter aktiv · letzte Sync vor 2min │
-├─────────────────────────────────────────────────────────┤
-│ [ Suche ] [ Plattform: Alle / Maloum / Brezzels ]       │
-│                                                         │
-│ Smarte Filter:                                          │
-│  ◉ Alle                                                 │
-│  ○ Eskalation (oldest_chat ≥ 2)                         │
-│  ○ Überlastet (unread ≥ 10)                             │
-│  ○ Inaktiv (kein Update > 30min)                        │
-│  ○ Top Performer heute (Revenue Top 5)                  │
-│  ○ Keine Mass-DMs heute                                 │
-│  ○ Online jetzt (Update < 5min)                         │
-│                                                         │
-│ Sortierung: Revenue ↓ / Unread ↓ / Oldest ↓ / Letzte    │
-├─────────────────────────────────────────────────────────┤
-│ KPI-Strip: Σ Revenue heute · Σ Mass-DMs · Σ Unread ·    │
-│            Ø Oldest · Anzahl aktiv (<15min)             │
-├─────────────────────────────────────────────────────────┤
-│ Live-Tabelle                                            │
-│  ● Status | Chatter | Plattform | Revenue | Mass-DMs |  │
-│    Unread | Oldest | Letzte Sync                        │
-│                                                         │
-│  ● grün  = Update < 5min   (online)                     │
-│  ● gelb  = 5–30min         (idle)                       │
-│  ● grau  = > 30min         (offline)                    │
-│  ● rot-Badge auf Oldest ≥ 2  bzw. Unread ≥ 10           │
-│                                                         │
-│ Klick auf Zeile → ChatterSlideOver (existiert)          │
-└─────────────────────────────────────────────────────────┘
+🔴 SOFORT       Score ≥ 70   immer expanded
+🟡 BEOBACHTEN   40–69        immer expanded
+🟢 LÄUFT        < 40         eingeklappt, „X Chatter laufen sauber" — Klick öffnet
 ```
 
-### Smarte Filter im Detail
+Hot-Streak-Chatter im Läuft-Bucket bekommen ein dezentes ↑-Icon.
 
-| Filter | Logik | Zweck |
-|---|---|---|
-| **Eskalation** | `oldest_chat ≥ 2` | Kunden warten zu lange — sofort handeln |
-| **Überlastet** | `unread_chats ≥ 10` | Chatter braucht Support / Umverteilung |
-| **Inaktiv** | `now() - updated_at > 30min` | Pause/AFK erkennen |
-| **Online jetzt** | `now() - updated_at < 5min` | Wer ist gerade aktiv am Chatten |
-| **Top Performer** | Top 5 nach `revenue` heute | Wer läuft heiß |
-| **Keine Mass-DMs** | `mass_dms = 0` und Revenue niedrig | Wer schiebt nicht |
-| **Stille Goldgruben** | `revenue > Median` und `unread = 0` | Effiziente Chatter |
+### Layout
 
-Filter sind als Toggle-Pillen kombinierbar (AND).
+Eine zentrierte Spalte, max ~720px. Keine Tabelle.
 
-### Live-Aktualisierung
+```text
+                Live · Maloum
+       vor 2min · 23 aktiv · 1.847€ heute
 
-Realtime via Supabase Channel auf `chatter_history_live` — Tabelle aktualisiert sich automatisch sobald neue Pushes via Edge Function reinkommen. Zusätzlich „Letzte Sync vor X" relativ-Timer, der jede Sekunde tickt.
+   ────────────────────────────────────
 
-### Verbindung zu existierenden Daten
+   ⚠ 3 Top-Chatter heute noch nicht am Start
+     ~890€ erwartetes Potential offen
 
-- Spalte „Heute" zeigt zusätzlich aus `chatter_history` den letzten Report-Wert in klein darunter (z.B. „Live: 66€ · Report: 0€") — macht Diskrepanzen sichtbar.
-- Zeilen-Klick öffnet das bestehende `ChatterSlideOver` (zeigt schon Live-KPIs).
+   ────────────────────────────────────
+   SOFORT
+   
+   ●  Sylvia Ja                       92
+      3 Std Stau · 14 ungelesen · −60€
+   
+   ●  björn da                        78
+      AFK 32min · sonst 290€/Tag · −210€
+   
+   ────────────────────────────────────
+   BEOBACHTEN
+   
+   ○  wencke wa                       54
+      keine Mass-DMs · 28€ · −45€
+   
+   ○  martin mo                       42
+      Stau steigt · 8 ungelesen
+   
+   ────────────────────────────────────
+   ▸ 9 Chatter laufen sauber          ↑3
+```
+
+Pro Zeile:
+- Status-Dot links (gefüllt = online, leer = idle/offline)
+- Name in einer Zeile, Score rechts groß tabular-nums
+- Sub-Zeile: Top-Reason + max 2 Sub-Signale, getrennt mit `·`
+- Trennlinien `border-white/[0.04]`, kein Hintergrund pro Zeile
+- Klick → existierender ChatterSlideOver
+
+Header schrumpft auf eine Zeile (Plattform · Sync-Zeit · Aktiv-Count · Σ Revenue heute).
+
+### Filter (minimal)
+
+Drei Pillen rechts oben:
+- Alle (Default)
+- Nur Eskalation
+- Lost Potential
+
+Suche als Icon-Button, expandiert bei Klick. Keine Sort-Buttons (Score-Sort fix).
+
+### Smart-Banner oben
+
+Eine diskrete Zeile direkt unter dem Header, nur wenn Trigger feuert:
+- „X Top-Chatter heute noch nicht am Start · ~Y€ Potential offen"
+- „Höchstes Stau-Volumen seit 7 Tagen"
+- „Z Chatter über 10 ungelesen"
+
+Banner verschwindet automatisch sobald Bedingung nicht mehr gilt.
 
 ---
 
 ### Technisches
 
-**Neue Datei:** `src/pages/LiveTracking.tsx`
-- State: `rows` (aus `chatter_history_live`), `filter` (Set), `sort`, `search`, Platform aus `PlatformContext`
-- Initial-Fetch: heutiges Datum, optional plattform-gefiltert
-- Realtime-Subscription auf Tabelle, payload merged in `rows`
-- Tick-Interval (1s) für relative Zeitanzeigen
-- Helper: `secondsSinceUpdate(updated_at)`, `statusOf(row)` → 'online'|'idle'|'offline'
+**Datei:** `src/pages/LiveTracking.tsx` (komplett neu)
+**Helper neu:** `src/lib/live-priority.ts` — Score-Berechnung + Bucket-Zuordnung + Top-Reason-String
 
-**Sidebar:** `src/components/AppSidebar.tsx` — neuer Eintrag „Live-Tracking" (Icon `Activity` o. `Radio`) direkt nach „Dashboard".
+**Datenfluss:**
+1. Mount: Fetch `chatter_history_live` für heute + Plattform (wie jetzt)
+2. Mount: Fetch `chatter_history` letzte 14 Tage für Plattform → Map<chatter_name, {avgRevenue, avgMassDms, avgUnread}>
+3. Score-Compute pro Live-Row aus beiden
+4. Realtime bleibt (filtered auf platform)
+5. 1s-Tick für AFK-Berechnung & relative Zeiten
 
-**Routing:** `src/App.tsx` — Route `/live` → `<LiveTracking />`.
+**Was bleibt unverändert:**
+- Edge Function `upsert-chatter-live`
+- Tabelle `chatter_history_live` + RLS
+- Sidebar-Eintrag, Route `/live`
+- ChatterSlideOver-Integration
 
-**RLS-Hinweis:** `chatter_history_live` hat aktuell **keine RLS-Policies**. Da Daten von extern via Edge Function geschrieben werden und alle Workspace-Nutzer sie sehen sollen, brauchen wir eine SELECT-Policy für `authenticated` (sonst sieht der Browser-Client nichts):
-
-```sql
-ALTER TABLE chatter_history_live ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated users can view live data"
-ON chatter_history_live FOR SELECT TO authenticated USING (true);
-```
-
-Realtime aktivieren:
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE chatter_history_live;
-```
-
-Keine weiteren Schema-Änderungen.
+Keine DB-Änderungen nötig.

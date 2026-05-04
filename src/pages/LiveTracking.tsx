@@ -1,43 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { Radio, Search, Flame, AlertTriangle, MoonStar, Trophy, MailX, Sparkles } from "lucide-react";
+import { Search, AlertTriangle, TrendingDown, ChevronDown, ChevronRight, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePlatform, type Platform } from "@/contexts/PlatformContext";
+import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Input } from "@/components/ui/input";
+import { computeScore, type ChatterAvg, type LiveRowLite, type ScoredChatter } from "@/lib/live-priority";
 
-interface LiveRow {
+interface LiveRow extends LiveRowLite {
   id: string;
   platform: string;
-  chatter_name: string;
-  revenue: number;
-  mass_dms: number;
-  unread_chats: number;
-  oldest_chat: number | null;
   date: string;
-  updated_at: string;
 }
 
-type FilterKey = "online" | "escalation" | "overload" | "inactive" | "top" | "noDms" | "silent";
-type SortKey = "revenue" | "unread" | "oldest" | "updated";
-
-const FILTERS: { key: FilterKey; label: string; icon: typeof Flame; hint: string }[] = [
-  { key: "online", label: "Online jetzt", icon: Radio, hint: "Update < 5min" },
-  { key: "escalation", label: "Eskalation", icon: AlertTriangle, hint: "Oldest ≥ 2" },
-  { key: "overload", label: "Überlastet", icon: Flame, hint: "Unread ≥ 10" },
-  { key: "inactive", label: "Inaktiv", icon: MoonStar, hint: "kein Update > 30min" },
-  { key: "top", label: "Top Performer", icon: Trophy, hint: "Top 5 Revenue" },
-  { key: "noDms", label: "Keine Mass-DMs", icon: MailX, hint: "0 Mass-DMs" },
-  { key: "silent", label: "Stille Goldgruben", icon: Sparkles, hint: "viel Revenue, 0 Unread" },
-];
+type FilterKey = "all" | "escalation" | "lost";
 
 function secondsSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-}
-
-function statusOf(sec: number): "online" | "idle" | "offline" {
-  if (sec < 5 * 60) return "online";
-  if (sec < 30 * 60) return "idle";
-  return "offline";
 }
 
 function relTime(sec: number): string {
@@ -48,27 +26,28 @@ function relTime(sec: number): string {
 }
 
 function fmtEur(n: number): string {
-  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(n) + " €";
+  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(n) + "€";
 }
 
 export default function LiveTracking() {
   const { platform } = usePlatform();
-  
   const [rows, setRows] = useState<LiveRow[]>([]);
+  const [avgs, setAvgs] = useState<Map<string, ChatterAvg>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
-  const [sort, setSort] = useState<SortKey>("updated");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [runningOpen, setRunningOpen] = useState(false);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
 
-  // Tick every second for relative times
+  // 1s tick for relative time + score recompute
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Initial fetch (today, current platform)
+  // Fetch live rows for today + platform
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     setLoading(true);
@@ -84,10 +63,44 @@ export default function LiveTracking() {
       });
   }, [platform]);
 
-  // Realtime (filtered to current platform)
+  // Fetch 14d averages from chatter_history
+  useEffect(() => {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const sinceIso = since.toISOString().slice(0, 10);
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, revenue_today, mass_dms, open_chats, analysis_date")
+      .ilike("platform", platform)
+      .gte("analysis_date", sinceIso)
+      .then(({ data }) => {
+        const byName = new Map<string, { rev: number[]; dms: number[]; unread: number[] }>();
+        (data ?? []).forEach((r: any) => {
+          const name = (r.chatter_name ?? "").trim().toLowerCase();
+          if (!name) return;
+          if (!byName.has(name)) byName.set(name, { rev: [], dms: [], unread: [] });
+          const e = byName.get(name)!;
+          e.rev.push(Number(r.revenue_today) || 0);
+          e.dms.push(Number(r.mass_dms) || 0);
+          e.unread.push(Number(r.open_chats) || 0);
+        });
+        const avg = (a: number[]) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
+        const map = new Map<string, ChatterAvg>();
+        byName.forEach((v, k) =>
+          map.set(k, {
+            avgRevenue: avg(v.rev),
+            avgMassDms: avg(v.dms),
+            avgUnread: avg(v.unread),
+          }),
+        );
+        setAvgs(map);
+      });
+  }, [platform]);
+
+  // Realtime
   useEffect(() => {
     const channel = supabase
-      .channel(`chatter-history-live-${platform}`)
+      .channel(`live-${platform}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chatter_history_live" },
@@ -114,219 +127,246 @@ export default function LiveTracking() {
     };
   }, [platform]);
 
-  const toggleFilter = (k: FilterKey) =>
-    setFilters((s) => {
-      const next = new Set(s);
-      next.has(k) ? next.delete(k) : next.add(k);
-      return next;
-    });
+  // Score everything
+  const scored: ScoredChatter[] = useMemo(() => {
+    const now = new Date();
+    return rows
+      .map((r) => computeScore(r, avgs.get(r.chatter_name.trim().toLowerCase()), now))
+      .sort((a, b) => b.score - a.score);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, avgs, tick]);
 
-  const filteredSorted = useMemo(() => {
-    const medianRev = (() => {
-      const arr = rows.map((r) => Number(r.revenue) || 0).sort((a, b) => a - b);
-      if (!arr.length) return 0;
-      return arr[Math.floor(arr.length / 2)];
-    })();
-    const topIds = new Set(
-      [...rows].sort((a, b) => Number(b.revenue) - Number(a.revenue)).slice(0, 5).map((r) => r.id),
-    );
-
-    let out = rows.filter((r) => {
-      if (search && !r.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
-      const sec = secondsSince(r.updated_at);
-      if (filters.has("online") && sec >= 5 * 60) return false;
-      if (filters.has("inactive") && sec <= 30 * 60) return false;
-      if (filters.has("escalation") && (r.oldest_chat ?? 0) < 2) return false;
-      if (filters.has("overload") && (r.unread_chats ?? 0) < 10) return false;
-      if (filters.has("top") && !topIds.has(r.id)) return false;
-      if (filters.has("noDms") && (r.mass_dms ?? 0) !== 0) return false;
-      if (filters.has("silent") && !((r.unread_chats ?? 0) === 0 && Number(r.revenue) > medianRev)) return false;
+  // Filter (search + filter pill)
+  const visible = useMemo(() => {
+    return scored.filter((s) => {
+      if (search && !s.row.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filter === "escalation" && (s.row.oldest_chat ?? 0) < 1) return false;
+      if (filter === "lost" && s.potentialLoss < 20) return false;
       return true;
     });
+  }, [scored, search, filter]);
 
-    out = [...out].sort((a, b) => {
-      switch (sort) {
-        case "revenue": return Number(b.revenue) - Number(a.revenue);
-        case "unread": return (b.unread_chats ?? 0) - (a.unread_chats ?? 0);
-        case "oldest": return (b.oldest_chat ?? 0) - (a.oldest_chat ?? 0);
-        case "updated":
-        default:
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  const buckets = useMemo(() => {
+    return {
+      now: visible.filter((s) => s.bucket === "now"),
+      watch: visible.filter((s) => s.bucket === "watch"),
+      running: visible.filter((s) => s.bucket === "running"),
+    };
+  }, [visible]);
+
+  // Header KPIs
+  const sumRevenue = rows.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
+  const activeCount = rows.filter((r) => secondsSince(r.updated_at) < 15 * 60).length;
+  const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
+
+  // Smart banner: high-avg chatters not started yet
+  const notStarted = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const liveToday = new Set(rows.filter((r) => r.date === today).map((r) => r.chatter_name.trim().toLowerCase()));
+    const out: { name: string; expected: number }[] = [];
+    avgs.forEach((avg, name) => {
+      if (avg.avgRevenue < 30) return;
+      const liveRow = rows.find((r) => r.chatter_name.trim().toLowerCase() === name);
+      const todayRev = liveRow ? Number(liveRow.revenue) || 0 : 0;
+      const hour = new Date().getHours() + new Date().getMinutes() / 60;
+      const dayProgress = Math.max(0, Math.min(1, (hour - 6) / 18));
+      const expected = avg.avgRevenue * dayProgress;
+      if (!liveToday.has(name) || todayRev < expected * 0.2) {
+        if (expected >= 30) out.push({ name, expected });
       }
     });
-    return out;
-    // tick included to refresh time-based filters
+    return out.sort((a, b) => b.expected - a.expected);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filters, sort, search, tick]);
+  }, [rows, avgs, tick]);
 
-  const stats = useMemo(() => {
-    const sumRev = filteredSorted.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
-    const sumDms = filteredSorted.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
-    const sumUnread = filteredSorted.reduce((s, r) => s + (r.unread_chats ?? 0), 0);
-    const oldestArr = filteredSorted.map((r) => r.oldest_chat ?? 0);
-    const avgOldest = oldestArr.length ? oldestArr.reduce((a, b) => a + b, 0) / oldestArr.length : 0;
-    const onlineCount = filteredSorted.filter((r) => secondsSince(r.updated_at) < 15 * 60).length;
-    return { sumRev, sumDms, sumUnread, avgOldest, onlineCount };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredSorted, tick]);
-
-  const lastSync = rows.length
-    ? Math.min(...rows.map((r) => secondsSince(r.updated_at)))
-    : null;
+  const hotStreakCount = scored.filter((s) => s.hotStreak).length;
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="mx-auto w-full max-w-[720px] space-y-8 pb-16">
       {/* Header */}
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-light tracking-tight text-foreground flex items-center gap-3">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/70 opacity-75 animate-ping" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-            </span>
-            Live-Tracking
+      <header className="text-center space-y-2 pt-2">
+        <div className="flex items-center justify-center gap-2.5">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/70 opacity-75 animate-ping" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          <h1 className="text-base font-light tracking-[0.18em] uppercase text-white/80">
+            Live · {platform}
           </h1>
-          <p className="text-sm text-white/40 mt-1 font-light">
-            {platform} · {filteredSorted.length} Chatter ·{" "}
-            {lastSync !== null ? `letzte Sync vor ${relTime(lastSync)}` : "keine Daten heute"}
-          </p>
         </div>
+        <p className="text-xs text-white/35 font-light tracking-wide">
+          {lastSync !== null ? `vor ${relTime(lastSync)}` : "keine Daten"} · {activeCount} aktiv · {fmtEur(sumRevenue)} heute
+        </p>
       </header>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Kpi label="Σ Revenue" value={fmtEur(stats.sumRev)} />
-        <Kpi label="Σ Mass-DMs" value={String(stats.sumDms)} />
-        <Kpi label="Σ Unread" value={String(stats.sumUnread)} />
-        <Kpi label="Ø Oldest" value={stats.avgOldest.toFixed(1)} />
-        <Kpi label="Aktiv (<15min)" value={String(stats.onlineCount)} accent />
-      </div>
+      {/* Smart banner */}
+      {notStarted.length > 0 && (
+        <div className="border-y border-amber-400/15 bg-amber-400/[0.03] px-4 py-3 -mx-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-4 w-4 text-amber-300/80 mt-0.5 shrink-0" />
+            <div className="text-sm text-white/70 font-light">
+              <span className="text-amber-200/90">{notStarted.length} Top-Chatter</span> heute noch nicht am Start ·{" "}
+              <span className="text-white/45">~{fmtEur(notStarted.reduce((s, n) => s + n.expected, 0))} erwartetes Potential offen</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Search + filters */}
-      <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Chatter suchen…"
-            className="pl-9 bg-white/[0.02] border-white/[0.06] text-sm"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((f) => {
-            const active = filters.has(f.key);
-            const Icon = f.icon;
-            return (
-              <button
-                key={f.key}
-                onClick={() => toggleFilter(f.key)}
-                title={f.hint}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light tracking-wide transition-all border ${
-                  active
-                    ? "bg-primary/15 text-primary border-primary/30"
-                    : "bg-white/[0.02] text-white/55 border-white/[0.06] hover:text-white/85 hover:border-white/15"
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2 text-xs text-white/40">
-          <span>Sortieren:</span>
-          {(["updated", "revenue", "unread", "oldest"] as SortKey[]).map((s) => (
+      {/* Filter row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          {(["all", "escalation", "lost"] as FilterKey[]).map((k) => (
             <button
-              key={s}
-              onClick={() => setSort(s)}
-              className={`px-2 py-1 rounded transition-colors ${
-                sort === s ? "text-white" : "text-white/40 hover:text-white/70"
+              key={k}
+              onClick={() => setFilter(k)}
+              className={`px-3 py-1 rounded-full text-[11px] font-light tracking-wide transition-colors ${
+                filter === k ? "bg-white/10 text-white/90" : "text-white/40 hover:text-white/70"
               }`}
             >
-              {s === "updated" ? "Letzte Sync" : s === "revenue" ? "Revenue" : s === "unread" ? "Unread" : "Oldest"}
+              {k === "all" ? "Alle" : k === "escalation" ? "Eskalation" : "Lost Potential"}
             </button>
           ))}
         </div>
+        <div className="flex items-center">
+          {searchOpen ? (
+            <Input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onBlur={() => !search && setSearchOpen(false)}
+              placeholder="Suchen…"
+              className="h-7 w-40 text-xs bg-white/[0.03] border-white/[0.06]"
+            />
+          ) : (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="text-white/40 hover:text-white/70 p-1.5"
+              aria-label="Suchen"
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
-        <div className="grid grid-cols-[auto_1.5fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.9fr] gap-3 px-4 py-3 text-[11px] uppercase tracking-wider text-white/35 border-b border-white/[0.04]">
-          <span></span>
-          <span>Chatter</span>
-          <span>Plattform</span>
-          <span className="text-right">Revenue</span>
-          <span className="text-right">Mass-DMs</span>
-          <span className="text-right">Unread</span>
-          <span className="text-right">Oldest</span>
-          <span className="text-right">Letzte Sync</span>
-        </div>
-        {loading ? (
-          <div className="px-4 py-12 text-center text-sm text-white/30">Lade Live-Daten…</div>
-        ) : filteredSorted.length === 0 ? (
-          <div className="px-4 py-12 text-center text-sm text-white/30">Keine Chatter mit diesen Filtern.</div>
-        ) : (
-          filteredSorted.map((r) => {
-            const sec = secondsSince(r.updated_at);
-            const status = statusOf(sec);
-            const escalated = (r.oldest_chat ?? 0) >= 2;
-            const overloaded = (r.unread_chats ?? 0) >= 10;
-            return (
+      {/* Content */}
+      {loading ? (
+        <p className="text-center text-sm text-white/30 py-12">Lade Live-Daten…</p>
+      ) : visible.length === 0 ? (
+        <p className="text-center text-sm text-white/30 py-12">Keine Chatter heute aktiv.</p>
+      ) : (
+        <div className="space-y-10">
+          {buckets.now.length > 0 && <Bucket label="Sofort" tone="urgent" items={buckets.now} onSelect={setSelected} />}
+          {buckets.watch.length > 0 && <Bucket label="Beobachten" tone="watch" items={buckets.watch} onSelect={setSelected} />}
+          {buckets.running.length > 0 && (
+            <div>
               <button
-                key={r.id}
-                onClick={() => setSelected({ name: r.chatter_name, platform: r.platform })}
-                className="w-full grid grid-cols-[auto_1.5fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.9fr] gap-3 px-4 py-3 items-center text-sm border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.025] transition-colors text-left"
+                onClick={() => setRunningOpen((o) => !o)}
+                className="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-white/35 hover:text-white/60 transition-colors py-2"
               >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    status === "online"
-                      ? "bg-emerald-400"
-                      : status === "idle"
-                      ? "bg-amber-400/70"
-                      : "bg-white/15"
-                  }`}
-                />
-                <span className="text-white/90 font-light truncate">{r.chatter_name}</span>
-                <span className="text-white/50 text-xs font-light">{r.platform}</span>
-                <span className="text-right text-white/85 font-light tabular-nums">{fmtEur(Number(r.revenue))}</span>
-                <span className="text-right text-white/60 tabular-nums">{r.mass_dms}</span>
-                <span
-                  className={`text-right tabular-nums ${
-                    overloaded ? "text-rose-300" : "text-white/60"
-                  }`}
-                >
-                  {r.unread_chats}
+                <span className="flex items-center gap-1.5">
+                  {runningOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  {buckets.running.length} laufen sauber
                 </span>
-                <span
-                  className={`text-right tabular-nums ${
-                    escalated ? "text-rose-300" : "text-white/60"
-                  }`}
-                >
-                  {r.oldest_chat ?? 0}
-                </span>
-                <span className="text-right text-white/40 text-xs">vor {relTime(sec)}</span>
+                {hotStreakCount > 0 && (
+                  <span className="flex items-center gap-1 text-emerald-300/70 normal-case tracking-normal text-xs">
+                    <ArrowUpRight className="h-3 w-3" /> {hotStreakCount} hot
+                  </span>
+                )}
               </button>
-            );
-          })
-        )}
-      </div>
+              {runningOpen && (
+                <div className="mt-3">
+                  <Bucket label="" tone="running" items={buckets.running} onSelect={setSelected} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <ChatterSlideOver
         open={!!selected}
         onClose={() => setSelected(null)}
         chatterName={selected?.name ?? ""}
-        platform={(selected?.platform as Platform) ?? platform}
+        platform={(selected?.platform as any) ?? platform}
       />
     </div>
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Bucket({
+  label,
+  tone,
+  items,
+  onSelect,
+}: {
+  label: string;
+  tone: "urgent" | "watch" | "running";
+  items: ScoredChatter[];
+  onSelect: (s: { name: string; platform: string }) => void;
+}) {
   return (
-    <div className={`rounded-xl border px-4 py-3 ${accent ? "border-primary/20 bg-primary/[0.04]" : "border-white/[0.06] bg-white/[0.02]"}`}>
-      <p className="text-[11px] uppercase tracking-wider text-white/35 font-light">{label}</p>
-      <p className={`mt-1 text-xl font-light tabular-nums ${accent ? "text-primary" : "text-white/90"}`}>{value}</p>
+    <div>
+      {label && (
+        <div className="flex items-center gap-3 mb-3">
+          <span
+            className={`text-[10px] uppercase tracking-[0.25em] font-light ${
+              tone === "urgent" ? "text-rose-300/80" : tone === "watch" ? "text-amber-200/70" : "text-white/30"
+            }`}
+          >
+            {label}
+          </span>
+          <span className="flex-1 h-px bg-white/[0.05]" />
+        </div>
+      )}
+      <div className="divide-y divide-white/[0.04]">
+        {items.map((s) => (
+          <Row key={s.row.chatter_name} item={s} tone={tone} onSelect={onSelect} />
+        ))}
+      </div>
     </div>
+  );
+}
+
+function Row({
+  item,
+  tone,
+  onSelect,
+}: {
+  item: ScoredChatter;
+  tone: "urgent" | "watch" | "running";
+  onSelect: (s: { name: string; platform: string }) => void;
+}) {
+  const sec = secondsSince(item.row.updated_at);
+  const online = sec < 5 * 60;
+  const offline = sec >= 30 * 60;
+  const scoreColor =
+    tone === "urgent" ? "text-rose-200" : tone === "watch" ? "text-amber-100/90" : "text-white/40";
+
+  return (
+    <button
+      onClick={() => onSelect({ name: item.row.chatter_name, platform: (item.row as any).platform })}
+      className="w-full flex items-center gap-4 py-3 group text-left hover:bg-white/[0.015] transition-colors px-2 -mx-2 rounded"
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+          online ? "bg-emerald-400" : offline ? "bg-white/15" : "bg-amber-300/60"
+        }`}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm text-white/85 font-light truncate">{item.row.chatter_name}</span>
+          {item.hotStreak && <ArrowUpRight className="h-3 w-3 text-emerald-300/70 shrink-0" />}
+        </div>
+        {item.reasons.length > 0 && (
+          <p className="text-[11px] text-white/40 font-light truncate mt-0.5">
+            {item.reasons.join(" · ")}
+          </p>
+        )}
+      </div>
+      <span className={`text-lg font-light tabular-nums ${scoreColor} shrink-0`}>
+        {item.score}
+      </span>
+    </button>
   );
 }
