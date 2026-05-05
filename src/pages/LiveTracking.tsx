@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Input } from "@/components/ui/input";
-import { buildProfile, computeStatus, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
+import { buildProfile, computeStatus, shiftDate, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -51,7 +51,7 @@ export default function LiveTracking() {
   }, []);
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = shiftDate();
     setLoading(true);
     supabase
       .from("chatter_history_live")
@@ -103,7 +103,7 @@ export default function LiveTracking() {
         "postgres_changes",
         { event: "*", schema: "public", table: "chatter_history_live" },
         (payload) => {
-          const today = new Date().toISOString().slice(0, 10);
+          const today = shiftDate();
           setRows((prev) => {
             if (payload.eventType === "DELETE") {
               return prev.filter((r) => r.id !== (payload.old as LiveRow).id);
