@@ -1410,6 +1410,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     {/* ── 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) ── */}
                     <WeekTrendCard history={history} />
 
+                    {/* ── Online-Zeiten (Stunden-Profil) ── */}
+                    <ChatterActivityHoursCard chatterName={chatterName} platform={platform} />
+
                     {/* ── 30-Tage-Trend ── */}
                     {last30.length >= 4 && (
                       <div className="premium-card rounded-2xl p-7 relative">
