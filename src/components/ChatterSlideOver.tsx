@@ -1189,9 +1189,9 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
                 {loading ? (
                   <ProfileSkeleton />
-                ) : history.length === 0 ? (
+                ) : history.length === 0 && !liveProfile ? (
                   <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">
-                    Noch keine historischen Daten vorhanden.
+                    Noch keine Daten vorhanden.
                   </p>
                 ) : (
                   <>
