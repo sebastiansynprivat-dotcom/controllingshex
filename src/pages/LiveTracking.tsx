@@ -311,9 +311,14 @@ export default function LiveTracking() {
 
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
-  // Jetzt online = echte Aktivität in der aktuellen Stunde (Revenue, DMs oder Chats abgearbeitet)
+  // Jetzt online = Server-Count (alle 60s vom Cron neu berechnet) ∪ Client-Realtime-Hits
   const liveNowCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
-  const liveNowCount = allStatuses.filter((s) => (liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff).length;
+  const clientLive = new Set<string>();
+  allStatuses.forEach((s) => {
+    if ((liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff) clientLive.add(normName(s.name));
+  });
+  (serverLiveNow?.names ?? []).forEach((n) => clientLive.add(normName(n)));
+  const liveNowCount = clientLive.size;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
