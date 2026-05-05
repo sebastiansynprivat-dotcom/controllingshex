@@ -504,7 +504,9 @@ export default function LiveTracking() {
                     style={{ width: `${Math.max(liveNowCount > 0 ? 6 : 0, totalCount > 0 ? Math.round((liveNowCount / totalCount) * 100) : 0)}%` }}
                   />
                 </div>
-                <div className="mt-2 text-[10px] text-white/30 font-light">echte Aktivität · diese Stunde</div>
+                <div className="mt-2 text-[10px] text-white/30 font-light">
+                  letzte 15 min{serverLiveNow ? ` · sync ${relTime(secondsSince(serverLiveNow.computedAt))} ago` : ""}
+                </div>
               </div>
             </div>
 
