@@ -233,9 +233,12 @@ export default function LiveTracking() {
 
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
-  const liveNowCount = allStatuses.filter(
-    (s) => s.status === "active_strong" || s.status === "active_weak" || s.status === "active_idle",
-  ).length;
+  // Jetzt online = wirklich live: zuletzt gesehen < 10 Min UND Aktivität (strong/weak, kein idle)
+  const liveNowCount = allStatuses.filter((s) => {
+    if (s.status !== "active_strong" && s.status !== "active_weak") return false;
+    const updated = s.live?.updated_at ? new Date(s.live.updated_at).getTime() : 0;
+    return updated > 0 && Date.now() - updated < 10 * 60 * 1000;
+  }).length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
@@ -371,18 +374,9 @@ export default function LiveTracking() {
             {/* Aktivitäts-Bar — sekundär */}
             <div className="mt-6 space-y-2 pt-5 border-t border-white/[0.05]">
               <div className="flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
-                <span className="text-white/40 font-light flex items-center gap-3">
-                  <span>
-                    Aktiv <span className="tabular-nums text-white/60 normal-case tracking-normal ml-1">{activeTodayCount}/{totalCount}</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 normal-case tracking-normal">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    </span>
-                    <span className="text-white/40 text-[10px] tracking-[0.18em] uppercase">Live</span>
-                    <span className="tabular-nums text-emerald-300/90">{liveNowCount}</span>
-                  </span>
+                <span className="text-white/40 font-light">
+                  Aktiv <span className="tabular-nums text-white/60 normal-case tracking-normal ml-1">{activeTodayCount}/{totalCount}</span>
+                  <span className="text-white/25 normal-case tracking-normal ml-1.5 text-[9px]">seit 04:00</span>
                 </span>
                 <span className={`tabular-nums font-light ${
                   activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
