@@ -180,9 +180,7 @@ export default function LiveTracking() {
       const oa = order[a.status];
       const ob = order[b.status];
       if (oa !== ob) return oa - ob;
-      const av = a.expectedRevenueByNow + (a.live ? Number(a.live.revenue) : 0);
-      const bv = b.expectedRevenueByNow + (b.live ? Number(b.live.revenue) : 0);
-      return bv - av;
+      return b.priorityScore - a.priorityScore;
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
