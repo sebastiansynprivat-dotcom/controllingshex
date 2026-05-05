@@ -718,3 +718,38 @@ function Row({
     </button>
   );
 }
+
+function MetricChip({
+  icon: Icon,
+  value,
+  tone,
+  title,
+}: {
+  icon: typeof Sparkles;
+  value: number;
+  tone: "danger" | "warn" | "info" | "gold" | "muted";
+  title?: string;
+}) {
+  const styles = {
+    danger:
+      "border-rose-400/30 bg-rose-500/12 text-rose-100 shadow-[inset_0_1px_0_hsl(0_90%_80%/0.10)]",
+    warn:
+      "border-amber-300/25 bg-amber-400/10 text-amber-100",
+    info:
+      "border-white/[0.10] bg-white/[0.05] text-white/85",
+    gold:
+      "border-[hsl(40_45%_55%/0.28)] bg-[hsl(40_50%_55%/0.10)] text-[hsl(40_75%_82%)]",
+    muted:
+      "border-white/[0.05] bg-white/[0.02] text-white/30",
+  }[tone];
+  const iconOpacity = tone === "muted" ? "opacity-50" : "opacity-90";
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 px-1.5 h-5 rounded-md border text-[10px] font-light tabular-nums tracking-wide transition-colors ${styles}`}
+    >
+      <Icon className={`h-2.5 w-2.5 ${iconOpacity}`} />
+      {value}
+    </span>
+  );
+}
