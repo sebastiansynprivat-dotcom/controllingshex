@@ -412,7 +412,6 @@ export default function LiveTracking() {
             </div>
           </div>
         </div>
-        </div>
 
         {/* Insight chips */}
         {(buckets.weak.length > 0 || inactiveCount > 0) && (
