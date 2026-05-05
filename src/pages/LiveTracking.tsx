@@ -13,7 +13,7 @@ interface LiveRow extends LiveRowLite {
 }
 
 type FilterKey = "all" | "active" | "weak" | "inactive";
-type SortKey = "smart" | "revenue" | "pacing" | "activity";
+type SortKey = "smart" | "priority" | "revenue" | "pacing" | "activity";
 
 function secondsSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -177,7 +177,10 @@ export default function LiveTracking() {
     });
     if (sortKey === "smart") return filtered;
     const sorted = [...filtered];
-    if (sortKey === "revenue") {
+    if (sortKey === "priority") {
+      // Top earners first (avg/day = wirtschaftlicher Impact)
+      sorted.sort((a, b) => (b.profile?.avgRevenue ?? 0) - (a.profile?.avgRevenue ?? 0));
+    } else if (sortKey === "revenue") {
       sorted.sort((a, b) => (Number(b.live?.revenue ?? 0)) - (Number(a.live?.revenue ?? 0)));
     } else if (sortKey === "pacing") {
       const delta = (s: ChatterStatus) => {
@@ -372,10 +375,11 @@ export default function LiveTracking() {
         {/* Sort row */}
         <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
           <span className="text-[9px] tracking-[0.28em] uppercase text-white/30 font-light px-1.5">Sortieren</span>
-          {(["smart", "revenue", "pacing", "activity"] as SortKey[]).map((k) => {
+          {(["smart", "priority", "revenue", "pacing", "activity"] as SortKey[]).map((k) => {
             const isActive = sortKey === k;
             const labelMap = {
               smart: "Smart",
+              priority: "Prio (Ø/Tag)",
               revenue: "Umsatz",
               pacing: "Pacing-Δ",
               activity: "Aktivität",
