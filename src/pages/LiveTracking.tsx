@@ -469,19 +469,12 @@ export default function LiveTracking() {
       return [...filtered].sort((a, b) => b.priorityScore - a.priorityScore);
     }
     const sorted = [...filtered];
-    if (sortKey === "priority") {
-      // Top earners first (avg/day = wirtschaftlicher Impact)
-      sorted.sort((a, b) => (b.profile?.avgRevenue ?? 0) - (a.profile?.avgRevenue ?? 0));
+    if (sortKey === "lost") {
+      sorted.sort((a, b) => b.lostRevenue - a.lostRevenue);
     } else if (sortKey === "revenue") {
       sorted.sort((a, b) => (Number(b.live?.revenue ?? 0)) - (Number(a.live?.revenue ?? 0)));
-    } else if (sortKey === "pacing") {
-      const delta = (s: ChatterStatus) => {
-        const today = Number(s.live?.revenue ?? 0);
-        const exp = s.expectedRevenueByNow;
-        if (exp <= 0) return Number.POSITIVE_INFINITY;
-        return today - exp;
-      };
-      sorted.sort((a, b) => delta(a) - delta(b));
+    } else if (sortKey === "avg") {
+      sorted.sort((a, b) => (b.profile?.avgRevenue ?? 0) - (a.profile?.avgRevenue ?? 0));
     } else if (sortKey === "activity") {
       sorted.sort((a, b) => {
         const sa = a.lastSeenSec ?? Number.POSITIVE_INFINITY;
