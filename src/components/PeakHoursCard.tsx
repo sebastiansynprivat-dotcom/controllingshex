@@ -130,7 +130,7 @@ export default function PeakHoursCard() {
           <div className="flex items-center gap-2">
             <Clock className="h-3.5 w-3.5 text-white/45" />
             <span className="text-[10px] tracking-[0.28em] uppercase text-white/45 font-light">
-              Peak-Zeiten
+              Peak-Chatter
             </span>
           </div>
           <span className="text-[10px] text-white/30 font-light tabular-nums">
