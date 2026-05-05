@@ -34,7 +34,7 @@ function normName(s: string): string {
   return s.trim().toLowerCase();
 }
 
-const LIVE_NOW_WINDOW_MS = 70 * 60 * 1000;
+const LIVE_NOW_WINDOW_MS = 15 * 60 * 1000;
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
