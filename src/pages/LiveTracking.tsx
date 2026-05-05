@@ -46,6 +46,7 @@ export default function LiveTracking() {
   const [profiles, setProfiles] = useState<Map<string, ChatterProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("smart");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [strongOpen, setStrongOpen] = useState(false);
