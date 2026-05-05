@@ -48,7 +48,7 @@ export interface ChatterStatus {
   lastSeenSec: number | null;
 }
 
-export const SHIFT_CUTOFF_HOUR = 4;
+export const SHIFT_CUTOFF_HOUR = 6;
 export const APP_TIMEZONE = "Europe/Berlin";
 
 /** Liefert {y,m,d,h,min} in Europe/Berlin – unabhängig von der Browser-TZ. */

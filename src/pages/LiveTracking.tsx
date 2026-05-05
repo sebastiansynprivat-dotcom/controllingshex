@@ -560,7 +560,7 @@ export default function LiveTracking() {
                   />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[10px] font-light">
-                  <span className="text-white/30">seit 04:00</span>
+                  <span className="text-white/30">seit 06:00</span>
                   <span className={`tabular-nums ${
                     activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
                   }`}>
