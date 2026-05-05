@@ -61,17 +61,21 @@ export default function LiveTracking() {
   const [liveWindowMin, setLiveWindowMin] = useState<number>(LIVE_NOW_WINDOW_DEFAULT);
   const liveWindowMs = liveWindowMin * 60 * 1000;
 
-  // Fenster-Setting laden + persistieren
+  // Fenster-Setting laden + persistieren (per User!)
   useEffect(() => {
-    supabase
-      .from("settings")
-      .select("value")
-      .eq("key", "live_now_window_min")
-      .maybeSingle()
-      .then(({ data }) => {
-        const v = Number((data as any)?.value);
-        if (Number.isFinite(v) && v > 0) setLiveWindowMin(v);
-      });
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u?.user?.id;
+      if (!uid) return;
+      const { data } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "live_now_window_min")
+        .eq("user_id", uid)
+        .maybeSingle();
+      const v = Number((data as any)?.value);
+      if (Number.isFinite(v) && v > 0) setLiveWindowMin(v);
+    })();
   }, []);
   const saveLiveWindow = async (min: number) => {
     setLiveWindowMin(min);
@@ -85,6 +89,10 @@ export default function LiveTracking() {
     } else {
       await supabase.from("settings").insert({ key: "live_now_window_min", value: String(min), user_id: uid });
     }
+    // Server-Berechnung sofort anstoßen, damit der Count zum neuen Fenster passt
+    try { await supabase.rpc("recompute_live_now" as any); } catch {}
+    // Hourly-Stats neu durchrechnen (clientseitig)
+    setTick((t) => t + 1);
   };
   const [debugOpen, setDebugOpen] = useState(false);
   type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed" | "tz"; detail: string; expiresAt?: number };
