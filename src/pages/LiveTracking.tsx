@@ -56,6 +56,12 @@ export default function LiveTracking() {
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
+  const [debugOpen, setDebugOpen] = useState(false);
+  type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed"; detail: string; expiresAt?: number };
+  const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
+  const pushEvent = (ev: Omit<LiveEvent, "id" | "ts"> & { ts?: number }) => {
+    setLiveLog((prev) => [{ id: Math.random().toString(36).slice(2), ts: ev.ts ?? Date.now(), ...ev }, ...prev].slice(0, 80));
+  };
 
   useEffect(() => {
     const today = shiftDate();
@@ -162,17 +168,25 @@ export default function LiveTracking() {
 
           // Echtzeit-Detektion: hat sich etwas getan, das auf einen aktiven Chatter hinweist?
           if (next && old && payload.eventType === "UPDATE") {
-            const revUp = (Number(next.revenue) || 0) > (Number(old.revenue) || 0);
-            const dmsUp = (Number(next.mass_dms) || 0) > (Number(old.mass_dms) || 0);
-            const unreadDown = (next.unread_chats ?? 0) < (old.unread_chats ?? 0);
+            const revDelta = (Number(next.revenue) || 0) - (Number(old.revenue) || 0);
+            const dmsDelta = (Number(next.mass_dms) || 0) - (Number(old.mass_dms) || 0);
+            const unreadDelta = (next.unread_chats ?? 0) - (old.unread_chats ?? 0);
+            const revUp = revDelta > 0;
+            const dmsUp = dmsDelta > 0;
+            const unreadDown = unreadDelta < 0;
             if (revUp || dmsUp || unreadDown) {
               const key = normName(next.chatter_name ?? "");
+              const displayName = next.chatter_name ?? key;
               if (key) {
+                const now = Date.now();
                 setLiveActivityAt((prev) => {
                   const copy = new Map(prev);
-                  copy.set(key, Date.now());
+                  copy.set(key, now);
                   return copy;
                 });
+                if (revUp) pushEvent({ name: displayName, type: "sale", detail: `+${fmtEur(revDelta)}`, expiresAt: now + LIVE_NOW_WINDOW_MS });
+                if (dmsUp) pushEvent({ name: displayName, type: "dm", detail: `+${dmsDelta} Mass-DM`, expiresAt: now + LIVE_NOW_WINDOW_MS });
+                if (unreadDown) pushEvent({ name: displayName, type: "unread", detail: `${unreadDelta} ungelesen`, expiresAt: now + LIVE_NOW_WINDOW_MS });
               }
             }
           }
@@ -197,6 +211,22 @@ export default function LiveTracking() {
       supabase.removeChannel(channel);
     };
   }, [platform]);
+
+  // Ablauf-Erkennung: prune & log Einträge, die das 15-Min-Fenster verlassen
+  const prevLiveRef = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    const cutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+    const prev = prevLiveRef.current;
+    prev.forEach((ts, key) => {
+      const cur = liveActivityAt.get(key);
+      if ((!cur || cur < cutoff) && ts >= cutoff - 60_000) {
+        // war noch aktiv, jetzt nicht mehr
+        const display = displayNameFor(key);
+        pushEvent({ name: display, type: "expire", detail: "15 min Fenster abgelaufen" });
+      }
+    });
+    prevLiveRef.current = new Map(liveActivityAt);
+  }, [liveActivityAt, tick]);
 
   const displayNameFor = (key: string): string => {
     const live = rows.find((r) => normName(r.chatter_name) === key);
@@ -437,6 +467,57 @@ export default function LiveTracking() {
               <MiniStat label="Inaktiv" value={inactiveCount} tone={inactiveCount > 0 ? "dim" : undefined} />
             </div>
           </div>
+        </div>
+
+        {/* Live Debug-Log */}
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+          <button
+            onClick={() => setDebugOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] tracking-[0.24em] uppercase text-white/40 hover:text-white/70 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <span className="h-1 w-1 rounded-full bg-emerald-400/60" />
+              Live-Log · {liveLog.length} Events
+            </span>
+            <span className="text-white/30">{debugOpen ? "▾" : "▸"}</span>
+          </button>
+          {debugOpen && (
+            <div className="max-h-72 overflow-y-auto border-t border-white/[0.05] divide-y divide-white/[0.04]">
+              {liveLog.length === 0 ? (
+                <div className="px-4 py-6 text-center text-[11px] text-white/30 font-light">Noch keine Events. Warte auf Live-Aktivität…</div>
+              ) : (
+                liveLog.map((ev) => {
+                  const ageS = Math.max(0, Math.floor((Date.now() - ev.ts) / 1000));
+                  const remainS = ev.expiresAt ? Math.max(0, Math.floor((ev.expiresAt - Date.now()) / 1000)) : null;
+                  const tone =
+                    ev.type === "sale" ? "text-emerald-300 bg-emerald-400/10" :
+                    ev.type === "dm" ? "text-sky-300 bg-sky-400/10" :
+                    ev.type === "unread" ? "text-amber-200 bg-amber-400/10" :
+                    ev.type === "expire" ? "text-rose-300 bg-rose-400/10" :
+                    "text-white/50 bg-white/[0.05]";
+                  const icon =
+                    ev.type === "sale" ? "💰" :
+                    ev.type === "dm" ? "📤" :
+                    ev.type === "unread" ? "📥" :
+                    ev.type === "expire" ? "⌛" : "·";
+                  return (
+                    <div key={ev.id} className="flex items-center gap-3 px-4 py-2 text-[11px]">
+                      <span className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-md text-[11px] ${tone}`}>{icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="text-white/90 font-medium truncate">{ev.name}</span>
+                          <span className="text-white/40">{ev.detail}</span>
+                        </div>
+                        <div className="text-[9px] text-white/30 mt-0.5 tabular-nums">
+                          vor {relTime(ageS)}{remainS !== null && ev.type !== "expire" ? ` · läuft ab in ${relTime(remainS)}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
         {/* Insight chips */}
