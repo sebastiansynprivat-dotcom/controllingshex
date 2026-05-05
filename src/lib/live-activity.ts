@@ -49,18 +49,45 @@ export interface ChatterStatus {
 }
 
 export const SHIFT_CUTOFF_HOUR = 4;
+export const APP_TIMEZONE = "Europe/Berlin";
+
+/** Liefert {y,m,d,h,min} in Europe/Berlin – unabhängig von der Browser-TZ. */
+export function berlinParts(now: Date = new Date()): { y: number; m: number; d: number; h: number; min: number } {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const parts = fmt.formatToParts(now).reduce<Record<string, string>>((acc, p) => {
+    if (p.type !== "literal") acc[p.type] = p.value;
+    return acc;
+  }, {});
+  return {
+    y: Number(parts.year),
+    m: Number(parts.month),
+    d: Number(parts.day),
+    h: Number(parts.hour === "24" ? "00" : parts.hour),
+    min: Number(parts.minute),
+  };
+}
 
 export function shiftDate(now: Date = new Date()): string {
-  const d = new Date(now);
-  if (d.getHours() < SHIFT_CUTOFF_HOUR) d.setDate(d.getDate() - 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const p = berlinParts(now);
+  // Vor 04:00 Berlin → noch der Vortag (Schicht-Tag)
+  let y = p.y, m = p.m, d = p.d;
+  if (p.h < SHIFT_CUTOFF_HOUR) {
+    const prev = new Date(Date.UTC(y, m - 1, d));
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    y = prev.getUTCFullYear();
+    m = prev.getUTCMonth() + 1;
+    d = prev.getUTCDate();
+  }
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 function dayProgress(now: Date): number {
-  const h = now.getHours() + now.getMinutes() / 60;
+  const p = berlinParts(now);
+  const h = p.h + p.min / 60;
   const elapsed = (h - SHIFT_CUTOFF_HOUR + 24) % 24;
   return Math.max(0, Math.min(1, elapsed / 24));
 }
