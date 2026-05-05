@@ -152,11 +152,39 @@ export default function LiveTracking() {
         { event: "*", schema: "public", table: "chatter_history_live" },
         (payload) => {
           const today = shiftDate();
-          setRows((prev) => {
-            if (payload.eventType === "DELETE") {
-              return prev.filter((r) => r.id !== (payload.old as LiveRow).id);
+          const next = payload.new as LiveRow | undefined;
+          const old = payload.old as LiveRow | undefined;
+
+          // Echtzeit-Detektion: hat sich etwas getan, das auf einen aktiven Chatter hinweist?
+          if (next && old && payload.eventType === "UPDATE") {
+            const revUp = (Number(next.revenue) || 0) > (Number(old.revenue) || 0);
+            const dmsUp = (Number(next.mass_dms) || 0) > (Number(old.mass_dms) || 0);
+            const unreadDown = (next.unread_chats ?? 0) < (old.unread_chats ?? 0);
+            if (revUp || dmsUp || unreadDown) {
+              const key = normName(next.chatter_name ?? "");
+              if (key) {
+                setLiveActiveNames((prev) => {
+                  const copy = new Set(prev);
+                  copy.add(key);
+                  return copy;
+                });
+                // 15 Min später wieder rausnehmen, falls keine neue Aktivität
+                setTimeout(() => {
+                  setLiveActiveNames((prev) => {
+                    const copy = new Set(prev);
+                    copy.delete(key);
+                    return copy;
+                  });
+                }, 15 * 60 * 1000);
+              }
             }
-            const next = payload.new as LiveRow;
+          }
+
+          setRows((prev) => {
+            if (payload.eventType === "DELETE" && old) {
+              return prev.filter((r) => r.id !== old.id);
+            }
+            if (!next) return prev;
             if (next.date !== today) return prev;
             if ((next.platform ?? "").toLowerCase() !== platform.toLowerCase()) return prev;
             const idx = prev.findIndex((r) => r.id === next.id);
