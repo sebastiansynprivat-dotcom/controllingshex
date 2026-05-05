@@ -177,7 +177,10 @@ export default function LiveTracking() {
     });
     if (sortKey === "smart") return filtered;
     const sorted = [...filtered];
-    if (sortKey === "revenue") {
+    if (sortKey === "priority") {
+      // Top earners first (avg/day = wirtschaftlicher Impact)
+      sorted.sort((a, b) => (b.profile?.avgRevenue ?? 0) - (a.profile?.avgRevenue ?? 0));
+    } else if (sortKey === "revenue") {
       sorted.sort((a, b) => (Number(b.live?.revenue ?? 0)) - (Number(a.live?.revenue ?? 0)));
     } else if (sortKey === "pacing") {
       const delta = (s: ChatterStatus) => {
