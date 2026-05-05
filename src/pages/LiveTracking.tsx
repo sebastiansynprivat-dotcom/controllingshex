@@ -13,6 +13,7 @@ interface LiveRow extends LiveRowLite {
 }
 
 type FilterKey = "all" | "active" | "weak" | "inactive";
+type SortKey = "smart" | "revenue" | "pacing" | "activity";
 
 function secondsSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -45,6 +46,7 @@ export default function LiveTracking() {
   const [profiles, setProfiles] = useState<Map<string, ChatterProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("smart");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [strongOpen, setStrongOpen] = useState(false);
@@ -166,14 +168,34 @@ export default function LiveTracking() {
   }, [rows, profiles, tick]);
 
   const visible = useMemo(() => {
-    return allStatuses.filter((s) => {
+    const filtered = allStatuses.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filter === "active" && !s.isActiveToday) return false;
       if (filter === "weak" && s.status !== "active_weak") return false;
       if (filter === "inactive" && s.status !== "inactive") return false;
       return true;
     });
-  }, [allStatuses, search, filter]);
+    if (sortKey === "smart") return filtered;
+    const sorted = [...filtered];
+    if (sortKey === "revenue") {
+      sorted.sort((a, b) => (Number(b.live?.revenue ?? 0)) - (Number(a.live?.revenue ?? 0)));
+    } else if (sortKey === "pacing") {
+      const delta = (s: ChatterStatus) => {
+        const today = Number(s.live?.revenue ?? 0);
+        const exp = s.expectedRevenueByNow;
+        if (exp <= 0) return Number.POSITIVE_INFINITY;
+        return today - exp;
+      };
+      sorted.sort((a, b) => delta(a) - delta(b));
+    } else if (sortKey === "activity") {
+      sorted.sort((a, b) => {
+        const sa = a.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        const sb = b.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        return sa - sb;
+      });
+    }
+    return sorted;
+  }, [allStatuses, search, filter, sortKey]);
 
   const buckets = useMemo(
     () => ({
@@ -318,32 +340,61 @@ export default function LiveTracking() {
       </header>
 
       {/* ─── FILTER ──────────────────────────────────── */}
-      <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
-        {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
-          const isActive = filter === k;
-          const labelMap = {
-            all: "Alle",
-            active: "Aktiv",
-            weak: "Unter Pacing",
-            inactive: "Inaktiv",
-          } as const;
-          return (
-            <button
-              key={k}
-              onClick={() => setFilter(k)}
-              className={`group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] tracking-wide transition-all border ${
-                isActive
-                  ? "bg-white/[0.06] text-white/95 border-white/15 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_4px_14px_-6px_hsl(40_45%_55%/0.25)]"
-                  : "text-white/45 border-white/[0.05] hover:text-white/80 hover:border-white/[0.12] hover:bg-white/[0.02]"
-              }`}
-            >
-              <span className="font-light">{labelMap[k]}</span>
-              <span className={`tabular-nums text-[10px] ${isActive ? "text-white/55" : "text-white/30"}`}>
-                {counts[k]}
-              </span>
-            </button>
-          );
-        })}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
+          {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
+            const isActive = filter === k;
+            const labelMap = {
+              all: "Alle",
+              active: "Aktiv",
+              weak: "Unter Pacing",
+              inactive: "Inaktiv",
+            } as const;
+            return (
+              <button
+                key={k}
+                onClick={() => setFilter(k)}
+                className={`group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] tracking-wide transition-all border ${
+                  isActive
+                    ? "bg-white/[0.06] text-white/95 border-white/15 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_4px_14px_-6px_hsl(40_45%_55%/0.25)]"
+                    : "text-white/45 border-white/[0.05] hover:text-white/80 hover:border-white/[0.12] hover:bg-white/[0.02]"
+                }`}
+              >
+                <span className="font-light">{labelMap[k]}</span>
+                <span className={`tabular-nums text-[10px] ${isActive ? "text-white/55" : "text-white/30"}`}>
+                  {counts[k]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sort row */}
+        <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
+          <span className="text-[9px] tracking-[0.28em] uppercase text-white/30 font-light px-1.5">Sortieren</span>
+          {(["smart", "revenue", "pacing", "activity"] as SortKey[]).map((k) => {
+            const isActive = sortKey === k;
+            const labelMap = {
+              smart: "Smart",
+              revenue: "Umsatz",
+              pacing: "Pacing-Δ",
+              activity: "Aktivität",
+            } as const;
+            return (
+              <button
+                key={k}
+                onClick={() => setSortKey(k)}
+                className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] tracking-wide transition-all border ${
+                  isActive
+                    ? "bg-white/[0.05] text-white/90 border-white/12"
+                    : "text-white/40 border-white/[0.04] hover:text-white/75 hover:border-white/[0.10]"
+                }`}
+              >
+                <span className="font-light">{labelMap[k]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ─── CONTENT ─────────────────────────────────── */}
@@ -351,7 +402,7 @@ export default function LiveTracking() {
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Lade Live-Daten…</p>
       ) : visible.length === 0 ? (
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter passen zum Filter.</p>
-      ) : filter !== "all" ? (
+      ) : filter !== "all" || sortKey !== "smart" ? (
         <div className="space-y-2">
           {visible.map((s) => (
             <Row key={s.name} item={s} onSelect={setSelected} />
