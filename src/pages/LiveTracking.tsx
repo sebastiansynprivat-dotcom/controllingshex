@@ -375,10 +375,11 @@ export default function LiveTracking() {
         {/* Sort row */}
         <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
           <span className="text-[9px] tracking-[0.28em] uppercase text-white/30 font-light px-1.5">Sortieren</span>
-          {(["smart", "revenue", "pacing", "activity"] as SortKey[]).map((k) => {
+          {(["smart", "priority", "revenue", "pacing", "activity"] as SortKey[]).map((k) => {
             const isActive = sortKey === k;
             const labelMap = {
               smart: "Smart",
+              priority: "Prio (Ø/Tag)",
               revenue: "Umsatz",
               pacing: "Pacing-Δ",
               activity: "Aktivität",
