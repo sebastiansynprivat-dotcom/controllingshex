@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Input } from "@/components/ui/input";
-import { buildProfile, computeStatus, shiftDate, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
+import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
 
 interface LiveRow extends LiveRowLite {
   id: string;
