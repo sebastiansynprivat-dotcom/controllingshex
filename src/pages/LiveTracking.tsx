@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, AlertTriangle, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Clock, Moon, Sparkles, MessageCircle, Send, Inbox, Megaphone } from "lucide-react";
+import { Search, AlertTriangle, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Clock, Moon, Sparkles, MessageCircle, Send, Inbox, Megaphone, Hourglass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
@@ -637,15 +637,31 @@ function Row({
       ? "text-white/50"
       : "text-white/55";
 
+  const oldestDays = item.live?.oldest_chat != null ? Number(item.live.oldest_chat) : null;
+  const oldestTone =
+    oldestDays == null
+      ? "muted"
+      : oldestDays >= 3
+      ? "danger"
+      : oldestDays >= 1
+      ? "warn"
+      : "info";
+  const oldestLabel =
+    oldestDays == null
+      ? "—"
+      : oldestDays >= 1
+      ? `${Math.round(oldestDays)}d`
+      : `<1d`;
+
   return (
     <button
       onClick={() => onSelect({ name: item.name, platform: (item.live as any)?.platform ?? "" })}
       className={`group relative w-full rounded-2xl border px-4 py-3.5 text-left transition-all duration-300 hover:translate-y-[-1px] backdrop-blur-xl ${cardTone}`}
     >
+      {/* Header row: avatar + name + last seen */}
       <div className="flex items-center gap-3.5">
-        {/* Avatar w/ status dot */}
         <div className="relative shrink-0">
-          <div className={`h-10 w-10 rounded-full border flex items-center justify-center text-[11px] font-light tracking-wider text-white/75 bg-gradient-to-br from-white/[0.06] to-white/[0.01] ${avatarRing}`}>
+          <div className={`h-11 w-11 rounded-full border flex items-center justify-center text-[11px] font-light tracking-wider text-white/80 bg-gradient-to-br from-white/[0.07] to-white/[0.01] ${avatarRing}`}>
             {initials(item.name)}
           </div>
           <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -656,69 +672,70 @@ function Row({
           </span>
         </div>
 
-        {/* Main */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[14px] text-white/95 font-light tracking-wide truncate">
-                {item.name}
-              </span>
-              {sec !== null && (
-                <span className="text-[10px] text-white/25 tracking-wider shrink-0">
-                  · {relTime(sec)}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Pacing bar (only if we have expectation and chatter is active) */}
-          {pacingPct !== null && expected >= 20 && item.isActiveToday && (
-            <div className="mt-2 relative h-[3px] rounded-full bg-white/[0.05] overflow-hidden">
-              <div
-                className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
-                  pacingPct >= 95
-                    ? "bg-gradient-to-r from-emerald-400/60 to-emerald-300/80"
-                    : pacingPct >= 60
-                    ? "bg-gradient-to-r from-amber-300/60 to-amber-200/80"
-                    : "bg-gradient-to-r from-rose-500/60 to-rose-300/80"
-                }`}
-                style={{ width: `${Math.max(3, pacingPct)}%` }}
-              />
-            </div>
-          )}
-
-          {/* Bottom meta row */}
-          <div className="mt-1.5 flex items-center justify-between gap-3">
-            <span className={`text-[11px] font-light tracking-wide truncate ${reasonColor}`}>
-              {item.reason}
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[14.5px] text-white/95 font-light tracking-wide truncate">
+              {item.name}
             </span>
-            {item.live && (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <MetricChip
-                  icon={Inbox}
-                  value={item.live.unread_chats ?? 0}
-                  tone={
-                    (item.live.unread_chats ?? 0) >= 20
-                      ? "danger"
-                      : (item.live.unread_chats ?? 0) >= 10
-                      ? "warn"
-                      : (item.live.unread_chats ?? 0) > 0
-                      ? "info"
-                      : "muted"
-                  }
-                  title="Ungelesene Chats"
-                />
-                <MetricChip
-                  icon={Megaphone}
-                  value={item.live.mass_dms ?? 0}
-                  tone={(item.live.mass_dms ?? 0) > 0 ? "gold" : "muted"}
-                  title="Mass-DMs heute"
-                />
-              </div>
+            {sec !== null && (
+              <span className="text-[10px] text-white/35 tracking-wider tabular-nums shrink-0">
+                {relTime(sec)}
+              </span>
             )}
+          </div>
+          <div className={`mt-0.5 text-[11px] font-light tracking-wide truncate ${reasonColor}`}>
+            {item.reason}
           </div>
         </div>
       </div>
+
+      {/* Pacing bar */}
+      {pacingPct !== null && expected >= 20 && item.isActiveToday && (
+        <div className="mt-3 relative h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
+          <div
+            className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
+              pacingPct >= 95
+                ? "bg-gradient-to-r from-emerald-400/60 to-emerald-300/80"
+                : pacingPct >= 60
+                ? "bg-gradient-to-r from-amber-300/60 to-amber-200/80"
+                : "bg-gradient-to-r from-rose-500/60 to-rose-300/80"
+            }`}
+            style={{ width: `${Math.max(3, pacingPct)}%` }}
+          />
+        </div>
+      )}
+
+      {/* Metrics row */}
+      {item.live && (
+        <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+          <MetricChip
+            icon={Inbox}
+            value={item.live.unread_chats ?? 0}
+            tone={
+              (item.live.unread_chats ?? 0) >= 20
+                ? "danger"
+                : (item.live.unread_chats ?? 0) >= 10
+                ? "warn"
+                : (item.live.unread_chats ?? 0) > 0
+                ? "info"
+                : "muted"
+            }
+            title="Ungelesene Chats"
+          />
+          <MetricChip
+            icon={Hourglass}
+            value={oldestLabel}
+            tone={oldestTone}
+            title="Ältester offener Chat"
+          />
+          <MetricChip
+            icon={Megaphone}
+            value={item.live.mass_dms ?? 0}
+            tone={(item.live.mass_dms ?? 0) > 0 ? "gold" : "muted"}
+            title="Mass-DMs heute"
+          />
+        </div>
+      )}
     </button>
   );
 }
@@ -730,7 +747,7 @@ function MetricChip({
   title,
 }: {
   icon: typeof Sparkles;
-  value: number;
+  value: number | string;
   tone: "danger" | "warn" | "info" | "gold" | "muted";
   title?: string;
 }) {
