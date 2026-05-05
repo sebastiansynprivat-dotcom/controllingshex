@@ -18,7 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ResponsiveContainer, LineChart, AreaChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import ChatterActivityHoursCard from "@/components/ChatterActivityHoursCard";
 import { onChatterDataUpdated } from "@/lib/data-events";
@@ -538,26 +538,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     setSavingNote(false);
   };
 
-  const noteDateMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const n of notes) {
-      const dateStr = n.created_at.split("T")[0];
-      map.set(dateStr, n.note_text);
-    }
-    return map;
-  }, [notes]);
-
-  const enrichedHistory = useMemo(() => {
-    return history.map((row) => ({
-      ...row,
-      note: noteDateMap.get(row.analysis_date) || undefined,
-    }));
-  }, [history, noteDateMap]);
-
-  const noteDates = useMemo(() => {
-    const histDates = new Set(history.map((h) => h.analysis_date));
-    return Array.from(noteDateMap.keys()).filter((d) => histDates.has(d));
-  }, [history, noteDateMap]);
 
   const avgRevenue = history.length ? history.reduce((s, r) => s + r.revenue_today, 0) / history.length : 0;
   const maxRevenue = history.length ? Math.max(...history.map((r) => r.revenue_today)) : 0;
@@ -1018,49 +998,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 </div>
               )}
 
-              {/* Revenue Chart */}
-              {history.length > 0 && (
-                <div className="premium-card rounded-2xl p-5">
-                  <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">
-                    Umsatzverlauf
-                  </p>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={enrichedHistory}>
-                      <XAxis
-                        dataKey="analysis_date"
-                        tickFormatter={formatDate}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                        tickFormatter={(v) => `${v}€`}
-                        width={45}
-                      />
-                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
-                      {noteDates.map((date) => (
-                        <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
-                      ))}
-                      <Line
-                        type="monotone"
-                        dataKey="revenue_today"
-                        stroke="#D4AF37"
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-              {history.length === 0 && (
-                <p className="text-[11px] text-white/25 font-light italic text-center py-4">
-                  Verlauf wird verfügbar, sobald der erste Tagesreport vorliegt.
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -1484,47 +1421,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       </div>
                     )}
 
-                    {/* ── 3. Revenue Chart ── */}
-                    <div className="premium-card rounded-2xl p-7">
-                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-7">
-                        Umsatzverlauf
-                      </p>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={enrichedHistory}>
-                          <XAxis
-                            dataKey="analysis_date"
-                            tickFormatter={formatDate}
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
-                          />
-                          <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                            tickFormatter={(v) => `${v}€`}
-                            width={50}
-                          />
-                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
-                          {noteDates.map((date) => (
-                            <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
-                          ))}
-                          <Line
-                            type="monotone"
-                            dataKey="revenue_today"
-                            stroke="#D4AF37"
-                            strokeWidth={2}
-                            dot={false}
-                            activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                      {noteDates.length > 0 && (
-                        <p className="text-[10px] text-white/30 font-light mt-4 tracking-wide">
-                          Gestrichelte Linien = Coaching-Notizen
-                        </p>
-                      )}
-                    </div>
 
                     {/* ── 4. Postfach-Disziplin ── */}
                     <div className="space-y-5">
