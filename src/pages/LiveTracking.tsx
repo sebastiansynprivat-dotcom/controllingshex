@@ -168,17 +168,25 @@ export default function LiveTracking() {
 
           // Echtzeit-Detektion: hat sich etwas getan, das auf einen aktiven Chatter hinweist?
           if (next && old && payload.eventType === "UPDATE") {
-            const revUp = (Number(next.revenue) || 0) > (Number(old.revenue) || 0);
-            const dmsUp = (Number(next.mass_dms) || 0) > (Number(old.mass_dms) || 0);
-            const unreadDown = (next.unread_chats ?? 0) < (old.unread_chats ?? 0);
+            const revDelta = (Number(next.revenue) || 0) - (Number(old.revenue) || 0);
+            const dmsDelta = (Number(next.mass_dms) || 0) - (Number(old.mass_dms) || 0);
+            const unreadDelta = (next.unread_chats ?? 0) - (old.unread_chats ?? 0);
+            const revUp = revDelta > 0;
+            const dmsUp = dmsDelta > 0;
+            const unreadDown = unreadDelta < 0;
             if (revUp || dmsUp || unreadDown) {
               const key = normName(next.chatter_name ?? "");
+              const displayName = next.chatter_name ?? key;
               if (key) {
+                const now = Date.now();
                 setLiveActivityAt((prev) => {
                   const copy = new Map(prev);
-                  copy.set(key, Date.now());
+                  copy.set(key, now);
                   return copy;
                 });
+                if (revUp) pushEvent({ name: displayName, type: "sale", detail: `+${fmtEur(revDelta)}`, expiresAt: now + LIVE_NOW_WINDOW_MS });
+                if (dmsUp) pushEvent({ name: displayName, type: "dm", detail: `+${dmsDelta} Mass-DM`, expiresAt: now + LIVE_NOW_WINDOW_MS });
+                if (unreadDown) pushEvent({ name: displayName, type: "unread", detail: `${unreadDelta} ungelesen`, expiresAt: now + LIVE_NOW_WINDOW_MS });
               }
             }
           }
