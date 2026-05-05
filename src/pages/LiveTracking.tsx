@@ -302,29 +302,82 @@ export default function LiveTracking() {
           <div className="relative">
             <div className="flex items-baseline gap-2">
               <span className="font-serif italic text-[13px] text-white/55 font-light tracking-wide">Heute</span>
-              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">aktiv im Team</span>
+              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">Money-Pulse</span>
             </div>
-            <div className="mt-3 flex items-end gap-3">
-              <div
-                className="font-extralight tabular-nums leading-none gold-text text-[72px] sm:text-[84px]"
-                style={{ letterSpacing: "-0.045em" }}
+
+            {/* 3-Spalten Money-Insights */}
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {/* Lost heute */}
+              <button
+                onClick={() => setFilter("weak")}
+                className="text-left group"
               >
-                <AnimatedNumber value={activeTodayCount} />
-                <span className="text-[26px] font-light text-white/35 ml-3 tracking-tight">/ {totalCount}</span>
+                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Lost heute</div>
+                <div
+                  className={`mt-1 font-extralight tabular-nums leading-none ${
+                    totalLost >= 200 ? "text-rose-300" : totalLost >= 50 ? "text-amber-200" : "text-white/85"
+                  } text-[34px] sm:text-[40px]`}
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  −<AnimatedNumber value={totalLost} />
+                  <span className="text-[14px] font-light text-white/40 ml-1">€</span>
+                </div>
+                <div className="mt-1 text-[10px] text-white/35 font-light">vs. Schnitt jetzt</div>
+              </button>
+
+              {/* Kritisch */}
+              <button
+                onClick={() => setFilter("weak")}
+                className="text-left group"
+              >
+                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Kritisch</div>
+                <div
+                  className={`mt-1 font-extralight tabular-nums leading-none ${
+                    criticalCount > 0 ? "text-rose-300" : "text-white/85"
+                  } text-[34px] sm:text-[40px]`}
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  <AnimatedNumber value={criticalCount} />
+                </div>
+                <div className="mt-1 text-[10px] text-white/35 font-light">{">"}100 € Rückstand</div>
+              </button>
+
+              {/* Top heute */}
+              <div>
+                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Top heute</div>
+                {topToday ? (
+                  <>
+                    <div
+                      className="mt-1 font-extralight tabular-nums leading-none gold-text text-[34px] sm:text-[40px]"
+                      style={{ letterSpacing: "-0.04em" }}
+                    >
+                      +<AnimatedNumber value={Math.round(topToday.surplusRevenue)} />
+                      <span className="text-[14px] font-light text-white/40 ml-1">€</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-white/45 font-light truncate">{topToday.name}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-1 font-extralight tabular-nums leading-none text-white/40 text-[34px] sm:text-[40px]">—</div>
+                    <div className="mt-1 text-[10px] text-white/30 font-light">noch keiner vorne</div>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Aktivitäts-Bar */}
-            <div className="mt-5 space-y-2">
+            {/* Aktivitäts-Bar — sekundär */}
+            <div className="mt-6 space-y-2 pt-5 border-t border-white/[0.05]">
               <div className="flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
-                <span className="text-white/40 font-light">Quote heute</span>
+                <span className="text-white/40 font-light">
+                  Aktiv <span className="tabular-nums text-white/60 normal-case tracking-normal ml-1">{activeTodayCount}/{totalCount}</span>
+                </span>
                 <span className={`tabular-nums font-light ${
                   activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
                 }`}>
                   <AnimatedNumber value={activePct} />%
                 </span>
               </div>
-              <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+              <div className="relative h-1 rounded-full bg-white/[0.04] overflow-hidden">
                 <div
                   className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
                     activePct >= 80
@@ -335,10 +388,6 @@ export default function LiveTracking() {
                   }`}
                   style={{ width: `${Math.max(3, activePct)}%` }}
                 />
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-white/30 tabular-nums">
-                <span>{inactiveCount} noch nicht aktiv</span>
-                <span>Ziel: 100%</span>
               </div>
             </div>
 
