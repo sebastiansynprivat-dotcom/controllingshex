@@ -633,6 +633,33 @@ export type Database = {
         }
         Relationships: []
       }
+      live_now_counts: {
+        Row: {
+          chatter_names: string[]
+          computed_at: string
+          count: number
+          id: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          chatter_names?: string[]
+          computed_at?: string
+          count?: number
+          id?: string
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          chatter_names?: string[]
+          computed_at?: string
+          count?: number
+          id?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       model_attributes: {
         Row: {
           age_group: string | null
@@ -1010,6 +1037,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      recompute_live_now: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

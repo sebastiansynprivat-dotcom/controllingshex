@@ -56,6 +56,7 @@ export default function LiveTracking() {
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
+  const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed"; detail: string; expiresAt?: number };
   const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
@@ -228,6 +229,48 @@ export default function LiveTracking() {
     prevLiveRef.current = new Map(liveActivityAt);
   }, [liveActivityAt, tick]);
 
+  // Server-berechnete Live-Now Zahl (Cron alle 60s) + Realtime-Updates
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      supabase
+        .from("live_now_counts")
+        .select("count, chatter_names, computed_at, platform")
+        .ilike("platform", platform)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          setServerLiveNow({
+            count: Number((data as any).count) || 0,
+            names: ((data as any).chatter_names as string[]) ?? [],
+            computedAt: (data as any).computed_at,
+          });
+        });
+    };
+    load();
+    const channel = supabase
+      .channel(`live-now-counts-${platform}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "live_now_counts" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as any;
+          if (!row) return;
+          if (String(row.platform).toLowerCase() !== platform.toLowerCase()) return;
+          setServerLiveNow({
+            count: Number(row.count) || 0,
+            names: (row.chatter_names as string[]) ?? [],
+            computedAt: row.computed_at,
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
   const displayNameFor = (key: string): string => {
     const live = rows.find((r) => normName(r.chatter_name) === key);
     if (live) return live.chatter_name;
@@ -310,9 +353,14 @@ export default function LiveTracking() {
 
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
-  // Jetzt online = echte Aktivität in der aktuellen Stunde (Revenue, DMs oder Chats abgearbeitet)
+  // Jetzt online = Server-Count (alle 60s vom Cron neu berechnet) ∪ Client-Realtime-Hits
   const liveNowCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
-  const liveNowCount = allStatuses.filter((s) => (liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff).length;
+  const clientLive = new Set<string>();
+  allStatuses.forEach((s) => {
+    if ((liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff) clientLive.add(normName(s.name));
+  });
+  (serverLiveNow?.names ?? []).forEach((n) => clientLive.add(normName(n)));
+  const liveNowCount = clientLive.size;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
@@ -456,7 +504,9 @@ export default function LiveTracking() {
                     style={{ width: `${Math.max(liveNowCount > 0 ? 6 : 0, totalCount > 0 ? Math.round((liveNowCount / totalCount) * 100) : 0)}%` }}
                   />
                 </div>
-                <div className="mt-2 text-[10px] text-white/30 font-light">echte Aktivität · diese Stunde</div>
+                <div className="mt-2 text-[10px] text-white/30 font-light">
+                  letzte 15 min{serverLiveNow ? ` · sync ${relTime(secondsSince(serverLiveNow.computedAt))} ago` : ""}
+                </div>
               </div>
             </div>
 
