@@ -215,7 +215,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     updated_at: string | null;
     date: string | null;
   } | null>(null);
-  const [isActiveToday, setIsActiveToday] = useState<bool>(false);
+  const [isActiveToday, setIsActiveToday] = useState(false);
 
   // Live-Profile aus chatter_history_live laden, wenn das Panel geöffnet wird
   useEffect(() => {
