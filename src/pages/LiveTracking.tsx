@@ -654,6 +654,9 @@ export default function LiveTracking() {
 
       </header>
 
+      {/* ─── PEAK HOURS ─────────────────────────────── */}
+      <PeakHoursCard />
+
       {/* ─── TOOLBAR (sticky) ────────────────────────── */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/80 backdrop-blur-xl border-b border-white/[0.05]">
         <div className="flex items-center gap-2">
