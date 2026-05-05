@@ -58,6 +58,34 @@ export default function LiveTracking() {
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
   const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
+  const [liveWindowMin, setLiveWindowMin] = useState<number>(LIVE_NOW_WINDOW_DEFAULT);
+  const liveWindowMs = liveWindowMin * 60 * 1000;
+
+  // Fenster-Setting laden + persistieren
+  useEffect(() => {
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "live_now_window_min")
+      .maybeSingle()
+      .then(({ data }) => {
+        const v = Number((data as any)?.value);
+        if (Number.isFinite(v) && v > 0) setLiveWindowMin(v);
+      });
+  }, []);
+  const saveLiveWindow = async (min: number) => {
+    setLiveWindowMin(min);
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u?.user?.id;
+    if (!uid) return;
+    const { data: existing } = await supabase
+      .from("settings").select("id").eq("key", "live_now_window_min").eq("user_id", uid).maybeSingle();
+    if (existing) {
+      await supabase.from("settings").update({ value: String(min), updated_at: new Date().toISOString() }).eq("id", (existing as any).id);
+    } else {
+      await supabase.from("settings").insert({ key: "live_now_window_min", value: String(min), user_id: uid });
+    }
+  };
   const [debugOpen, setDebugOpen] = useState(false);
   type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed" | "tz"; detail: string; expiresAt?: number };
   const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
