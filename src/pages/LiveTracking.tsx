@@ -295,6 +295,10 @@ export default function LiveTracking() {
           const next = payload.new as LiveRow | undefined;
           const old = payload.old as LiveRow | undefined;
 
+          // Nur Events der aktuell aktiven Platform berücksichtigen
+          const evPlatform = String(next?.platform ?? old?.platform ?? "").toLowerCase();
+          if (evPlatform && evPlatform !== platform.toLowerCase()) return;
+
           // Echtzeit-Detektion: hat sich etwas getan, das auf einen aktiven Chatter hinweist?
           if (next && old && payload.eventType === "UPDATE") {
             const revDelta = Math.max(0, (Number(next.revenue) || 0) - (Number(old.revenue) || 0));
