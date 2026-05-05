@@ -221,7 +221,7 @@ export default function LiveTracking() {
   }, [liveWindowMs]);
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    const id = setInterval(() => setTick((t) => t + 1), 2000);
     return () => clearInterval(id);
   }, []);
 
