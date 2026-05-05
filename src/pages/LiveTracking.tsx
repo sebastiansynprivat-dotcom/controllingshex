@@ -168,14 +168,34 @@ export default function LiveTracking() {
   }, [rows, profiles, tick]);
 
   const visible = useMemo(() => {
-    return allStatuses.filter((s) => {
+    const filtered = allStatuses.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filter === "active" && !s.isActiveToday) return false;
       if (filter === "weak" && s.status !== "active_weak") return false;
       if (filter === "inactive" && s.status !== "inactive") return false;
       return true;
     });
-  }, [allStatuses, search, filter]);
+    if (sortKey === "smart") return filtered;
+    const sorted = [...filtered];
+    if (sortKey === "revenue") {
+      sorted.sort((a, b) => (Number(b.live?.revenue ?? 0)) - (Number(a.live?.revenue ?? 0)));
+    } else if (sortKey === "pacing") {
+      const delta = (s: ChatterStatus) => {
+        const today = Number(s.live?.revenue ?? 0);
+        const exp = s.expectedRevenueByNow;
+        if (exp <= 0) return Number.POSITIVE_INFINITY;
+        return today - exp;
+      };
+      sorted.sort((a, b) => delta(a) - delta(b));
+    } else if (sortKey === "activity") {
+      sorted.sort((a, b) => {
+        const sa = a.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        const sb = b.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        return sa - sb;
+      });
+    }
+    return sorted;
+  }, [allStatuses, search, filter, sortKey]);
 
   const buckets = useMemo(
     () => ({
