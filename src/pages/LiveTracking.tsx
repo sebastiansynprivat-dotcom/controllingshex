@@ -56,6 +56,12 @@ export default function LiveTracking() {
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
+  const [debugOpen, setDebugOpen] = useState(false);
+  type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed"; detail: string; expiresAt?: number };
+  const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
+  const pushEvent = (ev: Omit<LiveEvent, "id" | "ts"> & { ts?: number }) => {
+    setLiveLog((prev) => [{ id: Math.random().toString(36).slice(2), ts: ev.ts ?? Date.now(), ...ev }, ...prev].slice(0, 80));
+  };
 
   useEffect(() => {
     const today = shiftDate();
