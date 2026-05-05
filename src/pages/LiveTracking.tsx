@@ -614,11 +614,6 @@ function Row({
                 </span>
               )}
             </div>
-            {item.live && (
-              <span className="text-[14px] tabular-nums text-white/95 font-light shrink-0">
-                {fmtEur(Number(item.live.revenue))}
-              </span>
-            )}
           </div>
 
           {/* Pacing bar (only if we have expectation and chatter is active) */}
