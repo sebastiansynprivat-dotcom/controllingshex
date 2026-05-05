@@ -238,6 +238,17 @@ export default function LiveTracking() {
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
   const sumUnread = rows.reduce((s, r) => s + (r.unread_chats ?? 0), 0);
   const sumDms = rows.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
+  const totalLost = Math.round(allStatuses.reduce((s, x) => s + x.lostRevenue, 0));
+  const criticalCount = allStatuses.filter((s) => s.lostRevenue >= 100).length;
+  const topToday = useMemo(() => {
+    let best: ChatterStatus | null = null;
+    allStatuses.forEach((s) => {
+      if (s.surplusRevenue > 0 && (!best || s.surplusRevenue > best.surplusRevenue)) {
+        best = s;
+      }
+    });
+    return best;
+  }, [allStatuses]);
 
   const counts: Record<FilterKey, number> = {
     all: allStatuses.length,
