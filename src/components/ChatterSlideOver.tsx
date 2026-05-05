@@ -1421,47 +1421,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       </div>
                     )}
 
-                    {/* ── 3. Revenue Chart ── */}
-                    <div className="premium-card rounded-2xl p-7">
-                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-7">
-                        Umsatzverlauf
-                      </p>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={enrichedHistory}>
-                          <XAxis
-                            dataKey="analysis_date"
-                            tickFormatter={formatDate}
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
-                          />
-                          <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                            tickFormatter={(v) => `${v}€`}
-                            width={50}
-                          />
-                          <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
-                          {noteDates.map((date) => (
-                            <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
-                          ))}
-                          <Line
-                            type="monotone"
-                            dataKey="revenue_today"
-                            stroke="#D4AF37"
-                            strokeWidth={2}
-                            dot={false}
-                            activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                      {noteDates.length > 0 && (
-                        <p className="text-[10px] text-white/30 font-light mt-4 tracking-wide">
-                          Gestrichelte Linien = Coaching-Notizen
-                        </p>
-                      )}
-                    </div>
 
                     {/* ── 4. Postfach-Disziplin ── */}
                     <div className="space-y-5">
