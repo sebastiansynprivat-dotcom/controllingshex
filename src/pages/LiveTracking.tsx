@@ -229,6 +229,48 @@ export default function LiveTracking() {
     prevLiveRef.current = new Map(liveActivityAt);
   }, [liveActivityAt, tick]);
 
+  // Server-berechnete Live-Now Zahl (Cron alle 60s) + Realtime-Updates
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      supabase
+        .from("live_now_counts")
+        .select("count, chatter_names, computed_at, platform")
+        .ilike("platform", platform)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          setServerLiveNow({
+            count: Number((data as any).count) || 0,
+            names: ((data as any).chatter_names as string[]) ?? [],
+            computedAt: (data as any).computed_at,
+          });
+        });
+    };
+    load();
+    const channel = supabase
+      .channel(`live-now-counts-${platform}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "live_now_counts" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as any;
+          if (!row) return;
+          if (String(row.platform).toLowerCase() !== platform.toLowerCase()) return;
+          setServerLiveNow({
+            count: Number(row.count) || 0,
+            names: (row.chatter_names as string[]) ?? [],
+            computedAt: row.computed_at,
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
   const displayNameFor = (key: string): string => {
     const live = rows.find((r) => normName(r.chatter_name) === key);
     if (live) return live.chatter_name;
