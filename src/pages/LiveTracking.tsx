@@ -64,8 +64,70 @@ export default function LiveTracking() {
     setLiveLog((prev) => [{ id: Math.random().toString(36).slice(2), ts: ev.ts ?? Date.now(), ...ev }, ...prev].slice(0, 80));
   };
 
+  // Zeitzonen- & Konsistenz-Check (einmal beim Mount + alle 10 min wiederholt)
   useEffect(() => {
-    const today = shiftDate();
+    const runCheck = async () => {
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const bp = berlinParts(new Date());
+      const browserH = new Date().getHours();
+
+      // 1) Browser-TZ ≠ Europe/Berlin → nicht kritisch (wir rechnen ohnehin in Berlin), aber loggen
+      if (browserTz && browserTz !== APP_TIMEZONE) {
+        pushEvent({
+          name: "Zeitzonen-Check",
+          type: "tz",
+          detail: `Browser ${browserTz} · App rechnet in ${APP_TIMEZONE} (${String(bp.h).padStart(2,"0")}:${String(bp.min).padStart(2,"0")})`,
+        });
+      }
+
+      // 2) Browser-Stunde vs. Berlin-Stunde Diff > 0 → DST-/Offset-Hinweis
+      const diff = Math.abs(((browserH - bp.h) + 24) % 24);
+      const diffNorm = diff > 12 ? 24 - diff : diff;
+      if (diffNorm > 0 && browserTz === APP_TIMEZONE) {
+        pushEvent({
+          name: "Zeitzonen-Drift",
+          type: "tz",
+          detail: `Browser ${browserH}h ≠ Berlin ${bp.h}h (Δ${diffNorm}h) – Systemuhr prüfen`,
+        });
+      }
+
+      // 3) DB-Konsistenz: gibt es chatter_hourly_stats-Zeilen mit updated_at > now()?
+      try {
+        const { data } = await supabase
+          .from("chatter_hourly_stats")
+          .select("chatter_name, updated_at")
+          .gt("updated_at", new Date(Date.now() + 5 * 60 * 1000).toISOString())
+          .limit(3);
+        if (data && data.length > 0) {
+          pushEvent({
+            name: "DB-Konsistenz",
+            type: "tz",
+            detail: `${data.length} Stat-Zeilen liegen >5 min in der Zukunft (TZ falsch?)`,
+          });
+        }
+      } catch {/* still */}
+
+      // 4) Schicht-Date drift: Berlin sagt "vor 04:00" → shiftDate sollte gestern liefern
+      const shiftToday = shiftDate();
+      const expected = bp.h < 4
+        ? (() => {
+            const d = new Date(Date.UTC(bp.y, bp.m - 1, bp.d));
+            d.setUTCDate(d.getUTCDate() - 1);
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
+          })()
+        : `${bp.y}-${String(bp.m).padStart(2,"0")}-${String(bp.d).padStart(2,"0")}`;
+      if (shiftToday !== expected) {
+        pushEvent({
+          name: "Schicht-Date Drift",
+          type: "tz",
+          detail: `shiftDate=${shiftToday} ≠ erwartet ${expected}`,
+        });
+      }
+    };
+    runCheck();
+    const id = setInterval(runCheck, 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
     supabase
       .from("chatter_hourly_stats")
       .select("hour, updates_seen, chatter_name, revenue, mass_dms, unread_delta, updated_at")
