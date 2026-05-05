@@ -1015,41 +1015,48 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               )}
 
               {/* Revenue Chart */}
-              <div className="premium-card rounded-2xl p-5">
-                <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">
-                  Umsatzverlauf
+              {history.length > 0 && (
+                <div className="premium-card rounded-2xl p-5">
+                  <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium mb-5">
+                    Umsatzverlauf
+                  </p>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={enrichedHistory}>
+                      <XAxis
+                        dataKey="analysis_date"
+                        tickFormatter={formatDate}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                        tickFormatter={(v) => `${v}€`}
+                        width={45}
+                      />
+                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
+                      {noteDates.map((date) => (
+                        <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
+                      ))}
+                      <Line
+                        type="monotone"
+                        dataKey="revenue_today"
+                        stroke="#D4AF37"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {history.length === 0 && (
+                <p className="text-[11px] text-white/25 font-light italic text-center py-4">
+                  Verlauf wird verfügbar, sobald der erste Tagesreport vorliegt.
                 </p>
-                <ResponsiveContainer width="100%" height={160}>
-                  <LineChart data={enrichedHistory}>
-                    <XAxis
-                      dataKey="analysis_date"
-                      tickFormatter={formatDate}
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                      tickFormatter={(v) => `${v}€`}
-                      width={45}
-                    />
-                    <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(212,175,55,0.2)" }} />
-                    {noteDates.map((date) => (
-                      <ReferenceLine key={date} x={date} stroke="rgba(212,175,55,0.35)" strokeDasharray="3 3" />
-                    ))}
-                    <Line
-                      type="monotone"
-                      dataKey="revenue_today"
-                      stroke="#D4AF37"
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 4, fill: "#D4AF37", stroke: "rgba(212,175,55,0.4)", strokeWidth: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              )}
             </div>
           )}
         </div>
