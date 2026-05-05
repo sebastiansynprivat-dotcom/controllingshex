@@ -180,9 +180,7 @@ export default function LiveTracking() {
       const oa = order[a.status];
       const ob = order[b.status];
       if (oa !== ob) return oa - ob;
-      const av = a.expectedRevenueByNow + (a.live ? Number(a.live.revenue) : 0);
-      const bv = b.expectedRevenueByNow + (b.live ? Number(b.live.revenue) : 0);
-      return bv - av;
+      return b.priorityScore - a.priorityScore;
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,7 +194,9 @@ export default function LiveTracking() {
       if (filter === "inactive" && s.status !== "inactive") return false;
       return true;
     });
-    if (sortKey === "smart") return filtered;
+    if (sortKey === "smart") {
+      return [...filtered].sort((a, b) => b.priorityScore - a.priorityScore);
+    }
     const sorted = [...filtered];
     if (sortKey === "priority") {
       // Top earners first (avg/day = wirtschaftlicher Impact)
@@ -238,6 +238,17 @@ export default function LiveTracking() {
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
   const sumUnread = rows.reduce((s, r) => s + (r.unread_chats ?? 0), 0);
   const sumDms = rows.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
+  const totalLost = Math.round(allStatuses.reduce((s, x) => s + x.lostRevenue, 0));
+  const criticalCount = allStatuses.filter((s) => s.lostRevenue >= 100).length;
+  const topToday = useMemo(() => {
+    let best: ChatterStatus | null = null;
+    allStatuses.forEach((s) => {
+      if (s.surplusRevenue > 0 && (!best || s.surplusRevenue > best.surplusRevenue)) {
+        best = s;
+      }
+    });
+    return best;
+  }, [allStatuses]);
 
   const counts: Record<FilterKey, number> = {
     all: allStatuses.length,
@@ -291,29 +302,82 @@ export default function LiveTracking() {
           <div className="relative">
             <div className="flex items-baseline gap-2">
               <span className="font-serif italic text-[13px] text-white/55 font-light tracking-wide">Heute</span>
-              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">aktiv im Team</span>
+              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">Money-Pulse</span>
             </div>
-            <div className="mt-3 flex items-end gap-3">
-              <div
-                className="font-extralight tabular-nums leading-none gold-text text-[72px] sm:text-[84px]"
-                style={{ letterSpacing: "-0.045em" }}
+
+            {/* 3-Spalten Money-Insights */}
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {/* Lost heute */}
+              <button
+                onClick={() => setFilter("weak")}
+                className="text-left group"
               >
-                <AnimatedNumber value={activeTodayCount} />
-                <span className="text-[26px] font-light text-white/35 ml-3 tracking-tight">/ {totalCount}</span>
+                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Lost heute</div>
+                <div
+                  className={`mt-1 font-extralight tabular-nums leading-none ${
+                    totalLost >= 200 ? "text-rose-300" : totalLost >= 50 ? "text-amber-200" : "text-white/85"
+                  } text-[34px] sm:text-[40px]`}
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  −<AnimatedNumber value={totalLost} />
+                  <span className="text-[14px] font-light text-white/40 ml-1">€</span>
+                </div>
+                <div className="mt-1 text-[10px] text-white/35 font-light">vs. Schnitt jetzt</div>
+              </button>
+
+              {/* Kritisch */}
+              <button
+                onClick={() => setFilter("weak")}
+                className="text-left group"
+              >
+                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Kritisch</div>
+                <div
+                  className={`mt-1 font-extralight tabular-nums leading-none ${
+                    criticalCount > 0 ? "text-rose-300" : "text-white/85"
+                  } text-[34px] sm:text-[40px]`}
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  <AnimatedNumber value={criticalCount} />
+                </div>
+                <div className="mt-1 text-[10px] text-white/35 font-light">{">"}100 € Rückstand</div>
+              </button>
+
+              {/* Top heute */}
+              <div>
+                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Top heute</div>
+                {topToday ? (
+                  <>
+                    <div
+                      className="mt-1 font-extralight tabular-nums leading-none gold-text text-[34px] sm:text-[40px]"
+                      style={{ letterSpacing: "-0.04em" }}
+                    >
+                      +<AnimatedNumber value={Math.round(topToday.surplusRevenue)} />
+                      <span className="text-[14px] font-light text-white/40 ml-1">€</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-white/45 font-light truncate">{topToday.name}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-1 font-extralight tabular-nums leading-none text-white/40 text-[34px] sm:text-[40px]">—</div>
+                    <div className="mt-1 text-[10px] text-white/30 font-light">noch keiner vorne</div>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Aktivitäts-Bar */}
-            <div className="mt-5 space-y-2">
+            {/* Aktivitäts-Bar — sekundär */}
+            <div className="mt-6 space-y-2 pt-5 border-t border-white/[0.05]">
               <div className="flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
-                <span className="text-white/40 font-light">Quote heute</span>
+                <span className="text-white/40 font-light">
+                  Aktiv <span className="tabular-nums text-white/60 normal-case tracking-normal ml-1">{activeTodayCount}/{totalCount}</span>
+                </span>
                 <span className={`tabular-nums font-light ${
                   activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
                 }`}>
                   <AnimatedNumber value={activePct} />%
                 </span>
               </div>
-              <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+              <div className="relative h-1 rounded-full bg-white/[0.04] overflow-hidden">
                 <div
                   className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
                     activePct >= 80
@@ -324,10 +388,6 @@ export default function LiveTracking() {
                   }`}
                   style={{ width: `${Math.max(3, activePct)}%` }}
                 />
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-white/30 tabular-nums">
-                <span>{inactiveCount} noch nicht aktiv</span>
-                <span>Ziel: 100%</span>
               </div>
             </div>
 
@@ -686,12 +746,33 @@ function Row({
       ? `${Math.round(oldestDays)}d offen`
       : `${Math.max(1, Math.round(oldestDays * 24))}h offen`;
 
+  const avgRev = item.profile?.avgRevenue ?? 0;
+  const sparkPoints = item.profile?.recentRevenues ?? [];
+
+  // Pacing-bar mit Soll-Marker: heute / max(today, expected, avg)
+  const scaleMax = Math.max(today, expected, avgRev * 1.05, 1);
+  const todayPct = Math.min(100, (today / scaleMax) * 100);
+  const expectedPct = Math.min(100, (expected / scaleMax) * 100);
+
+  const actionColor =
+    item.lostRevenue >= 100
+      ? "text-rose-200"
+      : item.lostRevenue >= 30
+      ? "text-rose-300/90"
+      : item.surplusRevenue >= 30
+      ? "text-[hsl(40_70%_75%)]"
+      : tone === "watch"
+      ? "text-amber-100/90"
+      : tone === "dim"
+      ? "text-white/65"
+      : "text-white/85";
+
   return (
     <button
       onClick={() => onSelect({ name: item.name, platform: (item.live as any)?.platform ?? "" })}
       className={`group relative w-full rounded-2xl border px-4 py-3.5 text-left transition-all duration-300 hover:translate-y-[-1px] backdrop-blur-xl ${cardTone}`}
     >
-      {/* Header row: avatar + name + last seen */}
+      {/* Header */}
       <div className="flex items-center gap-3.5">
         <div className="relative shrink-0">
           <div className={`h-11 w-11 rounded-full border flex items-center justify-center text-[11px] font-light tracking-wider text-white/80 bg-gradient-to-br from-white/[0.07] to-white/[0.01] ${avatarRing}`}>
@@ -707,38 +788,64 @@ function Row({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[14.5px] text-white/95 font-light tracking-wide truncate">
-              {item.name}
-            </span>
+            <div className="flex items-baseline gap-2.5 min-w-0">
+              <span className="text-[14.5px] text-white/95 font-light tracking-wide truncate">
+                {item.name}
+              </span>
+              {sparkPoints.length >= 3 && (
+                <Sparkline points={sparkPoints} tone={tone} />
+              )}
+            </div>
             {sec !== null && (
               <span className="text-[10px] text-white/35 tracking-wider tabular-nums shrink-0">
                 {relTime(sec)}
               </span>
             )}
           </div>
-          <div className={`mt-0.5 text-[11px] font-light tracking-wide truncate ${reasonColor}`}>
-            {item.reason}
+          <div className={`mt-1 text-[12.5px] font-light tracking-wide truncate ${actionColor}`}>
+            {item.actionText}
           </div>
         </div>
       </div>
 
-      {/* Pacing bar */}
-      {pacingPct !== null && expected >= 20 && item.isActiveToday && (
-        <div className="mt-3 relative h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
+      {/* Heute / Schnitt */}
+      {(avgRev >= 5 || today > 0) && (
+        <div className="mt-3 flex items-baseline justify-between gap-3 text-[11px] tabular-nums">
+          <div className="font-light text-white/75">
+            <span className={`${today > 0 ? "text-white/90" : "text-white/45"} text-[13px]`}>
+              {Math.round(today)} €
+            </span>
+            <span className="text-white/30"> heute</span>
+          </div>
+          <div className="font-light text-white/35">
+            Ø {Math.round(avgRev)} €/Tag
+          </div>
+        </div>
+      )}
+
+      {/* Pacing-Bar mit Soll-Marker */}
+      {expected >= 5 && (
+        <div className="mt-2 relative h-[4px] rounded-full bg-white/[0.04] overflow-visible">
           <div
             className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
-              pacingPct >= 95
+              today >= expected
                 ? "bg-gradient-to-r from-emerald-400/60 to-emerald-300/80"
-                : pacingPct >= 60
+                : today >= expected * 0.6
                 ? "bg-gradient-to-r from-amber-300/60 to-amber-200/80"
-                : "bg-gradient-to-r from-rose-500/60 to-rose-300/80"
+                : "bg-gradient-to-r from-rose-500/70 to-rose-300/85"
             }`}
-            style={{ width: `${Math.max(3, pacingPct)}%` }}
+            style={{ width: `${Math.max(2, todayPct)}%` }}
+          />
+          {/* Soll-Marker */}
+          <div
+            className="absolute -top-1 h-[10px] w-[2px] rounded-sm bg-white/55"
+            style={{ left: `calc(${expectedPct}% - 1px)` }}
+            title={`Soll jetzt: ${Math.round(expected)} €`}
           />
         </div>
       )}
 
-      {/* Metrics row */}
+      {/* Metric Chips */}
       {item.live && (
         <div className="mt-3 flex items-center gap-1.5 flex-wrap">
           <MetricChip
@@ -772,6 +879,36 @@ function Row({
         </div>
       )}
     </button>
+  );
+}
+
+function Sparkline({ points, tone }: { points: number[]; tone: "urgent" | "watch" | "dim" | "running" }) {
+  const W = 56;
+  const H = 16;
+  if (points.length < 2) return null;
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = Math.max(1, max - min);
+  const step = W / (points.length - 1);
+  const path = points
+    .map((v, i) => {
+      const x = i * step;
+      const y = H - ((v - min) / range) * H;
+      return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const stroke =
+    tone === "urgent"
+      ? "hsl(0 80% 75% / 0.85)"
+      : tone === "watch"
+      ? "hsl(40 80% 70% / 0.85)"
+      : tone === "dim"
+      ? "hsl(0 0% 100% / 0.35)"
+      : "hsl(150 50% 70% / 0.7)";
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 opacity-90">
+      <path d={path} fill="none" stroke={stroke} strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
   );
 }
 
