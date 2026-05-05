@@ -552,24 +552,6 @@ export default function LiveTracking() {
               {lastSync !== null ? `· ${relTime(lastSync)} ago` : ""}
             </span>
           </div>
-          {searchOpen ? (
-            <Input
-              autoFocus
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onBlur={() => !search && setSearchOpen(false)}
-              placeholder="Suchen…"
-              className="h-8 w-44 text-xs bg-white/[0.03] border-white/[0.08]"
-            />
-          ) : (
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="text-white/30 hover:text-white/80 p-2 rounded-full hover:bg-white/[0.04] transition-colors"
-              aria-label="Suchen"
-            >
-              <Search className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
 
         {/* Mega-KPI Card — Aktivitäts-Fokus */}
