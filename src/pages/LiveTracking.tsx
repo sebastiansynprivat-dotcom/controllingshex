@@ -747,7 +747,7 @@ function MetricChip({
   title,
 }: {
   icon: typeof Sparkles;
-  value: number;
+  value: number | string;
   tone: "danger" | "warn" | "info" | "gold" | "muted";
   title?: string;
 }) {
