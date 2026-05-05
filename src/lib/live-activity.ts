@@ -44,12 +44,24 @@ export interface ChatterStatus {
   lastSeenSec: number | null;
 }
 
-const DAY_START = 6;
-const DAY_END = 24;
+// Schichttag startet um 04:00 lokal — vor 04:00 zählt noch zum Vortag.
+export const SHIFT_CUTOFF_HOUR = 4;
 
+export function shiftDate(now: Date = new Date()): string {
+  const d = new Date(now);
+  if (d.getHours() < SHIFT_CUTOFF_HOUR) d.setDate(d.getDate() - 1);
+  // local YYYY-MM-DD
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Tagesverlauf: 04:00 → 04:00 next day (24h)
 function dayProgress(now: Date): number {
   const h = now.getHours() + now.getMinutes() / 60;
-  return Math.max(0, Math.min(1, (h - DAY_START) / (DAY_END - DAY_START)));
+  const elapsed = (h - SHIFT_CUTOFF_HOUR + 24) % 24;
+  return Math.max(0, Math.min(1, elapsed / 24));
 }
 
 export function buildProfile(name: string, days: HistoryDay[]): ChatterProfile {
