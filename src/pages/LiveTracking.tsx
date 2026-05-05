@@ -220,6 +220,14 @@ export default function LiveTracking() {
     });
   }, [liveWindowMs]);
 
+  // Beim Workspace/Platform-Wechsel den Live-Now-State komplett resetten,
+  // damit keine Werte aus einer anderen Platform durchschimmern.
+  useEffect(() => {
+    setLiveActivityAt(new Map());
+    setServerLiveNow(null);
+    setLiveLog([]);
+  }, [platform]);
+
   // Hourly-Reload: alle 30s
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
