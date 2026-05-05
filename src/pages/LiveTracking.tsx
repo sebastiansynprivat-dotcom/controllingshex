@@ -208,7 +208,17 @@ export default function LiveTracking() {
           return merged;
         });
       });
-  }, [platform, tick]);
+  }, [platform, tick, liveWindowMs]);
+
+  // Bei Fensterwechsel veraltete Einträge sofort aus liveActivityAt entfernen
+  useEffect(() => {
+    const cutoff = Date.now() - liveWindowMs;
+    setLiveActivityAt((prev) => {
+      const next = new Map<string, number>();
+      prev.forEach((ts, key) => { if (ts >= cutoff) next.set(key, ts); });
+      return next;
+    });
+  }, [liveWindowMs]);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
