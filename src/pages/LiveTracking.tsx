@@ -317,7 +317,7 @@ export default function LiveTracking() {
       if ((!cur || cur < cutoff) && ts >= cutoff - 60_000) {
         // war noch aktiv, jetzt nicht mehr
         const display = displayNameFor(key);
-        pushEvent({ name: display, type: "expire", detail: "15 min Fenster abgelaufen" });
+        pushEvent({ name: display, type: "expire", detail: `${liveWindowMin} min Fenster abgelaufen` });
       }
     });
     prevLiveRef.current = new Map(liveActivityAt);
