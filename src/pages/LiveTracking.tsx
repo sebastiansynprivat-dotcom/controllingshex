@@ -220,6 +220,14 @@ export default function LiveTracking() {
     });
   }, [liveWindowMs]);
 
+  // Beim Workspace/Platform-Wechsel den Live-Now-State komplett resetten,
+  // damit keine Werte aus einer anderen Platform durchschimmern.
+  useEffect(() => {
+    setLiveActivityAt(new Map());
+    setServerLiveNow(null);
+    setLiveLog([]);
+  }, [platform]);
+
   // Hourly-Reload: alle 30s
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
@@ -286,6 +294,10 @@ export default function LiveTracking() {
           const today = shiftDate();
           const next = payload.new as LiveRow | undefined;
           const old = payload.old as LiveRow | undefined;
+
+          // Nur Events der aktuell aktiven Platform berücksichtigen
+          const evPlatform = String(next?.platform ?? old?.platform ?? "").toLowerCase();
+          if (evPlatform && evPlatform !== platform.toLowerCase()) return;
 
           // Echtzeit-Detektion: hat sich etwas getan, das auf einen aktiven Chatter hinweist?
           if (next && old && payload.eventType === "UPDATE") {
