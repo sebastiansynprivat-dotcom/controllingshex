@@ -13,6 +13,7 @@ interface LiveRow extends LiveRowLite {
 }
 
 type FilterKey = "all" | "active" | "weak" | "inactive";
+type SortKey = "smart" | "revenue" | "pacing" | "activity";
 
 function secondsSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
