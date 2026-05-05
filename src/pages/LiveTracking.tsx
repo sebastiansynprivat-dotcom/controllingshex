@@ -505,7 +505,9 @@ function MiniStat({
     <div>
       <div className="text-[9px] tracking-[0.22em] uppercase text-white/35 font-light">{label}</div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span className={`text-xl font-extralight tabular-nums ${valueColor}`}>{value}</span>
+        <span className={`text-xl font-extralight tabular-nums ${valueColor}`}>
+          {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
+        </span>
         {sub && <span className="text-[10px] text-white/30 tabular-nums">{sub}</span>}
       </div>
     </div>
