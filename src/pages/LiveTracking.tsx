@@ -650,19 +650,6 @@ export default function LiveTracking() {
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-white/30 font-light">
                   <span>letzte {liveWindowMin} min{serverLiveNow ? ` · sync ${relTime(secondsSince(serverLiveNow.computedAt))} ago` : ""}</span>
-                  <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.02] p-0.5">
-                    {LIVE_NOW_WINDOW_OPTIONS.map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={(e) => { e.stopPropagation(); saveLiveWindow(opt); }}
-                        className={`px-2 py-0.5 rounded-full text-[9px] tabular-nums transition-colors ${
-                          liveWindowMin === opt ? "bg-white/10 text-white/90" : "text-white/40 hover:text-white/70"
-                        }`}
-                      >
-                        {opt}m
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
