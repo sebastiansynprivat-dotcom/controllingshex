@@ -1,66 +1,90 @@
-## Ziel
+# Live-Tab — Handling & Filter Upgrade
 
-Live-Tracking auf „Geld-Hebel-Dashboard" umstellen: jede Karte zeigt sofort Lost Revenue, Trend und konkrete Action. Hero zeigt drei Money-Insights statt nur Aktiv-Quote. Smart-Sort priorisiert nach echtem Umsatz-Risiko.
+Ziel: Karten & Layout bleiben unangetastet. Nur das **Drumherum** (Filter, Sort, Suche, Insight-Chips, Debug-Log) wird kompakter, klarer und smarter.
 
----
+## Probleme heute
 
-## 1. Score & Lost-Revenue in `src/lib/live-activity.ts`
+1. **Zwei getrennte Steuer-Zeilen** (Filter-Chips + Sort-Chips) konkurrieren visuell, nehmen viel Höhe — auf 440px Mobile besonders störend.
+2. **Sort hat 5 Optionen** mit kryptischen Labels ("Prio (Ø/Tag)", "Pacing-Δ") — wirkt technisch, nicht produktiv.
+3. **Bucket-Ansicht** (Unter Pacing / Pause / Inaktiv / Läuft sauber) verschwindet, sobald irgendein Filter oder Sort gesetzt wird → man verliert die Übersicht.
+4. **Insight-Chips** ("Unter Pacing X · Heute noch nicht aktiv Y") dupliziert exakt die Filter-Chips drunter.
+5. **Suche hinter Icon** im Hero-Header — schwer zu finden, klein.
+6. **Debug-Log** ("Live-Log · X Events") ist prominent vor den Karten, obwohl es Diagnostik ist.
+7. **Sticky-Verhalten fehlt** — beim Scrollen verliert man Filter komplett aus dem Blick.
 
-Erweitere `ChatterStatus` um:
-- `lostRevenue: number` — abs. Wert des negativen Pacing-Deltas (0 wenn vorne dran)
-- `priorityScore: number` — 0-100, gewichtet aus Lost €, Avg/Tag, Unread, ältestem Chat, Stunden-seit-Aktivität
-- `actionText: string` — kurzer Imperativ („Anstoßen — 87 € Rückstand", „Chats abarbeiten · 12 offen", „Top Performer", etc.)
+## Neue Struktur
 
-Score-Formel (gekappt 0-100):
+```text
+┌─ Hero (Live-Pulse Karte + Mini-Stats)              [bleibt]
+├─ Toolbar  (sticky, eine Zeile)
+│   [Alle 24] [Aktiv 18] [Pacing 3] [Inaktiv 6]   🔍 ⇅
+├─ Buckets (immer sichtbar, auch bei Filter)
+│   • Unter Pacing
+│   • Pause
+│   • Inaktiv
+│   • Läuft sauber (collapsed)
+└─ Debug-Log (zusammengeklappt, ganz unten)
 ```
-score =
-   max(0, -delta) × 1.0
- + avgRev          × 0.3
- + unread          × 1.5
- + oldestDays      × 5.0
- + (active ? hoursSinceLastSeen × 2 : 0)
-```
-Action wird abgeleitet aus dominantem Faktor (Lost €, viele Unread, alter Chat, Inaktiv).
 
-## 2. Karten-Layout neu (`src/pages/LiveTracking.tsx` → `Row`)
+### 1. Eine smarte Toolbar (sticky)
 
-Pro Karte sichtbar (von oben nach unten):
-- **Header**: Avatar mit Status-Dot · Name · Sparkline (14d) · "8min" relTime
-- **Action-Zeile**: prominent, farbcodiert nach Tone — z. B. „Anstoßen — 87 € Rückstand"
-- **Heute-Vergleich**: `142 € heute · Ø 230 €/Tag` als feine Zeile
-- **Pacing-Bar mit „Soll-Marker"**: vertikaler Strich an erwarteter Position
-- **Chip-Reihe**: Ungelesen, Ältester offener Chat (nur wenn ≥1d), Mass-DMs
+- **Segmented Filter** (Alle / Aktiv / Pacing / Inaktiv) mit Counts — bleibt, aber als echtes Segmented-Control mit aktivem Indikator-Pill statt einzelner Buttons.
+- **Suche** als inline-Input rechts (immer sichtbar, schmal, expandiert beim Fokus). Kein Icon-Toggle mehr.
+- **Sort als Dropdown-Menü** (kein Chip-Streifen). Default: "Smart". Reduzierte Optionen:
+  - Smart (Prio-Score)
+  - Höchster Verlust heute
+  - Aktivität (zuletzt online)
+  - Umsatz heute
+  - Ø Tagesumsatz
+- Toolbar wird `sticky top-0` mit Backdrop-Blur, damit man beim Scrollen Filter und Suche behält.
 
-Lost-Revenue ist die optisch größte Zahl in der Action-Zeile (rot/amber je nach Höhe).
+### 2. Insight-Chips entfernen
 
-Neue Sub-Komponente `<Sparkline points={number[]} />` (inline SVG, 60×16, Stroke aus Status-Tone).
+Dupliziert die Filter — ersatzlos streichen. Die Counts stehen bereits in den Filter-Pills und in den Bucket-Headern.
 
-Sparkline-Daten: aus den bereits geladenen `profiles` ableiten. Erweiterung von `buildProfile`: zusätzlich `recentRevenues: number[]` (letzte 14 Tage, chronologisch).
+### 3. Buckets immer sichtbar
 
-## 3. Hero: 3 Money-Insights
+Aktuell nur bei `filter=all && sort=smart`. Neu:
+- **Bucket-Layout ist Default** und bleibt **bei jedem Filter**.
+- Filter blendet einfach die anderen Buckets aus (z.B. "Pacing" → nur Pacing-Bucket sichtbar).
+- Sort wirkt **innerhalb** der Buckets.
+- Suche filtert quer durch alle Buckets.
 
-Bisherige Aktiv-Quote bleibt als kleine Sekundär-Info. Stattdessen prominent:
-- **Lost heute** (Σ aller `lostRevenue`) — große Zahl, gold/rot
-- **Kritisch** (Anzahl mit `lostRevenue > 100 €`) — klickbar → setzt Filter
-- **Top heute** (Chatter mit höchstem positiven Pacing-Delta + dessen +€)
+### 4. "Läuft sauber"-Bucket smarter
 
-Layout: 3-Spalten-Grid statt vertikalem KPI-Block. Heatmap-Streifen bleibt unter den Stats.
+- Standardmäßig collapsed (wie heute), aber im Header zusätzlich Σ-Umsatz und größter Surplus zeigen ("12 Chatter · +840 € heute").
+- Auto-expand wenn das einzige nicht-leere Bucket nach Filterung.
 
-## 4. Smart-Sort nutzt `priorityScore`
+### 5. Debug-Log nach unten
 
-In `src/pages/LiveTracking.tsx`:
-- `allStatuses.sort` Bucket-Reihenfolge bleibt (weak → idle → inactive → strong), aber innerhalb jedes Buckets nach `priorityScore` desc statt nach Revenue.
-- Sort-Tab „Smart" sortiert flach nach `priorityScore` desc, zeigt also wirklich „wo verliere ich gerade am meisten Geld" zuerst.
-- Bestehende Sort-Tabs (Prio Ø/Tag, Umsatz, Pacing-Δ, Aktivität) bleiben unverändert als Alternativen.
+- Aus dem Hero-Bereich entfernen.
+- Kleines, unauffälliges "Live-Log"-Akkordeon **am Ende der Seite** (unter den Karten).
+- Zähler bleibt sichtbar, Default collapsed.
 
----
+### 6. Empty-States pro Bucket
 
-## Bewusst nicht im Scope
+Statt globalem "Keine Chatter passen zum Filter": pro leerem Bucket eine subtile Microcopy ("Niemand unter Pacing — gut so 👌🏻"), nur wenn aktiv gefiltert.
 
-- Keine neuen DB-Tabellen oder Edge-Functions, alles aus vorhandenen Daten (`chatter_history_live` + `chatter_history`).
-- Keine Push-Notifications oder Realtime-Sound-Alerts.
-- Sparkline rein clientseitig (SVG, keine Chart-Lib).
+## Technische Umsetzung
 
-## Aufwand
+Alle Änderungen in `src/pages/LiveTracking.tsx`:
 
-Eine erweiterte Lib-Datei (~40 neue Zeilen) und eine größere UI-Refactor in `LiveTracking.tsx` (~120 geänderte Zeilen). Keine Migration nötig.
+- **Toolbar-Block** (Zeilen ~759-815) komplett neu: ein sticky `<div>` mit Segmented-Filter, Search-Input und Sort-`DropdownMenu` (`@/components/ui/dropdown-menu` ist vorhanden).
+- **Insight-Chips Block** (Zeilen ~732-755) entfernen.
+- **Search im Hero** (Zeilen ~561-578) entfernen, nur Live-Status-Indikator behalten.
+- **Render-Logik** (Zeilen ~817-864): Bucket-Branch wird zum Default; der "flat list"-Branch entfällt. `buckets` aus `visible` nutzen, damit Filter+Sort+Suche darin wirken.
+- **Sort-Optionen** in `SortKey` reduzieren/umbenennen:
+  ```ts
+  type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
+  ```
+  und Sort-Reducer entsprechend anpassen (`lost` = `b.lostRevenue - a.lostRevenue`).
+- **Debug-Log Block** (Zeilen ~679-729) ans Ende der Seite verschieben (vor `ChatterSlideOver`).
+- Sticky: `sticky top-0 z-20 -mx-* px-* py-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.05]`.
+
+Keine Änderungen an: Hero-KPI-Karte, `Row`-Komponente, `Bucket`-Komponente, Datenlogik, Realtime-Subscriptions, Server-Live-Now-Logik, `live-activity.ts`.
+
+## Out of Scope
+
+- Karten-Design (Row) — User mag es so.
+- KPI-Hero-Karte — User mag es so.
+- Datenmodell / Edge Functions — funktionieren laut User.
