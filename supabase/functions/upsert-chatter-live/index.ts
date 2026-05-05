@@ -63,13 +63,59 @@ Deno.serve(async (req) => {
   }
 
   const today = new Date().toISOString().slice(0, 10);
+
+  function cleanWs(s: string): string {
+    return s.trim().replace(/\s+/g, " ");
+  }
+  function titleCase(s: string): string {
+    return cleanWs(s)
+      .toLowerCase()
+      .split(" ")
+      .map((part) =>
+        part
+          .split("-")
+          .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : p))
+          .join("-"),
+      )
+      .join(" ");
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // Build canonical-name lookup from chatter_history per platform.
+  const platforms = Array.from(
+    new Set(rowsInput.map((r) => (r?.platform ?? "Maloum"))),
+  );
+  const canonical = new Map<string, string>(); // key: `${platformLower}|${nameLower}` → canonical name
+  for (const p of platforms) {
+    const { data: hist } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date")
+      .eq("platform", p)
+      .order("analysis_date", { ascending: false })
+      .limit(5000);
+    for (const h of hist ?? []) {
+      const name = (h as any).chatter_name as string | null;
+      if (!name) continue;
+      const key = `${p.toLowerCase()}|${cleanWs(name).toLowerCase()}`;
+      if (!canonical.has(key)) canonical.set(key, cleanWs(name));
+    }
+  }
+
   const rows = rowsInput.map((r) => {
     if (!r || typeof r.chatter_name !== "string" || r.chatter_name.trim() === "") {
       throw new Error("chatter_name is required for each row");
     }
+    const platform = r.platform ?? "Maloum";
+    const cleaned = cleanWs(r.chatter_name);
+    const lookupKey = `${platform.toLowerCase()}|${cleaned.toLowerCase()}`;
+    const canonicalName = canonical.get(lookupKey) ?? titleCase(cleaned);
     return {
-      platform: r.platform ?? "Maloum",
-      chatter_name: r.chatter_name,
+      platform,
+      chatter_name: canonicalName,
       telegram_id: r.telegram_id ?? null,
       revenue: Number(r.revenue ?? 0),
       mass_dms: Number(r.mass_dms ?? 0),
@@ -79,11 +125,6 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
   });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
 
   const { data, error } = await supabase
     .from("chatter_history_live")
