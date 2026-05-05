@@ -255,12 +255,8 @@ export default function LiveTracking() {
 
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
-  // Jetzt online = wirklich live: zuletzt gesehen < 10 Min UND Aktivität (strong/weak, kein idle)
-  const liveNowCount = allStatuses.filter((s) => {
-    if (s.status !== "active_strong" && s.status !== "active_weak") return false;
-    const updated = s.live?.updated_at ? new Date(s.live.updated_at).getTime() : 0;
-    return updated > 0 && Date.now() - updated < 10 * 60 * 1000;
-  }).length;
+  // Jetzt online = echte Aktivität in der aktuellen Stunde (Revenue, DMs oder Chats abgearbeitet)
+  const liveNowCount = allStatuses.filter((s) => liveActiveNames.has(normName(s.name))).length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
