@@ -396,6 +396,23 @@ export default function LiveTracking() {
                   style={{ width: `${Math.max(3, activePct)}%` }}
                 />
               </div>
+
+              {/* Jetzt online — wirklich live */}
+              <div className="flex items-center justify-between pt-2 text-[10px] tracking-[0.18em] uppercase">
+                <span className="text-white/40 font-light flex items-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    {liveNowCount > 0 && (
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                    )}
+                    <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${liveNowCount > 0 ? "bg-emerald-400" : "bg-white/20"}`} />
+                  </span>
+                  Jetzt online
+                </span>
+                <span className={`tabular-nums font-light ${liveNowCount > 0 ? "text-emerald-300/90" : "text-white/40"}`}>
+                  <AnimatedNumber value={liveNowCount} />
+                  <span className="text-white/25 ml-1">/ {totalCount}</span>
+                </span>
+              </div>
             </div>
 
             {/* Heatmap-Streifen: 24h Aktivität */}
