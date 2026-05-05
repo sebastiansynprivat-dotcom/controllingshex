@@ -754,10 +754,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             <div className="p-4 sm:p-6 pb-16">
               <ProfileSkeleton compact />
             </div>
-          ) : history.length === 0 ? (
+          ) : history.length === 0 && !liveProfile ? (
             <div className="p-4 sm:p-6">
               <p className="text-center text-white/25 font-light py-20 text-sm tracking-wide italic">
-                Noch keine historischen Daten vorhanden.
+                Noch keine Daten vorhanden.
               </p>
             </div>
           ) : (
