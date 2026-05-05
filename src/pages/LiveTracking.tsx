@@ -744,6 +744,12 @@ export default function LiveTracking() {
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">
           {search ? `Keine Treffer für „${search}".` : "Keine Chatter passen zum Filter."}
         </p>
+      ) : sortKey !== "smart" ? (
+        <div className="space-y-2">
+          {visible.map((s) => (
+            <Row key={s.name} item={s} onSelect={setSelected} />
+          ))}
+        </div>
       ) : (
         <div className="space-y-10">
           {(filter === "all" || filter === "weak") && buckets.weak.length > 0 && (
