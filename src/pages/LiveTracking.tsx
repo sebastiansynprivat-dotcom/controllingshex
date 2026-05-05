@@ -689,14 +689,27 @@ function Row({
               {item.reason}
             </span>
             {item.live && (
-              <div className="flex items-center gap-2.5 text-[10px] tabular-nums text-white/40 shrink-0">
-                <span className={(item.live.unread_chats ?? 0) >= 10 ? "text-rose-200/90" : ""}>
-                  {item.live.unread_chats}<span className="text-white/25 ml-0.5">u</span>
-                </span>
-                <span className="text-white/15">·</span>
-                <span>
-                  {item.live.mass_dms}<span className="text-white/25 ml-0.5">dm</span>
-                </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <MetricChip
+                  icon={Inbox}
+                  value={item.live.unread_chats ?? 0}
+                  tone={
+                    (item.live.unread_chats ?? 0) >= 20
+                      ? "danger"
+                      : (item.live.unread_chats ?? 0) >= 10
+                      ? "warn"
+                      : (item.live.unread_chats ?? 0) > 0
+                      ? "info"
+                      : "muted"
+                  }
+                  title="Ungelesene Chats"
+                />
+                <MetricChip
+                  icon={Megaphone}
+                  value={item.live.mass_dms ?? 0}
+                  tone={(item.live.mass_dms ?? 0) > 0 ? "gold" : "muted"}
+                  title="Mass-DMs heute"
+                />
               </div>
             )}
           </div>
