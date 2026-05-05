@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Input } from "@/components/ui/input";
-import { buildProfile, computeStatus, shiftDate, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
+import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -58,11 +58,76 @@ export default function LiveTracking() {
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
   const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
-  type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed"; detail: string; expiresAt?: number };
+  type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed" | "tz"; detail: string; expiresAt?: number };
   const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
   const pushEvent = (ev: Omit<LiveEvent, "id" | "ts"> & { ts?: number }) => {
     setLiveLog((prev) => [{ id: Math.random().toString(36).slice(2), ts: ev.ts ?? Date.now(), ...ev }, ...prev].slice(0, 80));
   };
+
+  // Zeitzonen- & Konsistenz-Check (einmal beim Mount + alle 10 min wiederholt)
+  useEffect(() => {
+    const runCheck = async () => {
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const bp = berlinParts(new Date());
+      const browserH = new Date().getHours();
+
+      // 1) Browser-TZ ≠ Europe/Berlin → nicht kritisch (wir rechnen ohnehin in Berlin), aber loggen
+      if (browserTz && browserTz !== APP_TIMEZONE) {
+        pushEvent({
+          name: "Zeitzonen-Check",
+          type: "tz",
+          detail: `Browser ${browserTz} · App rechnet in ${APP_TIMEZONE} (${String(bp.h).padStart(2,"0")}:${String(bp.min).padStart(2,"0")})`,
+        });
+      }
+
+      // 2) Browser-Stunde vs. Berlin-Stunde Diff > 0 → DST-/Offset-Hinweis
+      const diff = Math.abs(((browserH - bp.h) + 24) % 24);
+      const diffNorm = diff > 12 ? 24 - diff : diff;
+      if (diffNorm > 0 && browserTz === APP_TIMEZONE) {
+        pushEvent({
+          name: "Zeitzonen-Drift",
+          type: "tz",
+          detail: `Browser ${browserH}h ≠ Berlin ${bp.h}h (Δ${diffNorm}h) – Systemuhr prüfen`,
+        });
+      }
+
+      // 3) DB-Konsistenz: gibt es chatter_hourly_stats-Zeilen mit updated_at > now()?
+      try {
+        const { data } = await supabase
+          .from("chatter_hourly_stats")
+          .select("chatter_name, updated_at")
+          .gt("updated_at", new Date(Date.now() + 5 * 60 * 1000).toISOString())
+          .limit(3);
+        if (data && data.length > 0) {
+          pushEvent({
+            name: "DB-Konsistenz",
+            type: "tz",
+            detail: `${data.length} Stat-Zeilen liegen >5 min in der Zukunft (TZ falsch?)`,
+          });
+        }
+      } catch {/* still */}
+
+      // 4) Schicht-Date drift: Berlin sagt "vor 04:00" → shiftDate sollte gestern liefern
+      const shiftToday = shiftDate();
+      const expected = bp.h < 4
+        ? (() => {
+            const d = new Date(Date.UTC(bp.y, bp.m - 1, bp.d));
+            d.setUTCDate(d.getUTCDate() - 1);
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
+          })()
+        : `${bp.y}-${String(bp.m).padStart(2,"0")}-${String(bp.d).padStart(2,"0")}`;
+      if (shiftToday !== expected) {
+        pushEvent({
+          name: "Schicht-Date Drift",
+          type: "tz",
+          detail: `shiftDate=${shiftToday} ≠ erwartet ${expected}`,
+        });
+      }
+    };
+    runCheck();
+    const id = setInterval(runCheck, 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const today = shiftDate();
@@ -544,12 +609,14 @@ export default function LiveTracking() {
                     ev.type === "dm" ? "text-sky-300 bg-sky-400/10" :
                     ev.type === "unread" ? "text-amber-200 bg-amber-400/10" :
                     ev.type === "expire" ? "text-rose-300 bg-rose-400/10" :
+                    ev.type === "tz" ? "text-amber-300 bg-amber-400/10" :
                     "text-white/50 bg-white/[0.05]";
                   const icon =
                     ev.type === "sale" ? "💰" :
                     ev.type === "dm" ? "📤" :
                     ev.type === "unread" ? "📥" :
-                    ev.type === "expire" ? "⌛" : "·";
+                    ev.type === "expire" ? "⌛" :
+                    ev.type === "tz" ? "🕒" : "·";
                   return (
                     <div key={ev.id} className="flex items-center gap-3 px-4 py-2 text-[11px]">
                       <span className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-md text-[11px] ${tone}`}>{icon}</span>
