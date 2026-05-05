@@ -34,6 +34,8 @@ function normName(s: string): string {
   return s.trim().toLowerCase();
 }
 
+const LIVE_NOW_WINDOW_MS = 70 * 60 * 1000;
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -53,13 +55,13 @@ export default function LiveTracking() {
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
-  const [liveActiveNames, setLiveActiveNames] = useState<Set<string>>(new Set());
+  const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     const today = shiftDate();
     supabase
       .from("chatter_hourly_stats")
-      .select("hour, updates_seen, chatter_name, revenue, mass_dms, unread_delta")
+      .select("hour, updates_seen, chatter_name, revenue, mass_dms, unread_delta, updated_at")
       .eq("date", today)
       .ilike("platform", platform)
       .then(({ data }) => {
@@ -73,30 +75,27 @@ export default function LiveTracking() {
         map.forEach((set, h) => out.set(h, set.size));
         setHourlyByHour(out);
 
-        // Jetzt online: Aktivität in dieser oder vorheriger Stunde (Europe/Berlin)
-        const berlinHour = Number(
-          new Intl.DateTimeFormat("en-GB", {
-            timeZone: "Europe/Berlin",
-            hour: "2-digit",
-            hour12: false,
-          }).format(new Date()),
-        );
-        const prevHour = (berlinHour - 1 + 24) % 24;
-        const live = new Set<string>();
+        // Jetzt online: rollierende echte Aktivität aus den letzten ~70 Minuten.
+        // Wichtig: hourly_stats wird in UTC geschrieben – deshalb nicht nach Berlin-Stunde filtern.
+        const liveCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+        const live = new Map<string, number>();
         (data ?? []).forEach((r: any) => {
-          const h = Number(r.hour);
-          if (h !== berlinHour && h !== prevHour) return;
+          const updatedAt = new Date(r.updated_at ?? 0).getTime();
+          if (!Number.isFinite(updatedAt) || updatedAt < liveCutoff) return;
           const rev = Number(r.revenue) || 0;
           const dms = Number(r.mass_dms) || 0;
           const unreadDelta = Number(r.unread_delta) || 0;
           if (rev > 0 || dms > 0 || unreadDelta < 0) {
-            live.add(normName(String(r.chatter_name ?? "")));
+            const key = normName(String(r.chatter_name ?? ""));
+            if (key) live.set(key, updatedAt);
           }
         });
-        // Realtime-Hits der letzten 15 Min nicht überschreiben → mergen
-        setLiveActiveNames((prev) => {
-          const merged = new Set(prev);
-          live.forEach((n) => merged.add(n));
+        setLiveActivityAt((prev) => {
+          const merged = new Map<string, number>();
+          prev.forEach((ts, key) => {
+            if (ts >= liveCutoff) merged.set(key, ts);
+          });
+          live.forEach((ts, key) => merged.set(key, Math.max(merged.get(key) ?? 0, ts)));
           return merged;
         });
       });
@@ -169,19 +168,11 @@ export default function LiveTracking() {
             if (revUp || dmsUp || unreadDown) {
               const key = normName(next.chatter_name ?? "");
               if (key) {
-                setLiveActiveNames((prev) => {
-                  const copy = new Set(prev);
-                  copy.add(key);
+                setLiveActivityAt((prev) => {
+                  const copy = new Map(prev);
+                  copy.set(key, Date.now());
                   return copy;
                 });
-                // 15 Min später wieder rausnehmen, falls keine neue Aktivität
-                setTimeout(() => {
-                  setLiveActiveNames((prev) => {
-                    const copy = new Set(prev);
-                    copy.delete(key);
-                    return copy;
-                  });
-                }, 15 * 60 * 1000);
               }
             }
           }
@@ -290,7 +281,8 @@ export default function LiveTracking() {
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
   // Jetzt online = echte Aktivität in der aktuellen Stunde (Revenue, DMs oder Chats abgearbeitet)
-  const liveNowCount = allStatuses.filter((s) => liveActiveNames.has(normName(s.name))).length;
+  const liveNowCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+  const liveNowCount = allStatuses.filter((s) => (liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff).length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
