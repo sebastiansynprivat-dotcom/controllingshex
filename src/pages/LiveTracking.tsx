@@ -227,6 +227,8 @@ export default function LiveTracking() {
     });
     prevLiveRef.current = new Map(liveActivityAt);
   }, [liveActivityAt, tick]);
+
+  const displayNameFor = (key: string): string => {
     const live = rows.find((r) => normName(r.chatter_name) === key);
     if (live) return live.chatter_name;
     return key.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
