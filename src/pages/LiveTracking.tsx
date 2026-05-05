@@ -739,9 +739,6 @@ function Row({
     </button>
   );
 }
-    </button>
-  );
-}
 
 function MetricChip({
   icon: Icon,
