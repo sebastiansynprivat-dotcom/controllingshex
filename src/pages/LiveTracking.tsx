@@ -53,12 +53,13 @@ export default function LiveTracking() {
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
+  const [liveActiveNames, setLiveActiveNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const today = shiftDate();
     supabase
       .from("chatter_hourly_stats")
-      .select("hour, updates_seen, chatter_name")
+      .select("hour, updates_seen, chatter_name, revenue, mass_dms, unread_delta")
       .eq("date", today)
       .ilike("platform", platform)
       .then(({ data }) => {
@@ -71,6 +72,27 @@ export default function LiveTracking() {
         const out = new Map<number, number>();
         map.forEach((set, h) => out.set(h, set.size));
         setHourlyByHour(out);
+
+        // Jetzt online: Chatter mit echter Aktivität in der aktuellen Stunde (Europe/Berlin)
+        const berlinHour = Number(
+          new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Europe/Berlin",
+            hour: "2-digit",
+            hour12: false,
+          }).format(new Date()),
+        );
+        const live = new Set<string>();
+        (data ?? []).forEach((r: any) => {
+          if (Number(r.hour) !== berlinHour) return;
+          const rev = Number(r.revenue) || 0;
+          const dms = Number(r.mass_dms) || 0;
+          const unreadDelta = Number(r.unread_delta) || 0;
+          // echte Arbeit: Umsatz, DMs verschickt, oder Chats abgearbeitet (negative delta)
+          if (rev > 0 || dms > 0 || unreadDelta < 0) {
+            live.add(normName(String(r.chatter_name ?? "")));
+          }
+        });
+        setLiveActiveNames(live);
       });
   }, [platform, tick]);
 
