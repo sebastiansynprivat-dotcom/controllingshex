@@ -55,7 +55,7 @@ export default function LiveTracking() {
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
-  const [liveActiveNames, setLiveActiveNames] = useState<Set<string>>(new Set());
+  const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     const today = shiftDate();
@@ -78,7 +78,7 @@ export default function LiveTracking() {
         // Jetzt online: rollierende echte Aktivität aus den letzten ~70 Minuten.
         // Wichtig: hourly_stats wird in UTC geschrieben – deshalb nicht nach Berlin-Stunde filtern.
         const liveCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
-        const live = new Set<string>();
+        const live = new Map<string, number>();
         (data ?? []).forEach((r: any) => {
           const updatedAt = new Date(r.updated_at ?? 0).getTime();
           if (!Number.isFinite(updatedAt) || updatedAt < liveCutoff) return;
@@ -86,13 +86,16 @@ export default function LiveTracking() {
           const dms = Number(r.mass_dms) || 0;
           const unreadDelta = Number(r.unread_delta) || 0;
           if (rev > 0 || dms > 0 || unreadDelta < 0) {
-            live.add(normName(String(r.chatter_name ?? "")));
+            const key = normName(String(r.chatter_name ?? ""));
+            if (key) live.set(key, updatedAt);
           }
         });
-        // Realtime-Hits der letzten 15 Min nicht überschreiben → mergen
-        setLiveActiveNames((prev) => {
-          const merged = new Set(prev);
-          live.forEach((n) => merged.add(n));
+        setLiveActivityAt((prev) => {
+          const merged = new Map<string, number>();
+          prev.forEach((ts, key) => {
+            if (ts >= liveCutoff) merged.set(key, ts);
+          });
+          live.forEach((ts, key) => merged.set(key, Math.max(merged.get(key) ?? 0, ts)));
           return merged;
         });
       });
