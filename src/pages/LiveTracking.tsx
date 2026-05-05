@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, AlertTriangle, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Clock, Moon, Sparkles } from "lucide-react";
+import { Search, AlertTriangle, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Clock, Moon, Sparkles, MessageCircle, Send, Inbox, Megaphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
@@ -689,19 +689,67 @@ function Row({
               {item.reason}
             </span>
             {item.live && (
-              <div className="flex items-center gap-2.5 text-[10px] tabular-nums text-white/40 shrink-0">
-                <span className={(item.live.unread_chats ?? 0) >= 10 ? "text-rose-200/90" : ""}>
-                  {item.live.unread_chats}<span className="text-white/25 ml-0.5">u</span>
-                </span>
-                <span className="text-white/15">·</span>
-                <span>
-                  {item.live.mass_dms}<span className="text-white/25 ml-0.5">dm</span>
-                </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <MetricChip
+                  icon={Inbox}
+                  value={item.live.unread_chats ?? 0}
+                  tone={
+                    (item.live.unread_chats ?? 0) >= 20
+                      ? "danger"
+                      : (item.live.unread_chats ?? 0) >= 10
+                      ? "warn"
+                      : (item.live.unread_chats ?? 0) > 0
+                      ? "info"
+                      : "muted"
+                  }
+                  title="Ungelesene Chats"
+                />
+                <MetricChip
+                  icon={Megaphone}
+                  value={item.live.mass_dms ?? 0}
+                  tone={(item.live.mass_dms ?? 0) > 0 ? "gold" : "muted"}
+                  title="Mass-DMs heute"
+                />
               </div>
             )}
           </div>
         </div>
       </div>
     </button>
+  );
+}
+
+function MetricChip({
+  icon: Icon,
+  value,
+  tone,
+  title,
+}: {
+  icon: typeof Sparkles;
+  value: number;
+  tone: "danger" | "warn" | "info" | "gold" | "muted";
+  title?: string;
+}) {
+  const styles = {
+    danger:
+      "border-rose-400/30 bg-rose-500/12 text-rose-100 shadow-[inset_0_1px_0_hsl(0_90%_80%/0.10)]",
+    warn:
+      "border-amber-300/25 bg-amber-400/10 text-amber-100",
+    info:
+      "border-white/[0.10] bg-white/[0.05] text-white/85",
+    gold:
+      "border-[hsl(40_45%_55%/0.28)] bg-[hsl(40_50%_55%/0.10)] text-[hsl(40_75%_82%)]",
+    muted:
+      "border-white/[0.05] bg-white/[0.02] text-white/30",
+  }[tone];
+  const iconOpacity = tone === "muted" ? "opacity-50" : "opacity-90";
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 px-1.5 h-5 rounded-md border text-[10px] font-light tabular-nums tracking-wide transition-colors ${styles}`}
+    >
+      <Icon className={`h-2.5 w-2.5 ${iconOpacity}`} />
+      {value}
+    </span>
   );
 }
