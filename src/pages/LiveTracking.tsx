@@ -168,19 +168,11 @@ export default function LiveTracking() {
             if (revUp || dmsUp || unreadDown) {
               const key = normName(next.chatter_name ?? "");
               if (key) {
-                setLiveActiveNames((prev) => {
-                  const copy = new Set(prev);
-                  copy.add(key);
+                setLiveActivityAt((prev) => {
+                  const copy = new Map(prev);
+                  copy.set(key, Date.now());
                   return copy;
                 });
-                // 15 Min später wieder rausnehmen, falls keine neue Aktivität
-                setTimeout(() => {
-                  setLiveActiveNames((prev) => {
-                    const copy = new Set(prev);
-                    copy.delete(key);
-                    return copy;
-                  });
-                }, 15 * 60 * 1000);
               }
             }
           }
@@ -289,7 +281,8 @@ export default function LiveTracking() {
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
   // Jetzt online = echte Aktivität in der aktuellen Stunde (Revenue, DMs oder Chats abgearbeitet)
-  const liveNowCount = allStatuses.filter((s) => liveActiveNames.has(normName(s.name))).length;
+  const liveNowCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+  const liveNowCount = allStatuses.filter((s) => (liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff).length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
