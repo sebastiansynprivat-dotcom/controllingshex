@@ -809,3 +809,87 @@ function MetricChip({
     </span>
   );
 }
+
+function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const startRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    fromRef.current = display;
+    startRef.current = null;
+    const target = value;
+    const from = display;
+    const diff = target - from;
+    if (diff === 0) return;
+
+    const step = (ts: number) => {
+      if (startRef.current == null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const t = Math.min(1, elapsed / duration);
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = from + diff * eased;
+      setDisplay(diff > 0 ? Math.min(target, next) : Math.max(target, next));
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, duration]);
+
+  return <>{Math.round(display).toLocaleString("de-DE")}</>;
+}
+
+function HeatmapStrip({ data }: { data: Map<number, number> }) {
+  const nowH = new Date().getHours();
+  const max = Math.max(1, ...Array.from(data.values()));
+  const cells = Array.from({ length: 24 }, (_, h) => {
+    const v = data.get(h) ?? 0;
+    const intensity = v / max;
+    return { h, v, intensity };
+  });
+  return (
+    <div className="mt-6 pt-5 border-t border-white/[0.05]">
+      <div className="flex items-center justify-between text-[9px] tracking-[0.24em] uppercase text-white/35 font-light mb-2">
+        <span>24h Aktivität</span>
+        <span className="tabular-nums text-white/25 normal-case tracking-normal">jetzt {String(nowH).padStart(2, "0")}:00</span>
+      </div>
+      <div className="flex items-end gap-[3px] h-9">
+        {cells.map(({ h, v, intensity }) => {
+          const isNow = h === nowH;
+          const height = Math.max(8, intensity * 100);
+          const opacity = v === 0 ? 0.08 : 0.25 + intensity * 0.75;
+          return (
+            <div
+              key={h}
+              title={`${String(h).padStart(2, "0")}:00 · ${v} aktiv`}
+              className="flex-1 relative group"
+            >
+              <div
+                className={`w-full rounded-[2px] transition-all ${
+                  isNow
+                    ? "bg-gradient-to-t from-[hsl(40_60%_55%)] to-[hsl(40_75%_72%)]"
+                    : "bg-gradient-to-t from-white/40 to-white/70"
+                }`}
+                style={{
+                  height: `${height}%`,
+                  opacity: isNow ? 1 : opacity,
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[8px] text-white/20 tabular-nums">
+        <span>04</span>
+        <span>10</span>
+        <span>16</span>
+        <span>22</span>
+      </div>
+    </div>
+  );
+}
