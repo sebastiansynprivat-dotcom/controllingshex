@@ -237,83 +237,84 @@ export default function LiveTracking() {
           )}
         </div>
 
-        {/* Mega-KPI Card */}
+        {/* Mega-KPI Card — Aktivitäts-Fokus */}
         <div className="relative overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.015] to-transparent p-6 shadow-[0_20px_60px_-20px_hsl(40_45%_45%/0.18),inset_0_1px_0_hsl(0_0%_100%/0.06)]">
-          {/* gold glow */}
           <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-[hsl(40_50%_55%/0.12)] blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-[hsl(40_40%_50%/0.06)] blur-3xl" />
 
           <div className="relative">
             <div className="text-[10px] tracking-[0.32em] uppercase text-white/40 font-light">
-              Revenue heute
+              Aktiv heute
             </div>
             <div className="mt-2 flex items-end gap-3">
               <div className="font-extralight tabular-nums leading-none gold-text text-[56px] sm:text-[64px] tracking-tight">
-                {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(sumRevenue)}
-                <span className="text-2xl font-light text-white/40 ml-1">€</span>
+                {activeTodayCount}
+                <span className="text-2xl font-light text-white/40 ml-2">/ {totalCount}</span>
               </div>
             </div>
 
-            {/* Pacing bar */}
+            {/* Aktivitäts-Bar */}
             <div className="mt-5 space-y-2">
               <div className="flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
-                <span className="text-white/40 font-light">Pacing vs. Erwartung</span>
+                <span className="text-white/40 font-light">Quote heute</span>
                 <span className={`tabular-nums font-light ${
-                  sumDelta >= 0 ? "text-emerald-300/90" : "text-rose-300/90"
+                  activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
                 }`}>
-                  {sumDelta >= 0 ? "+" : ""}{fmtEur(sumDelta)} · {pacingPct}%
+                  {activePct}%
                 </span>
               </div>
               <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
                 <div
                   className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
-                    sumDelta >= 0
+                    activePct >= 80
                       ? "bg-gradient-to-r from-emerald-400/60 to-emerald-300/80"
-                      : "bg-gradient-to-r from-rose-500/50 to-amber-300/70"
+                      : activePct >= 50
+                      ? "bg-gradient-to-r from-amber-400/60 to-amber-200/80"
+                      : "bg-gradient-to-r from-rose-500/60 to-rose-300/80"
                   }`}
-                  style={{ width: `${Math.min(100, Math.max(4, pacingPct))}%` }}
+                  style={{ width: `${Math.max(3, activePct)}%` }}
                 />
-                {/* 100% marker */}
-                <div className="absolute inset-y-0 left-full w-px -translate-x-px bg-white/30" />
               </div>
               <div className="flex items-center justify-between text-[10px] text-white/30 tabular-nums">
-                <span>0</span>
-                <span>Erwartet jetzt: {fmtEur(expectedSum)}</span>
+                <span>{inactiveCount} noch nicht aktiv</span>
+                <span>Ziel: 100%</span>
               </div>
             </div>
 
             {/* Mini stats row */}
             <div className="mt-6 grid grid-cols-3 gap-3 pt-5 border-t border-white/[0.05]">
-              <MiniStat label="Aktiv" value={String(activeTodayCount)} sub={`/${allStatuses.length}`} tone="ok" />
-              <MiniStat label="Unter Pacing" value={String(buckets.weak.length)} tone={buckets.weak.length > 0 ? "warn" : undefined} />
+              <MiniStat label="Mass-DMs" value={String(sumDms)} />
+              <MiniStat label="Σ Ungelesen" value={String(sumUnread)} tone={sumUnread > 100 ? "warn" : undefined} />
               <MiniStat label="Inaktiv" value={String(inactiveCount)} tone={inactiveCount > 0 ? "dim" : undefined} />
             </div>
           </div>
         </div>
 
-        {/* Insight chips: what matters now */}
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          {topPerformer && (
-            <InsightCard
-              icon={Sparkles}
-              tone="gold"
-              label="Top heute"
-              title={topPerformer.name}
-              detail={`${fmtEur(Number(topPerformer.live!.revenue))} · ${topPerformer.reason}`}
-              onClick={() => setSelected({ name: topPerformer.name, platform: (topPerformer.live as any)?.platform ?? platform })}
-            />
-          )}
-          {lostPotential >= 20 && (
-            <InsightCard
-              icon={TrendingDown}
-              tone="rose"
-              label="Lost Potential"
-              title={`−${fmtEur(lostPotential)}`}
-              detail={`${buckets.weak.length} Chatter unter Pacing · jetzt eingreifen`}
-              onClick={() => setFilter("weak")}
-            />
-          )}
-        </div>
+        {/* Insight chips */}
+        {(buckets.weak.length > 0 || inactiveCount > 0) && (
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {buckets.weak.length > 0 && (
+              <InsightCard
+                icon={TrendingDown}
+                tone="rose"
+                label="Unter Pacing"
+                title={`${buckets.weak.length} ${buckets.weak.length === 1 ? "Chatter" : "Chatter"}`}
+                detail="jetzt eingreifen · motivieren"
+                onClick={() => setFilter("weak")}
+              />
+            )}
+            {inactiveCount > 0 && (
+              <InsightCard
+                icon={Moon}
+                tone="gold"
+                label="Heute noch nicht aktiv"
+                title={`${inactiveCount} ${inactiveCount === 1 ? "Chatter" : "Chatter"}`}
+                detail="check ob alles ok ist"
+                onClick={() => setFilter("inactive")}
+              />
+            )}
+          </div>
+        )}
       </header>
 
       {/* ─── FILTER ──────────────────────────────────── */}
