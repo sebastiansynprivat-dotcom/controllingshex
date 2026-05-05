@@ -170,7 +170,7 @@ export function computeStatus(
       } else if (unread >= 20) {
         actionText = `Chats abarbeiten · ${unread} offen`;
       } else if (oldestDays >= 3) {
-        actionText = `Alte Chats reaktivieren · ${Math.round(oldestDays)}d offen`;
+        actionText = `Alte Chats reaktivieren · ${Math.round(oldestDays * 24)}h offen`;
       } else {
         actionText = "Läuft sauber";
       }

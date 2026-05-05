@@ -766,8 +766,6 @@ function Row({
   const oldestLabel =
     oldestDays == null
       ? "—"
-      : oldestDays >= 1
-      ? `${Math.round(oldestDays)}d offen`
       : `${Math.max(1, Math.round(oldestDays * 24))}h offen`;
 
   const avgRev = item.profile?.avgRevenue ?? 0;
