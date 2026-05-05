@@ -289,13 +289,17 @@ export default function LiveTracking() {
           <div className="pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-[hsl(40_40%_50%/0.06)] blur-3xl" />
 
           <div className="relative">
-            <div className="text-[10px] tracking-[0.32em] uppercase text-white/40 font-light">
-              Aktiv heute
+            <div className="flex items-baseline gap-2">
+              <span className="font-serif italic text-[13px] text-white/55 font-light tracking-wide">Heute</span>
+              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">aktiv im Team</span>
             </div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="font-extralight tabular-nums leading-none gold-text text-[56px] sm:text-[64px] tracking-tight">
-                {activeTodayCount}
-                <span className="text-2xl font-light text-white/40 ml-2">/ {totalCount}</span>
+            <div className="mt-3 flex items-end gap-3">
+              <div
+                className="font-extralight tabular-nums leading-none gold-text text-[72px] sm:text-[84px]"
+                style={{ letterSpacing: "-0.045em" }}
+              >
+                <AnimatedNumber value={activeTodayCount} />
+                <span className="text-[26px] font-light text-white/35 ml-3 tracking-tight">/ {totalCount}</span>
               </div>
             </div>
 
@@ -306,7 +310,7 @@ export default function LiveTracking() {
                 <span className={`tabular-nums font-light ${
                   activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
                 }`}>
-                  {activePct}%
+                  <AnimatedNumber value={activePct} />%
                 </span>
               </div>
               <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
@@ -327,11 +331,14 @@ export default function LiveTracking() {
               </div>
             </div>
 
+            {/* Heatmap-Streifen: 24h Aktivität */}
+            <HeatmapStrip data={hourlyByHour} />
+
             {/* Mini stats row */}
             <div className="mt-6 grid grid-cols-3 gap-3 pt-5 border-t border-white/[0.05]">
-              <MiniStat label="Mass-DMs" value={String(sumDms)} />
-              <MiniStat label="Σ Ungelesen" value={String(sumUnread)} tone={sumUnread > 100 ? "warn" : undefined} />
-              <MiniStat label="Inaktiv" value={String(inactiveCount)} tone={inactiveCount > 0 ? "dim" : undefined} />
+              <MiniStat label="Mass-DMs" value={sumDms} />
+              <MiniStat label="Σ Ungelesen" value={sumUnread} tone={sumUnread > 100 ? "warn" : undefined} />
+              <MiniStat label="Inaktiv" value={inactiveCount} tone={inactiveCount > 0 ? "dim" : undefined} />
             </div>
           </div>
         </div>
