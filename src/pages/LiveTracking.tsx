@@ -220,8 +220,16 @@ export default function LiveTracking() {
     });
   }, [liveWindowMs]);
 
+  // Hourly-Reload: alle 30s
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Schneller UI-Tick (1s) — nur für Re-Render von Live-Now (cutoff-Vergleich), Relativzeiten etc.
+  const [uiTick, setUiTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setUiTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
