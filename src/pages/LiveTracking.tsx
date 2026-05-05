@@ -185,22 +185,13 @@ export default function LiveTracking() {
     [visible],
   );
 
-  const sumRevenue = rows.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
-  const expectedSum = allStatuses.reduce((s, x) => s + x.expectedRevenueByNow, 0);
-  const pacingPct = expectedSum > 0 ? Math.round((sumRevenue / expectedSum) * 100) : 100;
-  const sumDelta = sumRevenue - expectedSum;
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
-
-  // Top performer (active_strong with highest revenue)
-  const topPerformer = useMemo(() => {
-    return [...allStatuses]
-      .filter((s) => s.live && Number(s.live.revenue) > 0)
-      .sort((a, b) => Number(b.live!.revenue) - Number(a.live!.revenue))[0];
-  }, [allStatuses]);
-
-  const lostPotential = buckets.weak.reduce((s, n) => s + Math.max(0, -n.pacingDelta), 0);
+  const totalCount = allStatuses.length;
+  const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
+  const sumUnread = rows.reduce((s, r) => s + (r.unread_chats ?? 0), 0);
+  const sumDms = rows.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
 
   const counts: Record<FilterKey, number> = {
     all: allStatuses.length,
