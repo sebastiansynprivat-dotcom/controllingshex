@@ -73,7 +73,7 @@ export default function LiveTracking() {
         map.forEach((set, h) => out.set(h, set.size));
         setHourlyByHour(out);
 
-        // Jetzt online: Chatter mit echter Aktivität in der aktuellen Stunde (Europe/Berlin)
+        // Jetzt online: Aktivität in dieser oder vorheriger Stunde (Europe/Berlin)
         const berlinHour = Number(
           new Intl.DateTimeFormat("en-GB", {
             timeZone: "Europe/Berlin",
@@ -81,18 +81,24 @@ export default function LiveTracking() {
             hour12: false,
           }).format(new Date()),
         );
+        const prevHour = (berlinHour - 1 + 24) % 24;
         const live = new Set<string>();
         (data ?? []).forEach((r: any) => {
-          if (Number(r.hour) !== berlinHour) return;
+          const h = Number(r.hour);
+          if (h !== berlinHour && h !== prevHour) return;
           const rev = Number(r.revenue) || 0;
           const dms = Number(r.mass_dms) || 0;
           const unreadDelta = Number(r.unread_delta) || 0;
-          // echte Arbeit: Umsatz, DMs verschickt, oder Chats abgearbeitet (negative delta)
           if (rev > 0 || dms > 0 || unreadDelta < 0) {
             live.add(normName(String(r.chatter_name ?? "")));
           }
         });
-        setLiveActiveNames(live);
+        // Realtime-Hits der letzten 15 Min nicht überschreiben → mergen
+        setLiveActiveNames((prev) => {
+          const merged = new Set(prev);
+          live.forEach((n) => merged.add(n));
+          return merged;
+        });
       });
   }, [platform, tick]);
 
