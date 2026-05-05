@@ -53,12 +53,13 @@ export default function LiveTracking() {
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
+  const [liveActiveNames, setLiveActiveNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const today = shiftDate();
     supabase
       .from("chatter_hourly_stats")
-      .select("hour, updates_seen, chatter_name")
+      .select("hour, updates_seen, chatter_name, revenue, mass_dms, unread_delta")
       .eq("date", today)
       .ilike("platform", platform)
       .then(({ data }) => {
@@ -71,6 +72,27 @@ export default function LiveTracking() {
         const out = new Map<number, number>();
         map.forEach((set, h) => out.set(h, set.size));
         setHourlyByHour(out);
+
+        // Jetzt online: Chatter mit echter Aktivität in der aktuellen Stunde (Europe/Berlin)
+        const berlinHour = Number(
+          new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Europe/Berlin",
+            hour: "2-digit",
+            hour12: false,
+          }).format(new Date()),
+        );
+        const live = new Set<string>();
+        (data ?? []).forEach((r: any) => {
+          if (Number(r.hour) !== berlinHour) return;
+          const rev = Number(r.revenue) || 0;
+          const dms = Number(r.mass_dms) || 0;
+          const unreadDelta = Number(r.unread_delta) || 0;
+          // echte Arbeit: Umsatz, DMs verschickt, oder Chats abgearbeitet (negative delta)
+          if (rev > 0 || dms > 0 || unreadDelta < 0) {
+            live.add(normName(String(r.chatter_name ?? "")));
+          }
+        });
+        setLiveActiveNames(live);
       });
   }, [platform, tick]);
 
@@ -233,12 +255,8 @@ export default function LiveTracking() {
 
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
-  // Jetzt online = wirklich live: zuletzt gesehen < 10 Min UND Aktivität (strong/weak, kein idle)
-  const liveNowCount = allStatuses.filter((s) => {
-    if (s.status !== "active_strong" && s.status !== "active_weak") return false;
-    const updated = s.live?.updated_at ? new Date(s.live.updated_at).getTime() : 0;
-    return updated > 0 && Date.now() - updated < 10 * 60 * 1000;
-  }).length;
+  // Jetzt online = echte Aktivität in der aktuellen Stunde (Revenue, DMs oder Chats abgearbeitet)
+  const liveNowCount = allStatuses.filter((s) => liveActiveNames.has(normName(s.name))).length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
   const activePct = totalCount > 0 ? Math.round((activeTodayCount / totalCount) * 100) : 0;
