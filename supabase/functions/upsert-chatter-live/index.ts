@@ -97,6 +97,8 @@ Deno.serve(async (req) => {
     });
   }
 
+  await supabase.rpc("recompute_live_now");
+
   return new Response(JSON.stringify({ success: true, count: data?.length ?? 0, rows: data }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
