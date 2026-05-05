@@ -409,6 +409,51 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_hourly_stats: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          date: string
+          hour: number
+          id: string
+          mass_dms: number
+          platform: string
+          revenue: number
+          unread_delta: number
+          updated_at: string
+          updates_seen: number
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          date?: string
+          hour: number
+          id?: string
+          mass_dms?: number
+          platform?: string
+          revenue?: number
+          unread_delta?: number
+          updated_at?: string
+          updates_seen?: number
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          date?: string
+          hour?: number
+          id?: string
+          mass_dms?: number
+          platform?: string
+          revenue?: number
+          unread_delta?: number
+          updated_at?: string
+          updates_seen?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_inputs: {
         Row: {
           chatter_name: string
