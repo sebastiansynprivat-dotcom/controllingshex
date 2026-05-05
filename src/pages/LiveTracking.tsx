@@ -178,7 +178,7 @@ export default function LiveTracking() {
 
         // Jetzt online: rollierende echte Aktivität aus den letzten ~70 Minuten.
         // Wichtig: hourly_stats wird in UTC geschrieben – deshalb nicht nach Berlin-Stunde filtern.
-        const liveCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+        const liveCutoff = Date.now() - liveWindowMs;
         const live = new Map<string, number>();
         (data ?? []).forEach((r: any) => {
           const updatedAt = new Date(r.updated_at ?? 0).getTime();
@@ -279,9 +279,9 @@ export default function LiveTracking() {
                   copy.set(key, now);
                   return copy;
                 });
-                if (revUp) pushEvent({ name: displayName, type: "sale", detail: `+${fmtEur(revDelta)}`, expiresAt: now + LIVE_NOW_WINDOW_MS });
-                if (dmsUp) pushEvent({ name: displayName, type: "dm", detail: `+${dmsDelta} Mass-DM`, expiresAt: now + LIVE_NOW_WINDOW_MS });
-                if (unreadDown) pushEvent({ name: displayName, type: "unread", detail: `${unreadDelta} ungelesen`, expiresAt: now + LIVE_NOW_WINDOW_MS });
+                if (revUp) pushEvent({ name: displayName, type: "sale", detail: `+${fmtEur(revDelta)}`, expiresAt: now + liveWindowMs });
+                if (dmsUp) pushEvent({ name: displayName, type: "dm", detail: `+${dmsDelta} Mass-DM`, expiresAt: now + liveWindowMs });
+                if (unreadDown) pushEvent({ name: displayName, type: "unread", detail: `${unreadDelta} ungelesen`, expiresAt: now + liveWindowMs });
               }
             }
           }
@@ -310,7 +310,7 @@ export default function LiveTracking() {
   // Ablauf-Erkennung: prune & log Einträge, die das 15-Min-Fenster verlassen
   const prevLiveRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
-    const cutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+    const cutoff = Date.now() - liveWindowMs;
     const prev = prevLiveRef.current;
     prev.forEach((ts, key) => {
       const cur = liveActivityAt.get(key);
@@ -448,7 +448,7 @@ export default function LiveTracking() {
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
   // Jetzt online = Server-Count (alle 60s vom Cron neu berechnet) ∪ Client-Realtime-Hits
-  const liveNowCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+  const liveNowCutoff = Date.now() - liveWindowMs;
   const clientLive = new Set<string>();
   allStatuses.forEach((s) => {
     if ((liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff) clientLive.add(normName(s.name));
