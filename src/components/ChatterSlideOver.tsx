@@ -215,6 +215,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     updated_at: string | null;
     date: string | null;
   } | null>(null);
+  cosnt[(isActiveToday, setIsActiveToday)] = useState<bool>(false);
 
   // Live-Profile aus chatter_history_live laden, wenn das Panel geöffnet wird
   useEffect(() => {
@@ -245,6 +246,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             }
           : null,
       );
+      setIsActiveToday(data && data?.mass_dms > 0 ? true : false);
     })();
     return () => {
       cancelled = true;
@@ -611,7 +613,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   // Echtzeit-Karten (Heute) — Platzhalter: letzte verfügbare Tageswerte
   const today = history.length ? history[history.length - 1] : null;
   const todayIso = new Date().toISOString().split("T")[0];
-  const isActiveToday = liveProfile.mass_dms > 0;
+  // const isActiveToday =
   // !!today &&
   // today.analysis_date === todayIso &&
   // ((today.revenue_today ?? 0) > 0 || (today.mass_dms ?? 0) > 0 || (today.open_chats ?? 0) > 0);
