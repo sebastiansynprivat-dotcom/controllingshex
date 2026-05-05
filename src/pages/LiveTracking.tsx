@@ -212,7 +212,21 @@ export default function LiveTracking() {
     };
   }, [platform]);
 
-  const displayNameFor = (key: string): string => {
+  // Ablauf-Erkennung: prune & log Einträge, die das 15-Min-Fenster verlassen
+  const prevLiveRef = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    const cutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+    const prev = prevLiveRef.current;
+    prev.forEach((ts, key) => {
+      const cur = liveActivityAt.get(key);
+      if ((!cur || cur < cutoff) && ts >= cutoff - 60_000) {
+        // war noch aktiv, jetzt nicht mehr
+        const display = displayNameFor(key);
+        pushEvent({ name: display, type: "expire", detail: "15 min Fenster abgelaufen" });
+      }
+    });
+    prevLiveRef.current = new Map(liveActivityAt);
+  }, [liveActivityAt, tick]);
     const live = rows.find((r) => normName(r.chatter_name) === key);
     if (live) return live.chatter_name;
     return key.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
