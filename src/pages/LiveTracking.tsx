@@ -128,6 +128,9 @@ export default function LiveTracking() {
     const id = setInterval(runCheck, 10 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    const today = shiftDate();
     supabase
       .from("chatter_hourly_stats")
       .select("hour, updates_seen, chatter_name, revenue, mass_dms, unread_delta, updated_at")
