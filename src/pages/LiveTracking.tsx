@@ -651,142 +651,89 @@ export default function LiveTracking() {
           </div>
         </div>
 
-        {/* Live Debug-Log */}
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-          <button
-            onClick={() => setDebugOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] tracking-[0.24em] uppercase text-white/40 hover:text-white/70 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-emerald-400/60" />
-              Live-Log · {liveLog.length} Events
-            </span>
-            <span className="text-white/30">{debugOpen ? "▾" : "▸"}</span>
-          </button>
-          {debugOpen && (
-            <div className="max-h-72 overflow-y-auto border-t border-white/[0.05] divide-y divide-white/[0.04]">
-              {liveLog.length === 0 ? (
-                <div className="px-4 py-6 text-center text-[11px] text-white/30 font-light">Noch keine Events. Warte auf Live-Aktivität…</div>
-              ) : (
-                liveLog.map((ev) => {
-                  const ageS = Math.max(0, Math.floor((Date.now() - ev.ts) / 1000));
-                  const remainS = ev.expiresAt ? Math.max(0, Math.floor((ev.expiresAt - Date.now()) / 1000)) : null;
-                  const tone =
-                    ev.type === "sale" ? "text-emerald-300 bg-emerald-400/10" :
-                    ev.type === "dm" ? "text-sky-300 bg-sky-400/10" :
-                    ev.type === "unread" ? "text-amber-200 bg-amber-400/10" :
-                    ev.type === "expire" ? "text-rose-300 bg-rose-400/10" :
-                    ev.type === "tz" ? "text-amber-300 bg-amber-400/10" :
-                    "text-white/50 bg-white/[0.05]";
-                  const icon =
-                    ev.type === "sale" ? "💰" :
-                    ev.type === "dm" ? "📤" :
-                    ev.type === "unread" ? "📥" :
-                    ev.type === "expire" ? "⌛" :
-                    ev.type === "tz" ? "🕒" : "·";
-                  return (
-                    <div key={ev.id} className="flex items-center gap-3 px-4 py-2 text-[11px]">
-                      <span className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-md text-[11px] ${tone}`}>{icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="text-white/90 font-medium truncate">{ev.name}</span>
-                          <span className="text-white/40">{ev.detail}</span>
-                        </div>
-                        <div className="text-[9px] text-white/30 mt-0.5 tabular-nums">
-                          vor {relTime(ageS)}{remainS !== null && ev.type !== "expire" ? ` · läuft ab in ${relTime(remainS)}` : ""}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Insight chips */}
-        {(buckets.weak.length > 0 || inactiveCount > 0) && (
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {buckets.weak.length > 0 && (
-              <InsightCard
-                icon={TrendingDown}
-                tone="rose"
-                label="Unter Pacing"
-                title={`${buckets.weak.length} ${buckets.weak.length === 1 ? "Chatter" : "Chatter"}`}
-                detail="jetzt eingreifen · motivieren"
-                onClick={() => setFilter("weak")}
-              />
-            )}
-            {inactiveCount > 0 && (
-              <InsightCard
-                icon={Moon}
-                tone="gold"
-                label="Heute noch nicht aktiv"
-                title={`${inactiveCount} ${inactiveCount === 1 ? "Chatter" : "Chatter"}`}
-                detail="check ob alles ok ist"
-                onClick={() => setFilter("inactive")}
-              />
-            )}
-          </div>
-        )}
       </header>
 
-      {/* ─── FILTER ──────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
-          {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
-            const isActive = filter === k;
-            const labelMap = {
-              all: "Alle",
-              active: "Aktiv",
-              weak: "Unter Pacing",
-              inactive: "Inaktiv",
-            } as const;
-            return (
+      {/* ─── TOOLBAR (sticky) ────────────────────────── */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/80 backdrop-blur-xl border-b border-white/[0.05]">
+        <div className="flex items-center gap-2">
+          {/* Segmented filter */}
+          <div className="flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] p-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
+              const isActive = filter === k;
+              const labelMap = { all: "Alle", active: "Aktiv", weak: "Pacing", inactive: "Inaktiv" } as const;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setFilter(k)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-light tracking-wide transition-all ${
+                    isActive
+                      ? "bg-white/[0.08] text-white/95 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                      : "text-white/45 hover:text-white/75"
+                  }`}
+                >
+                  <span>{labelMap[k]}</span>
+                  <span className={`tabular-nums text-[9.5px] ${isActive ? "text-white/55" : "text-white/30"}`}>
+                    {counts[k]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <div className="relative shrink-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Suchen"
+              className="h-8 w-[112px] focus-within:w-40 transition-[width] pl-7 pr-6 text-xs bg-white/[0.025] border-white/[0.06] rounded-full font-light"
+            />
+            {search && (
               <button
-                key={k}
-                onClick={() => setFilter(k)}
-                className={`group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] tracking-wide transition-all border ${
-                  isActive
-                    ? "bg-white/[0.06] text-white/95 border-white/15 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_4px_14px_-6px_hsl(40_45%_55%/0.25)]"
-                    : "text-white/45 border-white/[0.05] hover:text-white/80 hover:border-white/[0.12] hover:bg-white/[0.02]"
-                }`}
+                onClick={() => setSearch("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 p-0.5"
+                aria-label="Suche löschen"
               >
-                <span className="font-light">{labelMap[k]}</span>
-                <span className={`tabular-nums text-[10px] ${isActive ? "text-white/55" : "text-white/30"}`}>
-                  {counts[k]}
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Sort dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="shrink-0 inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-white/[0.06] bg-white/[0.025] text-[11px] font-light text-white/65 hover:text-white/90 hover:border-white/[0.12] transition-colors"
+                aria-label="Sortieren"
+              >
+                <ArrowUpDown className="h-3 w-3" />
+                <span className="hidden sm:inline">
+                  {{ smart: "Smart", lost: "Verlust", activity: "Aktivität", revenue: "Umsatz", avg: "Ø/Tag" }[sortKey]}
                 </span>
               </button>
-            );
-          })}
-        </div>
-
-        {/* Sort row */}
-        <div className="flex items-center gap-1.5 flex-wrap -mx-1 px-1">
-          <span className="text-[9px] tracking-[0.28em] uppercase text-white/30 font-light px-1.5">Sortieren</span>
-          {(["smart", "priority", "revenue", "pacing", "activity"] as SortKey[]).map((k) => {
-            const isActive = sortKey === k;
-            const labelMap = {
-              smart: "Smart",
-              priority: "Prio (Ø/Tag)",
-              revenue: "Umsatz",
-              pacing: "Pacing-Δ",
-              activity: "Aktivität",
-            } as const;
-            return (
-              <button
-                key={k}
-                onClick={() => setSortKey(k)}
-                className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] tracking-wide transition-all border ${
-                  isActive
-                    ? "bg-white/[0.05] text-white/90 border-white/12"
-                    : "text-white/40 border-white/[0.04] hover:text-white/75 hover:border-white/[0.10]"
-                }`}
-              >
-                <span className="font-light">{labelMap[k]}</span>
-              </button>
-            );
-          })}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-background/95 backdrop-blur-xl border-white/[0.08]">
+              <DropdownMenuLabel className="text-[10px] tracking-[0.24em] uppercase text-white/40 font-light">Sortieren</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/[0.05]" />
+              {([
+                { k: "smart", label: "Smart", hint: "Höchste Priorität zuerst" },
+                { k: "lost", label: "Höchster Verlust heute", hint: "Wo aktuell Geld liegen bleibt" },
+                { k: "activity", label: "Zuletzt aktiv", hint: "Wer war zuletzt online" },
+                { k: "revenue", label: "Umsatz heute", hint: "Top-Earner heute" },
+                { k: "avg", label: "Ø Tagesumsatz", hint: "Wirtschaftlicher Impact" },
+              ] as const).map((o) => (
+                <DropdownMenuItem
+                  key={o.k}
+                  onClick={() => setSortKey(o.k as SortKey)}
+                  className={`flex flex-col items-start gap-0.5 py-2 cursor-pointer ${sortKey === o.k ? "bg-white/[0.04]" : ""}`}
+                >
+                  <span className="text-[12px] font-light text-white/90">{o.label}</span>
+                  <span className="text-[10px] text-white/40 font-light">{o.hint}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -794,25 +741,21 @@ export default function LiveTracking() {
       {loading ? (
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Lade Live-Daten…</p>
       ) : visible.length === 0 ? (
-        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter passen zum Filter.</p>
-      ) : filter !== "all" || sortKey !== "smart" ? (
-        <div className="space-y-2">
-          {visible.map((s) => (
-            <Row key={s.name} item={s} onSelect={setSelected} />
-          ))}
-        </div>
+        <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">
+          {search ? `Keine Treffer für „${search}".` : "Keine Chatter passen zum Filter."}
+        </p>
       ) : (
         <div className="space-y-10">
-          {buckets.weak.length > 0 && (
+          {(filter === "all" || filter === "weak") && buckets.weak.length > 0 && (
             <Bucket label="Unter Pacing" tone="urgent" icon={TrendingDown} items={buckets.weak} onSelect={setSelected} />
           )}
-          {buckets.idle.length > 0 && (
+          {(filter === "all" || filter === "active") && buckets.idle.length > 0 && (
             <Bucket label="Pause" sub="heute schon aktiv gewesen" tone="watch" icon={Clock} items={buckets.idle} onSelect={setSelected} />
           )}
-          {buckets.inactive.length > 0 && (
+          {(filter === "all" || filter === "inactive") && buckets.inactive.length > 0 && (
             <Bucket label="Heute noch nicht aktiv" tone="dim" icon={Moon} items={buckets.inactive} onSelect={setSelected} />
           )}
-          {buckets.strong.length > 0 && (
+          {(filter === "all" || filter === "active") && buckets.strong.length > 0 && (
             <div>
               <button
                 onClick={() => setStrongOpen((o) => !o)}
@@ -822,7 +765,11 @@ export default function LiveTracking() {
                   {strongOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   Läuft sauber
                 </span>
-                <span className="flex items-center gap-2 normal-case tracking-normal">
+                <span className="flex items-center gap-3 normal-case tracking-normal">
+                  {(() => {
+                    const sumRev = buckets.strong.reduce((s, x) => s + (Number(x.live?.revenue) || 0), 0);
+                    return sumRev > 0 ? <span className="tabular-nums text-emerald-300/70 text-[10px]">+{Math.round(sumRev)} €</span> : null;
+                  })()}
                   <TrendingUp className="h-3 w-3 text-emerald-300/60" />
                   <span className="tabular-nums text-white/40">{buckets.strong.length}</span>
                 </span>
@@ -838,6 +785,59 @@ export default function LiveTracking() {
           )}
         </div>
       )}
+
+      {/* ─── DIAGNOSTIC: Live-Log (am Ende) ──────────── */}
+      <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] overflow-hidden">
+        <button
+          onClick={() => setDebugOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] tracking-[0.24em] uppercase text-white/35 hover:text-white/65 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-emerald-400/50" />
+            Live-Log · {liveLog.length}
+          </span>
+          <span className="text-white/25">{debugOpen ? "▾" : "▸"}</span>
+        </button>
+        {debugOpen && (
+          <div className="max-h-72 overflow-y-auto border-t border-white/[0.05] divide-y divide-white/[0.04]">
+            {liveLog.length === 0 ? (
+              <div className="px-4 py-6 text-center text-[11px] text-white/30 font-light">Noch keine Events. Warte auf Live-Aktivität…</div>
+            ) : (
+              liveLog.map((ev) => {
+                const ageS = Math.max(0, Math.floor((Date.now() - ev.ts) / 1000));
+                const remainS = ev.expiresAt ? Math.max(0, Math.floor((ev.expiresAt - Date.now()) / 1000)) : null;
+                const tone =
+                  ev.type === "sale" ? "text-emerald-300 bg-emerald-400/10" :
+                  ev.type === "dm" ? "text-sky-300 bg-sky-400/10" :
+                  ev.type === "unread" ? "text-amber-200 bg-amber-400/10" :
+                  ev.type === "expire" ? "text-rose-300 bg-rose-400/10" :
+                  ev.type === "tz" ? "text-amber-300 bg-amber-400/10" :
+                  "text-white/50 bg-white/[0.05]";
+                const icon =
+                  ev.type === "sale" ? "💰" :
+                  ev.type === "dm" ? "📤" :
+                  ev.type === "unread" ? "📥" :
+                  ev.type === "expire" ? "⌛" :
+                  ev.type === "tz" ? "🕒" : "·";
+                return (
+                  <div key={ev.id} className="flex items-center gap-3 px-4 py-2 text-[11px]">
+                    <span className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-md text-[11px] ${tone}`}>{icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="text-white/90 font-medium truncate">{ev.name}</span>
+                        <span className="text-white/40">{ev.detail}</span>
+                      </div>
+                      <div className="text-[9px] text-white/30 mt-0.5 tabular-nums">
+                        vor {relTime(ageS)}{remainS !== null && ev.type !== "expire" ? ` · läuft ab in ${relTime(remainS)}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
 
       <ChatterSlideOver
         open={!!selected}
