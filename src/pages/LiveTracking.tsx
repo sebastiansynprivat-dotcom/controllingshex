@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, AlertTriangle, ChevronDown, ChevronRight, ArrowUpRight, Flame, Clock, Inbox, EuroIcon } from "lucide-react";
+import { Search, AlertTriangle, ChevronDown, ChevronRight, Flame, Clock, Inbox, EuroIcon, Moon, TrendingDown, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { Input } from "@/components/ui/input";
-import { computeScore, type ChatterAvg, type LiveRowLite, type ScoredChatter } from "@/lib/live-priority";
+import { buildProfile, computeStatus, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -12,7 +12,7 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "escalation" | "lost" | "inactive";
+type FilterKey = "all" | "active" | "weak" | "inactive";
 
 function secondsSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -29,20 +29,24 @@ function fmtEur(n: number): string {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(n) + " €";
 }
 
+function normName(s: string): string {
+  return s.trim().toLowerCase();
+}
+
 export default function LiveTracking() {
   const { platform } = usePlatform();
   const [rows, setRows] = useState<LiveRow[]>([]);
-  const [avgs, setAvgs] = useState<Map<string, ChatterAvg>>(new Map());
+  const [profiles, setProfiles] = useState<Map<string, ChatterProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [runningOpen, setRunningOpen] = useState(true);
+  const [strongOpen, setStrongOpen] = useState(true);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -71,26 +75,24 @@ export default function LiveTracking() {
       .ilike("platform", platform)
       .gte("analysis_date", sinceIso)
       .then(({ data }) => {
-        const byName = new Map<string, { rev: number[]; dms: number[]; unread: number[] }>();
+        const byName = new Map<string, HistoryDay[]>();
         (data ?? []).forEach((r: any) => {
-          const name = (r.chatter_name ?? "").trim().toLowerCase();
+          const name = normName(r.chatter_name ?? "");
           if (!name) return;
-          if (!byName.has(name)) byName.set(name, { rev: [], dms: [], unread: [] });
-          const e = byName.get(name)!;
-          e.rev.push(Number(r.revenue_today) || 0);
-          e.dms.push(Number(r.mass_dms) || 0);
-          e.unread.push(Number(r.open_chats) || 0);
+          if (!byName.has(name)) byName.set(name, []);
+          byName.get(name)!.push({
+            revenue_today: Number(r.revenue_today) || 0,
+            mass_dms: Number(r.mass_dms) || 0,
+            open_chats: Number(r.open_chats) || 0,
+            analysis_date: r.analysis_date,
+          });
         });
-        const avg = (a: number[]) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
-        const map = new Map<string, ChatterAvg>();
-        byName.forEach((v, k) =>
-          map.set(k, {
-            avgRevenue: avg(v.rev),
-            avgMassDms: avg(v.dms),
-            avgUnread: avg(v.unread),
-          }),
-        );
-        setAvgs(map);
+        const map = new Map<string, ChatterProfile>();
+        byName.forEach((days, key) => {
+          // use the original casing from first record where possible
+          map.set(key, buildProfile(key, days));
+        });
+        setProfiles(map);
       });
   }, [platform]);
 
@@ -123,57 +125,84 @@ export default function LiveTracking() {
     };
   }, [platform]);
 
-  const scored: ScoredChatter[] = useMemo(() => {
+  // Display-name lookup (best casing): from live rows first, else from history (use key)
+  const displayNameFor = (key: string): string => {
+    const live = rows.find((r) => normName(r.chatter_name) === key);
+    if (live) return live.chatter_name;
+    // capitalize words
+    return key
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  };
+
+  const allStatuses: ChatterStatus[] = useMemo(() => {
     const now = new Date();
-    return rows
-      .map((r) => computeScore(r, avgs.get(r.chatter_name.trim().toLowerCase()), now))
-      .sort((a, b) => b.score - a.score);
+    const keys = new Set<string>();
+    rows.forEach((r) => keys.add(normName(r.chatter_name)));
+    profiles.forEach((p) => {
+      // only include known chatters with some history
+      if (p.daysObserved >= 1 && p.avgRevenue >= 5) keys.add(p.name);
+    });
+    const out: ChatterStatus[] = [];
+    keys.forEach((key) => {
+      const live = rows.find((r) => normName(r.chatter_name) === key) ?? null;
+      const profile = profiles.get(key) ?? null;
+      const s = computeStatus(displayNameFor(key), live, profile, now);
+      out.push(s);
+    });
+    // Sort: weak/inactive first by potential, then strong by revenue
+    out.sort((a, b) => {
+      const order: Record<ChatterStatus["status"], number> = {
+        active_weak: 0,
+        active_idle: 1,
+        inactive: 2,
+        active_strong: 3,
+      };
+      const oa = order[a.status];
+      const ob = order[b.status];
+      if (oa !== ob) return oa - ob;
+      // within same bucket: by expected revenue / today revenue desc
+      const av = a.expectedRevenueByNow + (a.live ? Number(a.live.revenue) : 0);
+      const bv = b.expectedRevenueByNow + (b.live ? Number(b.live.revenue) : 0);
+      return bv - av;
+    });
+    return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, avgs, tick]);
+  }, [rows, profiles, tick]);
 
   const visible = useMemo(() => {
-    return scored.filter((s) => {
-      if (search && !s.row.chatter_name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filter === "escalation" && (s.row.oldest_chat ?? 0) < 1) return false;
-      if (filter === "lost" && s.potentialLoss < 20) return false;
-      if (filter === "inactive" && secondsSince(s.row.updated_at) < 30 * 60) return false;
+    return allStatuses.filter((s) => {
+      if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filter === "active" && !s.isActiveToday) return false;
+      if (filter === "weak" && s.status !== "active_weak") return false;
+      if (filter === "inactive" && s.status !== "inactive") return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scored, search, filter, tick]);
+  }, [allStatuses, search, filter]);
 
   const buckets = useMemo(
     () => ({
-      now: visible.filter((s) => s.bucket === "now"),
-      watch: visible.filter((s) => s.bucket === "watch"),
-      running: visible.filter((s) => s.bucket === "running"),
+      weak: visible.filter((s) => s.status === "active_weak"),
+      idle: visible.filter((s) => s.status === "active_idle"),
+      inactive: visible.filter((s) => s.status === "inactive"),
+      strong: visible.filter((s) => s.status === "active_strong"),
     }),
     [visible],
   );
 
   const sumRevenue = rows.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
   const sumUnread = rows.reduce((s, r) => s + (r.unread_chats ?? 0), 0);
-  const activeCount = rows.filter((r) => secondsSince(r.updated_at) < 15 * 60).length;
+  const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
+  const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
 
-  const notStarted = useMemo(() => {
-    const out: { name: string; expected: number }[] = [];
-    avgs.forEach((avg, name) => {
-      if (avg.avgRevenue < 30) return;
-      const liveRow = rows.find((r) => r.chatter_name.trim().toLowerCase() === name);
-      const todayRev = liveRow ? Number(liveRow.revenue) || 0 : 0;
-      const hour = new Date().getHours() + new Date().getMinutes() / 60;
-      const dayProgress = Math.max(0, Math.min(1, (hour - 6) / 18));
-      const expected = avg.avgRevenue * dayProgress;
-      if (!liveRow || todayRev < expected * 0.2) {
-        if (expected >= 30) out.push({ name, expected });
-      }
-    });
-    return out.sort((a, b) => b.expected - a.expected);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, avgs, tick]);
-
-  const hotStreakCount = scored.filter((s) => s.hotStreak).length;
+  const counts: Record<FilterKey, number> = {
+    all: allStatuses.length,
+    active: activeTodayCount,
+    weak: allStatuses.filter((s) => s.status === "active_weak").length,
+    inactive: inactiveCount,
+  };
 
   return (
     <div className="mx-auto w-full max-w-[860px] space-y-10 pb-20">
@@ -219,14 +248,14 @@ export default function LiveTracking() {
         {/* KPI grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat icon={EuroIcon} label="Revenue heute" value={fmtEur(sumRevenue)} accent />
-          <Stat icon={Flame} label="Aktiv jetzt" value={String(activeCount)} sub={`von ${rows.length}`} />
+          <Stat icon={Flame} label="Aktiv heute" value={String(activeTodayCount)} sub={`von ${allStatuses.length}`} />
           <Stat icon={Inbox} label="Σ Ungelesen" value={String(sumUnread)} />
-          <Stat icon={Clock} label="Sofort handeln" value={String(buckets.now.length)} tone={buckets.now.length > 0 ? "warn" : undefined} />
+          <Stat icon={Moon} label="Inaktiv heute" value={String(inactiveCount)} tone={inactiveCount > 0 ? "warn" : undefined} />
         </div>
       </header>
 
       {/* Smart banner */}
-      {notStarted.length > 0 && (
+      {buckets.weak.length > 0 && filter === "all" && (
         <div className="premium-card rounded-2xl px-5 py-4 border border-amber-300/15">
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 rounded-full bg-amber-300/10 border border-amber-300/20 flex items-center justify-center shrink-0">
@@ -234,10 +263,10 @@ export default function LiveTracking() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-light text-white/85">
-                <span className="text-amber-100/95">{notStarted.length} Top-Chatter</span> heute noch nicht am Start
+                <span className="text-amber-100/95">{buckets.weak.length} Chatter</span> gerade unter Pacing
               </p>
               <p className="text-xs text-white/45 font-light mt-0.5 tracking-wide">
-                ~{fmtEur(notStarted.reduce((s, n) => s + n.expected, 0))} erwartetes Potenzial offen
+                ~{fmtEur(buckets.weak.reduce((s, n) => s + Math.max(0, -n.pacingDelta), 0))} unter erwartet · jetzt motivieren
               </p>
             </div>
           </div>
@@ -246,7 +275,7 @@ export default function LiveTracking() {
 
       {/* Filter pills */}
       <div className="flex items-center gap-2 flex-wrap">
-        {(["all", "escalation", "lost", "inactive"] as FilterKey[]).map((k) => (
+        {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => (
           <button
             key={k}
             onClick={() => setFilter(k)}
@@ -257,12 +286,12 @@ export default function LiveTracking() {
             }`}
           >
             {k === "all"
-              ? `Alle · ${scored.length}`
-              : k === "escalation"
-              ? "Eskalation"
-              : k === "lost"
-              ? "Lost Potential"
-              : "Inaktiv"}
+              ? `Alle · ${counts.all}`
+              : k === "active"
+              ? `Aktiv heute · ${counts.active}`
+              : k === "weak"
+              ? `Unter Pacing · ${counts.weak}`
+              : `Inaktiv heute · ${counts.inactive}`}
           </button>
         ))}
       </div>
@@ -273,36 +302,38 @@ export default function LiveTracking() {
       ) : visible.length === 0 ? (
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">Keine Chatter passen zum Filter.</p>
       ) : filter !== "all" ? (
-        // Flache Liste bei aktivem Filter
         <div className="space-y-2">
           {visible.map((s) => (
-            <Row key={s.row.chatter_name} item={s} tone={s.bucket === "now" ? "urgent" : s.bucket === "watch" ? "watch" : "running"} onSelect={setSelected} />
+            <Row key={s.name} item={s} onSelect={setSelected} />
           ))}
         </div>
       ) : (
         <div className="space-y-12">
-          {buckets.now.length > 0 && <Bucket label="Sofort handeln" tone="urgent" items={buckets.now} onSelect={setSelected} />}
-          {buckets.watch.length > 0 && <Bucket label="Beobachten" tone="watch" items={buckets.watch} onSelect={setSelected} />}
-          {buckets.running.length > 0 && (
+          {buckets.weak.length > 0 && (
+            <Bucket label="Unter Pacing" tone="urgent" icon={TrendingDown} items={buckets.weak} onSelect={setSelected} />
+          )}
+          {buckets.idle.length > 0 && (
+            <Bucket label="Aktiv heute · gerade Pause" tone="watch" icon={Clock} items={buckets.idle} onSelect={setSelected} />
+          )}
+          {buckets.inactive.length > 0 && (
+            <Bucket label="Heute noch nicht aktiv" tone="dim" icon={Moon} items={buckets.inactive} onSelect={setSelected} />
+          )}
+          {buckets.strong.length > 0 && (
             <div>
               <button
-                onClick={() => setRunningOpen((o) => !o)}
+                onClick={() => setStrongOpen((o) => !o)}
                 className="w-full flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/30 hover:text-white/55 transition-colors py-3 border-t border-white/[0.04]"
               >
                 <span className="flex items-center gap-2">
-                  {runningOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                  {buckets.running.length} laufen sauber
+                  {strongOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  {buckets.strong.length} laufen sauber
                 </span>
-                {hotStreakCount > 0 && (
-                  <span className="flex items-center gap-1.5 text-emerald-300/70 normal-case tracking-normal text-[11px]">
-                    <ArrowUpRight className="h-3 w-3" /> {hotStreakCount} hot
-                  </span>
-                )}
+                <CheckCircle2 className="h-3 w-3 text-emerald-300/60" />
               </button>
-              {runningOpen && (
+              {strongOpen && (
                 <div className="mt-4 space-y-2">
-                  {buckets.running.map((s) => (
-                    <Row key={s.row.chatter_name} item={s} tone="running" onSelect={setSelected} />
+                  {buckets.strong.map((s) => (
+                    <Row key={s.name} item={s} onSelect={setSelected} />
                   ))}
                 </div>
               )}
@@ -363,32 +394,36 @@ function Stat({
 function Bucket({
   label,
   tone,
+  icon: Icon,
   items,
   onSelect,
 }: {
   label: string;
-  tone: "urgent" | "watch" | "running";
-  items: ScoredChatter[];
+  tone: "urgent" | "watch" | "dim";
+  icon: typeof Flame;
+  items: ChatterStatus[];
   onSelect: (s: { name: string; platform: string }) => void;
 }) {
+  const labelColor =
+    tone === "urgent" ? "text-rose-300/85" : tone === "watch" ? "text-amber-200/75" : "text-white/40";
+  const lineGrad =
+    tone === "urgent"
+      ? "bg-gradient-to-r from-rose-400/25 to-transparent"
+      : tone === "watch"
+      ? "bg-gradient-to-r from-amber-300/20 to-transparent"
+      : "bg-gradient-to-r from-white/15 to-transparent";
+
   return (
     <div>
-      {label && (
-        <div className="flex items-center gap-3 mb-4">
-          <span
-            className={`text-[10px] uppercase tracking-[0.28em] font-light ${
-              tone === "urgent" ? "text-rose-300/85" : "text-amber-200/75"
-            }`}
-          >
-            {label}
-          </span>
-          <span className={`flex-1 h-px ${tone === "urgent" ? "bg-gradient-to-r from-rose-400/25 to-transparent" : "bg-gradient-to-r from-amber-300/20 to-transparent"}`} />
-          <span className="text-[10px] tabular-nums text-white/30 tracking-wider">{items.length}</span>
-        </div>
-      )}
+      <div className="flex items-center gap-3 mb-4">
+        <Icon className={`h-3 w-3 ${labelColor}`} />
+        <span className={`text-[10px] uppercase tracking-[0.28em] font-light ${labelColor}`}>{label}</span>
+        <span className={`flex-1 h-px ${lineGrad}`} />
+        <span className="text-[10px] tabular-nums text-white/30 tracking-wider">{items.length}</span>
+      </div>
       <div className="space-y-2">
         {items.map((s) => (
-          <Row key={s.row.chatter_name} item={s} tone={tone} onSelect={onSelect} />
+          <Row key={s.name} item={s} onSelect={onSelect} />
         ))}
       </div>
     </div>
@@ -397,23 +432,33 @@ function Bucket({
 
 function Row({
   item,
-  tone,
   onSelect,
 }: {
-  item: ScoredChatter;
-  tone: "urgent" | "watch" | "running";
+  item: ChatterStatus;
   onSelect: (s: { name: string; platform: string }) => void;
 }) {
-  const sec = secondsSince(item.row.updated_at);
-  const online = sec < 5 * 60;
-  const offline = sec >= 30 * 60;
+  const sec = item.lastSeenSec;
+  const online = sec !== null && sec < 5 * 60;
+  const recently = sec !== null && sec < 30 * 60;
 
-  const cardBase = "group relative w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left transition-all duration-300 border backdrop-blur-xl";
+  const tone =
+    item.status === "active_weak"
+      ? "urgent"
+      : item.status === "active_idle"
+      ? "watch"
+      : item.status === "inactive"
+      ? "dim"
+      : "running";
+
+  const cardBase =
+    "group relative w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left transition-all duration-300 border backdrop-blur-xl hover:translate-y-[-1px]";
   const cardTone =
     tone === "urgent"
       ? "premium-card border-rose-400/12 hover:border-rose-400/25"
       : tone === "watch"
       ? "premium-card border-amber-300/10 hover:border-amber-300/22"
+      : tone === "dim"
+      ? "border-white/[0.04] bg-white/[0.012] hover:bg-white/[0.025] hover:border-white/[0.08] opacity-80"
       : "border-white/[0.04] bg-white/[0.012] hover:bg-white/[0.025] hover:border-white/[0.08]";
 
   const reasonColor =
@@ -421,67 +466,68 @@ function Row({
       ? "text-rose-200/90"
       : tone === "watch"
       ? "text-amber-100/85"
+      : tone === "dim"
+      ? "text-white/45"
       : "text-white/55";
+
+  const dotColor = !item.isActiveToday
+    ? "bg-white/15"
+    : online
+    ? "bg-emerald-400"
+    : recently
+    ? "bg-amber-300/70"
+    : "bg-white/25";
 
   return (
     <button
-      onClick={() => onSelect({ name: item.row.chatter_name, platform: (item.row as any).platform })}
-      className={`${cardBase} ${cardTone} hover:translate-y-[-1px]`}
+      onClick={() => onSelect({ name: item.name, platform: (item.live as any)?.platform ?? "" })}
+      className={`${cardBase} ${cardTone}`}
     >
-      {/* Status dot */}
       <span className="relative flex h-2 w-2 shrink-0">
         {online && (
           <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/50 opacity-75 animate-ping" />
         )}
-        <span
-          className={`relative inline-flex h-2 w-2 rounded-full ${
-            online ? "bg-emerald-400" : offline ? "bg-white/15" : "bg-amber-300/70"
-          }`}
-        />
+        <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
       </span>
 
-      {/* Main content */}
       <div className="flex-1 min-w-0">
-        {/* Top row: Name + hot + time --- live metrics right */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[15px] text-white/95 font-light tracking-wide truncate">
-              {item.row.chatter_name}
+              {item.name}
             </span>
-            {item.hotStreak && (
-              <span className="flex items-center gap-1 text-[10px] text-emerald-300/85 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 tracking-wider uppercase shrink-0">
-                <ArrowUpRight className="h-2.5 w-2.5" /> Hot
+            {sec !== null && (
+              <span className="text-[10px] text-white/25 tracking-wider shrink-0">
+                · vor {relTime(sec)}
               </span>
             )}
-            <span className="text-[10px] text-white/25 tracking-wider shrink-0">
-              · vor {relTime(sec)}
-            </span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] tabular-nums shrink-0">
-            <span className="text-white/80 font-light">{fmtEur(Number(item.row.revenue))}</span>
-            <span className="text-white/15">·</span>
-            <span className={`font-light ${(item.row.unread_chats ?? 0) >= 10 ? "text-rose-200/90" : "text-white/55"}`}>
-              {item.row.unread_chats} <span className="text-white/30 text-[10px] uppercase tracking-wider">ungel.</span>
-            </span>
-            <span className="text-white/15">·</span>
-            <span className="text-white/55 font-light">
-              {item.row.mass_dms} <span className="text-white/30 text-[10px] uppercase tracking-wider">dm</span>
-            </span>
-          </div>
+          {item.live && (
+            <div className="flex items-center gap-3 text-[11px] tabular-nums shrink-0">
+              <span className="text-white/80 font-light">{fmtEur(Number(item.live.revenue))}</span>
+              <span className="text-white/15">·</span>
+              <span
+                className={`font-light ${
+                  (item.live.unread_chats ?? 0) >= 10 ? "text-rose-200/90" : "text-white/55"
+                }`}
+              >
+                {item.live.unread_chats}{" "}
+                <span className="text-white/30 text-[10px] uppercase tracking-wider">ungel.</span>
+              </span>
+              <span className="text-white/15">·</span>
+              <span className="text-white/55 font-light">
+                {item.live.mass_dms}{" "}
+                <span className="text-white/30 text-[10px] uppercase tracking-wider">dm</span>
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Reasons */}
-        {item.reasons.length > 0 && (
+        {item.reason && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-            {item.reasons.map((r, i) => (
-              <span
-                key={i}
-                className={`text-[11px] font-light tracking-wide ${i === 0 ? reasonColor : "text-white/40"}`}
-              >
-                {i > 0 && <span className="text-white/15 mr-2">·</span>}
-                {r}
-              </span>
-            ))}
+            <span className={`text-[11px] font-light tracking-wide ${reasonColor}`}>
+              {item.reason}
+            </span>
           </div>
         )}
       </div>
