@@ -52,6 +52,27 @@ export default function LiveTracking() {
   const [strongOpen, setStrongOpen] = useState(false);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
+  const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const today = shiftDate();
+    supabase
+      .from("chatter_hourly_stats")
+      .select("hour, updates_seen, chatter_name")
+      .eq("date", today)
+      .ilike("platform", platform)
+      .then(({ data }) => {
+        const map = new Map<number, Set<string>>();
+        (data ?? []).forEach((r: any) => {
+          const h = Number(r.hour);
+          if (!map.has(h)) map.set(h, new Set());
+          map.get(h)!.add(String(r.chatter_name).toLowerCase());
+        });
+        const out = new Map<number, number>();
+        map.forEach((set, h) => out.set(h, set.size));
+        setHourlyByHour(out);
+      });
+  }, [platform, tick]);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
