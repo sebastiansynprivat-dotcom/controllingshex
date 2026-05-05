@@ -725,12 +725,14 @@ function Row({
             }
             title="Ungelesene Chats"
           />
-          <MetricChip
-            icon={Hourglass}
-            value={oldestLabel}
-            tone={oldestTone}
-            title="Ältester offener Chat"
-          />
+          {showOldest && (
+            <MetricChip
+              icon={Hourglass}
+              value={oldestLabel}
+              tone={oldestTone}
+              title="Ältester ungelesener Chat"
+            />
+          )}
           <MetricChip
             icon={Megaphone}
             value={item.live.mass_dms ?? 0}
