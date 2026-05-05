@@ -1,30 +1,66 @@
 ## Ziel
 
-In den Live-Karten klar zeigen, **wie lange der älteste Chat schon offen steht** (in Tagen und wenn Stunden dann die stunden Anzahl). Inaktiv-Filter bleibt strikt: jemand gilt nur als „inaktiv", wenn heute noch gar keine Aktivität (Umsatz, Mass-DM oder abgearbeitete Chats) erkannt wurde.
+Live-Tracking auf „Geld-Hebel-Dashboard" umstellen: jede Karte zeigt sofort Lost Revenue, Trend und konkrete Action. Hero zeigt drei Money-Insights statt nur Aktiv-Quote. Smart-Sort priorisiert nach echtem Umsatz-Risiko.
 
-## Datenlage
+---
 
-`chatter_history_live.oldest_chat` ist die Anzahl Tage, die der älteste ungelesene Chat schon offen ist (aktuell bis zu 64 Tage). Wert wird vom Tracker geliefert.
+## 1. Score & Lost-Revenue in `src/lib/live-activity.ts`
 
-## Änderungen
+Erweitere `ChatterStatus` um:
+- `lostRevenue: number` — abs. Wert des negativen Pacing-Deltas (0 wenn vorne dran)
+- `priorityScore: number` — 0-100, gewichtet aus Lost €, Avg/Tag, Unread, ältestem Chat, Stunden-seit-Aktivität
+- `actionText: string` — kurzer Imperativ („Anstoßen — 87 € Rückstand", „Chats abarbeiten · 12 offen", „Top Performer", etc.)
 
-**Datei: `src/pages/LiveTracking.tsx**` (nur Karten-Renderer, keine Logik-Änderung)
+Score-Formel (gekappt 0-100):
+```
+score =
+   max(0, -delta) × 1.0
+ + avgRev          × 0.3
+ + unread          × 1.5
+ + oldestDays      × 5.0
+ + (active ? hoursSinceLastSeen × 2 : 0)
+```
+Action wird abgeleitet aus dominantem Faktor (Lost €, viele Unread, alter Chat, Inaktiv).
 
-1. Hourglass-Chip umbenennen — statt nur „64d" jetzt **„64d offen"**, damit die Bedeutung sofort klar ist.
-2. Farbschwellen feiner stufen:
-  - `≥7d` → rot (danger)
-  - `≥3d` → amber (warn)
-  - `≥1d` → blau/info
-  - `<1d` oder fehlt → gedämpft
-3. Chip nur einblenden, wenn `oldest_chat ≥ 1` (sonst kein Lärm).
-4. Tooltip präzisieren: „Ältester ungelesener Chat".
+## 2. Karten-Layout neu (`src/pages/LiveTracking.tsx` → `Row`)
 
-## Bewusst unverändert
+Pro Karte sichtbar (von oben nach unten):
+- **Header**: Avatar mit Status-Dot · Name · Sparkline (14d) · "8min" relTime
+- **Action-Zeile**: prominent, farbcodiert nach Tone — z. B. „Anstoßen — 87 € Rückstand"
+- **Heute-Vergleich**: `142 € heute · Ø 230 €/Tag` als feine Zeile
+- **Pacing-Bar mit „Soll-Marker"**: vertikaler Strich an erwarteter Position
+- **Chip-Reihe**: Ungelesen, Ältester offener Chat (nur wenn ≥1d), Mass-DMs
 
-- `isActiveToday()` in `src/lib/live-activity.ts` bleibt wie es ist — Inaktiv = kein Umsatz, keine Mass-DM, kein Chat-Abbau.
-- `oldest_chat` fließt **nicht** in die Aktiv-Bewertung ein, sonst würden Chatter mit alten Karteileichen fälschlich als „aktiv" markiert.
-- Inaktiv-Bucket und Filter „Inaktiv" bleiben unangetastet.
+Lost-Revenue ist die optisch größte Zahl in der Action-Zeile (rot/amber je nach Höhe).
+
+Neue Sub-Komponente `<Sparkline points={number[]} />` (inline SVG, 60×16, Stroke aus Status-Tone).
+
+Sparkline-Daten: aus den bereits geladenen `profiles` ableiten. Erweiterung von `buildProfile`: zusätzlich `recentRevenues: number[]` (letzte 14 Tage, chronologisch).
+
+## 3. Hero: 3 Money-Insights
+
+Bisherige Aktiv-Quote bleibt als kleine Sekundär-Info. Stattdessen prominent:
+- **Lost heute** (Σ aller `lostRevenue`) — große Zahl, gold/rot
+- **Kritisch** (Anzahl mit `lostRevenue > 100 €`) — klickbar → setzt Filter
+- **Top heute** (Chatter mit höchstem positiven Pacing-Delta + dessen +€)
+
+Layout: 3-Spalten-Grid statt vertikalem KPI-Block. Heatmap-Streifen bleibt unter den Stats.
+
+## 4. Smart-Sort nutzt `priorityScore`
+
+In `src/pages/LiveTracking.tsx`:
+- `allStatuses.sort` Bucket-Reihenfolge bleibt (weak → idle → inactive → strong), aber innerhalb jedes Buckets nach `priorityScore` desc statt nach Revenue.
+- Sort-Tab „Smart" sortiert flach nach `priorityScore` desc, zeigt also wirklich „wo verliere ich gerade am meisten Geld" zuerst.
+- Bestehende Sort-Tabs (Prio Ø/Tag, Umsatz, Pacing-Δ, Aktivität) bleiben unverändert als Alternativen.
+
+---
+
+## Bewusst nicht im Scope
+
+- Keine neuen DB-Tabellen oder Edge-Functions, alles aus vorhandenen Daten (`chatter_history_live` + `chatter_history`).
+- Keine Push-Notifications oder Realtime-Sound-Alerts.
+- Sparkline rein clientseitig (SVG, keine Chart-Lib).
 
 ## Aufwand
 
-Eine kleine Änderung in einer Datei (~15 Zeilen).
+Eine erweiterte Lib-Datei (~40 neue Zeilen) und eine größere UI-Refactor in `LiveTracking.tsx` (~120 geänderte Zeilen). Keine Migration nötig.
