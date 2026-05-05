@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, AlertTriangle, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Clock, Moon, Sparkles, MessageCircle, Send, Inbox, Megaphone, Hourglass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -52,6 +52,27 @@ export default function LiveTracking() {
   const [strongOpen, setStrongOpen] = useState(false);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
+  const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const today = shiftDate();
+    supabase
+      .from("chatter_hourly_stats")
+      .select("hour, updates_seen, chatter_name")
+      .eq("date", today)
+      .ilike("platform", platform)
+      .then(({ data }) => {
+        const map = new Map<number, Set<string>>();
+        (data ?? []).forEach((r: any) => {
+          const h = Number(r.hour);
+          if (!map.has(h)) map.set(h, new Set());
+          map.get(h)!.add(String(r.chatter_name).toLowerCase());
+        });
+        const out = new Map<number, number>();
+        map.forEach((set, h) => out.set(h, set.size));
+        setHourlyByHour(out);
+      });
+  }, [platform, tick]);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
@@ -268,13 +289,17 @@ export default function LiveTracking() {
           <div className="pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-[hsl(40_40%_50%/0.06)] blur-3xl" />
 
           <div className="relative">
-            <div className="text-[10px] tracking-[0.32em] uppercase text-white/40 font-light">
-              Aktiv heute
+            <div className="flex items-baseline gap-2">
+              <span className="font-serif italic text-[13px] text-white/55 font-light tracking-wide">Heute</span>
+              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">aktiv im Team</span>
             </div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="font-extralight tabular-nums leading-none gold-text text-[56px] sm:text-[64px] tracking-tight">
-                {activeTodayCount}
-                <span className="text-2xl font-light text-white/40 ml-2">/ {totalCount}</span>
+            <div className="mt-3 flex items-end gap-3">
+              <div
+                className="font-extralight tabular-nums leading-none gold-text text-[72px] sm:text-[84px]"
+                style={{ letterSpacing: "-0.045em" }}
+              >
+                <AnimatedNumber value={activeTodayCount} />
+                <span className="text-[26px] font-light text-white/35 ml-3 tracking-tight">/ {totalCount}</span>
               </div>
             </div>
 
@@ -285,7 +310,7 @@ export default function LiveTracking() {
                 <span className={`tabular-nums font-light ${
                   activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
                 }`}>
-                  {activePct}%
+                  <AnimatedNumber value={activePct} />%
                 </span>
               </div>
               <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
@@ -306,11 +331,14 @@ export default function LiveTracking() {
               </div>
             </div>
 
+            {/* Heatmap-Streifen: 24h Aktivität */}
+            <HeatmapStrip data={hourlyByHour} />
+
             {/* Mini stats row */}
             <div className="mt-6 grid grid-cols-3 gap-3 pt-5 border-t border-white/[0.05]">
-              <MiniStat label="Mass-DMs" value={String(sumDms)} />
-              <MiniStat label="Σ Ungelesen" value={String(sumUnread)} tone={sumUnread > 100 ? "warn" : undefined} />
-              <MiniStat label="Inaktiv" value={String(inactiveCount)} tone={inactiveCount > 0 ? "dim" : undefined} />
+              <MiniStat label="Mass-DMs" value={sumDms} />
+              <MiniStat label="Σ Ungelesen" value={sumUnread} tone={sumUnread > 100 ? "warn" : undefined} />
+              <MiniStat label="Inaktiv" value={inactiveCount} tone={inactiveCount > 0 ? "dim" : undefined} />
             </div>
           </div>
         </div>
@@ -467,7 +495,7 @@ function MiniStat({
   tone,
 }: {
   label: string;
-  value: string;
+  value: number | string;
   sub?: string;
   tone?: "ok" | "warn" | "dim";
 }) {
@@ -477,7 +505,9 @@ function MiniStat({
     <div>
       <div className="text-[9px] tracking-[0.22em] uppercase text-white/35 font-light">{label}</div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span className={`text-xl font-extralight tabular-nums ${valueColor}`}>{value}</span>
+        <span className={`text-xl font-extralight tabular-nums ${valueColor}`}>
+          {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
+        </span>
         {sub && <span className="text-[10px] text-white/30 tabular-nums">{sub}</span>}
       </div>
     </div>
@@ -777,5 +807,89 @@ function MetricChip({
       <Icon className={`h-2.5 w-2.5 ${iconOpacity}`} />
       {value}
     </span>
+  );
+}
+
+function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const startRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    fromRef.current = display;
+    startRef.current = null;
+    const target = value;
+    const from = display;
+    const diff = target - from;
+    if (diff === 0) return;
+
+    const step = (ts: number) => {
+      if (startRef.current == null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const t = Math.min(1, elapsed / duration);
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = from + diff * eased;
+      setDisplay(diff > 0 ? Math.min(target, next) : Math.max(target, next));
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, duration]);
+
+  return <>{Math.round(display).toLocaleString("de-DE")}</>;
+}
+
+function HeatmapStrip({ data }: { data: Map<number, number> }) {
+  const nowH = new Date().getHours();
+  const max = Math.max(1, ...Array.from(data.values()));
+  const cells = Array.from({ length: 24 }, (_, h) => {
+    const v = data.get(h) ?? 0;
+    const intensity = v / max;
+    return { h, v, intensity };
+  });
+  return (
+    <div className="mt-6 pt-5 border-t border-white/[0.05]">
+      <div className="flex items-center justify-between text-[9px] tracking-[0.24em] uppercase text-white/35 font-light mb-2">
+        <span>24h Aktivität</span>
+        <span className="tabular-nums text-white/25 normal-case tracking-normal">jetzt {String(nowH).padStart(2, "0")}:00</span>
+      </div>
+      <div className="flex items-end gap-[3px] h-9">
+        {cells.map(({ h, v, intensity }) => {
+          const isNow = h === nowH;
+          const height = Math.max(8, intensity * 100);
+          const opacity = v === 0 ? 0.08 : 0.25 + intensity * 0.75;
+          return (
+            <div
+              key={h}
+              title={`${String(h).padStart(2, "0")}:00 · ${v} aktiv`}
+              className="flex-1 relative group"
+            >
+              <div
+                className={`w-full rounded-[2px] transition-all ${
+                  isNow
+                    ? "bg-gradient-to-t from-[hsl(40_60%_55%)] to-[hsl(40_75%_72%)]"
+                    : "bg-gradient-to-t from-white/40 to-white/70"
+                }`}
+                style={{
+                  height: `${height}%`,
+                  opacity: isNow ? 1 : opacity,
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[8px] text-white/20 tabular-nums">
+        <span>04</span>
+        <span>10</span>
+        <span>16</span>
+        <span>22</span>
+      </div>
+    </div>
   );
 }
