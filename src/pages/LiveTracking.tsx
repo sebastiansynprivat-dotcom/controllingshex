@@ -326,98 +326,57 @@ export default function LiveTracking() {
           <div className="relative">
             <div className="flex items-baseline gap-2">
               <span className="font-serif italic text-[13px] text-white/55 font-light tracking-wide">Heute</span>
-              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">Money-Pulse</span>
+              <span className="text-[9px] tracking-[0.34em] uppercase text-white/30 font-light">Live-Pulse</span>
             </div>
 
-            {/* 3-Spalten Money-Insights */}
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {/* Lost heute */}
+            {/* 2-Spalten Hero: Aktiv insgesamt · Jetzt online */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {/* Aktiv insgesamt */}
               <button
-                onClick={() => setFilter("weak")}
-                className="text-left group"
+                onClick={() => setFilter("active")}
+                className="group relative text-left rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-4 transition-all hover:border-white/[0.1] hover:from-white/[0.06]"
               >
-                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Lost heute</div>
-                <div
-                  className={`mt-1 font-extralight tabular-nums leading-none ${
-                    totalLost >= 200 ? "text-rose-300" : totalLost >= 50 ? "text-amber-200" : "text-white/85"
-                  } text-[34px] sm:text-[40px]`}
-                  style={{ letterSpacing: "-0.04em" }}
-                >
-                  −<AnimatedNumber value={totalLost} />
-                  <span className="text-[14px] font-light text-white/40 ml-1">€</span>
+                <div className="flex items-center gap-1.5 text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">
+                  <span className="h-1 w-1 rounded-full bg-white/40" />
+                  Aktiv heute
                 </div>
-                <div className="mt-1 text-[10px] text-white/35 font-light">vs. Schnitt jetzt</div>
-              </button>
-
-              {/* Kritisch */}
-              <button
-                onClick={() => setFilter("weak")}
-                className="text-left group"
-              >
-                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Kritisch</div>
                 <div
-                  className={`mt-1 font-extralight tabular-nums leading-none ${
-                    criticalCount > 0 ? "text-rose-300" : "text-white/85"
-                  } text-[34px] sm:text-[40px]`}
-                  style={{ letterSpacing: "-0.04em" }}
-                >
-                  <AnimatedNumber value={criticalCount} />
-                </div>
-                <div className="mt-1 text-[10px] text-white/35 font-light">{">"}100 € Rückstand</div>
-              </button>
-
-              {/* Top heute */}
-              <div>
-                <div className="text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">Top heute</div>
-                {topToday ? (
-                  <>
-                    <div
-                      className="mt-1 font-extralight tabular-nums leading-none gold-text text-[34px] sm:text-[40px]"
-                      style={{ letterSpacing: "-0.04em" }}
-                    >
-                      +<AnimatedNumber value={Math.round(topToday.surplusRevenue)} />
-                      <span className="text-[14px] font-light text-white/40 ml-1">€</span>
-                    </div>
-                    <div className="mt-1 text-[10px] text-white/45 font-light truncate">{topToday.name}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-1 font-extralight tabular-nums leading-none text-white/40 text-[34px] sm:text-[40px]">—</div>
-                    <div className="mt-1 text-[10px] text-white/30 font-light">noch keiner vorne</div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Aktivitäts-Bar — sekundär */}
-            <div className="mt-6 space-y-2 pt-5 border-t border-white/[0.05]">
-              <div className="flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
-                <span className="text-white/40 font-light">
-                  Aktiv <span className="tabular-nums text-white/60 normal-case tracking-normal ml-1">{activeTodayCount}/{totalCount}</span>
-                  <span className="text-white/25 normal-case tracking-normal ml-1.5 text-[9px]">seit 04:00</span>
-                </span>
-                <span className={`tabular-nums font-light ${
-                  activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
-                }`}>
-                  <AnimatedNumber value={activePct} />%
-                </span>
-              </div>
-              <div className="relative h-1 rounded-full bg-white/[0.04] overflow-hidden">
-                <div
-                  className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${
-                    activePct >= 80
-                      ? "bg-gradient-to-r from-emerald-400/60 to-emerald-300/80"
-                      : activePct >= 50
-                      ? "bg-gradient-to-r from-amber-400/60 to-amber-200/80"
-                      : "bg-gradient-to-r from-rose-500/60 to-rose-300/80"
+                  className={`mt-2 font-extralight tabular-nums leading-none text-[44px] sm:text-[52px] ${
+                    activePct >= 80 ? "text-emerald-200" : activePct >= 50 ? "text-amber-100" : "text-rose-200"
                   }`}
-                  style={{ width: `${Math.max(3, activePct)}%` }}
-                />
-              </div>
+                  style={{ letterSpacing: "-0.05em" }}
+                >
+                  <AnimatedNumber value={activeTodayCount} />
+                  <span className="text-[16px] font-light text-white/30 ml-1.5">/ {totalCount}</span>
+                </div>
+                <div className="mt-3 relative h-[3px] rounded-full bg-white/[0.05] overflow-hidden">
+                  <div
+                    className={`absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ${
+                      activePct >= 80
+                        ? "bg-gradient-to-r from-emerald-400/70 to-emerald-300/90"
+                        : activePct >= 50
+                        ? "bg-gradient-to-r from-amber-400/70 to-amber-200/90"
+                        : "bg-gradient-to-r from-rose-500/70 to-rose-300/90"
+                    }`}
+                    style={{ width: `${Math.max(3, activePct)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] font-light">
+                  <span className="text-white/30">seit 04:00</span>
+                  <span className={`tabular-nums ${
+                    activePct >= 80 ? "text-emerald-300/90" : activePct >= 50 ? "text-amber-200/90" : "text-rose-300/90"
+                  }`}>
+                    <AnimatedNumber value={activePct} />%
+                  </span>
+                </div>
+              </button>
 
-              {/* Jetzt online — wirklich live */}
-              <div className="flex items-center justify-between pt-2 text-[10px] tracking-[0.18em] uppercase">
-                <span className="text-white/40 font-light flex items-center gap-1.5">
+              {/* Jetzt online */}
+              <div className="relative rounded-2xl border border-white/[0.06] bg-gradient-to-br from-emerald-500/[0.04] to-white/[0.01] p-4 overflow-hidden">
+                {liveNowCount > 0 && (
+                  <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-emerald-400/[0.08] blur-3xl" />
+                )}
+                <div className="flex items-center gap-1.5 text-[9px] tracking-[0.24em] uppercase text-white/35 font-light">
                   <span className="relative flex h-1.5 w-1.5">
                     {liveNowCount > 0 && (
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
@@ -425,24 +384,34 @@ export default function LiveTracking() {
                     <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${liveNowCount > 0 ? "bg-emerald-400" : "bg-white/20"}`} />
                   </span>
                   Jetzt online
-                </span>
-                <span className={`tabular-nums font-light ${liveNowCount > 0 ? "text-emerald-300/90" : "text-white/40"}`}>
+                </div>
+                <div
+                  className={`mt-2 font-extralight tabular-nums leading-none text-[44px] sm:text-[52px] ${
+                    liveNowCount > 0 ? "text-emerald-200" : "text-white/40"
+                  }`}
+                  style={{ letterSpacing: "-0.05em" }}
+                >
                   <AnimatedNumber value={liveNowCount} />
-                  <span className="text-white/25 ml-1">/ {totalCount}</span>
-                </span>
+                  <span className="text-[16px] font-light text-white/30 ml-1.5">/ {totalCount}</span>
+                </div>
+                <div className="mt-3 h-[3px] rounded-full bg-white/[0.05] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400/70 to-emerald-300/90 transition-all duration-1000"
+                    style={{ width: `${Math.max(liveNowCount > 0 ? 6 : 0, totalCount > 0 ? Math.round((liveNowCount / totalCount) * 100) : 0)}%` }}
+                  />
+                </div>
+                <div className="mt-2 text-[10px] text-white/30 font-light">echte Aktivität · diese Stunde</div>
               </div>
             </div>
 
-            {/* Heatmap-Streifen: 24h Aktivität */}
-            <HeatmapStrip data={hourlyByHour} />
-
             {/* Mini stats row */}
-            <div className="mt-6 grid grid-cols-3 gap-3 pt-5 border-t border-white/[0.05]">
+            <div className="mt-5 grid grid-cols-3 gap-3 pt-4 border-t border-white/[0.05]">
               <MiniStat label="Mass-DMs" value={sumDms} />
               <MiniStat label="Σ Ungelesen" value={sumUnread} tone={sumUnread > 100 ? "warn" : undefined} />
               <MiniStat label="Inaktiv" value={inactiveCount} tone={inactiveCount > 0 ? "dim" : undefined} />
             </div>
           </div>
+        </div>
         </div>
 
         {/* Insight chips */}
