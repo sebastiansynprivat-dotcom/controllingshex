@@ -495,7 +495,7 @@ function MiniStat({
   tone,
 }: {
   label: string;
-  value: string;
+  value: number | string;
   sub?: string;
   tone?: "ok" | "warn" | "dim";
 }) {
