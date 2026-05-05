@@ -18,7 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ResponsiveContainer, LineChart, AreaChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import ChatterActivityHoursCard from "@/components/ChatterActivityHoursCard";
 import { onChatterDataUpdated } from "@/lib/data-events";
