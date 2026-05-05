@@ -538,26 +538,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     setSavingNote(false);
   };
 
-  const noteDateMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const n of notes) {
-      const dateStr = n.created_at.split("T")[0];
-      map.set(dateStr, n.note_text);
-    }
-    return map;
-  }, [notes]);
-
-  const enrichedHistory = useMemo(() => {
-    return history.map((row) => ({
-      ...row,
-      note: noteDateMap.get(row.analysis_date) || undefined,
-    }));
-  }, [history, noteDateMap]);
-
-  const noteDates = useMemo(() => {
-    const histDates = new Set(history.map((h) => h.analysis_date));
-    return Array.from(noteDateMap.keys()).filter((d) => histDates.has(d));
-  }, [history, noteDateMap]);
 
   const avgRevenue = history.length ? history.reduce((s, r) => s + r.revenue_today, 0) / history.length : 0;
   const maxRevenue = history.length ? Math.max(...history.map((r) => r.revenue_today)) : 0;
