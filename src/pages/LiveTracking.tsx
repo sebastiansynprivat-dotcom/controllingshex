@@ -194,7 +194,9 @@ export default function LiveTracking() {
       if (filter === "inactive" && s.status !== "inactive") return false;
       return true;
     });
-    if (sortKey === "smart") return filtered;
+    if (sortKey === "smart") {
+      return [...filtered].sort((a, b) => b.priorityScore - a.priorityScore);
+    }
     const sorted = [...filtered];
     if (sortKey === "priority") {
       // Top earners first (avg/day = wirtschaftlicher Impact)
