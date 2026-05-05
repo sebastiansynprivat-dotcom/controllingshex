@@ -56,6 +56,7 @@ export default function LiveTracking() {
   const [selected, setSelected] = useState<{ name: string; platform: string } | null>(null);
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
+  const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed"; detail: string; expiresAt?: number };
   const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
