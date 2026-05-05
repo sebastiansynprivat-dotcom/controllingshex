@@ -638,20 +638,23 @@ function Row({
       : "text-white/55";
 
   const oldestDays = item.live?.oldest_chat != null ? Number(item.live.oldest_chat) : null;
+  const showOldest = oldestDays != null && oldestDays > 0;
   const oldestTone =
     oldestDays == null
       ? "muted"
-      : oldestDays >= 3
+      : oldestDays >= 7
       ? "danger"
-      : oldestDays >= 1
+      : oldestDays >= 3
       ? "warn"
-      : "info";
+      : oldestDays >= 1
+      ? "info"
+      : "muted";
   const oldestLabel =
     oldestDays == null
       ? "—"
       : oldestDays >= 1
-      ? `${Math.round(oldestDays)}d`
-      : `<1d`;
+      ? `${Math.round(oldestDays)}d offen`
+      : `${Math.max(1, Math.round(oldestDays * 24))}h offen`;
 
   return (
     <button
