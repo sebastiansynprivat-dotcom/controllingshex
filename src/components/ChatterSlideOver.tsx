@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ResponsiveContainer, LineChart, AreaChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
 import WeekTrendCard from "@/components/WeekTrendCard";
+import ChatterActivityHoursCard from "@/components/ChatterActivityHoursCard";
 import { onChatterDataUpdated } from "@/lib/data-events";
 
 interface HistoryRow {
