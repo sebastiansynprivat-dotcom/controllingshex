@@ -263,8 +263,8 @@ export default function LiveTracking() {
 
           // Echtzeit-Detektion: hat sich etwas getan, das auf einen aktiven Chatter hinweist?
           if (next && old && payload.eventType === "UPDATE") {
-            const revDelta = (Number(next.revenue) || 0) - (Number(old.revenue) || 0);
-            const dmsDelta = (Number(next.mass_dms) || 0) - (Number(old.mass_dms) || 0);
+            const revDelta = Math.max(0, (Number(next.revenue) || 0) - (Number(old.revenue) || 0));
+            const dmsDelta = Math.max(0, (Number(next.mass_dms) || 0) - (Number(old.mass_dms) || 0));
             const unreadDelta = (next.unread_chats ?? 0) - (old.unread_chats ?? 0);
             const revUp = revDelta > 0;
             const dmsUp = dmsDelta > 0;
@@ -365,6 +365,24 @@ export default function LiveTracking() {
     };
   }, [platform]);
 
+  useEffect(() => {
+    if (!serverLiveNow) return;
+    const cutoff = Date.now() - liveWindowMs;
+    if (new Date(serverLiveNow.computedAt).getTime() < cutoff) return;
+    setLiveActivityAt((prev) => {
+      const merged = new Map<string, number>();
+      prev.forEach((ts, key) => {
+        if (ts >= cutoff) merged.set(key, ts);
+      });
+      const serverTs = new Date(serverLiveNow.computedAt).getTime();
+      serverLiveNow.names.forEach((name) => {
+        const key = normName(name);
+        if (key) merged.set(key, Math.max(merged.get(key) ?? 0, serverTs));
+      });
+      return merged;
+    });
+  }, [serverLiveNow, liveWindowMs]);
+
   const displayNameFor = (key: string): string => {
     const live = rows.find((r) => normName(r.chatter_name) === key);
     if (live) return live.chatter_name;
@@ -453,10 +471,13 @@ export default function LiveTracking() {
   liveActivityAt.forEach((ts, key) => {
     if (ts >= liveNowCutoff && key) clientLive.add(key);
   });
-  (serverLiveNow?.names ?? []).forEach((n) => {
-    const k = normName(n);
-    if (k) clientLive.add(k);
-  });
+  const serverFresh = serverLiveNow && new Date(serverLiveNow.computedAt).getTime() >= liveNowCutoff;
+  if (serverFresh) {
+    (serverLiveNow?.names ?? []).forEach((n) => {
+      const k = normName(n);
+      if (k) clientLive.add(k);
+    });
+  }
   const liveNowCount = clientLive.size;
   const lastSync = rows.length ? Math.min(...rows.map((r) => secondsSince(r.updated_at))) : null;
   const totalCount = allStatuses.length;
