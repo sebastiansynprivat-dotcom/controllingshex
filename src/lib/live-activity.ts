@@ -119,13 +119,11 @@ export function computeStatus(
 
   if (!active) {
     status = "inactive";
-    if (avgRev >= 30) {
-      reason = `heute noch nicht aktiv · sonst Ø ${Math.round(avgRev)}€/Tag`;
-    } else {
-      reason = "heute noch nicht aktiv";
-    }
+    reason = "heute noch nicht aktiv";
   } else {
     const recentlyOnline = seen !== null && seen < 30 * 60;
+    const unread = live?.unread_chats ?? 0;
+    const dms = live?.mass_dms ?? 0;
     if (!recentlyOnline) {
       status = "active_idle";
       const mins = seen ? Math.round(seen / 60) : 0;
@@ -135,14 +133,10 @@ export function computeStatus(
           : `Pause · letzte Aktivität vor ${mins} min`;
     } else if (avgRev >= 30 && delta < -Math.max(20, avgRev * 0.15)) {
       status = "active_weak";
-      reason = `${Math.round(today)}€ · sonst ${Math.round(expected)}€ um diese Zeit (${Math.round(delta)}€)`;
+      reason = `unter Pacing · ${unread} ungelesen · ${dms} DM`;
     } else {
       status = "active_strong";
-      if (avgRev >= 30 && delta > avgRev * 0.1) {
-        reason = `${Math.round(today)}€ · über Pacing (+${Math.round(delta)}€)`;
-      } else {
-        reason = `${Math.round(today)}€ heute · läuft`;
-      }
+      reason = `aktiv · ${unread} ungelesen · ${dms} DM`;
     }
   }
 
