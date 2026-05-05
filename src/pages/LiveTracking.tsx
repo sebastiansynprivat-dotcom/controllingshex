@@ -34,7 +34,8 @@ function normName(s: string): string {
   return s.trim().toLowerCase();
 }
 
-const LIVE_NOW_WINDOW_MS = 15 * 60 * 1000;
+const LIVE_NOW_WINDOW_OPTIONS = [15, 30, 60] as const;
+const LIVE_NOW_WINDOW_DEFAULT = 15;
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -57,6 +58,34 @@ export default function LiveTracking() {
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
   const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
+  const [liveWindowMin, setLiveWindowMin] = useState<number>(LIVE_NOW_WINDOW_DEFAULT);
+  const liveWindowMs = liveWindowMin * 60 * 1000;
+
+  // Fenster-Setting laden + persistieren
+  useEffect(() => {
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "live_now_window_min")
+      .maybeSingle()
+      .then(({ data }) => {
+        const v = Number((data as any)?.value);
+        if (Number.isFinite(v) && v > 0) setLiveWindowMin(v);
+      });
+  }, []);
+  const saveLiveWindow = async (min: number) => {
+    setLiveWindowMin(min);
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u?.user?.id;
+    if (!uid) return;
+    const { data: existing } = await supabase
+      .from("settings").select("id").eq("key", "live_now_window_min").eq("user_id", uid).maybeSingle();
+    if (existing) {
+      await supabase.from("settings").update({ value: String(min), updated_at: new Date().toISOString() }).eq("id", (existing as any).id);
+    } else {
+      await supabase.from("settings").insert({ key: "live_now_window_min", value: String(min), user_id: uid });
+    }
+  };
   const [debugOpen, setDebugOpen] = useState(false);
   type LiveEvent = { id: string; ts: number; name: string; type: "sale" | "dm" | "unread" | "expire" | "seed" | "tz"; detail: string; expiresAt?: number };
   const [liveLog, setLiveLog] = useState<LiveEvent[]>([]);
@@ -149,7 +178,7 @@ export default function LiveTracking() {
 
         // Jetzt online: rollierende echte Aktivität aus den letzten ~70 Minuten.
         // Wichtig: hourly_stats wird in UTC geschrieben – deshalb nicht nach Berlin-Stunde filtern.
-        const liveCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+        const liveCutoff = Date.now() - liveWindowMs;
         const live = new Map<string, number>();
         (data ?? []).forEach((r: any) => {
           const updatedAt = new Date(r.updated_at ?? 0).getTime();
@@ -250,9 +279,9 @@ export default function LiveTracking() {
                   copy.set(key, now);
                   return copy;
                 });
-                if (revUp) pushEvent({ name: displayName, type: "sale", detail: `+${fmtEur(revDelta)}`, expiresAt: now + LIVE_NOW_WINDOW_MS });
-                if (dmsUp) pushEvent({ name: displayName, type: "dm", detail: `+${dmsDelta} Mass-DM`, expiresAt: now + LIVE_NOW_WINDOW_MS });
-                if (unreadDown) pushEvent({ name: displayName, type: "unread", detail: `${unreadDelta} ungelesen`, expiresAt: now + LIVE_NOW_WINDOW_MS });
+                if (revUp) pushEvent({ name: displayName, type: "sale", detail: `+${fmtEur(revDelta)}`, expiresAt: now + liveWindowMs });
+                if (dmsUp) pushEvent({ name: displayName, type: "dm", detail: `+${dmsDelta} Mass-DM`, expiresAt: now + liveWindowMs });
+                if (unreadDown) pushEvent({ name: displayName, type: "unread", detail: `${unreadDelta} ungelesen`, expiresAt: now + liveWindowMs });
               }
             }
           }
@@ -281,14 +310,14 @@ export default function LiveTracking() {
   // Ablauf-Erkennung: prune & log Einträge, die das 15-Min-Fenster verlassen
   const prevLiveRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
-    const cutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+    const cutoff = Date.now() - liveWindowMs;
     const prev = prevLiveRef.current;
     prev.forEach((ts, key) => {
       const cur = liveActivityAt.get(key);
       if ((!cur || cur < cutoff) && ts >= cutoff - 60_000) {
         // war noch aktiv, jetzt nicht mehr
         const display = displayNameFor(key);
-        pushEvent({ name: display, type: "expire", detail: "15 min Fenster abgelaufen" });
+        pushEvent({ name: display, type: "expire", detail: `${liveWindowMin} min Fenster abgelaufen` });
       }
     });
     prevLiveRef.current = new Map(liveActivityAt);
@@ -419,7 +448,7 @@ export default function LiveTracking() {
   const activeTodayCount = allStatuses.filter((s) => s.isActiveToday).length;
   const inactiveCount = allStatuses.filter((s) => s.status === "inactive").length;
   // Jetzt online = Server-Count (alle 60s vom Cron neu berechnet) ∪ Client-Realtime-Hits
-  const liveNowCutoff = Date.now() - LIVE_NOW_WINDOW_MS;
+  const liveNowCutoff = Date.now() - liveWindowMs;
   const clientLive = new Set<string>();
   allStatuses.forEach((s) => {
     if ((liveActivityAt.get(normName(s.name)) ?? 0) >= liveNowCutoff) clientLive.add(normName(s.name));
@@ -569,8 +598,21 @@ export default function LiveTracking() {
                     style={{ width: `${Math.max(liveNowCount > 0 ? 6 : 0, totalCount > 0 ? Math.round((liveNowCount / totalCount) * 100) : 0)}%` }}
                   />
                 </div>
-                <div className="mt-2 text-[10px] text-white/30 font-light">
-                  letzte 15 min{serverLiveNow ? ` · sync ${relTime(secondsSince(serverLiveNow.computedAt))} ago` : ""}
+                <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-white/30 font-light">
+                  <span>letzte {liveWindowMin} min{serverLiveNow ? ` · sync ${relTime(secondsSince(serverLiveNow.computedAt))} ago` : ""}</span>
+                  <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.02] p-0.5">
+                    {LIVE_NOW_WINDOW_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={(e) => { e.stopPropagation(); saveLiveWindow(opt); }}
+                        className={`px-2 py-0.5 rounded-full text-[9px] tabular-nums transition-colors ${
+                          liveWindowMin === opt ? "bg-white/10 text-white/90" : "text-white/40 hover:text-white/70"
+                        }`}
+                      >
+                        {opt}m
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
