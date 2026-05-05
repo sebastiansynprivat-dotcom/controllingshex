@@ -119,7 +119,12 @@ export function computeStatus(
 
   if (!active) {
     status = "inactive";
-    reason = "heute noch nicht aktiv";
+    if (avgRev >= 5) {
+      const missing = Math.max(0, Math.round(avgRev));
+      reason = `Ø ${Math.round(avgRev)} €/Tag · heute fehlen ~${missing} €`;
+    } else {
+      reason = "heute noch nicht aktiv";
+    }
   } else {
     const recentlyOnline = seen !== null && seen < 30 * 60;
     const unread = live?.unread_chats ?? 0;
