@@ -459,14 +459,39 @@ export default function LiveTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, profiles, tick]);
 
+  const liveNowKeys = useMemo(() => {
+    const cutoff = Date.now() - liveWindowMs;
+    const set = new Set<string>();
+    liveActivityAt.forEach((ts, key) => {
+      if (ts >= cutoff && key) set.add(key);
+    });
+    if (serverLiveNow && new Date(serverLiveNow.computedAt).getTime() >= cutoff) {
+      serverLiveNow.names.forEach((n) => {
+        const k = normName(n);
+        if (k) set.add(k);
+      });
+    }
+    return set;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick]);
+
   const visible = useMemo(() => {
     const filtered = allStatuses.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filter === "active" && !s.isActiveToday) return false;
       if (filter === "weak" && s.status !== "active_weak") return false;
       if (filter === "inactive" && s.status !== "inactive") return false;
+      if (filter === "live_now" && !liveNowKeys.has(normName(s.name))) return false;
       return true;
     });
+    if (sortKey === "smart" && filter === "live_now") {
+      // Bei "Jetzt online" zeigt eine flache Liste nach letzter Aktivität.
+      return [...filtered].sort((a, b) => {
+        const sa = a.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        const sb = b.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        return sa - sb;
+      });
+    }
     if (sortKey === "smart") {
       return [...filtered].sort((a, b) => b.priorityScore - a.priorityScore);
     }
@@ -485,7 +510,7 @@ export default function LiveTracking() {
       });
     }
     return sorted;
-  }, [allStatuses, search, filter, sortKey]);
+  }, [allStatuses, search, filter, sortKey, liveNowKeys]);
 
   const buckets = useMemo(
     () => ({
