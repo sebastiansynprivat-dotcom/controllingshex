@@ -62,6 +62,7 @@ export default function LiveTracking() {
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
   const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
+  const [mismatch, setMismatch] = useState<MismatchResult>({ byKey: new Map(), pullUp: [], underused: [] });
   const [liveWindowMin, setLiveWindowMin] = useState<number>(LIVE_NOW_WINDOW_DEFAULT);
   const liveWindowMs = liveWindowMin * 60 * 1000;
 
