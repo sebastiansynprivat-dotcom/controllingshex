@@ -788,7 +788,7 @@ export default function LiveTracking() {
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">
           {search ? `Keine Treffer für „${search}".` : "Keine Chatter passen zum Filter."}
         </p>
-      ) : sortKey !== "smart" ? (
+      ) : sortKey !== "smart" || filter === "live_now" ? (
         <div className="space-y-2">
           {visible.map((s) => (
             <Row key={s.name} item={s} onSelect={setSelected} />
