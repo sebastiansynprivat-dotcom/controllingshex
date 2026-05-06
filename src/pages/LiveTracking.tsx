@@ -5,6 +5,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import PeakHoursCard from "@/components/PeakHoursCard";
 import PeakRevenueCard from "@/components/PeakRevenueCard";
+import EffortPotentialCard from "@/components/EffortPotentialCard";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
@@ -686,6 +687,11 @@ export default function LiveTracking() {
         <PeakHoursCard />
         <PeakRevenueCard />
       </div>
+
+      {/* ─── EFFORT × POTENTIAL ─────────────────────── */}
+      <EffortPotentialCard
+        onSelectChatter={(name) => setSelected({ name, platform })}
+      />
 
       {/* ─── TOOLBAR (sticky) ────────────────────────── */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/80 backdrop-blur-xl border-b border-white/[0.05]">
