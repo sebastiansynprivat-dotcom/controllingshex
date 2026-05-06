@@ -1,52 +1,47 @@
 /**
- * Effort × Potential Matrix
+ * Effort × Potential Mismatch
  *
- * Vergleicht für jeden Chatter den Aufwand (aktive Stunden/Tag aus
- * `chatter_hourly_stats`) mit dem Potenzial des aktuell zugewiesenen
- * Accounts (Tier nach Follower-Größe).
+ * Reine Zeit-Logik: vergleicht Ø aktive Stunden/Tag (aus chatter_hourly_stats)
+ * mit dem Tier des aktuell zugewiesenen Accounts (aus models.follower_count).
  *
- * Ziel: Mismatches finden →
- *  - "pull_up": viel Aktivität, kleiner Account → Kandidat für Top-Account
- *  - "underused": wenig Aktivität, großer Account → Account verschwendet
+ * Mismatch-Regeln:
+ *   - "pull_up":   Ø ≥ 5h/Tag UND Tier ∈ {seed, starter}
+ *                  → viel Zeit auf zu kleinem Account.
+ *   - "underused": Ø ≤ 2h/Tag UND Tier ∈ {growth, top}
+ *                  → großer Account, zu wenig Zeit.
+ *
+ * Umsatz fließt bewusst NICHT ein — der verzerrt das Bild.
  */
 import { supabase } from "@/integrations/supabase/client";
 import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
 
-export type Verdict = "pull_up" | "underused" | "match" | "unknown";
+export type MismatchKind = "pull_up" | "underused";
 
-export interface EffortPotentialRow {
+export interface MismatchEntry {
   chatterName: string;
-  account: string | null;
-  followers: number;
-  tier: AccountTier | null;
+  /** lowercased + trim, matches LiveTracking.normName */
+  key: string;
+  account: string;
+  tier: AccountTier;
   avgHoursPerDay: number;
   daysObserved: number;
-  effortScore: number; // 0..100
-  potentialScore: number; // 0..100
-  delta: number; // effort - potential
-  verdict: Verdict;
+  kind: MismatchKind;
 }
 
-export interface EffortPotentialResult {
-  rows: EffortPotentialRow[];
-  pullUp: EffortPotentialRow[]; // viel Effort, kleines Potenzial
-  underused: EffortPotentialRow[]; // wenig Effort, hohes Potenzial
-  unassigned: EffortPotentialRow[];
-  teamMedianHours: number;
+export interface MismatchResult {
+  byKey: Map<string, MismatchEntry>;
+  pullUp: MismatchEntry[];
+  underused: MismatchEntry[];
 }
 
-const TIER_POTENTIAL: Record<string, number> = {
-  seed: 20,
-  starter: 45,
-  growth: 70,
-  top: 95,
-};
+const HIGH_EFFORT_HOURS = 5;
+const LOW_EFFORT_HOURS = 2;
+const MIN_DAYS_OBSERVED = 3;
+const ONBOARDING_MIN_DAYS = 14;
+const LOOKBACK_DAYS = 14;
 
-function median(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  const s = [...nums].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+function norm(s: string): string {
+  return s.trim().toLowerCase();
 }
 
 interface HourlyRow {
@@ -64,18 +59,15 @@ interface HistoryRow {
   analysis_date: string;
 }
 
-export async function loadEffortPotentialMatrix(
-  platform: string,
-  lookbackDays = 14,
-): Promise<EffortPotentialResult> {
+export async function loadMismatchMap(platform: string): Promise<MismatchResult> {
+  const empty: MismatchResult = { byKey: new Map(), pullUp: [], underused: [] };
+
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
-  if (!uid) {
-    return { rows: [], pullUp: [], underused: [], unassigned: [], teamMedianHours: 0 };
-  }
+  if (!uid) return empty;
 
   const since = new Date();
-  since.setDate(since.getDate() - lookbackDays);
+  since.setDate(since.getDate() - LOOKBACK_DAYS);
   const sinceIso = since.toISOString().slice(0, 10);
 
   const [hourlyRes, historyRes, modelsRes] = await Promise.all([
@@ -103,119 +95,94 @@ export async function loadEffortPotentialMatrix(
   const history = (historyRes.data ?? []) as HistoryRow[];
   const models = (modelsRes.data ?? []) as { model_name: string; follower_count: number }[];
 
-  // Follower-Lookup
   const followerByAcc = new Map<string, number>();
   for (const m of models) {
-    followerByAcc.set(m.model_name.toLowerCase().trim(), Number(m.follower_count) || 0);
+    followerByAcc.set(norm(m.model_name), Number(m.follower_count) || 0);
   }
 
-  // Aktuelles Account-Mapping pro Chatter (jüngster History-Eintrag)
-  const accountByChatter = new Map<string, string | null>();
-  const firstSeen = new Map<string, string>();
+  // Aktuelles Account-Mapping + ältester History-Eintrag pro Chatter.
+  // history ist DESC sortiert → erster Treffer = neuester.
+  const accountByChatter = new Map<string, string>();
+  const oldestSeen = new Map<string, string>();
+  const displayName = new Map<string, string>();
   for (const h of history) {
-    const key = h.chatter_name?.trim();
-    if (!key) continue;
-    if (!accountByChatter.has(key)) {
-      accountByChatter.set(key, h.account?.trim() || null);
+    const name = (h.chatter_name ?? "").trim();
+    if (!name) continue;
+    const key = norm(name);
+    displayName.set(key, name);
+    if (!accountByChatter.has(key) && h.account?.trim()) {
+      accountByChatter.set(key, h.account.trim());
     }
-    firstSeen.set(key, h.analysis_date); // weil DESC sortiert → letzter Wert = ältester
+    oldestSeen.set(key, h.analysis_date); // wird bei jedem (älteren) Treffer überschrieben
   }
 
-  // Aktive Stunden pro Chatter aggregieren
-  const dayHoursPerChatter = new Map<string, Map<string, Set<number>>>();
+  // Aktive Stunden pro Chatter aggregieren.
+  const dayHours = new Map<string, Map<string, Set<number>>>();
   for (const r of hourly) {
-    const active =
+    const isActive =
       (Number(r.revenue) || 0) > 0 ||
       (Number(r.mass_dms) || 0) > 0 ||
       (Number(r.unread_delta) || 0) < 0;
-    if (!active) continue;
-    const key = r.chatter_name?.trim();
-    if (!key) continue;
-    if (!dayHoursPerChatter.has(key)) dayHoursPerChatter.set(key, new Map());
-    const days = dayHoursPerChatter.get(key)!;
+    if (!isActive) continue;
+    const name = (r.chatter_name ?? "").trim();
+    if (!name) continue;
+    const key = norm(name);
+    if (!displayName.has(key)) displayName.set(key, name);
+    if (!dayHours.has(key)) dayHours.set(key, new Map());
+    const days = dayHours.get(key)!;
     if (!days.has(r.date)) days.set(r.date, new Set());
     days.get(r.date)!.add(Number(r.hour));
   }
 
-  // Vereinheitlichte Chatter-Liste (alle die in History oder Hourly sind)
-  const allChatters = new Set<string>([
-    ...accountByChatter.keys(),
-    ...dayHoursPerChatter.keys(),
-  ]);
-
-  const rawRows: Array<EffortPotentialRow & { _onboarding: boolean }> = [];
   const todayMs = Date.now();
+  const byKey = new Map<string, MismatchEntry>();
 
-  for (const chatter of allChatters) {
-    const days = dayHoursPerChatter.get(chatter);
-    const dayCount = days?.size ?? 0;
-    const totalHours = days
-      ? Array.from(days.values()).reduce((s, set) => s + set.size, 0)
-      : 0;
-    const avgHoursPerDay = dayCount > 0 ? totalHours / dayCount : 0;
+  for (const [key, days] of dayHours) {
+    const account = accountByChatter.get(key);
+    if (!account) continue; // ohne Account-Zuweisung kein Tier-Vergleich
 
-    const account = accountByChatter.get(chatter) ?? null;
-    const followers = account ? followerByAcc.get(account.toLowerCase()) ?? 0 : 0;
-    const tier = account ? tierForFollowers(followers) : null;
+    const followers = followerByAcc.get(norm(account)) ?? 0;
+    const tier = tierForFollowers(followers);
+    if (!tier) continue;
 
-    // Onboarding-Filter: <14 Tage seit erstem History-Eintrag
-    let onboarding = false;
-    const fs = firstSeen.get(chatter);
+    const dayCount = days.size;
+    if (dayCount < MIN_DAYS_OBSERVED) continue;
+
+    const fs = oldestSeen.get(key);
     if (fs) {
       const ageDays = (todayMs - new Date(fs).getTime()) / 86400000;
-      if (ageDays < 14) onboarding = true;
+      if (ageDays < ONBOARDING_MIN_DAYS) continue;
     }
 
-    rawRows.push({
-      chatterName: chatter,
+    const totalHours = Array.from(days.values()).reduce((s, set) => s + set.size, 0);
+    const avgHoursPerDay = totalHours / dayCount;
+
+    let kind: MismatchKind | null = null;
+    if (avgHoursPerDay >= HIGH_EFFORT_HOURS && (tier.id === "seed" || tier.id === "starter")) {
+      kind = "pull_up";
+    } else if (avgHoursPerDay <= LOW_EFFORT_HOURS && (tier.id === "growth" || tier.id === "top")) {
+      kind = "underused";
+    }
+    if (!kind) continue;
+
+    byKey.set(key, {
+      chatterName: displayName.get(key) ?? key,
+      key,
       account,
-      followers,
       tier,
       avgHoursPerDay,
       daysObserved: dayCount,
-      effortScore: 0,
-      potentialScore: tier ? TIER_POTENTIAL[tier.id] ?? 0 : 0,
-      delta: 0,
-      verdict: "unknown",
-      _onboarding: onboarding,
+      kind,
     });
   }
 
-  // Effort-Score: relativ zum Team-Median (Median = 50)
-  const allHours = rawRows
-    .filter((r) => r.daysObserved >= 3)
-    .map((r) => r.avgHoursPerDay);
-  const teamMedianHours = median(allHours) || 1;
+  const all = Array.from(byKey.values());
+  const pullUp = all
+    .filter((e) => e.kind === "pull_up")
+    .sort((a, b) => b.avgHoursPerDay - a.avgHoursPerDay);
+  const underused = all
+    .filter((e) => e.kind === "underused")
+    .sort((a, b) => a.avgHoursPerDay - b.avgHoursPerDay);
 
-  for (const r of rawRows) {
-    // 0–100 Skala: Median=50, doppelter Median=100, Null=0.
-    const score = Math.min(100, Math.round((r.avgHoursPerDay / (teamMedianHours * 2)) * 100));
-    r.effortScore = score;
-    r.delta = r.effortScore - r.potentialScore;
-    if (!r.account || !r.tier) {
-      r.verdict = "unknown";
-    } else if (r.daysObserved < 3 || r._onboarding) {
-      r.verdict = "match"; // zu wenig Daten → nicht in Mismatch-Listen
-    } else if (r.delta <= -30) {
-      r.verdict = "pull_up";
-    } else if (r.delta >= 30) {
-      r.verdict = "underused";
-    } else {
-      r.verdict = "match";
-    }
-  }
-
-  const rows: EffortPotentialRow[] = rawRows.map(({ _onboarding, ...rest }) => rest);
-
-  const pullUp = rows
-    .filter((r) => r.verdict === "pull_up")
-    .sort((a, b) => a.delta - b.delta) // negativste zuerst
-    .slice(0, 5);
-  const underused = rows
-    .filter((r) => r.verdict === "underused")
-    .sort((a, b) => b.delta - a.delta) // positivste zuerst
-    .slice(0, 5);
-  const unassigned = rows.filter((r) => !r.account && r.daysObserved >= 3);
-
-  return { rows, pullUp, underused, unassigned, teamMedianHours };
+  return { byKey, pullUp, underused };
 }

@@ -5,10 +5,10 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import PeakHoursCard from "@/components/PeakHoursCard";
 import PeakRevenueCard from "@/components/PeakRevenueCard";
-import EffortPotentialCard from "@/components/EffortPotentialCard";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
+import { loadMismatchMap, type MismatchEntry, type MismatchResult } from "@/lib/effort-potential";
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -16,7 +16,7 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive";
+type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch";
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
 function secondsSince(iso: string): number {
@@ -62,6 +62,7 @@ export default function LiveTracking() {
   const [hourlyByHour, setHourlyByHour] = useState<Map<number, number>>(new Map());
   const [liveActivityAt, setLiveActivityAt] = useState<Map<string, number>>(new Map());
   const [serverLiveNow, setServerLiveNow] = useState<{ count: number; names: string[]; computedAt: string } | null>(null);
+  const [mismatch, setMismatch] = useState<MismatchResult>({ byKey: new Map(), pullUp: [], underused: [] });
   const [liveWindowMin, setLiveWindowMin] = useState<number>(LIVE_NOW_WINDOW_DEFAULT);
   const liveWindowMs = liveWindowMin * 60 * 1000;
 
@@ -289,6 +290,14 @@ export default function LiveTracking() {
   }, [platform]);
 
   useEffect(() => {
+    let cancelled = false;
+    loadMismatchMap(platform).then((res) => {
+      if (!cancelled) setMismatch(res);
+    });
+    return () => { cancelled = true; };
+  }, [platform, tick]);
+
+  useEffect(() => {
     const channel = supabase
       .channel(`live-${platform}`)
       .on(
@@ -483,8 +492,21 @@ export default function LiveTracking() {
       if (filter === "weak" && s.status !== "active_weak") return false;
       if (filter === "inactive" && s.status !== "inactive") return false;
       if (filter === "live_now" && !liveNowKeys.has(normName(s.name))) return false;
+      if (filter === "mismatch" && !mismatch.byKey.has(normName(s.name))) return false;
       return true;
     });
+    if (filter === "mismatch") {
+      // Sortierung: Pull-up zuerst (viel Zeit, kleiner Account), dann Underused.
+      // Innerhalb pull_up: meiste Stunden zuerst. Innerhalb underused: wenigste zuerst.
+      return [...filtered].sort((a, b) => {
+        const ea = mismatch.byKey.get(normName(a.name))!;
+        const eb = mismatch.byKey.get(normName(b.name))!;
+        if (ea.kind !== eb.kind) return ea.kind === "pull_up" ? -1 : 1;
+        return ea.kind === "pull_up"
+          ? eb.avgHoursPerDay - ea.avgHoursPerDay
+          : ea.avgHoursPerDay - eb.avgHoursPerDay;
+      });
+    }
     if (sortKey === "smart" && filter === "live_now") {
       // Bei "Jetzt online" zeigt eine flache Liste nach letzter Aktivität.
       return [...filtered].sort((a, b) => {
@@ -511,7 +533,7 @@ export default function LiveTracking() {
       });
     }
     return sorted;
-  }, [allStatuses, search, filter, sortKey, liveNowKeys]);
+  }, [allStatuses, search, filter, sortKey, liveNowKeys, mismatch]);
 
   const buckets = useMemo(
     () => ({
@@ -562,6 +584,7 @@ export default function LiveTracking() {
     active: activeTodayCount,
     weak: allStatuses.filter((s) => s.status === "active_weak").length,
     inactive: inactiveCount,
+    mismatch: mismatch.byKey.size,
   };
 
   return (
@@ -688,17 +711,12 @@ export default function LiveTracking() {
         <PeakRevenueCard />
       </div>
 
-      {/* ─── EFFORT × POTENTIAL ─────────────────────── */}
-      <EffortPotentialCard
-        onSelectChatter={(name) => setSelected({ name, platform })}
-      />
-
       {/* ─── TOOLBAR (sticky) ────────────────────────── */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/80 backdrop-blur-xl border-b border-white/[0.05]">
         <div className="flex items-center gap-2">
           {/* Segmented filter */}
           <div className="flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] p-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            {(["all", "live_now", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
+            {(["all", "live_now", "active", "weak", "inactive", "mismatch"] as FilterKey[]).map((k) => {
               const isActive = filter === k;
               const labelMap: Record<FilterKey, string> = {
                 all: "Alle",
@@ -706,6 +724,7 @@ export default function LiveTracking() {
                 active: "Aktiv",
                 weak: "Pacing",
                 inactive: "Inaktiv",
+                mismatch: "Mismatch",
               };
               return (
                 <button
@@ -794,6 +813,8 @@ export default function LiveTracking() {
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">
           {search ? `Keine Treffer für „${search}".` : "Keine Chatter passen zum Filter."}
         </p>
+      ) : filter === "mismatch" ? (
+        <MismatchSections visible={visible} mismatch={mismatch} onSelect={setSelected} />
       ) : sortKey !== "smart" || filter === "live_now" ? (
         <div className="space-y-2">
           {visible.map((s) => (
@@ -1382,6 +1403,67 @@ function HeatmapStrip({ data }: { data: Map<number, number> }) {
         <span>16</span>
         <span>22</span>
       </div>
+    </div>
+  );
+}
+
+function MismatchSections({
+  visible,
+  mismatch,
+  onSelect,
+}: {
+  visible: ChatterStatus[];
+  mismatch: MismatchResult;
+  onSelect: (s: { name: string; platform: string }) => void;
+}) {
+  const pullUp: ChatterStatus[] = [];
+  const underused: ChatterStatus[] = [];
+  for (const s of visible) {
+    const e = mismatch.byKey.get(s.name.trim().toLowerCase());
+    if (!e) continue;
+    if (e.kind === "pull_up") pullUp.push(s);
+    else underused.push(s);
+  }
+  const renderRow = (s: ChatterStatus) => {
+    const e = mismatch.byKey.get(s.name.trim().toLowerCase())!;
+    return (
+      <div key={s.name} className="space-y-1">
+        <Row item={s} onSelect={onSelect} />
+        <div className="px-2 flex items-center gap-2 text-[10px] text-white/40 font-light tabular-nums">
+          <span className="text-white/65">Ø {e.avgHoursPerDay.toFixed(1)}h/Tag</span>
+          <span className="text-white/20">·</span>
+          <span>{e.tier.emoji} {e.tier.label}</span>
+          <span className="text-white/20">·</span>
+          <span className="truncate">{e.account}</span>
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div className="space-y-10">
+      {pullUp.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/40 font-light py-3 border-t border-white/[0.04]">
+            <span>Hochziehen · viel Zeit · kleiner Account</span>
+            <span className="tabular-nums text-white/45">{pullUp.length}</span>
+          </div>
+          <div className="mt-3 space-y-3">{pullUp.map(renderRow)}</div>
+        </div>
+      )}
+      {underused.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/40 font-light py-3 border-t border-white/[0.04]">
+            <span>Underused · großer Account · wenig Zeit</span>
+            <span className="tabular-nums text-white/45">{underused.length}</span>
+          </div>
+          <div className="mt-3 space-y-3">{underused.map(renderRow)}</div>
+        </div>
+      )}
+      {pullUp.length === 0 && underused.length === 0 && (
+        <p className="text-center text-sm text-emerald-300/70 py-12 font-light">
+          Alle Effort-Levels passen aktuell zum Account-Potenzial.
+        </p>
+      )}
     </div>
   );
 }
