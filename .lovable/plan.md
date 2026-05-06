@@ -1,75 +1,36 @@
-# Effort-vs-Potential Match
+# Effort × Potential als Filter-Chip
 
-Ziel: Auf einen Blick sehen, **wer auf welchem Account sitzt — und ob das passt.** Chatter mit viel Zeit auf kleinen Accounts und Chatter mit wenig Zeit auf Top-Accounts werden direkt nebeneinandergestellt, damit du Re-Assignments triggern kannst.
+## Änderungen
 
-## Wo es lebt
+**1. Karte raus, Filter-Chip rein**
+- `<EffortPotentialCard />` aus dem Live-Tracking-Header entfernen.
+- Neuen Filter-Chip **"Mismatch"** in der sticky Toolbar hinzufügen, direkt **hinter "Inaktiv"**. Count = Anzahl Mismatch-Chatter.
 
-Neuer Block im **Live-Tracking** (oberhalb der Chatter-Liste, unter den Peak-Cards): **"Effort × Potential"**.
+**2. Reine Zeit-Logik — keine Umsatz-Verzerrung**
+Die bestehende Berechnung in `effort-potential.ts` ist bereits rein zeitbasiert (aktive Stunden/Tag aus `chatter_hourly_stats` vs. Follower-Tier des aktuellen Accounts). Aber zwei Sachen werden vereinfacht/präziser:
 
-Optional zusätzlich verlinkt im Profil-Slide-Over als Hinweis-Pill ("Underused auf Top-Account" / "Overworking Seed-Account").
+- **Effort = nackte Stunden/Tag** (Ø der letzten 14 Tage). Kein Team-Median-Scaling mehr — der war zu fragil bei kleinen Teams.
+- **Potential = Follower-Tier des Accounts** (Seed/Starter/Growth/Top).
+- **Mismatch-Regel** (rein zeitbasiert):
+  - **Hochziehen**: Ø ≥ 5h/Tag UND Tier ∈ {Seed, Starter} → "viel Zeit auf kleinem Account"
+  - **Underused Top**: Ø ≤ 2h/Tag UND Tier ∈ {Growth, Top} → "großer Account, wenig Zeit"
+- Schwellen sind klar und nachvollziehbar (kein Score-Voodoo). Optional später per Setting tunable.
 
-## Die Logik (clean & datenbasiert)
+**3. Listen-Darstellung im Filter**
+Wenn `filter === "mismatch"`:
+- Standard-Bucket-Gruppierung wird übersprungen (wie bei `live_now`).
+- Stattdessen flache Liste mit **2 Sektion-Headern**:
+  - "Hochziehen · viel Zeit · kleiner Account" (sortiert nach Stunden absteigend)
+  - "Underused · großer Account · wenig Zeit" (sortiert nach Stunden aufsteigend)
+- Jede Zeile nutzt die normale `<Row />`-Komponente (konsistent mit dem Rest), bekommt aber rechts eine kleine Pill: `Ø 8.2h · 🌱 Seed` bzw. `Ø 1.4h · 👑 Top`.
 
-Pro Chatter berechnen wir zwei normierte Scores aus bestehenden Daten:
-
-1. **Effort-Score** (0–100): Ø aktive Stunden/Tag der letzten 14 Tage aus `chatter_hourly_stats` — relativ zum Team-Median skaliert.
-   - <50 = "wenig aktiv", 50–80 = "normal", >80 = "Workhorse"
-2. **Potential-Score** (0–100): Tier des aktuell zugewiesenen Accounts aus `models.follower_count` via `tierForFollowers()`.
-   - Seed=20, Starter=45, Growth=70, Top=95
-
-**Match-Delta** = `Effort - Potential`:
-- **Stark negativ (≤ −30)**: Hoher Effort, kleiner Account → "**Hochziehen**" (Kandidat für Top-Account)
-- **Stark positiv (≥ +30)**: Wenig Effort, großer Account → "**Underused Top**" (Account verschwendet)
-- **±30**: Match passt
-
-## UI: 2-Spalten-Gegenüberstellung
-
-```text
-┌─────────────────────────────┬─────────────────────────────┐
-│ HOCHZIEHEN                  │ UNDERUSED TOP-ACCOUNT       │
-│ Viel Zeit · kleiner Account │ Top-Account · wenig Zeit    │
-├─────────────────────────────┼─────────────────────────────┤
-│ Anna   8.2h/Tag · 🌱 Seed   │ Tom    1.4h/Tag · 👑 Top    │
-│        +180€ vs Tier-Med    │        −62% vs Tier-Med     │
-│        → Swap-Vorschlag     │        → Swap-Vorschlag     │
-│ Mike   7.1h/Tag · 🌿 Start  │ Lea    2.0h/Tag · 🔥 Growth │
-│ ...                         │ ...                         │
-└─────────────────────────────┴─────────────────────────────┘
-```
-
-- Jede Zeile: Chatter · Ø h/Tag · aktuelles Tier-Emoji · €-Delta vs Peer-Median (bestehende `peer-benchmarks.ts`).
-- Zeile klickbar → öffnet Chatter-Profil-SlideOver.
-- "Swap-Vorschlag"-Pill triggert vorhandenen Swap-Flow (`SwapModeView`).
-
-Beide Spalten max. 5 Einträge, sortiert nach Match-Delta-Betrag (extremste Mismatches oben).
-
-Header mit Toggle: **14d / 7d** Lookback.
-
-## Edge Cases
-- Chatter ohne zugewiesenen Account (kein `models`-Eintrag): nicht in Mismatch, sondern in eigener Mini-Pill "Kein Account zugewiesen · X Chatter".
-- Onboarding (<14 Tage seit erstem `chatter_history`-Eintrag): ausgeschlossen — zu wenig Daten.
-- Wenn beide Spalten leer (alle Matches passen): grüner Status "Alle Effort-Levels passen zum Account".
-
-## Technische Details
-
-**Neue Datei:** `src/lib/effort-potential.ts`
-- `loadEffortPotentialMatrix(platform, lookbackDays)` → für jeden Chatter:
-  - Aggregiert aktive Stunden aus `chatter_hourly_stats` (gleiche Logik wie `ChatterActivityHoursCard`).
-  - Holt aktuellen Account-Mapping aus jüngstem `chatter_history`-Eintrag (Spalte `account`).
-  - Lookup Follower → Tier via `tierForFollowers()`.
-  - Berechnet `effortScore`, `potentialScore`, `delta`, `verdict: "pull_up" | "underused" | "match"`.
-- Reuse `peer-benchmarks` für €-Delta-Annotation.
-
-**Neue Komponente:** `src/components/EffortPotentialCard.tsx`
-- 2-Spalten-Layout (md+), gestackt auf Mobile.
-- Verwendet bestehende `premium-card`-Styles und Tier-Farben aus `account-tiers.ts`.
-
-**Integration:** `src/pages/LiveTracking.tsx`
-- Render `<EffortPotentialCard />` nach dem Peak-Cards-Grid, vor der Chatter-Liste.
-
-Keine DB-Migrationen nötig — alle Daten existieren bereits.
+**4. Korrektheit prüfen**
+- Sicherstellen, dass `account` aus dem JÜNGSTEN `chatter_history`-Eintrag pro Chatter kommt (war im Code dank `order DESC` korrekt — bestätigen).
+- Onboarding-Filter (<14 Tage) bleibt: zu wenig Daten → nicht in Mismatch.
+- Chatter ohne Stunden-Daten (`daysObserved < 3`) raus.
+- Chatter ohne zugewiesenen Account fließen NICHT in Mismatch — die haben keinen Tier-Vergleich.
 
 ## Geplante Dateien
-- neu: `src/lib/effort-potential.ts`
-- neu: `src/components/EffortPotentialCard.tsx`
-- bearbeitet: `src/pages/LiveTracking.tsx`
+- bearbeitet: `src/lib/effort-potential.ts` — Schwellen-Logik vereinfachen, reine Stunden-Regel
+- gelöscht: `src/components/EffortPotentialCard.tsx`
+- bearbeitet: `src/pages/LiveTracking.tsx` — Card-Render entfernen, Filter-Chip + Mismatch-View hinzufügen
