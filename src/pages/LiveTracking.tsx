@@ -707,8 +707,12 @@ export default function LiveTracking() {
                   onClick={() => setFilter(k)}
                   className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-light tracking-wide transition-all ${
                     isActive
-                      ? "bg-white/[0.08] text-white/95 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
-                      : "text-white/45 hover:text-white/75"
+                      ? k === "live_now"
+                        ? "bg-emerald-400/[0.12] text-emerald-200 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                        : "bg-white/[0.08] text-white/95 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                      : k === "live_now"
+                        ? "text-emerald-300/60 hover:text-emerald-200/90"
+                        : "text-white/45 hover:text-white/75"
                   }`}
                 >
                   <span>{labelMap[k]}</span>
