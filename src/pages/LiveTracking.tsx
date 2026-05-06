@@ -492,8 +492,21 @@ export default function LiveTracking() {
       if (filter === "weak" && s.status !== "active_weak") return false;
       if (filter === "inactive" && s.status !== "inactive") return false;
       if (filter === "live_now" && !liveNowKeys.has(normName(s.name))) return false;
+      if (filter === "mismatch" && !mismatch.byKey.has(normName(s.name))) return false;
       return true;
     });
+    if (filter === "mismatch") {
+      // Sortierung: Pull-up zuerst (viel Zeit, kleiner Account), dann Underused.
+      // Innerhalb pull_up: meiste Stunden zuerst. Innerhalb underused: wenigste zuerst.
+      return [...filtered].sort((a, b) => {
+        const ea = mismatch.byKey.get(normName(a.name))!;
+        const eb = mismatch.byKey.get(normName(b.name))!;
+        if (ea.kind !== eb.kind) return ea.kind === "pull_up" ? -1 : 1;
+        return ea.kind === "pull_up"
+          ? eb.avgHoursPerDay - ea.avgHoursPerDay
+          : ea.avgHoursPerDay - eb.avgHoursPerDay;
+      });
+    }
     if (sortKey === "smart" && filter === "live_now") {
       // Bei "Jetzt online" zeigt eine flache Liste nach letzter Aktivität.
       return [...filtered].sort((a, b) => {
