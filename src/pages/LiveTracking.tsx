@@ -290,6 +290,12 @@ export default function LiveTracking() {
   }, [platform]);
 
   useEffect(() => {
+    let cancelled = false;
+    loadMismatchMap(platform).then((res) => {
+      if (!cancelled) setMismatch(res);
+    });
+    return () => { cancelled = true; };
+  }, [platform, tick]);
     const channel = supabase
       .channel(`live-${platform}`)
       .on(
