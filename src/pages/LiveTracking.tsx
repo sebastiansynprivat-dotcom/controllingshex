@@ -584,6 +584,7 @@ export default function LiveTracking() {
     active: activeTodayCount,
     weak: allStatuses.filter((s) => s.status === "active_weak").length,
     inactive: inactiveCount,
+    mismatch: mismatch.byKey.size,
   };
 
   return (
