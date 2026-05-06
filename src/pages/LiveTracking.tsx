@@ -296,6 +296,8 @@ export default function LiveTracking() {
     });
     return () => { cancelled = true; };
   }, [platform, tick]);
+
+  useEffect(() => {
     const channel = supabase
       .channel(`live-${platform}`)
       .on(
