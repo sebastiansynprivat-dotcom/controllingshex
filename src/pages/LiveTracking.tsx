@@ -1406,3 +1406,64 @@ function HeatmapStrip({ data }: { data: Map<number, number> }) {
     </div>
   );
 }
+
+function MismatchSections({
+  visible,
+  mismatch,
+  onSelect,
+}: {
+  visible: ChatterStatus[];
+  mismatch: MismatchResult;
+  onSelect: (s: { name: string; platform: string }) => void;
+}) {
+  const pullUp: ChatterStatus[] = [];
+  const underused: ChatterStatus[] = [];
+  for (const s of visible) {
+    const e = mismatch.byKey.get(s.name.trim().toLowerCase());
+    if (!e) continue;
+    if (e.kind === "pull_up") pullUp.push(s);
+    else underused.push(s);
+  }
+  const renderRow = (s: ChatterStatus) => {
+    const e = mismatch.byKey.get(s.name.trim().toLowerCase())!;
+    return (
+      <div key={s.name} className="space-y-1">
+        <Row item={s} onSelect={onSelect} />
+        <div className="px-2 flex items-center gap-2 text-[10px] text-white/40 font-light tabular-nums">
+          <span className="text-white/65">Ø {e.avgHoursPerDay.toFixed(1)}h/Tag</span>
+          <span className="text-white/20">·</span>
+          <span>{e.tier.emoji} {e.tier.label}</span>
+          <span className="text-white/20">·</span>
+          <span className="truncate">{e.account}</span>
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div className="space-y-10">
+      {pullUp.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/40 font-light py-3 border-t border-white/[0.04]">
+            <span>Hochziehen · viel Zeit · kleiner Account</span>
+            <span className="tabular-nums text-white/45">{pullUp.length}</span>
+          </div>
+          <div className="mt-3 space-y-3">{pullUp.map(renderRow)}</div>
+        </div>
+      )}
+      {underused.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/40 font-light py-3 border-t border-white/[0.04]">
+            <span>Underused · großer Account · wenig Zeit</span>
+            <span className="tabular-nums text-white/45">{underused.length}</span>
+          </div>
+          <div className="mt-3 space-y-3">{underused.map(renderRow)}</div>
+        </div>
+      )}
+      {pullUp.length === 0 && underused.length === 0 && (
+        <p className="text-center text-sm text-emerald-300/70 py-12 font-light">
+          Alle Effort-Levels passen aktuell zum Account-Potenzial.
+        </p>
+      )}
+    </div>
+  );
+}
