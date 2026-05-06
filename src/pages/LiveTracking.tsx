@@ -692,9 +692,15 @@ export default function LiveTracking() {
         <div className="flex items-center gap-2">
           {/* Segmented filter */}
           <div className="flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] p-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
+            {(["all", "live_now", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
               const isActive = filter === k;
-              const labelMap = { all: "Alle", active: "Aktiv", weak: "Pacing", inactive: "Inaktiv" } as const;
+              const labelMap: Record<FilterKey, string> = {
+                all: "Alle",
+                live_now: `Online · ${liveWindowMin}m`,
+                active: "Aktiv",
+                weak: "Pacing",
+                inactive: "Inaktiv",
+              };
               return (
                 <button
                   key={k}
