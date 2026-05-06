@@ -15,7 +15,7 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "active" | "weak" | "inactive";
+type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive";
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
 function secondsSince(iso: string): number {
@@ -459,14 +459,39 @@ export default function LiveTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, profiles, tick]);
 
+  const liveNowKeys = useMemo(() => {
+    const cutoff = Date.now() - liveWindowMs;
+    const set = new Set<string>();
+    liveActivityAt.forEach((ts, key) => {
+      if (ts >= cutoff && key) set.add(key);
+    });
+    if (serverLiveNow && new Date(serverLiveNow.computedAt).getTime() >= cutoff) {
+      serverLiveNow.names.forEach((n) => {
+        const k = normName(n);
+        if (k) set.add(k);
+      });
+    }
+    return set;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick]);
+
   const visible = useMemo(() => {
     const filtered = allStatuses.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filter === "active" && !s.isActiveToday) return false;
       if (filter === "weak" && s.status !== "active_weak") return false;
       if (filter === "inactive" && s.status !== "inactive") return false;
+      if (filter === "live_now" && !liveNowKeys.has(normName(s.name))) return false;
       return true;
     });
+    if (sortKey === "smart" && filter === "live_now") {
+      // Bei "Jetzt online" zeigt eine flache Liste nach letzter Aktivität.
+      return [...filtered].sort((a, b) => {
+        const sa = a.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        const sb = b.lastSeenSec ?? Number.POSITIVE_INFINITY;
+        return sa - sb;
+      });
+    }
     if (sortKey === "smart") {
       return [...filtered].sort((a, b) => b.priorityScore - a.priorityScore);
     }
@@ -485,7 +510,7 @@ export default function LiveTracking() {
       });
     }
     return sorted;
-  }, [allStatuses, search, filter, sortKey]);
+  }, [allStatuses, search, filter, sortKey, liveNowKeys]);
 
   const buckets = useMemo(
     () => ({
@@ -532,6 +557,7 @@ export default function LiveTracking() {
 
   const counts: Record<FilterKey, number> = {
     all: allStatuses.length,
+    live_now: liveNowCount,
     active: activeTodayCount,
     weak: allStatuses.filter((s) => s.status === "active_weak").length,
     inactive: inactiveCount,
@@ -666,17 +692,27 @@ export default function LiveTracking() {
         <div className="flex items-center gap-2">
           {/* Segmented filter */}
           <div className="flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] p-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            {(["all", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
+            {(["all", "live_now", "active", "weak", "inactive"] as FilterKey[]).map((k) => {
               const isActive = filter === k;
-              const labelMap = { all: "Alle", active: "Aktiv", weak: "Pacing", inactive: "Inaktiv" } as const;
+              const labelMap: Record<FilterKey, string> = {
+                all: "Alle",
+                live_now: `Online · ${liveWindowMin}m`,
+                active: "Aktiv",
+                weak: "Pacing",
+                inactive: "Inaktiv",
+              };
               return (
                 <button
                   key={k}
                   onClick={() => setFilter(k)}
                   className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-light tracking-wide transition-all ${
                     isActive
-                      ? "bg-white/[0.08] text-white/95 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
-                      : "text-white/45 hover:text-white/75"
+                      ? k === "live_now"
+                        ? "bg-emerald-400/[0.12] text-emerald-200 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                        : "bg-white/[0.08] text-white/95 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                      : k === "live_now"
+                        ? "text-emerald-300/60 hover:text-emerald-200/90"
+                        : "text-white/45 hover:text-white/75"
                   }`}
                 >
                   <span>{labelMap[k]}</span>
@@ -752,7 +788,7 @@ export default function LiveTracking() {
         <p className="text-center text-sm text-white/30 py-16 font-light tracking-wide">
           {search ? `Keine Treffer für „${search}".` : "Keine Chatter passen zum Filter."}
         </p>
-      ) : sortKey !== "smart" ? (
+      ) : sortKey !== "smart" || filter === "live_now" ? (
         <div className="space-y-2">
           {visible.map((s) => (
             <Row key={s.name} item={s} onSelect={setSelected} />
