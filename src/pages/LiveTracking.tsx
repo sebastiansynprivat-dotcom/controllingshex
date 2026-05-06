@@ -5,7 +5,6 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import PeakHoursCard from "@/components/PeakHoursCard";
 import PeakRevenueCard from "@/components/PeakRevenueCard";
-import EffortPotentialCard from "@/components/EffortPotentialCard";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
