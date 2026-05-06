@@ -16,7 +16,7 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive";
+type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch";
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
 function secondsSince(iso: string): number {
