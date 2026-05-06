@@ -557,6 +557,7 @@ export default function LiveTracking() {
 
   const counts: Record<FilterKey, number> = {
     all: allStatuses.length,
+    live_now: liveNowCount,
     active: activeTodayCount,
     weak: allStatuses.filter((s) => s.status === "active_weak").length,
     inactive: inactiveCount,
