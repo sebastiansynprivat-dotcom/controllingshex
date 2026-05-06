@@ -533,7 +533,7 @@ export default function LiveTracking() {
       });
     }
     return sorted;
-  }, [allStatuses, search, filter, sortKey, liveNowKeys]);
+  }, [allStatuses, search, filter, sortKey, liveNowKeys, mismatch]);
 
   const buckets = useMemo(
     () => ({
