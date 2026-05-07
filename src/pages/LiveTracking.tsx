@@ -557,14 +557,17 @@ export default function LiveTracking() {
         });
         continue;
       }
-      // 5) Chats stauen sich
-      if (unread >= 25 || oldest >= 3) {
+      // 5) Chats stauen sich — früher erkennen
+      const oldestHours = oldest * 24;
+      const pilePushedByLowRev = oldest >= 0.5 && today < avgRev * 0.4;
+      if (unread >= 15 || oldest >= 1 || pilePushedByLowRev) {
+        const ageTxt = oldest >= 1
+          ? `ältester ${Math.round(oldest)}d`
+          : `ältester ${Math.round(oldestHours)}h`;
         m.set(key, {
           kind: "chats_pile",
-          reason: oldest >= 3
-            ? `${unread} ungelesen · ältester ${Math.round(oldest)}d`
-            : `${unread} ungelesen`,
-          impactEur: Math.round(Math.min(150, unread * 2 + oldest * 15)),
+          reason: `${unread} ungelesen · ${ageTxt}`,
+          impactEur: Math.round(Math.min(200, unread * 2 + oldest * 25)),
           dayPotentialEur: remainingToAvg,
           cta: "Chats abarbeiten",
         });
@@ -585,14 +588,42 @@ export default function LiveTracking() {
         });
         continue;
       }
-      // 7) Läuft sauber — aktiv & im Plan, nichts zu tun außer beobachten
-      m.set(key, {
-        kind: "running_clean",
-        reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} €`,
-        impactEur: 0,
-        dayPotentialEur: 0,
-        cta: "Läuft",
-      });
+      // 6b) Nichts läuft heute — deutlich unter Schnitt, aber nicht offiziell "weak"
+      const wayBelow = (today === 0 && avgRev >= 10) || today < avgRev * 0.3;
+      if (wayBelow) {
+        const dmsWeak = avgDms >= 2 && dms <= avgDms * 0.5;
+        if (dmsWeak) {
+          m.set(key, {
+            kind: "dms_low_rev_low",
+            reason: `${dms}/${Math.round(avgDms)} DMs · Umsatz ${Math.round(today)}/${Math.round(avgRev)} €`,
+            impactEur: Math.round(avgRev - today),
+            dayPotentialEur: remainingToAvg,
+            cta: "Mehr Mass-DMs raus",
+          });
+        } else {
+          m.set(key, {
+            kind: "weak_pacing",
+            reason: `Heute ${Math.round(today)} € · Ø ${Math.round(avgRev)} € — deutlich unter Schnitt`,
+            impactEur: Math.round(avgRev - today),
+            dayPotentialEur: remainingToAvg,
+            cta: "Pace anziehen",
+          });
+        }
+        continue;
+      }
+      // 7) Läuft sauber — strenger: nur wirklich saubere Chatter
+      const recentlyActive = seen != null && seen < 30 * 60;
+      const onTrack = today >= avgRev * 0.5 || s.pacingDelta >= -10;
+      if (recentlyActive && onTrack && unread < 15 && oldest < 1) {
+        m.set(key, {
+          kind: "running_clean",
+          reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} €`,
+          impactEur: 0,
+          dayPotentialEur: 0,
+          cta: "Läuft",
+        });
+      }
+      // sonst: kein Eintrag → nicht in der To-Do-Liste
     }
     return m;
   }, [allStatuses]);

@@ -1,37 +1,45 @@
-## Ziel
-Das "Potenzial" oben in der To-Do-Liste soll realistisch zeigen, **was am ganzen Tag möglich wäre, wenn alle Chatter aus der Liste normal online wären** — nicht nur die aktuell schon entstandene Lücke bis jetzt.
+## Problem
 
-## Aktuelles Verhalten (Problem)
-`impactEur` pro Eintrag ist gemischt:
-- `inactive_push`: `avgRev` (ganzer Tag) — okay
-- `weak_pacing`, `pause_long`: `lostRevenue` — nur Rückstand **bis jetzt** (zeitanteilig über `dayProgress`)
-- `dms_low_rev_low`: `avgRev - today` — nur was bis jetzt fehlt
-- `chats_pile`: heuristischer Wert, nicht Tages-Potenzial
-- `praise`: Surplus, zählt fälschlich ins "Potenzial"
+Aktuell landen Chatter in **„Läuft sauber"**, die ganz klar **nicht** sauber laufen — z. B. ältester Chat > 1 Tag offen, heute 0 € Umsatz, aber der Status ist trotzdem `active` (weil 1 DM raus oder ähnlich), und keine der harten Schwellen greift:
 
-→ Summe oben ist deutlich zu klein und inkonsistent (Mix aus "bis jetzt" und "ganzer Tag").
+- `chats_pile` triggert erst bei **unread ≥ 25** ODER **oldest ≥ 3 Tagen** → 1–2 Tage alte Chats rutschen durch
+- `weak_pacing` verlangt `status === "active_weak"` UND ≥ 20 € Lücke → wer wenig avgRev hat, fällt raus
+- `dms_low_rev_low` greift nur wenn avgDms ≥ 3
+- → Rest fällt in **`running_clean`**, obwohl tatsächlich Probleme da sind
 
-## Änderung
+Zusätzlich ist die **Reihenfolge der Kategorien** fix nach Kind sortiert (`inactive_push`, `weak_pacing`, …), nicht nach tatsächlicher Dringlichkeit. Ein „Läuft sauber"-Eintrag mit 0 € heute steht dadurch optisch korrekt unten — aber der Eintrag dürfte gar nicht erst dort sein.
 
-**1. Neues Feld `dayPotentialEur` pro Todo-Eintrag** = realistisch erreichbares €-Volumen für den **ganzen Schicht-Tag**, wenn der Chatter ab jetzt normal weiterarbeitet:
+## Änderungen (nur `src/pages/LiveTracking.tsx`)
 
-- `inactive_push`: `avgRev` (kompletter Tagesschnitt)
-- `pause_long` / `weak_pacing` / `dms_low_rev_low`:  
-  `max(0, avgRev − today)` — was vom Tagesschnitt bis Tagesende noch fehlt
-- `chats_pile`: `max(0, avgRev − today)` (gleiche Logik, gekappt)
-- `praise`: `0` — Lob hat kein "fehlendes Potenzial"
+### 1. `chats_pile` verschärfen
+Schon **früher** als Stau erkennen — nicht erst bei 3 Tagen:
+- Trigger: `unread ≥ 15` ODER `oldest ≥ 1` (Tag) ODER `oldest ≥ 0.5 ∧ today < avgRev * 0.4`
+- Reason-Text passt sich an (Stunden statt Tagen wenn < 1d)
 
-**2. Top-Summe oben** zeigt `Σ dayPotentialEur` statt `impactEur`.  
-Label-Update: **"Potenzial heute"** mit Subtext **"wenn alle bis Tagesende ihren Schnitt erreichen"**.
+### 2. Neuer Trigger vor `running_clean`: **„nichts läuft heute"**
+Wenn am Ende noch kein Bucket gegriffen hat, aber:
+- `today < avgRev * 0.3` (deutlich unter Schnitt) ODER
+- `today === 0 ∧ avgRev ≥ 10`
 
-**3. Per-Row-Pill** rechts behält den €-Wert, zeigt aber ebenfalls `dayPotentialEur` (statt `impactEur`) — so ist's konsistent zur Top-Summe. Bei `praise` wird stattdessen ein dezenter "+X € über Schnitt"-Pill in Grün gezeigt.
+→ einsortieren als `weak_pacing` (Lücke zum Schnitt) oder `dms_low_rev_low` (wenn DMs auch schwach), statt `running_clean`.
 
-**4. Sortierung innerhalb einer Kategorie** weiter nach `dayPotentialEur` (statt `impactEur`).
+### 3. `running_clean` strenger
+Nur noch wenn:
+- `today ≥ avgRev * 0.5` (mindestens halber Tagesschnitt erreicht oder pacing-anteilig erfüllt) UND
+- `unread < 15` UND `oldest < 1` UND
+- `seen` letzte 30 min aktiv
+
+Sonst kein Eintrag → Chatter taucht in der To-Do-Liste **nicht** auf (wie vor dem letzten Schritt für unauffällige).
+
+### 4. Sortierung innerhalb „To-Do" wirklich nach Dringlichkeit
+Statt fixer `kind`-Reihenfolge: 
+- Primär nach **`dayPotentialEur` desc** (was heute am meisten auf dem Spiel steht)
+- Sekundär: `chats_pile` mit `oldest ≥ 2d` und `inactive_push` werden zusätzlich um +X € „Severity-Bonus" geboostet, damit lange offene Chats / komplette Ausfälle oben bleiben
+- `praise` und `running_clean` immer ans Ende, intern nach Umsatz desc
+
+### 5. Header-Counts pro Kategorie bleiben unverändert; nur Sortierung der Karten ändert sich.
 
 ## Out of scope
-- Keine Änderung an Kategorisierungs-Schwellen oder neuen Kategorien.
-- Kein Eingriff in `live-activity.ts` oder `effort-potential.ts`.
-- Kein Settings/Persistenz.
-
-## Datei
-- `src/pages/LiveTracking.tsx` — `TodoEntry` + `todoMap`-Builder + `TodoSections` Header & Pill.
+- Keine Änderung an `live-activity.ts` (Status-Logik bleibt)
+- Keine neuen Filter/Tabs
+- Keine Settings/Persistenz
