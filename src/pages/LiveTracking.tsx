@@ -910,6 +910,8 @@ export default function LiveTracking() {
         </p>
       ) : filter === "mismatch" ? (
         <MismatchSections visible={visible} mismatch={mismatch} onSelect={setSelected} />
+      ) : filter === "todo" ? (
+        <TodoSections visible={visible} todoMap={todoMap} onSelect={setSelected} />
       ) : sortKey !== "smart" || filter === "live_now" ? (
         <div className="space-y-2">
           {visible.map((s) => (
