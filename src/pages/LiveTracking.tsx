@@ -1603,8 +1603,9 @@ const TODO_META: Record<TodoKind, { label: string; sub: string; tone: string }> 
   dms_low_rev_low:  { label: "DMs runter → Umsatz runter", sub: "weniger Mass-DMs als sonst, Umsatz folgt", tone: "text-orange-300" },
   chats_pile:       { label: "Chats stauen sich",    sub: "viele ungelesen / alte Chats offen",  tone: "text-cyan-300" },
   praise:           { label: "Loben & motivieren",   sub: "läuft heute deutlich über Schnitt",   tone: "text-emerald-300" },
+  running_clean:    { label: "Läuft sauber",         sub: "aktiv & im Plan — nur beobachten",    tone: "text-white/55" },
 };
-const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile", "praise"];
+const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile", "praise", "running_clean"];
 
 function TodoSections({
   visible,
