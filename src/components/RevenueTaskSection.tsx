@@ -32,10 +32,15 @@ function fmtEur(v: number) {
   return Math.round(v).toLocaleString("de-DE") + " €";
 }
 
+type FilterMode = "top" | "other";
+
+const TOP_COUNT = 5;
+
 export default function RevenueTaskSection({ platform, onChatterClick, onModelClick }: Props) {
   const [tasks, setTasks] = useState<RevenueTask[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterMode>("top");
 
   useEffect(() => {
     let cancel = false;
@@ -51,7 +56,7 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
     return () => { cancel = true; };
   }, [platform]);
 
-  const visible = useMemo(() => {
+  const allVisible = useMemo(() => {
     const now = new Date();
     return tasks.filter((t) => {
       const st = states[t.key];
@@ -63,6 +68,10 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
       return true;
     });
   }, [tasks, states]);
+
+  const topTasks = useMemo(() => allVisible.slice(0, TOP_COUNT), [allVisible]);
+  const otherTasks = useMemo(() => allVisible.slice(TOP_COUNT), [allVisible]);
+  const visible = filter === "top" ? topTasks : otherTasks;
 
   const totalImpact = useMemo(
     () => visible.reduce((s, t) => s + t.impactEurPerWeek, 0),
@@ -99,7 +108,7 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
         <div>
           <h2 className="text-lg font-extralight tracking-tight text-foreground flex items-center gap-2">
             <Gem className="h-4 w-4 text-emerald-300/80" />
-            Umsatz · Top-Hebel heute
+            Umsatz-Hebel
           </h2>
           <p className="text-[11px] text-white/30 mt-1 font-light tracking-wider uppercase">
             Aufgaben mit messbarem €-Impact · sortiert nach Hebelwirkung
@@ -111,6 +120,32 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
             <p className="text-xl font-light tabular-nums text-emerald-300/90">+{fmtEur(totalImpact)}</p>
           </div>
         )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        {([
+          { id: "top" as const, label: "Top-Hebel heute", count: topTasks.length },
+          { id: "other" as const, label: "Weitere", count: otherTasks.length },
+        ]).map((opt) => {
+          const active = filter === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => setFilter(opt.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-[11px] font-light tracking-wide transition-all border",
+                active
+                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200"
+                  : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20"
+              )}
+            >
+              {opt.label}
+              <span className={cn("ml-1.5 tabular-nums", active ? "text-emerald-300/70" : "text-white/30")}>
+                {opt.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
