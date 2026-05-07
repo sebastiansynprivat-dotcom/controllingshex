@@ -1,22 +1,31 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ListChecks } from "lucide-react";
+import { ListChecks, Gem } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
 import DailyTodoList from "@/components/DailyTodoList";
 import RevenueTaskSection from "@/components/RevenueTaskSection";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 
+type TodayTab = "todo" | "revenue";
+
 export default function Today() {
   const { platform } = usePlatform();
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
+  const [tab, setTab] = useState<TodayTab>("todo");
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
+
+  const tabs: { id: TodayTab; label: string; icon: typeof ListChecks }[] = [
+    { id: "todo", label: "Heute zu tun", icon: ListChecks },
+    { id: "revenue", label: "Umsatz-Hebel", icon: Gem },
+  ];
 
   return (
     <>
@@ -31,9 +40,8 @@ export default function Today() {
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-extralight tracking-tight text-foreground flex items-center gap-2.5">
-                <ListChecks className="h-5 w-5 text-primary/70" />
-                Heute zu tun
+              <h1 className="text-2xl font-extralight tracking-tight text-foreground">
+                Heute
               </h1>
               <p className="text-[11px] text-white/30 mt-1.5 font-light tracking-wider uppercase">
                 {todayLabel} · {platform}
@@ -41,19 +49,51 @@ export default function Today() {
             </div>
           </div>
 
-          <DailyTodoList
-            platform={platform}
-            onChatterClick={(name) => setSelectedChatter(name)}
-            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-          />
+          <div className="flex items-center gap-2">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "px-3.5 py-2 rounded-full text-[12px] font-light tracking-wide transition-all border flex items-center gap-1.5",
+                    active
+                      ? "bg-primary/15 border-primary/40 text-foreground"
+                      : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
 
-          <div className="border-t border-white/[0.06] pt-6 sm:pt-8" />
-
-          <RevenueTaskSection
-            platform={platform}
-            onChatterClick={(name) => setSelectedChatter(name)}
-            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-          />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {tab === "todo" ? (
+                <DailyTodoList
+                  platform={platform}
+                  onChatterClick={(name) => setSelectedChatter(name)}
+                  onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                />
+              ) : (
+                <RevenueTaskSection
+                  platform={platform}
+                  onChatterClick={(name) => setSelectedChatter(name)}
+                  onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </motion.div>
       </AnimatePresence>
 
@@ -76,3 +116,4 @@ export default function Today() {
     </>
   );
 }
+
