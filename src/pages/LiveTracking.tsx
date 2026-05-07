@@ -17,7 +17,7 @@ interface LiveRow extends LiveRowLite {
 }
 
 type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch" | "todo";
-type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile";
+type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile" | "praise";
 interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; cta: string; }
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
@@ -488,13 +488,14 @@ export default function LiveTracking() {
   }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick]);
 
   // ── Smart Todo-Kategorisierung ─────────────────────────────────────
-  // Kopplung an Umsatz: schwache DMs erzeugen NUR dann ein Todo, wenn
-  // gleichzeitig der Umsatz schwächelt. Läuft Geld → kein Todo.
+  // Einbezogen: alle Chatter, die generell Umsatz bringen (Ø ≥ 5 €/Tag).
+  // DM-Schwäche zählt nur, wenn auch der Umsatz hinterherhinkt.
   const todoMap = useMemo(() => {
     const m = new Map<string, TodoEntry>();
     for (const s of allStatuses) {
       const key = normName(s.name);
       const avgRev = s.profile?.avgRevenue ?? 0;
+      if (avgRev < 5) continue; // nur Chatter, die generell Umsatz machen
       const today = Number(s.live?.revenue ?? 0);
       const avgDms = s.profile?.avgMassDms ?? 0;
       const dms = s.live?.mass_dms ?? 0;
@@ -502,8 +503,8 @@ export default function LiveTracking() {
       const oldest = Number(s.live?.oldest_chat ?? 0);
       const seen = s.lastSeenSec;
 
-      // 1) Inaktiv anstoßen — nur relevant wenn Account normalerweise Umsatz macht
-      if (s.status === "inactive" && avgRev >= 20) {
+      // 1) Inaktiv anstoßen
+      if (s.status === "inactive") {
         m.set(key, {
           kind: "inactive_push",
           reason: `Heute 0 € · Ø ${Math.round(avgRev)} €/Tag`,
@@ -534,10 +535,9 @@ export default function LiveTracking() {
         });
         continue;
       }
-      // 4) DMs schwach UND Umsatz schwach (gekoppelt!)
-      //    Nur wenn beide gleichzeitig unter ihrem Schnitt liegen.
+      // 4) DMs schwach UND Umsatz schwach (gekoppelt)
       if (
-        avgDms >= 3 && avgRev >= 20 &&
+        avgDms >= 3 &&
         dms <= avgDms * 0.5 &&
         today <= avgRev * 0.6 &&
         s.status !== "active_strong"
@@ -550,7 +550,7 @@ export default function LiveTracking() {
         });
         continue;
       }
-      // 5) Chats stauen sich (viele unread oder alte Chats offen)
+      // 5) Chats stauen sich
       if (unread >= 25 || oldest >= 3) {
         m.set(key, {
           kind: "chats_pile",
@@ -559,6 +559,20 @@ export default function LiveTracking() {
             : `${unread} ungelesen`,
           impactEur: Math.round(Math.min(150, unread * 2 + oldest * 15)),
           cta: "Chats abarbeiten",
+        });
+        continue;
+      }
+      // 6) Loben — deutlich über Pacing oder klar über Schnitt
+      if (
+        s.status === "active_strong" &&
+        (s.surplusRevenue >= Math.max(30, avgRev * 0.25) || today >= avgRev * 1.4) &&
+        today >= 30
+      ) {
+        m.set(key, {
+          kind: "praise",
+          reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} € · +${Math.round(s.surplusRevenue)} € über Pacing`,
+          impactEur: Math.round(s.surplusRevenue),
+          cta: "Kurz loben & motivieren",
         });
         continue;
       }
@@ -579,7 +593,7 @@ export default function LiveTracking() {
     });
     if (filter === "todo") {
       const order: Record<TodoKind, number> = {
-        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4,
+        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4, praise: 5,
       };
       return [...filtered].sort((a, b) => {
         const ea = todoMap.get(normName(a.name))!;
@@ -1571,8 +1585,9 @@ const TODO_META: Record<TodoKind, { label: string; sub: string; tone: string }> 
   pause_long:       { label: "Pause zu lang",        sub: "war kurz on, jetzt wieder still",     tone: "text-amber-200" },
   dms_low_rev_low:  { label: "DMs runter → Umsatz runter", sub: "weniger Mass-DMs als sonst, Umsatz folgt", tone: "text-orange-300" },
   chats_pile:       { label: "Chats stauen sich",    sub: "viele ungelesen / alte Chats offen",  tone: "text-cyan-300" },
+  praise:           { label: "Loben & motivieren",   sub: "läuft heute deutlich über Schnitt",   tone: "text-emerald-300" },
 };
-const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile"];
+const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile", "praise"];
 
 function TodoSections({
   visible,
