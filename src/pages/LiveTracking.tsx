@@ -1564,3 +1564,89 @@ function MismatchSections({
     </div>
   );
 }
+
+const TODO_META: Record<TodoKind, { label: string; sub: string; tone: string }> = {
+  inactive_push:    { label: "Inaktiv anstoßen",     sub: "heute noch 0 € · sonst Tag verloren", tone: "text-rose-300" },
+  weak_pacing:      { label: "Unter Pacing",         sub: "aktiv, aber Rückstand zum Schnitt",   tone: "text-amber-300" },
+  pause_long:       { label: "Pause zu lang",        sub: "war kurz on, jetzt wieder still",     tone: "text-amber-200" },
+  dms_low_rev_low:  { label: "DMs runter → Umsatz runter", sub: "weniger Mass-DMs als sonst, Umsatz folgt", tone: "text-orange-300" },
+  chats_pile:       { label: "Chats stauen sich",    sub: "viele ungelesen / alte Chats offen",  tone: "text-cyan-300" },
+};
+const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile"];
+
+function TodoSections({
+  visible,
+  todoMap,
+  onSelect,
+}: {
+  visible: ChatterStatus[];
+  todoMap: Map<string, TodoEntry>;
+  onSelect: (s: { name: string; platform: string }) => void;
+}) {
+  const groups = new Map<TodoKind, { s: ChatterStatus; e: TodoEntry }[]>();
+  for (const s of visible) {
+    const e = todoMap.get(s.name.trim().toLowerCase());
+    if (!e) continue;
+    const arr = groups.get(e.kind) ?? [];
+    arr.push({ s, e });
+    groups.set(e.kind, arr);
+  }
+  const totalImpact = visible.reduce((acc, s) => {
+    const e = todoMap.get(s.name.trim().toLowerCase());
+    return acc + (e?.impactEur ?? 0);
+  }, 0);
+
+  return (
+    <div className="space-y-10">
+      {totalImpact > 0 && (
+        <div className="flex items-center justify-between rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200/70 font-light">Heute zu erledigen</div>
+            <div className="text-[11px] text-white/45 font-light mt-0.5">live aus Aktivität & Pacing berechnet</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-white/35">Potenzial</div>
+            <div className="text-base font-light tabular-nums text-amber-200">+{Math.round(totalImpact)} €</div>
+          </div>
+        </div>
+      )}
+      {TODO_ORDER.map((kind) => {
+        const items = groups.get(kind);
+        if (!items || items.length === 0) return null;
+        const meta = TODO_META[kind];
+        return (
+          <div key={kind}>
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/40 font-light py-3 border-t border-white/[0.04]">
+              <span className={meta.tone}>{meta.label}</span>
+              <span className="tabular-nums text-white/45">{items.length}</span>
+            </div>
+            <p className="text-[11px] text-white/35 font-light -mt-1 mb-3 normal-case tracking-normal">{meta.sub}</p>
+            <div className="space-y-3">
+              {items.map(({ s, e }) => (
+                <div key={s.name} className="space-y-1">
+                  <Row item={s} onSelect={onSelect} />
+                  <div className="px-2 flex items-center justify-between gap-2 text-[10px] font-light tabular-nums">
+                    <span className="text-white/55">{e.reason}</span>
+                    <span className="flex items-center gap-2">
+                      <span className={meta.tone}>{e.cta}</span>
+                      {e.impactEur > 0 && (
+                        <span className="text-amber-200/80 px-1.5 py-0.5 rounded border border-amber-300/20 bg-amber-300/[0.06]">
+                          +{e.impactEur} €
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {groups.size === 0 && (
+        <p className="text-center text-sm text-emerald-300/70 py-12 font-light">
+          Aktuell keine offenen Todos — alle laufen sauber 🏻
+        </p>
+      )}
+    </div>
+  );
+}
