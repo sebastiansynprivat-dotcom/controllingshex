@@ -122,6 +122,32 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
         )}
       </div>
 
+      <div className="flex items-center gap-2">
+        {([
+          { id: "top" as const, label: "Top-Hebel heute", count: topTasks.length },
+          { id: "other" as const, label: "Weitere", count: otherTasks.length },
+        ]).map((opt) => {
+          const active = filter === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => setFilter(opt.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-[11px] font-light tracking-wide transition-all border",
+                active
+                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200"
+                  : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20"
+              )}
+            >
+              {opt.label}
+              <span className={cn("ml-1.5 tabular-nums", active ? "text-emerald-300/70" : "text-white/30")}>
+                {opt.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div className="text-center py-8 text-white/25 text-xs font-light tracking-wide">
           Berechne Umsatz-Hebel …
