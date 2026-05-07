@@ -16,7 +16,9 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch";
+type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch" | "todo";
+type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile";
+interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; cta: string; }
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
 function secondsSince(iso: string): number {
@@ -485,6 +487,85 @@ export default function LiveTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick]);
 
+  // ── Smart Todo-Kategorisierung ─────────────────────────────────────
+  // Kopplung an Umsatz: schwache DMs erzeugen NUR dann ein Todo, wenn
+  // gleichzeitig der Umsatz schwächelt. Läuft Geld → kein Todo.
+  const todoMap = useMemo(() => {
+    const m = new Map<string, TodoEntry>();
+    for (const s of allStatuses) {
+      const key = normName(s.name);
+      const avgRev = s.profile?.avgRevenue ?? 0;
+      const today = Number(s.live?.revenue ?? 0);
+      const avgDms = s.profile?.avgMassDms ?? 0;
+      const dms = s.live?.mass_dms ?? 0;
+      const unread = s.live?.unread_chats ?? 0;
+      const oldest = Number(s.live?.oldest_chat ?? 0);
+      const seen = s.lastSeenSec;
+
+      // 1) Inaktiv anstoßen — nur relevant wenn Account normalerweise Umsatz macht
+      if (s.status === "inactive" && avgRev >= 20) {
+        m.set(key, {
+          kind: "inactive_push",
+          reason: `Heute 0 € · Ø ${Math.round(avgRev)} €/Tag`,
+          impactEur: Math.round(avgRev),
+          cta: "Anstoßen & Online holen",
+        });
+        continue;
+      }
+      // 2) Pause zu lang + Rückstand
+      if (s.status === "active_idle" && seen != null && seen >= 45 * 60 && s.lostRevenue >= 25) {
+        const mins = Math.round(seen / 60);
+        const since = mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins} min`;
+        m.set(key, {
+          kind: "pause_long",
+          reason: `Pause ${since} · ${Math.round(s.lostRevenue)} € Rückstand`,
+          impactEur: Math.round(s.lostRevenue),
+          cta: "Reaktivieren",
+        });
+        continue;
+      }
+      // 3) Aktiv aber unter Pacing
+      if (s.status === "active_weak" && s.lostRevenue >= 20) {
+        m.set(key, {
+          kind: "weak_pacing",
+          reason: `Unter Pacing · ${Math.round(s.lostRevenue)} € Lücke`,
+          impactEur: Math.round(s.lostRevenue),
+          cta: "Pace anziehen",
+        });
+        continue;
+      }
+      // 4) DMs schwach UND Umsatz schwach (gekoppelt!)
+      //    Nur wenn beide gleichzeitig unter ihrem Schnitt liegen.
+      if (
+        avgDms >= 3 && avgRev >= 20 &&
+        dms <= avgDms * 0.5 &&
+        today <= avgRev * 0.6 &&
+        s.status !== "active_strong"
+      ) {
+        m.set(key, {
+          kind: "dms_low_rev_low",
+          reason: `${dms}/${Math.round(avgDms)} DMs · Umsatz ${Math.round(today)}/${Math.round(avgRev)} €`,
+          impactEur: Math.round(avgRev - today),
+          cta: "Mehr Mass-DMs raus",
+        });
+        continue;
+      }
+      // 5) Chats stauen sich (viele unread oder alte Chats offen)
+      if (unread >= 25 || oldest >= 3) {
+        m.set(key, {
+          kind: "chats_pile",
+          reason: oldest >= 3
+            ? `${unread} ungelesen · ältester ${Math.round(oldest)}d`
+            : `${unread} ungelesen`,
+          impactEur: Math.round(Math.min(150, unread * 2 + oldest * 15)),
+          cta: "Chats abarbeiten",
+        });
+        continue;
+      }
+    }
+    return m;
+  }, [allStatuses]);
+
   const visible = useMemo(() => {
     const filtered = allStatuses.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -493,8 +574,20 @@ export default function LiveTracking() {
       if (filter === "inactive" && s.status !== "inactive") return false;
       if (filter === "live_now" && !liveNowKeys.has(normName(s.name))) return false;
       if (filter === "mismatch" && !mismatch.byKey.has(normName(s.name))) return false;
+      if (filter === "todo" && !todoMap.has(normName(s.name))) return false;
       return true;
     });
+    if (filter === "todo") {
+      const order: Record<TodoKind, number> = {
+        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4,
+      };
+      return [...filtered].sort((a, b) => {
+        const ea = todoMap.get(normName(a.name))!;
+        const eb = todoMap.get(normName(b.name))!;
+        if (ea.kind !== eb.kind) return order[ea.kind] - order[eb.kind];
+        return eb.impactEur - ea.impactEur;
+      });
+    }
     if (filter === "mismatch") {
       // Sortierung: Pull-up zuerst (viel Zeit, kleiner Account), dann Underused.
       // Innerhalb pull_up: meiste Stunden zuerst. Innerhalb underused: wenigste zuerst.
@@ -533,7 +626,7 @@ export default function LiveTracking() {
       });
     }
     return sorted;
-  }, [allStatuses, search, filter, sortKey, liveNowKeys, mismatch]);
+  }, [allStatuses, search, filter, sortKey, liveNowKeys, mismatch, todoMap]);
 
   const buckets = useMemo(
     () => ({
@@ -585,6 +678,7 @@ export default function LiveTracking() {
     weak: allStatuses.filter((s) => s.status === "active_weak").length,
     inactive: inactiveCount,
     mismatch: mismatch.byKey.size,
+    todo: todoMap.size,
   };
 
   return (
@@ -716,7 +810,7 @@ export default function LiveTracking() {
         <div className="flex items-center gap-2">
           {/* Segmented filter */}
           <div className="flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] p-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            {(["all", "live_now", "active", "weak", "inactive", "mismatch"] as FilterKey[]).map((k) => {
+            {(["all", "live_now", "active", "weak", "inactive", "mismatch", "todo"] as FilterKey[]).map((k) => {
               const isActive = filter === k;
               const labelMap: Record<FilterKey, string> = {
                 all: "Alle",
@@ -725,6 +819,7 @@ export default function LiveTracking() {
                 weak: "Pacing",
                 inactive: "Inaktiv",
                 mismatch: "Mismatch",
+                todo: "To-Do",
               };
               return (
                 <button
@@ -815,6 +910,8 @@ export default function LiveTracking() {
         </p>
       ) : filter === "mismatch" ? (
         <MismatchSections visible={visible} mismatch={mismatch} onSelect={setSelected} />
+      ) : filter === "todo" ? (
+        <TodoSections visible={visible} todoMap={todoMap} onSelect={setSelected} />
       ) : sortKey !== "smart" || filter === "live_now" ? (
         <div className="space-y-2">
           {visible.map((s) => (
@@ -1462,6 +1559,92 @@ function MismatchSections({
       {pullUp.length === 0 && underused.length === 0 && (
         <p className="text-center text-sm text-emerald-300/70 py-12 font-light">
           Alle Effort-Levels passen aktuell zum Account-Potenzial.
+        </p>
+      )}
+    </div>
+  );
+}
+
+const TODO_META: Record<TodoKind, { label: string; sub: string; tone: string }> = {
+  inactive_push:    { label: "Inaktiv anstoßen",     sub: "heute noch 0 € · sonst Tag verloren", tone: "text-rose-300" },
+  weak_pacing:      { label: "Unter Pacing",         sub: "aktiv, aber Rückstand zum Schnitt",   tone: "text-amber-300" },
+  pause_long:       { label: "Pause zu lang",        sub: "war kurz on, jetzt wieder still",     tone: "text-amber-200" },
+  dms_low_rev_low:  { label: "DMs runter → Umsatz runter", sub: "weniger Mass-DMs als sonst, Umsatz folgt", tone: "text-orange-300" },
+  chats_pile:       { label: "Chats stauen sich",    sub: "viele ungelesen / alte Chats offen",  tone: "text-cyan-300" },
+};
+const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile"];
+
+function TodoSections({
+  visible,
+  todoMap,
+  onSelect,
+}: {
+  visible: ChatterStatus[];
+  todoMap: Map<string, TodoEntry>;
+  onSelect: (s: { name: string; platform: string }) => void;
+}) {
+  const groups = new Map<TodoKind, { s: ChatterStatus; e: TodoEntry }[]>();
+  for (const s of visible) {
+    const e = todoMap.get(s.name.trim().toLowerCase());
+    if (!e) continue;
+    const arr = groups.get(e.kind) ?? [];
+    arr.push({ s, e });
+    groups.set(e.kind, arr);
+  }
+  const totalImpact = visible.reduce((acc, s) => {
+    const e = todoMap.get(s.name.trim().toLowerCase());
+    return acc + (e?.impactEur ?? 0);
+  }, 0);
+
+  return (
+    <div className="space-y-10">
+      {totalImpact > 0 && (
+        <div className="flex items-center justify-between rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200/70 font-light">Heute zu erledigen</div>
+            <div className="text-[11px] text-white/45 font-light mt-0.5">live aus Aktivität & Pacing berechnet</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-white/35">Potenzial</div>
+            <div className="text-base font-light tabular-nums text-amber-200">+{Math.round(totalImpact)} €</div>
+          </div>
+        </div>
+      )}
+      {TODO_ORDER.map((kind) => {
+        const items = groups.get(kind);
+        if (!items || items.length === 0) return null;
+        const meta = TODO_META[kind];
+        return (
+          <div key={kind}>
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/40 font-light py-3 border-t border-white/[0.04]">
+              <span className={meta.tone}>{meta.label}</span>
+              <span className="tabular-nums text-white/45">{items.length}</span>
+            </div>
+            <p className="text-[11px] text-white/35 font-light -mt-1 mb-3 normal-case tracking-normal">{meta.sub}</p>
+            <div className="space-y-3">
+              {items.map(({ s, e }) => (
+                <div key={s.name} className="space-y-1">
+                  <Row item={s} onSelect={onSelect} />
+                  <div className="px-2 flex items-center justify-between gap-2 text-[10px] font-light tabular-nums">
+                    <span className="text-white/55">{e.reason}</span>
+                    <span className="flex items-center gap-2">
+                      <span className={meta.tone}>{e.cta}</span>
+                      {e.impactEur > 0 && (
+                        <span className="text-amber-200/80 px-1.5 py-0.5 rounded border border-amber-300/20 bg-amber-300/[0.06]">
+                          +{e.impactEur} €
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {groups.size === 0 && (
+        <p className="text-center text-sm text-emerald-300/70 py-12 font-light">
+          Aktuell keine offenen Todos — alle laufen sauber 🏻
         </p>
       )}
     </div>
