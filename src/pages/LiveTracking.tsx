@@ -608,7 +608,7 @@ export default function LiveTracking() {
         const ea = todoMap.get(normName(a.name))!;
         const eb = todoMap.get(normName(b.name))!;
         if (ea.kind !== eb.kind) return order[ea.kind] - order[eb.kind];
-        return eb.impactEur - ea.impactEur;
+        return eb.dayPotentialEur - ea.dayPotentialEur;
       });
     }
     if (filter === "mismatch") {
