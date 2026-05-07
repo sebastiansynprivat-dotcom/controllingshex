@@ -574,8 +574,20 @@ export default function LiveTracking() {
       if (filter === "inactive" && s.status !== "inactive") return false;
       if (filter === "live_now" && !liveNowKeys.has(normName(s.name))) return false;
       if (filter === "mismatch" && !mismatch.byKey.has(normName(s.name))) return false;
+      if (filter === "todo" && !todoMap.has(normName(s.name))) return false;
       return true;
     });
+    if (filter === "todo") {
+      const order: Record<TodoKind, number> = {
+        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4,
+      };
+      return [...filtered].sort((a, b) => {
+        const ea = todoMap.get(normName(a.name))!;
+        const eb = todoMap.get(normName(b.name))!;
+        if (ea.kind !== eb.kind) return order[ea.kind] - order[eb.kind];
+        return eb.impactEur - ea.impactEur;
+      });
+    }
     if (filter === "mismatch") {
       // Sortierung: Pull-up zuerst (viel Zeit, kleiner Account), dann Underused.
       // Innerhalb pull_up: meiste Stunden zuerst. Innerhalb underused: wenigste zuerst.
