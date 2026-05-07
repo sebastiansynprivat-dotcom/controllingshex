@@ -18,7 +18,7 @@ interface LiveRow extends LiveRowLite {
 
 type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch" | "todo";
 type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile" | "praise";
-interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; cta: string; }
+interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; dayPotentialEur: number; cta: string; }
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
 function secondsSince(iso: string): number {
@@ -503,12 +503,16 @@ export default function LiveTracking() {
       const oldest = Number(s.live?.oldest_chat ?? 0);
       const seen = s.lastSeenSec;
 
-      // 1) Inaktiv anstoßen
+      // Realistisches Tages-Potenzial: was bis Tagesende noch zum Schnitt fehlt
+      const remainingToAvg = Math.max(0, Math.round(avgRev - today));
+
+      // 1) Inaktiv anstoßen — kompletter Tagesschnitt steht noch aus
       if (s.status === "inactive") {
         m.set(key, {
           kind: "inactive_push",
           reason: `Heute 0 € · Ø ${Math.round(avgRev)} €/Tag`,
           impactEur: Math.round(avgRev),
+          dayPotentialEur: Math.round(avgRev),
           cta: "Anstoßen & Online holen",
         });
         continue;
@@ -521,6 +525,7 @@ export default function LiveTracking() {
           kind: "pause_long",
           reason: `Pause ${since} · ${Math.round(s.lostRevenue)} € Rückstand`,
           impactEur: Math.round(s.lostRevenue),
+          dayPotentialEur: remainingToAvg,
           cta: "Reaktivieren",
         });
         continue;
@@ -531,6 +536,7 @@ export default function LiveTracking() {
           kind: "weak_pacing",
           reason: `Unter Pacing · ${Math.round(s.lostRevenue)} € Lücke`,
           impactEur: Math.round(s.lostRevenue),
+          dayPotentialEur: remainingToAvg,
           cta: "Pace anziehen",
         });
         continue;
@@ -546,6 +552,7 @@ export default function LiveTracking() {
           kind: "dms_low_rev_low",
           reason: `${dms}/${Math.round(avgDms)} DMs · Umsatz ${Math.round(today)}/${Math.round(avgRev)} €`,
           impactEur: Math.round(avgRev - today),
+          dayPotentialEur: remainingToAvg,
           cta: "Mehr Mass-DMs raus",
         });
         continue;
@@ -558,11 +565,12 @@ export default function LiveTracking() {
             ? `${unread} ungelesen · ältester ${Math.round(oldest)}d`
             : `${unread} ungelesen`,
           impactEur: Math.round(Math.min(150, unread * 2 + oldest * 15)),
+          dayPotentialEur: remainingToAvg,
           cta: "Chats abarbeiten",
         });
         continue;
       }
-      // 6) Loben — deutlich über Pacing oder klar über Schnitt
+      // 6) Loben — Lob hat kein "fehlendes Potenzial"
       if (
         s.status === "active_strong" &&
         (s.surplusRevenue >= Math.max(30, avgRev * 0.25) || today >= avgRev * 1.4) &&
@@ -572,6 +580,7 @@ export default function LiveTracking() {
           kind: "praise",
           reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} € · +${Math.round(s.surplusRevenue)} € über Pacing`,
           impactEur: Math.round(s.surplusRevenue),
+          dayPotentialEur: 0,
           cta: "Kurz loben & motivieren",
         });
         continue;
@@ -599,7 +608,7 @@ export default function LiveTracking() {
         const ea = todoMap.get(normName(a.name))!;
         const eb = todoMap.get(normName(b.name))!;
         if (ea.kind !== eb.kind) return order[ea.kind] - order[eb.kind];
-        return eb.impactEur - ea.impactEur;
+        return eb.dayPotentialEur - ea.dayPotentialEur;
       });
     }
     if (filter === "mismatch") {
@@ -1606,22 +1615,22 @@ function TodoSections({
     arr.push({ s, e });
     groups.set(e.kind, arr);
   }
-  const totalImpact = visible.reduce((acc, s) => {
+  const totalPotential = visible.reduce((acc, s) => {
     const e = todoMap.get(s.name.trim().toLowerCase());
-    return acc + (e?.impactEur ?? 0);
+    return acc + (e?.dayPotentialEur ?? 0);
   }, 0);
 
   return (
     <div className="space-y-10">
-      {totalImpact > 0 && (
+      {totalPotential > 0 && (
         <div className="flex items-center justify-between rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200/70 font-light">Heute zu erledigen</div>
-            <div className="text-[11px] text-white/45 font-light mt-0.5">live aus Aktivität & Pacing berechnet</div>
+            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200/70 font-light">Potenzial heute</div>
+            <div className="text-[11px] text-white/45 font-light mt-0.5">wenn alle bis Tagesende ihren Schnitt erreichen</div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wider text-white/35">Potenzial</div>
-            <div className="text-base font-light tabular-nums text-amber-200">+{Math.round(totalImpact)} €</div>
+            <div className="text-[10px] uppercase tracking-wider text-white/35">Möglich</div>
+            <div className="text-base font-light tabular-nums text-amber-200">+{Math.round(totalPotential)} €</div>
           </div>
         </div>
       )}
@@ -1644,11 +1653,15 @@ function TodoSections({
                     <span className="text-white/55">{e.reason}</span>
                     <span className="flex items-center gap-2">
                       <span className={meta.tone}>{e.cta}</span>
-                      {e.impactEur > 0 && (
-                        <span className="text-amber-200/80 px-1.5 py-0.5 rounded border border-amber-300/20 bg-amber-300/[0.06]">
-                          +{e.impactEur} €
+                      {e.kind === "praise" && e.impactEur > 0 ? (
+                        <span className="text-emerald-300/90 px-1.5 py-0.5 rounded border border-emerald-300/25 bg-emerald-300/[0.06]">
+                          +{e.impactEur} € über Schnitt
                         </span>
-                      )}
+                      ) : e.dayPotentialEur > 0 ? (
+                        <span className="text-amber-200/80 px-1.5 py-0.5 rounded border border-amber-300/20 bg-amber-300/[0.06]">
+                          +{e.dayPotentialEur} € möglich
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
