@@ -17,7 +17,7 @@ interface LiveRow extends LiveRowLite {
 }
 
 type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch" | "todo";
-type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile" | "praise";
+type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile" | "praise" | "running_clean";
 interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; dayPotentialEur: number; cta: string; }
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
@@ -585,6 +585,14 @@ export default function LiveTracking() {
         });
         continue;
       }
+      // 7) Läuft sauber — aktiv & im Plan, nichts zu tun außer beobachten
+      m.set(key, {
+        kind: "running_clean",
+        reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} €`,
+        impactEur: 0,
+        dayPotentialEur: 0,
+        cta: "Läuft",
+      });
     }
     return m;
   }, [allStatuses]);
@@ -602,7 +610,7 @@ export default function LiveTracking() {
     });
     if (filter === "todo") {
       const order: Record<TodoKind, number> = {
-        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4, praise: 5,
+        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4, praise: 5, running_clean: 6,
       };
       return [...filtered].sort((a, b) => {
         const ea = todoMap.get(normName(a.name))!;
@@ -1595,8 +1603,9 @@ const TODO_META: Record<TodoKind, { label: string; sub: string; tone: string }> 
   dms_low_rev_low:  { label: "DMs runter → Umsatz runter", sub: "weniger Mass-DMs als sonst, Umsatz folgt", tone: "text-orange-300" },
   chats_pile:       { label: "Chats stauen sich",    sub: "viele ungelesen / alte Chats offen",  tone: "text-cyan-300" },
   praise:           { label: "Loben & motivieren",   sub: "läuft heute deutlich über Schnitt",   tone: "text-emerald-300" },
+  running_clean:    { label: "Läuft sauber",         sub: "aktiv & im Plan — nur beobachten",    tone: "text-white/55" },
 };
-const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile", "praise"];
+const TODO_ORDER: TodoKind[] = ["inactive_push", "weak_pacing", "pause_long", "dms_low_rev_low", "chats_pile", "praise", "running_clean"];
 
 function TodoSections({
   visible,
