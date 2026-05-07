@@ -503,12 +503,16 @@ export default function LiveTracking() {
       const oldest = Number(s.live?.oldest_chat ?? 0);
       const seen = s.lastSeenSec;
 
-      // 1) Inaktiv anstoßen
+      // Realistisches Tages-Potenzial: was bis Tagesende noch zum Schnitt fehlt
+      const remainingToAvg = Math.max(0, Math.round(avgRev - today));
+
+      // 1) Inaktiv anstoßen — kompletter Tagesschnitt steht noch aus
       if (s.status === "inactive") {
         m.set(key, {
           kind: "inactive_push",
           reason: `Heute 0 € · Ø ${Math.round(avgRev)} €/Tag`,
           impactEur: Math.round(avgRev),
+          dayPotentialEur: Math.round(avgRev),
           cta: "Anstoßen & Online holen",
         });
         continue;
@@ -521,6 +525,7 @@ export default function LiveTracking() {
           kind: "pause_long",
           reason: `Pause ${since} · ${Math.round(s.lostRevenue)} € Rückstand`,
           impactEur: Math.round(s.lostRevenue),
+          dayPotentialEur: remainingToAvg,
           cta: "Reaktivieren",
         });
         continue;
@@ -531,6 +536,7 @@ export default function LiveTracking() {
           kind: "weak_pacing",
           reason: `Unter Pacing · ${Math.round(s.lostRevenue)} € Lücke`,
           impactEur: Math.round(s.lostRevenue),
+          dayPotentialEur: remainingToAvg,
           cta: "Pace anziehen",
         });
         continue;
@@ -546,6 +552,7 @@ export default function LiveTracking() {
           kind: "dms_low_rev_low",
           reason: `${dms}/${Math.round(avgDms)} DMs · Umsatz ${Math.round(today)}/${Math.round(avgRev)} €`,
           impactEur: Math.round(avgRev - today),
+          dayPotentialEur: remainingToAvg,
           cta: "Mehr Mass-DMs raus",
         });
         continue;
@@ -558,11 +565,12 @@ export default function LiveTracking() {
             ? `${unread} ungelesen · ältester ${Math.round(oldest)}d`
             : `${unread} ungelesen`,
           impactEur: Math.round(Math.min(150, unread * 2 + oldest * 15)),
+          dayPotentialEur: remainingToAvg,
           cta: "Chats abarbeiten",
         });
         continue;
       }
-      // 6) Loben — deutlich über Pacing oder klar über Schnitt
+      // 6) Loben — Lob hat kein "fehlendes Potenzial"
       if (
         s.status === "active_strong" &&
         (s.surplusRevenue >= Math.max(30, avgRev * 0.25) || today >= avgRev * 1.4) &&
@@ -572,6 +580,7 @@ export default function LiveTracking() {
           kind: "praise",
           reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} € · +${Math.round(s.surplusRevenue)} € über Pacing`,
           impactEur: Math.round(s.surplusRevenue),
+          dayPotentialEur: 0,
           cta: "Kurz loben & motivieren",
         });
         continue;
