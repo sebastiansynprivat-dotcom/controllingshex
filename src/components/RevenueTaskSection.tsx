@@ -108,7 +108,7 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
         <div>
           <h2 className="text-lg font-extralight tracking-tight text-foreground flex items-center gap-2">
             <Gem className="h-4 w-4 text-emerald-300/80" />
-            Umsatz · Top-Hebel heute
+            Umsatz-Hebel
           </h2>
           <p className="text-[11px] text-white/30 mt-1 font-light tracking-wider uppercase">
             Aufgaben mit messbarem €-Impact · sortiert nach Hebelwirkung
