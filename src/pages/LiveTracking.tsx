@@ -585,6 +585,14 @@ export default function LiveTracking() {
         });
         continue;
       }
+      // 7) Läuft sauber — aktiv & im Plan, nichts zu tun außer beobachten
+      m.set(key, {
+        kind: "running_clean",
+        reason: `${Math.round(today)} € heute · Ø ${Math.round(avgRev)} €`,
+        impactEur: 0,
+        dayPotentialEur: 0,
+        cta: "Läuft",
+      });
     }
     return m;
   }, [allStatuses]);
