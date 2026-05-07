@@ -487,6 +487,85 @@ export default function LiveTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick]);
 
+  // ── Smart Todo-Kategorisierung ─────────────────────────────────────
+  // Kopplung an Umsatz: schwache DMs erzeugen NUR dann ein Todo, wenn
+  // gleichzeitig der Umsatz schwächelt. Läuft Geld → kein Todo.
+  const todoMap = useMemo(() => {
+    const m = new Map<string, TodoEntry>();
+    for (const s of allStatuses) {
+      const key = normName(s.name);
+      const avgRev = s.profile?.avgRevenue ?? 0;
+      const today = Number(s.live?.revenue ?? 0);
+      const avgDms = s.profile?.avgMassDms ?? 0;
+      const dms = s.live?.mass_dms ?? 0;
+      const unread = s.live?.unread_chats ?? 0;
+      const oldest = Number(s.live?.oldest_chat ?? 0);
+      const seen = s.lastSeenSec;
+
+      // 1) Inaktiv anstoßen — nur relevant wenn Account normalerweise Umsatz macht
+      if (s.status === "inactive" && avgRev >= 20) {
+        m.set(key, {
+          kind: "inactive_push",
+          reason: `Heute 0 € · Ø ${Math.round(avgRev)} €/Tag`,
+          impactEur: Math.round(avgRev),
+          cta: "Anstoßen & Online holen",
+        });
+        continue;
+      }
+      // 2) Pause zu lang + Rückstand
+      if (s.status === "active_idle" && seen != null && seen >= 45 * 60 && s.lostRevenue >= 25) {
+        const mins = Math.round(seen / 60);
+        const since = mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins} min`;
+        m.set(key, {
+          kind: "pause_long",
+          reason: `Pause ${since} · ${Math.round(s.lostRevenue)} € Rückstand`,
+          impactEur: Math.round(s.lostRevenue),
+          cta: "Reaktivieren",
+        });
+        continue;
+      }
+      // 3) Aktiv aber unter Pacing
+      if (s.status === "active_weak" && s.lostRevenue >= 20) {
+        m.set(key, {
+          kind: "weak_pacing",
+          reason: `Unter Pacing · ${Math.round(s.lostRevenue)} € Lücke`,
+          impactEur: Math.round(s.lostRevenue),
+          cta: "Pace anziehen",
+        });
+        continue;
+      }
+      // 4) DMs schwach UND Umsatz schwach (gekoppelt!)
+      //    Nur wenn beide gleichzeitig unter ihrem Schnitt liegen.
+      if (
+        avgDms >= 3 && avgRev >= 20 &&
+        dms <= avgDms * 0.5 &&
+        today <= avgRev * 0.6 &&
+        s.status !== "active_strong"
+      ) {
+        m.set(key, {
+          kind: "dms_low_rev_low",
+          reason: `${dms}/${Math.round(avgDms)} DMs · Umsatz ${Math.round(today)}/${Math.round(avgRev)} €`,
+          impactEur: Math.round(avgRev - today),
+          cta: "Mehr Mass-DMs raus",
+        });
+        continue;
+      }
+      // 5) Chats stauen sich (viele unread oder alte Chats offen)
+      if (unread >= 25 || oldest >= 3) {
+        m.set(key, {
+          kind: "chats_pile",
+          reason: oldest >= 3
+            ? `${unread} ungelesen · ältester ${Math.round(oldest)}d`
+            : `${unread} ungelesen`,
+          impactEur: Math.round(Math.min(150, unread * 2 + oldest * 15)),
+          cta: "Chats abarbeiten",
+        });
+        continue;
+      }
+    }
+    return m;
+  }, [allStatuses]);
+
   const visible = useMemo(() => {
     const filtered = allStatuses.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
