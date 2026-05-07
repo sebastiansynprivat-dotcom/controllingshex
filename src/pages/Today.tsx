@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ListChecks } from "lucide-react";
 import { usePlatform } from "@/contexts/PlatformContext";
 import DailyTodoList from "@/components/DailyTodoList";
+import RevenueTaskSection from "@/components/RevenueTaskSection";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 
@@ -41,6 +42,14 @@ export default function Today() {
           </div>
 
           <DailyTodoList
+            platform={platform}
+            onChatterClick={(name) => setSelectedChatter(name)}
+            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+          />
+
+          <div className="border-t border-white/[0.06] pt-6 sm:pt-8" />
+
+          <RevenueTaskSection
             platform={platform}
             onChatterClick={(name) => setSelectedChatter(name)}
             onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
