@@ -17,7 +17,7 @@ interface LiveRow extends LiveRowLite {
 }
 
 type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch" | "todo";
-type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile";
+type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile" | "praise";
 interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; cta: string; }
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
