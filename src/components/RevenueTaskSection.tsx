@@ -32,10 +32,15 @@ function fmtEur(v: number) {
   return Math.round(v).toLocaleString("de-DE") + " €";
 }
 
+type FilterMode = "top" | "other";
+
+const TOP_COUNT = 5;
+
 export default function RevenueTaskSection({ platform, onChatterClick, onModelClick }: Props) {
   const [tasks, setTasks] = useState<RevenueTask[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterMode>("top");
 
   useEffect(() => {
     let cancel = false;
@@ -51,7 +56,7 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
     return () => { cancel = true; };
   }, [platform]);
 
-  const visible = useMemo(() => {
+  const allVisible = useMemo(() => {
     const now = new Date();
     return tasks.filter((t) => {
       const st = states[t.key];
@@ -63,6 +68,10 @@ export default function RevenueTaskSection({ platform, onChatterClick, onModelCl
       return true;
     });
   }, [tasks, states]);
+
+  const topTasks = useMemo(() => allVisible.slice(0, TOP_COUNT), [allVisible]);
+  const otherTasks = useMemo(() => allVisible.slice(TOP_COUNT), [allVisible]);
+  const visible = filter === "top" ? topTasks : otherTasks;
 
   const totalImpact = useMemo(
     () => visible.reduce((s, t) => s + t.impactEurPerWeek, 0),
