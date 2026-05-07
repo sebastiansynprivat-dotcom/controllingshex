@@ -46,7 +46,7 @@ export interface RevenueTask {
   modelName?: string | null;
 }
 
-const MAX_TASKS = 7;
+const MAX_TASKS = 20;
 const MIN_IMPACT_EUR_PER_WEEK = 30;
 
 function todayStr(): string {
