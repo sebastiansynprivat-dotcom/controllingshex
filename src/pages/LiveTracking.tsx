@@ -640,14 +640,26 @@ export default function LiveTracking() {
       return true;
     });
     if (filter === "todo") {
-      const order: Record<TodoKind, number> = {
-        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4, praise: 5, running_clean: 6,
+      const urgency = (s: ChatterStatus, e: TodoEntry): number => {
+        if (e.kind === "praise" || e.kind === "running_clean") return -1;
+        let score = e.dayPotentialEur;
+        const oldest = Number(s.live?.oldest_chat ?? 0);
+        if (e.kind === "chats_pile" && oldest >= 2) score += 50 + oldest * 10;
+        if (e.kind === "inactive_push") score += 30;
+        return score;
       };
+      const tailOrder: Record<string, number> = { praise: 0, running_clean: 1 };
       return [...filtered].sort((a, b) => {
         const ea = todoMap.get(normName(a.name))!;
         const eb = todoMap.get(normName(b.name))!;
-        if (ea.kind !== eb.kind) return order[ea.kind] - order[eb.kind];
-        return eb.dayPotentialEur - ea.dayPotentialEur;
+        const aTail = ea.kind === "praise" || ea.kind === "running_clean";
+        const bTail = eb.kind === "praise" || eb.kind === "running_clean";
+        if (aTail !== bTail) return aTail ? 1 : -1;
+        if (aTail && bTail) {
+          if (ea.kind !== eb.kind) return tailOrder[ea.kind] - tailOrder[eb.kind];
+          return Number(b.live?.revenue ?? 0) - Number(a.live?.revenue ?? 0);
+        }
+        return urgency(b, eb) - urgency(a, ea);
       });
     }
     if (filter === "mismatch") {
