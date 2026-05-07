@@ -593,7 +593,7 @@ export default function LiveTracking() {
     });
     if (filter === "todo") {
       const order: Record<TodoKind, number> = {
-        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4,
+        inactive_push: 0, weak_pacing: 1, pause_long: 2, dms_low_rev_low: 3, chats_pile: 4, praise: 5,
       };
       return [...filtered].sort((a, b) => {
         const ea = todoMap.get(normName(a.name))!;
