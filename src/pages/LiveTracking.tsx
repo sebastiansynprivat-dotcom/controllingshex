@@ -16,7 +16,9 @@ interface LiveRow extends LiveRowLite {
   date: string;
 }
 
-type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch";
+type FilterKey = "all" | "live_now" | "active" | "weak" | "inactive" | "mismatch" | "todo";
+type TodoKind = "inactive_push" | "pause_long" | "weak_pacing" | "dms_low_rev_low" | "chats_pile";
+interface TodoEntry { kind: TodoKind; reason: string; impactEur: number; cta: string; }
 type SortKey = "smart" | "lost" | "activity" | "revenue" | "avg";
 
 function secondsSince(iso: string): number {
