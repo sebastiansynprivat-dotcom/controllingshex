@@ -1615,22 +1615,22 @@ function TodoSections({
     arr.push({ s, e });
     groups.set(e.kind, arr);
   }
-  const totalImpact = visible.reduce((acc, s) => {
+  const totalPotential = visible.reduce((acc, s) => {
     const e = todoMap.get(s.name.trim().toLowerCase());
-    return acc + (e?.impactEur ?? 0);
+    return acc + (e?.dayPotentialEur ?? 0);
   }, 0);
 
   return (
     <div className="space-y-10">
-      {totalImpact > 0 && (
+      {totalPotential > 0 && (
         <div className="flex items-center justify-between rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200/70 font-light">Heute zu erledigen</div>
-            <div className="text-[11px] text-white/45 font-light mt-0.5">live aus Aktivität & Pacing berechnet</div>
+            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200/70 font-light">Potenzial heute</div>
+            <div className="text-[11px] text-white/45 font-light mt-0.5">wenn alle bis Tagesende ihren Schnitt erreichen</div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wider text-white/35">Potenzial</div>
-            <div className="text-base font-light tabular-nums text-amber-200">+{Math.round(totalImpact)} €</div>
+            <div className="text-[10px] uppercase tracking-wider text-white/35">Möglich</div>
+            <div className="text-base font-light tabular-nums text-amber-200">+{Math.round(totalPotential)} €</div>
           </div>
         </div>
       )}
@@ -1653,11 +1653,15 @@ function TodoSections({
                     <span className="text-white/55">{e.reason}</span>
                     <span className="flex items-center gap-2">
                       <span className={meta.tone}>{e.cta}</span>
-                      {e.impactEur > 0 && (
-                        <span className="text-amber-200/80 px-1.5 py-0.5 rounded border border-amber-300/20 bg-amber-300/[0.06]">
-                          +{e.impactEur} €
+                      {e.kind === "praise" && e.impactEur > 0 ? (
+                        <span className="text-emerald-300/90 px-1.5 py-0.5 rounded border border-emerald-300/25 bg-emerald-300/[0.06]">
+                          +{e.impactEur} € über Schnitt
                         </span>
-                      )}
+                      ) : e.dayPotentialEur > 0 ? (
+                        <span className="text-amber-200/80 px-1.5 py-0.5 rounded border border-amber-300/20 bg-amber-300/[0.06]">
+                          +{e.dayPotentialEur} € möglich
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
