@@ -272,9 +272,22 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     [timeRange]
   );
 
+  /** Live-Effizienz pro Chatter (key = chatter_name lowercase). Wird stündlich serverseitig
+   *  aus chatter_activity_sessions berechnet — basiert auf echten Online-Phasen statt
+   *  Tagessummen. Fällt zurück auf den Legacy-Skill-Score wenn ein Chatter <60min/<3 Sessions
+   *  in dem gewählten Range hat. */
+  const [liveEfficiency, setLiveEfficiency] = useState<Map<string, LiveEfficiencyRow>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    fetchLiveEfficiency(platform, timeRange.from, timeRange.to).then((m) => {
+      if (!cancelled) setLiveEfficiency(m);
+    });
+    return () => { cancelled = true; };
+  }, [platform, timeRange.from, timeRange.to]);
+
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow }),
-    [chatters, models, benchmarks, platform, swapWindow]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow, liveEfficiency }),
+    [chatters, models, benchmarks, platform, swapWindow, liveEfficiency]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
@@ -283,8 +296,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [manualSearch, setManualSearch] = useState("");
 
   const allChatterOptions = useMemo(
-    () => listAllSwapChatters(chatters, models, swapWindow),
-    [chatters, models, swapWindow]
+    () => listAllSwapChatters(chatters, models, swapWindow, liveEfficiency),
+    [chatters, models, swapWindow, liveEfficiency]
   );
   /** Pro Chatter-Name nur 1 Eintrag (mit höchstem Skill) für Auswahl */
   const uniqueChatterOptions = useMemo(() => {
@@ -298,8 +311,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const manualPairs = useMemo(() => {
     if (!manualChatterName) return null;
-    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8, swapWindow);
-  }, [manualChatterName, chatters, models, benchmarks, swapWindow]);
+    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8, swapWindow, liveEfficiency);
+  }, [manualChatterName, chatters, models, benchmarks, swapWindow, liveEfficiency]);
 
   const allPairs = manualPairs ?? autoPairs;
   const isManualMode = manualPairs !== null;
