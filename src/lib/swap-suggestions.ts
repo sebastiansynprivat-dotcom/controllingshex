@@ -456,6 +456,8 @@ export interface ComputeOptions {
   platform?: string;
   /** Zeitfenster über das gemittelt wird (default: letzte 7 Tage). */
   window?: WindowSpec;
+  /** Optional: Live-Effizienz pro Chatter (key = chatter_name lowercase). Wenn gesetzt und ausreichend Daten, ersetzt sie den Legacy-Skill-Score. */
+  liveEfficiency?: Map<string, LiveEfficiencyRow>;
 }
 
 /**
