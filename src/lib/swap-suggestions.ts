@@ -21,6 +21,8 @@
 
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { findCluster } from "@/lib/peer-benchmarks";
+import type { LiveEfficiencyRow } from "@/lib/live-efficiency";
+import { hasUsableLiveData } from "@/lib/live-efficiency";
 
 export type Tier = "Micro" | "Small" | "Medium" | "Large" | "Huge";
 
@@ -90,6 +92,10 @@ export interface SwapChatter {
     throughput: number;
     revenue: number;
   };
+  /** Quelle des Skill-Scores: "live" wenn aus chatter_activity_sessions, sonst "legacy". */
+  skillSource: "live" | "legacy";
+  /** Live-Effizienz-Rohdaten (falls vorhanden) — für UI-Anzeige (€/h, €/Msg, …) */
+  live?: LiveEfficiencyRow;
 }
 
 export interface SwapPair {
@@ -224,7 +230,8 @@ const DEFAULT_WINDOW: WindowSpec = { windowDays: 7 };
 function buildEnriched(
   chatters: SwapInput[],
   models: SwapModelInfo[],
-  window: WindowSpec = DEFAULT_WINDOW
+  window: WindowSpec = DEFAULT_WINDOW,
+  liveEfficiency?: Map<string, LiveEfficiencyRow>
 ): SwapChatter[] {
   // Fix 1: Models mit follower_count=0 kriegen Median-Fallback (sonst werden ganze
   // Account-Einträge unsichtbar weil der Brezzels-Pool e.followers > 0 verlangt)
@@ -297,10 +304,10 @@ function buildEnriched(
     .map((b, i) => (chatterTotalFollowers[i] >= 100 ? b.avgRevenue / Math.max(chatterTotalFollowers[i], 1) : null))
     .filter((v): v is number => v !== null);
 
-  // Pass 2: Skill-Score pro Chatter
+  // Pass 2a: Legacy-Skill-Score pro Chatter (Fallback wenn keine Live-Daten)
   const chatterSkill = new Map<
     string,
-    { skill: number; breakdown: SwapChatter["scoreBreakdown"] }
+    { skill: number; breakdown: SwapChatter["scoreBreakdown"]; source: "live" | "legacy" }
   >();
   chatterAggs.forEach((b, i) => {
     const massScore = normalizeHigherBetter(b.avgMassDms, allMassDms);
@@ -309,7 +316,7 @@ function buildEnriched(
     const totalFollowers = chatterTotalFollowers[i];
     let revScore: number;
     if (totalFollowers < 100) {
-      revScore = 0.5; // Mini-Pool: kein Skill-Beweis möglich
+      revScore = 0.5;
     } else {
       const eff = b.avgRevenue / Math.max(totalFollowers, 1);
       revScore = normalizeHigherBetter(eff, allEfficiencies);
@@ -321,23 +328,64 @@ function buildEnriched(
       WEIGHTS.revenue * revScore;
     chatterSkill.set(b.name, {
       skill: Math.max(0, Math.min(1, skill)),
-      breakdown: {
-        massDms: massScore,
-        response: respScore,
-        throughput: throughScore,
-        revenue: revScore,
-      },
+      breakdown: { massDms: massScore, response: respScore, throughput: throughScore, revenue: revScore },
+      source: "legacy",
     });
   });
 
+  // Pass 2b: Live-Score überschreibt wo verlässlich vorhanden
+  if (liveEfficiency && liveEfficiency.size > 0) {
+    const usableNames = chatterAggs
+      .map((b) => b.name)
+      .filter((n) => hasUsableLiveData(liveEfficiency.get(n.trim().toLowerCase())));
+    if (usableNames.length >= 2) {
+      const liveRows = usableNames.map((n) => liveEfficiency.get(n.trim().toLowerCase())!);
+      const allEurH = liveRows.map((r) => r.eur_per_active_hour);
+      const allEurMsg = liveRows.map((r) => r.eur_per_incoming);
+      const allFirstResp = liveRows
+        .map((r) => r.first_response_min_p50)
+        .filter((v): v is number => v !== null);
+      const allConsistency = liveRows.map((r) => r.session_consistency);
+      const allMassLive = liveRows.map((r) => r.total_mass_dms);
+
+      const LW = { eurH: 0.40, eurMsg: 0.25, firstResp: 0.15, consistency: 0.10, mass: 0.10 };
+      for (const name of usableNames) {
+        const row = liveEfficiency.get(name.trim().toLowerCase())!;
+        const eurH = normalizeHigherBetter(row.eur_per_active_hour, allEurH);
+        const eurMsg = normalizeHigherBetter(row.eur_per_incoming, allEurMsg);
+        const firstResp = row.first_response_min_p50 != null && allFirstResp.length > 0
+          ? normalizeLowerBetter(row.first_response_min_p50, allFirstResp)
+          : 0.5;
+        const consistency = normalizeHigherBetter(row.session_consistency, allConsistency);
+        const massLive = normalizeHigherBetter(row.total_mass_dms, allMassLive);
+        const skill =
+          LW.eurH * eurH +
+          LW.eurMsg * eurMsg +
+          LW.firstResp * firstResp +
+          LW.consistency * consistency +
+          LW.mass * massLive;
+        chatterSkill.set(name, {
+          skill: Math.max(0, Math.min(1, skill)),
+          // Mapping auf bestehende Breakdown-Felder für UI-Kompatibilität:
+          //   massDms → eurH, response → firstResp, throughput → eurMsg, revenue → consistency
+          breakdown: {
+            massDms: eurH,
+            response: firstResp,
+            throughput: eurMsg,
+            revenue: consistency,
+          },
+          source: "live",
+        });
+      }
+    }
+  }
+
   // Pass 3: Pro (Chatter, Account) ein Eintrag erzeugen
-  // Stats bleiben chatter-bezogen. Ein Chatter arbeitet typischerweise mehrere Accounts;
-  // follower-gewichtetes Aufsplitten hat die 7T-Ø-Zahlen künstlich klein gerechnet und
-  // dadurch Wechsel-Vorschläge verfälscht. Der Account definiert hier nur Platzierung/Tier.
   const enriched: SwapChatter[] = [];
   chatterAggs.forEach((b) => {
     const skillEntry = chatterSkill.get(b.name);
     if (!skillEntry) return;
+    const liveRow = liveEfficiency?.get(b.name.trim().toLowerCase());
     const followerByAcc = b.accounts.map((acc) => followerLookup.get(acc.toLowerCase()) || 0);
     b.accounts.forEach((acc, idx) => {
       const followers = followerByAcc[idx];
@@ -349,12 +397,14 @@ function buildEnriched(
         tier: tierOf(followers),
         currentRevenue: b.currentRevenue,
         avgRevenue: b.avgRevenue,
-        avgMassDms: b.avgMassDms, // Chatter-weit
+        avgMassDms: b.avgMassDms,
         avgOpenChats: b.avgOpenChats,
-        avgResponseDelay: b.avgResponseDelay, // Chatter-weit
+        avgResponseDelay: b.avgResponseDelay,
         skillScore: skillEntry.skill,
         firstSeen: b.firstSeen,
         scoreBreakdown: skillEntry.breakdown,
+        skillSource: skillEntry.source,
+        live: liveRow,
       });
     });
   });
@@ -406,6 +456,8 @@ export interface ComputeOptions {
   platform?: string;
   /** Zeitfenster über das gemittelt wird (default: letzte 7 Tage). */
   window?: WindowSpec;
+  /** Optional: Live-Effizienz pro Chatter (key = chatter_name lowercase). Wenn gesetzt und ausreichend Daten, ersetzt sie den Legacy-Skill-Score. */
+  liveEfficiency?: Map<string, LiveEfficiencyRow>;
 }
 
 /**
@@ -506,7 +558,7 @@ export function computeSwapCandidates(
   const poolFraction = opts.poolFraction ?? 0.4;
   const platform = opts.platform;
 
-  const enriched = buildEnriched(chatters, models, opts.window ?? DEFAULT_WINDOW);
+  const enriched = buildEnriched(chatters, models, opts.window ?? DEFAULT_WINDOW, opts.liveEfficiency);
   if (enriched.length < 2) return [];
 
   // ----- Brezzels: Mismatch-Pool + Fallback-Skill-Pool -----
@@ -697,9 +749,10 @@ function pairUp(
 export function listAllSwapChatters(
   chatters: SwapInput[],
   models: SwapModelInfo[],
-  window: WindowSpec = DEFAULT_WINDOW
+  window: WindowSpec = DEFAULT_WINDOW,
+  liveEfficiency?: Map<string, LiveEfficiencyRow>
 ): SwapChatter[] {
-  return buildEnriched(chatters, models, window);
+  return buildEnriched(chatters, models, window, liveEfficiency);
 }
 
 /**
@@ -716,9 +769,10 @@ export function computeManualSwapCandidates(
   selectedChatterName: string,
   bundle: BenchmarkBundle | null = null,
   limit = 8,
-  window: WindowSpec = DEFAULT_WINDOW
+  window: WindowSpec = DEFAULT_WINDOW,
+  liveEfficiency?: Map<string, LiveEfficiencyRow>
 ): SwapPair[] {
-  const enriched = buildEnriched(chatters, models, window);
+  const enriched = buildEnriched(chatters, models, window, liveEfficiency);
   if (enriched.length < 2) return [];
 
   // Alle Account-Einträge des gewählten Chatters

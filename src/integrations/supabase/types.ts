@@ -241,6 +241,57 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_activity_sessions: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          date: string
+          duration_min: number
+          ended_at: string
+          first_response_min: number | null
+          id: string
+          incoming_proxy: number
+          mass_dms_in_session: number
+          platform: string
+          revenue_in_session: number
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          date: string
+          duration_min?: number
+          ended_at: string
+          first_response_min?: number | null
+          id?: string
+          incoming_proxy?: number
+          mass_dms_in_session?: number
+          platform?: string
+          revenue_in_session?: number
+          started_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          date?: string
+          duration_min?: number
+          ended_at?: string
+          first_response_min?: number | null
+          id?: string
+          incoming_proxy?: number
+          mass_dms_in_session?: number
+          platform?: string
+          revenue_in_session?: number
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_category_state: {
         Row: {
           chatter_name: string
@@ -1028,6 +1079,28 @@ export type Database = {
         Returns: {
           chatter_name: string
           onboarded_on: string
+        }[]
+      }
+      get_live_efficiency: {
+        Args: {
+          p_from: string
+          p_platform: string
+          p_to: string
+          p_user_id: string
+        }
+        Returns: {
+          active_days: number
+          chatter_name: string
+          eur_per_active_hour: number
+          eur_per_incoming: number
+          first_response_min_p50: number
+          range_days: number
+          session_consistency: number
+          session_count: number
+          total_active_min: number
+          total_incoming_proxy: number
+          total_mass_dms: number
+          total_revenue: number
         }[]
       }
       has_role: {

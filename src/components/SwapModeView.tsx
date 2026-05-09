@@ -23,6 +23,7 @@ import {
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
+import { fetchLiveEfficiency, type LiveEfficiencyRow } from "@/lib/live-efficiency";
 
 interface Props {
   platform: string;
@@ -189,13 +190,38 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           </div>
         </div>
 
-        {/* Skill-Breakdown — auf Mobile versteckt um Höhe zu sparen */}
+        {/* Skill-Breakdown — auf Mobile versteckt um Höhe zu sparen.
+            Bei Live-Score: €/h, €/Msg, Resp, Tage aktiv (statt Legacy DMs/Resp/Chat/€/F). */}
         <div className="hidden lg:grid grid-cols-4 gap-1.5 lg:gap-2 mb-2.5 lg:mb-4">
-          <SkillPill icon={MessageSquare} label="DMs" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
-          <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
-          <SkillPill icon={Inbox} label="Chat" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
-          <SkillPill icon={TrendingUp} label="€/F" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
+          {chatter.skillSource === "live" ? (
+            <>
+              <SkillPill icon={TrendingUp} label="€/h" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
+              <SkillPill icon={MessageSquare} label="€/Msg" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
+              <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
+              <SkillPill icon={Inbox} label="Tage" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
+            </>
+          ) : (
+            <>
+              <SkillPill icon={MessageSquare} label="DMs" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
+              <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
+              <SkillPill icon={Inbox} label="Chat" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
+              <SkillPill icon={TrendingUp} label="€/F" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
+            </>
+          )}
         </div>
+
+        {/* Live-Effizienz Header — nur wenn Live-Daten vorhanden */}
+        {chatter.live && chatter.skillSource === "live" && (
+          <div className="hidden lg:flex items-center justify-between mb-2 px-1 text-[10px]">
+            <span className="text-white/45 inline-flex items-center gap-1">
+              <Zap className="h-3 w-3" />
+              {Math.round(chatter.live.eur_per_active_hour)} € / aktive h
+            </span>
+            <span className="text-white/35" title={`${chatter.live.session_count} Sessions · ${chatter.live.active_days}/${chatter.live.range_days} Tage`}>
+              {chatter.live.session_count} Sess. · {Math.round(chatter.live.total_active_min / 60)}h aktiv
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-1.5 lg:gap-3">
           <div className="rounded-md lg:rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5 lg:p-3">
@@ -246,9 +272,22 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
     [timeRange]
   );
 
+  /** Live-Effizienz pro Chatter (key = chatter_name lowercase). Wird stündlich serverseitig
+   *  aus chatter_activity_sessions berechnet — basiert auf echten Online-Phasen statt
+   *  Tagessummen. Fällt zurück auf den Legacy-Skill-Score wenn ein Chatter <60min/<3 Sessions
+   *  in dem gewählten Range hat. */
+  const [liveEfficiency, setLiveEfficiency] = useState<Map<string, LiveEfficiencyRow>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    fetchLiveEfficiency(platform, timeRange.from, timeRange.to).then((m) => {
+      if (!cancelled) setLiveEfficiency(m);
+    });
+    return () => { cancelled = true; };
+  }, [platform, timeRange.from, timeRange.to]);
+
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow }),
-    [chatters, models, benchmarks, platform, swapWindow]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow, liveEfficiency }),
+    [chatters, models, benchmarks, platform, swapWindow, liveEfficiency]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
@@ -257,8 +296,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   const [manualSearch, setManualSearch] = useState("");
 
   const allChatterOptions = useMemo(
-    () => listAllSwapChatters(chatters, models, swapWindow),
-    [chatters, models, swapWindow]
+    () => listAllSwapChatters(chatters, models, swapWindow, liveEfficiency),
+    [chatters, models, swapWindow, liveEfficiency]
   );
   /** Pro Chatter-Name nur 1 Eintrag (mit höchstem Skill) für Auswahl */
   const uniqueChatterOptions = useMemo(() => {
@@ -272,8 +311,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
 
   const manualPairs = useMemo(() => {
     if (!manualChatterName) return null;
-    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8, swapWindow);
-  }, [manualChatterName, chatters, models, benchmarks, swapWindow]);
+    return computeManualSwapCandidates(chatters, models, manualChatterName, benchmarks ?? null, 8, swapWindow, liveEfficiency);
+  }, [manualChatterName, chatters, models, benchmarks, swapWindow, liveEfficiency]);
 
   const allPairs = manualPairs ?? autoPairs;
   const isManualMode = manualPairs !== null;
