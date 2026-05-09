@@ -92,6 +92,10 @@ export interface SwapChatter {
     throughput: number;
     revenue: number;
   };
+  /** Quelle des Skill-Scores: "live" wenn aus chatter_activity_sessions, sonst "legacy". */
+  skillSource: "live" | "legacy";
+  /** Live-Effizienz-Rohdaten (falls vorhanden) — für UI-Anzeige (€/h, €/Msg, …) */
+  live?: LiveEfficiencyRow;
 }
 
 export interface SwapPair {
@@ -226,7 +230,8 @@ const DEFAULT_WINDOW: WindowSpec = { windowDays: 7 };
 function buildEnriched(
   chatters: SwapInput[],
   models: SwapModelInfo[],
-  window: WindowSpec = DEFAULT_WINDOW
+  window: WindowSpec = DEFAULT_WINDOW,
+  liveEfficiency?: Map<string, LiveEfficiencyRow>
 ): SwapChatter[] {
   // Fix 1: Models mit follower_count=0 kriegen Median-Fallback (sonst werden ganze
   // Account-Einträge unsichtbar weil der Brezzels-Pool e.followers > 0 verlangt)
