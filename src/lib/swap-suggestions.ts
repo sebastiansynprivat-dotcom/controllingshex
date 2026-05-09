@@ -21,6 +21,8 @@
 
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { findCluster } from "@/lib/peer-benchmarks";
+import type { LiveEfficiencyRow } from "@/lib/live-efficiency";
+import { hasUsableLiveData } from "@/lib/live-efficiency";
 
 export type Tier = "Micro" | "Small" | "Medium" | "Large" | "Huge";
 
