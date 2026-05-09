@@ -749,9 +749,10 @@ function pairUp(
 export function listAllSwapChatters(
   chatters: SwapInput[],
   models: SwapModelInfo[],
-  window: WindowSpec = DEFAULT_WINDOW
+  window: WindowSpec = DEFAULT_WINDOW,
+  liveEfficiency?: Map<string, LiveEfficiencyRow>
 ): SwapChatter[] {
-  return buildEnriched(chatters, models, window);
+  return buildEnriched(chatters, models, window, liveEfficiency);
 }
 
 /**
@@ -768,9 +769,10 @@ export function computeManualSwapCandidates(
   selectedChatterName: string,
   bundle: BenchmarkBundle | null = null,
   limit = 8,
-  window: WindowSpec = DEFAULT_WINDOW
+  window: WindowSpec = DEFAULT_WINDOW,
+  liveEfficiency?: Map<string, LiveEfficiencyRow>
 ): SwapPair[] {
-  const enriched = buildEnriched(chatters, models, window);
+  const enriched = buildEnriched(chatters, models, window, liveEfficiency);
   if (enriched.length < 2) return [];
 
   // Alle Account-Einträge des gewählten Chatters
