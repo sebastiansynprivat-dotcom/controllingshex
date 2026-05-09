@@ -295,19 +295,24 @@ function SkillPill({
   icon: Icon,
   label,
   value,
+  hint,
   accentHsl,
 }: {
   icon: typeof Zap;
   label: string;
-  value: number;
+  value: string;
+  hint?: string;
   accentHsl: string;
 }) {
   return (
-    <div className="rounded-md bg-white/[0.02] border border-white/[0.05] py-1.5 px-1 flex flex-col items-center">
+    <div
+      className="rounded-md bg-white/[0.02] border border-white/[0.05] py-1.5 px-1 flex flex-col items-center"
+      title={hint}
+    >
       <Icon className="h-2.5 w-2.5 text-white/45 mb-0.5" />
-      <span className="text-[8px] uppercase tracking-wider text-white/35">{label}</span>
-      <span className="text-[10px] font-semibold mt-0.5" style={{ color: `hsl(${accentHsl})` }}>
-        {Math.round(value * 100)}
+      <span className="text-[8px] uppercase tracking-wider text-white/35 text-center leading-tight">{label}</span>
+      <span className="text-[10px] font-semibold mt-0.5 tabular-nums whitespace-nowrap" style={{ color: `hsl(${accentHsl})` }}>
+        {value}
       </span>
     </div>
   );
