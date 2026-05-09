@@ -190,22 +190,71 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           </div>
         </div>
 
-        {/* Skill-Breakdown — auf Mobile versteckt um Höhe zu sparen.
-            Bei Live-Score: €/h, €/Msg, Resp, Tage aktiv (statt Legacy DMs/Resp/Chat/€/F). */}
+        {/* Skill-Breakdown — echte Werte statt 0–100-Normalisierung, damit man auf einen
+            Blick sieht WAS dahintersteckt (€/aktive Std, € pro eingehende Nachricht,
+            Median-Reaktionszeit in Min, aktive Tage / Range). */}
         <div className="hidden lg:grid grid-cols-4 gap-1.5 lg:gap-2 mb-2.5 lg:mb-4">
-          {chatter.skillSource === "live" ? (
+          {chatter.skillSource === "live" && chatter.live ? (
             <>
-              <SkillPill icon={TrendingUp} label="€/h" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
-              <SkillPill icon={MessageSquare} label="€/Msg" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
-              <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
-              <SkillPill icon={Inbox} label="Tage" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
+              <SkillPill
+                icon={TrendingUp}
+                label="€/aktive Std"
+                value={`${Math.round(chatter.live.eur_per_active_hour)} €`}
+                hint={`${formatEur(chatter.live.total_revenue)} in ${(chatter.live.total_active_min / 60).toFixed(1)} h aktiv`}
+                accentHsl={accentHsl}
+              />
+              <SkillPill
+                icon={MessageSquare}
+                label="€/Nachricht"
+                value={chatter.live.total_incoming_proxy > 0 ? `${chatter.live.eur_per_incoming.toFixed(2)} €` : "–"}
+                hint={`Umsatz pro eingehende DM (Schätzung aus ${chatter.live.total_incoming_proxy} Msg-Events)`}
+                accentHsl={accentHsl}
+              />
+              <SkillPill
+                icon={Clock}
+                label="Reaktion ⌀"
+                value={chatter.live.first_response_min_p50 != null ? `${Math.round(chatter.live.first_response_min_p50)} min` : "–"}
+                hint="Median-Zeit von Session-Start bis erster Umsatz/DM"
+                accentHsl={accentHsl}
+              />
+              <SkillPill
+                icon={Inbox}
+                label="Aktive Tage"
+                value={`${chatter.live.active_days}/${chatter.live.range_days}`}
+                hint={`An ${chatter.live.active_days} von ${chatter.live.range_days} Tagen mindestens 1 Session`}
+                accentHsl={accentHsl}
+              />
             </>
           ) : (
             <>
-              <SkillPill icon={MessageSquare} label="DMs" value={chatter.scoreBreakdown.massDms} accentHsl={accentHsl} />
-              <SkillPill icon={Clock} label="Resp" value={chatter.scoreBreakdown.response} accentHsl={accentHsl} />
-              <SkillPill icon={Inbox} label="Chat" value={chatter.scoreBreakdown.throughput} accentHsl={accentHsl} />
-              <SkillPill icon={TrendingUp} label="€/F" value={chatter.scoreBreakdown.revenue} accentHsl={accentHsl} />
+              <SkillPill
+                icon={MessageSquare}
+                label="Mass DMs"
+                value={Math.round(chatter.scoreBreakdown.massDms * 100).toString()}
+                hint="Disziplin-Score 0–100 (Mass-DM-Output vs Pool)"
+                accentHsl={accentHsl}
+              />
+              <SkillPill
+                icon={Clock}
+                label="Antwortzeit"
+                value={Math.round(chatter.scoreBreakdown.response * 100).toString()}
+                hint="0–100 — höher = schneller (vs Pool-Median)"
+                accentHsl={accentHsl}
+              />
+              <SkillPill
+                icon={Inbox}
+                label="Chat-Flow"
+                value={Math.round(chatter.scoreBreakdown.throughput * 100).toString()}
+                hint="0–100 — wie sauber Inbox abgearbeitet wird"
+                accentHsl={accentHsl}
+              />
+              <SkillPill
+                icon={TrendingUp}
+                label="€ / Follower"
+                value={Math.round(chatter.scoreBreakdown.revenue * 100).toString()}
+                hint="0–100 — Umsatz normiert auf Account-Größe"
+                accentHsl={accentHsl}
+              />
             </>
           )}
         </div>
