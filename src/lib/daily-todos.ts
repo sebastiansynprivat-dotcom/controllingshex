@@ -8,8 +8,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { detectModelTroubles } from "@/lib/model-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import { findTalentMatches } from "@/lib/talent-scout";
 
-export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive";
+export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive" | "talent";
 
 export interface DailyTodo {
   /** Stabiler Schlüssel inkl. Datum, z.B. "verzug:Sarah:2026-05-03" */
@@ -21,6 +22,8 @@ export interface DailyTodo {
   why: string;
   chatterName?: string | null;
   modelName?: string | null;
+  /** Optional: zweiter Chatter für direkten Vergleich (Talent-Match → Wechselmodus) */
+  compareWith?: string | null;
 }
 
 export interface TodoState {
@@ -298,6 +301,25 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         why: `${totalToday} statt Ø ${avgTeam.toFixed(0)} — Team aktivieren.`,
       });
     }
+  }
+
+  // Talent-Scout — Aufsteiger ab Onboarding-Tag 5 + Underuser-Vorschlag
+  try {
+    const matches = await findTalentMatches(platform);
+    for (const m of matches) {
+      const respPart = m.riserResponseP50 != null ? ` · ${Math.round(m.riserResponseP50)}min Reaktion` : "";
+      todos.push({
+        key: `talent:${m.riser}:${m.underuser}:${today}`,
+        category: "talent",
+        score: 70 + Math.round(m.matchScore / 10),
+        title: `🚀 ${m.riser} prüfen — Aufsteiger seit ${m.riserDaysOnboarded} Tagen`,
+        why: `Stark in Aktivität (${m.riserAvgMassDms.toFixed(1)} MassDMs/Tag${respPart}) auf ${m.riserTier.label}-Account. Vergleiche mit ${m.underuser} (${m.underuserTier.label}, ${m.underuserOpenChats} offene Chats · Ø ${m.underuserDelayDays}T Verzug).`,
+        chatterName: m.riser,
+        compareWith: m.underuser,
+      });
+    }
+  } catch (e) {
+    console.warn("[daily-todos] talent scout failed", e);
   }
 
   // Sortieren

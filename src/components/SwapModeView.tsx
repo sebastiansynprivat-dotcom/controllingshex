@@ -30,6 +30,8 @@ interface Props {
   chatters: SwapInput[];
   models: SwapModelInfo[];
   benchmarks?: BenchmarkBundle | null;
+  /** Optional: Bei Mount automatisch in den manuellen Modus mit diesem Chatter springen */
+  initialManualChatter?: string | null;
 }
 
 const SWIPE_THRESHOLD = 120; // gemäß Memory: nur Distanz, keine velocity
@@ -318,7 +320,7 @@ function SkillPill({
   );
 }
 
-export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
+export default function SwapModeView({ platform, chatters, models, benchmarks, initialManualChatter }: Props) {
   /** Zeitfenster für Skill/Avg-Berechnung — analog zu Auffälligkeiten/Vergleich */
   const [timeRange, setTimeRange] = useState<TimeRange>(() => buildTimeRange("7d"));
   const swapWindow = useMemo(
@@ -345,9 +347,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks }:
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
-  const [manualChatterName, setManualChatterName] = useState<string | null>(null);
+  const [manualChatterName, setManualChatterName] = useState<string | null>(initialManualChatter ?? null);
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const [manualSearch, setManualSearch] = useState("");
+
+  // Wenn von außen (z.B. via URL-Param aus Heute-Liste) ein Chatter mitkommt → manuellen Modus aktivieren
+  useEffect(() => {
+    if (initialManualChatter) setManualChatterName(initialManualChatter);
+  }, [initialManualChatter]);
 
   const allChatterOptions = useMemo(
     () => listAllSwapChatters(chatters, models, swapWindow, liveEfficiency),

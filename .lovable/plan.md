@@ -1,104 +1,111 @@
 ## Ziel
 
-Der Wechselmodus soll **nicht mehr** auf nackten 7T-Durchschnitten + Skill-Score (mass_dms / response_delay / open_chats) basieren — der ist ungenau, weil er nicht weiß **wie lange jemand wirklich gearbeitet hat** und **wieviel Volumen reingekommen ist**.
+In der **Heute**-Liste eine neue Aufgabenart einführen:  
+„Aufsteiger entdeckt — vergleiche mit Underperformer."
 
-Stattdessen: **Live-Daten konsequent zwischenspeichern → echte Effizienz pro Chatter berechnen → Vorschläge nach „underused Skill" sortieren**.
+Wenn ein Chatter ab **Onboarding-Tag 5** auffällig stark performt (Aktivität, MassDMs, Reaktion), aber auf einem zu kleinen Account sitzt, soll vorgeschlagen werden, ihn mit einem Chatter zu vergleichen, der einen besseren Account hat, ihn aber nicht ausschöpft (lange offene Chats, niedriger Umsatz/Follower, wenig MassDMs).
 
----
-
-## Was wir schon haben (nutzen, nicht neu bauen)
-
-- `chatter_history_live` — Snapshot pro (Platform, Chatter, Tag): revenue, mass_dms, unread_chats, oldest_chat, **updated_at**.
-- `chatter_hourly_stats` — pro Stunde aggregiert: revenue-Delta, mass_dms-Delta, **unread_delta** (negativ = abgearbeitet, positiv = neu rein), `updates_seen`.
-- Trigger `record_live_activity_from_history_live` schreibt automatisch in hourly_stats wenn revenue/dms steigt oder unread sinkt → wir haben **schon jetzt** ein Aktivitäts-Pingsystem, müssen es nur sauber auswerten.
-
-→ Retroaktive echte „incoming msgs" gibt's nicht, aber **ab jetzt** lässt sich aus `unread_delta` und `updates_seen` ein robuster Live-Effizienzwert berechnen, ohne Source-Anpassung.
+Beim Klick auf die Aufgabe öffnet sich direkt der **Wechselmodus → Vergleichsansicht** mit beiden Chattern vorausgewählt.
 
 ---
 
-## Was neu dazu kommt
+## Aufbau (3 Bausteine)
 
-### 1. Neue Tabelle `chatter_activity_sessions`
-Pro Chatter zusammenhängende Online-Phasen, abgeleitet aus `updated_at`-Pings in `chatter_history_live`/`chatter_hourly_stats`:
-- `user_id`, `platform`, `chatter_name`, `date`
-- `started_at`, `ended_at`, `duration_min`
-- `revenue_in_session`, `mass_dms_in_session`
-- `incoming_proxy` (= Σ positiver `unread_delta` in der Session, +Σ `mass_dms` raus + Σ `−unread_delta`-bearbeitet)
+### 1. Talent-Scout (neue Logik)
 
-Befüllung:
-- Edge Function **`build-activity-sessions`** läuft stündlich (analog zu `snapshot-hourly-stats`).
-- Logik: Pings in `chatter_hourly_stats` mit Lücke ≤ 25 min → eine Session. Aktivitäts-Ping = `revenue>0 ∨ mass_dms>0 ∨ unread_delta≠0` in der Stunde.
-- Idempotent (UPSERT auf user_id, platform, chatter_name, started_at).
+Neue Datei `src/lib/talent-scout.ts` mit Funktion `findTalentMatches(platform)` → liefert pro qualifiziertem Aufsteiger einen Vorschlags-Chatter zum Vergleich.
 
-### 2. Neue Materialized-View / Aggregat `chatter_live_efficiency_7d`
-Pro Chatter rolling 7d:
-- `total_active_min` (Σ session duration)
-- `total_revenue` (Σ revenue in Sessions)
-- `total_incoming_proxy`
-- abgeleitet:
-  - **`eur_per_active_hour`** = revenue / (active_min/60)
-  - **`eur_per_incoming`** = revenue / incoming_proxy
-  - **`first_response_min_p50`** = Median Zeitspanne zwischen erstem Ping einer Session und erstem revenue/mass_dms-Event darin
-  - **`session_consistency`** = (Tage mit ≥1 Session in Range) / Range-Tage
+**Auswahl Aufsteiger („left" / underplaced):**
+- `onboarded_on` ≤ heute − 5 Tage UND ≤ heute − 21 Tage *nicht* (also Tag 5–21, junges Onboarding)
+- **mindestens 5 Live-Sessions** in den letzten 7 Tagen (`chatter_activity_sessions` via `get_live_efficiency`)
+- **MassDMs ≥ 4/Tag** Schnitt
+- **Reaktionszeit-P50 ≤ 30 min** ODER **Konsistenz ≥ 0.7**
+- aktuell auf Tier `seed` oder `starter` (kleiner Account) — via `models.follower_count`
 
-Refresh stündlich aus dem Session-Build-Job.
+**Auswahl Vorschlags-Partner („right" / overplaced):**
+- Tier `growth` oder `top` (besserer Account)
+- **mind. 14 Tage onboarded** (etabliert)
+- EINES dieser Underuse-Signale (7-Tage-Schnitt):
+  - `avgResponseDelay ≥ 2 Tage` ODER
+  - `avgOpenChats` ≥ 30 UND > 1.5× Pool-Median ODER
+  - €/Follower deutlich unter Pool-Median für sein Tier (Peer-Benchmark)
 
-### 3. Live-Skill-Score (in `src/lib/swap-suggestions.ts`)
-Bestehender Skill-Score wird **ersetzt** durch live-basierte Sub-Scores:
+**Pairing:** für jeden Aufsteiger den passendsten Underuser nach `expectedGain` (vorhandene `computeSwapExpectedGain`) wählen, max. 1 Vorschlag pro Aufsteiger, max. 5 pro Tag.
 
-| Sub-Score          | Quelle                          | Gewicht |
-|--------------------|---------------------------------|---------|
-| `eur_per_hour`     | live_efficiency                 | 0.40    |
-| `eur_per_incoming` | live_efficiency                 | 0.25    |
-| `first_response`   | live_efficiency (lower better)  | 0.15    |
-| `consistency`      | live_efficiency                 | 0.10    |
-| `mass_dms`         | wie bisher (Disziplin)          | 0.10    |
+### 2. Neue Todo-Kategorie
 
-Min-Max-Norm wie bisher gegen den Pool. Fallback auf alten Score wenn ein Chatter <3 Sessions in Range hat (frische Onboardings nicht abstrafen).
+In `src/lib/daily-todos.ts`:
+- Neue Kategorie `"talent"` zu `TodoCategory` hinzufügen  
+- `CATEGORY_META` in `DailyTodoList.tsx` ergänzen (Icon `Sparkles` o. `TrendingUp`, emerald/blue Farbschema, Label „Talent")
+- In `generateDailyTodos`: nach den bestehenden Blöcken `findTalentMatches()` aufrufen, Ergebnisse als Todos anhängen.
 
-### 4. Neue Swap-Logik im Pairing
-- **Underplaced** = hoher `eur_per_hour` ∧ hohe `eur_per_incoming` ∧ kleiner Account
-- **Overplaced** = niedriger `eur_per_hour` ∧ großer Account
-- Mismatch-Rang (wie heute) bleibt — aber auf Basis der neuen Live-Scores.
-- `computeSwapExpectedGain` wird realistischer: statt Peer-Median × Skill verwenden wir
-  `expected = right.followers_potential × left.eur_per_incoming_normalized` — was er pro Volumen rausholt × Volumen das der Ziel-Account liefert (geschätzt aus Peer-Cluster incoming_proxy).
+Pro Match ein Todo:
+```
+title: "🚀 Anna prüfen — Aufsteiger seit 6 Tagen"
+why:  "Stark in Aktivität (5,2 MassDMs/Tag · 18min Reaktion) auf seed-Account.
+       Vergleiche mit Tom (top, 12k Follower, Ø 3 Tage Verzug)."
+score: 70 (über Standard-Aktivität, unter Verzug)
+chatterName: "Anna"
+extra: { compareWith: "Tom" }   ← neues optionales Feld auf DailyTodo
+```
 
-### 5. UI-Anpassungen `SwapModeView`
-- Skill-Bar bleibt, aber Breakdown-Pills: `€/h aktiv`, `€/Msg`, `Resp`, `Tage aktiv`.
-- Header-Badge auf jeder Karte: „**X € / aktive h**" (klar lesbar) statt nur Skill 0.62.
-- Tooltip / Detail-Block: „basiert auf N Live-Sessions in den letzten 7 Tagen" — Transparenz.
-- Zeitraumtoggle (Heute / 7T / 14T / 30T) bleibt, läuft jetzt über das neue Aggregat.
+### 3. Sprung in die Vergleichsansicht
 
----
+**Erweitere `DailyTodo`-Interface:**
+```ts
+compareWith?: string | null;   // Chatter-Name für Vergleich
+```
 
-## Migration / Reihenfolge
+**Routing-Mechanismus** (zwei Varianten — empfohlen ist (a)):
 
-1. **Migration**: Tabelle `chatter_activity_sessions` + RLS (own user only) + Indizes (user_id, platform, chatter_name, date).
-2. **Edge Function `build-activity-sessions`** + pg_cron stündlich. Backfill-Run einmal manuell für die letzten 14 Tage aus bestehenden `chatter_hourly_stats`.
-3. **DB-Function `get_live_efficiency(p_user, p_platform, p_from, p_to)`** SQL — liefert das oben beschriebene Aggregat. Kein Materialized-View nötig solange Volumen klein.
-4. **Frontend**:
-   - neuer Helper `src/lib/live-efficiency.ts` lädt `get_live_efficiency` und cached pro Range.
-   - `swap-suggestions.ts`: Sub-Scores + Pairing umstellen, alten Pfad als Fallback behalten.
-   - `SwapModeView.tsx`: Pills + Header-Badge umtexten, Zeitraum bleibt.
-5. Keine Anpassung an `LiveTracking.tsx`, `live-priority.ts`, `live-activity.ts` — die liefern weiterhin den Now-Status.
+**(a) URL-Param + Event-Bus (leichtgewichtig):**
+- `DailyTodoList` ruft bei Klick auf Talent-Todo `navigate("/swipe?mode=swap&compare=Anna|Tom")` auf  
+- `TinderMode.tsx` liest `searchParams` beim Mount, setzt internen Mode auf `"swap"`, öffnet direkt `CompareModeView` mit den beiden vorausgewählten Chattern, bereinigt URL danach.
+
+**(b) Globaler Context** (`SwapCompareContext`) — overkill für einen Use-Case.
+
+→ **Wir nehmen (a).** Falls `TinderMode` aktuell die Compare-View nur intern öffnet, ergänzen wir eine `initialCompare`-Prop bzw. einen `useEffect`, der bei Param-Match `CompareModeView` mit `chatterA={compare[0]}` und `chatterB={compare[1]}` rendert.
 
 ---
 
-## Was bewusst NICHT drin ist
+## Technische Details
 
-- Keine echten „incoming messages" aus der Source — die `incoming_proxy`-Heuristik ist explizit als Schätzung deklariert und reicht für relative Vergleiche im Swap.
-- Kein Rückblick weiter als die vorhandenen `chatter_hourly_stats` (die existieren erst seit der Trigger live ist).
-- Keine Änderung an Tier/Follower-Logik — Account-Größe bleibt die zweite Achse.
+**Datenquellen (alle vorhanden):**
+- `get_live_efficiency` RPC → MassDMs, €/h, Reaktionszeit, Konsistenz, Sessions
+- `get_chatter_onboarding` RPC → onboarded_on
+- `chatter_history` (7 Tage) → Verzug, offene Chats für Underuser
+- `models.follower_count` + `tierForFollowers` → Tier-Einordnung
+
+**Schwellen** (zentral in `talent-scout.ts` als Konstanten, einfach anpassbar):
+```ts
+const ONBOARDING_MIN_DAYS = 5;
+const ONBOARDING_MAX_DAYS = 21;
+const MIN_LIVE_SESSIONS = 5;
+const MIN_AVG_MASSDMS = 4;
+const MAX_RESPONSE_P50_MIN = 30;
+const MIN_CONSISTENCY = 0.7;
+const UNDERUSER_MIN_DELAY_DAYS = 2;
+const UNDERUSER_MIN_OPEN_CHATS = 30;
+```
+
+**Performance:** alle Daten bereits in einem Aufruf in `daily-todos`-Pipeline geladen, eine zusätzliche RPC pro Tag.
+
+**Keine DB-Migration nötig** — alle Tabellen/Funktionen existieren bereits.
 
 ---
 
-## Technisches Detail (für später / Implementierung)
+## Out of Scope
 
-- Session-Gap-Schwelle 25 min ist konfigurierbar via `settings.key='swap_session_gap_min'` (default 25).
-- `first_response_min` braucht Minute-Granularität — wir nutzen `chatter_history_live.updated_at` für Session-Start (genauer als hourly stats) und das erste hourly-bucket mit revenue/mass_dms>0 als „erste Wirkung", clamp an Stundenanfang +30min Median.
-- Min-Sample-Threshold: Chatter mit `total_active_min < 60` in Range bekommen Live-Score nicht — fallen auf alten Skill-Score zurück, Badge zeigt „Live-Score N/A".
-- RLS für neue Tabelle: SELECT/INSERT/UPDATE/DELETE nur own user_id; service_role full access.
+- Keine Änderung an `swap-suggestions.ts`-Algorithmus selbst.
+- Keine neue UI-Seite — nur Erweiterung der Heute-Liste + Routing-Hook in `TinderMode`.
+- Kein automatischer Account-Tausch — nur Vorschlag zum Vergleichen, Entscheidung bleibt manuell.
 
 ---
 
-**Antwort kurz:** Ja, machbar — aber sauber nur **ab jetzt vorwärts**. Retro-Genauigkeit ist begrenzt durch das was schon in `chatter_hourly_stats` drin ist. Plan oben.
+## Schritte
+
+1. `src/lib/talent-scout.ts` neu — Aufsteiger-/Underuser-Erkennung + Pairing.
+2. `src/lib/daily-todos.ts` — Kategorie `talent` + `compareWith`-Feld + Aufruf von `findTalentMatches`.
+3. `src/components/DailyTodoList.tsx` — `CATEGORY_META.talent`, Klick-Handler navigiert mit `?mode=swap&compare=…` statt `onChatterClick`.
+4. `src/pages/TinderMode.tsx` — `useSearchParams` lesen, Mode auf `swap` setzen, `CompareModeView` mit beiden Chattern öffnen, Param wieder entfernen.
+5. Smoke-Test: Heute-Liste rendert neue Karte, Klick öffnet Vergleichsansicht korrekt.
