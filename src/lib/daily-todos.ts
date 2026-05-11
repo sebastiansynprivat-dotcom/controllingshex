@@ -309,9 +309,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       if (matchedUnderusers.has(o.chatter.toLowerCase())) continue;
       soloCount++;
       const reasons: string[] = [];
-      if (o.activeDays <= 3) reasons.push(`nur ${o.activeDays}/7 Tage aktiv`);
-      if (o.delayDays >= 1) reasons.push(`Ø ${o.delayDays}T Verzug`);
-      if (o.openChats > 0) reasons.push(`${o.openChats} offene Chats`);
+      if (o.oldestChatDays >= 1) reasons.push(`ältester Chat ${o.oldestChatDays}T offen`);
+      if (o.openChats > 0) reasons.push(`${o.openChats} ungelesen`);
+      if (o.activeDays <= 2) reasons.push(`nur ${o.activeDays}/6 Tage aktiv`);
       todos.push({
         key: `talent-orphan:${o.account}:${today}`,
         category: "talent",
