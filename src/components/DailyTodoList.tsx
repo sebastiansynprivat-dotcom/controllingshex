@@ -20,6 +20,7 @@ interface Props {
   onChatterClick?: (name: string) => void;
   onModelClick?: (modelName: string, chatterName: string | null) => void;
   compact?: boolean;
+  categoryFilter?: TodoCategory | "all";
 }
 
 const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: typeof Zap }> = {
