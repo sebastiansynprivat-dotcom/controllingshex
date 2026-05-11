@@ -121,7 +121,17 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
   if (onboarding.length === 0 || history.length === 0) return [];
 
   const followersByModel = new Map<string, number>();
-  for (const m of models) followersByModel.set(norm(m.model_name), Number(m.follower_count) || 0);
+  const followersFuzzy = new Map<string, number[]>();
+  for (const m of models) {
+    const f = Number(m.follower_count) || 0;
+    followersByModel.set(norm(m.model_name), f);
+    const fk = fuzzyKey(m.model_name);
+    if (fk) {
+      const arr = followersFuzzy.get(fk) ?? [];
+      arr.push(f);
+      followersFuzzy.set(fk, arr);
+    }
+  }
 
   const onboardedDays = new Map<string, number>();
   for (const o of onboarding) onboardedDays.set(norm(o.chatter_name), daysSince(o.onboarded_on));
