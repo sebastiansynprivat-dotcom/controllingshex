@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Clock, X as XIcon, AlertTriangle, TrendingDown, Zap, MessageSquare, Activity, Sparkles, Users, Rocket } from "lucide-react";
 import TalentCompareModal from "@/components/TalentCompareModal";
+import TalentScoutPanel from "@/components/TalentScoutPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,17 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const [loading, setLoading] = useState(true);
   const [talentCompare, setTalentCompare] = useState<{ riser: string; underuser: string } | null>(null);
   const navigate = useNavigate();
+
+  const reload = () => {
+    setLoading(true);
+    return Promise.all([generateDailyTodos(platform), loadTodoStates(platform)])
+      .then(([t, s]) => {
+        setTodos(t);
+        setStates(s);
+      })
+      .catch((e) => console.error("[DailyTodoList]", e))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     let cancel = false;
@@ -110,18 +122,26 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
 
   if (visible.length === 0) {
     return (
-      <div className="premium-card rounded-2xl p-6 text-center">
-        <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/25 mb-3">
-          <Check className="h-4 w-4 text-emerald-300" />
+      <div className="space-y-2">
+        {categoryFilter === "talent" && (
+          <TalentScoutPanel platform={platform} onChange={() => reload()} />
+        )}
+        <div className="premium-card rounded-2xl p-6 text-center">
+          <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/25 mb-3">
+            <Check className="h-4 w-4 text-emerald-300" />
+          </div>
+          <p className="text-[13px] text-foreground/70 font-light">Alles klar für heute.</p>
+          <p className="text-[11px] text-white/30 font-light mt-1">Keine kritischen Aktionen offen.</p>
         </div>
-        <p className="text-[13px] text-foreground/70 font-light">Alles klar für heute.</p>
-        <p className="text-[11px] text-white/30 font-light mt-1">Keine kritischen Aktionen offen.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
+      {categoryFilter === "talent" && (
+        <TalentScoutPanel platform={platform} onChange={() => reload()} />
+      )}
       <AnimatePresence initial={false}>
         {visible.map((t) => {
           const meta = CATEGORY_META[t.category];

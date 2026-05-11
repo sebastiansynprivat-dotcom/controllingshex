@@ -34,6 +34,50 @@ export interface TalentMatch {
   matchScore: number;
 }
 
+export interface AdaptiveThresholds {
+  minMass: number;
+  minSessions: number;
+  minConsistency: number;
+}
+
+export type ThresholdSource = "auto-low" | "auto-medium" | "auto-high" | "manual";
+
+export interface TalentDiagnostics {
+  thresholds: AdaptiveThresholds;
+  source: ThresholdSource;
+  pressure: "low" | "medium" | "high";
+  underuserCount: number;
+  strongLeakCount: number;        // Lecks ≥ 40
+  topLeakScore: number;
+  riserCandidateCount: number;    // wie viele Riser nach Filter übrig blieben
+  totalMatches: number;
+}
+
+const OVERRIDE_STORAGE_KEY = "talent-scout:thresholds-override";
+
+export function loadThresholdOverride(): AdaptiveThresholds | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(OVERRIDE_STORAGE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (
+      typeof v?.minMass === "number" &&
+      typeof v?.minSessions === "number" &&
+      typeof v?.minConsistency === "number"
+    ) {
+      return { minMass: v.minMass, minSessions: v.minSessions, minConsistency: v.minConsistency };
+    }
+  } catch {/* ignore */}
+  return null;
+}
+
+export function saveThresholdOverride(t: AdaptiveThresholds | null): void {
+  if (typeof window === "undefined") return;
+  if (t == null) window.localStorage.removeItem(OVERRIDE_STORAGE_KEY);
+  else window.localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(t));
+}
+
 interface OnboardingRow { chatter_name: string; onboarded_on: string }
 interface HistoryRow {
   chatter_name: string;
@@ -121,26 +165,39 @@ function computeRiserScore(r: RiserAgg): number {
   return massPart + sessPart + respPart + consPart;
 }
 
-interface AdaptiveThresholds {
-  minMass: number;
-  minSessions: number;
-  minConsistency: number;
-}
-
-function deriveAdaptiveThresholds(leakScores: number[]): AdaptiveThresholds {
+function deriveAdaptiveThresholds(leakScores: number[]): { thresholds: AdaptiveThresholds; pressure: "low" | "medium" | "high" } {
   const strongLeaks = leakScores.filter((s) => s >= 40).length;
   if (strongLeaks >= 3) {
-    return { minMass: 2, minSessions: 3, minConsistency: 0.35 };
+    return { thresholds: { minMass: 2, minSessions: 3, minConsistency: 0.35 }, pressure: "high" };
   }
   if (strongLeaks >= 1) {
-    return { minMass: 3, minSessions: 4, minConsistency: 0.5 };
+    return { thresholds: { minMass: 3, minSessions: 4, minConsistency: 0.5 }, pressure: "medium" };
   }
-  return { minMass: 4, minSessions: 5, minConsistency: 0.7 };
+  return { thresholds: { minMass: 4, minSessions: 5, minConsistency: 0.7 }, pressure: "low" };
 }
 
 export async function findTalentMatches(platform: string): Promise<TalentMatch[]> {
+  const { matches } = await findTalentMatchesDetailed(platform);
+  return matches;
+}
+
+export async function findTalentMatchesDetailed(
+  platform: string,
+  override?: AdaptiveThresholds | null,
+): Promise<{ matches: TalentMatch[]; diagnostics: TalentDiagnostics }> {
+  const effectiveOverride = override !== undefined ? override : loadThresholdOverride();
+  const emptyDiag: TalentDiagnostics = {
+    thresholds: { minMass: 0, minSessions: 0, minConsistency: 0 },
+    source: effectiveOverride ? "manual" : "auto-low",
+    pressure: "low",
+    underuserCount: 0,
+    strongLeakCount: 0,
+    topLeakScore: 0,
+    riserCandidateCount: 0,
+    totalMatches: 0,
+  };
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { matches: [], diagnostics: emptyDiag };
 
   const from = isoDaysAgo(HISTORY_DAYS);
   const to = isoDaysAgo(0);
@@ -165,7 +222,7 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
   const history = (historyRes.data ?? []) as HistoryRow[];
   const models = (modelsRes.data ?? []) as ModelRow[];
 
-  if (onboarding.length === 0 || history.length === 0) return [];
+  if (onboarding.length === 0 || history.length === 0) return { matches: [], diagnostics: emptyDiag };
 
   const followersByModel = new Map<string, number>();
   const followersFuzzy = new Map<string, number[]>();
@@ -224,7 +281,7 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
       days: denom,
     });
   }
-  if (aggs.length === 0) return [];
+  if (aggs.length === 0) return { matches: [], diagnostics: emptyDiag };
 
   // Pool-Statistiken
   const openChatsArr = aggs.map((a) => a.avgOpenChats).filter((v) => v > 0);
@@ -248,10 +305,30 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
     underusers.push({ ...a, leakScore });
   }
   underusers.sort((a, b) => b.leakScore - a.leakScore);
-  if (underusers.length === 0) return [];
 
-  // Adaptive Schwellen je nach Druck im Underuser-Pool
-  const thresholds = deriveAdaptiveThresholds(underusers.map((u) => u.leakScore));
+  // Adaptive Schwellen je nach Druck im Underuser-Pool — oder Override
+  const auto = deriveAdaptiveThresholds(underusers.map((u) => u.leakScore));
+  const thresholds: AdaptiveThresholds = effectiveOverride ?? auto.thresholds;
+  const source: ThresholdSource = effectiveOverride
+    ? "manual"
+    : auto.pressure === "high"
+      ? "auto-high"
+      : auto.pressure === "medium"
+        ? "auto-medium"
+        : "auto-low";
+
+  const baseDiag: TalentDiagnostics = {
+    thresholds,
+    source,
+    pressure: auto.pressure,
+    underuserCount: underusers.length,
+    strongLeakCount: underusers.filter((u) => u.leakScore >= 40).length,
+    topLeakScore: underusers[0]?.leakScore ?? 0,
+    riserCandidateCount: 0,
+    totalMatches: 0,
+  };
+
+  if (underusers.length === 0) return { matches: [], diagnostics: baseDiag };
 
   // ---- Riser-Pool (Onboarding Tag 5–21, seed/starter, weiche Schwellen) ----
   type RiserScored = RiserAgg & { riserScore: number };
@@ -273,7 +350,8 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
     const r: RiserAgg = { name: a.name, daysOnboarded: days, tier: a.tier, live, avgMassPerDay };
     risers.push({ ...r, riserScore: computeRiserScore(r) });
   }
-  if (risers.length === 0) return [];
+  baseDiag.riserCandidateCount = risers.length;
+  if (risers.length === 0) return { matches: [], diagnostics: baseDiag };
 
   risers.sort((a, b) => b.riserScore - a.riserScore);
 
@@ -305,5 +383,6 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
     });
   }
 
-  return matches;
+  baseDiag.totalMatches = matches.length;
+  return { matches, diagnostics: baseDiag };
 }
