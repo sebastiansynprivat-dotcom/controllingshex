@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Clock, X as XIcon, AlertTriangle, TrendingDown, Zap, MessageSquare, Activity, Sparkles, Users, Rocket } from "lucide-react";
+import TalentCompareModal from "@/components/TalentCompareModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const [todos, setTodos] = useState<DailyTodo[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
+  const [talentCompare, setTalentCompare] = useState<{ riser: string; underuser: string } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -142,11 +144,11 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
                   {t.category === "talent" && t.chatterName ? (
                     <button
                       onClick={() => {
-                        const params = new URLSearchParams({
-                          mode: "swap",
-                          compare: `${t.chatterName}|${t.compareWith ?? ""}`,
-                        });
-                        navigate(`/tinder?${params.toString()}`);
+                        if (t.compareWith) {
+                          setTalentCompare({ riser: t.chatterName!, underuser: t.compareWith });
+                        } else if (onChatterClick) {
+                          onChatterClick(t.chatterName!);
+                        }
                       }}
                       className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left"
                     >
@@ -203,6 +205,15 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
           );
         })}
       </AnimatePresence>
+      {talentCompare && (
+        <TalentCompareModal
+          open={!!talentCompare}
+          onClose={() => setTalentCompare(null)}
+          platform={platform}
+          riser={talentCompare.riser}
+          underuser={talentCompare.underuser}
+        />
+      )}
     </div>
   );
 }
