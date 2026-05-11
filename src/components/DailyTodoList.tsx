@@ -57,6 +57,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const visible = useMemo(() => {
     const now = new Date();
     const filtered = todos.filter((t) => {
+      if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
       const st = states[t.key];
       if (!st) return true;
       if (st.status === "done" || st.status === "dismissed") return false;
@@ -66,7 +67,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
       return true;
     });
     return limit ? filtered.slice(0, limit) : filtered;
-  }, [todos, states, limit]);
+  }, [todos, states, limit, categoryFilter]);
 
   const act = async (todo: DailyTodo, action: "done" | "snooze" | "dismiss") => {
     const prev = states[todo.key];
