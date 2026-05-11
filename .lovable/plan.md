@@ -1,111 +1,93 @@
 ## Ziel
 
-In der **Heute**-Liste eine neue Aufgabenart einführen:  
-„Aufsteiger entdeckt — vergleiche mit Underperformer."
-
-Wenn ein Chatter ab **Onboarding-Tag 5** auffällig stark performt (Aktivität, MassDMs, Reaktion), aber auf einem zu kleinen Account sitzt, soll vorgeschlagen werden, ihn mit einem Chatter zu vergleichen, der einen besseren Account hat, ihn aber nicht ausschöpft (lange offene Chats, niedriger Umsatz/Follower, wenig MassDMs).
-
-Beim Klick auf die Aufgabe öffnet sich direkt der **Wechselmodus → Vergleichsansicht** mit beiden Chattern vorausgewählt.
+Talent-Scout soll **adaptive Schwellen** statt fixer Cutoffs nutzen. Wenn auf der "Underuser-Seite" viele Lecks da sind (etablierte Chatter auf guten Accounts arbeiten kaum / lassen Chats liegen), sollen die Schwellen für die "Aufsteiger-Seite" automatisch lockerer werden — und umgekehrt. Endergebnis: das System schlägt **immer die besten verfügbaren Tausch-Paare** vor, auch wenn niemand alle Idealkriterien erfüllt.
 
 ---
 
-## Aufbau (3 Bausteine)
+## Kernidee: Relativ statt absolut
 
-### 1. Talent-Scout (neue Logik)
+Aktuell: starre Konstanten (`MIN_AVG_MASSDMS = 3`, `UNDERUSER_MIN_DELAY_DAYS = 2`, …). Wer drunter ist, fällt raus.
 
-Neue Datei `src/lib/talent-scout.ts` mit Funktion `findTalentMatches(platform)` → liefert pro qualifiziertem Aufsteiger einen Vorschlags-Chatter zum Vergleich.
+Neu: Beide Seiten werden als **Ranking** berechnet, nicht als Filter. Jeder qualifiziert sich grundsätzlich, bekommt aber einen **Score**. Nur die schwächsten Underuser werden mit den stärksten Risern gepaart — wenn die Lücke zwischen den beiden groß genug ist (= echter erwarteter Gewinn).
 
-**Auswahl Aufsteiger („left" / underplaced):**
-- `onboarded_on` ≤ heute − 5 Tage UND ≤ heute − 21 Tage *nicht* (also Tag 5–21, junges Onboarding)
-- **mindestens 5 Live-Sessions** in den letzten 7 Tagen (`chatter_activity_sessions` via `get_live_efficiency`)
-- **MassDMs ≥ 4/Tag** Schnitt
-- **Reaktionszeit-P50 ≤ 30 min** ODER **Konsistenz ≥ 0.7**
-- aktuell auf Tier `seed` oder `starter` (kleiner Account) — via `models.follower_count`
+---
 
-**Auswahl Vorschlags-Partner („right" / overplaced):**
-- Tier `growth` oder `top` (besserer Account)
-- **mind. 14 Tage onboarded** (etabliert)
-- EINES dieser Underuse-Signale (7-Tage-Schnitt):
-  - `avgResponseDelay ≥ 2 Tage` ODER
-  - `avgOpenChats` ≥ 30 UND > 1.5× Pool-Median ODER
-  - €/Follower deutlich unter Pool-Median für sein Tier (Peer-Benchmark)
+## Neue Logik in 3 Schritten
 
-**Pairing:** für jeden Aufsteiger den passendsten Underuser nach `expectedGain` (vorhandene `computeSwapExpectedGain`) wählen, max. 1 Vorschlag pro Aufsteiger, max. 5 pro Tag.
-
-### 2. Neue Todo-Kategorie
-
-In `src/lib/daily-todos.ts`:
-- Neue Kategorie `"talent"` zu `TodoCategory` hinzufügen  
-- `CATEGORY_META` in `DailyTodoList.tsx` ergänzen (Icon `Sparkles` o. `TrendingUp`, emerald/blue Farbschema, Label „Talent")
-- In `generateDailyTodos`: nach den bestehenden Blöcken `findTalentMatches()` aufrufen, Ergebnisse als Todos anhängen.
-
-Pro Match ein Todo:
+### 1. Underuser-Pool: nach "Leak-Score" sortieren
+Jeder etablierte Chatter (≥14 Tage onboarded) auf `growth`/`top`-Account bekommt einen `leakScore`:
 ```
-title: "🚀 Anna prüfen — Aufsteiger seit 6 Tagen"
-why:  "Stark in Aktivität (5,2 MassDMs/Tag · 18min Reaktion) auf seed-Account.
-       Vergleiche mit Tom (top, 12k Follower, Ø 3 Tage Verzug)."
-score: 70 (über Standard-Aktivität, unter Verzug)
-chatterName: "Anna"
-extra: { compareWith: "Tom" }   ← neues optionales Feld auf DailyTodo
+leakScore = avgDelayDays × 25
+          + (avgOpenChats > poolMedian ? (avgOpenChats - poolMedian) × 0.6 : 0)
+          + (1 - activityRatio) × 40        // NEU: wer wenig aktiv ist, leakt am meisten
+          + (avgRev < tierMedian ? (tierMedian - avgRev) × 0.3 : 0)  // NEU: €/Tag unter Tier-Median
 ```
+Kein harter Cutoff mehr — wir nehmen die **Top-N (N=5) mit dem höchsten leakScore**, sofern leakScore > 0.
 
-### 3. Sprung in die Vergleichsansicht
+`activityRatio` = Tage mit Revenue/MassDM-Aktivität in den letzten 7 / 7. Wer "gar nicht arbeitet" landet automatisch oben.
 
-**Erweitere `DailyTodo`-Interface:**
-```ts
-compareWith?: string | null;   // Chatter-Name für Vergleich
+### 2. Riser-Pool: adaptiv lockern
+Schwellen werden **abhängig vom Underuser-Pool** skaliert:
+- Sind ≥3 Underuser mit hohem Leak-Score (≥40) verfügbar → **Druck hoch** → Riser-Schwellen lockern (MassDMs ≥2, Sessions ≥3, Konsistenz ≥0.35).
+- Sind nur 1–2 schwache Lecks da → mittlerer Druck (aktuelle Werte: MassDMs ≥3, Sessions ≥4).
+- Keine echten Lecks → strenge Werte (MassDMs ≥4, Sessions ≥5).
+
+Onboarding-Fenster bleibt fix (Tag 5–21) — das ist eine inhaltliche Aussage, kein Schwellwert.
+
+Riser bekommen ebenfalls einen `riserScore`:
 ```
+riserScore = avgMassPerDay × 6
+           + sessionCount × 2
+           + (responseP50 ? max(0, 45 - responseP50) : 5)
+           + consistency × 30
+```
+Top-N Riser nach Score.
 
-**Routing-Mechanismus** (zwei Varianten — empfohlen ist (a)):
+### 3. Pairing nur wenn Lücke groß genug
+Für jedes Paar wird ein `expectedGain` berechnet:
+```
+expectedGain = leakScore(underuser) × 0.6 + riserScore(riser) × 0.4
+```
+Paar wird nur vorgeschlagen wenn `expectedGain ≥ 25` (sonst nicht relevant). Greedy-Matching: bester Riser zum besten Underuser, max. 8 Paare.
 
-**(a) URL-Param + Event-Bus (leichtgewichtig):**
-- `DailyTodoList` ruft bei Klick auf Talent-Todo `navigate("/swipe?mode=swap&compare=Anna|Tom")` auf  
-- `TinderMode.tsx` liest `searchParams` beim Mount, setzt internen Mode auf `"swap"`, öffnet direkt `CompareModeView` mit den beiden vorausgewählten Chattern, bereinigt URL danach.
+---
 
-**(b) Globaler Context** (`SwapCompareContext`) — overkill für einen Use-Case.
+## Ergebnis für den User
 
-→ **Wir nehmen (a).** Falls `TinderMode` aktuell die Compare-View nur intern öffnet, ergänzen wir eine `initialCompare`-Prop bzw. einen `useEffect`, der bei Param-Match `CompareModeView` mit `chatterA={compare[0]}` und `chatterB={compare[1]}` rendert.
+- **Wenn viele Etablierte schwächeln** (z.B. Sommerflaute, mehrere im Urlaub-Modus): System schlägt auch nur "okayen" Aufsteigern den Wechsel vor — weil das Gesamtergebnis trotzdem besser wird.
+- **Wenn alle Etablierten top performen**: nur wirklich exzellente Aufsteiger werden vorgeschlagen — strenge Schwellen.
+- **Inaktive auf guten Accounts** rutschen automatisch nach oben in der Leak-Liste (durch `activityRatio`-Komponente).
 
 ---
 
 ## Technische Details
 
-**Datenquellen (alle vorhanden):**
-- `get_live_efficiency` RPC → MassDMs, €/h, Reaktionszeit, Konsistenz, Sessions
-- `get_chatter_onboarding` RPC → onboarded_on
-- `chatter_history` (7 Tage) → Verzug, offene Chats für Underuser
-- `models.follower_count` + `tierForFollowers` → Tier-Einordnung
+**Datei:** ausschließlich `src/lib/talent-scout.ts`. Keine UI-Änderung, keine DB-Migration. Daten kommen wie bisher aus `chatter_history` (7T) + `get_live_efficiency` + `get_chatter_onboarding` + `models`.
 
-**Schwellen** (zentral in `talent-scout.ts` als Konstanten, einfach anpassbar):
-```ts
-const ONBOARDING_MIN_DAYS = 5;
-const ONBOARDING_MAX_DAYS = 21;
-const MIN_LIVE_SESSIONS = 5;
-const MIN_AVG_MASSDMS = 4;
-const MAX_RESPONSE_P50_MIN = 30;
-const MIN_CONSISTENCY = 0.7;
-const UNDERUSER_MIN_DELAY_DAYS = 2;
-const UNDERUSER_MIN_OPEN_CHATS = 30;
-```
+**Neue Helper:**
+- `computeLeakScore(agg, poolMedian, tierMedian, activityRatio)`
+- `computeRiserScore(live, avgMassPerDay)`
+- `deriveAdaptiveThresholds(underuserPool)` → liefert {minMass, minSessions, minConsistency} je nach Druck
+- Aktivitätsquote pro Chatter aus den 7 Tagen (Tage mit Revenue>0 ODER MassDM>0).
 
-**Performance:** alle Daten bereits in einem Aufruf in `daily-todos`-Pipeline geladen, eine zusätzliche RPC pro Tag.
+**Tier-Mediane:** pro `tier.id` (`growth`, `top`) Median des `avgRev` aus aggs berechnen, für €/Tag-Komponente im LeakScore.
 
-**Keine DB-Migration nötig** — alle Tabellen/Funktionen existieren bereits.
+**Konstanten** bleiben oben in der Datei, aber als "weiche" Defaults statt harter Filter.
 
 ---
 
 ## Out of Scope
 
-- Keine Änderung an `swap-suggestions.ts`-Algorithmus selbst.
-- Keine neue UI-Seite — nur Erweiterung der Heute-Liste + Routing-Hook in `TinderMode`.
-- Kein automatischer Account-Tausch — nur Vorschlag zum Vergleichen, Entscheidung bleibt manuell.
+- Keine Änderung am UI (`DailyTodoList`, `TalentCompareModal`).
+- Kein neuer Daten-Pull, keine zusätzliche RPC.
+- Keine Anpassung am Onboarding-Fenster (5–21 Tage bleibt — das ist semantisch, kein Schwellwert).
 
 ---
 
 ## Schritte
 
-1. `src/lib/talent-scout.ts` neu — Aufsteiger-/Underuser-Erkennung + Pairing.
-2. `src/lib/daily-todos.ts` — Kategorie `talent` + `compareWith`-Feld + Aufruf von `findTalentMatches`.
-3. `src/components/DailyTodoList.tsx` — `CATEGORY_META.talent`, Klick-Handler navigiert mit `?mode=swap&compare=…` statt `onChatterClick`.
-4. `src/pages/TinderMode.tsx` — `useSearchParams` lesen, Mode auf `swap` setzen, `CompareModeView` mit beiden Chattern öffnen, Param wieder entfernen.
-5. Smoke-Test: Heute-Liste rendert neue Karte, Klick öffnet Vergleichsansicht korrekt.
+1. `talent-scout.ts` — Aktivitätsquote aus History ableiten.
+2. `talent-scout.ts` — `leakScore` & `riserScore` als Funktionen extrahieren.
+3. `talent-scout.ts` — adaptive Schwellen abhängig vom Underuser-Pool ableiten.
+4. `talent-scout.ts` — Pairing auf `expectedGain ≥ 25` umstellen, harte Filter raus.
+5. Smoke-Check via DB: aktuell sichtbare Paare bleiben/erweitern sich plausibel.
