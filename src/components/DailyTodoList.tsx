@@ -36,6 +36,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const [todos, setTodos] = useState<DailyTodo[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
+  const [talentCompare, setTalentCompare] = useState<{ riser: string; underuser: string } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
