@@ -296,7 +296,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         category: "talent",
         score: 70 + Math.round(m.matchScore / 10),
         title: `🚀 ${m.riser} auf ${m.underuserAccount} hochziehen`,
-        why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/7)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) mit ${m.underuser}: nur ${m.underuserActiveDays}/7 Tage bespielt · Ø ${m.underuserDelayDays}T Verzug · ${m.underuserOpenChats} offene Chats.`,
+        why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/6 davor)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} jetzt live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
         chatterName: m.riser,
         compareWith: m.underuser,
       });
