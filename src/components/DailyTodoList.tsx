@@ -134,6 +134,9 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
 
   return (
     <div className="space-y-2">
+      {categoryFilter === "talent" && (
+        <TalentScoutPanel platform={platform} onChange={() => reload()} />
+      )}
       <AnimatePresence initial={false}>
         {visible.map((t) => {
           const meta = CATEGORY_META[t.category];
