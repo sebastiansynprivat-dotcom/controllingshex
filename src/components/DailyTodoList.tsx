@@ -20,6 +20,7 @@ interface Props {
   onChatterClick?: (name: string) => void;
   onModelClick?: (modelName: string, chatterName: string | null) => void;
   compact?: boolean;
+  categoryFilter?: TodoCategory | "all";
 }
 
 const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: typeof Zap }> = {
@@ -32,7 +33,7 @@ const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: 
   talent: { label: "Talent", color: "text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/25", icon: Rocket },
 };
 
-export default function DailyTodoList({ platform, limit, onChatterClick, onModelClick, compact }: Props) {
+export default function DailyTodoList({ platform, limit, onChatterClick, onModelClick, compact, categoryFilter = "all" }: Props) {
   const [todos, setTodos] = useState<DailyTodo[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
@@ -56,6 +57,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const visible = useMemo(() => {
     const now = new Date();
     const filtered = todos.filter((t) => {
+      if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
       const st = states[t.key];
       if (!st) return true;
       if (st.status === "done" || st.status === "dismissed") return false;
@@ -65,7 +67,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
       return true;
     });
     return limit ? filtered.slice(0, limit) : filtered;
-  }, [todos, states, limit]);
+  }, [todos, states, limit, categoryFilter]);
 
   const act = async (todo: DailyTodo, action: "done" | "snooze" | "dismiss") => {
     const prev = states[todo.key];
