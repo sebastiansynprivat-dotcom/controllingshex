@@ -177,8 +177,27 @@ function deriveAdaptiveThresholds(leakScores: number[]): { thresholds: AdaptiveT
 }
 
 export async function findTalentMatches(platform: string): Promise<TalentMatch[]> {
+  const { matches } = await findTalentMatchesDetailed(platform);
+  return matches;
+}
+
+export async function findTalentMatchesDetailed(
+  platform: string,
+  override?: AdaptiveThresholds | null,
+): Promise<{ matches: TalentMatch[]; diagnostics: TalentDiagnostics }> {
+  const effectiveOverride = override !== undefined ? override : loadThresholdOverride();
+  const emptyDiag: TalentDiagnostics = {
+    thresholds: { minMass: 0, minSessions: 0, minConsistency: 0 },
+    source: effectiveOverride ? "manual" : "auto-low",
+    pressure: "low",
+    underuserCount: 0,
+    strongLeakCount: 0,
+    topLeakScore: 0,
+    riserCandidateCount: 0,
+    totalMatches: 0,
+  };
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { matches: [], diagnostics: emptyDiag };
 
   const from = isoDaysAgo(HISTORY_DAYS);
   const to = isoDaysAgo(0);
