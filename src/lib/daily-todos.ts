@@ -22,6 +22,8 @@ export interface DailyTodo {
   why: string;
   chatterName?: string | null;
   modelName?: string | null;
+  /** Optional: zweiter Chatter für direkten Vergleich (Talent-Match → Wechselmodus) */
+  compareWith?: string | null;
 }
 
 export interface TodoState {
