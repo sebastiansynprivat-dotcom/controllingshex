@@ -10,7 +10,7 @@ import { detectModelTroubles } from "@/lib/model-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import { findTalentMatches } from "@/lib/talent-scout";
 
-export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive" | "talent";
+export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
 export interface DailyTodo {
   /** Stabiler Schlüssel inkl. Datum, z.B. "verzug:Sarah:2026-05-03" */
