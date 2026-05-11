@@ -57,6 +57,28 @@ interface ModelRow { model_name: string; follower_count: number }
 
 function norm(s: string): string { return s.trim().toLowerCase(); }
 
+/** Strip non-alphanum and trailing digits/underscores for tolerant matching */
+function fuzzyKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "").replace(/\d+$/, "");
+}
+
+/** Look up follower count with tolerant name matching (handles "bondgirl" vs "bondgirl4") */
+function lookupFollowers(
+  account: string,
+  exact: Map<string, number>,
+  fuzzy: Map<string, number[]>,
+): number {
+  const key = norm(account);
+  const direct = exact.get(key);
+  if (direct != null) return direct;
+  const fk = fuzzyKey(account);
+  if (!fk) return 0;
+  const cands = fuzzy.get(fk);
+  if (!cands || cands.length === 0) return 0;
+  // Prefer the largest matching follower count (mostly we want any tier signal)
+  return Math.max(...cands);
+}
+
 function isoDaysAgo(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
