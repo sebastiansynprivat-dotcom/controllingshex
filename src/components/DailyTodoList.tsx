@@ -28,7 +28,6 @@ const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: 
   revenue: { label: "Umsatz", color: "text-amber-300 bg-amber-500/10 border-amber-500/25", icon: TrendingDown },
   activity: { label: "Aktivität", color: "text-blue-300 bg-blue-500/10 border-blue-500/25", icon: Activity },
   model: { label: "Model", color: "text-purple-300 bg-purple-500/10 border-purple-500/25", icon: Users },
-  team: { label: "Team", color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/25", icon: MessageSquare },
   positive: { label: "Win", color: "text-emerald-300 bg-emerald-500/10 border-emerald-500/25", icon: Sparkles },
   talent: { label: "Talent", color: "text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/25", icon: Rocket },
 };

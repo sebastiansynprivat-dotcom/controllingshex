@@ -10,7 +10,7 @@ import { detectModelTroubles } from "@/lib/model-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import { findTalentMatches } from "@/lib/talent-scout";
 
-export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "team" | "positive" | "talent";
+export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
 export interface DailyTodo {
   /** Stabiler Schlüssel inkl. Datum, z.B. "verzug:Sarah:2026-05-03" */
@@ -282,26 +282,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     }
   }
 
-  // Team Mass-DM Total
-  const todayRows = rows.filter((r) => r.analysis_date === latestDate);
-  if (todayRows.length >= 3) {
-    const totalToday = todayRows.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
-    const dailyTotals = new Map<string, number>();
-    for (const r of rows) {
-      if (r.analysis_date === latestDate) continue;
-      dailyTotals.set(r.analysis_date, (dailyTotals.get(r.analysis_date) ?? 0) + (r.mass_dms ?? 0));
-    }
-    const avgTeam = median(Array.from(dailyTotals.values()));
-    if (avgTeam >= 10 && totalToday < avgTeam * 0.7) {
-      todos.push({
-        key: `team-dm:${today}`,
-        category: "team",
-        score: 35,
-        title: `Team-MassDMs heute schwach`,
-        why: `${totalToday} statt Ø ${avgTeam.toFixed(0)} — Team aktivieren.`,
-      });
-    }
-  }
+
 
   // Talent-Scout — Aufsteiger ab Onboarding-Tag 5 + Underuser-Vorschlag
   try {
