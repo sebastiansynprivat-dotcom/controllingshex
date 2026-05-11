@@ -303,6 +303,25 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     }
   }
 
+  // Talent-Scout — Aufsteiger ab Onboarding-Tag 5 + Underuser-Vorschlag
+  try {
+    const matches = await findTalentMatches(platform);
+    for (const m of matches) {
+      const respPart = m.riserResponseP50 != null ? ` · ${Math.round(m.riserResponseP50)}min Reaktion` : "";
+      todos.push({
+        key: `talent:${m.riser}:${m.underuser}:${today}`,
+        category: "talent",
+        score: 70 + Math.round(m.matchScore / 10),
+        title: `🚀 ${m.riser} prüfen — Aufsteiger seit ${m.riserDaysOnboarded} Tagen`,
+        why: `Stark in Aktivität (${m.riserAvgMassDms.toFixed(1)} MassDMs/Tag${respPart}) auf ${m.riserTier.label}-Account. Vergleiche mit ${m.underuser} (${m.underuserTier.label}, ${m.underuserOpenChats} offene Chats · Ø ${m.underuserDelayDays}T Verzug).`,
+        chatterName: m.riser,
+        compareWith: m.underuser,
+      });
+    }
+  } catch (e) {
+    console.warn("[daily-todos] talent scout failed", e);
+  }
+
   // Sortieren
   todos.sort((a, b) => b.score - a.score);
   return todos;
