@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { Check, Clock, X as XIcon, AlertTriangle, TrendingDown, Zap, MessageSquare, Activity, Sparkles, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check, Clock, X as XIcon, AlertTriangle, TrendingDown, Zap, MessageSquare, Activity, Sparkles, Users, Rocket } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: 
   model: { label: "Model", color: "text-purple-300 bg-purple-500/10 border-purple-500/25", icon: Users },
   team: { label: "Team", color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/25", icon: MessageSquare },
   positive: { label: "Win", color: "text-emerald-300 bg-emerald-500/10 border-emerald-500/25", icon: Sparkles },
+  talent: { label: "Talent", color: "text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/25", icon: Rocket },
 };
 
 export default function DailyTodoList({ platform, limit, onChatterClick, onModelClick, compact }: Props) {
