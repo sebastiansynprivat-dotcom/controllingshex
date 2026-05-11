@@ -205,6 +205,15 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
           );
         })}
       </AnimatePresence>
+      {talentCompare && (
+        <TalentCompareModal
+          open={!!talentCompare}
+          onClose={() => setTalentCompare(null)}
+          platform={platform}
+          riser={talentCompare.riser}
+          underuser={talentCompare.underuser}
+        />
+      )}
     </div>
   );
 }
