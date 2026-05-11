@@ -30,6 +30,8 @@ interface Props {
   chatters: SwapInput[];
   models: SwapModelInfo[];
   benchmarks?: BenchmarkBundle | null;
+  /** Optional: Bei Mount automatisch in den manuellen Modus mit diesem Chatter springen */
+  initialManualChatter?: string | null;
 }
 
 const SWIPE_THRESHOLD = 120; // gemäß Memory: nur Distanz, keine velocity
