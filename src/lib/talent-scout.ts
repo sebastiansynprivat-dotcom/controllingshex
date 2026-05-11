@@ -34,6 +34,50 @@ export interface TalentMatch {
   matchScore: number;
 }
 
+export interface AdaptiveThresholds {
+  minMass: number;
+  minSessions: number;
+  minConsistency: number;
+}
+
+export type ThresholdSource = "auto-low" | "auto-medium" | "auto-high" | "manual";
+
+export interface TalentDiagnostics {
+  thresholds: AdaptiveThresholds;
+  source: ThresholdSource;
+  pressure: "low" | "medium" | "high";
+  underuserCount: number;
+  strongLeakCount: number;        // Lecks ≥ 40
+  topLeakScore: number;
+  riserCandidateCount: number;    // wie viele Riser nach Filter übrig blieben
+  totalMatches: number;
+}
+
+const OVERRIDE_STORAGE_KEY = "talent-scout:thresholds-override";
+
+export function loadThresholdOverride(): AdaptiveThresholds | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(OVERRIDE_STORAGE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (
+      typeof v?.minMass === "number" &&
+      typeof v?.minSessions === "number" &&
+      typeof v?.minConsistency === "number"
+    ) {
+      return { minMass: v.minMass, minSessions: v.minSessions, minConsistency: v.minConsistency };
+    }
+  } catch {/* ignore */}
+  return null;
+}
+
+export function saveThresholdOverride(t: AdaptiveThresholds | null): void {
+  if (typeof window === "undefined") return;
+  if (t == null) window.localStorage.removeItem(OVERRIDE_STORAGE_KEY);
+  else window.localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(t));
+}
+
 interface OnboardingRow { chatter_name: string; onboarded_on: string }
 interface HistoryRow {
   chatter_name: string;
