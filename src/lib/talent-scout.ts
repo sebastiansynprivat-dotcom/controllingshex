@@ -222,7 +222,7 @@ export async function findTalentMatchesDetailed(
   const history = (historyRes.data ?? []) as HistoryRow[];
   const models = (modelsRes.data ?? []) as ModelRow[];
 
-  if (onboarding.length === 0 || history.length === 0) return [];
+  if (onboarding.length === 0 || history.length === 0) return { matches: [], diagnostics: emptyDiag };
 
   const followersByModel = new Map<string, number>();
   const followersFuzzy = new Map<string, number[]>();
@@ -281,7 +281,7 @@ export async function findTalentMatchesDetailed(
       days: denom,
     });
   }
-  if (aggs.length === 0) return [];
+  if (aggs.length === 0) return { matches: [], diagnostics: emptyDiag };
 
   // Pool-Statistiken
   const openChatsArr = aggs.map((a) => a.avgOpenChats).filter((v) => v > 0);
@@ -305,10 +305,30 @@ export async function findTalentMatchesDetailed(
     underusers.push({ ...a, leakScore });
   }
   underusers.sort((a, b) => b.leakScore - a.leakScore);
-  if (underusers.length === 0) return [];
 
-  // Adaptive Schwellen je nach Druck im Underuser-Pool
-  const thresholds = deriveAdaptiveThresholds(underusers.map((u) => u.leakScore));
+  // Adaptive Schwellen je nach Druck im Underuser-Pool — oder Override
+  const auto = deriveAdaptiveThresholds(underusers.map((u) => u.leakScore));
+  const thresholds: AdaptiveThresholds = effectiveOverride ?? auto.thresholds;
+  const source: ThresholdSource = effectiveOverride
+    ? "manual"
+    : auto.pressure === "high"
+      ? "auto-high"
+      : auto.pressure === "medium"
+        ? "auto-medium"
+        : "auto-low";
+
+  const baseDiag: TalentDiagnostics = {
+    thresholds,
+    source,
+    pressure: auto.pressure,
+    underuserCount: underusers.length,
+    strongLeakCount: underusers.filter((u) => u.leakScore >= 40).length,
+    topLeakScore: underusers[0]?.leakScore ?? 0,
+    riserCandidateCount: 0,
+    totalMatches: 0,
+  };
+
+  if (underusers.length === 0) return { matches: [], diagnostics: baseDiag };
 
   // ---- Riser-Pool (Onboarding Tag 5–21, seed/starter, weiche Schwellen) ----
   type RiserScored = RiserAgg & { riserScore: number };
@@ -330,7 +350,8 @@ export async function findTalentMatchesDetailed(
     const r: RiserAgg = { name: a.name, daysOnboarded: days, tier: a.tier, live, avgMassPerDay };
     risers.push({ ...r, riserScore: computeRiserScore(r) });
   }
-  if (risers.length === 0) return [];
+  baseDiag.riserCandidateCount = risers.length;
+  if (risers.length === 0) return { matches: [], diagnostics: baseDiag };
 
   risers.sort((a, b) => b.riserScore - a.riserScore);
 
@@ -362,5 +383,6 @@ export async function findTalentMatchesDetailed(
     });
   }
 
-  return matches;
+  baseDiag.totalMatches = matches.length;
+  return { matches, diagnostics: baseDiag };
 }
