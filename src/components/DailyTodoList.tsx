@@ -35,6 +35,7 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const [todos, setTodos] = useState<DailyTodo[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancel = false;
