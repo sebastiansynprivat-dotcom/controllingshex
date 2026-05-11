@@ -347,9 +347,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
-  const [manualChatterName, setManualChatterName] = useState<string | null>(null);
+  const [manualChatterName, setManualChatterName] = useState<string | null>(initialManualChatter ?? null);
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const [manualSearch, setManualSearch] = useState("");
+
+  // Wenn von außen (z.B. via URL-Param aus Heute-Liste) ein Chatter mitkommt → manuellen Modus aktivieren
+  useEffect(() => {
+    if (initialManualChatter) setManualChatterName(initialManualChatter);
+  }, [initialManualChatter]);
 
   const allChatterOptions = useMemo(
     () => listAllSwapChatters(chatters, models, swapWindow, liveEfficiency),
