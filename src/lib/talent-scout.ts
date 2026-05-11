@@ -18,14 +18,14 @@ import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
 // --- Schwellen (zentral, einfach anpassbar) ---
 const ONBOARDING_MIN_DAYS = 5;
 const ONBOARDING_MAX_DAYS = 21;
-const MIN_LIVE_SESSIONS = 5;
-const MIN_AVG_MASSDMS = 4;
+const MIN_LIVE_SESSIONS = 4;
+const MIN_AVG_MASSDMS = 3;
 const MAX_RESPONSE_P50_MIN = 30;
-const MIN_CONSISTENCY = 0.7;
+const MIN_CONSISTENCY = 0.5;
 const UNDERUSER_MIN_DELAY_DAYS = 2;
 const UNDERUSER_MIN_OPEN_CHATS = 30;
 const ESTABLISHED_MIN_DAYS = 14;
-const MAX_MATCHES = 5;
+const MAX_MATCHES = 8;
 
 export interface TalentMatch {
   /** Aufsteiger (junges Onboarding, stark performend) */
@@ -56,6 +56,28 @@ interface HistoryRow {
 interface ModelRow { model_name: string; follower_count: number }
 
 function norm(s: string): string { return s.trim().toLowerCase(); }
+
+/** Strip non-alphanum and trailing digits/underscores for tolerant matching */
+function fuzzyKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "").replace(/\d+$/, "");
+}
+
+/** Look up follower count with tolerant name matching (handles "bondgirl" vs "bondgirl4") */
+function lookupFollowers(
+  account: string,
+  exact: Map<string, number>,
+  fuzzy: Map<string, number[]>,
+): number {
+  const key = norm(account);
+  const direct = exact.get(key);
+  if (direct != null) return direct;
+  const fk = fuzzyKey(account);
+  if (!fk) return 0;
+  const cands = fuzzy.get(fk);
+  if (!cands || cands.length === 0) return 0;
+  // Prefer the largest matching follower count (mostly we want any tier signal)
+  return Math.max(...cands);
+}
 
 function isoDaysAgo(days: number): string {
   const d = new Date();
@@ -99,7 +121,17 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
   if (onboarding.length === 0 || history.length === 0) return [];
 
   const followersByModel = new Map<string, number>();
-  for (const m of models) followersByModel.set(norm(m.model_name), Number(m.follower_count) || 0);
+  const followersFuzzy = new Map<string, number[]>();
+  for (const m of models) {
+    const f = Number(m.follower_count) || 0;
+    followersByModel.set(norm(m.model_name), f);
+    const fk = fuzzyKey(m.model_name);
+    if (fk) {
+      const arr = followersFuzzy.get(fk) ?? [];
+      arr.push(f);
+      followersFuzzy.set(fk, arr);
+    }
+  }
 
   const onboardedDays = new Map<string, number>();
   for (const o of onboarding) onboardedDays.set(norm(o.chatter_name), daysSince(o.onboarded_on));
@@ -133,7 +165,7 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
   for (const [, entry] of aggMap) {
     if (entry.rows.length === 0 || !entry.latestAccount) continue;
     const name = entry.rows[0].chatter_name;
-    const followers = followersByModel.get(norm(entry.latestAccount)) ?? 0;
+    const followers = lookupFollowers(entry.latestAccount, followersByModel, followersFuzzy);
     const tier = tierForFollowers(followers);
     if (!tier) continue;
     const denom = entry.rows.length;
