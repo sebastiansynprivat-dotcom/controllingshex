@@ -165,7 +165,7 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
   for (const [, entry] of aggMap) {
     if (entry.rows.length === 0 || !entry.latestAccount) continue;
     const name = entry.rows[0].chatter_name;
-    const followers = followersByModel.get(norm(entry.latestAccount)) ?? 0;
+    const followers = lookupFollowers(entry.latestAccount, followersByModel, followersFuzzy);
     const tier = tierForFollowers(followers);
     if (!tier) continue;
     const denom = entry.rows.length;
