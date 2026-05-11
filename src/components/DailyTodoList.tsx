@@ -122,12 +122,17 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
 
   if (visible.length === 0) {
     return (
-      <div className="premium-card rounded-2xl p-6 text-center">
-        <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/25 mb-3">
-          <Check className="h-4 w-4 text-emerald-300" />
+      <div className="space-y-2">
+        {categoryFilter === "talent" && (
+          <TalentScoutPanel platform={platform} onChange={() => reload()} />
+        )}
+        <div className="premium-card rounded-2xl p-6 text-center">
+          <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/25 mb-3">
+            <Check className="h-4 w-4 text-emerald-300" />
+          </div>
+          <p className="text-[13px] text-foreground/70 font-light">Alles klar für heute.</p>
+          <p className="text-[11px] text-white/30 font-light mt-1">Keine kritischen Aktionen offen.</p>
         </div>
-        <p className="text-[13px] text-foreground/70 font-light">Alles klar für heute.</p>
-        <p className="text-[11px] text-white/30 font-light mt-1">Keine kritischen Aktionen offen.</p>
       </div>
     );
   }
