@@ -18,14 +18,14 @@ import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
 // --- Schwellen (zentral, einfach anpassbar) ---
 const ONBOARDING_MIN_DAYS = 5;
 const ONBOARDING_MAX_DAYS = 21;
-const MIN_LIVE_SESSIONS = 5;
-const MIN_AVG_MASSDMS = 4;
+const MIN_LIVE_SESSIONS = 4;
+const MIN_AVG_MASSDMS = 3;
 const MAX_RESPONSE_P50_MIN = 30;
-const MIN_CONSISTENCY = 0.7;
+const MIN_CONSISTENCY = 0.5;
 const UNDERUSER_MIN_DELAY_DAYS = 2;
 const UNDERUSER_MIN_OPEN_CHATS = 30;
 const ESTABLISHED_MIN_DAYS = 14;
-const MAX_MATCHES = 5;
+const MAX_MATCHES = 8;
 
 export interface TalentMatch {
   /** Aufsteiger (junges Onboarding, stark performend) */
