@@ -191,6 +191,27 @@ export default function TinderMode() {
   const [mode, setMode] = useState<"swipe" | "swap" | "compare">("swipe");
   const [compareSlideOverChatter, setCompareSlideOverChatter] = useState<string | null>(null);
   const [modelsList, setModelsList] = useState<SwapModelInfo[]>([]);
+
+  // Deep-Link aus Heute-Liste: ?mode=swap&compare=Riser|Underuser → direkt in Wechsel-Mode mit vorausgewähltem Chatter
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [initialSwapChatter, setInitialSwapChatter] = useState<string | null>(null);
+  useEffect(() => {
+    const m = searchParams.get("mode");
+    const cmp = searchParams.get("compare");
+    if (m === "swap" && cmp) {
+      const [riser] = cmp.split("|");
+      if (riser) {
+        setMode("swap");
+        setInitialSwapChatter(riser);
+        // Param wieder entfernen, damit Reload nicht erneut springt
+        const next = new URLSearchParams(searchParams);
+        next.delete("mode");
+        next.delete("compare");
+        setSearchParams(next, { replace: true });
+      }
+    }
+  }, [searchParams, setSearchParams]);
+
   const [benchmarkBundle, setBenchmarkBundle] = useState<BenchmarkBundle | null>(null);
   const [goalsByChatter, setGoalsByChatter] = useState<Map<string, DailyGoal>>(new Map());
   // V2 Decisions für heute (mit Hysterese persistiert).
