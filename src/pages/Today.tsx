@@ -29,7 +29,6 @@ export default function Today() {
     { id: "activity", label: "Aktivität", icon: Activity },
     { id: "revenue", label: "Umsatz", icon: TrendingDown },
     { id: "model", label: "Model", icon: Users },
-    { id: "team", label: "Team", icon: MessageSquare },
     { id: "talent", label: "Talent", icon: Rocket },
     { id: "positive", label: "Wins", icon: Sparkles },
     { id: "revenue-lever", label: "Umsatz-Hebel", icon: Gem },
