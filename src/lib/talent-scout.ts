@@ -165,21 +165,15 @@ function computeRiserScore(r: RiserAgg): number {
   return massPart + sessPart + respPart + consPart;
 }
 
-interface AdaptiveThresholds {
-  minMass: number;
-  minSessions: number;
-  minConsistency: number;
-}
-
-function deriveAdaptiveThresholds(leakScores: number[]): AdaptiveThresholds {
+function deriveAdaptiveThresholds(leakScores: number[]): { thresholds: AdaptiveThresholds; pressure: "low" | "medium" | "high" } {
   const strongLeaks = leakScores.filter((s) => s >= 40).length;
   if (strongLeaks >= 3) {
-    return { minMass: 2, minSessions: 3, minConsistency: 0.35 };
+    return { thresholds: { minMass: 2, minSessions: 3, minConsistency: 0.35 }, pressure: "high" };
   }
   if (strongLeaks >= 1) {
-    return { minMass: 3, minSessions: 4, minConsistency: 0.5 };
+    return { thresholds: { minMass: 3, minSessions: 4, minConsistency: 0.5 }, pressure: "medium" };
   }
-  return { minMass: 4, minSessions: 5, minConsistency: 0.7 };
+  return { thresholds: { minMass: 4, minSessions: 5, minConsistency: 0.7 }, pressure: "low" };
 }
 
 export async function findTalentMatches(platform: string): Promise<TalentMatch[]> {
