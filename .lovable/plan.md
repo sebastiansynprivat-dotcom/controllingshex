@@ -1,93 +1,87 @@
 ## Ziel
 
-Talent-Scout soll **adaptive Schwellen** statt fixer Cutoffs nutzen. Wenn auf der "Underuser-Seite" viele Lecks da sind (etablierte Chatter auf guten Accounts arbeiten kaum / lassen Chats liegen), sollen die Schwellen für die "Aufsteiger-Seite" automatisch lockerer werden — und umgekehrt. Endergebnis: das System schlägt **immer die besten verfügbaren Tausch-Paare** vor, auch wenn niemand alle Idealkriterien erfüllt.
+Talent-Logik komplett neu denken: weg von „Aufsteiger erfüllt Schwellen X/Y/Z", hin zu **„Wer arbeitet kontinuierlich? Wo wird ein Account vernachlässigt? → Paaren."**
+
+Schwellen-UI fliegt raus. Die Logik soll von alleine das Richtige finden.
 
 ---
 
-## Kernidee: Relativ statt absolut
+## Neue Kernidee
 
-Aktuell: starre Konstanten (`MIN_AVG_MASSDMS = 3`, `UNDERUSER_MIN_DELAY_DAYS = 2`, …). Wer drunter ist, fällt raus.
+Es gibt zwei Ranglisten — **kein Filter, sondern Sortierung**:
 
-Neu: Beide Seiten werden als **Ranking** berechnet, nicht als Filter. Jeder qualifiziert sich grundsätzlich, bekommt aber einen **Score**. Nur die schwächsten Underuser werden mit den stärksten Risern gepaart — wenn die Lücke zwischen den beiden groß genug ist (= echter erwarteter Gewinn).
+1. **Workhorses** — Chatter, die jeden Tag verlässlich da sind und arbeiten (egal wie lange schon onboarded). Ranking nach Kontinuität, nicht nach absoluter Performance.
+2. **Verwaiste Accounts** — Accounts/Chatter-Account-Kombis, auf denen aktuell zu wenig passiert (wenig Aktivitätstage, viele offene Chats, hoher Verzug, Umsatz weit unter dem, was der Account könnte).
 
----
-
-## Neue Logik in 3 Schritten
-
-### 1. Underuser-Pool: nach "Leak-Score" sortieren
-Jeder etablierte Chatter (≥14 Tage onboarded) auf `growth`/`top`-Account bekommt einen `leakScore`:
-```
-leakScore = avgDelayDays × 25
-          + (avgOpenChats > poolMedian ? (avgOpenChats - poolMedian) × 0.6 : 0)
-          + (1 - activityRatio) × 40        // NEU: wer wenig aktiv ist, leakt am meisten
-          + (avgRev < tierMedian ? (tierMedian - avgRev) × 0.3 : 0)  // NEU: €/Tag unter Tier-Median
-```
-Kein harter Cutoff mehr — wir nehmen die **Top-N (N=5) mit dem höchsten leakScore**, sofern leakScore > 0.
-
-`activityRatio` = Tage mit Revenue/MassDM-Aktivität in den letzten 7 / 7. Wer "gar nicht arbeitet" landet automatisch oben.
-
-### 2. Riser-Pool: adaptiv lockern
-Schwellen werden **abhängig vom Underuser-Pool** skaliert:
-- Sind ≥3 Underuser mit hohem Leak-Score (≥40) verfügbar → **Druck hoch** → Riser-Schwellen lockern (MassDMs ≥2, Sessions ≥3, Konsistenz ≥0.35).
-- Sind nur 1–2 schwache Lecks da → mittlerer Druck (aktuelle Werte: MassDMs ≥3, Sessions ≥4).
-- Keine echten Lecks → strenge Werte (MassDMs ≥4, Sessions ≥5).
-
-Onboarding-Fenster bleibt fix (Tag 5–21) — das ist eine inhaltliche Aussage, kein Schwellwert.
-
-Riser bekommen ebenfalls einen `riserScore`:
-```
-riserScore = avgMassPerDay × 6
-           + sessionCount × 2
-           + (responseP50 ? max(0, 45 - responseP50) : 5)
-           + consistency × 30
-```
-Top-N Riser nach Score.
-
-### 3. Pairing nur wenn Lücke groß genug
-Für jedes Paar wird ein `expectedGain` berechnet:
-```
-expectedGain = leakScore(underuser) × 0.6 + riserScore(riser) × 0.4
-```
-Paar wird nur vorgeschlagen wenn `expectedGain ≥ 25` (sonst nicht relevant). Greedy-Matching: bester Riser zum besten Underuser, max. 8 Paare.
+Dann: Top-Workhorses werden Top-verwaisten-Accounts zugeordnet, sortiert nach **erwartetem Wirkungs-Zuwachs** (großer Account × kontinuierlicher Arbeiter = oben).
 
 ---
 
-## Ergebnis für den User
+## Workhorse-Score (pro Chatter, 7T-Fenster)
 
-- **Wenn viele Etablierte schwächeln** (z.B. Sommerflaute, mehrere im Urlaub-Modus): System schlägt auch nur "okayen" Aufsteigern den Wechsel vor — weil das Gesamtergebnis trotzdem besser wird.
-- **Wenn alle Etablierten top performen**: nur wirklich exzellente Aufsteiger werden vorgeschlagen — strenge Schwellen.
-- **Inaktive auf guten Accounts** rutschen automatisch nach oben in der Leak-Liste (durch `activityRatio`-Komponente).
+Was zählt:
 
----
+- **Anwesenheit**: Anteil Tage in den letzten 7T mit *irgendeiner* Aktivität (Revenue > 0 ODER MassDM > 0 ODER Session vorhanden). Wert 0…1.
+- **Kontinuität / Streak**: längste zusammenhängende Strecke aktiver Tage in den 7T. Belohnt „jeden Tag dran" stärker als „4 Tage am Stück, dann 3 Tage weg".
+- **Onboarding-Bonus**: Chatter mit `daysOnboarded` zwischen 5–45 Tagen bekommen einen kleinen Bonus (+15 %). Frische Leute, die liefern, sind genau das, was wir suchen — aber Veteranen, die ebenfalls jeden Tag da sind, dürfen auch reinrutschen.
+- **Kein** Mindestwert für MassDMs/Sessions/Konsistenz. Niedrige Aktivität auf einem Mini-Account drückt den Score nicht — wir bewerten Verlässlichkeit, nicht Volumen.
 
-## Technische Details
+Score grob: `Anwesenheit × 50 + (Streak/7) × 35 + Onboarding-Bonus`.
 
-**Datei:** ausschließlich `src/lib/talent-scout.ts`. Keine UI-Änderung, keine DB-Migration. Daten kommen wie bisher aus `chatter_history` (7T) + `get_live_efficiency` + `get_chatter_onboarding` + `models`.
-
-**Neue Helper:**
-- `computeLeakScore(agg, poolMedian, tierMedian, activityRatio)`
-- `computeRiserScore(live, avgMassPerDay)`
-- `deriveAdaptiveThresholds(underuserPool)` → liefert {minMass, minSessions, minConsistency} je nach Druck
-- Aktivitätsquote pro Chatter aus den 7 Tagen (Tage mit Revenue>0 ODER MassDM>0).
-
-**Tier-Mediane:** pro `tier.id` (`growth`, `top`) Median des `avgRev` aus aggs berechnen, für €/Tag-Komponente im LeakScore.
-
-**Konstanten** bleiben oben in der Datei, aber als "weiche" Defaults statt harter Filter.
+Auflistung: Top-N (z. B. 12) Workhorses.
 
 ---
 
-## Out of Scope
+## Verwaister-Account-Score
 
-- Keine Änderung am UI (`DailyTodoList`, `TalentCompareModal`).
-- Kein neuer Daten-Pull, keine zusätzliche RPC.
-- Keine Anpassung am Onboarding-Fenster (5–21 Tage bleibt — das ist semantisch, kein Schwellwert).
+Pro aktivem Chatter-Account-Paar (jüngster Account je Chatter, 7T-Fenster):
+
+- **Untertage** = 7 − Anzahl aktiver Tage. Je mehr stille Tage, desto schlimmer.
+- **Stau** = offene Chats über Pool-Median.
+- **Verzug** = Antwort-Verzug in Tagen.
+- **Umsatz-Lücke** = wie weit `avgRev` unter dem Tier-Median des Accounts liegt (großer Account, der wenig bringt → hohes Gewicht).
+- **Account-Größe** als Multiplier: `top` × 1.4, `growth` × 1.2, `starter` × 1.0, `seed` × 0.7. Ein vernachlässigter Top-Account ist viel teurer als ein vernachlässigter Seed.
+
+Score: `(Untertage × 12 + Stau × 0.5 + Verzug × 20 + Umsatz-Lücke-Faktor × 30) × Tier-Multiplier`.
+
+Damit niemand sofort raus ist: jeder Account mit mind. *einem* Schmerzsignal (Untertag, Verzug ≥ 1, Umsatz < 50 % Tier-Median, Stau über Median) landet im Pool, sortiert nach Score.
 
 ---
 
-## Schritte
+## Pairing
 
-1. `talent-scout.ts` — Aktivitätsquote aus History ableiten.
-2. `talent-scout.ts` — `leakScore` & `riserScore` als Funktionen extrahieren.
-3. `talent-scout.ts` — adaptive Schwellen abhängig vom Underuser-Pool ableiten.
-4. `talent-scout.ts` — Pairing auf `expectedGain ≥ 25` umstellen, harte Filter raus.
-5. Smoke-Check via DB: aktuell sichtbare Paare bleiben/erweitern sich plausibel.
+Greedy:
+
+1. Top-Workhorse nimmt den Top-verwaisten-Account, sofern es **nicht derselbe Chatter** ist und sich der Tier mindestens auf gleichem oder höherem Niveau befindet (Workhorse soll ja idR. *aufsteigen*).
+2. Markiere Underuser + Workhorse als verbraucht, weiter mit Nr. 2 vs. Nr. 2, usw.
+3. Maximal 8 Vorschläge.
+
+Pair-Score = `0.6 × VerwaistScore + 0.4 × WorkhorseScore`, nur Anzeige.
+
+---
+
+## To-Do-Karten (Anzeige in `/today` „Talent")
+
+Pro Match eine Karte mit:
+
+- 🚀 *„{Workhorse} auf {underuserAccount} hochziehen"*
+- Begründung 1 Satz: *„{Workhorse}: {streak} Tage am Stück aktiv, {onboardDays}T onboarded. Account {underuserAccount} ({tier}): zuletzt nur {activeDays}/7 Tage bespielt, Ø {delay}T Verzug, {openChats} offene Chats."*
+- compareWith für Wechsel-Modal bleibt.
+
+Zusätzlich: max. 3 **Solo-Warnungen** für besonders verwaiste Accounts ohne passenden Workhorse — *„⚠️ Account {x} liegt brach ({reasonChips})"*.
+
+---
+
+## UI-Änderungen
+
+- `TalentScoutPanel.tsx` wird **komplett gelöscht** (Slider, Schwellen-Anzeige, Druck-Badge, localStorage-Override — alles raus).
+- `DailyTodoList.tsx`: Import + Render des Panels entfernen, `reload()` darf bleiben (wird nicht mehr getriggert).
+- `talent-scout.ts`: `findTalentMatchesDetailed`, `loadThresholdOverride`, `saveThresholdOverride`, `AdaptiveThresholds`, `TalentDiagnostics`, `ThresholdSource`, `deriveAdaptiveThresholds` werden entfernt. localStorage-Key wird einmalig aufgeräumt (optional). `findTalentMatches(platform)` bleibt als einzige Export-Funktion mit neuer Logik.
+
+---
+
+## Nicht im Scope
+
+- Keine DB-Änderungen, keine neuen Datenquellen.
+- Kein neues UI-Panel — die Logik soll ohne Knöpfe Sinn ergeben.
+- Onboarding-Definition (≥5 Tage) bleibt nur noch als *Bonus*, nicht als Filter.

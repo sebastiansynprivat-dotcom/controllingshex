@@ -8,7 +8,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { detectModelTroubles } from "@/lib/model-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
-import { findTalentMatches } from "@/lib/talent-scout";
+import { findTalentMatches, findOrphanedAccounts } from "@/lib/talent-scout";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
@@ -284,19 +284,41 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
 
 
-  // Talent-Scout — Aufsteiger ab Onboarding-Tag 5 + Underuser-Vorschlag
+  // Talent-Scout — verlässliche Workhorses ↔ verwaiste Accounts
   try {
     const matches = await findTalentMatches(platform);
+    const matchedUnderusers = new Set(matches.map((m) => m.underuser.toLowerCase()));
     for (const m of matches) {
-      const respPart = m.riserResponseP50 != null ? ` · ${Math.round(m.riserResponseP50)}min Reaktion` : "";
+      const onbPart = m.riserDaysOnboarded != null ? `, ${m.riserDaysOnboarded}T onboarded` : "";
+      const tierPart = m.riserTier ? ` (${m.riserTier.label})` : "";
       todos.push({
         key: `talent:${m.riser}:${m.underuser}:${today}`,
         category: "talent",
         score: 70 + Math.round(m.matchScore / 10),
-        title: `🚀 ${m.riser} prüfen — Aufsteiger seit ${m.riserDaysOnboarded} Tagen`,
-        why: `Stark in Aktivität (${m.riserAvgMassDms.toFixed(1)} MassDMs/Tag${respPart}) auf ${m.riserTier.label}-Account. Vergleiche mit ${m.underuser} (${m.underuserTier.label}, ${m.underuserOpenChats} offene Chats · Ø ${m.underuserDelayDays}T Verzug).`,
+        title: `🚀 ${m.riser} auf ${m.underuserAccount} hochziehen`,
+        why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/7)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) mit ${m.underuser}: nur ${m.underuserActiveDays}/7 Tage bespielt · Ø ${m.underuserDelayDays}T Verzug · ${m.underuserOpenChats} offene Chats.`,
         chatterName: m.riser,
         compareWith: m.underuser,
+      });
+    }
+    // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse
+    const orphans = await findOrphanedAccounts(platform);
+    let soloCount = 0;
+    for (const o of orphans) {
+      if (soloCount >= 3) break;
+      if (matchedUnderusers.has(o.chatter.toLowerCase())) continue;
+      soloCount++;
+      const reasons: string[] = [];
+      if (o.activeDays <= 3) reasons.push(`nur ${o.activeDays}/7 Tage aktiv`);
+      if (o.delayDays >= 1) reasons.push(`Ø ${o.delayDays}T Verzug`);
+      if (o.openChats > 0) reasons.push(`${o.openChats} offene Chats`);
+      todos.push({
+        key: `talent-orphan:${o.account}:${today}`,
+        category: "talent",
+        score: 65 + Math.min(15, Math.round(o.painScore / 10)),
+        title: `⚠️ Account ${o.account} liegt brach`,
+        why: `${o.tier.label}-Account bei ${o.chatter}: ${reasons.join(" · ") || "kaum Bewegung"}. Wechsel auf verlässlicheren Chatter prüfen.`,
+        chatterName: o.chatter,
       });
     }
   } catch (e) {
