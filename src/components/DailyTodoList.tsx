@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Clock, X as XIcon, AlertTriangle, TrendingDown, Zap, MessageSquare, Activity, Sparkles, Users, Rocket } from "lucide-react";
+import TalentCompareModal from "@/components/TalentCompareModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
