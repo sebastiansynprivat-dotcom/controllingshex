@@ -1,20 +1,18 @@
 /**
- * Talent-Scout v2 — Workhorses ↔ Verwaiste Accounts.
+ * Talent-Scout v3 — Workhorses ↔ Verwaiste Accounts (live-basiert).
  *
- * Idee: Wir filtern niemanden mit harten Schwellen weg. Stattdessen
- *   1. ranken wir alle Chatter nach **Verlässlichkeit** (Anwesenheit + Streak,
- *      kleiner Onboarding-Bonus) — die "Workhorses".
- *   2. ranken wir alle Chatter-Account-Paare nach **Vernachlässigung**
- *      (stille Tage, Verzug, Stau, Umsatz unter Tier-Median, gewichtet mit
- *      Tier-Größe) — die "verwaisten Accounts".
- *   3. paaren wir greedy: Top-Workhorse → Top-verwaister-Account, sofern
- *      es nicht derselbe Chatter ist und der Account-Tier mindestens dem
- *      eigenen entspricht (ein Workhorse soll *aufsteigen*).
- *
- * Keine Slider, kein Override, keine festen Mindestwerte.
+ * Änderungen ggü. v2:
+ *   • Verwaiste Accounts werden NUR noch über Echtzeit-KPIs des heutigen Tages
+ *     bewertet: `oldest_chat` (Tage seit ältestem offenem Chat) + `unread_chats`
+ *     aus `chatter_history_live`. Online-Zeit/Aktivität spielt hier keine Rolle.
+ *   • Workhorses bleiben historisch: Anwesenheit + Streak der letzten 7 Tage
+ *     (ohne den heutigen Tag, der ist noch nicht abgeschlossen).
+ *   • Es werden ausschließlich Chatter berücksichtigt, die im NEUESTEN Report
+ *     der Plattform noch enthalten sind (raus = raus).
  */
 import { supabase } from "@/integrations/supabase/client";
 import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 const HISTORY_DAYS = 7;
 const MAX_MATCHES = 8;
@@ -23,10 +21,11 @@ const ONBOARDING_BONUS_MIN = 5;
 const ONBOARDING_BONUS_MAX = 45;
 const ONBOARDING_BONUS_FACTOR = 1.15;
 
-// Mindestpaarung-Schwellen — ganz weich, nur damit komplett gesunde Accounts
-// nicht als "verwaist" gemeldet werden.
+// Schmerz-Schwellen für „verwaister Account":
+// es muss mindestens ein klares Live-Signal heute geben.
+const MIN_OLDEST_CHAT_DAYS = 2;   // älterer offener Chat ≥ 2 Tage
+const MIN_UNREAD_CHATS = 25;      // ODER ≥ 25 unread heute
 const MIN_PAIR_SCORE = 25;
-const MIN_ORPHAN_PAIN = 20;
 
 const TIER_WEIGHT: Record<string, number> = {
   seed: 0.7,
@@ -40,15 +39,16 @@ export interface TalentMatch {
   riser: string;
   riserDaysOnboarded: number | null;
   riserTier: AccountTier | null;
-  riserStreak: number;          // längste aktive Strecke in 7T
-  riserActiveDays: number;      // aktive Tage in 7T (0–7)
+  riserStreak: number;          // längste aktive Strecke in 7T (ohne heute)
+  riserActiveDays: number;      // aktive Tage in 7T (ohne heute)
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
-  underuserActiveDays: number;
-  underuserOpenChats: number;
-  underuserDelayDays: number;
-  matchScore: number;           // 0–100, höher = größerer Hebel
+  underuserActiveDays: number;  // historische 7T-Aktivität, nur zur Anzeige
+  underuserOpenChats: number;   // LIVE: unread_chats heute
+  underuserOldestChatDays: number; // LIVE: oldest_chat heute (Tage)
+  underuserDelayDays: number;   // historischer Verzug, nur zur Anzeige
+  matchScore: number;           // 0–100
 }
 
 export interface OrphanWarning {
@@ -57,7 +57,8 @@ export interface OrphanWarning {
   tier: AccountTier;
   activeDays: number;
   delayDays: number;
-  openChats: number;
+  openChats: number;             // LIVE
+  oldestChatDays: number;        // LIVE
   painScore: number;
 }
 
@@ -72,6 +73,13 @@ interface HistoryRow {
   mass_dms: number | null;
 }
 interface ModelRow { model_name: string; follower_count: number }
+interface LiveRow {
+  chatter_name: string;
+  date: string;
+  unread_chats: number | null;
+  oldest_chat: number | null;
+  updated_at: string;
+}
 
 const norm = (s: string) => s.trim().toLowerCase();
 const fuzzyKey = (s: string) =>
@@ -82,15 +90,13 @@ function isoDaysAgo(days: number): string {
   d.setDate(d.getDate() - days);
   return d.toISOString().slice(0, 10);
 }
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 function daysSince(iso: string): number {
   const t = new Date(iso).getTime();
   if (isNaN(t)) return 0;
   return Math.floor((Date.now() - t) / 86400000);
-}
-function median(vals: number[]): number {
-  if (vals.length === 0) return 0;
-  const s = [...vals].sort((a, b) => a - b);
-  return s[Math.floor(s.length / 2)];
 }
 function lookupFollowers(
   account: string,
@@ -111,17 +117,19 @@ interface ChatterAgg {
   followers: number;
   tier: AccountTier | null;
   daysOnboarded: number | null;
-  // 7T-Werte
-  activeDays: number;          // Tage mit irgendeiner Aktivität
-  streak: number;              // längste zusammenhängende aktive Strecke
-  avgOpenChats: number;
+  // 7T-Werte (ohne heute) — für Workhorse-Score
+  activeDays: number;
+  streak: number;
   avgDelay: number;
-  avgRev: number;
+  // Live-Werte heute — für Underuser-Score
+  liveOpenChats: number;
+  liveOldestChatDays: number;
 }
 
 function workhorseScore(a: ChatterAgg): number {
-  const presence = a.activeDays / HISTORY_DAYS;          // 0..1
-  const streakRatio = a.streak / HISTORY_DAYS;           // 0..1
+  const denom = Math.max(1, HISTORY_DAYS - 1); // ohne heute
+  const presence = Math.min(1, a.activeDays / denom);
+  const streakRatio = Math.min(1, a.streak / denom);
   let s = presence * 50 + streakRatio * 35;
   if (
     a.daysOnboarded != null &&
@@ -133,55 +141,59 @@ function workhorseScore(a: ChatterAgg): number {
   return s;
 }
 
-function orphanPainScore(
-  a: ChatterAgg,
-  poolOpenChatsMedian: number,
-  tierRevMedian: number,
-): number {
+/** Live-Schmerz-Score: nur oldest_chat (Tage) und unread_chats (heute). */
+function orphanPainScore(a: ChatterAgg): number {
   if (!a.tier) return 0;
-  const idleDays = HISTORY_DAYS - a.activeDays;
-  const idlePart = idleDays * 12;
-  const stauPart = a.avgOpenChats > poolOpenChatsMedian
-    ? (a.avgOpenChats - poolOpenChatsMedian) * 0.5
-    : 0;
-  const delayPart = a.avgDelay * 20;
-  const revGap = tierRevMedian > 0
-    ? Math.max(0, (tierRevMedian - a.avgRev) / tierRevMedian)
-    : 0;
-  const revPart = revGap * 30;
-  const raw = idlePart + stauPart + delayPart + revPart;
+  const hasSignal =
+    a.liveOldestChatDays >= MIN_OLDEST_CHAT_DAYS ||
+    a.liveOpenChats >= MIN_UNREAD_CHATS;
+  if (!hasSignal) return 0;
+  // oldest_chat (Tage) ist der Hauptschmerz, unread füllt auf.
+  const oldestPart = a.liveOldestChatDays * 10;
+  const unreadPart = Math.max(0, a.liveOpenChats - 10) * 0.4;
+  const raw = oldestPart + unreadPart;
   return raw * (TIER_WEIGHT[a.tier.id] ?? 1.0);
 }
 
-async function loadAggs(platform: string): Promise<{
-  aggs: ChatterAgg[];
-  poolOpenChatsMedian: number;
-  tierRevMedian: Map<string, number>;
-}> {
+async function loadAggs(platform: string): Promise<ChatterAgg[]> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { aggs: [], poolOpenChatsMedian: 0, tierRevMedian: new Map() };
+  if (!user) return [];
 
-  const from = isoDaysAgo(HISTORY_DAYS);
+  const fromHist = isoDaysAgo(HISTORY_DAYS);
+  const today = todayISO();
+  const yesterday = isoDaysAgo(1);
 
-  const [onboardingRes, historyRes, modelsRes] = await Promise.all([
+  const [onboardingRes, historyRes, modelsRes, liveRes, activeNames] = await Promise.all([
     supabase.rpc("get_chatter_onboarding", { p_platform: platform }),
     supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, open_chats, response_delay_days, revenue_today, mass_dms")
       .eq("user_id", user.id)
       .ilike("platform", platform)
-      .gte("analysis_date", from),
+      .gte("analysis_date", fromHist),
     supabase
       .from("models")
       .select("model_name, follower_count")
       .eq("user_id", user.id)
       .ilike("platform", platform),
+    supabase
+      .from("chatter_history_live")
+      .select("chatter_name, date, unread_chats, oldest_chat, updated_at")
+      .ilike("platform", platform)
+      .gte("date", yesterday),
+    loadActiveChatterNames(platform),
   ]);
 
   const onboarding = (onboardingRes.data ?? []) as OnboardingRow[];
   const history = (historyRes.data ?? []) as HistoryRow[];
   const models = (modelsRes.data ?? []) as ModelRow[];
-  if (history.length === 0) return { aggs: [], poolOpenChatsMedian: 0, tierRevMedian: new Map() };
+  const live = (liveRes.data ?? []) as LiveRow[];
+
+  if (history.length === 0) return [];
+
+  // Active-Filter: nur Chatter, die im neuesten Report noch existieren.
+  const isActive = (name: string) =>
+    activeNames === null ? true : activeNames.has(normalizeChatterName(name));
 
   const followersByModel = new Map<string, number>();
   const followersFuzzy = new Map<string, number[]>();
@@ -199,12 +211,27 @@ async function loadAggs(platform: string): Promise<{
   const onboardedDays = new Map<string, number>();
   for (const o of onboarding) onboardedDays.set(norm(o.chatter_name), daysSince(o.onboarded_on));
 
-  // Pro Chatter: jüngsten Account + aggregierte 7T-Werte + Streak
-  const sorted = [...history].sort((a, b) => b.analysis_date.localeCompare(a.analysis_date));
+  // Live-Daten: jeweils neuester Eintrag (heute bevorzugt) pro Chatter.
+  const liveByChatter = new Map<string, LiveRow>();
+  const liveSorted = [...live].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
+  });
+  for (const r of liveSorted) {
+    if (!r.chatter_name) continue;
+    const k = norm(r.chatter_name);
+    if (!liveByChatter.has(k)) liveByChatter.set(k, r);
+  }
+
+  // Historie ohne heute (heute ist noch unvollständig).
+  const histPast = history.filter((r) => r.analysis_date !== today);
+
+  const sorted = [...histPast].sort((a, b) => b.analysis_date.localeCompare(a.analysis_date));
   const byChatter = new Map<string, HistoryRow[]>();
   const accountByChatter = new Map<string, string>();
   for (const r of sorted) {
     if (!r.chatter_name) continue;
+    if (!isActive(r.chatter_name)) continue;
     const k = norm(r.chatter_name);
     const arr = byChatter.get(k) ?? [];
     arr.push(r);
@@ -215,11 +242,11 @@ async function loadAggs(platform: string): Promise<{
     }
   }
 
-  // Aktive-Tag-Map pro Chatter (Set von ISO-Tagen mit Aktivität)
   function computeStreak(daySet: Set<string>): number {
     if (daySet.size === 0) return 0;
     let best = 0, cur = 0;
-    for (let i = HISTORY_DAYS - 1; i >= 0; i--) {
+    // letzte 6 Tage (ohne heute)
+    for (let i = HISTORY_DAYS - 1; i >= 1; i--) {
       const day = isoDaysAgo(i);
       if (daySet.has(day)) {
         cur += 1;
@@ -241,13 +268,14 @@ async function loadAggs(platform: string): Promise<{
     const denom = rows.length;
     const activeSet = new Set<string>();
     for (const r of rows) {
-      const isActive =
+      const isAct =
         Number(r.revenue_today ?? 0) > 0 ||
         Number(r.mass_dms ?? 0) > 0 ||
         Number(r.open_chats ?? 0) > 0;
-      if (isActive) activeSet.add(r.analysis_date);
+      if (isAct) activeSet.add(r.analysis_date);
     }
 
+    const liveRow = liveByChatter.get(k);
     aggs.push({
       name,
       account,
@@ -256,47 +284,35 @@ async function loadAggs(platform: string): Promise<{
       daysOnboarded: onboardedDays.get(k) ?? null,
       activeDays: activeSet.size,
       streak: computeStreak(activeSet),
-      avgOpenChats: rows.reduce((s, r) => s + (r.open_chats ?? 0), 0) / denom,
-      avgDelay: rows.reduce((s, r) => s + (r.response_delay_days ?? 0), 0) / denom,
-      avgRev: rows.reduce((s, r) => s + Number(r.revenue_today ?? 0), 0) / denom,
+      avgDelay: rows.reduce((s, r) => s + (r.response_delay_days ?? 0), 0) / Math.max(1, denom),
+      liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
+      liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
     });
   }
 
-  const openVals = aggs.map((a) => a.avgOpenChats).filter((v) => v > 0);
-  const poolOpenChatsMedian = median(openVals);
-  const tierRevMedian = new Map<string, number>();
-  for (const tierId of ["seed", "starter", "growth", "top"]) {
-    const vals = aggs.filter((a) => a.tier?.id === tierId).map((a) => a.avgRev);
-    tierRevMedian.set(tierId, median(vals));
-  }
-
-  return { aggs, poolOpenChatsMedian, tierRevMedian };
+  return aggs;
 }
 
 export async function findTalentMatches(platform: string): Promise<TalentMatch[]> {
-  const { aggs, poolOpenChatsMedian, tierRevMedian } = await loadAggs(platform);
+  const aggs = await loadAggs(platform);
   if (aggs.length === 0) return [];
 
-  // Workhorses — nach Verlässlichkeit
+  // Workhorses — nach Verlässlichkeit der letzten Tage.
   const workhorses = aggs
     .map((a) => ({ a, score: workhorseScore(a) }))
-    .filter((w) => w.a.activeDays >= 2) // mindestens 2 von 7 Tagen aktiv
+    .filter((w) => w.a.activeDays >= 2)
     .sort((x, y) => y.score - x.score)
     .slice(0, MAX_WORKHORSES);
 
-  // Verwaiste Accounts — nach Schmerz
+  // Verwaiste Accounts — nach Live-Schmerz (oldest_chat + unread heute).
   const orphans = aggs
     .filter((a) => a.tier && a.account)
-    .map((a) => ({
-      a,
-      pain: orphanPainScore(a, poolOpenChatsMedian, tierRevMedian.get(a.tier!.id) ?? 0),
-    }))
-    .filter((o) => o.pain >= MIN_ORPHAN_PAIN)
+    .map((a) => ({ a, pain: orphanPainScore(a) }))
+    .filter((o) => o.pain > 0)
     .sort((x, y) => y.pain - x.pain);
 
   if (orphans.length === 0 || workhorses.length === 0) return [];
 
-  // Greedy-Pairing
   const usedOrphans = new Set<string>();
   const usedWorkhorses = new Set<string>();
   const matches: TalentMatch[] = [];
@@ -312,7 +328,6 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
       const oKey = norm(o.a.name);
       if (usedOrphans.has(oKey)) return false;
       if (oKey === wKey) return false;
-      // Workhorse darf nur auf gleichen oder größeren Account wechseln
       if (TIER_RANK[o.a.tier!.id] < ownTierRank) return false;
       return true;
     });
@@ -334,7 +349,8 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
       underuserTier: candidate.a.tier!,
       underuserAccount: candidate.a.account,
       underuserActiveDays: candidate.a.activeDays,
-      underuserOpenChats: Math.round(candidate.a.avgOpenChats),
+      underuserOpenChats: candidate.a.liveOpenChats,
+      underuserOldestChatDays: candidate.a.liveOldestChatDays,
       underuserDelayDays: Math.round(candidate.a.avgDelay * 10) / 10,
       matchScore: Math.min(100, Math.round(pairScore)),
     });
@@ -345,7 +361,7 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
 
 /** Verwaiste Accounts ohne passenden Workhorse — als Solo-Warnungen. */
 export async function findOrphanedAccounts(platform: string): Promise<OrphanWarning[]> {
-  const { aggs, poolOpenChatsMedian, tierRevMedian } = await loadAggs(platform);
+  const aggs = await loadAggs(platform);
   if (aggs.length === 0) return [];
   return aggs
     .filter((a) => a.tier && a.account)
@@ -355,11 +371,10 @@ export async function findOrphanedAccounts(platform: string): Promise<OrphanWarn
       tier: a.tier!,
       activeDays: a.activeDays,
       delayDays: Math.round(a.avgDelay * 10) / 10,
-      openChats: Math.round(a.avgOpenChats),
-      painScore: Math.round(
-        orphanPainScore(a, poolOpenChatsMedian, tierRevMedian.get(a.tier!.id) ?? 0),
-      ),
+      openChats: a.liveOpenChats,
+      oldestChatDays: a.liveOldestChatDays,
+      painScore: Math.round(orphanPainScore(a)),
     }))
-    .filter((o) => o.painScore >= MIN_ORPHAN_PAIN)
+    .filter((o) => o.painScore > 0)
     .sort((x, y) => y.painScore - x.painScore);
 }
