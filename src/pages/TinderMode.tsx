@@ -1363,7 +1363,7 @@ export default function TinderMode() {
       </div>
 
       {mode === "swap" ? (
-        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} benchmarks={benchmarkBundle} />
+        <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} benchmarks={benchmarkBundle} initialManualChatter={initialSwapChatter} />
       ) : mode === "compare" ? (
         <>
           {/* Time-Range Selector bleibt sichtbar im Compare-Mode */}
