@@ -144,11 +144,11 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
                   {t.category === "talent" && t.chatterName ? (
                     <button
                       onClick={() => {
-                        const params = new URLSearchParams({
-                          mode: "swap",
-                          compare: `${t.chatterName}|${t.compareWith ?? ""}`,
-                        });
-                        navigate(`/tinder?${params.toString()}`);
+                        if (t.compareWith) {
+                          setTalentCompare({ riser: t.chatterName!, underuser: t.compareWith });
+                        } else if (onChatterClick) {
+                          onChatterClick(t.chatterName!);
+                        }
                       }}
                       className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left"
                     >
