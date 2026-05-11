@@ -139,7 +139,20 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {t.category === "model" && t.modelName && onModelClick ? (
+                  {t.category === "talent" && t.chatterName ? (
+                    <button
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          mode: "swap",
+                          compare: `${t.chatterName}|${t.compareWith ?? ""}`,
+                        });
+                        navigate(`/tinder?${params.toString()}`);
+                      }}
+                      className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left"
+                    >
+                      {t.title}
+                    </button>
+                  ) : t.category === "model" && t.modelName && onModelClick ? (
                     <button
                       onClick={() => onModelClick(t.modelName!, t.chatterName ?? null)}
                       className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left"
