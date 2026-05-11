@@ -33,7 +33,7 @@ const CATEGORY_META: Record<TodoCategory, { label: string; color: string; icon: 
   talent: { label: "Talent", color: "text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/25", icon: Rocket },
 };
 
-export default function DailyTodoList({ platform, limit, onChatterClick, onModelClick, compact }: Props) {
+export default function DailyTodoList({ platform, limit, onChatterClick, onModelClick, compact, categoryFilter = "all" }: Props) {
   const [todos, setTodos] = useState<DailyTodo[]>([]);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
