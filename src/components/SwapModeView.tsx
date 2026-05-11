@@ -320,7 +320,7 @@ function SkillPill({
   );
 }
 
-export default function SwapModeView({ platform, chatters, models, benchmarks }: Props) {
+export default function SwapModeView({ platform, chatters, models, benchmarks, initialManualChatter }: Props) {
   /** Zeitfenster für Skill/Avg-Berechnung — analog zu Auffälligkeiten/Vergleich */
   const [timeRange, setTimeRange] = useState<TimeRange>(() => buildTimeRange("7d"));
   const swapWindow = useMemo(
