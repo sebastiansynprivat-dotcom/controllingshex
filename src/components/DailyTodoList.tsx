@@ -40,6 +40,17 @@ export default function DailyTodoList({ platform, limit, onChatterClick, onModel
   const [talentCompare, setTalentCompare] = useState<{ riser: string; underuser: string } | null>(null);
   const navigate = useNavigate();
 
+  const reload = () => {
+    setLoading(true);
+    return Promise.all([generateDailyTodos(platform), loadTodoStates(platform)])
+      .then(([t, s]) => {
+        setTodos(t);
+        setStates(s);
+      })
+      .catch((e) => console.error("[DailyTodoList]", e))
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     let cancel = false;
     setLoading(true);
