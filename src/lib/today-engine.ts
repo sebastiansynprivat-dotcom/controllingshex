@@ -508,7 +508,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     const sigs = b.signals;
     const kinds = sigs.map((s) => s.kind);
     const primaryKind = pickPrimaryKind(kinds);
-    const totalImpact = sigs.reduce((s, x) => s + x.impactEurPerWeek, 0);
+    const totalImpact = sigs.reduce((s, x) => s + (x.impactEurPerWeek ?? 0), 0);
     const chatterKey = b.chatterName ? normalizeChatterName(b.chatterName) : null;
     const stat = chatterKey ? stats.get(chatterKey) : undefined;
     const persistence = stat ? Math.max(stat.weakStreak, Math.min(stat.weakDays, 6)) : 1;
