@@ -24,6 +24,22 @@ export interface DailyTodo {
   modelName?: string | null;
   /** Optional: zweiter Chatter für direkten Vergleich (Talent-Match → Wechselmodus) */
   compareWith?: string | null;
+  /** Strukturierte Zahlen für realistische €-Hebel-Berechnung im today-engine. */
+  meta?: {
+    delayDays?: number;
+    dropPct?: number;
+    todayRevenue?: number;
+    baselineRevenue?: number;
+    todayMassDms?: number;
+    baselineMassDms?: number;
+    missingMassDms?: number;
+    todayOpenChats?: number;
+    baselineOpenChats?: number;
+    missingDays?: number;
+    riserMedianRev?: number;
+    matchScore?: number;
+    modelDropPerDay?: number;
+  };
 }
 
 export interface TodoState {
