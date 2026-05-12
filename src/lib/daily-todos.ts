@@ -330,6 +330,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/6 davor)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} jetzt live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
         chatterName: m.riser,
         compareWith: m.underuser,
+        meta: { matchScore: m.matchScore },
       });
     }
     // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse
