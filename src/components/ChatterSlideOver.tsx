@@ -207,6 +207,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [chatterList, setChatterList] = useState<string[]>([]);
   // Mobile: welche Pane sichtbar ist im Vergleichsmodus
   const [activePane, setActivePane] = useState<"primary" | "compare">("primary");
+  const swipeStartXRef = useRef<number | null>(null);
 
   // Re-init compareWith, wenn der Caller gezielt eine Vergleichsansicht öffnet
   // (Talent, Swap, Account-Tausch). Wichtig: nicht direkt danach über chatterName
@@ -1165,18 +1166,18 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             onPointerDown={(e) => {
               if (!compareWith || inline) return;
               if (window.innerWidth >= 640) return;
-              (e.currentTarget as any)._swipeStartX = e.clientX;
+              swipeStartXRef.current = e.clientX;
             }}
             onPointerUp={(e) => {
               if (!compareWith || inline) return;
               if (window.innerWidth >= 640) return;
-              const startX = (e.currentTarget as any)._swipeStartX;
+              const startX = swipeStartXRef.current;
               if (typeof startX !== "number") return;
               const dx = e.clientX - startX;
               if (Math.abs(dx) >= 120) {
                 setActivePane(dx < 0 ? "compare" : "primary");
               }
-              (e.currentTarget as any)._swipeStartX = null;
+              swipeStartXRef.current = null;
             }}
           >
             <motion.div
