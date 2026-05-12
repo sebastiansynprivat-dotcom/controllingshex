@@ -265,6 +265,46 @@ export default function Today() {
             </div>
           ) : visibleList.length === 0 ? (
             <EmptyState section={section} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
+          ) : section === "primary" || section === "watch" ? (
+            <div className="space-y-5">
+              <AnimatePresence initial={false}>
+                {groupByTheme(visibleList).map((g) => {
+                  const Icon = g.icon;
+                  return (
+                    <div key={g.id} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 px-1 pb-1.5 border-b border-white/[0.06]">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("h-1.5 w-1.5 rounded-full", g.dot)} />
+                          <Icon className={cn("h-3.5 w-3.5", g.accent)} />
+                          <span className={cn("text-[10.5px] font-semibold uppercase tracking-widest", g.accent)}>
+                            {g.label}
+                          </span>
+                          <span className="text-[10.5px] tabular-nums text-white/35 font-light">
+                            · {g.items.length}
+                          </span>
+                        </div>
+                        {g.sumImpact > 0 && (
+                          <span className="text-[10.5px] tabular-nums text-emerald-300/80 font-light">
+                            +{fmtEur(g.sumImpact)}/Wo
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {g.items.map((a) => (
+                          <PersonActionCard
+                            key={a.bundleKey}
+                            action={a}
+                            onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                            onAct={act}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
           ) : (
             <div className="space-y-2">
               <AnimatePresence initial={false}>
