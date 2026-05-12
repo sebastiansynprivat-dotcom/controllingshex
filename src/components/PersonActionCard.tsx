@@ -26,26 +26,34 @@ interface Props {
   onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss") => void;
 }
 
-const TONE_STYLES: Record<UnifiedAction["tone"], { ring: string; chip: string; icon: string }> = {
+// Tone → accent stripe + text color for category label + impact chip
+const TONE_STYLES: Record<
+  UnifiedAction["tone"],
+  { stripe: string; label: string; impactChip: string; ring: string }
+> = {
   critical: {
-    ring: "border-red-500/30 hover:border-red-500/50",
-    chip: "bg-red-500/15 border-red-500/35 text-red-200",
-    icon: "text-red-300 bg-red-500/10 border-red-500/30",
+    stripe: "bg-red-500",
+    label: "text-red-300",
+    impactChip: "bg-red-500/10 border-red-500/30 text-red-200",
+    ring: "border-red-500/20 hover:border-red-500/40",
   },
   warning: {
-    ring: "border-amber-500/25 hover:border-amber-500/45",
-    chip: "bg-amber-500/15 border-amber-500/35 text-amber-200",
-    icon: "text-amber-300 bg-amber-500/10 border-amber-500/30",
+    stripe: "bg-amber-500",
+    label: "text-amber-300",
+    impactChip: "bg-amber-500/10 border-amber-500/30 text-amber-200",
+    ring: "border-amber-500/20 hover:border-amber-500/40",
   },
   info: {
+    stripe: "bg-cyan-500",
+    label: "text-cyan-300",
+    impactChip: "bg-cyan-500/10 border-cyan-500/25 text-cyan-200",
     ring: "border-white/10 hover:border-primary/25",
-    chip: "bg-cyan-500/10 border-cyan-500/25 text-cyan-200",
-    icon: "text-cyan-300 bg-cyan-500/10 border-cyan-500/25",
   },
   positive: {
-    ring: "border-emerald-500/25 hover:border-emerald-500/45",
-    chip: "bg-emerald-500/15 border-emerald-500/35 text-emerald-200",
-    icon: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30",
+    stripe: "bg-emerald-500",
+    label: "text-emerald-400",
+    impactChip: "bg-emerald-500/10 border-emerald-500/25 text-emerald-300",
+    ring: "border-emerald-500/15 hover:border-emerald-500/35",
   },
 };
 
@@ -78,32 +86,48 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
 };
 
 function fmtEur(v: number | null | undefined): string {
-  if (v == null) return "?";
+  if (v == null) return "—";
   if (v <= 0) return "—";
   return "+" + Math.round(v).toLocaleString("de-DE") + " €";
+}
+
+function initials(name: string | null | undefined): string {
+  if (!name) return "··";
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "··";
 }
 
 export default function PersonActionCard({ action, onChatterClick, onModelClick, onAct }: Props) {
   const [expanded, setExpanded] = useState(false);
   const tone = TONE_STYLES[action.tone];
-  const PrimaryIcon = KIND_ICON[action.primaryKind] ?? Flame;
 
   const headlineSignal = action.signals[0];
-  const headline = action.signals.length > 1 && action.chatterName
+  const bundled = action.signals.length > 1;
+  const headline = bundled && action.chatterName
     ? `${action.chatterName} — ${action.signals.length} Signale`
     : headlineSignal.title;
 
-  const handleHeadlineClick = () => {
-    if (action.signals.length > 1) {
-      setExpanded((v) => !v);
-      return;
-    }
+  const categoryLabel = bundled
+    ? `${KIND_LABEL[action.primaryKind]} · Bündel`
+    : KIND_LABEL[action.primaryKind];
+
+  const impactStr = fmtEur(action.totalImpactEurPerWeek);
+  const hasImpact = impactStr !== "—";
+
+  const openDetails = () => {
     if (action.chatterName && onChatterClick) {
       onChatterClick(action.chatterName);
     } else if (action.modelName && onModelClick) {
       onModelClick(action.modelName, action.chatterName);
     }
   };
+
+  const handleCardClick = () => {
+    if (bundled) setExpanded((v) => !v);
+    else openDetails();
+  };
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
     <motion.div
@@ -112,110 +136,128 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 80, transition: { duration: 0.2 } }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      onClick={handleCardClick}
       className={cn(
-        "premium-card rounded-xl p-4 group transition-colors border",
+        "premium-card relative rounded-2xl overflow-hidden border transition-colors cursor-pointer group",
         tone.ring,
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center border shrink-0", tone.icon)}>
-          <PrimaryIcon className="h-4 w-4" />
-        </div>
+      {/* Accent stripe */}
+      <div className={cn("absolute left-0 top-0 bottom-0 w-1", tone.stripe)} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className={cn("text-[11px] tabular-nums font-semibold px-1.5 py-0.5 rounded border", tone.chip)}>
-              {fmtEur(action.totalImpactEurPerWeek)}/Wo
+      <div className="p-4 pl-5 flex flex-col gap-3">
+        {/* Top: category + title (left) | impact + persistence (right) */}
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <span className={cn("text-[10px] font-semibold uppercase tracking-widest", tone.label)}>
+              {categoryLabel}
+            </span>
+            <h3 className="text-[14px] font-medium text-foreground leading-snug truncate">
+              {headline}
+            </h3>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <span
+              className={cn(
+                "px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums border",
+                hasImpact
+                  ? tone.impactChip
+                  : "bg-white/[0.04] border-white/10 text-white/40",
+              )}
+            >
+              {hasImpact ? `${impactStr}/Wo` : "—/Wo"}
             </span>
             {action.persistence >= 2 && (
-              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-200 flex items-center gap-1">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-tight border bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-300 flex items-center gap-1">
                 <Flame className="h-2.5 w-2.5" />
                 {action.persistence}T in Folge
               </span>
             )}
-            {action.signals.length > 1 && (
-              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border bg-white/5 border-white/15 text-white/60">
-                {action.signals.length} Signale
-              </span>
-            )}
-            <span className={cn("text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border", tone.icon)}>
-              {KIND_LABEL[action.primaryKind]}
-            </span>
           </div>
-
-          <button
-            onClick={handleHeadlineClick}
-            className="text-[13px] text-foreground/90 font-light hover:text-primary transition-colors text-left block w-full"
-          >
-            {headline}
-          </button>
-
-          {action.signals.length > 1 ? (
-            <p className="text-[11px] text-white/45 font-light mt-1 leading-relaxed">
-              {action.signals.map((s) => KIND_LABEL[s.kind]).join(" · ")}
-              {action.modelInfo ? ` · ${action.modelInfo}` : ""}
-            </p>
-          ) : (
-            <p className="text-[11px] text-white/45 font-light mt-1 leading-relaxed">{headlineSignal.why}</p>
-          )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
-          {action.signals.length > 1 && (
+        {/* Description */}
+        <p className="text-[12.5px] text-white/55 font-light leading-relaxed">
+          {bundled
+            ? action.signals.map((s) => KIND_LABEL[s.kind]).join(" · ") +
+              (action.modelInfo ? ` · ${action.modelInfo}` : "")
+            : headlineSignal.why}
+        </p>
+
+        {/* Bundle hint */}
+        {bundled && !expanded && (
+          <button
+            onClick={(e) => { stop(e); setExpanded(true); }}
+            className="text-left py-1.5 px-3 rounded-lg bg-white/[0.03] border border-white/10 hover:border-white/20 transition-colors"
+          >
+            <p className="text-[11px] font-semibold text-white/60 flex items-center gap-1.5">
+              <ChevronDown className="h-3 w-3" />
+              + {action.signals.length - 1} weitere Signal{action.signals.length - 1 === 1 ? "" : "e"}
+              {action.chatterName ? ` für ${action.chatterName}` : ""}
+            </p>
+          </button>
+        )}
+
+        {/* Footer: identity + actions */}
+        <div className="flex items-center justify-between pt-3 border-t border-white/5">
+          <button
+            onClick={(e) => { stop(e); openDetails(); }}
+            className="flex items-center gap-2 text-white/45 hover:text-white/70 transition-colors"
+          >
+            <div className="w-6 h-6 rounded bg-white/[0.05] border border-white/10 flex items-center justify-center text-[10px] font-semibold tabular-nums">
+              {initials(action.chatterName ?? action.modelName)}
+            </div>
+            <span className="text-[11px] font-medium">
+              {bundled ? (expanded ? "Einklappen" : "Aufklappen") : "Details ansehen"}
+            </span>
+          </button>
+
+          <div className="flex items-center gap-3 opacity-70 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={() => setExpanded((v) => !v)}
-              title={expanded ? "Einklappen" : "Details"}
-              className={cn(
-                "h-7 w-7 rounded-md flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition-transform",
-                expanded && "rotate-180",
-              )}
+              onClick={(e) => { stop(e); onAct(action, "snooze"); }}
+              title="4h später"
+              className="text-white/40 hover:text-white/80 transition-colors"
             >
-              <ChevronDown className="h-3.5 w-3.5" />
+              <Clock className="h-4 w-4" />
             </button>
-          )}
-          <button
-            onClick={() => onAct(action, "done")}
-            title="Erledigt"
-            className="h-7 w-7 rounded-md flex items-center justify-center text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/10"
-          >
-            <Check className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => onAct(action, "snooze")}
-            title="4h später"
-            className="h-7 w-7 rounded-md flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5"
-          >
-            <Clock className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => onAct(action, "dismiss")}
-            title="Heute ausblenden"
-            className="h-7 w-7 rounded-md flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10"
-          >
-            <XIcon className="h-3.5 w-3.5" />
-          </button>
+            <button
+              onClick={(e) => { stop(e); onAct(action, "dismiss"); }}
+              title="Heute ausblenden"
+              className="text-white/40 hover:text-rose-400 transition-colors"
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={(e) => { stop(e); onAct(action, "done"); }}
+              title="Erledigt"
+              className="text-emerald-400/80 hover:text-emerald-300 transition-colors"
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
       <AnimatePresence initial={false}>
-        {expanded && action.signals.length > 1 && (
+        {expanded && bundled && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
+            onClick={stop}
           >
-            <div className="pt-3 mt-3 border-t border-white/5 space-y-2">
+            <div className="px-4 pl-5 pb-4 -mt-1 space-y-2">
               {action.signals.map((s) => {
                 const Icon = KIND_ICON[s.kind] ?? Gem;
                 return (
-                  <div key={s.todoKey} className="flex items-start gap-2.5">
-                    <div className="h-6 w-6 rounded-md bg-white/[0.03] border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon className="h-3 w-3 text-white/50" />
+                  <div key={s.todoKey} className="flex items-start gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                    <div className="h-6 w-6 rounded-md bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Icon className="h-3 w-3 text-white/55" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-foreground/80 font-light leading-snug">{s.title}</p>
+                      <p className="text-[12px] text-foreground/85 font-light leading-snug">{s.title}</p>
                       <p className="text-[10.5px] text-white/40 font-light mt-0.5 leading-relaxed">{s.why}</p>
                       {s.impactReason && (
                         <p className="text-[10px] text-white/30 font-light mt-0.5 italic leading-relaxed">
