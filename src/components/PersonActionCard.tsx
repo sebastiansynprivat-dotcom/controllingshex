@@ -114,14 +114,18 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
   const impactStr = fmtEur(action.totalImpactEurPerWeek);
   const hasImpact = impactStr !== "—";
 
-  // Talent-Compare-Target: bevorzuge Talent-Signal, sonst irgendein Signal mit compareWith/secondaryChatter
+  // Direkte Vergleichsansicht für alle Vorschläge mit zweitem Chatter:
+  // Talent, Swap, Account-Tausch/Mismatch und Phasen-Rücktausch.
   const compareTarget = (() => {
     if (action.secondaryChatter) return action.secondaryChatter;
-    const talent = action.signals.find((s) => s.kind === "talent" && (s.compareWith || s.secondaryChatter));
-    if (talent) return talent.compareWith ?? talent.secondaryChatter ?? null;
+    const directCompareKinds = new Set<ActionSourceKind>(["talent", "swap", "mismatch", "phase"]);
+    const prioritized = action.signals.find((s) => directCompareKinds.has(s.kind) && (s.compareWith || s.secondaryChatter));
+    if (prioritized) return prioritized.compareWith ?? prioritized.secondaryChatter ?? null;
     const any = action.signals.find((s) => s.compareWith || s.secondaryChatter);
     return any?.compareWith ?? any?.secondaryChatter ?? null;
   })();
+
+  const opensComparison = !!action.chatterName && !!compareTarget;
 
   const openDetails = (overrideCompare?: string | null) => {
     if (action.chatterName && onChatterClick) {
@@ -132,7 +136,8 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
   };
 
   const handleCardClick = () => {
-    if (bundled) setExpanded((v) => !v);
+    if (opensComparison) openDetails(compareTarget);
+    else if (bundled) setExpanded((v) => !v);
     else openDetails();
   };
 
@@ -261,7 +266,7 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
               {action.signals.map((s) => {
                 const Icon = KIND_ICON[s.kind] ?? Gem;
                 const sigCompare = s.compareWith ?? s.secondaryChatter ?? null;
-                const isClickable = s.kind === "talent" && !!sigCompare && !!action.chatterName;
+                const isClickable = !!sigCompare && !!action.chatterName;
                 return (
                   <div
                     key={s.todoKey}
