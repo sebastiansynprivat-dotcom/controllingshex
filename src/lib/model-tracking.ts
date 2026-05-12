@@ -44,6 +44,10 @@ export interface ModelTrouble {
   severity: "high" | "medium";
   currentChatter: string | null;
   deltaPct: number | null;
+  /** Aktueller €/Tag-Schnitt (current phase oder last7) — Basis für Hebel-Schätzung. */
+  currentAvgPerDay: number | null;
+  /** Vergleichs €/Tag-Schnitt (previous phase oder 30T-Schnitt). */
+  baselineAvgPerDay: number | null;
 }
 
 /**
