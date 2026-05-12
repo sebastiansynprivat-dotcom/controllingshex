@@ -1598,7 +1598,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     x: { duration: 0.6, ease: [0.32, 0.72, 0, 1], delay: 0.25 },
                   }}
                   style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
-                  className="sm:flex-1 sm:min-w-0 sm:max-w-[50%] flex-1 min-h-0 overflow-hidden"
+                  className={`sm:flex-1 sm:min-w-0 sm:max-w-[50%] sm:block ${activePane === "compare" ? "flex-1 min-h-0" : "hidden"} overflow-hidden`}
                 >
                   <ChatterSlideOver
                     inline
