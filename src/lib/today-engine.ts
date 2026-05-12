@@ -314,11 +314,18 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   const { stats, importanceFor } = statsBundle;
 
   // Map alle Sources in ActionSignals
-  const signals: { chatterKey: string | null; modelKey: string | null; signal: ActionSignal; secondary: string | null }[] = [];
+  const signals: {
+    chatterName: string | null;
+    chatterKey: string | null;
+    modelKey: string | null;
+    signal: ActionSignal;
+    secondary: string | null;
+  }[] = [];
 
   for (const t of todos) {
     const med = t.chatterName ? (stats.get(normalizeChatterName(t.chatterName))?.medianRevenue ?? 0) : 0;
     signals.push({
+      chatterName: t.chatterName ?? null,
       chatterKey: t.chatterName ? normalizeChatterName(t.chatterName) : null,
       modelKey: t.modelName ? t.modelName.toLowerCase() : null,
       secondary: t.compareWith ?? null,
