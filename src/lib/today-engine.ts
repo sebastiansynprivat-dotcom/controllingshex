@@ -29,7 +29,10 @@ export interface ActionSignal {
   kind: ActionSourceKind;
   title: string;
   why: string;
-  impactEurPerWeek: number;
+  /** Geschätzter Wochen-Hebel in € — null wenn keine valide Personen-Baseline. */
+  impactEurPerWeek: number | null;
+  /** Kurze, menschenlesbare Begründung der Schätzung. */
+  impactReason?: string;
   /** Originaler Key — für Done/Snooze/Dismiss-Persistenz. */
   todoKey: string;
   modelName?: string | null;
