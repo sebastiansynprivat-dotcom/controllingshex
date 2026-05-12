@@ -189,6 +189,8 @@ export async function detectModelTroubles(
           severity: dropPct <= -50 ? "high" : "medium",
           currentChatter: tl.currentPhase?.chatterName ?? null,
           deltaPct: dropPct,
+          currentAvgPerDay: avg7,
+          baselineAvgPerDay: avg30,
         });
       }
     }
