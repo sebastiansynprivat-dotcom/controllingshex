@@ -208,14 +208,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   // Mobile: welche Pane sichtbar ist im Vergleichsmodus
   const [activePane, setActivePane] = useState<"primary" | "compare">("primary");
 
-  // Re-init compareWith wenn initialCompareWith vom Caller wechselt (anderer Talent-Klick)
+  // Re-init compareWith, wenn der Caller gezielt eine Vergleichsansicht öffnet
+  // (Talent, Swap, Account-Tausch). Wichtig: nicht direkt danach über chatterName
+  // wieder auf null resetten.
   useEffect(() => {
-    if (open && initialCompareWith && initialCompareWith !== compareWith) {
-      setCompareWith(initialCompareWith);
-      setActivePane("primary");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialCompareWith]);
+    if (!open) return;
+    setCompareWith(initialCompareWith ?? null);
+    setActivePane("primary");
+    setPickerOpen(false);
+    setPickerQuery("");
+  }, [open, chatterName, initialCompareWith]);
 
   // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
   const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>(
@@ -276,7 +278,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     }
   }, [open, chatterName]);
 
-  // Compare-Auswahl zurücksetzen, wenn Slide-Over schließt oder Hauptchatter wechselt
+  // Compare-Auswahl zurücksetzen, wenn Slide-Over schließt
   useEffect(() => {
     if (!open) {
       setCompareWith(null);
@@ -284,11 +286,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       setPickerQuery("");
     }
   }, [open]);
-  useEffect(() => {
-    setCompareWith(null);
-    setPickerOpen(false);
-    setPickerQuery("");
-  }, [chatterName]);
 
   // Liste aller AKTIVEN Chatter-Namen (nur die, die im neuesten Report vorkamen)
   useEffect(() => {
