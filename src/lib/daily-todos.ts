@@ -294,6 +294,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     try {
       const troubles = await detectModelTroubles(platform, modelNames);
       for (const t of troubles.slice(0, 8)) {
+        const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
+          ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
+          : 0;
         todos.push({
           key: `model:${t.modelName}:${today}`,
           category: "model",
@@ -302,6 +305,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           why: t.reason,
           modelName: t.modelName,
           chatterName: t.currentChatter,
+          meta: { modelDropPerDay: dropPerDay },
         });
       }
     } catch (e) {
