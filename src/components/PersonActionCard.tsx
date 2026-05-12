@@ -77,7 +77,8 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
   slot: "Slot",
 };
 
-function fmtEur(v: number): string {
+function fmtEur(v: number | null | undefined): string {
+  if (v == null) return "?";
   if (v <= 0) return "—";
   return "+" + Math.round(v).toLocaleString("de-DE") + " €";
 }
