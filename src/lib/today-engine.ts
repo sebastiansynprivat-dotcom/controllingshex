@@ -343,6 +343,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }
   for (const r of revTasks) {
     signals.push({
+      chatterName: r.chatterName ?? null,
       chatterKey: r.chatterName ? normalizeChatterName(r.chatterName) : null,
       modelKey: r.modelName ? r.modelName.toLowerCase() : null,
       secondary: r.secondaryChatter ?? null,
@@ -371,20 +372,19 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     const isSolo = SOLO_KINDS.has(s.signal.kind);
     let bundleKey: string;
     if (isSolo || !s.chatterKey) {
-      // eigene Karte
       bundleKey = `solo:${s.signal.todoKey}`;
     } else {
       bundleKey = `chatter:${s.chatterKey}`;
     }
     if (!buckets.has(bundleKey)) {
       buckets.set(bundleKey, {
-        chatterName: s.signal.kind === "talent" || s.signal.kind === "swap"
-          ? findOriginalName(s.signal.title)
-          : extractChatterFromSignal(s, signals),
+        chatterName: s.chatterName,
         modelName: s.signal.modelName ?? null,
         secondary: s.secondary,
         signals: [],
       });
+    } else if (!buckets.get(bundleKey)!.chatterName && s.chatterName) {
+      buckets.get(bundleKey)!.chatterName = s.chatterName;
     }
     buckets.get(bundleKey)!.signals.push(s.signal);
   }
