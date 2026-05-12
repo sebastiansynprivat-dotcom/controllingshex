@@ -1137,14 +1137,56 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </button>
           </div>
 
+          {/* Mobile Switcher: nur im Vergleichsmodus, segmentierte Pills für Pane-Wechsel */}
+          {compareWith && !inline && (
+            <div className="sm:hidden sticky top-[64px] z-20 px-4 py-2 bg-zinc-950/95 backdrop-blur-xl border-b border-white/[0.06] flex items-center gap-2">
+              <button
+                onClick={() => setActivePane("primary")}
+                className={`flex-1 h-10 rounded-xl text-[12px] font-medium tracking-wide transition-all active:scale-[0.97] truncate px-3 ${
+                  activePane === "primary"
+                    ? "bg-primary/15 border border-primary/40 text-foreground"
+                    : "bg-white/[0.03] border border-white/10 text-white/55"
+                }`}
+              >
+                {displayName}
+              </button>
+              <button
+                onClick={() => setActivePane("compare")}
+                className={`flex-1 h-10 rounded-xl text-[12px] font-medium tracking-wide transition-all active:scale-[0.97] truncate px-3 ${
+                  activePane === "compare"
+                    ? "bg-primary/15 border border-primary/40 text-foreground"
+                    : "bg-white/[0.03] border border-white/10 text-white/55"
+                }`}
+              >
+                {compareWith}
+              </button>
+            </div>
+          )}
+
           <div
-            className={`flex-1 min-h-0 flex ${compareWith ? "flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06] divide-y sm:divide-y-0 divide-white/[0.06]" : "flex-col"}`}
+            className={`flex-1 min-h-0 flex ${compareWith ? "flex-col sm:flex-row sm:divide-x sm:divide-white/[0.06]" : "flex-col"}`}
+            onPointerDown={(e) => {
+              if (!compareWith || inline) return;
+              if (window.innerWidth >= 640) return;
+              (e.currentTarget as any)._swipeStartX = e.clientX;
+            }}
+            onPointerUp={(e) => {
+              if (!compareWith || inline) return;
+              if (window.innerWidth >= 640) return;
+              const startX = (e.currentTarget as any)._swipeStartX;
+              if (typeof startX !== "number") return;
+              const dx = e.clientX - startX;
+              if (Math.abs(dx) >= 120) {
+                setActivePane(dx < 0 ? "compare" : "primary");
+              }
+              (e.currentTarget as any)._swipeStartX = null;
+            }}
           >
             <motion.div
               ref={scrollRef}
               animate={{ flexBasis: compareWith ? "50%" : "100%" }}
               transition={{ duration: 0.65, ease: [0.32, 0.72, 0, 1] }}
-              className={`${compareWith ? "sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 max-h-[50vh] sm:max-h-none" : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
+              className={`${compareWith ? `sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 ${activePane === "primary" ? "flex-1" : "hidden sm:block"}` : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
               style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
             >
               <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
