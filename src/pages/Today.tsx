@@ -247,7 +247,8 @@ export default function Today() {
         <ChatterSlideOver
           open={!!selectedChatter}
           onClose={() => setSelectedChatter(null)}
-          chatterName={selectedChatter}
+          chatterName={selectedChatter.name}
+          initialCompareWith={selectedChatter.compareWith}
           platform={platform}
         />
       )}
