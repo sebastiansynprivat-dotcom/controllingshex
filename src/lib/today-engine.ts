@@ -431,7 +431,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }[] = [];
 
   for (const t of todos) {
-    const med = t.chatterName ? (stats.get(normalizeChatterName(t.chatterName))?.medianRevenue ?? 0) : 0;
+    const stat = t.chatterName ? stats.get(normalizeChatterName(t.chatterName)) : undefined;
+    const est = estimateImpactForTodo(t, stat);
     signals.push({
       chatterName: t.chatterName ?? null,
       chatterKey: t.chatterName ? normalizeChatterName(t.chatterName) : null,
@@ -442,7 +443,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         kind: t.category,
         title: t.title,
         why: t.why,
-        impactEurPerWeek: estimateImpactForTodo(t, med),
+        impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
+        impactReason: est.reason,
         todoKey: t.key,
         modelName: t.modelName ?? null,
         compareWith: t.compareWith ?? null,
@@ -450,6 +452,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     });
   }
   for (const r of revTasks) {
+    const stat = r.chatterName ? stats.get(normalizeChatterName(r.chatterName)) : undefined;
+    const est = estimateImpactForRevenueTask(r, stat);
     signals.push({
       chatterName: r.chatterName ?? null,
       chatterKey: r.chatterName ? normalizeChatterName(r.chatterName) : null,
@@ -460,7 +464,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         kind: r.kind,
         title: r.title,
         why: r.why,
-        impactEurPerWeek: Math.round(r.impactEurPerWeek),
+        impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
+        impactReason: est.reason,
         todoKey: r.key,
         modelName: r.modelName ?? null,
         secondaryChatter: r.secondaryChatter ?? null,
