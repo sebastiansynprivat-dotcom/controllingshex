@@ -1,64 +1,54 @@
-## Ziele
+## Ziel
 
-1. Talent-Karten öffnen direkt die Vergleichsansicht beider Chatter (Riser ↔ Underuser).
-2. Vergleichsansicht auf Mobile spürbar besser: kein gestauchtes 50/50-Stacking, klares Wechseln zwischen beiden Personen.
-3. Reset aller "Heute"-Status-Einträge im Workspace **Brezzels** (213 done-Einträge → wieder offen).
+Die Heute-Liste in „Jetzt machen" (und konsistent auch „Im Auge behalten") wird in drei thematische Untergruppen aufgeteilt, damit auf einen Blick klar ist, *welche Art* von Aktion ansteht. Tabs oben bleiben wie sie sind.
 
----
+## Gruppen
 
-## 1. Talent → Vergleich öffnet sich direkt
-
-Die Daten sind schon da: jede `UnifiedAction` trägt `secondaryChatter` (für Talent: der Underuser, dessen verwaister Account hochgezogen werden soll). Das wird heute beim Klick ignoriert.
-
-**Änderungen**
-- `ChatterSlideOver.tsx` bekommt neuen optionalen Prop `initialCompareWith?: string | null`. Wenn gesetzt, startet der Slide-Over direkt im Vergleichsmodus mit diesem zweiten Chatter (interner `compareWith`-State wird beim Öffnen damit initialisiert; bleibt anschließend per Compare-Button änderbar / abschaltbar).
-- `Today.tsx` reicht beim Öffnen des Slide-Overs `action.secondaryChatter` als `initialCompareWith` durch. Dafür wird der `onChatterClick`-Callback in `PersonActionCard` von `(name)` auf `(name, compareWith?)` erweitert; Card ruft mit `action.secondaryChatter` auf.
-- Wenn nur ein einzelnes Talent-Signal in einer Bündel-Karte steckt, öffnet ein Klick auf "Details ansehen" sofort den Vergleich. Bei Bündeln mit mehreren Signalen bleibt das Verhalten wie aktuell (erst aufklappen); jedes Talent-Sub-Item im Aufklapper bekommt einen "Vergleich öffnen"-Affordance.
-
----
-
-## 2. Vergleichsansicht auf Mobile aufpolieren
-
-Heutiger Zustand mobile: zwei Panes übereinander (`max-h-[50vh]` + `max-h-[50vh]`). Beide gleichzeitig sichtbar, aber jeder gefühlt halb abgeschnitten — viel Scrollen, keine klare Trennung.
-
-**Neues Mobile-Layout (sm-Breakpoint und kleiner)**
-- Statt 50/50-Split: **Segmented Switcher** oben unter dem Header — zwei Pills mit den Namen (Initialen + Vorname) und Mini-Revenue-Indikator. Aktive Pill = sichtbares Pane in voller Höhe.
-- Wechsel per Tap auf Pill **oder** horizontalem Swipe zwischen den Panes (nutzt feste 120px-Distanz, kein Velocity-Schwellwert — Memory: swipe constraints).
-- Beim Wechsel sanfte Cross-Fade + 8px X-Slide-Animation (Framer-Motion, ~250ms ease-out).
-- Header bleibt sticky; Compare-Button im Header zeigt jetzt "Vergleich aus" (X) statt nur Toggle, da das Picker-Affordance unten ans Switcher-Element wandert (Plus-Pill am Ende erlaubt Wechsel des zweiten Chatters).
-- Mini-KPI-Strip pro Pane direkt unter dem Switcher (heute · 7T · 30T-Trend) damit Vergleich auf einen Blick funktioniert, ohne erst scrollen zu müssen.
-
-**Desktop (sm+)** bleibt wie heute: Side-by-Side mit `divide-x`. Nur kleine Politur — Compare-Pane bekommt eigenen Mini-Hero (Name + Initials + Trend-Chip) statt komplett verschachteltem Slide-Over-Header.
-
-**Implementierung**
-- Neue lokale Komponente `CompareSwitcher` in `ChatterSlideOver.tsx` (mobile-only, gated per `useMediaQuery("(max-width: 640px)")` oder Tailwind-`sm:hidden`-Klassen mit zwei parallelen Render-Pfaden).
-- Aktive-Pane-State (`"primary" | "compare"`) ergänzt; Swipe via existierender Pointer-Handler-Pattern (siehe `handleDoubleTapClose`).
-- Compare-Pane wird auf Mobile nicht mehr unter dem Hauptpane gerendert, sondern in einem `motion.div` mit `display`-Toggle, damit Scroll-Position pro Pane erhalten bleibt.
-
----
-
-## 3. Reset "Heute" für Brezzels
-
-Direkter Daten-Wipe: alle Statuszeilen für Workspace Brezzels löschen. Snoozed gibt es dort keine, nur 213 done-Einträge.
-
-```sql
-DELETE FROM daily_todo_state WHERE platform = 'Brezzels';
+```text
+🚨 Eskalation        → kinds: verzug, recovery
+💱 Account-Aktionen  → kinds: swap, talent, mismatch, phase
+📊 Performance       → kinds: revenue, activity, model, slot, positive
 ```
 
-Ausgeführt als Daten-Operation (insert tool, kein Schema-Migration). Nach Reload zeigt der Heute-Tab in Brezzels alle Aufgaben wieder als offen.
+Jede Gruppe bekommt einen schlanken Sticky-Header mit Icon, Label, Anzahl und Summe €/Wo. Innerhalb der Gruppe werden Karten weiterhin nach Tone + €-Hebel sortiert (bestehende Reihenfolge aus `today-engine.ts` bleibt unangetastet — wir gruppieren nur in der Render-Ebene).
 
----
+Leere Gruppen werden komplett ausgeblendet (kein leerer Header).
 
-## Technik-Details
+## Layout
 
-**Geänderte Dateien**
-- `src/components/ChatterSlideOver.tsx` — neuer Prop `initialCompareWith`, Mobile-Switcher-Layout, Pane-Wechsel-State, optionaler Mini-Hero im Compare-Pane.
-- `src/components/PersonActionCard.tsx` — Callback-Signatur `onChatterClick(name, compareWith?)`, Übergabe von `action.secondaryChatter`.
-- `src/pages/Today.tsx` — State `selectedChatter` von `string` auf `{ name: string; compareWith: string | null }`, Prop-Durchreichung an `ChatterSlideOver`.
-- DB: `DELETE` auf `daily_todo_state` für `platform='Brezzels'`.
+```text
+┌─ 🚨 Eskalation · 3 · +1.240€/Wo ────────┐
+│  [Card] [Card] [Card]                   │
+└─────────────────────────────────────────┘
+┌─ 💱 Account-Aktionen · 2 · +680€/Wo ───┐
+│  [Card] [Card]                          │
+└─────────────────────────────────────────┘
+┌─ 📊 Performance · 4 · +320€/Wo ────────┐
+│  [Card] [Card] [Card] [Card]            │
+└─────────────────────────────────────────┘
+```
 
-**Bewusst ausgelassen**
-- Keine Änderung an Talent-Engine, Match-Logik oder €-Hebel-Berechnung.
-- Kein neuer Picker/Workflow für Compare auf Desktop.
-- Keine Änderung an `inline`-Mode (Compare-Pane rendert weiter via `inline=true`-Subinstanz).
-- Velocity-basierte Swipe-Schwellen werden bewusst vermieden (nur 120px-Distanz, gemäß Memory).
+- Header: kleines Icon + uppercase tracking-wider Label links, Count + €-Summe rechts (tabular-nums), feiner Divider darunter.
+- Abstand zwischen Gruppen größer (`space-y-5`) als zwischen Karten (`space-y-2`).
+- In den Tabs „Wins" und „Erledigt" wird **nicht** gruppiert (dort macht Thema keinen Sinn) — bleibt flach.
+- „Im Auge behalten" wird ebenfalls gruppiert, gleiche Logik.
+
+## Technische Umsetzung
+
+Nur eine Datei betroffen: `src/pages/Today.tsx`.
+
+1. Helper `groupByTheme(actions: UnifiedAction[])` direkt in der Datei:
+   - Map `kind → group` (escalation/account/performance)
+   - Gruppe wird durch `action.primaryKind` bestimmt
+   - Rückgabe: `{ id, label, icon, accent, items, sumImpact }[]` in fester Reihenfolge, leere Gruppen rausgefiltert
+2. Im Render-Block (`visibleList.map(...)`):
+   - Wenn `section === "primary" || section === "watch"` → über Gruppen iterieren und je Gruppe Header + Karten rendern
+   - Sonst (wins/done) → bestehender flacher Render
+3. Gruppe-Header als kleine inline-Komponente `<GroupHeader>` mit den oben beschriebenen Tokens. Farbakzent dezent pro Gruppe (rot-300/cyan-300/emerald-300), keine neuen CSS-Variablen nötig.
+
+Alle Card-Logik, Swipe, Vergleichsansicht, Aktionen bleiben unverändert — rein eine Render-Schicht obendrauf.
+
+## Out of scope
+
+- Keine Änderung an `today-engine.ts`, `PersonActionCard.tsx`, Sortierung, Bündelung, Tab-Struktur.
+- Keine neuen DB-Felder.
