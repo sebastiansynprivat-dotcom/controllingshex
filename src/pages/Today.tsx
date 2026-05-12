@@ -21,6 +21,45 @@ import {
 
 type SectionMode = "primary" | "watch" | "wins" | "done";
 
+type ThemeGroupId = "escalation" | "account" | "performance";
+
+const KIND_TO_GROUP: Record<ActionSourceKind, ThemeGroupId> = {
+  verzug: "escalation",
+  recovery: "escalation",
+  swap: "account",
+  talent: "account",
+  mismatch: "account",
+  phase: "account",
+  revenue: "performance",
+  activity: "performance",
+  model: "performance",
+  slot: "performance",
+  positive: "performance",
+};
+
+const GROUP_DEFS: { id: ThemeGroupId; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
+  { id: "escalation", label: "Eskalation", icon: AlertTriangle, accent: "text-red-300", dot: "bg-red-400/80" },
+  { id: "account", label: "Account-Aktionen", icon: ArrowLeftRight, accent: "text-cyan-300", dot: "bg-cyan-400/80" },
+  { id: "performance", label: "Performance", icon: BarChart3, accent: "text-emerald-300", dot: "bg-emerald-400/80" },
+];
+
+function groupByTheme(actions: UnifiedAction[]) {
+  const buckets: Record<ThemeGroupId, UnifiedAction[]> = {
+    escalation: [], account: [], performance: [],
+  };
+  for (const a of actions) {
+    const g = KIND_TO_GROUP[a.primaryKind] ?? "performance";
+    buckets[g].push(a);
+  }
+  return GROUP_DEFS
+    .map((def) => {
+      const items = buckets[def.id];
+      const sumImpact = items.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
+      return { ...def, items, sumImpact };
+    })
+    .filter((g) => g.items.length > 0);
+}
+
 function fmtEur(v: number): string {
   return Math.round(v).toLocaleString("de-DE") + " €";
 }
