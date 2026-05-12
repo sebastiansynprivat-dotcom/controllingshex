@@ -232,7 +232,7 @@ export default function Today() {
                   <PersonActionCard
                     key={a.bundleKey}
                     action={a}
-                    onChatterClick={(name) => setSelectedChatter(name)}
+                    onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
                     onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                     onAct={act}
                   />
