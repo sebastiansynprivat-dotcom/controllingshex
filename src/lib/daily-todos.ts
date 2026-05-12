@@ -193,6 +193,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         title: `${name} fehlt im Report${tag}`,
         why: `Letzte Tage regelmäßig dabei, heute nicht — Status klären.`,
         chatterName: name,
+        meta: { missingDays: 1 },
       });
       continue;
     }
