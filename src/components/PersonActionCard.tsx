@@ -21,7 +21,7 @@ import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
 
 interface Props {
   action: UnifiedAction;
-  onChatterClick?: (name: string) => void;
+  onChatterClick?: (name: string, compareWith?: string | null) => void;
   onModelClick?: (modelName: string, chatterName: string | null) => void;
   onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss") => void;
 }
