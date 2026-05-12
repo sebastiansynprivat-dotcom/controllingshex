@@ -116,7 +116,7 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
 
   const openDetails = () => {
     if (action.chatterName && onChatterClick) {
-      onChatterClick(action.chatterName);
+      onChatterClick(action.chatterName, action.secondaryChatter ?? null);
     } else if (action.modelName && onModelClick) {
       onModelClick(action.modelName, action.chatterName);
     }
