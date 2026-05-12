@@ -29,7 +29,7 @@ export default function Today() {
   const [data, setData] = useState<TodayEngineResult | null>(null);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
-  const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
+  const [selectedChatter, setSelectedChatter] = useState<{ name: string; compareWith: string | null } | null>(null);
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [section, setSection] = useState<SectionMode>("primary");
 
