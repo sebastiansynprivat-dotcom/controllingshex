@@ -209,6 +209,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         title: `${name} dringend — ${delay} Tage Verzug${tag}`,
         why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${modelSuffix}. Sofort entlasten oder Ursache klären.`,
         chatterName: name,
+        meta: { delayDays: delay, todayOpenChats },
       });
     }
 
@@ -225,6 +226,12 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)${tag}`,
           why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%)${modelSuffix}.`,
           chatterName: name,
+          meta: {
+            todayMassDms: todayDm,
+            baselineMassDms: baseDm,
+            missingMassDms: Math.max(0, Math.round(baseDm - todayDm)),
+            dropPct: drop,
+          },
         });
       }
     }
@@ -242,6 +249,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           title: `${name} checken — Umsatz −${Math.round(drop)}%${tag}`,
           why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix}.`,
           chatterName: name,
+          meta: { todayRevenue: todayRev, baselineRevenue: baseRev, dropPct: drop },
         });
       }
       // Positive Outlier
@@ -254,6 +262,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           title: `Was läuft bei ${name} richtig? (+${up}%)`,
           why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix} — Erfolgsrezept abgreifen.`,
           chatterName: name,
+          meta: { todayRevenue: todayRev, baselineRevenue: baseRev },
         });
       }
     }
@@ -270,6 +279,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         title: `${name} entlasten — ${todayChats} offene Chats${tag}`,
         why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats${modelSuffix}.`,
         chatterName: name,
+        meta: { todayOpenChats: todayChats, baselineOpenChats: baseChats },
       });
     }
   }
