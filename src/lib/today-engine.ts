@@ -29,7 +29,10 @@ export interface ActionSignal {
   kind: ActionSourceKind;
   title: string;
   why: string;
-  impactEurPerWeek: number;
+  /** Geschätzter Wochen-Hebel in € — null wenn keine valide Personen-Baseline. */
+  impactEurPerWeek: number | null;
+  /** Kurze, menschenlesbare Begründung der Schätzung. */
+  impactReason?: string;
   /** Originaler Key — für Done/Snooze/Dismiss-Persistenz. */
   todoKey: string;
   modelName?: string | null;
@@ -129,13 +132,30 @@ function median(arr: number[]): number {
 }
 
 interface ChatterStats {
+  /** Median € an Tagen mit Umsatz > 0 (30T, exkl. heute). */
   medianRevenue: number;
-  /** Anzahl Tage in den letzten 6 (exkl. heute), an denen ein Schwäche-Signal vorlag */
+  /** P75 € an aktiven Tagen — was an guten Tagen drin ist. */
+  p75Revenue: number;
+  /** Median Mass-DMs an aktiven Tagen. */
+  medianMassDms: number;
+  /** Ø € an Tagen mit ≥3 Mass-DMs. */
+  revenueWithMassDms: number;
+  /** Ø € an Tagen mit 0 Mass-DMs. */
+  revenueWithoutMassDms: number;
+  /** Differenz: was Mass-DMs dieser Person historisch bringen (€/Tag). */
+  massDmLift: number;
+  /** Anzahl auswertbarer Tage in 30T-Fenster. */
+  sampleSize: number;
   weakDays: number;
-  /** Aktuelle Streak schwacher Tage am Ende des Fensters (gestern rückwärts) */
   weakStreak: number;
-  /** Models, die zuletzt bespielt wurden */
   modelInfo: string;
+}
+
+function p75(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const idx = Math.min(s.length - 1, Math.floor(s.length * 0.75));
+  return s[idx];
 }
 
 async function loadChatterStats(
@@ -146,7 +166,7 @@ async function loadChatterStats(
     return { stats: new Map(), importanceFor: () => 1.0 };
   }
 
-  const since = isoDaysAgo(13);
+  const since = isoDaysAgo(29); // 30 Tage
   const today = todayISO();
 
   const [historyRes, modelsRes] = await Promise.all([
@@ -192,34 +212,46 @@ async function loadChatterStats(
   for (const [k, list] of byChatter) {
     const past = list.filter((r) => r.analysis_date !== today);
     const todays = list.filter((r) => r.analysis_date === today);
-    const revs = past.map((r) => Number(r.revenue_today) || 0);
-    const med = median(revs.filter((v) => v > 0));
 
-    // Sammle pro Tag
-    const dayMap = new Map<string, HistoryRow[]>();
+    // Pro Tag aggregieren (Account-Zeilen summieren)
+    const dayMap = new Map<string, { rev: number; dm: number; delay: number }>();
     for (const r of past) {
-      if (!dayMap.has(r.analysis_date)) dayMap.set(r.analysis_date, []);
-      dayMap.get(r.analysis_date)!.push(r);
+      const cur = dayMap.get(r.analysis_date) ?? { rev: 0, dm: 0, delay: 0 };
+      cur.rev += Number(r.revenue_today) || 0;
+      cur.dm += r.mass_dms ?? 0;
+      cur.delay = Math.max(cur.delay, r.response_delay_days ?? 0);
+      dayMap.set(r.analysis_date, cur);
     }
+    const days = Array.from(dayMap.values());
+    const activeDays = days.filter((d) => d.rev > 0);
+    const med = median(activeDays.map((d) => d.rev));
+    const p75r = p75(activeDays.map((d) => d.rev));
+    const medDm = median(activeDays.map((d) => d.dm));
+
+    const withDm = activeDays.filter((d) => d.dm >= 3).map((d) => d.rev);
+    const withoutDm = activeDays.filter((d) => d.dm === 0).map((d) => d.rev);
+    const avg = (a: number[]) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
+    const revWith = avg(withDm);
+    const revWithout = avg(withoutDm);
+    // Mass-DM-Lift nur wenn beide Seiten ≥2 Datentage haben
+    const lift = withDm.length >= 2 && withoutDm.length >= 2 && revWith > revWithout
+      ? revWith - revWithout
+      : 0;
 
     let weakDays = 0;
     let weakStreak = 0;
     let streakActive = true;
     for (let i = 1; i <= 6; i++) {
       const day = isoDaysAgo(i);
-      const dayRows = dayMap.get(day);
+      const d = dayMap.get(day);
       let weak = false;
-      if (!dayRows || dayRows.length === 0) {
-        // Fehlt → schwach (nur zählen wenn Person sonst aktiv war)
-        if (past.length >= 3) weak = true;
+      if (!d) {
+        if (days.length >= 3) weak = true;
       } else {
-        const dayRev = dayRows.reduce((s, r) => s + (Number(r.revenue_today) || 0), 0);
-        const dayDelay = Math.max(0, ...dayRows.map((r) => r.response_delay_days ?? 0));
-        const dayDm = dayRows.reduce((s, r) => s + (r.mass_dms ?? 0), 0);
         if (
-          (med > 0 && dayRev < med * 0.5) ||
-          dayDelay >= 1 ||
-          (med > 0 && dayDm === 0)
+          (med > 0 && d.rev < med * 0.5) ||
+          d.delay >= 1 ||
+          (med > 0 && d.dm === 0)
         ) {
           weak = true;
         }
@@ -232,7 +264,6 @@ async function loadChatterStats(
       }
     }
 
-    // Model-Info für heute
     const accs = new Set<string>();
     for (const e of todays) {
       for (const part of (e.account || "").split(",")) {
@@ -246,11 +277,20 @@ async function loadChatterStats(
           .map((a) => `${a} (${fmtFollowers(followersByModel.get(a.toLowerCase()) ?? 0)})`)
           .join(", ");
 
-    stats.set(k, { medianRevenue: med, weakDays, weakStreak, modelInfo });
+    stats.set(k, {
+      medianRevenue: med,
+      p75Revenue: p75r,
+      medianMassDms: medDm,
+      revenueWithMassDms: revWith,
+      revenueWithoutMassDms: revWithout,
+      massDmLift: lift,
+      sampleSize: days.length,
+      weakDays,
+      weakStreak,
+      modelInfo,
+    });
 
-    // Totals (für Importance) — letzte 14T
-    const total = list.reduce((s, r) => s + (Number(r.revenue_today) || 0), 0);
-    totals30.set(k, total);
+    totals30.set(k, days.reduce((s, d) => s + d.rev, 0));
   }
 
   const arr = Array.from(totals30.values()).filter((v) => v > 0).sort((a, b) => b - a);
@@ -266,24 +306,92 @@ async function loadChatterStats(
   return { stats, importanceFor };
 }
 
-/** Heuristische €-Schätzung für Aufgaben ohne expliziten Impact. */
-function estimateImpactForTodo(t: DailyTodo, medianRev: number): number {
-  const base = medianRev > 0 ? medianRev : 80;
+const MIN_SAMPLE = 5;
+const fmtE = (n: number) => Math.round(n).toLocaleString("de-DE");
+
+interface ImpactResult {
+  impact: number | null;
+  reason: string;
+}
+
+/**
+ * Personalisierte €-Hebel-Schätzung pro Todo. Liefert null, wenn die
+ * Datenbasis zu dünn ist — UI zeigt dann „?" statt einer Phantasiezahl.
+ */
+function estimateImpactForTodo(t: DailyTodo, stats: ChatterStats | undefined): ImpactResult {
+  const meta = t.meta ?? {};
+  const noStat = !stats || stats.sampleSize < MIN_SAMPLE;
+  const med = stats?.medianRevenue ?? 0;
+  const cap = (v: number) => (med > 0 ? Math.min(v, med * 14) : v);
+
   switch (t.category) {
-    case "verzug":
-      // Pro Tag Verzug ~ halber Median-Tagesumsatz, ×7 Tage Wirkung
-      return Math.round(base * 0.5 * 7);
-    case "revenue":
-      return Math.round(base * 0.6 * 7);
-    case "activity":
-      return Math.round(base * 0.3 * 7);
-    case "model":
-      return 350;
-    case "talent":
-      return 250;
+    case "verzug": {
+      if (noStat || med <= 0) return { impact: null, reason: "Zu wenig Historie" };
+      const days = Math.min(3, Math.max(1, meta.delayDays ?? 1));
+      const impact = cap(med * (days / 3) * 7);
+      return {
+        impact,
+        reason: `Median ${fmtE(med)}€/Tag · ${days}T Verzug ≈ ${Math.round((days / 3) * 100)}% Tagespotenzial × 7`,
+      };
+    }
+    case "revenue": {
+      if (noStat) return { impact: null, reason: "Zu wenig Historie" };
+      const todayRev = meta.todayRevenue ?? 0;
+      const base = meta.baselineRevenue ?? med;
+      const gap = Math.max(0, base - todayRev);
+      if (gap <= 0) return { impact: null, reason: "Kein klarer Drop" };
+      const impact = cap(gap * 7 * 0.6);
+      return { impact, reason: `Drop ${fmtE(gap)}€ heute (Ø ${fmtE(base)}€) × 7T × 60% Recovery` };
+    }
+    case "activity": {
+      if (noStat) return { impact: null, reason: "Zu wenig Historie" };
+      if (meta.missingMassDms != null && meta.missingMassDms > 0) {
+        if (stats!.massDmLift <= 0) {
+          return { impact: null, reason: "Kein historischer Mass-DM-Effekt messbar" };
+        }
+        const ratio = Math.min(1, meta.missingMassDms / 6);
+        const impact = cap(stats!.massDmLift * 7 * ratio);
+        return {
+          impact,
+          reason: `Mass-DM-Tage bringen +${fmtE(stats!.massDmLift)}€/Tag · ${meta.missingMassDms} fehlend × 7`,
+        };
+      }
+      if (meta.todayOpenChats != null && meta.baselineOpenChats != null && med > 0) {
+        if (meta.todayOpenChats < meta.baselineOpenChats * 2) return { impact: null, reason: "" };
+        return { impact: cap(med * 0.25 * 7), reason: `Jam ≈ 25% Tagespotenzial × 7` };
+      }
+      if (meta.missingDays != null && med > 0) {
+        const d = Math.min(3, meta.missingDays);
+        return { impact: cap(med * d), reason: `${d}× Median-Tag verloren` };
+      }
+      return { impact: null, reason: "" };
+    }
+    case "model": {
+      const dropPerDay = meta.modelDropPerDay ?? 0;
+      if (dropPerDay <= 0) return { impact: null, reason: "Drop-Höhe nicht quantifizierbar" };
+      return { impact: dropPerDay * 7, reason: `Model-Drop ${fmtE(dropPerDay)}€/Tag × 7` };
+    }
+    case "talent": {
+      if (noStat || med <= 0) return { impact: null, reason: "Riser ohne stabile Historie" };
+      const score = meta.matchScore ?? 60;
+      const impact = cap(med * 7 * (score / 100));
+      return {
+        impact,
+        reason: `Riser-Median ${fmtE(med)}€/Tag × 7 × Match ${Math.round(score)}%`,
+      };
+    }
     case "positive":
-      return 0;
+      return { impact: null, reason: "Win — kein €-Hebel" };
   }
+}
+
+function estimateImpactForRevenueTask(r: RevenueTask, stats: ChatterStats | undefined): ImpactResult {
+  const med = stats?.medianRevenue ?? 0;
+  const raw = Math.round(r.impactEurPerWeek);
+  if (raw <= 0) return { impact: null, reason: "" };
+  const capped = med > 0 ? Math.min(raw, med * 14) : raw;
+  const note = capped < raw ? ` (gecappt auf 2× Wochenmedian)` : "";
+  return { impact: capped, reason: `${r.kind}-Engine: ${fmtE(capped)}€/Wo${note}` };
 }
 
 function pickPrimaryKind(kinds: ActionSourceKind[]): ActionSourceKind {
@@ -323,7 +431,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }[] = [];
 
   for (const t of todos) {
-    const med = t.chatterName ? (stats.get(normalizeChatterName(t.chatterName))?.medianRevenue ?? 0) : 0;
+    const stat = t.chatterName ? stats.get(normalizeChatterName(t.chatterName)) : undefined;
+    const est = estimateImpactForTodo(t, stat);
     signals.push({
       chatterName: t.chatterName ?? null,
       chatterKey: t.chatterName ? normalizeChatterName(t.chatterName) : null,
@@ -334,7 +443,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         kind: t.category,
         title: t.title,
         why: t.why,
-        impactEurPerWeek: estimateImpactForTodo(t, med),
+        impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
+        impactReason: est.reason,
         todoKey: t.key,
         modelName: t.modelName ?? null,
         compareWith: t.compareWith ?? null,
@@ -342,6 +452,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     });
   }
   for (const r of revTasks) {
+    const stat = r.chatterName ? stats.get(normalizeChatterName(r.chatterName)) : undefined;
+    const est = estimateImpactForRevenueTask(r, stat);
     signals.push({
       chatterName: r.chatterName ?? null,
       chatterKey: r.chatterName ? normalizeChatterName(r.chatterName) : null,
@@ -352,7 +464,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         kind: r.kind,
         title: r.title,
         why: r.why,
-        impactEurPerWeek: Math.round(r.impactEurPerWeek),
+        impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
+        impactReason: est.reason,
         todoKey: r.key,
         modelName: r.modelName ?? null,
         secondaryChatter: r.secondaryChatter ?? null,
@@ -395,7 +508,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     const sigs = b.signals;
     const kinds = sigs.map((s) => s.kind);
     const primaryKind = pickPrimaryKind(kinds);
-    const totalImpact = sigs.reduce((s, x) => s + x.impactEurPerWeek, 0);
+    const totalImpact = sigs.reduce((s, x) => s + (x.impactEurPerWeek ?? 0), 0);
     const chatterKey = b.chatterName ? normalizeChatterName(b.chatterName) : null;
     const stat = chatterKey ? stats.get(chatterKey) : undefined;
     const persistence = stat ? Math.max(stat.weakStreak, Math.min(stat.weakDays, 6)) : 1;

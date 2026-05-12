@@ -24,6 +24,22 @@ export interface DailyTodo {
   modelName?: string | null;
   /** Optional: zweiter Chatter für direkten Vergleich (Talent-Match → Wechselmodus) */
   compareWith?: string | null;
+  /** Strukturierte Zahlen für realistische €-Hebel-Berechnung im today-engine. */
+  meta?: {
+    delayDays?: number;
+    dropPct?: number;
+    todayRevenue?: number;
+    baselineRevenue?: number;
+    todayMassDms?: number;
+    baselineMassDms?: number;
+    missingMassDms?: number;
+    todayOpenChats?: number;
+    baselineOpenChats?: number;
+    missingDays?: number;
+    riserMedianRev?: number;
+    matchScore?: number;
+    modelDropPerDay?: number;
+  };
 }
 
 export interface TodoState {
@@ -177,6 +193,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         title: `${name} fehlt im Report${tag}`,
         why: `Letzte Tage regelmäßig dabei, heute nicht — Status klären.`,
         chatterName: name,
+        meta: { missingDays: 1 },
       });
       continue;
     }
@@ -192,6 +209,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         title: `${name} dringend — ${delay} Tage Verzug${tag}`,
         why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${modelSuffix}. Sofort entlasten oder Ursache klären.`,
         chatterName: name,
+        meta: { delayDays: delay, todayOpenChats },
       });
     }
 
@@ -208,6 +226,12 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)${tag}`,
           why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%)${modelSuffix}.`,
           chatterName: name,
+          meta: {
+            todayMassDms: todayDm,
+            baselineMassDms: baseDm,
+            missingMassDms: Math.max(0, Math.round(baseDm - todayDm)),
+            dropPct: drop,
+          },
         });
       }
     }
@@ -225,6 +249,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           title: `${name} checken — Umsatz −${Math.round(drop)}%${tag}`,
           why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix}.`,
           chatterName: name,
+          meta: { todayRevenue: todayRev, baselineRevenue: baseRev, dropPct: drop },
         });
       }
       // Positive Outlier
@@ -237,6 +262,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           title: `Was läuft bei ${name} richtig? (+${up}%)`,
           why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix} — Erfolgsrezept abgreifen.`,
           chatterName: name,
+          meta: { todayRevenue: todayRev, baselineRevenue: baseRev },
         });
       }
     }
@@ -253,6 +279,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         title: `${name} entlasten — ${todayChats} offene Chats${tag}`,
         why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats${modelSuffix}.`,
         chatterName: name,
+        meta: { todayOpenChats: todayChats, baselineOpenChats: baseChats },
       });
     }
   }
@@ -267,6 +294,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     try {
       const troubles = await detectModelTroubles(platform, modelNames);
       for (const t of troubles.slice(0, 8)) {
+        const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
+          ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
+          : 0;
         todos.push({
           key: `model:${t.modelName}:${today}`,
           category: "model",
@@ -275,6 +305,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           why: t.reason,
           modelName: t.modelName,
           chatterName: t.currentChatter,
+          meta: { modelDropPerDay: dropPerDay },
         });
       }
     } catch (e) {
@@ -299,6 +330,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/6 davor)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} jetzt live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
         chatterName: m.riser,
         compareWith: m.underuser,
+        meta: { matchScore: m.matchScore },
       });
     }
     // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse

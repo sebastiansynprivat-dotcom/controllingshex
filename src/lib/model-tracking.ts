@@ -44,6 +44,10 @@ export interface ModelTrouble {
   severity: "high" | "medium";
   currentChatter: string | null;
   deltaPct: number | null;
+  /** Aktueller €/Tag-Schnitt (current phase oder last7) — Basis für Hebel-Schätzung. */
+  currentAvgPerDay: number | null;
+  /** Vergleichs €/Tag-Schnitt (previous phase oder 30T-Schnitt). */
+  baselineAvgPerDay: number | null;
 }
 
 /**
@@ -165,6 +169,8 @@ export async function detectModelTroubles(
         severity: tl.vsPreviousPct <= -40 ? "high" : "medium",
         currentChatter: tl.currentPhase.chatterName,
         deltaPct: tl.vsPreviousPct,
+        currentAvgPerDay: tl.currentPhase.avgPerDay,
+        baselineAvgPerDay: tl.previousPhase.avgPerDay,
       });
       continue;
     }
@@ -183,6 +189,8 @@ export async function detectModelTroubles(
           severity: dropPct <= -50 ? "high" : "medium",
           currentChatter: tl.currentPhase?.chatterName ?? null,
           deltaPct: dropPct,
+          currentAvgPerDay: avg7,
+          baselineAvgPerDay: avg30,
         });
       }
     }
