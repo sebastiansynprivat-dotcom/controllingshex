@@ -114,9 +114,18 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
   const impactStr = fmtEur(action.totalImpactEurPerWeek);
   const hasImpact = impactStr !== "—";
 
-  const openDetails = () => {
+  // Talent-Compare-Target: bevorzuge Talent-Signal, sonst irgendein Signal mit compareWith/secondaryChatter
+  const compareTarget = (() => {
+    if (action.secondaryChatter) return action.secondaryChatter;
+    const talent = action.signals.find((s) => s.kind === "talent" && (s.compareWith || s.secondaryChatter));
+    if (talent) return talent.compareWith ?? talent.secondaryChatter ?? null;
+    const any = action.signals.find((s) => s.compareWith || s.secondaryChatter);
+    return any?.compareWith ?? any?.secondaryChatter ?? null;
+  })();
+
+  const openDetails = (overrideCompare?: string | null) => {
     if (action.chatterName && onChatterClick) {
-      onChatterClick(action.chatterName, action.secondaryChatter ?? null);
+      onChatterClick(action.chatterName, overrideCompare !== undefined ? overrideCompare : compareTarget);
     } else if (action.modelName && onModelClick) {
       onModelClick(action.modelName, action.chatterName);
     }
