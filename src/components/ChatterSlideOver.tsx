@@ -186,7 +186,7 @@ function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false }: Props) {
+export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
