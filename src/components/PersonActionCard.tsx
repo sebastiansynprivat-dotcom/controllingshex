@@ -217,12 +217,19 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] text-foreground/80 font-light leading-snug">{s.title}</p>
                       <p className="text-[10.5px] text-white/40 font-light mt-0.5 leading-relaxed">{s.why}</p>
+                      {s.impactReason && (
+                        <p className="text-[10px] text-white/30 font-light mt-0.5 italic leading-relaxed">
+                          € · {s.impactReason}
+                        </p>
+                      )}
                     </div>
-                    {s.impactEurPerWeek > 0 && (
+                    {s.impactEurPerWeek != null && s.impactEurPerWeek > 0 ? (
                       <span className="text-[10px] tabular-nums text-emerald-300/80 shrink-0 mt-0.5">
                         +{Math.round(s.impactEurPerWeek)}€
                       </span>
-                    )}
+                    ) : s.impactEurPerWeek == null ? (
+                      <span className="text-[10px] tabular-nums text-white/30 shrink-0 mt-0.5">?</span>
+                    ) : null}
                   </div>
                 );
               })}
