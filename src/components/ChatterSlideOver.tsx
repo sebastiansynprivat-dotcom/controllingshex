@@ -49,6 +49,8 @@ interface Props {
   chatterName: string;
   platform: string;
   inline?: boolean;
+  /** Optional: zweiter Chatter, mit dem die Vergleichsansicht direkt geöffnet wird. */
+  initialCompareWith?: string | null;
 }
 
 function toTitleCase(name: string): string {
