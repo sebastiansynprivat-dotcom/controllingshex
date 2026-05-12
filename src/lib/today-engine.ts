@@ -437,30 +437,3 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   return { primary, watchlist, wins, totalImpactEurPerWeek };
 }
 
-/** Versucht den Chatter-Namen aus dem Signal-Titel zu extrahieren (Fallback für Talent/Swap). */
-function findOriginalName(_title: string): string | null {
-  return null;
-}
-
-function extractChatterFromSignal(
-  s: { chatterKey: string | null; signal: ActionSignal },
-  all: { chatterKey: string | null; signal: ActionSignal }[],
-): string | null {
-  if (!s.chatterKey) return null;
-  // Suche im Original-Set nach dem Chatter mit derselben Normalisierung
-  for (const x of all) {
-    if (x.chatterKey === s.chatterKey) {
-      // Ziel: hübsch-formatierter Originalname. Wir haben den nicht direkt,
-      // aber title oder why enthält ihn meist. Einfacher: Capitalize key.
-      return prettifyKey(s.chatterKey);
-    }
-  }
-  return prettifyKey(s.chatterKey);
-}
-
-function prettifyKey(k: string): string {
-  return k
-    .split("_")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join("_");
-}
