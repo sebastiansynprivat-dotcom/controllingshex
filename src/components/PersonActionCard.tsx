@@ -260,8 +260,17 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
             <div className="px-4 pl-5 pb-4 -mt-1 space-y-2">
               {action.signals.map((s) => {
                 const Icon = KIND_ICON[s.kind] ?? Gem;
+                const sigCompare = s.compareWith ?? s.secondaryChatter ?? null;
+                const isClickable = s.kind === "talent" && !!sigCompare && !!action.chatterName;
                 return (
-                  <div key={s.todoKey} className="flex items-start gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                  <div
+                    key={s.todoKey}
+                    onClick={isClickable ? (e) => { stop(e); openDetails(sigCompare); } : undefined}
+                    className={cn(
+                      "flex items-start gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5",
+                      isClickable && "cursor-pointer hover:bg-white/[0.05] hover:border-white/10 transition-colors",
+                    )}
+                  >
                     <div className="h-6 w-6 rounded-md bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
                       <Icon className="h-3 w-3 text-white/55" />
                     </div>
@@ -271,6 +280,11 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
                       {s.impactReason && (
                         <p className="text-[10px] text-white/30 font-light mt-0.5 italic leading-relaxed">
                           € · {s.impactReason}
+                        </p>
+                      )}
+                      {isClickable && (
+                        <p className="text-[10px] text-cyan-300/70 font-medium mt-1">
+                          Vergleich öffnen →
                         </p>
                       )}
                     </div>
