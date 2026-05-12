@@ -201,10 +201,21 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const lastTapRef = useRef<number>(0);
 
   // Compare-Mode (nur im non-inline Slide-Over verfügbar)
-  const [compareWith, setCompareWith] = useState<string | null>(null);
+  const [compareWith, setCompareWith] = useState<string | null>(initialCompareWith);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const [chatterList, setChatterList] = useState<string[]>([]);
+  // Mobile: welche Pane sichtbar ist im Vergleichsmodus
+  const [activePane, setActivePane] = useState<"primary" | "compare">("primary");
+
+  // Re-init compareWith wenn initialCompareWith vom Caller wechselt (anderer Talent-Klick)
+  useEffect(() => {
+    if (open && initialCompareWith && initialCompareWith !== compareWith) {
+      setCompareWith(initialCompareWith);
+      setActivePane("primary");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialCompareWith]);
 
   // Models & Logins (Mail/Passwort der vom Chatter betreuten Models)
   const [chatterModels, setChatterModels] = useState<{ name: string; email: string | null; password: string | null }[]>(
