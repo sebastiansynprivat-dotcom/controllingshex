@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -11,6 +11,7 @@ import {
   buildTodayActions,
   type UnifiedAction,
   type TodayEngineResult,
+  type ActionSourceKind,
 } from "@/lib/today-engine";
 import {
   loadTodoStates,
@@ -19,6 +20,45 @@ import {
 } from "@/lib/daily-todos";
 
 type SectionMode = "primary" | "watch" | "wins" | "done";
+
+type ThemeGroupId = "escalation" | "account" | "performance";
+
+const KIND_TO_GROUP: Record<ActionSourceKind, ThemeGroupId> = {
+  verzug: "escalation",
+  recovery: "escalation",
+  swap: "account",
+  talent: "account",
+  mismatch: "account",
+  phase: "account",
+  revenue: "performance",
+  activity: "performance",
+  model: "performance",
+  slot: "performance",
+  positive: "performance",
+};
+
+const GROUP_DEFS: { id: ThemeGroupId; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
+  { id: "escalation", label: "Eskalation", icon: AlertTriangle, accent: "text-red-300", dot: "bg-red-400/80" },
+  { id: "account", label: "Account-Aktionen", icon: ArrowLeftRight, accent: "text-cyan-300", dot: "bg-cyan-400/80" },
+  { id: "performance", label: "Performance", icon: BarChart3, accent: "text-emerald-300", dot: "bg-emerald-400/80" },
+];
+
+function groupByTheme(actions: UnifiedAction[]) {
+  const buckets: Record<ThemeGroupId, UnifiedAction[]> = {
+    escalation: [], account: [], performance: [],
+  };
+  for (const a of actions) {
+    const g = KIND_TO_GROUP[a.primaryKind] ?? "performance";
+    buckets[g].push(a);
+  }
+  return GROUP_DEFS
+    .map((def) => {
+      const items = buckets[def.id];
+      const sumImpact = items.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
+      return { ...def, items, sumImpact };
+    })
+    .filter((g) => g.items.length > 0);
+}
 
 function fmtEur(v: number): string {
   return Math.round(v).toLocaleString("de-DE") + " €";
@@ -225,6 +265,46 @@ export default function Today() {
             </div>
           ) : visibleList.length === 0 ? (
             <EmptyState section={section} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
+          ) : section === "primary" || section === "watch" ? (
+            <div className="space-y-5">
+              <AnimatePresence initial={false}>
+                {groupByTheme(visibleList).map((g) => {
+                  const Icon = g.icon;
+                  return (
+                    <div key={g.id} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 px-1 pb-1.5 border-b border-white/[0.06]">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("h-1.5 w-1.5 rounded-full", g.dot)} />
+                          <Icon className={cn("h-3.5 w-3.5", g.accent)} />
+                          <span className={cn("text-[10.5px] font-semibold uppercase tracking-widest", g.accent)}>
+                            {g.label}
+                          </span>
+                          <span className="text-[10.5px] tabular-nums text-white/35 font-light">
+                            · {g.items.length}
+                          </span>
+                        </div>
+                        {g.sumImpact > 0 && (
+                          <span className="text-[10.5px] tabular-nums text-emerald-300/80 font-light">
+                            +{fmtEur(g.sumImpact)}/Wo
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {g.items.map((a) => (
+                          <PersonActionCard
+                            key={a.bundleKey}
+                            action={a}
+                            onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                            onAct={act}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
           ) : (
             <div className="space-y-2">
               <AnimatePresence initial={false}>
