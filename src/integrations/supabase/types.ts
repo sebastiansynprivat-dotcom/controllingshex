@@ -1021,6 +1021,33 @@ export type Database = {
         }
         Relationships: []
       }
+      talent_account_rejections: {
+        Row: {
+          account_norm: string
+          id: string
+          platform: string
+          rejected_at: string
+          riser_norm: string
+          user_id: string
+        }
+        Insert: {
+          account_norm: string
+          id?: string
+          platform?: string
+          rejected_at?: string
+          riser_norm: string
+          user_id: string
+        }
+        Update: {
+          account_norm?: string
+          id?: string
+          platform?: string
+          rejected_at?: string
+          riser_norm?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       text_snippets: {
         Row: {
           body: string

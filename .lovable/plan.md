@@ -1,47 +1,44 @@
-## Problem
-Karten basieren auf dem letzten Report-Snapshot (`chatter_history`) — Live-Daten (`chatter_history_live`) werden nur für „Wieder aktiv" genutzt. Folge:
-- Recovery „−80 % Median" bleibt sichtbar, obwohl Chatter heute live wieder gut Umsatz macht
-- „Sonja SCH entlasten — 79 offene Chats" bleibt, obwohl live nur noch 9 unread sind
-- Verzug-Karten bleiben, obwohl live alles abgearbeitet wurde
+## Ziel
+Auf Talent-Karten („🚀 Riser auf Account X hochziehen") einen Button **„↻ Anderer Account"** zeigen. Klick → die aktuelle Riser-Account-Kombi wird abgelehnt und die Engine schlägt einen anderen verwaisten Account vor — **niemals einen, der gerade in einer anderen Talent-Karte steht**.
 
-## Fix
-**Live-Snapshot als Suppress-Layer** zentral in `src/lib/today-engine.ts`. Direkt vor dem Bucket-Bauen jeden Signal gegen die Live-Werte des Chatters checken — wenn das Problem live nicht mehr existiert, Karte **droppen**. Wo sinnvoll, wird der angezeigte Wert (offene Chats, Heute-Umsatz) zusätzlich auf den Live-Stand aktualisiert.
+## DB
+**Neue Tabelle `talent_account_rejections`**
+- `user_id uuid`, `platform text`, `riser_norm text`, `account_norm text`, `rejected_at timestamptz default now()`
+- RLS: own-row select/insert/delete
+- Lookup: alle Einträge mit `rejected_at >= now() - 7 days` aktiv (ältere fließen wieder ein)
 
-### Architektur
+## Code
 
-In `buildTodayActions`:
-1. Bereits existierende `liveRes` (Zeile ~508, holt `revenue, mass_dms, unread_chats`) hochziehen, sodass nicht nur `detectWakeups` sie sieht.
-2. Eine `liveSnapshot: Map<chatterKey, { rev, dm, unread }>` aufbauen (aggregiert über alle Account-Zeilen pro Chatter, analog zu `liveToday` in `detectWakeups`).
-3. Nach Signal-Generierung (vor `buckets`) Suppress-Filter laufen lassen.
+### `src/lib/talent-rejections.ts` (neu)
+- `loadActiveRejections(platform): Promise<Set<string>>` → Set aus `${riserNorm}|${accountNorm}`
+- `addRejection(platform, riserName, accountName)` → insert
 
-### Suppress-Regeln (konkret)
+### `src/lib/talent-scout.ts`
+- `findTalentMatches(platform, rejectedPairs?: Set<string>)` — beim Auswählen des `candidate` zusätzlich filtern: `if (rejectedPairs.has(\`${wKey}|${norm(o.a.account)}\`)) return false;`
+- `usedOrphans` bleibt → der Ersatz-Account taucht nicht in einer anderen Talent-Karte auf (existierende Logik)
 
-Pro `signal.kind` und Chatter-Live-Werten:
+### `src/lib/daily-todos.ts`
+- Rejections vor `findTalentMatches` laden, übergeben
+- Talent-Todo `meta` erweitern: `{ matchScore, riserNorm, accountNorm, accountLabel }`
 
-| Kind | Suppress wenn … |
-|---|---|
-| `recovery` | `live.rev >= baseline * 0.7` (Chatter ist heute wieder ≥70 % des Medians) |
-| `revenue` (Drop-Karte) | `live.rev >= meta.baselineRevenue * 0.7` |
-| `verzug` | `live.unread <= max(5, baseline.openChats * 0.3)` UND `live.rev > 0` |
-| `activity` (Jam, "X entlasten") | `live.unread <= max(10, meta.baselineOpenChats * 0.5)` |
-| `activity` (Mass-DM-Drop) | `live.dm >= meta.baselineMassDms * 0.7` |
-| `activity` (Inaktiv „fehlt im Report") | `live.rev > 0 OR live.dm > 0 OR live.unread > 0` |
+### `src/lib/today-engine.ts`
+- `ActionSignal` um optionales `rejectAccount?: { riser: string; account: string; label: string }` erweitern
+- Bei `t.category === "talent"` mit `meta.accountNorm` → Feld setzen
 
-Andere Kinds (`swap`, `mismatch`, `phase`, `slot`, `model`, `talent`, `potential`, `wakeup`, `positive`) bleiben unberührt — die hängen nicht an Tages-Snapshot-Werten.
+### `src/components/PersonActionCard.tsx`
+- Wenn `headlineSignal.rejectAccount` vorhanden → kleiner Button im Footer (links neben Snooze/Dismiss/Done): „↻ Anderer Account" mit `RefreshCw`-Icon. Klick → `onAct(action, "reject-account")`
+- Bei gebündelten Karten: nur zeigen wenn primaryKind `talent` ist
 
-### Wert-Refresh (zusätzlich zum Suppress)
+### `src/pages/Today.tsx`
+- `act`-Funktion: neuer Kind `"reject-account"`. Holt aus `action.signals[0].rejectAccount` riser+account, ruft `addRejection`, dann `buildTodayActions(platform)` neu laden, Toast „Anderer Account gesucht".
 
-Wenn Karte nicht gedroppt wird aber Live-Werte existieren, im `why`-Text die alte Snapshot-Zahl durch Live-Zahl ersetzen:
-- „79 offene Chats" → „X offene Chats (live)" wenn `live.unread` vorhanden
-- „Heute 12 €" → „Heute 12 € (live: Y €)" wenn deutlich abweichend
+## Verhalten
+- Klick „↻ Anderer Account" → diese Karte verschwindet, neue Talent-Karte mit dem **nächstbesten freien** Orphan-Account erscheint (sofern vorhanden)
+- Abgelehnte Kombi bleibt 7 Tage gesperrt — danach kann sie wieder vorgeschlagen werden
+- Wenn kein anderer freier Account passt → keine Ersatzkarte (still)
+- Orphan-Warnungen (Solo „Account X liegt brach") bleiben unverändert — kein Button, da kein Riser-Vorschlag
 
-Konkret nur für `activity`-Jam und `revenue`-Drop — verhindert Verwirrung („live aktuell" als kleiner Tag im Why).
-
-### Edge Cases
-- Kein Live-Eintrag für den Chatter → Karte bleibt unverändert (kein Suppress)
-- Live älter als Schwelle: Datenfrische über `updated_at` aus `chatter_history_live` checken — wenn > 60 min alt, Live ignorieren (sonst suppressen wir basierend auf veraltetem Live-Stand)
-
-### Nicht geändert
-- Keine Änderung an `daily-todos.ts` oder `revenue-tasks.ts` selbst — die generieren weiter auf Report-Basis. Nur das Merge-Layer in `today-engine.ts` filtert.
-- Bucket-/Scoring-/Section-Logik bleibt
-- Kein DB-Eingriff
+## Nicht geändert
+- Scoring / Sortierung
+- Andere Card-Typen
+- Talent-Match-Algorithmus selbst

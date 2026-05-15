@@ -293,9 +293,13 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
   return aggs;
 }
 
-export async function findTalentMatches(platform: string): Promise<TalentMatch[]> {
+export async function findTalentMatches(
+  platform: string,
+  rejectedPairs?: Set<string>,
+): Promise<TalentMatch[]> {
   const aggs = await loadAggs(platform);
   if (aggs.length === 0) return [];
+  const rejected = rejectedPairs ?? new Set<string>();
 
   // Workhorses — nach Verlässlichkeit der letzten Tage.
   const workhorses = aggs
@@ -329,6 +333,8 @@ export async function findTalentMatches(platform: string): Promise<TalentMatch[]
       if (usedOrphans.has(oKey)) return false;
       if (oKey === wKey) return false;
       if (TIER_RANK[o.a.tier!.id] < ownTierRank) return false;
+      // Abgelehnte Riser↔Account-Kombi überspringen
+      if (rejected.has(`${wKey}|${norm(o.a.account)}`)) return false;
       return true;
     });
     if (!candidate) continue;

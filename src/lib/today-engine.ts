@@ -43,6 +43,8 @@ export interface ActionSignal {
   secondaryChatter?: string | null;
   /** v3 — historische Belege (Account-Fit-Matrix), max 3 Zeilen */
   evidence?: EvidenceRow[];
+  /** Talent-Karte: erlaubt „Anderer Account"-Button, sperrt diese Kombi 7T */
+  rejectAccount?: { riser: string; account: string } | null;
 }
 
 export interface UnifiedAction {
@@ -769,6 +771,9 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         todoKey: t.key,
         modelName: t.modelName ?? null,
         compareWith: t.compareWith ?? null,
+        rejectAccount: t.category === "talent" && t.meta?.rejectAccountRiser && t.meta?.rejectAccountName
+          ? { riser: t.meta.rejectAccountRiser, account: t.meta.rejectAccountName }
+          : null,
       },
     });
   }
