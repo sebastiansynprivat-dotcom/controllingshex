@@ -22,11 +22,13 @@ import {
 } from "@/lib/revenue-tasks";
 import { normalizeChatterName } from "@/lib/active-chatters";
 import { loadRoiMultipliers } from "@/lib/action-outcomes";
+import { loadAccountFitMatrix } from "@/lib/account-fit";
+import { generatePotentialSignals, type PotentialSignal, type EvidenceRow } from "@/lib/potential-detector";
 
-export type ActionSourceKind = TodoCategory | RevenueTaskKind;
+export type ActionSourceKind = TodoCategory | RevenueTaskKind | "potential";
 
 export interface ActionSignal {
-  source: "todo" | "revenue";
+  source: "todo" | "revenue" | "potential";
   kind: ActionSourceKind;
   title: string;
   why: string;
@@ -39,6 +41,8 @@ export interface ActionSignal {
   modelName?: string | null;
   compareWith?: string | null;
   secondaryChatter?: string | null;
+  /** v3 — historische Belege (Account-Fit-Matrix), max 3 Zeilen */
+  evidence?: EvidenceRow[];
 }
 
 export interface UnifiedAction {
@@ -95,6 +99,8 @@ const SOLO_KINDS = new Set<ActionSourceKind>([
   "slot",
   "model",
   "mismatch",
+  // v3 Potenzial — eigene Karte mit Evidence-Block, nicht in Personenbündel
+  "potential",
 ]);
 
 const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "positive"> = {
@@ -109,12 +115,14 @@ const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "
   model: "info",
   talent: "info",
   positive: "positive",
+  potential: "info",
 };
 
 const KIND_PRIORITY: ActionSourceKind[] = [
   "verzug",
   "recovery",
   "revenue",
+  "potential",
   "phase",
   "mismatch",
   "activity",
@@ -466,13 +474,39 @@ export interface TodayEngineResult {
 const PRIMARY_LIMIT = 6;
 
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
-  const [todos, revTasks, statsBundle, roiMap] = await Promise.all([
+  const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
     loadChatterStats(platform),
     loadRoiMultipliers(platform),
+    loadAccountFitMatrix(platform),
+    supabase.auth.getUser().then(({ data }) =>
+      data.user
+        ? supabase
+            .from("models")
+            .select("model_name, follower_count")
+            .eq("user_id", data.user.id)
+            .ilike("platform", platform)
+        : { data: [] as { model_name: string; follower_count: number }[] }
+    ),
   ]);
   const { stats, importanceFor } = statsBundle;
+
+  // followers-Map für Potential-Detector
+  const followersByAcc = new Map<string, number>();
+  for (const m of (modelsRes.data ?? []) as { model_name: string; follower_count: number }[]) {
+    if (!m.model_name) continue;
+    const k = m.model_name.toLowerCase().trim();
+    const v = Number(m.follower_count) || 0;
+    if ((followersByAcc.get(k) ?? 0) < v) followersByAcc.set(k, v);
+  }
+
+  let potentialSignals: PotentialSignal[] = [];
+  try {
+    potentialSignals = await generatePotentialSignals(platform, fitMatrix, followersByAcc);
+  } catch (e) {
+    console.warn("[today-engine] potential detector failed", e);
+  }
 
   // Map alle Sources in ActionSignals
   const signals: {
@@ -507,6 +541,29 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   for (const r of revTasks) {
     const stat = r.chatterName ? stats.get(normalizeChatterName(r.chatterName)) : undefined;
     const est = estimateImpactForRevenueTask(r, stat);
+    let impact = est.impact != null ? Math.round(est.impact) : null;
+    let why = r.why;
+    let evidence: EvidenceRow[] | undefined;
+
+    // v3 — Swap-Engine Fit-Check: vor Push gegen Account-Fit-Matrix gegenchecken
+    if (r.kind === "swap" && r.chatterName && r.modelName) {
+      const fit = fitMatrix.byPair.get(`${normalizeChatterName(r.chatterName)}|${r.modelName.toLowerCase()}`);
+      if (fit && fit.days >= 3 && fit.fitScore < 40) {
+        // Self-fit-check: dieser Empfänger floppte historisch auf diesem Account → verwerfen
+        continue;
+      }
+      if (fit && fit.fitScore >= 70 && fit.days >= 5) {
+        // Cross-fit-boost
+        if (impact != null) impact = Math.round(impact * 1.4);
+        const fmtD = (iso: string | null) => iso ? `${new Date(iso).getDate()}.${new Date(iso).getMonth() + 1}.` : "?";
+        evidence = [
+          { text: `${r.chatterName} auf ${r.modelName}: Ø ${Math.round(fit.avgPerDay).toLocaleString("de-DE")} €/Tag (${fmtD(fit.lastPhaseFrom)}–${fmtD(fit.lastPhaseTo)}, ${fit.lastPhaseDays}T)` },
+          { text: `Fit-Score ${fit.fitScore}/100 — historisch bestätigt` },
+        ];
+        why = `${why} ✓ Fit bestätigt (Score ${fit.fitScore}).`;
+      }
+    }
+
     signals.push({
       chatterName: r.chatterName ?? null,
       chatterKey: r.chatterName ? normalizeChatterName(r.chatterName) : null,
@@ -516,17 +573,43 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         source: "revenue",
         kind: r.kind,
         title: r.title,
-        why: r.why,
-        impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
+        why,
+        impactEurPerWeek: impact,
         impactReason: est.reason,
         todoKey: r.key,
         modelName: r.modelName ?? null,
         secondaryChatter: r.secondaryChatter ?? null,
+        evidence,
       },
     });
   }
 
-  // Bündeln: Solo-Kinds bleiben einzeln; Single-Chatter-Tasks werden pro Chatter zusammengefasst
+  // v3 — Potenzial-Signale (Hidden Star, Wrong Fit, Riser) als eigene Karten
+  for (const p of potentialSignals) {
+    const stat = stats.get(normalizeChatterName(p.chatterName));
+    const med = stat?.medianRevenue ?? 0;
+    const cap = (v: number) => (med > 0 ? Math.min(v, med * 14) : v);
+    const impact = Math.round(cap(p.impactEurPerWeek));
+    signals.push({
+      chatterName: p.chatterName,
+      chatterKey: normalizeChatterName(p.chatterName),
+      modelKey: p.modelName ? p.modelName.toLowerCase() : null,
+      secondary: p.secondaryChatter,
+      signal: {
+        source: "potential",
+        kind: "potential",
+        title: p.title,
+        why: p.why,
+        impactEurPerWeek: impact,
+        impactReason: p.impactReason,
+        todoKey: p.todoKey,
+        modelName: p.modelName,
+        secondaryChatter: p.secondaryChatter,
+        evidence: p.evidence,
+      },
+    });
+  }
+
   const buckets = new Map<string, {
     chatterName: string | null;
     modelName: string | null;
@@ -569,6 +652,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
 
     // Score: impact × importance × (1 + persistence/3) × kind-prio-boost
     const kindBoost = primaryKind === "verzug" || primaryKind === "recovery" ? 1.6
+      : primaryKind === "potential" ? 1.4
       : primaryKind === "revenue" || primaryKind === "phase" ? 1.3
       : primaryKind === "positive" ? 0.4
       : 1.0;
