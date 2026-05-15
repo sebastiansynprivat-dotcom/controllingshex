@@ -261,7 +261,7 @@ export default function Today() {
           ) : section === "primary" || section === "watch" ? (
             <div className="space-y-5">
               <AnimatePresence initial={false}>
-                {groupByTheme(visibleList).map((g) => {
+                {groupByKind(visibleList).map((g) => {
                   const Icon = g.icon;
                   return (
                     <div key={g.id} className="space-y-2">
