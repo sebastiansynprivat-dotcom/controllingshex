@@ -257,6 +257,15 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
           </button>
 
           <div className="flex items-center gap-2.5 opacity-60 group-hover:opacity-100 transition-opacity">
+            {headlineSignal.rejectAccount && (
+              <button
+                onClick={(e) => { stop(e); onAct(action, "reject-account"); }}
+                title="Anderer Account vorschlagen"
+                className="text-white/40 hover:text-violet-300 transition-colors p-1"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button
               onClick={(e) => { stop(e); onAct(action, "snooze"); }}
               title="4h später"
