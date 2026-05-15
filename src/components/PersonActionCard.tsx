@@ -245,6 +245,23 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
             : headlineSignal.why}
         </p>
 
+        {/* Evidence-Block — nur bei Solo-Karten mit historischen Belegen (Potenzial v3) */}
+        {!bundled && headlineSignal.evidence && headlineSignal.evidence.length > 0 && (
+          <div className="rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <History className="h-3 w-3 text-white/45" />
+              <span className="text-[10px] uppercase tracking-widest text-white/45 font-semibold">Beleg aus Historie</span>
+            </div>
+            <ul className="space-y-1">
+              {headlineSignal.evidence.slice(0, 3).map((ev, i) => (
+                <li key={i} className="text-[11px] text-white/65 font-light leading-relaxed tabular-nums">
+                  · {ev.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Bundle hint */}
         {bundled && !expanded && (
           <button
