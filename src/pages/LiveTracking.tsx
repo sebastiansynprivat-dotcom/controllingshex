@@ -265,7 +265,7 @@ export default function LiveTracking() {
       .ilike("platform", platform)
       .order("updated_at", { ascending: false })
       .then(({ data }) => {
-        setRows((data as LiveRow[]) ?? []);
+        setRawRows((data as LiveRow[]) ?? []);
         setLoading(false);
       });
   }, [platform]);
@@ -346,7 +346,7 @@ export default function LiveTracking() {
             }
           }
 
-          setRows((prev) => {
+          setRawRows((prev) => {
             if (payload.eventType === "DELETE" && old) {
               return prev.filter((r) => r.id !== old.id);
             }
