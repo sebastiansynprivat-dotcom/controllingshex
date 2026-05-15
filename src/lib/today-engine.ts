@@ -771,6 +771,9 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         todoKey: t.key,
         modelName: t.modelName ?? null,
         compareWith: t.compareWith ?? null,
+        rejectAccount: t.category === "talent" && t.meta?.rejectAccountRiser && t.meta?.rejectAccountName
+          ? { riser: t.meta.rejectAccountRiser, account: t.meta.rejectAccountName }
+          : null,
       },
     });
   }
