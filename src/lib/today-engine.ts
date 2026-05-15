@@ -336,6 +336,7 @@ async function loadChatterStats(
       weakDays,
       weakStreak,
       modelInfo,
+      peakWindow: peakByChatter.get(k) ?? null,
     });
 
     totals30.set(k, days.reduce((s, d) => s + d.rev, 0));
