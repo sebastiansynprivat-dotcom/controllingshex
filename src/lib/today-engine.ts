@@ -748,17 +748,22 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
 
   for (const t of todos) {
     const stat = t.chatterName ? stats.get(normalizeChatterName(t.chatterName)) : undefined;
+    const chatterKey = t.chatterName ? normalizeChatterName(t.chatterName) : null;
+    if (shouldSuppress({ kind: t.category, chatterKey, meta: t.meta, medianRevenue: stat?.medianRevenue })) {
+      continue;
+    }
     const est = estimateImpactForTodo(t, stat);
+    const why = refreshWhy(t.category, chatterKey, t.why, t.meta);
     signals.push({
       chatterName: t.chatterName ?? null,
-      chatterKey: t.chatterName ? normalizeChatterName(t.chatterName) : null,
+      chatterKey,
       modelKey: t.modelName ? t.modelName.toLowerCase() : null,
       secondary: t.compareWith ?? null,
       signal: {
         source: "todo",
         kind: t.category,
         title: t.title,
-        why: t.why,
+        why,
         impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
         impactReason: est.reason,
         todoKey: t.key,
