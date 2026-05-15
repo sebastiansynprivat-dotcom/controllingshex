@@ -269,6 +269,91 @@ export default function Today() {
             )}
           </div>
 
+          {/* A3 — Wochen-Recap (nur Sonntag) */}
+          {!loading && recap && recap.count > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="premium-card rounded-2xl p-4 border border-emerald-500/20 bg-emerald-500/[0.04]"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
+                  <span className="text-[10.5px] uppercase tracking-widest text-emerald-300/90 font-semibold">
+                    Wochen-Recap
+                  </span>
+                </div>
+                <span className={cn(
+                  "text-base font-extralight tabular-nums",
+                  recap.totalDelta >= 0 ? "text-emerald-300" : "text-red-300"
+                )}>
+                  {recap.totalDelta >= 0 ? "+" : ""}{fmtEur(recap.totalDelta)}
+                </span>
+              </div>
+              <p className="text-[11.5px] text-white/55 font-light mt-1.5 leading-relaxed">
+                {recap.count} Aktionen · Top-Hebel:{" "}
+                {recap.topChatter && (
+                  <span className="text-foreground/80">{recap.topChatter.name}</span>
+                )}
+                {recap.topActionType && (
+                  <span className="text-white/45"> · {recap.topActionType.type}</span>
+                )}
+              </p>
+            </motion.div>
+          )}
+
+          {/* A2 — Pending Feedback */}
+          {!loading && pendingFeedback.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="premium-card rounded-2xl p-4 border border-violet-500/20 bg-violet-500/[0.03] space-y-3"
+            >
+              <div className="flex items-center gap-2">
+                <ThumbsUp className="h-3.5 w-3.5 text-violet-300" />
+                <span className="text-[10.5px] uppercase tracking-widest text-violet-300/90 font-semibold">
+                  Hat geholfen?
+                </span>
+                <span className="text-[10.5px] text-white/35 tabular-nums">· {pendingFeedback.length}</span>
+              </div>
+              <div className="space-y-1.5">
+                {pendingFeedback.slice(0, 3).map((fb) => (
+                  <div key={fb.id} className="flex items-center justify-between gap-3 py-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] text-foreground/85 font-light truncate">
+                        {fb.chatter_name} · <span className="text-white/45">{fb.action_type}</span>
+                      </p>
+                      {fb.delta_24h != null && (
+                        <p className={cn(
+                          "text-[10.5px] tabular-nums font-light",
+                          fb.delta_24h >= 0 ? "text-emerald-300/80" : "text-red-300/70"
+                        )}>
+                          24h: {fb.delta_24h >= 0 ? "+" : ""}{fmtEur(fb.delta_24h)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => submitFeedback(fb.id, true)}
+                        className="h-7 w-7 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center justify-center"
+                        aria-label="Hat geholfen"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => submitFeedback(fb.id, false)}
+                        className="h-7 w-7 rounded-full border border-white/15 bg-white/[0.03] text-white/55 hover:text-white/85 transition-colors flex items-center justify-center text-[14px] leading-none"
+                        aria-label="Nicht geholfen"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           {/* Section tabs */}
           <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
             {sections.map((s) => {
