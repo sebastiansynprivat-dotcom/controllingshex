@@ -96,16 +96,25 @@ export default function Today() {
   useEffect(() => {
     let cancel = false;
     setLoading(true);
-    Promise.all([buildTodayActions(platform), loadTodoStates(platform)])
-      .then(([d, s]) => {
+    // Backfill alte Outcomes vorab — füllt 24/48/72h-Snapshots
+    backfillOutcomes(platform).catch(() => {});
+    Promise.all([
+      buildTodayActions(platform),
+      loadTodoStates(platform),
+      loadPendingFeedback(platform),
+      isSunday ? loadWeekRecap(platform) : Promise.resolve(null),
+    ])
+      .then(([d, s, fb, rc]) => {
         if (cancel) return;
         setData(d);
         setStates(s);
+        setPendingFeedback(fb);
+        setRecap(rc);
       })
       .catch((e) => console.error("[Today]", e))
       .finally(() => !cancel && setLoading(false));
     return () => { cancel = true; };
-  }, [platform]);
+  }, [platform, isSunday]);
 
   const visibility = (action: UnifiedAction): "open" | "done" | "hidden" | "snoozed-active" => {
     const now = new Date();
