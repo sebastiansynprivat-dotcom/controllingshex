@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { detectModelTroubles } from "@/lib/model-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import { findTalentMatches, findOrphanedAccounts } from "@/lib/talent-scout";
+import { loadActiveRejections } from "@/lib/talent-rejections";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
