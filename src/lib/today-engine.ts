@@ -560,7 +560,32 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     });
   }
 
-  // Bündeln: Solo-Kinds bleiben einzeln; Single-Chatter-Tasks werden pro Chatter zusammengefasst
+  // v3 — Potenzial-Signale (Hidden Star, Wrong Fit, Riser) als eigene Karten
+  for (const p of potentialSignals) {
+    const stat = stats.get(normalizeChatterName(p.chatterName));
+    const med = stat?.medianRevenue ?? 0;
+    const cap = (v: number) => (med > 0 ? Math.min(v, med * 14) : v);
+    const impact = Math.round(cap(p.impactEurPerWeek));
+    signals.push({
+      chatterName: p.chatterName,
+      chatterKey: normalizeChatterName(p.chatterName),
+      modelKey: p.modelName ? p.modelName.toLowerCase() : null,
+      secondary: p.secondaryChatter,
+      signal: {
+        source: "potential",
+        kind: "potential",
+        title: p.title,
+        why: p.why,
+        impactEurPerWeek: impact,
+        impactReason: p.impactReason,
+        todoKey: p.todoKey,
+        modelName: p.modelName,
+        secondaryChatter: p.secondaryChatter,
+        evidence: p.evidence,
+      },
+    });
+  }
+
   const buckets = new Map<string, {
     chatterName: string | null;
     modelName: string | null;
