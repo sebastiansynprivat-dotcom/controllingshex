@@ -75,6 +75,9 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [section, setSection] = useState<SectionMode>("primary");
   const [excludedKinds, setExcludedKinds] = useState<Set<ActionSourceKind>>(new Set());
+  const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
+  const [recap, setRecap] = useState<WeekRecap | null>(null);
+  const isSunday = new Date().getDay() === 0;
 
   const toggleKind = (k: ActionSourceKind) => {
     setExcludedKinds((prev) => {
