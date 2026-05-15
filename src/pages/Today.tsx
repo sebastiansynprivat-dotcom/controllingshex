@@ -185,12 +185,26 @@ export default function Today() {
 
     try {
       await Promise.all(action.todoKeys.map((k) => setTodoStatus(platform, k, status, newSnooze)));
-      if (kind === "done") toast.success("Erledigt 🏻");
+      if (kind === "done") {
+        toast.success("Erledigt 🏻");
+        // A1 — Outcome-Snapshot fürs ROI-Lernen
+        recordActionDone(platform, action).catch(() => {});
+      }
       else if (kind === "snooze") toast.success("4h verschoben");
       else toast.success("Heute ausgeblendet");
     } catch {
       setStates(prevStates);
       toast.error("Speichern fehlgeschlagen");
+    }
+  };
+
+  const submitFeedback = async (id: string, helped: boolean) => {
+    setPendingFeedback((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await setOutcomeFeedback(id, helped);
+      toast.success(helped ? "Danke 🏻" : "Notiert");
+    } catch {
+      toast.error("Konnte nicht speichern");
     }
   };
 
