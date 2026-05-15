@@ -99,6 +99,8 @@ const SOLO_KINDS = new Set<ActionSourceKind>([
   "slot",
   "model",
   "mismatch",
+  // v3 Potenzial — eigene Karte mit Evidence-Block, nicht in Personenbündel
+  "potential",
 ]);
 
 const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "positive"> = {
