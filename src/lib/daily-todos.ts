@@ -40,6 +40,8 @@ export interface DailyTodo {
     riserMedianRev?: number;
     matchScore?: number;
     modelDropPerDay?: number;
+    rejectAccountRiser?: string;
+    rejectAccountName?: string;
   };
 }
 
