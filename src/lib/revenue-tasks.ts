@@ -373,7 +373,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
       key: `rev:recovery:${normalizeChatterName(r.chatterName)}:${today}`,
       kind: "recovery",
       title: `${r.chatterName} pushen — −${Math.round(r.gapPct * 100)}% vs. Median`,
-      why: `Ø ${fmtEur(r.currentAvg)}/Tag aktuell vs. ${fmtEur(r.baseline)}/Tag Median (30T). ${
+      why: `Aktive-Tage-Median ${fmtEur(r.baseline)}/Tag (30T, ohne Null-Tage) vs. zuletzt ${fmtEur(r.currentAvg)}/Tag. ${
         r.isTopPerformer ? "Top-10 Performer." : `Rang #${r.leaderboardRank ?? "—"}.`
       }`,
       impactEurPerWeek: r.recoveryEur,
