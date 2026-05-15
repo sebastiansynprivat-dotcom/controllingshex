@@ -680,19 +680,17 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       case "verzug": {
         const snapChats = Number(meta.todayOpenChats) || 0;
         if (live.unread <= 10 && live.oldest <= 1) return true;
-        if (snapChats > 0 && live.unread <= snapChats * 0.4 && live.unread <= 30) return true;
+        if (snapChats > 0 && live.unread <= snapChats * 0.5) return true;
         return false;
       }
       case "activity": {
         if (meta.todayOpenChats != null) {
           const snapChats = Number(meta.todayOpenChats) || 0;
           const baseChats = Number(meta.baselineOpenChats);
-          if (live.unread <= 15) return true;
-          if (snapChats > 0 && live.unread <= snapChats * 0.4) return true;
-          if (Number.isFinite(baseChats) && baseChats > 0) {
-            const threshold = Math.max(15, baseChats * 0.6);
-            if (live.unread <= threshold) return true;
-          }
+          // Jam-Trigger ist 30 absolut → live darunter heißt: Problem nicht mehr akut
+          if (live.unread < 30) return true;
+          if (snapChats > 0 && live.unread <= snapChats * 0.5) return true;
+          if (Number.isFinite(baseChats) && baseChats > 0 && live.unread <= baseChats * 1.5) return true;
           return false;
         }
         if (meta.baselineMassDms != null) {
@@ -726,6 +724,18 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     }
     if (parts.length === 0) return why;
     return `${why} (live jetzt: ${parts.join(" · ")})`;
+  }
+
+  /** Ersetzt veraltete Snapshot-Zahlen im Title (z.B. "X offene Chats") durch Live-Werte. */
+  function refreshTitle(chatterKey: string | null, title: string, meta?: Record<string, any>): string {
+    if (!chatterKey) return title;
+    const live = liveSnap.get(chatterKey);
+    if (!live || !live.fresh) return title;
+    const snap = meta?.todayOpenChats != null ? Number(meta.todayOpenChats) : null;
+    if (snap != null && live.unread !== snap) {
+      return title.replace(/\b\d+\s+offene Chats\b/, `${live.unread} offene Chats`);
+    }
+    return title;
   }
 
   // followers-Map für Potential-Detector
