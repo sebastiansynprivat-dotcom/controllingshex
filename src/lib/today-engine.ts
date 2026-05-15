@@ -203,6 +203,37 @@ async function loadChatterStats(
 
   const rows = (historyRes.data ?? []) as HistoryRow[];
   const models = (modelsRes.data ?? []) as { model_name: string; follower_count: number }[];
+  const hourlyRows = (hourlyRes.data ?? []) as { chatter_name: string; hour: number; revenue: number | null }[];
+
+  // Pro Chatter: 24h Revenue-Buckets aggregieren → Peak-Window finden
+  const hourlyByChatter = new Map<string, number[]>();
+  for (const h of hourlyRows) {
+    if (!h.chatter_name || h.hour == null) continue;
+    const key = normalizeChatterName(h.chatter_name);
+    let bucket = hourlyByChatter.get(key);
+    if (!bucket) { bucket = new Array(24).fill(0); hourlyByChatter.set(key, bucket); }
+    bucket[h.hour] += Number(h.revenue) || 0;
+  }
+  const peakByChatter = new Map<string, { startHour: number; endHour: number } | null>();
+  for (const [k, buckets] of hourlyByChatter) {
+    const total = buckets.reduce((s, v) => s + v, 0);
+    if (total <= 0) { peakByChatter.set(k, null); continue; }
+    // Finde kürzestes zusammenhängendes Fenster, das ≥60% Revenue enthält
+    const target = total * 0.6;
+    let best: { start: number; end: number; len: number } | null = null;
+    for (let start = 0; start < 24; start++) {
+      let sum = 0;
+      for (let len = 1; len <= 12; len++) {
+        sum += buckets[(start + len - 1) % 24];
+        if (sum >= target) {
+          if (!best || len < best.len) best = { start, end: (start + len) % 24, len };
+          break;
+        }
+      }
+    }
+    peakByChatter.set(k, best ? { startHour: best.start, endHour: best.end } : null);
+  }
+
 
   const followersByModel = new Map<string, number>();
   for (const m of models) {
