@@ -53,7 +53,12 @@ function initials(name: string): string {
 
 export default function LiveTracking() {
   const { platform } = usePlatform();
-  const [rows, setRows] = useState<LiveRow[]>([]);
+  const [rawRows, setRawRows] = useState<LiveRow[]>([]);
+  const [activeNames, setActiveNames] = useState<Set<string> | null>(null);
+  const rows = useMemo(() => {
+    if (!activeNames) return rawRows;
+    return rawRows.filter((r) => activeNames.has(normalizeChatterName(r.chatter_name ?? "")));
+  }, [rawRows, activeNames]);
   const [profiles, setProfiles] = useState<Map<string, ChatterProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("all");
