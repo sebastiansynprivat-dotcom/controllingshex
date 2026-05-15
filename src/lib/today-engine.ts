@@ -466,10 +466,11 @@ export interface TodayEngineResult {
 const PRIMARY_LIMIT = 6;
 
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
-  const [todos, revTasks, statsBundle] = await Promise.all([
+  const [todos, revTasks, statsBundle, roiMap] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
     loadChatterStats(platform),
+    loadRoiMultipliers(platform),
   ]);
   const { stats, importanceFor } = statsBundle;
 
