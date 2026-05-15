@@ -774,6 +774,10 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }
   for (const r of revTasks) {
     const stat = r.chatterName ? stats.get(normalizeChatterName(r.chatterName)) : undefined;
+    const chatterKey = r.chatterName ? normalizeChatterName(r.chatterName) : null;
+    if (shouldSuppress({ kind: r.kind as ActionSourceKind, chatterKey, medianRevenue: stat?.medianRevenue })) {
+      continue;
+    }
     const est = estimateImpactForRevenueTask(r, stat);
     let impact = est.impact != null ? Math.round(est.impact) : null;
     let why = r.why;
