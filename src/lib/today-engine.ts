@@ -628,6 +628,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
 
     // Score: impact × importance × (1 + persistence/3) × kind-prio-boost
     const kindBoost = primaryKind === "verzug" || primaryKind === "recovery" ? 1.6
+      : primaryKind === "potential" ? 1.4
       : primaryKind === "revenue" || primaryKind === "phase" ? 1.3
       : primaryKind === "positive" ? 0.4
       : 1.0;

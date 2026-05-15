@@ -17,6 +17,8 @@ import {
   Flame,
   Zap,
   HelpCircle,
+  Target,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
@@ -71,6 +73,7 @@ const KIND_ICON: Record<ActionSourceKind, typeof Flame> = {
   mismatch: Users,
   swap: ArrowLeftRight,
   slot: Activity,
+  potential: Target,
 };
 
 const KIND_LABEL: Record<ActionSourceKind, string> = {
@@ -85,6 +88,7 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
   mismatch: "Mismatch",
   swap: "Swap",
   slot: "Slot",
+  potential: "Potenzial",
 };
 
 function fmtEur(v: number | null | undefined): string {
