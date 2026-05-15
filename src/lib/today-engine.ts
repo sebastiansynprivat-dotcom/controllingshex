@@ -546,11 +546,26 @@ async function detectWakeups(
     unreadYest.set(k, (unreadYest.get(k) ?? 0) + (r.unread_chats ?? 0));
   }
 
+  // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
+  let latestReportDate = "";
+  for (const r of (historyRes.data ?? []) as { analysis_date: string }[]) {
+    if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
+  }
+  const inLatestReport = new Set<string>();
+  if (latestReportDate) {
+    for (const r of (historyRes.data ?? []) as { chatter_name: string; analysis_date: string }[]) {
+      if (r.analysis_date === latestReportDate && r.chatter_name) {
+        inLatestReport.add(normalizeChatterName(r.chatter_name));
+      }
+    }
+  }
+
   const silentDays = [1, 2, 3, 4].map(isoDaysAgo);
   const hits: WakeupHit[] = [];
 
   for (const [k, stat] of stats) {
     if (stat.sampleSize < 1 || stat.medianRevenue <= 0) continue; // Brand-Neue raus
+    if (!inLatestReport.has(k)) continue; // Nur Chatter aus dem letzten Report
 
     const days = byChatterDay.get(k);
     let silent = 0;
