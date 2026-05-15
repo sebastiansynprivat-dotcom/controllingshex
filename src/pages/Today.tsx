@@ -65,6 +65,15 @@ export default function Today() {
   const [selectedChatter, setSelectedChatter] = useState<{ name: string; compareWith: string | null } | null>(null);
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [section, setSection] = useState<SectionMode>("primary");
+  const [excludedKinds, setExcludedKinds] = useState<Set<ActionSourceKind>>(new Set());
+
+  const toggleKind = (k: ActionSourceKind) => {
+    setExcludedKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
     weekday: "long",
@@ -259,9 +268,50 @@ export default function Today() {
           ) : visibleList.length === 0 ? (
             <EmptyState section={section} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : section === "primary" || section === "watch" ? (
-            <div className="space-y-5">
-              <AnimatePresence initial={false}>
-                {groupByKind(visibleList).map((g) => {
+            <>
+              {/* Kategorie-Filter */}
+              {(() => {
+                const allGroups = groupByKind(visibleList);
+                if (allGroups.length <= 1) return null;
+                return (
+                  <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
+                    {allGroups.map((g) => {
+                      const Icon = g.icon;
+                      const active = !excludedKinds.has(g.id);
+                      return (
+                        <button
+                          key={g.id}
+                          onClick={() => toggleKind(g.id)}
+                          className={cn(
+                            "shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-light tracking-wide transition-all border flex items-center gap-1.5",
+                            active
+                              ? "bg-white/[0.04] border-white/15 text-foreground/90"
+                              : "bg-transparent border-white/[0.08] text-white/30 hover:text-white/55"
+                          )}
+                          title={active ? "Ausblenden" : "Einblenden"}
+                        >
+                          <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/30")} />
+                          <span>{g.label}</span>
+                          <span className={cn("tabular-nums", active ? "text-white/45" : "text-white/25")}>
+                            {g.items.length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {excludedKinds.size > 0 && (
+                      <button
+                        onClick={() => setExcludedKinds(new Set())}
+                        className="shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-light tracking-wide text-white/40 hover:text-white/70 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+              <div className="space-y-5">
+                <AnimatePresence initial={false}>
+                  {groupByKind(visibleList).filter((g) => !excludedKinds.has(g.id)).map((g) => {
                   const Icon = g.icon;
                   return (
                     <div key={g.id} className="space-y-2">
@@ -297,7 +347,8 @@ export default function Today() {
                   );
                 })}
               </AnimatePresence>
-            </div>
+              </div>
+            </>
           ) : (
             <div className="space-y-2">
               <AnimatePresence initial={false}>
