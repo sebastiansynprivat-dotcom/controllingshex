@@ -22,8 +22,10 @@ import {
 } from "@/lib/revenue-tasks";
 import { normalizeChatterName } from "@/lib/active-chatters";
 import { loadRoiMultipliers } from "@/lib/action-outcomes";
+import { loadAccountFitMatrix } from "@/lib/account-fit";
+import { generatePotentialSignals, type PotentialSignal, type EvidenceRow } from "@/lib/potential-detector";
 
-export type ActionSourceKind = TodoCategory | RevenueTaskKind;
+export type ActionSourceKind = TodoCategory | RevenueTaskKind | "potential";
 
 export interface ActionSignal {
   source: "todo" | "revenue";
