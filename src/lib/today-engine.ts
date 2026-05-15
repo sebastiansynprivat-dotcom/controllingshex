@@ -116,11 +116,13 @@ const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "
   talent: "info",
   positive: "positive",
   potential: "info",
+  wakeup: "info",
 };
 
 const KIND_PRIORITY: ActionSourceKind[] = [
   "verzug",
   "recovery",
+  "wakeup",
   "revenue",
   "potential",
   "phase",
