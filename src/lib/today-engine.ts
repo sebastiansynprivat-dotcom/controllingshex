@@ -729,6 +729,38 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     });
   }
 
+  // Wake-Up Signale: Chatter waren ≥4T still und sind heute wieder aktiv
+  try {
+    const wakeups = await detectWakeups(platform, stats);
+    for (const w of wakeups) {
+      const cap = w.medianRevenue > 0 ? w.medianRevenue * 14 : Infinity;
+      const impact = Math.round(Math.min(cap, w.medianRevenue * 7 * 0.5));
+      const parts: string[] = [];
+      if (w.todayRev > 0) parts.push(`${fmtE(w.todayRev)} €`);
+      if (w.todayDms > 0) parts.push(`${w.todayDms} Mass-DMs`);
+      if (w.unreadDelta >= 3) parts.push(`${w.unreadDelta} Chats abgebaut`);
+      const activity = parts.length > 0 ? parts.join(" · ") : "wieder online";
+      signals.push({
+        chatterName: w.chatterName,
+        chatterKey: w.chatterKey,
+        modelKey: null,
+        secondary: null,
+        signal: {
+          source: "revenue",
+          kind: "wakeup",
+          title: `Wieder aktiv nach ${w.daysSilent} Tagen`,
+          why: `War ${w.daysSilent} Tage still — heute ${activity}. Jetzt 30 s reinrufen, bevor wieder Funk weg.`,
+          impactEurPerWeek: impact > 0 ? impact : null,
+          impactReason: impact > 0 ? `Median ${fmtE(w.medianRevenue)} €/Tag × 7 × 50 % Rückgewinn` : "Zu wenig Historie",
+          todoKey: `wakeup:${w.chatterKey}:${todayISO()}`,
+          modelName: null,
+        },
+      });
+    }
+  } catch (e) {
+    console.warn("[today-engine] wakeup detector failed", e);
+  }
+
   const buckets = new Map<string, {
     chatterName: string | null;
     modelName: string | null;
