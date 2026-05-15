@@ -15,6 +15,8 @@ import {
   ArrowLeftRight,
   Calendar,
   Flame,
+  Zap,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
@@ -91,6 +93,12 @@ function fmtEur(v: number | null | undefined): string {
   return "+" + Math.round(v).toLocaleString("de-DE") + " €";
 }
 
+function fmtPeak(p: { startHour: number; endHour: number } | null): string | null {
+  if (!p) return null;
+  const fmt = (h: number) => `${h.toString().padStart(2, "0")}`;
+  return `${fmt(p.startHour)}–${fmt(p.endHour)} Uhr`;
+}
+
 function initials(name: string | null | undefined): string {
   if (!name) return "··";
   const parts = name.trim().split(/\s+/).slice(0, 2);
@@ -113,6 +121,9 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
 
   const impactStr = fmtEur(action.totalImpactEurPerWeek);
   const hasImpact = impactStr !== "—";
+  const impactPrefix = action.confidence === "low" ? "~" : "";
+  const peakLabel = fmtPeak(action.peakWindow);
+  const showCoi = action.costOfInactionEurPerWeek > 0 && (action.tone === "critical" || action.tone === "warning");
 
   // Direkte Vergleichsansicht für alle Vorschläge mit zweitem Chatter:
   // Talent, Swap, Account-Tausch/Mismatch und Phasen-Rücktausch.
@@ -173,14 +184,46 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
           <div className="flex flex-col items-end gap-1 shrink-0">
             <span
               className={cn(
-                "px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums border",
+                "px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums border flex items-center gap-1",
                 hasImpact
                   ? tone.impactChip
                   : "bg-white/[0.04] border-white/10 text-white/40",
               )}
+              title={
+                action.confidence === "low"
+                  ? "Niedrige Konfidenz: <5 Tage Datenbasis — Schätzung mit Vorsicht"
+                  : action.confidence === "medium"
+                    ? "Mittlere Konfidenz: 5–14 Tage Datenbasis"
+                    : "Hohe Konfidenz: ≥15 Tage Datenbasis"
+              }
             >
-              {hasImpact ? `${impactStr}/Wo` : "—/Wo"}
+              {hasImpact ? `${impactPrefix}${impactStr}/Wo` : "—/Wo"}
+              {action.confidence === "low" && hasImpact && (
+                <HelpCircle className="h-2.5 w-2.5 opacity-60" />
+              )}
             </span>
+            {showCoi && (
+              <span
+                className="px-2 py-0.5 rounded-md text-[10px] font-medium tabular-nums border bg-rose-500/10 border-rose-500/25 text-rose-300/90"
+                title="Geschätzte Folgekosten in den nächsten 7 Tagen wenn heute keine Aktion erfolgt"
+              >
+                −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €/7T
+              </span>
+            )}
+            {peakLabel && (
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight border flex items-center gap-1",
+                  action.inPeakNow
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200 animate-pulse"
+                    : "bg-white/[0.03] border-white/10 text-white/45",
+                )}
+                title={action.inPeakNow ? "Jetzt im Peak-Fenster — beste Zeit zu handeln" : "Peak-Zeitfenster aus Hourly-Stats"}
+              >
+                <Zap className="h-2.5 w-2.5" />
+                {action.inPeakNow ? "Jetzt Peak" : `Peak ${peakLabel}`}
+              </span>
+            )}
             {action.persistence >= 2 && (
               <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-tight border bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-300 flex items-center gap-1">
                 <Flame className="h-2.5 w-2.5" />
