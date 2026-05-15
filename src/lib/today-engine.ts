@@ -157,6 +157,8 @@ interface ChatterStats {
   weakDays: number;
   weakStreak: number;
   modelInfo: string;
+  /** B1 — Peak-Stunden-Fenster (lokale Stunde 0–23) aus 21T Hourly-Revenue. */
+  peakWindow: { startHour: number; endHour: number } | null;
 }
 
 function p75(arr: number[]): number {
