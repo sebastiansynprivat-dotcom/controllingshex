@@ -206,7 +206,7 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
         </p>
 
         {/* Zeile 4: Mini-Meta (nur Icons, optional) */}
-        {(showCoi || peakLabel || action.persistence >= 2) && (
+        {(showCoi || peakLabel) && (
           <div className="flex items-center gap-3 text-[10.5px] text-white/40 tabular-nums">
             {action.inPeakNow ? (
               <span className="flex items-center gap-1 text-emerald-300/90" title="Jetzt im Peak-Fenster">
@@ -217,11 +217,6 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
                 <Zap className="h-3 w-3" /> {peakLabel}
               </span>
             ) : null}
-            {action.persistence >= 2 && (
-              <span className="flex items-center gap-1 text-fuchsia-300/85" title="Tage in Folge offen">
-                <Flame className="h-3 w-3" /> {action.persistence}T
-              </span>
-            )}
             {showCoi && (
               <span className="flex items-center gap-1 text-rose-300/85" title="Folgekosten in 7 Tagen ohne Aktion">
                 <TrendingDown className="h-3 w-3" />
