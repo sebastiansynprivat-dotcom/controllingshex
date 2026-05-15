@@ -184,14 +184,46 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
           <div className="flex flex-col items-end gap-1 shrink-0">
             <span
               className={cn(
-                "px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums border",
+                "px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums border flex items-center gap-1",
                 hasImpact
                   ? tone.impactChip
                   : "bg-white/[0.04] border-white/10 text-white/40",
               )}
+              title={
+                action.confidence === "low"
+                  ? "Niedrige Konfidenz: <5 Tage Datenbasis — Schätzung mit Vorsicht"
+                  : action.confidence === "medium"
+                    ? "Mittlere Konfidenz: 5–14 Tage Datenbasis"
+                    : "Hohe Konfidenz: ≥15 Tage Datenbasis"
+              }
             >
-              {hasImpact ? `${impactStr}/Wo` : "—/Wo"}
+              {hasImpact ? `${impactPrefix}${impactStr}/Wo` : "—/Wo"}
+              {action.confidence === "low" && hasImpact && (
+                <HelpCircle className="h-2.5 w-2.5 opacity-60" />
+              )}
             </span>
+            {showCoi && (
+              <span
+                className="px-2 py-0.5 rounded-md text-[10px] font-medium tabular-nums border bg-rose-500/10 border-rose-500/25 text-rose-300/90"
+                title="Geschätzte Folgekosten in den nächsten 7 Tagen wenn heute keine Aktion erfolgt"
+              >
+                −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €/7T
+              </span>
+            )}
+            {peakLabel && (
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight border flex items-center gap-1",
+                  action.inPeakNow
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200 animate-pulse"
+                    : "bg-white/[0.03] border-white/10 text-white/45",
+                )}
+                title={action.inPeakNow ? "Jetzt im Peak-Fenster — beste Zeit zu handeln" : "Peak-Zeitfenster aus Hourly-Stats"}
+              >
+                <Zap className="h-2.5 w-2.5" />
+                {action.inPeakNow ? "Jetzt Peak" : `Peak ${peakLabel}`}
+              </span>
+            )}
             {action.persistence >= 2 && (
               <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-tight border bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-300 flex items-center gap-1">
                 <Flame className="h-2.5 w-2.5" />
