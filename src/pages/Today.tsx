@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, BarChart3 } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -21,39 +21,32 @@ import {
 
 type SectionMode = "primary" | "watch" | "wins" | "done";
 
-type ThemeGroupId = "escalation" | "account" | "performance";
 
-const KIND_TO_GROUP: Record<ActionSourceKind, ThemeGroupId> = {
-  verzug: "escalation",
-  recovery: "escalation",
-  swap: "account",
-  talent: "account",
-  mismatch: "account",
-  phase: "account",
-  revenue: "performance",
-  activity: "performance",
-  model: "performance",
-  slot: "performance",
-  positive: "performance",
-};
 
-const GROUP_DEFS: { id: ThemeGroupId; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
-  { id: "escalation", label: "Eskalation", icon: AlertTriangle, accent: "text-red-300", dot: "bg-red-400/80" },
-  { id: "account", label: "Account-Aktionen", icon: ArrowLeftRight, accent: "text-cyan-300", dot: "bg-cyan-400/80" },
-  { id: "performance", label: "Performance", icon: BarChart3, accent: "text-emerald-300", dot: "bg-emerald-400/80" },
+const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
+  { id: "verzug",   label: "Verzug",         icon: AlertTriangle,  accent: "text-red-300",      dot: "bg-red-400/80" },
+  { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
+  { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
+  { id: "talent",   label: "Talent",         icon: Sparkles,       accent: "text-violet-300",   dot: "bg-violet-400/80" },
+  { id: "mismatch", label: "Mismatch",       icon: Shuffle,        accent: "text-amber-300",    dot: "bg-amber-400/80" },
+  { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
+  { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
+  { id: "activity", label: "Aktivität",      icon: Activity,       accent: "text-teal-300",     dot: "bg-teal-400/80" },
+  { id: "model",    label: "Model",          icon: Star,           accent: "text-fuchsia-300",  dot: "bg-fuchsia-400/80" },
+  { id: "slot",     label: "Slot / Schicht", icon: CalendarClock,  accent: "text-indigo-300",   dot: "bg-indigo-400/80" },
+  { id: "positive", label: "Wins-Signal",    icon: ThumbsUp,       accent: "text-lime-300",     dot: "bg-lime-400/80" },
 ];
 
-function groupByTheme(actions: UnifiedAction[]) {
-  const buckets: Record<ThemeGroupId, UnifiedAction[]> = {
-    escalation: [], account: [], performance: [],
-  };
+function groupByKind(actions: UnifiedAction[]) {
+  const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
   for (const a of actions) {
-    const g = KIND_TO_GROUP[a.primaryKind] ?? "performance";
-    buckets[g].push(a);
+    const arr = buckets.get(a.primaryKind) ?? [];
+    arr.push(a);
+    buckets.set(a.primaryKind, arr);
   }
-  return GROUP_DEFS
+  return KIND_DEFS
     .map((def) => {
-      const items = buckets[def.id];
+      const items = buckets.get(def.id) ?? [];
       const sumImpact = items.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
       return { ...def, items, sumImpact };
     })
@@ -268,7 +261,7 @@ export default function Today() {
           ) : section === "primary" || section === "watch" ? (
             <div className="space-y-5">
               <AnimatePresence initial={false}>
-                {groupByTheme(visibleList).map((g) => {
+                {groupByKind(visibleList).map((g) => {
                   const Icon = g.icon;
                   return (
                     <div key={g.id} className="space-y-2">

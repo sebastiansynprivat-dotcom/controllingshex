@@ -1,54 +1,42 @@
 ## Ziel
 
-Die Heute-Liste in „Jetzt machen" (und konsistent auch „Im Auge behalten") wird in drei thematische Untergruppen aufgeteilt, damit auf einen Blick klar ist, *welche Art* von Aktion ansteht. Tabs oben bleiben wie sie sind.
+Die thematische Gruppierung in **Heute → Jetzt machen / Im Auge behalten** feiner aufteilen. Statt 3 Ober-Buckets (Eskalation / Account-Aktionen / Performance) bekommt jeder `ActionSourceKind` seine **eigene Sektion** mit eigenem Label, Icon und Farb-Akzent — so vermischen sich z. B. **Talent**, **Swap**, **Mismatch** und **Phase** nicht mehr in einem Topf.
 
-## Gruppen
+## Neue Sektionen (1 pro Kind)
 
-```text
-🚨 Eskalation        → kinds: verzug, recovery
-💱 Account-Aktionen  → kinds: swap, talent, mismatch, phase
-📊 Performance       → kinds: revenue, activity, model, slot, positive
-```
+| Kind         | Label              | Icon            | Akzent       |
+|--------------|--------------------|-----------------|--------------|
+| `verzug`     | Verzug             | AlertTriangle   | red          |
+| `recovery`   | Recovery           | LifeBuoy        | orange       |
+| `swap`       | Account-Tausch     | ArrowLeftRight  | cyan         |
+| `talent`     | Talent             | Sparkles        | violet       |
+| `mismatch`   | Mismatch           | ShuffleIcon     | amber        |
+| `phase`      | Phase              | Clock           | sky          |
+| `revenue`    | Revenue            | TrendingUp      | emerald      |
+| `activity`   | Aktivität          | Activity        | teal         |
+| `model`      | Model              | Star            | fuchsia      |
+| `slot`       | Slot / Schicht     | CalendarClock   | indigo       |
+| `positive`   | Wins-Signal        | ThumbsUp        | lime         |
 
-Jede Gruppe bekommt einen schlanken Sticky-Header mit Icon, Label, Anzahl und Summe €/Wo. Innerhalb der Gruppe werden Karten weiterhin nach Tone + €-Hebel sortiert (bestehende Reihenfolge aus `today-engine.ts` bleibt unangetastet — wir gruppieren nur in der Render-Ebene).
+Reihenfolge = Priorität (oben kritisch, unten positiv). Leere Sektionen werden ausgeblendet.
 
-Leere Gruppen werden komplett ausgeblendet (kein leerer Header).
+## Render-Verhalten
 
-## Layout
+- Jede Sektion zeigt: farbiger Dot, Icon, Label (uppercase, tracking-widest), Anzahl, und rechts `+X €/Wo` Summe.
+- Cards bleiben unverändert (`PersonActionCard`).
+- Greift nur in `section === "primary" | "watch"`. **Wins** und **Erledigt** bleiben flache Liste.
+- Eine Card erscheint in der Sektion ihres `primaryKind` (genau einmal — kein Duplizieren).
 
-```text
-┌─ 🚨 Eskalation · 3 · +1.240€/Wo ────────┐
-│  [Card] [Card] [Card]                   │
-└─────────────────────────────────────────┘
-┌─ 💱 Account-Aktionen · 2 · +680€/Wo ───┐
-│  [Card] [Card]                          │
-└─────────────────────────────────────────┘
-┌─ 📊 Performance · 4 · +320€/Wo ────────┐
-│  [Card] [Card] [Card] [Card]            │
-└─────────────────────────────────────────┘
-```
+## Technisch
 
-- Header: kleines Icon + uppercase tracking-wider Label links, Count + €-Summe rechts (tabular-nums), feiner Divider darunter.
-- Abstand zwischen Gruppen größer (`space-y-5`) als zwischen Karten (`space-y-2`).
-- In den Tabs „Wins" und „Erledigt" wird **nicht** gruppiert (dort macht Thema keinen Sinn) — bleibt flach.
-- „Im Auge behalten" wird ebenfalls gruppiert, gleiche Logik.
+- `src/pages/Today.tsx`:
+  - `KIND_TO_GROUP` und `GROUP_DEFS` ersetzen durch **`KIND_DEFS`** (11 Einträge, eines pro `ActionSourceKind`).
+  - `groupByTheme()` → `groupByKind()`: bucketet `UnifiedAction[]` direkt auf `primaryKind`, mappt durch `KIND_DEFS` in Reihenfolge, filtert leere.
+  - Zusätzliche Lucide-Icons importieren (`LifeBuoy`, `Shuffle`, `Clock`, `TrendingUp`, `Activity`, `Star`, `CalendarClock`, `ThumbsUp`).
+- Keine Änderungen an `today-engine.ts`, Card-Komponenten oder Datenmodell.
 
-## Technische Umsetzung
+## Nicht im Scope
 
-Nur eine Datei betroffen: `src/pages/Today.tsx`.
-
-1. Helper `groupByTheme(actions: UnifiedAction[])` direkt in der Datei:
-   - Map `kind → group` (escalation/account/performance)
-   - Gruppe wird durch `action.primaryKind` bestimmt
-   - Rückgabe: `{ id, label, icon, accent, items, sumImpact }[]` in fester Reihenfolge, leere Gruppen rausgefiltert
-2. Im Render-Block (`visibleList.map(...)`):
-   - Wenn `section === "primary" || section === "watch"` → über Gruppen iterieren und je Gruppe Header + Karten rendern
-   - Sonst (wins/done) → bestehender flacher Render
-3. Gruppe-Header als kleine inline-Komponente `<GroupHeader>` mit den oben beschriebenen Tokens. Farbakzent dezent pro Gruppe (rot-300/cyan-300/emerald-300), keine neuen CSS-Variablen nötig.
-
-Alle Card-Logik, Swipe, Vergleichsansicht, Aktionen bleiben unverändert — rein eine Render-Schicht obendrauf.
-
-## Out of scope
-
-- Keine Änderung an `today-engine.ts`, `PersonActionCard.tsx`, Sortierung, Bündelung, Tab-Struktur.
-- Keine neuen DB-Felder.
+- Tab-Struktur (bleibt: Jetzt / Im Auge / Wins / Erledigt).
+- Card-Inhalt / CTAs.
+- Keine neuen Sortier-/Filter-Controls — Reihenfolge ist fix nach Priorität.
