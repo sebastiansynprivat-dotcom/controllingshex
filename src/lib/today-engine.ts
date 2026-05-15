@@ -21,6 +21,7 @@ import {
   type RevenueTaskKind,
 } from "@/lib/revenue-tasks";
 import { normalizeChatterName } from "@/lib/active-chatters";
+import { loadRoiMultipliers } from "@/lib/action-outcomes";
 
 export type ActionSourceKind = TodoCategory | RevenueTaskKind;
 
@@ -71,6 +72,8 @@ export interface UnifiedAction {
   confidence: "low" | "medium" | "high";
   /** B3 — Geschätzte Folgekosten/Wo wenn heute nichts passiert (nur kritisch/warning) */
   costOfInactionEurPerWeek: number;
+  /** A1 — Aus action_outcomes gelernter ROI-Multiplier (1.0 = neutral) */
+  roiMultiplier: number;
 }
 
 interface HistoryRow {
@@ -463,10 +466,11 @@ export interface TodayEngineResult {
 const PRIMARY_LIMIT = 6;
 
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
-  const [todos, revTasks, statsBundle] = await Promise.all([
+  const [todos, revTasks, statsBundle, roiMap] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
     loadChatterStats(platform),
+    loadRoiMultipliers(platform),
   ]);
   const { stats, importanceFor } = statsBundle;
 
@@ -590,7 +594,11 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     const coiFactor = tone === "critical" ? 0.55 : tone === "warning" ? 0.35 : 0;
     const costOfInactionEurPerWeek = totalImpact > 0 ? Math.round(totalImpact * coiFactor) : 0;
 
-    const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost;
+    // A1 — ROI-Multiplier aus historischen Outcomes
+    const roiKey = chatterKey ? `${chatterKey}|${primaryKind}` : null;
+    const roiMultiplier = (roiKey && roiMap.get(roiKey)) || 1.0;
+
+    const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost * roiMultiplier;
 
     actions.push({
       bundleKey,
@@ -610,6 +618,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       inPeakNow,
       confidence,
       costOfInactionEurPerWeek,
+      roiMultiplier,
     });
   }
 

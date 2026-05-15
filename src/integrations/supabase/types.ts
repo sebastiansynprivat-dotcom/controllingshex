@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_outcomes: {
+        Row: {
+          action_key: string | null
+          action_kind: string | null
+          action_type: string
+          baseline_revenue_7d: number
+          chatter_name: string
+          created_at: string
+          delta_24h: number | null
+          delta_48h: number | null
+          delta_72h: number | null
+          done_at: string
+          estimated_eur: number
+          feedback_at: string | null
+          helped: boolean | null
+          id: string
+          platform: string
+          revenue_after_24h: number | null
+          revenue_after_48h: number | null
+          revenue_after_72h: number | null
+          revenue_before_24h: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_key?: string | null
+          action_kind?: string | null
+          action_type: string
+          baseline_revenue_7d?: number
+          chatter_name: string
+          created_at?: string
+          delta_24h?: number | null
+          delta_48h?: number | null
+          delta_72h?: number | null
+          done_at?: string
+          estimated_eur?: number
+          feedback_at?: string | null
+          helped?: boolean | null
+          id?: string
+          platform?: string
+          revenue_after_24h?: number | null
+          revenue_after_48h?: number | null
+          revenue_after_72h?: number | null
+          revenue_before_24h?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_key?: string | null
+          action_kind?: string | null
+          action_type?: string
+          baseline_revenue_7d?: number
+          chatter_name?: string
+          created_at?: string
+          delta_24h?: number | null
+          delta_48h?: number | null
+          delta_72h?: number | null
+          done_at?: string
+          estimated_eur?: number
+          feedback_at?: string | null
+          helped?: boolean | null
+          id?: string
+          platform?: string
+          revenue_after_24h?: number | null
+          revenue_after_48h?: number | null
+          revenue_after_72h?: number | null
+          revenue_before_24h?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       alert_dismissals: {
         Row: {
           alert_type: string
