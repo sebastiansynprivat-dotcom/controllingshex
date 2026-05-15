@@ -29,7 +29,7 @@ interface Props {
   action: UnifiedAction;
   onChatterClick?: (name: string, compareWith?: string | null) => void;
   onModelClick?: (modelName: string, chatterName: string | null) => void;
-  onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss") => void;
+  onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss" | "reject-account") => void;
 }
 
 // Tone → einzige Farbquelle der Karte
