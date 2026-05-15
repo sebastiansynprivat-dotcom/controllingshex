@@ -256,6 +256,18 @@ export default function LiveTracking() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      loadActiveChatterNames(platform).then((names) => {
+        if (!cancelled) setActiveNames(names);
+      });
+    };
+    load();
+    const off = onChatterDataUpdated(load);
+    return () => { cancelled = true; off?.(); };
+  }, [platform]);
+
+  useEffect(() => {
     const today = shiftDate();
     setLoading(true);
     supabase
