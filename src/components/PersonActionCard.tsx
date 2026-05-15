@@ -16,9 +16,9 @@ import {
   Calendar,
   Flame,
   Zap,
-  HelpCircle,
   Target,
   History,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
@@ -30,41 +30,41 @@ interface Props {
   onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss") => void;
 }
 
-// Tone → accent stripe + text color for category label + impact chip
-const TONE_STYLES: Record<
+// Tone → einzige Farbquelle der Karte
+const TONE: Record<
   UnifiedAction["tone"],
-  { stripe: string; label: string; impactChip: string; ring: string }
+  { stripe: string; label: string; impact: string; ring: string }
 > = {
   critical: {
     stripe: "bg-red-500",
-    label: "text-red-300",
-    impactChip: "bg-red-500/10 border-red-500/30 text-red-200",
-    ring: "border-red-500/20 hover:border-red-500/40",
+    label: "text-red-300/90",
+    impact: "text-red-200",
+    ring: "border-red-500/15 hover:border-red-500/35",
   },
   warning: {
     stripe: "bg-amber-500",
-    label: "text-amber-300",
-    impactChip: "bg-amber-500/10 border-amber-500/30 text-amber-200",
-    ring: "border-amber-500/20 hover:border-amber-500/40",
+    label: "text-amber-300/90",
+    impact: "text-amber-200",
+    ring: "border-amber-500/15 hover:border-amber-500/35",
   },
   info: {
     stripe: "bg-cyan-500",
-    label: "text-cyan-300",
-    impactChip: "bg-cyan-500/10 border-cyan-500/25 text-cyan-200",
+    label: "text-cyan-300/90",
+    impact: "text-cyan-200",
     ring: "border-white/10 hover:border-primary/25",
   },
   positive: {
     stripe: "bg-emerald-500",
-    label: "text-emerald-400",
-    impactChip: "bg-emerald-500/10 border-emerald-500/25 text-emerald-300",
-    ring: "border-emerald-500/15 hover:border-emerald-500/35",
+    label: "text-emerald-300/90",
+    impact: "text-emerald-300",
+    ring: "border-emerald-500/12 hover:border-emerald-500/30",
   },
 };
 
 const KIND_ICON: Record<ActionSourceKind, typeof Flame> = {
   verzug: AlertTriangle,
   recovery: TrendingDown,
-  revenue: TrendingDown,
+  revenue: TrendingUp,
   activity: Activity,
   model: Users,
   positive: Sparkles,
@@ -92,15 +92,14 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
 };
 
 function fmtEur(v: number | null | undefined): string {
-  if (v == null) return "—";
-  if (v <= 0) return "—";
+  if (v == null || v <= 0) return "—";
   return "+" + Math.round(v).toLocaleString("de-DE") + " €";
 }
 
 function fmtPeak(p: { startHour: number; endHour: number } | null): string | null {
   if (!p) return null;
   const fmt = (h: number) => `${h.toString().padStart(2, "0")}`;
-  return `${fmt(p.startHour)}–${fmt(p.endHour)} Uhr`;
+  return `${fmt(p.startHour)}–${fmt(p.endHour)}`;
 }
 
 function initials(name: string | null | undefined): string {
@@ -111,16 +110,16 @@ function initials(name: string | null | undefined): string {
 
 export default function PersonActionCard({ action, onChatterClick, onModelClick, onAct }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const tone = TONE_STYLES[action.tone];
+  const tone = TONE[action.tone];
 
   const headlineSignal = action.signals[0];
   const bundled = action.signals.length > 1;
   const headline = bundled && action.chatterName
-    ? `${action.chatterName} — ${action.signals.length} Signale`
+    ? `${action.chatterName} · ${action.signals.length} Signale`
     : headlineSignal.title;
 
   const categoryLabel = bundled
-    ? `${KIND_LABEL[action.primaryKind]} · Bündel`
+    ? `${KIND_LABEL[action.primaryKind]} +${action.signals.length - 1}`
     : KIND_LABEL[action.primaryKind];
 
   const impactStr = fmtEur(action.totalImpactEurPerWeek);
@@ -128,9 +127,9 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
   const impactPrefix = action.confidence === "low" ? "~" : "";
   const peakLabel = fmtPeak(action.peakWindow);
   const showCoi = action.costOfInactionEurPerWeek > 0 && (action.tone === "critical" || action.tone === "warning");
+  const hasEvidence = !bundled && headlineSignal.evidence && headlineSignal.evidence.length > 0;
+  const hasDetails = bundled || hasEvidence;
 
-  // Direkte Vergleichsansicht für alle Vorschläge mit zweitem Chatter:
-  // Talent, Swap, Account-Tausch/Mismatch und Phasen-Rücktausch.
   const compareTarget = (() => {
     if (action.secondaryChatter) return action.secondaryChatter;
     const directCompareKinds = new Set<ActionSourceKind>(["talent", "swap", "mismatch", "phase"]);
@@ -152,7 +151,7 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
 
   const handleCardClick = () => {
     if (opensComparison) openDetails(compareTarget);
-    else if (bundled) setExpanded((v) => !v);
+    else if (hasDetails) setExpanded((v) => !v);
     else openDetails();
   };
 
@@ -171,144 +170,112 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
         tone.ring,
       )}
     >
-      {/* Accent stripe */}
-      <div className={cn("absolute left-0 top-0 bottom-0 w-1", tone.stripe)} />
+      <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", tone.stripe)} />
 
-      <div className="p-4 pl-5 flex flex-col gap-3">
-        {/* Top: category + title (left) | impact + persistence (right) */}
-        <div className="flex justify-between items-start gap-3">
-          <div className="flex flex-col gap-1 min-w-0 flex-1">
-            <span className={cn("text-[10px] font-semibold uppercase tracking-widest", tone.label)}>
-              {categoryLabel}
-            </span>
-            <h3 className="text-[14px] font-medium text-foreground leading-snug truncate">
-              {headline}
-            </h3>
-          </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums border flex items-center gap-1",
-                hasImpact
-                  ? tone.impactChip
-                  : "bg-white/[0.04] border-white/10 text-white/40",
-              )}
-              title={
-                action.confidence === "low"
-                  ? "Niedrige Konfidenz: <5 Tage Datenbasis — Schätzung mit Vorsicht"
-                  : action.confidence === "medium"
-                    ? "Mittlere Konfidenz: 5–14 Tage Datenbasis"
-                    : "Hohe Konfidenz: ≥15 Tage Datenbasis"
-              }
-            >
-              {hasImpact ? `${impactPrefix}${impactStr}/Wo` : "—/Wo"}
-              {action.confidence === "low" && hasImpact && (
-                <HelpCircle className="h-2.5 w-2.5 opacity-60" />
-              )}
-            </span>
-            {showCoi && (
-              <span
-                className="px-2 py-0.5 rounded-md text-[10px] font-medium tabular-nums border bg-rose-500/10 border-rose-500/25 text-rose-300/90"
-                title="Geschätzte Folgekosten in den nächsten 7 Tagen wenn heute keine Aktion erfolgt"
-              >
-                −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €/7T
-              </span>
+      <div className="p-4 pl-5 flex flex-col gap-2.5">
+        {/* Zeile 1: Kategorie · Impact */}
+        <div className="flex items-center justify-between gap-3">
+          <span className={cn("text-[10px] font-semibold uppercase tracking-[0.14em]", tone.label)}>
+            {categoryLabel}
+          </span>
+          <span
+            className={cn(
+              "text-[13px] font-medium tabular-nums",
+              hasImpact ? tone.impact : "text-white/35",
             )}
-            {peakLabel && (
-              <span
-                className={cn(
-                  "px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight border flex items-center gap-1",
-                  action.inPeakNow
-                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200 animate-pulse"
-                    : "bg-white/[0.03] border-white/10 text-white/45",
-                )}
-                title={action.inPeakNow ? "Jetzt im Peak-Fenster — beste Zeit zu handeln" : "Peak-Zeitfenster aus Hourly-Stats"}
-              >
-                <Zap className="h-2.5 w-2.5" />
-                {action.inPeakNow ? "Jetzt Peak" : `Peak ${peakLabel}`}
-              </span>
-            )}
-            {action.persistence >= 2 && (
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-tight border bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-300 flex items-center gap-1">
-                <Flame className="h-2.5 w-2.5" />
-                {action.persistence}T in Folge
-              </span>
-            )}
-          </div>
+            title={
+              action.confidence === "low"
+                ? "Niedrige Konfidenz (<5 Tage Daten)"
+                : action.confidence === "medium"
+                  ? "Mittlere Konfidenz (5–14 Tage)"
+                  : "Hohe Konfidenz (≥15 Tage)"
+            }
+          >
+            {hasImpact ? `${impactPrefix}${impactStr}/Wo` : "—"}
+          </span>
         </div>
 
-        {/* Description */}
-        <p className="text-[12.5px] text-white/55 font-light leading-relaxed">
-          {bundled
-            ? action.signals.map((s) => KIND_LABEL[s.kind]).join(" · ") +
-              (action.modelInfo ? ` · ${action.modelInfo}` : "")
-            : headlineSignal.why}
+        {/* Zeile 2: Headline */}
+        <h3 className="text-[14.5px] font-normal text-foreground leading-snug">
+          {headline}
+        </h3>
+
+        {/* Zeile 3: Ein-Satz-Why */}
+        <p className="text-[12px] text-white/50 font-light leading-relaxed line-clamp-2">
+          {bundled ? action.signals.map((s) => KIND_LABEL[s.kind]).join(" · ") : headlineSignal.why}
         </p>
 
-        {/* Evidence-Block — nur bei Solo-Karten mit historischen Belegen (Potenzial v3) */}
-        {!bundled && headlineSignal.evidence && headlineSignal.evidence.length > 0 && (
-          <div className="rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <History className="h-3 w-3 text-white/45" />
-              <span className="text-[10px] uppercase tracking-widest text-white/45 font-semibold">Beleg aus Historie</span>
-            </div>
-            <ul className="space-y-1">
-              {headlineSignal.evidence.slice(0, 3).map((ev, i) => (
-                <li key={i} className="text-[11px] text-white/65 font-light leading-relaxed tabular-nums">
-                  · {ev.text}
-                </li>
-              ))}
-            </ul>
+        {/* Zeile 4: Mini-Meta (nur Icons, optional) */}
+        {(showCoi || peakLabel || action.persistence >= 2) && (
+          <div className="flex items-center gap-3 text-[10.5px] text-white/40 tabular-nums">
+            {action.inPeakNow ? (
+              <span className="flex items-center gap-1 text-emerald-300/90" title="Jetzt im Peak-Fenster">
+                <Zap className="h-3 w-3" /> Peak jetzt
+              </span>
+            ) : peakLabel ? (
+              <span className="flex items-center gap-1" title="Peak-Zeitfenster">
+                <Zap className="h-3 w-3" /> {peakLabel}
+              </span>
+            ) : null}
+            {action.persistence >= 2 && (
+              <span className="flex items-center gap-1 text-fuchsia-300/85" title="Tage in Folge offen">
+                <Flame className="h-3 w-3" /> {action.persistence}T
+              </span>
+            )}
+            {showCoi && (
+              <span className="flex items-center gap-1 text-rose-300/85" title="Folgekosten in 7 Tagen ohne Aktion">
+                <TrendingDown className="h-3 w-3" />
+                −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €
+              </span>
+            )}
           </div>
         )}
 
-        {/* Bundle hint */}
-        {bundled && !expanded && (
-          <button
-            onClick={(e) => { stop(e); setExpanded(true); }}
-            className="text-left py-1.5 px-3 rounded-lg bg-white/[0.03] border border-white/10 hover:border-white/20 transition-colors"
-          >
-            <p className="text-[11px] font-semibold text-white/60 flex items-center gap-1.5">
-              <ChevronDown className="h-3 w-3" />
-              + {action.signals.length - 1} weitere Signal{action.signals.length - 1 === 1 ? "" : "e"}
-              {action.chatterName ? ` für ${action.chatterName}` : ""}
-            </p>
-          </button>
-        )}
-
-        {/* Footer: identity + actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-2.5 mt-0.5 border-t border-white/[0.06]">
           <button
             onClick={(e) => { stop(e); openDetails(); }}
-            className="flex items-center gap-2 text-white/45 hover:text-white/70 transition-colors"
+            className="flex items-center gap-2 text-white/45 hover:text-white/75 transition-colors min-w-0"
           >
-            <div className="w-6 h-6 rounded bg-white/[0.05] border border-white/10 flex items-center justify-center text-[10px] font-semibold tabular-nums">
+            <div className="w-5 h-5 rounded bg-white/[0.05] border border-white/10 flex items-center justify-center text-[9px] font-semibold tabular-nums shrink-0">
               {initials(action.chatterName ?? action.modelName)}
             </div>
-            <span className="text-[11px] font-medium">
-              {bundled ? (expanded ? "Einklappen" : "Aufklappen") : "Details ansehen"}
+            <span className="text-[11px] font-light truncate">
+              {action.chatterName ?? action.modelName ?? "Details"}
             </span>
+            {hasDetails && (
+              <button
+                onClick={(e) => { stop(e); setExpanded((v) => !v); }}
+                className={cn(
+                  "ml-1 p-0.5 rounded text-white/35 hover:text-white/70 transition-all",
+                  expanded && "rotate-180",
+                )}
+                aria-label="Details aufklappen"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            )}
           </button>
 
-          <div className="flex items-center gap-3 opacity-70 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-2.5 opacity-60 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => { stop(e); onAct(action, "snooze"); }}
               title="4h später"
-              className="text-white/40 hover:text-white/80 transition-colors"
+              className="text-white/40 hover:text-white/80 transition-colors p-1"
             >
-              <Clock className="h-4 w-4" />
+              <Clock className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={(e) => { stop(e); onAct(action, "dismiss"); }}
               title="Heute ausblenden"
-              className="text-white/40 hover:text-rose-400 transition-colors"
+              className="text-white/40 hover:text-rose-400 transition-colors p-1"
             >
-              <XIcon className="h-4 w-4" />
+              <XIcon className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={(e) => { stop(e); onAct(action, "done"); }}
               title="Erledigt"
-              className="text-emerald-400/80 hover:text-emerald-300 transition-colors"
+              className="text-emerald-400/80 hover:text-emerald-300 transition-colors p-1"
             >
               <Check className="h-4 w-4" />
             </button>
@@ -317,7 +284,7 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
       </div>
 
       <AnimatePresence initial={false}>
-        {expanded && bundled && (
+        {expanded && hasDetails && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -327,7 +294,23 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
             onClick={stop}
           >
             <div className="px-4 pl-5 pb-4 -mt-1 space-y-2">
-              {action.signals.map((s) => {
+              {hasEvidence && (
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <History className="h-3 w-3 text-white/45" />
+                    <span className="text-[10px] uppercase tracking-widest text-white/45 font-semibold">Beleg</span>
+                  </div>
+                  <ul className="space-y-1">
+                    {headlineSignal.evidence!.slice(0, 3).map((ev, i) => (
+                      <li key={i} className="text-[11px] text-white/65 font-light leading-relaxed tabular-nums">
+                        · {ev.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {bundled && action.signals.map((s) => {
                 const Icon = KIND_ICON[s.kind] ?? Gem;
                 const sigCompare = s.compareWith ?? s.secondaryChatter ?? null;
                 const isClickable = !!sigCompare && !!action.chatterName;
@@ -346,30 +329,15 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] text-foreground/85 font-light leading-snug">{s.title}</p>
                       <p className="text-[10.5px] text-white/40 font-light mt-0.5 leading-relaxed">{s.why}</p>
-                      {s.impactReason && (
-                        <p className="text-[10px] text-white/30 font-light mt-0.5 italic leading-relaxed">
-                          € · {s.impactReason}
-                        </p>
-                      )}
-                      {isClickable && (
-                        <p className="text-[10px] text-cyan-300/70 font-medium mt-1">
-                          Vergleich öffnen →
-                        </p>
-                      )}
                     </div>
-                    {s.impactEurPerWeek != null && s.impactEurPerWeek > 0 ? (
+                    {s.impactEurPerWeek != null && s.impactEurPerWeek > 0 && (
                       <span className="text-[10px] tabular-nums text-emerald-300/80 shrink-0 mt-0.5">
                         +{Math.round(s.impactEurPerWeek)}€
                       </span>
-                    ) : s.impactEurPerWeek == null ? (
-                      <span className="text-[10px] tabular-nums text-white/30 shrink-0 mt-0.5">?</span>
-                    ) : null}
+                    )}
                   </div>
                 );
               })}
-              {action.modelInfo && (
-                <p className="text-[10.5px] text-white/35 font-light pt-1">Models heute: {action.modelInfo}</p>
-              )}
             </div>
           </motion.div>
         )}
