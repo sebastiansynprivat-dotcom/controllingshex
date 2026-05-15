@@ -93,6 +93,12 @@ function fmtEur(v: number | null | undefined): string {
   return "+" + Math.round(v).toLocaleString("de-DE") + " €";
 }
 
+function fmtPeak(p: { startHour: number; endHour: number } | null): string | null {
+  if (!p) return null;
+  const fmt = (h: number) => `${h.toString().padStart(2, "0")}`;
+  return `${fmt(p.startHour)}–${fmt(p.endHour)} Uhr`;
+}
+
 function initials(name: string | null | undefined): string {
   if (!name) return "··";
   const parts = name.trim().split(/\s+/).slice(0, 2);
