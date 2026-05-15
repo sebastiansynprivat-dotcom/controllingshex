@@ -1,5 +1,14 @@
-// Snapshot stündliche Stats aus chatter_history_live → chatter_hourly_stats
-// Wird per pg_cron stündlich aufgerufen. Berechnet Delta zur letzten Stunde pro Chatter.
+// Stündlicher Snapshot: schreibt für die *vergangene* Stunde pro Chatter
+// genau einen Datensatz mit dem Stunden-Delta (Zuwachs gegenüber dem
+// Tagesstand am Anfang dieser Stunde).
+//
+// Quelle: chatter_history_live (kumulatives Tagestotal pro Chatter)
+// Ziel:   chatter_hourly_stats (Stunden-Delta pro Chatter)
+//
+// Wichtig:
+// - Es gibt keinen DB-Trigger mehr; diese Function ist die einzige Quelle.
+// - prevStats wird paginiert geladen (kein 1000er-Limit).
+// - Beim 00-Uhr-Lauf wird Stunde 23 dem Vortag zugeordnet.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -7,6 +16,24 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const PAGE = 1000;
+
+async function fetchAll<T>(
+  qb: () => any, // eslint-disable-line
+): Promise<T[]> {
+  const out: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await qb().range(from, from + PAGE - 1);
+    if (error) throw error;
+    const chunk = (data ?? []) as T[];
+    out.push(...chunk);
+    if (chunk.length < PAGE) break;
+    from += PAGE;
+  }
+  return out;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -18,91 +45,113 @@ Deno.serve(async (req) => {
     );
 
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
-    const hour = now.getHours();
-    const prevHour = hour === 0 ? 23 : hour - 1;
-    const prevDate = hour === 0
+    const todayIso = now.toISOString().slice(0, 10);
+    const hour = now.getUTCHours();
+    const isMidnight = hour === 0;
+    // Wir buchen die *vorherige* Stunde
+    const recordedHour = isMidnight ? 23 : hour - 1;
+    const recordedDate = isMidnight
       ? new Date(now.getTime() - 24 * 3600 * 1000).toISOString().slice(0, 10)
-      : today;
+      : todayIso;
 
-    // alle live rows von heute
-    const { data: live, error: liveErr } = await supabase
-      .from("chatter_history_live")
-      .select("*")
-      .eq("date", today);
-    if (liveErr) throw liveErr;
+    // 1) Live-Stand der laufenden Datums-Periode laden
+    //    Bei 00-Uhr-Lauf brauchen wir den Tagesabschluss von gestern.
+    const liveDate = recordedDate;
+    const live = await fetchAll<any>(() =>
+      supabase
+        .from("chatter_history_live")
+        .select("platform, chatter_name, revenue, mass_dms, unread_chats, date")
+        .eq("date", liveDate),
+    );
 
-    // wir kennen user_id nicht direkt im live-record (Tabelle hat kein user_id).
-    // → wir mappen via chatter_history der letzten 14 Tage
-    const since = new Date(now.getTime() - 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-    const { data: hist, error: histErr } = await supabase
-      .from("chatter_history")
-      .select("user_id, platform, chatter_name")
-      .gte("analysis_date", since);
-    if (histErr) throw histErr;
-
-    const ownerOf = new Map<string, string>(); // platform|name → user_id
-    (hist ?? []).forEach((h: any) => {
+    // 2) user_id-Mapping aus chatter_history (letzte 30 Tage reichen)
+    const since = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const hist = await fetchAll<any>(() =>
+      supabase
+        .from("chatter_history")
+        .select("user_id, platform, chatter_name")
+        .gte("analysis_date", since)
+        .not("user_id", "is", null),
+    );
+    const ownerOf = new Map<string, string>();
+    for (const h of hist) {
       const key = `${(h.platform ?? "").toLowerCase()}|${(h.chatter_name ?? "").trim().toLowerCase()}`;
       if (!ownerOf.has(key) && h.user_id) ownerOf.set(key, h.user_id);
-    });
+    }
 
-    // letzte hourly-stats (kumulativer Stand bis Ende vorherige Stunde)
-    const { data: prevStats, error: prevErr } = await supabase
-      .from("chatter_hourly_stats")
-      .select("user_id, platform, chatter_name, date, hour, revenue, mass_dms, unread_delta")
-      .gte("date", since);
-    if (prevErr) throw prevErr;
-
-    // baue Lookup: kumulierter revenue/dms je chatter bis Ende prevHour
+    // 3) Bisherige Stunden-Deltas DIESES Tages bis (recordedHour - 1) laden
+    //    → daraus bauen wir das, was bis Stundenanfang schon erfasst ist.
     type Cum = { revenue: number; mass_dms: number };
     const cumulativeBefore = new Map<string, Cum>();
-    (prevStats ?? []).forEach((s: any) => {
-      // nur heutige Stunden bis prevHour zählen für "kumulativ heute"
-      if (s.date !== today) return;
-      if (s.hour > prevHour && hour !== 0) return;
-      const k = `${s.platform.toLowerCase()}|${s.chatter_name.trim().toLowerCase()}`;
-      const c = cumulativeBefore.get(k) ?? { revenue: 0, mass_dms: 0 };
-      c.revenue += Number(s.revenue) || 0;
-      c.mass_dms += Number(s.mass_dms) || 0;
-      cumulativeBefore.set(k, c);
-    });
+    if (recordedHour > 0) {
+      const prevStats = await fetchAll<any>(() =>
+        supabase
+          .from("chatter_hourly_stats")
+          .select("platform, chatter_name, revenue, mass_dms, hour")
+          .eq("date", recordedDate)
+          .lt("hour", recordedHour),
+      );
+      for (const s of prevStats) {
+        const k = `${(s.platform ?? "").toLowerCase()}|${(s.chatter_name ?? "").trim().toLowerCase()}`;
+        const c = cumulativeBefore.get(k) ?? { revenue: 0, mass_dms: 0 };
+        c.revenue += Number(s.revenue) || 0;
+        c.mass_dms += Number(s.mass_dms) || 0;
+        cumulativeBefore.set(k, c);
+      }
+    }
 
-    let written = 0;
-    for (const row of live ?? []) {
+    // 4) Pro Chatter Delta berechnen und schreiben (Batch-Upsert)
+    const upserts: any[] = [];
+    let skipped = 0;
+    for (const row of live) {
       const k = `${(row.platform ?? "").toLowerCase()}|${(row.chatter_name ?? "").trim().toLowerCase()}`;
       const userId = ownerOf.get(k);
-      if (!userId) continue;
+      if (!userId) { skipped++; continue; }
+
       const cum = cumulativeBefore.get(k) ?? { revenue: 0, mass_dms: 0 };
       const totalRev = Number(row.revenue) || 0;
       const totalDms = Number(row.mass_dms) || 0;
       const deltaRev = Math.max(0, totalRev - cum.revenue);
       const deltaDms = Math.max(0, totalDms - cum.mass_dms);
-
-      // unread_delta als Snapshot des aktuellen Standes (kein echter Delta ohne Vorwert pro Stunde)
       const unreadNow = Number(row.unread_chats) || 0;
 
-      const { error: upErr } = await supabase
+      // Nur schreiben wenn etwas Sinnvolles passiert ist — sonst keinen Eintrag,
+      // damit "0-Stunden" nicht als Aktivität gelten.
+      if (deltaRev <= 0 && deltaDms <= 0) continue;
+
+      upserts.push({
+        user_id: userId,
+        platform: row.platform,
+        chatter_name: row.chatter_name,
+        date: recordedDate,
+        hour: recordedHour,
+        revenue: deltaRev,
+        mass_dms: deltaDms,
+        unread_delta: unreadNow,
+        updates_seen: 1,
+      });
+    }
+
+    let written = 0;
+    // In Chunks upserten
+    for (let i = 0; i < upserts.length; i += 500) {
+      const chunk = upserts.slice(i, i + 500);
+      const { error } = await supabase
         .from("chatter_hourly_stats")
-        .upsert(
-          {
-            user_id: userId,
-            platform: row.platform,
-            chatter_name: row.chatter_name,
-            date: today,
-            hour: prevHour,
-            revenue: deltaRev,
-            mass_dms: deltaDms,
-            unread_delta: unreadNow,
-            updates_seen: 1,
-          },
-          { onConflict: "user_id,platform,chatter_name,date,hour" },
-        );
-      if (!upErr) written++;
+        .upsert(chunk, { onConflict: "user_id,platform,chatter_name,date,hour" });
+      if (error) throw error;
+      written += chunk.length;
     }
 
     return new Response(
-      JSON.stringify({ ok: true, written, recordedHour: prevHour, date: prevDate }),
+      JSON.stringify({
+        ok: true,
+        recordedDate,
+        recordedHour,
+        live_rows: live.length,
+        skipped_no_user: skipped,
+        written,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
