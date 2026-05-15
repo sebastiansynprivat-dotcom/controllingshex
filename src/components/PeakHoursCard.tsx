@@ -87,7 +87,6 @@ export default function PeakHoursCard() {
       dayMap.get(r.date)!.add((r.chatter_name ?? "").toLowerCase().trim());
     }
 
-    const days = Math.max(1, dateSet.size);
     const perHour: { hour: number; avg: number; max: number }[] = [];
     for (let h = 0; h < 24; h++) {
       const dayMap = buckets.get(h);
@@ -101,7 +100,8 @@ export default function PeakHoursCard() {
         sum += set.size;
         if (set.size > max) max = set.size;
       });
-      perHour.push({ hour: h, avg: sum / days, max });
+      // Ø nur über Tage, an denen diese Stunde überhaupt Aktivität hatte
+      perHour.push({ hour: h, avg: sum / Math.max(1, dayMap.size), max });
     }
 
     const peak = perHour.reduce((p, c) => (c.avg > p.avg ? c : p), perHour[0]);
