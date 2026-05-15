@@ -1,92 +1,62 @@
+## Was ist kaputt
 
-# Heute-Karten v3 — Potenzial & Swap-Erkennung aus voller Historie
+Die Stundenwerte in `chatter_hourly_stats` sind völlig aufgebläht. Das siehst du sofort an den Rohdaten:
 
-## Problem heute
+- Aaron Ha hat heute insgesamt 3 Mass-DMs gesendet — aber in der Tabelle steht in **jeder einzelnen Stunde** des Tages `mass_dms = 3`. Statt einmal 3 (z.B. um 10 Uhr) wird derselbe Tageswert 24× gebucht.
+- Stunde 20 zeigt insgesamt 5.132 € Umsatz, Stunde 19 = 4.625 € usw. — die Werte wachsen monoton mit der Stunde, weil jede Stunde immer wieder das **kumulierte Tagestotal** als „Delta" gebucht bekommt.
+- Daraus rechnet das Frontend dann „Ø 24 Chatter aktiv" und absurd hohe €-Stundenwerte.
 
-Aktuelle Swap-Engine vergleicht **Skill-Score** (Disziplin/Effizienz, Chatter-weit) gegen **Follower-Tier**. Das ignoriert das Wichtigste:
+## Warum
 
-- **Wer hat auf welchem Account historisch wirklich performt?** Nur Account-Phasen (`model-performance.ts`) wissen das, fließen aber nicht in Swaps ein.
-- **Account-Fit ist personenabhängig**: Chatter A kann auf Model X 200 €/Tag drücken und auf Model Y nur 40 €. Heute landet alles in einem globalen Skill-Score.
-- **„Riser auf falschem Account"** wird nicht erkannt: jemand der erst seit 5 Tagen einen Account hat, aber schon den 30-Tage-Schnitt des Vorgängers schlägt → Top-Kandidat für Größeres, aktuell unsichtbar.
-- **Tausch-Vorschläge sind nicht historisch validiert**: Engine sagt „Swap A↔B", weiß aber nicht, dass A vor 40 Tagen schon mal genau diesen Account hatte und dort gefloppt ist.
+Es gibt zwei Schreiber, die parallel in dieselbe Tabelle schreiben — und einer ist still kaputt:
 
-## Ziel
+1. **DB-Trigger** `record_live_activity_from_history_live` → addiert echte Deltas pro Live-Update. Das ist OK.
+2. **Edge-Function** `snapshot-hourly-stats` (cron 1×/Std) → soll Tagestotal aus `chatter_history_live` minus „bereits in heutigen Stunden gebuchten Summen" als Stunden-Delta speichern.
 
-Heute-Karten sollen für jede Person/jedes Pair eine **Account-Fit-Aussage mit historischem Beleg** zeigen, statt nur abstrakter Skill-Scores. Swaps werden vor Vorschlag gegen die eigene History gegengecheckt.
+Die Edge-Function hat drei Bugs:
 
-## Plan
+- **Hauptursache: Supabase-Default-Limit 1000 Rows.** `prevStats` lädt 14 Tage Hourly-Stats — aktuell ~70.000 Zeilen — bekommt aber nur 1.000 zurück. Folge: Für fast jeden Chatter ist `cum.revenue = 0` und `cum.mass_dms = 0`, also wird `delta = aktuelles Tagestotal` statt `delta = neuer Zuwachs`. Jede Stunde bucht das volle Tagestotal nochmal.
+- **Doppelschreiber:** Trigger addiert (`revenue = revenue + EXCLUDED.revenue`), Edge-Function überschreibt per Upsert. Beide gleichzeitig führt zu inkonsistenten Werten.
+- **Tagesgrenze 00:05:** Beim 00-Uhr-Lauf wird `date: today` gebucht, obwohl die Stunde 23 vom Vortag stammt. Stunde 23 landet auf dem falschen Tag.
 
-### 1. Account-Fit-Matrix (neu: `src/lib/account-fit.ts`)
+## Fix-Plan
 
-Pro `(chatter, account)`-Paar aus den letzten 90 Tagen `chatter_history`:
+### 1. Edge-Function `snapshot-hourly-stats` korrekt schreiben
 
-- **avgPerDay** wenn Chatter den Account hatte (Tage ≥ 3)
-- **bestPhase**: längste/stärkste zusammenhängende Phase (Reuse `loadModelTimeline`)
-- **rankOnAccount**: wie viele andere Chatter hatten den Account, wo steht dieser? (Top 1/3/Mitte/Bottom)
-- **vsPeerOnAccount**: avgPerDay vs. Median aller anderen Chatter, die je auf diesem Account waren
-- **trend**: letzte Phase steigend/fallend
-- **fitScore 0..100**: Kombi aus rank + vsPeer + Stichprobe-Größe (Konfidenz)
+- `prevStats` nur für **heute** laden (statt 14 Tage), und mit `.range(0, 99999)` bzw. paginiert, damit das 1000er-Limit nicht greift.
+- `cumulativeBefore` aus genau diesen heutigen Stunden bis `prevHour` aufbauen (Bug heute: filtert in JS, lädt aber zu wenig).
+- Beim 00-Uhr-Lauf: `date = prevDate` (gestern) für die Stunde 23 verwenden, statt `today`.
+- Statt Upsert mit Überschreiben: explizit „setze Wert auf berechneten Delta" — Trigger deaktivieren (s.u.), damit es nur eine Quelle gibt.
 
-Wird einmal pro Today-Build vorberechnet und in eine `Map<chatterKey|accountKey, FitEntry>` gestopft.
+### 2. Doppelschreiber auflösen
 
-### 2. Potenzial-Detector (neu: `src/lib/potential-detector.ts`)
+Trigger `record_live_activity_from_history_live` auf `chatter_history_live` entfernen. Die stündliche Edge-Function ist die einzige Wahrheit — pro Stunde genau ein Wert pro (chatter, hour). Damit ist die Logik deterministisch und reproduzierbar.
 
-Drei Trigger, die aus der Matrix neue Heute-Karten-Signale erzeugen:
+### 3. Vorhandene Daten reparieren
 
-**a) Hidden Star** — Chatter steht auf Micro/Small-Account, hat aber auf irgendeinem **größeren** Account in der Vergangenheit Top-1/3 vsPeer gemacht.
-→ Karte: „X hat vor 6 Wochen auf Model Y (10k) Top-Performance gezeigt — aktuell auf 800-Follower-Account."
+Die letzten ~11 Tage in `chatter_hourly_stats` sind verseucht. Migration:
 
-**b) Wrong Fit** — Chatter ist seit ≥ 7 Tagen auf Account, fitScore < 30, gleichzeitig existiert anderer freier/schwacher Chatter mit historisch hohem fitScore auf genau diesem Account.
-→ Karte: „Account Z läuft mit X bei 45 €/Tag. Y hatte denselben Account vor 2 Monaten bei 180 €/Tag."
+- `chatter_hourly_stats` für die letzten 14 Tage löschen.
+- Backfill aus `chatter_history` (Tagestotale) → grobe stündliche Verteilung ist aus `chatter_history` nicht möglich; daher: löschen und ab heute sauber neu sammeln. Ältere Tage haben dann „keine Stundenkurve" — das Frontend zeigt dafür schon das `noch keine Daten`-Empty-State.
+- Optional: Heute (15.5.) komplett aus aktuellem `chatter_history_live`-Stand rekonstruieren — als ein einziger Eintrag in der laufenden Stunde, danach läuft der Cron sauber weiter.
 
-**c) Riser confirms Fit** — Chatter hat Account erst seit 3-7 Tagen, schlägt aber bereits 30T-Schnitt des Vorgängers um ≥ 30 %.
-→ Karte: „Y übernimmt gerade Z und liegt schon +35 % über dem Vorgänger — größeres Model andocken?" (Suggest Upgrade-Pair)
+### 4. Frontend-Sanity-Check
 
-### 3. Swap-Engine v3 — historisch validiert (`src/lib/swap-suggestions.ts`)
+`PeakHoursCard` und `PeakRevenueCard` rechnen den Durchschnitt über `daysObserved` (Anzahl unterschiedlicher Datums-Buckets). Das ist OK, sobald die Stundendaten korrekt sind. Zwei kleine Verbesserungen:
 
-Vor jedem ausgespielten `SwapPair` zwei Gegenchecks:
+- „Ø Chatter aktiv" soll nur auf Tage rechnen, an denen die Stunde überhaupt Daten hat — derzeit teilt es durch alle beobachteten Tage. Bei einer Stunde, die 14 Tage erst ab Tag 5 Daten hat, wird der Schnitt fälschlich gedrittelt.
+- Min-Threshold: erst ab `daysObserved ≥ 3` einen Peak-Wert zeigen, sonst Hinweis „braucht ein paar Tage Datenbasis". Verhindert irreführende Anzeigen direkt nach dem Reset.
 
-- **Self-fit-check**: Wenn `left` (vorgeschlagener Empfänger) auf `right.account` historisch schon mal war und `fitScore < 40` hatte → Pair komplett verwerfen oder mindestens als „Risiko" labeln.
-- **Cross-fit-boost**: Wenn `left` auf `right.account` historisch `fitScore > 70` → expectedGain × 1.4, Karte zeigt „bestätigt durch Phase YYYY-MM-DD bis YYYY-MM-DD".
+## Erwartetes Ergebnis
 
-`expectedGain` neu = `peerMedian(targetTier) × skillScore × historicalFitMultiplier(left, right.account)` statt nur `skill/0.5`.
+- Pro Chatter pro Stunde steht nur noch der echte Stundenzuwachs (€-Umsatz, Mass-DMs).
+- „Peak-Chatter Ø X Chatter" liegt im realistischen Bereich (eher 5–30 statt 250).
+- „Peak-Umsatz Ø Y €" zeigt einen plausiblen Stunden-Schnitt (eher 100–500 € statt 5.000 €).
+- Cron läuft ab dem Fix sauber und reproduzierbar.
 
-### 4. UI: Evidence-Block in `PersonActionCard`
+## Was du nach Approve siehst
 
-Neue kleine Sektion „Beleg" pro Signal wenn aus Historie ableitbar:
-
-```
-text
-┌ Beleg ─────────────────────────────┐
-│ Y auf Z: Ø 180 €/Tag (12.3.–28.4.) │
-│ Aktuell X auf Z: Ø 45 €/Tag (10T)  │
-│ Peer-Median Z: 95 €/Tag             │
-└────────────────────────────────────┘
-```
-
-Maximal 3 Zeilen, nur wenn echte Daten vorhanden — kein „?"-Fallback.
-
-### 5. Integration in `today-engine.ts`
-
-- Neuer Loader `loadAccountFitMatrix(platform)` parallel zu `loadChatterStats`.
-- Neue Signal-Quelle `generatePotentialActions()` ergänzt `generateDailyTodos`/`generateRevenueTasks`.
-- Mapping auf bestehende `ActionSourceKind`: Hidden Star → neuer Kind `"potential"`, Wrong Fit → bestehender `"swap"` aber mit Evidence, Riser confirms → `"talent"`.
-- Score-Boost für `potential`: `kindBoost = 1.4`, läuft also vor normalem `swap`.
-
-### 6. Migration
-
-Keine neue Tabelle nötig — alles aus `chatter_history` ableitbar. Optional Phase 4: Caching in neuer `account_fit_cache` Tabelle wenn Performance zum Problem wird.
-
-## Reihenfolge der Umsetzung
-
-1. `account-fit.ts` mit Matrix-Aufbau + Tests gegen echte Daten
-2. `potential-detector.ts` mit 3 Triggern, eingehängt in `today-engine.ts`
-3. Evidence-Block in `PersonActionCard`
-4. Swap-Engine v3 Self-fit-check + Cross-fit-boost
-5. Manuelle QA: 5 reale Karten durchchecken, ob Belege stimmen
-
-## Was bewusst draußen bleibt (für später)
-
-- Modell-Tausch-Aktion direkt aus der Karte heraus ausführen (nur Vorschlag, keine Workflow-Automatisierung)
-- ML-basiertes Fit-Scoring (erst wenn Heuristik nicht reicht)
-- Account-Fit über Modell-Attribute (`model_attributes` style/bodyType matching) — eigener Plan, wenn Stufe 1 läuft
+- Migration: Trigger weg, Hourly-Stats der letzten 14 Tage gelöscht.
+- Edge-Function-Update.
+- Kleine Frontend-Anpassung an den beiden Cards.
+- Erste 1–2 Tage zeigen die Cards den Empty-State, danach füllt der stündliche Cron das Profil sauber neu.
