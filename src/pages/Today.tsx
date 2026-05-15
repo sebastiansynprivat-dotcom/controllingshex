@@ -171,7 +171,23 @@ export default function Today() {
     ? Math.round((completedPrimary / totalPrimaryActions) * 100)
     : 0;
 
-  const act = async (action: UnifiedAction, kind: "done" | "snooze" | "dismiss") => {
+  const act = async (action: UnifiedAction, kind: "done" | "snooze" | "dismiss" | "reject-account") => {
+    if (kind === "reject-account") {
+      const sig = action.signals.find((s) => s.rejectAccount);
+      const rej = sig?.rejectAccount;
+      if (!rej) return;
+      try {
+        const { addRejection } = await import("@/lib/talent-rejections");
+        await addRejection(platform, rej.riser, rej.account);
+        toast.success("Anderer Account wird gesucht");
+        // Today neu laden
+        const fresh = await buildTodayActions(platform);
+        setData(fresh);
+      } catch {
+        toast.error("Konnte nicht speichern");
+      }
+      return;
+    }
     const prevStates = { ...states };
     const newSnooze = kind === "snooze"
       ? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()
