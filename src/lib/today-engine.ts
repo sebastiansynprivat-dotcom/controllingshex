@@ -474,13 +474,39 @@ export interface TodayEngineResult {
 const PRIMARY_LIMIT = 6;
 
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
-  const [todos, revTasks, statsBundle, roiMap] = await Promise.all([
+  const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
     loadChatterStats(platform),
     loadRoiMultipliers(platform),
+    loadAccountFitMatrix(platform),
+    supabase.auth.getUser().then(({ data }) =>
+      data.user
+        ? supabase
+            .from("models")
+            .select("model_name, follower_count")
+            .eq("user_id", data.user.id)
+            .ilike("platform", platform)
+        : { data: [] as { model_name: string; follower_count: number }[] }
+    ),
   ]);
   const { stats, importanceFor } = statsBundle;
+
+  // followers-Map für Potential-Detector
+  const followersByAcc = new Map<string, number>();
+  for (const m of (modelsRes.data ?? []) as { model_name: string; follower_count: number }[]) {
+    if (!m.model_name) continue;
+    const k = m.model_name.toLowerCase().trim();
+    const v = Number(m.follower_count) || 0;
+    if ((followersByAcc.get(k) ?? 0) < v) followersByAcc.set(k, v);
+  }
+
+  let potentialSignals: PotentialSignal[] = [];
+  try {
+    potentialSignals = await generatePotentialSignals(platform, fitMatrix, followersByAcc);
+  } catch (e) {
+    console.warn("[today-engine] potential detector failed", e);
+  }
 
   // Map alle Sources in ActionSignals
   const signals: {
