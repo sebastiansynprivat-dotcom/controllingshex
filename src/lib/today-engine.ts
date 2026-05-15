@@ -43,6 +43,8 @@ export interface ActionSignal {
   secondaryChatter?: string | null;
   /** v3 — historische Belege (Account-Fit-Matrix), max 3 Zeilen */
   evidence?: EvidenceRow[];
+  /** Talent-Karte: erlaubt „Anderer Account"-Button, sperrt diese Kombi 7T */
+  rejectAccount?: { riser: string; account: string } | null;
 }
 
 export interface UnifiedAction {
