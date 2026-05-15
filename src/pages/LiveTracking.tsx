@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type ChatterProfile, type ChatterStatus, type LiveRow as LiveRowLite, type HistoryDay } from "@/lib/live-activity";
 import { loadMismatchMap, type MismatchEntry, type MismatchResult } from "@/lib/effort-potential";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import { onChatterDataUpdated } from "@/lib/data-events";
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -51,7 +53,12 @@ function initials(name: string): string {
 
 export default function LiveTracking() {
   const { platform } = usePlatform();
-  const [rows, setRows] = useState<LiveRow[]>([]);
+  const [rawRows, setRawRows] = useState<LiveRow[]>([]);
+  const [activeNames, setActiveNames] = useState<Set<string> | null>(null);
+  const rows = useMemo(() => {
+    if (!activeNames) return rawRows;
+    return rawRows.filter((r) => activeNames.has(normalizeChatterName(r.chatter_name ?? "")));
+  }, [rawRows, activeNames]);
   const [profiles, setProfiles] = useState<Map<string, ChatterProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -249,6 +256,18 @@ export default function LiveTracking() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      loadActiveChatterNames(platform).then((names) => {
+        if (!cancelled) setActiveNames(names);
+      });
+    };
+    load();
+    const off = onChatterDataUpdated(load);
+    return () => { cancelled = true; off?.(); };
+  }, [platform]);
+
+  useEffect(() => {
     const today = shiftDate();
     setLoading(true);
     supabase
@@ -258,7 +277,7 @@ export default function LiveTracking() {
       .ilike("platform", platform)
       .order("updated_at", { ascending: false })
       .then(({ data }) => {
-        setRows((data as LiveRow[]) ?? []);
+        setRawRows((data as LiveRow[]) ?? []);
         setLoading(false);
       });
   }, [platform]);
@@ -339,7 +358,7 @@ export default function LiveTracking() {
             }
           }
 
-          setRows((prev) => {
+          setRawRows((prev) => {
             if (payload.eventType === "DELETE" && old) {
               return prev.filter((r) => r.id !== old.id);
             }
