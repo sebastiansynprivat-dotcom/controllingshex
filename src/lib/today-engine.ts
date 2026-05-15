@@ -28,7 +28,7 @@ import { generatePotentialSignals, type PotentialSignal, type EvidenceRow } from
 export type ActionSourceKind = TodoCategory | RevenueTaskKind | "potential";
 
 export interface ActionSignal {
-  source: "todo" | "revenue";
+  source: "todo" | "revenue" | "potential";
   kind: ActionSourceKind;
   title: string;
   why: string;
@@ -41,6 +41,8 @@ export interface ActionSignal {
   modelName?: string | null;
   compareWith?: string | null;
   secondaryChatter?: string | null;
+  /** v3 — historische Belege (Account-Fit-Matrix), max 3 Zeilen */
+  evidence?: EvidenceRow[];
 }
 
 export interface UnifiedAction {
@@ -111,12 +113,14 @@ const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "
   model: "info",
   talent: "info",
   positive: "positive",
+  potential: "info",
 };
 
 const KIND_PRIORITY: ActionSourceKind[] = [
   "verzug",
   "recovery",
   "revenue",
+  "potential",
   "phase",
   "mismatch",
   "activity",
