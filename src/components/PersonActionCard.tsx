@@ -19,6 +19,7 @@ import {
   Target,
   History,
   TrendingUp,
+  BellRing,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
@@ -74,6 +75,7 @@ const KIND_ICON: Record<ActionSourceKind, typeof Flame> = {
   swap: ArrowLeftRight,
   slot: Activity,
   potential: Target,
+  wakeup: BellRing,
 };
 
 const KIND_LABEL: Record<ActionSourceKind, string> = {
@@ -89,6 +91,7 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
   swap: "Swap",
   slot: "Slot",
   potential: "Potenzial",
+  wakeup: "Wieder aktiv",
 };
 
 function fmtEur(v: number | null | undefined): string {
