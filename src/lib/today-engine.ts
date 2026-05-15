@@ -63,6 +63,14 @@ export interface UnifiedAction {
   tone: "critical" | "warning" | "info" | "positive";
   /** Models, die dieser Chatter heute betreut, mit Follower-Anzeige */
   modelInfo: string;
+  /** B1 — Peak-Stunden-Fenster aus 21T Hourly-Stats (UTC-Stunden) */
+  peakWindow: { startHour: number; endHour: number } | null;
+  /** B1 — Aktuelle Stunde liegt im Peak-Fenster */
+  inPeakNow: boolean;
+  /** B2 — Konfidenz der €-Schätzung: 'low' (<5T), 'medium' (5–14T), 'high' (≥15T) */
+  confidence: "low" | "medium" | "high";
+  /** B3 — Geschätzte Folgekosten/Wo wenn heute nichts passiert (nur kritisch/warning) */
+  costOfInactionEurPerWeek: number;
 }
 
 interface HistoryRow {
