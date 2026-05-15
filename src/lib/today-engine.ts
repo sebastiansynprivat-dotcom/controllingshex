@@ -628,25 +628,25 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   ]);
   const { stats, importanceFor } = statsBundle;
 
-  // === Live-Snapshot (chatter_history_live) für Suppress-Layer ===
-  // Wenn das Problem live bereits gelöst ist, droppen wir die Karte.
-  type LiveSnap = { rev: number; dm: number; unread: number; fresh: boolean };
+  // === Live-Snapshot (chatter_history_live) für Suppress- und Refresh-Layer ===
+  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; fresh: boolean };
   const liveSnap = new Map<string, LiveSnap>();
   try {
     const liveQ = await supabase
       .from("chatter_history_live")
-      .select("chatter_name, revenue, mass_dms, unread_chats, updated_at")
+      .select("chatter_name, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
       .ilike("platform", platform)
       .eq("date", todayISO());
-    const FRESH_MS = 60 * 60 * 1000; // 60min
+    const FRESH_MS = 90 * 60 * 1000; // 90min
     const now = Date.now();
-    for (const r of (liveQ.data ?? []) as { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; updated_at: string | null }[]) {
+    for (const r of (liveQ.data ?? []) as { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null }[]) {
       if (!r.chatter_name) continue;
       const k = normalizeChatterName(r.chatter_name);
-      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, fresh: false };
+      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, fresh: false };
       cur.rev += Number(r.revenue) || 0;
       cur.dm += r.mass_dms ?? 0;
       cur.unread += r.unread_chats ?? 0;
+      cur.oldest = Math.max(cur.oldest, Number(r.oldest_chat) || 0);
       const upd = r.updated_at ? new Date(r.updated_at).getTime() : 0;
       if (upd && (now - upd) <= FRESH_MS) cur.fresh = true;
       liveSnap.set(k, cur);
@@ -655,10 +655,6 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     console.warn("[today-engine] live snapshot failed", e);
   }
 
-  /**
-   * Liefert true, wenn das Signal anhand frischer Live-Daten unterdrückt werden soll.
-   * Konservativ: nur droppen, wenn Live-Daten frisch sind UND das Problem nachweislich gelöst.
-   */
   function shouldSuppress(opts: {
     kind: ActionSourceKind;
     chatterKey: string | null;
@@ -682,23 +678,28 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         return live.rev >= base * 0.7;
       }
       case "verzug": {
-        const baseChats = Number(meta.todayOpenChats) || 0;
-        const threshold = Math.max(5, baseChats * 0.3);
-        return live.unread <= threshold && live.rev > 0;
+        const snapChats = Number(meta.todayOpenChats) || 0;
+        if (live.unread <= 10 && live.oldest <= 1) return true;
+        if (snapChats > 0 && live.unread <= snapChats * 0.4 && live.unread <= 30) return true;
+        return false;
       }
       case "activity": {
-        // Jam (offene Chats)
-        if (meta.todayOpenChats != null && meta.baselineOpenChats != null) {
-          const threshold = Math.max(10, Number(meta.baselineOpenChats) * 0.5);
-          return live.unread <= threshold;
+        if (meta.todayOpenChats != null) {
+          const snapChats = Number(meta.todayOpenChats) || 0;
+          const baseChats = Number(meta.baselineOpenChats);
+          if (live.unread <= 15) return true;
+          if (snapChats > 0 && live.unread <= snapChats * 0.4) return true;
+          if (Number.isFinite(baseChats) && baseChats > 0) {
+            const threshold = Math.max(15, baseChats * 0.6);
+            if (live.unread <= threshold) return true;
+          }
+          return false;
         }
-        // Mass-DM-Drop
         if (meta.baselineMassDms != null) {
           const baseDm = Number(meta.baselineMassDms) || 0;
           if (baseDm <= 0) return false;
           return live.dm >= baseDm * 0.7;
         }
-        // Inaktiv ("fehlt im Report")
         if (meta.missingDays != null) {
           return live.rev > 0 || live.dm > 0 || live.unread > 0;
         }
@@ -709,18 +710,22 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     }
   }
 
-  /** Ersetzt veraltete Snapshot-Zahlen im why-Text durch Live-Werte (wenn frisch). */
   function refreshWhy(kind: ActionSourceKind, chatterKey: string | null, why: string, meta?: Record<string, any>): string {
     if (!chatterKey) return why;
     const live = liveSnap.get(chatterKey);
     if (!live || !live.fresh) return why;
-    if (kind === "activity" && meta?.todayOpenChats != null) {
-      return `${why} (live: ${live.unread} offene Chats)`;
+    const parts: string[] = [];
+    if (meta?.todayOpenChats != null && live.unread !== Number(meta.todayOpenChats)) {
+      parts.push(`${live.unread} offen`);
     }
-    if (kind === "verzug" && meta?.todayOpenChats != null && live.unread !== Number(meta.todayOpenChats)) {
-      return `${why} (live: ${live.unread} offen)`;
+    if (kind === "revenue" && meta?.todayRevenue != null && Math.abs(live.rev - Number(meta.todayRevenue)) >= 5) {
+      parts.push(`${Math.round(live.rev)}€`);
     }
-    return why;
+    if (kind === "activity" && meta?.todayMassDms != null && live.dm !== Number(meta.todayMassDms)) {
+      parts.push(`${live.dm} DMs`);
+    }
+    if (parts.length === 0) return why;
+    return `${why} (live jetzt: ${parts.join(" · ")})`;
   }
 
   // followers-Map für Potential-Detector
