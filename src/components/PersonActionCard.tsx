@@ -121,6 +121,9 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
 
   const impactStr = fmtEur(action.totalImpactEurPerWeek);
   const hasImpact = impactStr !== "—";
+  const impactPrefix = action.confidence === "low" ? "~" : "";
+  const peakLabel = fmtPeak(action.peakWindow);
+  const showCoi = action.costOfInactionEurPerWeek > 0 && (action.tone === "critical" || action.tone === "warning");
 
   // Direkte Vergleichsansicht für alle Vorschläge mit zweitem Chatter:
   // Talent, Swap, Account-Tausch/Mismatch und Phasen-Rücktausch.
