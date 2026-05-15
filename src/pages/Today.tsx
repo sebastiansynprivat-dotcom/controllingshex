@@ -347,7 +347,8 @@ export default function Today() {
                   );
                 })}
               </AnimatePresence>
-            </div>
+              </div>
+            </>
           ) : (
             <div className="space-y-2">
               <AnimatePresence initial={false}>
