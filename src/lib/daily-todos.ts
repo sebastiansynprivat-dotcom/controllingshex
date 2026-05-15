@@ -317,7 +317,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
   // Talent-Scout — verlässliche Workhorses ↔ verwaiste Accounts
   try {
-    const matches = await findTalentMatches(platform);
+    const rejected = await loadActiveRejections(platform);
+    const matches = await findTalentMatches(platform, rejected);
     const matchedUnderusers = new Set(matches.map((m) => m.underuser.toLowerCase()));
     for (const m of matches) {
       const onbPart = m.riserDaysOnboarded != null ? `, ${m.riserDaysOnboarded}T onboarded` : "";
@@ -330,7 +331,11 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/6 davor)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} jetzt live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
         chatterName: m.riser,
         compareWith: m.underuser,
-        meta: { matchScore: m.matchScore },
+        meta: {
+          matchScore: m.matchScore,
+          rejectAccountRiser: m.riser,
+          rejectAccountName: m.underuserAccount,
+        },
       });
     }
     // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse
