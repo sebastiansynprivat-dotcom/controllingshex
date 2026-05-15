@@ -258,7 +258,8 @@ export default function Today() {
                 </button>
               );
             })}
-          </div>
+            </div>
+            </>
 
           {/* Content */}
           {loading ? (
