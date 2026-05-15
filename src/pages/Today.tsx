@@ -65,6 +65,15 @@ export default function Today() {
   const [selectedChatter, setSelectedChatter] = useState<{ name: string; compareWith: string | null } | null>(null);
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [section, setSection] = useState<SectionMode>("primary");
+  const [excludedKinds, setExcludedKinds] = useState<Set<ActionSourceKind>>(new Set());
+
+  const toggleKind = (k: ActionSourceKind) => {
+    setExcludedKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
     weekday: "long",
