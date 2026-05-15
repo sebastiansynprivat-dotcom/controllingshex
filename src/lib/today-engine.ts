@@ -72,6 +72,8 @@ export interface UnifiedAction {
   confidence: "low" | "medium" | "high";
   /** B3 — Geschätzte Folgekosten/Wo wenn heute nichts passiert (nur kritisch/warning) */
   costOfInactionEurPerWeek: number;
+  /** A1 — Aus action_outcomes gelernter ROI-Multiplier (1.0 = neutral) */
+  roiMultiplier: number;
 }
 
 interface HistoryRow {
