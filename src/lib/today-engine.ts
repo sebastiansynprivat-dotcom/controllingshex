@@ -541,6 +541,29 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   for (const r of revTasks) {
     const stat = r.chatterName ? stats.get(normalizeChatterName(r.chatterName)) : undefined;
     const est = estimateImpactForRevenueTask(r, stat);
+    let impact = est.impact != null ? Math.round(est.impact) : null;
+    let why = r.why;
+    let evidence: EvidenceRow[] | undefined;
+
+    // v3 — Swap-Engine Fit-Check: vor Push gegen Account-Fit-Matrix gegenchecken
+    if (r.kind === "swap" && r.chatterName && r.modelName) {
+      const fit = fitMatrix.byPair.get(`${normalizeChatterName(r.chatterName)}|${r.modelName.toLowerCase()}`);
+      if (fit && fit.days >= 3 && fit.fitScore < 40) {
+        // Self-fit-check: dieser Empfänger floppte historisch auf diesem Account → verwerfen
+        continue;
+      }
+      if (fit && fit.fitScore >= 70 && fit.days >= 5) {
+        // Cross-fit-boost
+        if (impact != null) impact = Math.round(impact * 1.4);
+        const fmtD = (iso: string | null) => iso ? `${new Date(iso).getDate()}.${new Date(iso).getMonth() + 1}.` : "?";
+        evidence = [
+          { text: `${r.chatterName} auf ${r.modelName}: Ø ${Math.round(fit.avgPerDay).toLocaleString("de-DE")} €/Tag (${fmtD(fit.lastPhaseFrom)}–${fmtD(fit.lastPhaseTo)}, ${fit.lastPhaseDays}T)` },
+          { text: `Fit-Score ${fit.fitScore}/100 — historisch bestätigt` },
+        ];
+        why = `${why} ✓ Fit bestätigt (Score ${fit.fitScore}).`;
+      }
+    }
+
     signals.push({
       chatterName: r.chatterName ?? null,
       chatterKey: r.chatterName ? normalizeChatterName(r.chatterName) : null,
@@ -550,12 +573,13 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         source: "revenue",
         kind: r.kind,
         title: r.title,
-        why: r.why,
-        impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
+        why,
+        impactEurPerWeek: impact,
         impactReason: est.reason,
         todoKey: r.key,
         modelName: r.modelName ?? null,
         secondaryChatter: r.secondaryChatter ?? null,
+        evidence,
       },
     });
   }
