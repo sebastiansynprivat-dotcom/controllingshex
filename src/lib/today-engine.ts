@@ -984,8 +984,9 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   actions.sort((a, b) => b.score - a.score);
 
   const wins = actions.filter((a) => a.tone === "positive");
-  const negatives = actions.filter((a) => a.tone !== "positive");
-  const primary = negatives.slice(0, PRIMARY_LIMIT);
+  const talents = actions.filter((a) => a.tone !== "positive" && a.primaryKind === "talent");
+  const negatives = actions.filter((a) => a.tone !== "positive" && a.primaryKind !== "talent");
+  const primary = [...negatives.slice(0, PRIMARY_LIMIT), ...talents];
   const watchlist = negatives.slice(PRIMARY_LIMIT);
   const totalImpactEurPerWeek = primary.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
 
