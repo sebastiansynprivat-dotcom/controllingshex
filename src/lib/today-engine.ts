@@ -177,9 +177,10 @@ async function loadChatterStats(
   }
 
   const since = isoDaysAgo(29); // 30 Tage
+  const sinceHourly = isoDaysAgo(20); // 21 Tage Hourly
   const today = todayISO();
 
-  const [historyRes, modelsRes] = await Promise.all([
+  const [historyRes, modelsRes, hourlyRes] = await Promise.all([
     supabase
       .from("chatter_history")
       .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
@@ -192,6 +193,12 @@ async function loadChatterStats(
       .select("model_name, follower_count")
       .eq("user_id", user.id)
       .ilike("platform", platform),
+    supabase
+      .from("chatter_hourly_stats")
+      .select("chatter_name, hour, revenue")
+      .eq("user_id", user.id)
+      .ilike("platform", platform)
+      .gte("date", sinceHourly),
   ]);
 
   const rows = (historyRes.data ?? []) as HistoryRow[];
