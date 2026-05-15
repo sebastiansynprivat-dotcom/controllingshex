@@ -21,7 +21,7 @@ import {
 
 type SectionMode = "primary" | "watch" | "wins" | "done";
 
-type ThemeGroupId = "escalation" | "account" | "performance";
+
 
 const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
   { id: "verzug",   label: "Verzug",         icon: AlertTriangle,  accent: "text-red-300",      dot: "bg-red-400/80" },
