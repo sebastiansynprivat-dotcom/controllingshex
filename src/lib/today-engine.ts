@@ -569,7 +569,28 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       : primaryKind === "positive" ? 0.4
       : 1.0;
     const persistenceBoost = 1 + persistence / 3.5;
-    const score = totalImpact * importance * persistenceBoost * kindBoost;
+
+    // B1 — Peak-Window + jetzt-im-Peak (boostet Score)
+    const peakWindow = stat?.peakWindow ?? null;
+    const nowHour = new Date().getHours();
+    const inPeakNow = !!peakWindow && (
+      peakWindow.startHour <= peakWindow.endHour
+        ? nowHour >= peakWindow.startHour && nowHour < peakWindow.endHour
+        : nowHour >= peakWindow.startHour || nowHour < peakWindow.endHour
+    );
+    const peakBoost = inPeakNow ? 1.25 : 1.0;
+
+    // B2 — Konfidenz aus sampleSize
+    const sample = stat?.sampleSize ?? 0;
+    const confidence: "low" | "medium" | "high" =
+      sample >= 15 ? "high" : sample >= 5 ? "medium" : "low";
+
+    // B3 — Cost-of-Inaction (nur kritisch/warning, ~40–60% des Wochenhebels)
+    const tone = TONE_BY_KIND[primaryKind] ?? "info";
+    const coiFactor = tone === "critical" ? 0.55 : tone === "warning" ? 0.35 : 0;
+    const costOfInactionEurPerWeek = totalImpact > 0 ? Math.round(totalImpact * coiFactor) : 0;
+
+    const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost;
 
     actions.push({
       bundleKey,
@@ -583,8 +604,12 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       importance,
       score,
       primaryKind,
-      tone: TONE_BY_KIND[primaryKind] ?? "info",
+      tone,
       modelInfo: stat?.modelInfo ?? "",
+      peakWindow,
+      inPeakNow,
+      confidence,
+      costOfInactionEurPerWeek,
     });
   }
 
