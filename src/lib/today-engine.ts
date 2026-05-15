@@ -594,7 +594,11 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     const coiFactor = tone === "critical" ? 0.55 : tone === "warning" ? 0.35 : 0;
     const costOfInactionEurPerWeek = totalImpact > 0 ? Math.round(totalImpact * coiFactor) : 0;
 
-    const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost;
+    // A1 — ROI-Multiplier aus historischen Outcomes
+    const roiKey = chatterKey ? `${chatterKey}|${primaryKind}` : null;
+    const roiMultiplier = (roiKey && roiMap.get(roiKey)) || 1.0;
+
+    const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost * roiMultiplier;
 
     actions.push({
       bundleKey,
@@ -614,6 +618,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       inPeakNow,
       confidence,
       costOfInactionEurPerWeek,
+      roiMultiplier,
     });
   }
 
