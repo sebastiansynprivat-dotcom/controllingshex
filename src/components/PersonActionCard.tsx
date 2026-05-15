@@ -20,6 +20,7 @@ import {
   History,
   TrendingUp,
   BellRing,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
