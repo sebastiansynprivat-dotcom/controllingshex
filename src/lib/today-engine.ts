@@ -779,7 +779,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       signal: {
         source: "todo",
         kind: t.category,
-        title: t.title,
+        title: refreshTitle(chatterKey, t.title, t.meta),
         why,
         impactEurPerWeek: est.impact != null ? Math.round(est.impact) : null,
         impactReason: est.reason,
