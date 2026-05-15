@@ -1,41 +1,31 @@
-## Ziel
-Chatter, die nach **≥ 4 Tagen ohne Aktivität** heute wieder online sind, erscheinen automatisch als eigene Action-Karte im Heute-Tab — damit kein Wake-Up untergeht.
+## Problem
+Recovery-Karten zeigen „Ø X €/Tag", aber der Wert ist der **Median nur über aktive Tage** (Tage mit Umsatz > 0). Beispiel Bianka BA: Tagesschnitt gefühlt ~20 €, Card zeigt 32 € — weil Null-Tage ignoriert werden. Mathematisch sinnvoll für Recovery-Erkennung, Wording aber irreführend.
 
-## Trigger-Logik
-Ein Chatter qualifiziert sich, wenn **beide** Bedingungen erfüllt sind:
+## Fix
+Wording in Recovery-Cards anpassen, damit klar wird, dass es der Median über **aktive Tage** ist. Logik bleibt unverändert.
 
-- **Schlaf:** in den letzten 4 Tagen (heute exkl.) entweder **kein** Eintrag in `chatter_history` ODER an allen Tagen `revenue_today = 0` UND `mass_dms = 0`
-- **Wake-Up heute:** in `chatter_history` (heute) ODER `chatter_history_live` (heute) mindestens eines:
-  - `revenue > 0`
-  - `mass_dms > 0`
-  - oder hat heute aktiv Chats abgebaut (`unread_chats` < gestern)
+### Änderungen in `src/lib/revenue-tasks.ts` (Recovery-`why`-Text, ~Zeile 376)
 
-Voraussetzung: Chatter muss in den letzten 30 Tagen mindestens **einmal** schon mal Umsatz gemacht haben (sonst ist es ein neuer Chatter, kein Wake-Up).
+Vorher:
+```
+Ø 32/Tag aktuell vs. Ø 18/Tag Median (30T). …
+```
 
-## Signal-Aufbau
-- **Title:** „Wieder aktiv nach 5 Tagen"
-- **Why:** „War 5 Tage still — heute X € / Y Mass-DMs / Z Chats abgebaut. Jetzt 30 s reinrufen, bevor wieder Funk weg."
-- **Impact-Schätzung:** historischer Median × 7 × 0,5 (50 % Rückgewinn-Annahme), gecappt auf 2× Wochenmedian. Bei zu wenig Historie: `null` (zeigt „?").
-- **Tone:** `info` (kein Krisen-Rot, aber priorisiert)
+Nachher:
+```
+Aktive-Tage-Median 32 €/Tag (30T) vs. zuletzt 18 €/Tag. …
+```
 
-## Code-Änderungen
+Konkret: in der `why`-Zeile der Recovery-Tasks
+- `currentAvg` → Label „zuletzt" (Schnitt der letzten 3 Tage)
+- `baseline` → Label „Aktive-Tage-Median (30T)"
+- Kein „Ø" mehr für Median-Werte
 
-### `src/lib/today-engine.ts`
-- `ActionSourceKind` erweitern um `"wakeup"`
-- `TONE_BY_KIND.wakeup = "info"`
-- `KIND_PRIORITY`: `wakeup` direkt **nach** `recovery` einsortieren (hoch oben, damit es im Primary-Block landet)
-- `KIND_DEFS` (in Today.tsx): Eintrag für `wakeup` mit Icon `BellRing`, Label „Wieder aktiv", Akzent `text-emerald-300`
-- Neue Funktion `detectWakeups(platform, stats)` direkt im Modul:
-  - Lädt `chatter_history` (analysis_date ≥ heute−4) und `chatter_history_live` (date = heute)
-  - Iteriert über alle bekannten Chatter aus `stats` (haben ≥ 1 aktiven Tag in 30T-Historie)
-  - Prüft Schlaf + Wake-Up-Bedingung
-  - Emittiert `ActionSignal` mit `source: "revenue"`, `kind: "wakeup"`, eindeutiger `todoKey: \`wakeup:${chatter}:${todayISO()}\``
-- In `buildTodayActions` aufrufen und Signale ans Bündel hängen (nicht solo — wenn der Chatter zufällig auch andere Signale hat, dürfen die zusammen)
+### Optional: gleiche Korrektur in PersonActionCard
 
-### `src/pages/Today.tsx`
-- `KIND_DEFS` um `wakeup`-Eintrag ergänzen (Icon `BellRing` aus lucide-react)
+Prüfen, ob `PersonActionCard` / Today-Engine ebenfalls „Ø" für `medianRevenue` nutzt (Zeilen 396, 442, 769 in `today-engine.ts`) — dort identisch umformulieren („Median aktiver Tage" statt „Ø"), damit die ganze Today-Ansicht konsistent ist.
 
-## Bewusst NICHT geändert
-- Kein neuer DB-Trigger / keine neue Edge-Function — alles wird live im Frontend aus vorhandenen Tabellen berechnet
-- Keine Änderung an Score-Boost-Faktoren — `kindBoost` bleibt für `wakeup` neutral (1.0); die Sortierung ergibt sich automatisch über Impact + Importance
-- Persistence/Streak-Logik unverändert
+## Nicht geändert
+- Recovery-Berechnung (Median nonZero, gap × 7 × confidence) bleibt
+- Reihenfolge / Scoring / Filterung bleibt
+- Keine DB-Änderungen
