@@ -475,6 +475,123 @@ export interface TodayEngineResult {
 
 const PRIMARY_LIMIT = 6;
 
+interface WakeupHit {
+  chatterName: string;
+  chatterKey: string;
+  daysSilent: number;
+  todayRev: number;
+  todayDms: number;
+  unreadDelta: number;
+  medianRevenue: number;
+  sampleSize: number;
+}
+
+async function detectWakeups(
+  platform: string,
+  stats: Map<string, ChatterStats>,
+): Promise<WakeupHit[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const today = todayISO();
+  const since = isoDaysAgo(4);
+  const yesterday = isoDaysAgo(1);
+
+  const [historyRes, liveRes, liveYestRes] = await Promise.all([
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms")
+      .eq("user_id", user.id)
+      .ilike("platform", platform)
+      .gte("analysis_date", since),
+    supabase
+      .from("chatter_history_live")
+      .select("chatter_name, revenue, mass_dms, unread_chats")
+      .ilike("platform", platform)
+      .eq("date", today),
+    supabase
+      .from("chatter_history_live")
+      .select("chatter_name, unread_chats")
+      .ilike("platform", platform)
+      .eq("date", yesterday),
+  ]);
+
+  // Per-chatter pro Tag aggregieren
+  const byChatterDay = new Map<string, Map<string, { rev: number; dm: number }>>();
+  for (const r of (historyRes.data ?? []) as { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null }[]) {
+    if (!r.chatter_name) continue;
+    const k = normalizeChatterName(r.chatter_name);
+    if (!byChatterDay.has(k)) byChatterDay.set(k, new Map());
+    const d = byChatterDay.get(k)!.get(r.analysis_date) ?? { rev: 0, dm: 0 };
+    d.rev += Number(r.revenue_today) || 0;
+    d.dm += r.mass_dms ?? 0;
+    byChatterDay.get(k)!.set(r.analysis_date, d);
+  }
+
+  // Live heute aggregieren
+  const liveToday = new Map<string, { rev: number; dm: number; unread: number }>();
+  for (const r of (liveRes.data ?? []) as { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null }[]) {
+    if (!r.chatter_name) continue;
+    const k = normalizeChatterName(r.chatter_name);
+    const cur = liveToday.get(k) ?? { rev: 0, dm: 0, unread: 0 };
+    cur.rev += Number(r.revenue) || 0;
+    cur.dm += r.mass_dms ?? 0;
+    cur.unread += r.unread_chats ?? 0;
+    liveToday.set(k, cur);
+  }
+  const unreadYest = new Map<string, number>();
+  for (const r of (liveYestRes.data ?? []) as { chatter_name: string; unread_chats: number | null }[]) {
+    if (!r.chatter_name) continue;
+    const k = normalizeChatterName(r.chatter_name);
+    unreadYest.set(k, (unreadYest.get(k) ?? 0) + (r.unread_chats ?? 0));
+  }
+
+  const silentDays = [1, 2, 3, 4].map(isoDaysAgo);
+  const hits: WakeupHit[] = [];
+
+  for (const [k, stat] of stats) {
+    if (stat.sampleSize < 1 || stat.medianRevenue <= 0) continue; // Brand-Neue raus
+
+    const days = byChatterDay.get(k);
+    let silent = 0;
+    for (const d of silentDays) {
+      const entry = days?.get(d);
+      if (!entry || (entry.rev === 0 && entry.dm === 0)) silent++;
+      else break; // Lücke unterbrochen
+    }
+    if (silent < 4) continue;
+
+    // Heute-Aktivität
+    const todayHist = days?.get(today) ?? { rev: 0, dm: 0 };
+    const live = liveToday.get(k) ?? { rev: 0, dm: 0, unread: 0 };
+    const todayRev = Math.max(todayHist.rev, live.rev);
+    const todayDms = Math.max(todayHist.dm, live.dm);
+    const unreadY = unreadYest.get(k) ?? 0;
+    const unreadDelta = unreadY > 0 ? unreadY - live.unread : 0;
+
+    const awake = todayRev > 0 || todayDms > 0 || unreadDelta >= 3;
+    if (!awake) continue;
+
+    // Original chatter_name aus history holen (Capitalisierung)
+    let original = k;
+    for (const r of (historyRes.data ?? []) as { chatter_name: string }[]) {
+      if (normalizeChatterName(r.chatter_name) === k) { original = r.chatter_name; break; }
+    }
+
+    hits.push({
+      chatterName: original,
+      chatterKey: k,
+      daysSilent: silent,
+      todayRev,
+      todayDms,
+      unreadDelta,
+      medianRevenue: stat.medianRevenue,
+      sampleSize: stat.sampleSize,
+    });
+  }
+  return hits;
+}
+
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
   const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
     generateDailyTodos(platform),
