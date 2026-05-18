@@ -379,13 +379,38 @@ export default function Today() {
             </motion.div>
           )}
 
-          {/* Kategorie-Tabs + Status-Dropdown */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none flex-1 min-w-0">
+          {/* Status-Pills + Kategorie-Tabs */}
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-1.5">
+              {statusOptions.map((o) => {
+                const active = status === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    onClick={() => {
+                      setStatus(o.id);
+                      setKindTab("all");
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                      active
+                        ? "bg-white/[0.07] border-white/15 text-foreground/90"
+                        : "bg-transparent border-white/[0.06] text-white/35 hover:text-white/65",
+                    )}
+                  >
+                    {o.label}
+                    <span className={cn("tabular-nums text-[10px]", active ? "text-white/55" : "text-white/25")}>
+                      {o.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
               <button
                 onClick={() => setKindTab("all")}
                 className={cn(
-                  "shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                  "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
                   kindTab === "all"
                     ? "bg-white/10 border-white/20 text-foreground"
                     : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
@@ -404,7 +429,7 @@ export default function Today() {
                     key={g.id}
                     onClick={() => setKindTab(g.id)}
                     className={cn(
-                      "shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
                       active
                         ? "bg-white/10 border-white/20 text-foreground"
                         : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
@@ -419,20 +444,6 @@ export default function Today() {
                 );
               })}
             </div>
-            <select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as StatusMode);
-                setKindTab("all");
-              }}
-              className="shrink-0 bg-white/[0.03] border border-white/10 rounded-full px-3 py-1.5 text-[11px] font-medium text-white/75 hover:text-foreground hover:border-white/20 transition-colors cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;utf8,<svg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2210%22%20height=%2210%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23999%22%20stroke-width=%222%22><path%20d=%22M6%209l6%206%206-6%22/></svg>')] bg-no-repeat bg-[right_0.5rem_center]"
-            >
-              {statusOptions.map((o) => (
-                <option key={o.id} value={o.id} className="bg-[#0C0C0C] text-foreground">
-                  {o.label} · {o.count}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Content */}
