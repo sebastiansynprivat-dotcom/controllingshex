@@ -1,44 +1,68 @@
 ## Ziel
-Auf Talent-Karten („🚀 Riser auf Account X hochziehen") einen Button **„↻ Anderer Account"** zeigen. Klick → die aktuelle Riser-Account-Kombi wird abgelehnt und die Engine schlägt einen anderen verwaisten Account vor — **niemals einen, der gerade in einer anderen Talent-Karte steht**.
 
-## DB
-**Neue Tabelle `talent_account_rejections`**
-- `user_id uuid`, `platform text`, `riser_norm text`, `account_norm text`, `rejected_at timestamptz default now()`
-- RLS: own-row select/insert/delete
-- Lookup: alle Einträge mit `rejected_at >= now() - 7 days` aktiv (ältere fließen wieder ein)
+Die Today-Page wird auf eine Ebene reduziert (Unterkategorien als Tabs) und die Karten bekommen das gewählte Apple-Minimalist-Glass-Design mit inline Signal-Liste.
 
-## Code
+## 1. Tab-Struktur umbauen (`src/pages/Today.tsx`)
 
-### `src/lib/talent-rejections.ts` (neu)
-- `loadActiveRejections(platform): Promise<Set<string>>` → Set aus `${riserNorm}|${accountNorm}`
-- `addRejection(platform, riserName, accountName)` → insert
+Aktuell: zwei Tab-Ebenen + Section-Header in der Liste = 4-fache Redundanz.
 
-### `src/lib/talent-scout.ts`
-- `findTalentMatches(platform, rejectedPairs?: Set<string>)` — beim Auswählen des `candidate` zusätzlich filtern: `if (rejectedPairs.has(\`${wKey}|${norm(o.a.account)}\`)) return false;`
-- `usedOrphans` bleibt → der Ersatz-Account taucht nicht in einer anderen Talent-Karte auf (existierende Logik)
+Neu: eine Ebene.
 
-### `src/lib/daily-todos.ts`
-- Rejections vor `findTalentMatches` laden, übergeben
-- Talent-Todo `meta` erweitern: `{ matchScore, riserNorm, accountNorm, accountLabel }`
+- **Section-Tabs raus**: "Jetzt machen / Im Auge behalten / Wins / Erledigt" verschwinden komplett aus der UI.
+- **Unterkategorien werden die Haupt-Tabs**: "Alle · N", "Verzug · N", "Recovery · N", "Account-Tausch · N", "Talent · N". "Alle" ist Default.
+- **Status-Filter** (Wins / Erledigt / Snoozed) wandert in ein dezentes Dropdown rechts oben neben den Tabs ("Status: Offen ▾"). Default = Offen (= bisheriges "Jetzt machen" + "Im Auge behalten" zusammen).
+- **Section-Header in der Liste raus** (kein "VERZUG · 1" mehr über jeder Karte) — die Kategorie ist durch den aktiven Tab schon klar. Bei Tab "Alle" werden Karten weiterhin nach Kategorie gruppiert mit einem ganz dezenten Trenner (kleine Caps-Überschrift, kein farbiger Punkt, kein €-Wert rechts — das ist bereits in der Karte).
+- Header-KPI ("Offener €-Hebel / Wo +12.426 €") und Progressbar bleiben unverändert.
 
-### `src/lib/today-engine.ts`
-- `ActionSignal` um optionales `rejectAccount?: { riser: string; account: string; label: string }` erweitern
-- Bei `t.category === "talent"` mit `meta.accountNorm` → Feld setzen
+## 2. Karte redesignen (`src/components/PersonActionCard.tsx`)
 
-### `src/components/PersonActionCard.tsx`
-- Wenn `headlineSignal.rejectAccount` vorhanden → kleiner Button im Footer (links neben Snooze/Dismiss/Done): „↻ Anderer Account" mit `RefreshCw`-Icon. Klick → `onAct(action, "reject-account")`
-- Bei gebündelten Karten: nur zeigen wenn primaryKind `talent` ist
+Komplette visuelle Überarbeitung nach gewählter v3-Vorlage. Funktionalität (Done / Snooze / Dismiss / Expand / Belege) bleibt 1:1 erhalten, nur Layout & Optik ändern sich.
 
-### `src/pages/Today.tsx`
-- `act`-Funktion: neuer Kind `"reject-account"`. Holt aus `action.signals[0].rejectAccount` riser+account, ruft `addRejection`, dann `buildTodayActions(platform)` neu laden, Toast „Anderer Account gesucht".
+**Aufbau:**
 
-## Verhalten
-- Klick „↻ Anderer Account" → diese Karte verschwindet, neue Talent-Karte mit dem **nächstbesten freien** Orphan-Account erscheint (sofern vorhanden)
-- Abgelehnte Kombi bleibt 7 Tage gesperrt — danach kann sie wieder vorgeschlagen werden
-- Wenn kein anderer freier Account passt → keine Ersatzkarte (still)
-- Orphan-Warnungen (Solo „Account X liegt brach") bleiben unverändert — kein Button, da kein Riser-Vorschlag
+```text
+┌──────────────────────────────────────────────────┐
+│ Jonas Jo   [Verzug-Bundle]      ~+613 €/Wo       │
+│ 4 AKTIVE SIGNALE DETEKTIERT     • Kritisch       │
+├──────────────────────────────────────────────────┤
+│ ▍ Zahlungsziel überschritten        →           │
+│   Vor 12 Min.                                    │
+│ ▍ Lastschrift fehlgeschlagen        →           │
+│ ▍ Mahnung Stufe 2                   →           │
+│ ▍ Inaktivität Dashboard             →           │
+├──────────────────────────────────────────────────┤
+│ [JJ●] System-Agent      ⏱  ✕   [Abschließen ✓]  │
+└──────────────────────────────────────────────────┘
+```
 
-## Nicht geändert
-- Scoring / Sortierung
-- Andere Card-Typen
-- Talent-Match-Algorithmus selbst
+**Konkrete Änderungen:**
+
+- Karten-Container: `rounded-2xl bg-card border border-border/40`, dezenter Tone-Glow oben (Gradient `from-{tone}/10 to-transparent`, nur sichtbar).
+- Header-Zone: Name (xl, bold, weiß), kleines Bundle-Pill (Verzug-Bundle / Recovery-Bundle …), darunter Caps-Hinweis "N AKTIVE SIGNALE". Rechts: €-Wert in Tone-Farbe (rot/amber/cyan/emerald je Kategorie), darunter Status-Pill mit pulsierendem Dot.
+- Signal-Liste **inline immer sichtbar** (nicht mehr nur per Expand). Jedes Signal: linker Tone-Balken (Intensität spiegelt Recency/Severity), Titel in Caps + Zeitstempel darunter, Chevron rechts. Bei Klick → Beleg/Detail-Drawer (gleiche Datenquelle wie bisheriges Expand).
+- Footer-Bar (eigene innere Pill `bg-white/[0.02] border-white/[0.05] rounded-xl p-2`): links Avatar + Zuordnung, rechts Snooze-Icon, Dismiss-Icon (klein, dezent) und primärer Button "Abschließen" (weiß auf schwarz statt grün, premium).
+- Confidence (`~`) bleibt vor €-Wert wie bisher.
+- Bei nur 1 Signal: Signal-Liste zeigt 1 Eintrag, kein "+N Bundle"-Label.
+- Wins / Erledigt-Variante: Footer-Button verschwindet, Karte wirkt grayed-out (opacity 60, kein Glow).
+
+## 3. Tone-Farben
+
+Bleiben semantisch wie heute:
+- Verzug → `red`
+- Recovery → `cyan`
+- Account-Tausch → `amber`
+- Talent → `violet`/`emerald`
+
+Werden via Token-Map angesteuert, nicht hardcoded.
+
+## 4. Aufwand & Scope
+
+- Nur Frontend, keine Datenmodell-Änderungen.
+- Bestehende Filter-/Aggregations-Logik in Today.tsx bleibt; nur die Tab-Quelle wechselt von Section → Kategorie und Status-Filter wird Dropdown.
+- Mobile bleibt funktional (Tabs horizontal scrollbar, Karten vollbreit).
+
+## Out of scope
+
+- Keine Änderungen am Dashboard-Widget "Heute zu tun".
+- Keine Änderungen an Swipe-Mode.
+- Keine neuen Daten oder Edge Functions.
