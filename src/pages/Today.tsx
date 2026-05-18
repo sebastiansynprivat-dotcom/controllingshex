@@ -81,13 +81,6 @@ export default function Today() {
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const isSunday = new Date().getDay() === 0;
 
-  const toggleKind = (k: ActionSourceKind) => {
-    setExcludedKinds((prev) => {
-      const next = new Set(prev);
-      if (next.has(k)) next.delete(k); else next.add(k);
-      return next;
-    });
-  };
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
     weekday: "long",
