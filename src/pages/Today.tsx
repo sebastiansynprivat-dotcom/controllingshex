@@ -28,7 +28,8 @@ import {
   type WeekRecap,
 } from "@/lib/action-outcomes";
 
-type SectionMode = "primary" | "watch" | "wins" | "done";
+type StatusMode = "open" | "wins" | "done";
+type KindTab = "all" | ActionSourceKind;
 
 
 
