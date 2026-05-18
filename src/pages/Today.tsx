@@ -28,7 +28,8 @@ import {
   type WeekRecap,
 } from "@/lib/action-outcomes";
 
-type SectionMode = "primary" | "watch" | "wins" | "done";
+type StatusMode = "open" | "wins" | "done";
+type KindTab = "all" | ActionSourceKind;
 
 
 
@@ -74,19 +75,12 @@ export default function Today() {
   const [loading, setLoading] = useState(true);
   const [selectedChatter, setSelectedChatter] = useState<{ name: string; compareWith: string | null } | null>(null);
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
-  const [section, setSection] = useState<SectionMode>("primary");
-  const [excludedKinds, setExcludedKinds] = useState<Set<ActionSourceKind>>(new Set());
+  const [status, setStatus] = useState<StatusMode>("open");
+  const [kindTab, setKindTab] = useState<KindTab>("all");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const isSunday = new Date().getDay() === 0;
 
-  const toggleKind = (k: ActionSourceKind) => {
-    setExcludedKinds((prev) => {
-      const next = new Set(prev);
-      if (next.has(k)) next.delete(k); else next.add(k);
-      return next;
-    });
-  };
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
     weekday: "long",
@@ -225,20 +219,34 @@ export default function Today() {
     }
   };
 
-  const sections: { id: SectionMode; label: string; icon: typeof Flame; count: number }[] = [
-    { id: "primary", label: "Jetzt machen", icon: Flame, count: filtered.primary.length },
-    { id: "watch", label: "Im Auge behalten", icon: Eye, count: filtered.watchlist.length },
-    { id: "wins", label: "Wins", icon: Sparkles, count: filtered.wins.length },
-    { id: "done", label: "Erledigt", icon: Check, count: filtered.done.length },
-  ];
-
-  const visibleList = section === "primary"
-    ? filtered.primary
-    : section === "watch"
-      ? filtered.watchlist
-      : section === "wins"
+  // Status-Dropdown: Offen (= primary + watchlist), Wins, Erledigt
+  const statusList: UnifiedAction[] =
+    status === "open"
+      ? [...filtered.primary, ...filtered.watchlist]
+      : status === "wins"
         ? filtered.wins
         : filtered.done;
+
+  // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
+  const availableKinds = groupByKind(statusList);
+  const visibleList =
+    kindTab === "all"
+      ? statusList
+      : statusList.filter((a) => a.primaryKind === kindTab);
+
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
+  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
+    // defer state update until next render via effect-like
+    queueMicrotask(() => setKindTab("all"));
+  }
+
+  const statusOptions: { id: StatusMode; label: string; count: number }[] = [
+    { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
+    { id: "wins", label: "Wins", count: filtered.wins.length },
+    { id: "done", label: "Erledigt", count: filtered.done.length },
+  ];
+
+  const isReadonly = status !== "open";
 
   return (
     <>
@@ -371,30 +379,71 @@ export default function Today() {
             </motion.div>
           )}
 
-          {/* Section tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
-            {sections.map((s) => {
-              const Icon = s.icon;
-              const active = section === s.id;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSection(s.id)}
-                  className={cn(
-                    "shrink-0 px-3.5 py-2 rounded-full text-[12px] font-light tracking-wide transition-all border flex items-center gap-1.5",
-                    active
-                      ? "bg-primary/15 border-primary/40 text-foreground"
-                      : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20"
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {s.label}
-                  <span className={cn("tabular-nums ml-0.5", active ? "text-primary/90" : "text-white/30")}>
-                    {s.count}
-                  </span>
-                </button>
-              );
-            })}
+          {/* Status-Pills + Kategorie-Tabs */}
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-1.5">
+              {statusOptions.map((o) => {
+                const active = status === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    onClick={() => {
+                      setStatus(o.id);
+                      setKindTab("all");
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                      active
+                        ? "bg-white/[0.07] border-white/15 text-foreground/90"
+                        : "bg-transparent border-white/[0.06] text-white/35 hover:text-white/65",
+                    )}
+                  >
+                    {o.label}
+                    <span className={cn("tabular-nums text-[10px]", active ? "text-white/55" : "text-white/25")}>
+                      {o.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
+              <button
+                onClick={() => setKindTab("all")}
+                className={cn(
+                  "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                  kindTab === "all"
+                    ? "bg-white/10 border-white/20 text-foreground"
+                    : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
+                )}
+              >
+                Alle
+                <span className={cn("tabular-nums text-[10.5px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
+                  {statusList.length}
+                </span>
+              </button>
+              {availableKinds.map((g) => {
+                const Icon = g.icon;
+                const active = kindTab === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => setKindTab(g.id)}
+                    className={cn(
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      active
+                        ? "bg-white/10 border-white/20 text-foreground"
+                        : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
+                    )}
+                  >
+                    <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
+                    {g.label}
+                    <span className={cn("tabular-nums text-[10.5px]", active ? "text-white/70" : "text-white/30")}>
+                      {g.items.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Content */}
@@ -403,91 +452,38 @@ export default function Today() {
               Bündele Tagesaufgaben …
             </div>
           ) : visibleList.length === 0 ? (
-            <EmptyState section={section} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
-          ) : section === "primary" || section === "watch" ? (
-            <>
-              {/* Kategorie-Filter */}
-              {(() => {
-                const allGroups = groupByKind(visibleList);
-                if (allGroups.length <= 1) return null;
-                return (
-                  <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
-                    {allGroups.map((g) => {
-                      const Icon = g.icon;
-                      const active = !excludedKinds.has(g.id);
-                      return (
-                        <button
-                          key={g.id}
-                          onClick={() => toggleKind(g.id)}
-                          className={cn(
-                            "shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-light tracking-wide transition-all border flex items-center gap-1.5",
-                            active
-                              ? "bg-white/[0.04] border-white/15 text-foreground/90"
-                              : "bg-transparent border-white/[0.08] text-white/30 hover:text-white/55"
-                          )}
-                          title={active ? "Ausblenden" : "Einblenden"}
-                        >
-                          <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/30")} />
-                          <span>{g.label}</span>
-                          <span className={cn("tabular-nums", active ? "text-white/45" : "text-white/25")}>
-                            {g.items.length}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {excludedKinds.size > 0 && (
-                      <button
-                        onClick={() => setExcludedKinds(new Set())}
-                        className="shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-light tracking-wide text-white/40 hover:text-white/70 transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
-              <div className="space-y-5">
-                <AnimatePresence initial={false}>
-                  {groupByKind(visibleList).filter((g) => !excludedKinds.has(g.id)).map((g) => {
-                  const Icon = g.icon;
-                  return (
-                    <div key={g.id} className="space-y-2">
-                      <div className="flex items-center justify-between gap-3 px-1 pb-1.5 border-b border-white/[0.06]">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("h-1.5 w-1.5 rounded-full", g.dot)} />
-                          <Icon className={cn("h-3.5 w-3.5", g.accent)} />
-                          <span className={cn("text-[10.5px] font-semibold uppercase tracking-widest", g.accent)}>
-                            {g.label}
-                          </span>
-                          <span className="text-[10.5px] tabular-nums text-white/35 font-light">
-                            · {g.items.length}
-                          </span>
-                        </div>
-                        {g.sumImpact > 0 && (
-                          <span className="text-[10.5px] tabular-nums text-emerald-300/80 font-light">
-                            +{fmtEur(g.sumImpact)}/Wo
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {g.items.map((a) => (
-                          <PersonActionCard
-                            key={a.bundleKey}
-                            action={a}
-                            onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                            onAct={act}
-                          />
-                        ))}
-                      </div>
+            <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
+          ) : kindTab === "all" ? (
+            <div className="space-y-5">
+              <AnimatePresence initial={false}>
+                {groupByKind(visibleList).map((g) => (
+                  <div key={g.id} className="space-y-2">
+                    <div className="flex items-center gap-2 px-1 pb-1 opacity-70">
+                      <span className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", g.accent)}>
+                        {g.label}
+                      </span>
+                      <span className="text-[10px] tabular-nums text-white/30 font-light">
+                        · {g.items.length}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="space-y-3">
+                      {g.items.map((a) => (
+                        <PersonActionCard
+                          key={a.bundleKey}
+                          action={a}
+                          onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                          onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                          onAct={act}
+                          readonly={isReadonly}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </AnimatePresence>
-              </div>
-            </>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <AnimatePresence initial={false}>
                 {visibleList.map((a) => (
                   <PersonActionCard
@@ -496,6 +492,7 @@ export default function Today() {
                     onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
                     onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                     onAct={act}
+                    readonly={isReadonly}
                   />
                 ))}
               </AnimatePresence>
@@ -525,17 +522,15 @@ export default function Today() {
   );
 }
 
-function EmptyState({ section, hasAnyOpen }: { section: SectionMode; hasAnyOpen: boolean }) {
-  const cfg = section === "primary"
+function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: boolean }) {
+  const cfg = status === "open"
     ? {
-        title: hasAnyOpen ? "Top-Aktionen abgearbeitet 🏻" : "Alles klar für heute",
-        sub: hasAnyOpen ? "Schau im Auge behalten — kleinere Hebel warten." : "Keine kritischen Aktionen offen.",
+        title: hasAnyOpen ? "Alle offenen Aktionen erledigt 🏻" : "Alles klar für heute",
+        sub: hasAnyOpen ? "Schau in Wins oder Erledigt für deinen Fortschritt." : "Keine offenen Aktionen.",
       }
-    : section === "watch"
-      ? { title: "Nichts auf der Watchlist", sub: "Alles, was zählt, ist oben." }
-      : section === "wins"
-        ? { title: "Heute noch keine Wins", sub: "Schau später nochmal rein." }
-        : { title: "Noch nichts erledigt", sub: "Die ersten Häkchen warten." };
+    : status === "wins"
+      ? { title: "Heute noch keine Wins", sub: "Schau später nochmal rein." }
+      : { title: "Noch nichts erledigt", sub: "Die ersten Häkchen warten." };
 
   return (
     <div className="premium-card rounded-2xl p-8 text-center">
