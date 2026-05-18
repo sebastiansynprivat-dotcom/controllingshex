@@ -219,20 +219,34 @@ export default function Today() {
     }
   };
 
-  const sections: { id: SectionMode; label: string; icon: typeof Flame; count: number }[] = [
-    { id: "primary", label: "Jetzt machen", icon: Flame, count: filtered.primary.length },
-    { id: "watch", label: "Im Auge behalten", icon: Eye, count: filtered.watchlist.length },
-    { id: "wins", label: "Wins", icon: Sparkles, count: filtered.wins.length },
-    { id: "done", label: "Erledigt", icon: Check, count: filtered.done.length },
-  ];
-
-  const visibleList = section === "primary"
-    ? filtered.primary
-    : section === "watch"
-      ? filtered.watchlist
-      : section === "wins"
+  // Status-Dropdown: Offen (= primary + watchlist), Wins, Erledigt
+  const statusList: UnifiedAction[] =
+    status === "open"
+      ? [...filtered.primary, ...filtered.watchlist]
+      : status === "wins"
         ? filtered.wins
         : filtered.done;
+
+  // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
+  const availableKinds = groupByKind(statusList);
+  const visibleList =
+    kindTab === "all"
+      ? statusList
+      : statusList.filter((a) => a.primaryKind === kindTab);
+
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
+  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
+    // defer state update until next render via effect-like
+    queueMicrotask(() => setKindTab("all"));
+  }
+
+  const statusOptions: { id: StatusMode; label: string; count: number }[] = [
+    { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
+    { id: "wins", label: "Wins", count: filtered.wins.length },
+    { id: "done", label: "Erledigt", count: filtered.done.length },
+  ];
+
+  const isReadonly = status !== "open";
 
   return (
     <>
