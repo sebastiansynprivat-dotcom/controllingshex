@@ -1,26 +1,12 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Check,
   Clock,
   X as XIcon,
-  ChevronDown,
-  AlertTriangle,
-  TrendingDown,
-  Activity,
-  Users,
-  Sparkles,
-  Rocket,
-  Gem,
-  ArrowLeftRight,
-  Calendar,
-  Flame,
-  Zap,
-  Target,
-  History,
-  TrendingUp,
-  BellRing,
+  ChevronRight,
   RefreshCw,
+  Zap,
+  TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
@@ -30,53 +16,53 @@ interface Props {
   onChatterClick?: (name: string, compareWith?: string | null) => void;
   onModelClick?: (modelName: string, chatterName: string | null) => void;
   onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss" | "reject-account") => void;
+  /** Karten in Wins/Erledigt-Ansicht: kein primary action button, gedimmt. */
+  readonly?: boolean;
 }
 
-// Tone → einzige Farbquelle der Karte
 const TONE: Record<
   UnifiedAction["tone"],
-  { stripe: string; label: string; impact: string; ring: string }
+  {
+    glow: string;
+    accent: string;
+    bar: string;
+    barDim: string;
+    dot: string;
+    statusLabel: string;
+  }
 > = {
   critical: {
-    stripe: "bg-red-500",
-    label: "text-red-300/90",
-    impact: "text-red-200",
-    ring: "border-red-500/15 hover:border-red-500/35",
+    glow: "from-red-500/15 via-red-500/5",
+    accent: "text-red-300",
+    bar: "bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.4)]",
+    barDim: "bg-red-500/40",
+    dot: "bg-red-500",
+    statusLabel: "Kritisch",
   },
   warning: {
-    stripe: "bg-amber-500",
-    label: "text-amber-300/90",
-    impact: "text-amber-200",
-    ring: "border-amber-500/15 hover:border-amber-500/35",
+    glow: "from-amber-500/15 via-amber-500/5",
+    accent: "text-amber-300",
+    bar: "bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]",
+    barDim: "bg-amber-500/40",
+    dot: "bg-amber-500",
+    statusLabel: "Warnung",
   },
   info: {
-    stripe: "bg-cyan-500",
-    label: "text-cyan-300/90",
-    impact: "text-cyan-200",
-    ring: "border-white/10 hover:border-primary/25",
+    glow: "from-cyan-500/12 via-cyan-500/4",
+    accent: "text-cyan-300",
+    bar: "bg-cyan-500/80 shadow-[0_0_8px_rgba(6,182,212,0.35)]",
+    barDim: "bg-cyan-500/35",
+    dot: "bg-cyan-500",
+    statusLabel: "Hinweis",
   },
   positive: {
-    stripe: "bg-emerald-500",
-    label: "text-emerald-300/90",
-    impact: "text-emerald-300",
-    ring: "border-emerald-500/12 hover:border-emerald-500/30",
+    glow: "from-emerald-500/15 via-emerald-500/5",
+    accent: "text-emerald-300",
+    bar: "bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]",
+    barDim: "bg-emerald-500/40",
+    dot: "bg-emerald-500",
+    statusLabel: "Win",
   },
-};
-
-const KIND_ICON: Record<ActionSourceKind, typeof Flame> = {
-  verzug: AlertTriangle,
-  recovery: TrendingDown,
-  revenue: TrendingUp,
-  activity: Activity,
-  model: Users,
-  positive: Sparkles,
-  talent: Rocket,
-  phase: Calendar,
-  mismatch: Users,
-  swap: ArrowLeftRight,
-  slot: Activity,
-  potential: Target,
-  wakeup: BellRing,
 };
 
 const KIND_LABEL: Record<ActionSourceKind, string> = {
@@ -89,7 +75,7 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
   talent: "Talent",
   phase: "Phase",
   mismatch: "Mismatch",
-  swap: "Swap",
+  swap: "Account-Tausch",
   slot: "Slot",
   potential: "Potenzial",
   wakeup: "Wieder aktiv",
@@ -112,54 +98,107 @@ function initials(name: string | null | undefined): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "··";
 }
 
-export default function PersonActionCard({ action, onChatterClick, onModelClick, onAct }: Props) {
-  const [expanded, setExpanded] = useState(false);
+const MAX_SIGNAL_ROWS = 4;
+
+export default function PersonActionCard({
+  action,
+  onChatterClick,
+  onModelClick,
+  onAct,
+  readonly = false,
+}: Props) {
   const tone = TONE[action.tone];
 
   const headlineSignal = action.signals[0];
   const bundled = action.signals.length > 1;
-  const headline = bundled && action.chatterName
-    ? `${action.chatterName} · ${action.signals.length} Signale`
-    : headlineSignal.title;
 
-  const categoryLabel = bundled
-    ? `${KIND_LABEL[action.primaryKind]} +${action.signals.length - 1}`
-    : KIND_LABEL[action.primaryKind];
+  const displayName =
+    action.chatterName ?? action.modelName ?? headlineSignal.title;
+
+  const bundleLabel = `${KIND_LABEL[action.primaryKind]}-Bundle`;
+  const singleLabel = KIND_LABEL[action.primaryKind];
 
   const impactStr = fmtEur(action.totalImpactEurPerWeek);
   const hasImpact = impactStr !== "—";
   const impactPrefix = action.confidence === "low" ? "~" : "";
+
   const peakLabel = fmtPeak(action.peakWindow);
-  const showCoi = action.costOfInactionEurPerWeek > 0 && (action.tone === "critical" || action.tone === "warning");
-  const hasEvidence = !bundled && headlineSignal.evidence && headlineSignal.evidence.length > 0;
-  const hasDetails = bundled || hasEvidence;
+  const showCoi =
+    action.costOfInactionEurPerWeek > 0 &&
+    (action.tone === "critical" || action.tone === "warning");
 
   const compareTarget = (() => {
     if (action.secondaryChatter) return action.secondaryChatter;
-    const directCompareKinds = new Set<ActionSourceKind>(["talent", "swap", "mismatch", "phase"]);
-    const prioritized = action.signals.find((s) => directCompareKinds.has(s.kind) && (s.compareWith || s.secondaryChatter));
-    if (prioritized) return prioritized.compareWith ?? prioritized.secondaryChatter ?? null;
+    const directCompareKinds = new Set<ActionSourceKind>([
+      "talent",
+      "swap",
+      "mismatch",
+      "phase",
+    ]);
+    const prioritized = action.signals.find(
+      (s) => directCompareKinds.has(s.kind) && (s.compareWith || s.secondaryChatter),
+    );
+    if (prioritized)
+      return prioritized.compareWith ?? prioritized.secondaryChatter ?? null;
     const any = action.signals.find((s) => s.compareWith || s.secondaryChatter);
     return any?.compareWith ?? any?.secondaryChatter ?? null;
   })();
 
-  const opensComparison = !!action.chatterName && !!compareTarget;
-
   const openDetails = (overrideCompare?: string | null) => {
     if (action.chatterName && onChatterClick) {
-      onChatterClick(action.chatterName, overrideCompare !== undefined ? overrideCompare : compareTarget);
+      onChatterClick(
+        action.chatterName,
+        overrideCompare !== undefined ? overrideCompare : compareTarget,
+      );
     } else if (action.modelName && onModelClick) {
       onModelClick(action.modelName, action.chatterName);
     }
   };
 
-  const handleCardClick = () => {
-    if (opensComparison) openDetails(compareTarget);
-    else if (hasDetails) setExpanded((v) => !v);
-    else openDetails();
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  // Signal-Rows: bei Bundle alle Signale; sonst optional Evidence-Einträge
+  type Row = {
+    key: string;
+    title: string;
+    meta: string | null;
+    intensity: "strong" | "medium" | "soft";
+    compareWith: string | null;
   };
 
-  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const rows: Row[] = bundled
+    ? action.signals.slice(0, MAX_SIGNAL_ROWS).map((s, i) => ({
+        key: s.todoKey,
+        title: s.title,
+        meta: s.why,
+        intensity: i === 0 ? "strong" : i === 1 ? "medium" : "soft",
+        compareWith: s.compareWith ?? s.secondaryChatter ?? null,
+      }))
+    : (() => {
+        const r: Row[] = [
+          {
+            key: headlineSignal.todoKey,
+            title: headlineSignal.title,
+            meta: headlineSignal.why,
+            intensity: "strong",
+            compareWith:
+              headlineSignal.compareWith ?? headlineSignal.secondaryChatter ?? null,
+          },
+        ];
+        const ev = headlineSignal.evidence ?? [];
+        ev.slice(0, MAX_SIGNAL_ROWS - 1).forEach((e, i) => {
+          r.push({
+            key: `ev-${i}`,
+            title: e.text,
+            meta: null,
+            intensity: "soft",
+            compareWith: null,
+          });
+        });
+        return r;
+      })();
+
+  const restCount = bundled ? Math.max(0, action.signals.length - MAX_SIGNAL_ROWS) : 0;
 
   return (
     <motion.div
@@ -168,188 +207,245 @@ export default function PersonActionCard({ action, onChatterClick, onModelClick,
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 80, transition: { duration: 0.2 } }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      onClick={handleCardClick}
       className={cn(
-        "premium-card relative rounded-2xl overflow-hidden border transition-colors cursor-pointer group",
-        tone.ring,
+        "group relative w-full transition-all duration-300",
+        readonly && "opacity-60",
       )}
     >
-      <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", tone.stripe)} />
-
-      <div className="p-4 pl-5 flex flex-col gap-2.5">
-        {/* Zeile 1: Kategorie · Impact */}
-        <div className="flex items-center justify-between gap-3">
-          <span className={cn("text-[10px] font-semibold uppercase tracking-[0.14em]", tone.label)}>
-            {categoryLabel}
-          </span>
-          <span
-            className={cn(
-              "text-[13px] font-medium tabular-nums",
-              hasImpact ? tone.impact : "text-white/35",
-            )}
-            title={
-              action.confidence === "low"
-                ? "Niedrige Konfidenz (<5 Tage Daten)"
-                : action.confidence === "medium"
-                  ? "Mittlere Konfidenz (5–14 Tage)"
-                  : "Hohe Konfidenz (≥15 Tage)"
-            }
-          >
-            {hasImpact ? `${impactPrefix}${impactStr}/Wo` : "—"}
-          </span>
-        </div>
-
-        {/* Zeile 2: Headline */}
-        <h3 className="text-[14.5px] font-normal text-foreground leading-snug">
-          {headline}
-        </h3>
-
-        {/* Zeile 3: Ein-Satz-Why */}
-        <p className="text-[12px] text-white/50 font-light leading-relaxed line-clamp-2">
-          {bundled ? action.signals.map((s) => KIND_LABEL[s.kind]).join(" · ") : headlineSignal.why}
-        </p>
-
-        {/* Zeile 4: Mini-Meta (nur Icons, optional) */}
-        {(showCoi || peakLabel) && (
-          <div className="flex items-center gap-3 text-[10.5px] text-white/40 tabular-nums">
-            {action.inPeakNow ? (
-              <span className="flex items-center gap-1 text-emerald-300/90" title="Jetzt im Peak-Fenster">
-                <Zap className="h-3 w-3" /> Peak jetzt
-              </span>
-            ) : peakLabel ? (
-              <span className="flex items-center gap-1" title="Peak-Zeitfenster">
-                <Zap className="h-3 w-3" /> {peakLabel}
-              </span>
-            ) : null}
-            {showCoi && (
-              <span className="flex items-center gap-1 text-rose-300/85" title="Folgekosten in 7 Tagen ohne Aktion">
-                <TrendingDown className="h-3 w-3" />
-                −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €
-              </span>
-            )}
-          </div>
+      {/* Hintergrund-Glow (Tone) */}
+      <div
+        className={cn(
+          "absolute -inset-px rounded-2xl bg-gradient-to-b to-transparent opacity-80 pointer-events-none",
+          tone.glow,
+          readonly && "opacity-30",
         )}
+      />
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-2.5 mt-0.5 border-t border-white/[0.06]">
-          <button
-            onClick={(e) => { stop(e); openDetails(); }}
-            className="flex items-center gap-2 text-white/45 hover:text-white/75 transition-colors min-w-0"
-          >
-            <div className="w-5 h-5 rounded bg-white/[0.05] border border-white/10 flex items-center justify-center text-[9px] font-semibold tabular-nums shrink-0">
-              {initials(action.chatterName ?? action.modelName)}
+      <div className="relative flex flex-col overflow-hidden rounded-2xl bg-[#0C0C0C] border border-white/10 shadow-2xl">
+        {/* Header */}
+        <div className="p-5 border-b border-white/[0.04] bg-gradient-to-r from-white/[0.015] to-transparent">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
+                  {displayName}
+                </h3>
+                <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-[9px] font-bold text-white/45 uppercase tracking-widest shrink-0">
+                  {bundled ? bundleLabel : singleLabel}
+                </span>
+              </div>
+              <p className="text-[10.5px] font-semibold text-white/35 uppercase tracking-[0.12em]">
+                {bundled
+                  ? `${action.signals.length} aktive Signale detektiert`
+                  : "1 Signal detektiert"}
+              </p>
             </div>
-            <span className="text-[11px] font-light truncate">
-              {action.chatterName ?? action.modelName ?? "Details"}
-            </span>
-            {hasDetails && (
-              <button
-                onClick={(e) => { stop(e); setExpanded((v) => !v); }}
+
+            <div className="text-right shrink-0">
+              <div
                 className={cn(
-                  "ml-1 p-0.5 rounded text-white/35 hover:text-white/70 transition-all",
-                  expanded && "rotate-180",
+                  "text-[22px] font-light tracking-tighter tabular-nums",
+                  hasImpact ? tone.accent : "text-white/30",
                 )}
-                aria-label="Details aufklappen"
+                title={
+                  action.confidence === "low"
+                    ? "Niedrige Konfidenz (<5 Tage Daten)"
+                    : action.confidence === "medium"
+                      ? "Mittlere Konfidenz (5–14 Tage)"
+                      : "Hohe Konfidenz (≥15 Tage)"
+                }
               >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </button>
-
-          <div className="flex items-center gap-2.5 opacity-60 group-hover:opacity-100 transition-opacity">
-            {headlineSignal.rejectAccount && (
-              <button
-                onClick={(e) => { stop(e); onAct(action, "reject-account"); }}
-                title="Anderer Account vorschlagen"
-                className="text-white/40 hover:text-violet-300 transition-colors p-1"
+                {hasImpact ? (
+                  <>
+                    {impactPrefix}
+                    {impactStr}{" "}
+                    <span className="text-[13px] opacity-50">/Wo</span>
+                  </>
+                ) : (
+                  "—"
+                )}
+              </div>
+              <div
+                className={cn(
+                  "mt-1 text-[9px] font-bold uppercase tracking-[0.15em] flex items-center justify-end gap-1.5",
+                  tone.accent,
+                  "opacity-80",
+                )}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-            )}
-            <button
-              onClick={(e) => { stop(e); onAct(action, "snooze"); }}
-              title="4h später"
-              className="text-white/40 hover:text-white/80 transition-colors p-1"
-            >
-              <Clock className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={(e) => { stop(e); onAct(action, "dismiss"); }}
-              title="Heute ausblenden"
-              className="text-white/40 hover:text-rose-400 transition-colors p-1"
-            >
-              <XIcon className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={(e) => { stop(e); onAct(action, "done"); }}
-              title="Erledigt"
-              className="text-emerald-400/80 hover:text-emerald-300 transition-colors p-1"
-            >
-              <Check className="h-4 w-4" />
-            </button>
+                <span className={cn("w-1 h-1 rounded-full animate-pulse", tone.dot)} />
+                {tone.statusLabel}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <AnimatePresence initial={false}>
-        {expanded && hasDetails && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-            onClick={stop}
-          >
-            <div className="px-4 pl-5 pb-4 -mt-1 space-y-2">
-              {hasEvidence && (
-                <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <History className="h-3 w-3 text-white/45" />
-                    <span className="text-[10px] uppercase tracking-widest text-white/45 font-semibold">Beleg</span>
-                  </div>
-                  <ul className="space-y-1">
-                    {headlineSignal.evidence!.slice(0, 3).map((ev, i) => (
-                      <li key={i} className="text-[11px] text-white/65 font-light leading-relaxed tabular-nums">
-                        · {ev.text}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+          {(action.inPeakNow || peakLabel || showCoi) && (
+            <div className="flex items-center gap-4 mt-3 text-[10.5px] text-white/40 tabular-nums">
+              {action.inPeakNow ? (
+                <span className="flex items-center gap-1 text-emerald-300/90">
+                  <Zap className="h-3 w-3" /> Peak jetzt
+                </span>
+              ) : peakLabel ? (
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3" /> {peakLabel}
+                </span>
+              ) : null}
+              {showCoi && (
+                <span className="flex items-center gap-1 text-rose-300/85">
+                  <TrendingDown className="h-3 w-3" />
+                  −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €
+                </span>
               )}
+            </div>
+          )}
+        </div>
 
-              {bundled && action.signals.map((s) => {
-                const Icon = KIND_ICON[s.kind] ?? Gem;
-                const sigCompare = s.compareWith ?? s.secondaryChatter ?? null;
-                const isClickable = !!sigCompare && !!action.chatterName;
-                return (
-                  <div
-                    key={s.todoKey}
-                    onClick={isClickable ? (e) => { stop(e); openDetails(sigCompare); } : undefined}
-                    className={cn(
-                      "flex items-start gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5",
-                      isClickable && "cursor-pointer hover:bg-white/[0.05] hover:border-white/10 transition-colors",
-                    )}
-                  >
-                    <div className="h-6 w-6 rounded-md bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon className="h-3 w-3 text-white/55" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-foreground/85 font-light leading-snug">{s.title}</p>
-                      <p className="text-[10.5px] text-white/40 font-light mt-0.5 leading-relaxed">{s.why}</p>
-                    </div>
-                    {s.impactEurPerWeek != null && s.impactEurPerWeek > 0 && (
-                      <span className="text-[10px] tabular-nums text-emerald-300/80 shrink-0 mt-0.5">
-                        +{Math.round(s.impactEurPerWeek)}€
+        {/* Signal-Liste */}
+        <div className="p-3 flex flex-col gap-1.5">
+          {rows.map((r, i) => {
+            const intensityCls =
+              r.intensity === "strong"
+                ? tone.bar
+                : r.intensity === "medium"
+                  ? tone.barDim
+                  : "bg-white/10";
+            const clickable =
+              !!r.compareWith && !!action.chatterName && !readonly;
+            return (
+              <button
+                key={r.key}
+                type="button"
+                onClick={(e) => {
+                  stop(e);
+                  if (clickable) openDetails(r.compareWith);
+                  else openDetails();
+                }}
+                className={cn(
+                  "group/item flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors",
+                  i === 0
+                    ? "bg-white/[0.03] border-white/[0.06]"
+                    : "bg-white/[0.02] border-white/[0.04]",
+                  "hover:bg-white/[0.05]",
+                )}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={cn("w-1 h-8 rounded-full shrink-0", intensityCls)} />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11.5px] font-bold text-white/85 uppercase tracking-wide truncate">
+                      {r.title}
+                    </span>
+                    {r.meta && (
+                      <span className="text-[10px] text-white/40 font-light truncate">
+                        {r.meta}
                       </span>
                     )}
                   </div>
-                );
-              })}
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover/item:text-white/50 transition-colors shrink-0" />
+              </button>
+            );
+          })}
+          {restCount > 0 && (
+            <p className="text-[10px] text-white/35 font-light px-3 pt-0.5">
+              + {restCount} weitere Signal{restCount > 1 ? "e" : ""}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 pt-0">
+          <div className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.05] p-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                stop(e);
+                openDetails();
+              }}
+              className="flex items-center gap-3 pl-1 pr-2 py-0.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
+            >
+              <div className="relative shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-white/10 to-transparent text-[10px] font-bold text-white/75 border border-white/10">
+                  {initials(action.chatterName ?? action.modelName)}
+                </div>
+                <div
+                  className={cn(
+                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0C0C0C]",
+                    tone.dot,
+                  )}
+                />
+              </div>
+              <div className="flex flex-col leading-tight min-w-0 text-left">
+                <span className="text-[11px] font-medium text-white/75 truncate">
+                  {action.chatterName ?? action.modelName ?? "Details"}
+                </span>
+                {compareTarget && (
+                  <span className="text-[9px] font-semibold text-white/35 uppercase tracking-tight truncate">
+                    vs. {compareTarget}
+                  </span>
+                )}
+              </div>
+            </button>
+
+            <div className="flex items-center gap-1">
+              {headlineSignal.rejectAccount && !readonly && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    stop(e);
+                    onAct(action, "reject-account");
+                  }}
+                  title="Anderer Account vorschlagen"
+                  className="p-2 text-white/25 hover:text-violet-300 hover:bg-white/5 rounded-lg transition-all"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {!readonly && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      stop(e);
+                      onAct(action, "snooze");
+                    }}
+                    title="4h später"
+                    className="p-2 text-white/25 hover:text-white/80 hover:bg-white/5 rounded-lg transition-all"
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      stop(e);
+                      onAct(action, "dismiss");
+                    }}
+                    title="Heute ausblenden"
+                    className="p-2 text-white/25 hover:text-rose-400 hover:bg-white/5 rounded-lg transition-all"
+                  >
+                    <XIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      stop(e);
+                      onAct(action, "done");
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.98] transition-all"
+                  >
+                    Abschließen
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                  </button>
+                </>
+              )}
+              {readonly && (
+                <div className="px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                  <Check className="h-3 w-3" />
+                  Erledigt
+                </div>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
