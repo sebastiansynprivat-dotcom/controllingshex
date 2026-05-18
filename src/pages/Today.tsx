@@ -511,17 +511,15 @@ export default function Today() {
   );
 }
 
-function EmptyState({ section, hasAnyOpen }: { section: SectionMode; hasAnyOpen: boolean }) {
-  const cfg = section === "primary"
+function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: boolean }) {
+  const cfg = status === "open"
     ? {
-        title: hasAnyOpen ? "Top-Aktionen abgearbeitet 🏻" : "Alles klar für heute",
-        sub: hasAnyOpen ? "Schau im Auge behalten — kleinere Hebel warten." : "Keine kritischen Aktionen offen.",
+        title: hasAnyOpen ? "Alle offenen Aktionen erledigt 🏻" : "Alles klar für heute",
+        sub: hasAnyOpen ? "Schau in Wins oder Erledigt für deinen Fortschritt." : "Keine offenen Aktionen.",
       }
-    : section === "watch"
-      ? { title: "Nichts auf der Watchlist", sub: "Alles, was zählt, ist oben." }
-      : section === "wins"
-        ? { title: "Heute noch keine Wins", sub: "Schau später nochmal rein." }
-        : { title: "Noch nichts erledigt", sub: "Die ersten Häkchen warten." };
+    : status === "wins"
+      ? { title: "Heute noch keine Wins", sub: "Schau später nochmal rein." }
+      : { title: "Noch nichts erledigt", sub: "Die ersten Häkchen warten." };
 
   return (
     <div className="premium-card rounded-2xl p-8 text-center">
