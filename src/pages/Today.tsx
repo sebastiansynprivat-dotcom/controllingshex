@@ -379,30 +379,60 @@ export default function Today() {
             </motion.div>
           )}
 
-          {/* Section tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
-            {sections.map((s) => {
-              const Icon = s.icon;
-              const active = section === s.id;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSection(s.id)}
-                  className={cn(
-                    "shrink-0 px-3.5 py-2 rounded-full text-[12px] font-light tracking-wide transition-all border flex items-center gap-1.5",
-                    active
-                      ? "bg-primary/15 border-primary/40 text-foreground"
-                      : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20"
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {s.label}
-                  <span className={cn("tabular-nums ml-0.5", active ? "text-primary/90" : "text-white/30")}>
-                    {s.count}
-                  </span>
-                </button>
-              );
-            })}
+          {/* Kategorie-Tabs + Status-Dropdown */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none flex-1 min-w-0">
+              <button
+                onClick={() => setKindTab("all")}
+                className={cn(
+                  "shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                  kindTab === "all"
+                    ? "bg-white/10 border-white/20 text-foreground"
+                    : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
+                )}
+              >
+                Alle
+                <span className={cn("tabular-nums text-[10.5px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
+                  {statusList.length}
+                </span>
+              </button>
+              {availableKinds.map((g) => {
+                const Icon = g.icon;
+                const active = kindTab === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => setKindTab(g.id)}
+                    className={cn(
+                      "shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      active
+                        ? "bg-white/10 border-white/20 text-foreground"
+                        : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
+                    )}
+                  >
+                    <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
+                    {g.label}
+                    <span className={cn("tabular-nums text-[10.5px]", active ? "text-white/70" : "text-white/30")}>
+                      {g.items.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value as StatusMode);
+                setKindTab("all");
+              }}
+              className="shrink-0 bg-white/[0.03] border border-white/10 rounded-full px-3 py-1.5 text-[11px] font-medium text-white/75 hover:text-foreground hover:border-white/20 transition-colors cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;utf8,<svg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2210%22%20height=%2210%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23999%22%20stroke-width=%222%22><path%20d=%22M6%209l6%206%206-6%22/></svg>')] bg-no-repeat bg-[right_0.5rem_center]"
+            >
+              {statusOptions.map((o) => (
+                <option key={o.id} value={o.id} className="bg-[#0C0C0C] text-foreground">
+                  {o.label} · {o.count}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Content */}
@@ -411,91 +441,38 @@ export default function Today() {
               Bündele Tagesaufgaben …
             </div>
           ) : visibleList.length === 0 ? (
-            <EmptyState section={section} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
-          ) : section === "primary" || section === "watch" ? (
-            <>
-              {/* Kategorie-Filter */}
-              {(() => {
-                const allGroups = groupByKind(visibleList);
-                if (allGroups.length <= 1) return null;
-                return (
-                  <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
-                    {allGroups.map((g) => {
-                      const Icon = g.icon;
-                      const active = !excludedKinds.has(g.id);
-                      return (
-                        <button
-                          key={g.id}
-                          onClick={() => toggleKind(g.id)}
-                          className={cn(
-                            "shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-light tracking-wide transition-all border flex items-center gap-1.5",
-                            active
-                              ? "bg-white/[0.04] border-white/15 text-foreground/90"
-                              : "bg-transparent border-white/[0.08] text-white/30 hover:text-white/55"
-                          )}
-                          title={active ? "Ausblenden" : "Einblenden"}
-                        >
-                          <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/30")} />
-                          <span>{g.label}</span>
-                          <span className={cn("tabular-nums", active ? "text-white/45" : "text-white/25")}>
-                            {g.items.length}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {excludedKinds.size > 0 && (
-                      <button
-                        onClick={() => setExcludedKinds(new Set())}
-                        className="shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-light tracking-wide text-white/40 hover:text-white/70 transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
-              <div className="space-y-5">
-                <AnimatePresence initial={false}>
-                  {groupByKind(visibleList).filter((g) => !excludedKinds.has(g.id)).map((g) => {
-                  const Icon = g.icon;
-                  return (
-                    <div key={g.id} className="space-y-2">
-                      <div className="flex items-center justify-between gap-3 px-1 pb-1.5 border-b border-white/[0.06]">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("h-1.5 w-1.5 rounded-full", g.dot)} />
-                          <Icon className={cn("h-3.5 w-3.5", g.accent)} />
-                          <span className={cn("text-[10.5px] font-semibold uppercase tracking-widest", g.accent)}>
-                            {g.label}
-                          </span>
-                          <span className="text-[10.5px] tabular-nums text-white/35 font-light">
-                            · {g.items.length}
-                          </span>
-                        </div>
-                        {g.sumImpact > 0 && (
-                          <span className="text-[10.5px] tabular-nums text-emerald-300/80 font-light">
-                            +{fmtEur(g.sumImpact)}/Wo
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {g.items.map((a) => (
-                          <PersonActionCard
-                            key={a.bundleKey}
-                            action={a}
-                            onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                            onAct={act}
-                          />
-                        ))}
-                      </div>
+            <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
+          ) : kindTab === "all" ? (
+            <div className="space-y-5">
+              <AnimatePresence initial={false}>
+                {groupByKind(visibleList).map((g) => (
+                  <div key={g.id} className="space-y-2">
+                    <div className="flex items-center gap-2 px-1 pb-1 opacity-70">
+                      <span className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", g.accent)}>
+                        {g.label}
+                      </span>
+                      <span className="text-[10px] tabular-nums text-white/30 font-light">
+                        · {g.items.length}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="space-y-3">
+                      {g.items.map((a) => (
+                        <PersonActionCard
+                          key={a.bundleKey}
+                          action={a}
+                          onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                          onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                          onAct={act}
+                          readonly={isReadonly}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </AnimatePresence>
-              </div>
-            </>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <AnimatePresence initial={false}>
                 {visibleList.map((a) => (
                   <PersonActionCard
@@ -504,6 +481,7 @@ export default function Today() {
                     onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
                     onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                     onAct={act}
+                    readonly={isReadonly}
                   />
                 ))}
               </AnimatePresence>
