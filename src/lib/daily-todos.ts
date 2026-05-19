@@ -228,9 +228,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     }
     if (!todayEntry || historical.length < 2) continue;
 
-    // Verzug
+    // Verzug — Onboarding-Chatter werden hier ausgeklammert (Dashboard tut das auch)
     const delay = todayMaxDelay;
-    if (delay >= 3) {
+    if (delay >= 3 && !isOnboarding(name)) {
       todos.push({
         key: `verzug:${name}:${today}`,
         category: "verzug",
@@ -241,6 +241,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         meta: { delayDays: delay, todayOpenChats },
       });
     }
+
 
     // Mass-DM Drop
     const todayDm = todayEntries.reduce((s, e) => s + (e.mass_dms ?? 0), 0);
