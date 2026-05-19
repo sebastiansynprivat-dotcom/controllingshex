@@ -468,8 +468,13 @@ export default function LiveTracking() {
     profiles.forEach((p) => {
       if (p.daysObserved >= 1 && p.avgRevenue >= 5) keys.add(p.name);
     });
+    // Chatter aus älteren Reports / Historie ausblenden, die im aktuellen
+    // Report nicht mehr enthalten sind.
+    const filteredKeys = activeNames
+      ? new Set([...keys].filter((k) => activeNames.has(k)))
+      : keys;
     const out: ChatterStatus[] = [];
-    keys.forEach((key) => {
+    filteredKeys.forEach((key) => {
       const live = rows.find((r) => normName(r.chatter_name) === key) ?? null;
       const profile = profiles.get(key) ?? null;
       out.push(computeStatus(displayNameFor(key), live, profile, now));
