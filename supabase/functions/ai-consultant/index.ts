@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, platform } = await req.json();
+    const { messages, platform, stream } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages array required" }), {
         status: 400,
@@ -33,58 +33,57 @@ Deno.serve(async (req) => {
 
     const activePlatform = platform || "Maloum";
 
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-    const { data: historyData } = await supabase
-      .from("chatter_history")
-      .select("*")
-      .eq("platform", activePlatform)
-      .gte("analysis_date", twoWeeksAgo.toISOString().split("T")[0])
-      .order("analysis_date", { ascending: false })
-      .limit(500);
+    // Leaner context: 7 Tage statt 14, max 200 Zeilen statt 500
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { data: notesData } = await supabase
-      .from("coaching_notes")
-      .select("*")
-      .eq("platform", activePlatform)
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const [historyRes, notesRes, modelsRes] = await Promise.all([
+      supabase
+        .from("chatter_history")
+        .select("chatter_name,analysis_date,revenue_today,mass_dms,open_chats,response_delay_days,category_name")
+        .eq("platform", activePlatform)
+        .gte("analysis_date", sevenDaysAgo.toISOString().split("T")[0])
+        .order("analysis_date", { ascending: false })
+        .limit(200),
+      supabase
+        .from("coaching_notes")
+        .select("chatter_name,note_text,created_at")
+        .eq("platform", activePlatform)
+        .order("created_at", { ascending: false })
+        .limit(30),
+      supabase
+        .from("models")
+        .select("model_name,follower_count")
+        .eq("platform", activePlatform)
+        .limit(50),
+    ]);
 
-    const { data: modelsData } = await supabase
-      .from("models")
-      .select("model_name, follower_count")
-      .eq("platform", activePlatform);
+    const historyData = historyRes.data ?? [];
+    const notesData = notesRes.data ?? [];
+    const modelsData = modelsRes.data ?? [];
 
-    const dataContext = `
-DATENBANK-KONTEXT (${activePlatform}):
+    const dataContext = `DATEN (${activePlatform}, 7 Tage):
 
-CHATTER-PERFORMANCE (letzte 14 Tage):
-${historyData && historyData.length > 0
-  ? historyData.map((r: any) => `${r.chatter_name} | ${r.analysis_date} | Umsatz: ${r.revenue_today}€ | MassDMs: ${r.mass_dms} | Offene Chats: ${r.open_chats} | Verzug: ${r.response_delay_days} Tage`).join("\n")
-  : "Keine Daten vorhanden."}
+CHATTER (${historyData.length} Einträge):
+${historyData.length
+  ? historyData.map((r: any) => `${r.chatter_name}|${r.analysis_date}|€${r.revenue_today}|DMs:${r.mass_dms}|Offen:${r.open_chats}|Verzug:${r.response_delay_days}|${r.category_name ?? "-"}`).join("\n")
+  : "keine"}
 
-COACHING-NOTIZEN:
-${notesData && notesData.length > 0
-  ? notesData.map((n: any) => `[${n.created_at}] ${n.chatter_name}: ${n.note_text}`).join("\n")
-  : "Keine Notizen vorhanden."}
+NOTIZEN:
+${notesData.length
+  ? notesData.map((n: any) => `[${n.created_at?.slice(0,10)}] ${n.chatter_name}: ${n.note_text}`).join("\n")
+  : "keine"}
 
 MODELS:
-${modelsData && modelsData.length > 0
-  ? modelsData.map((m: any) => `${m.model_name}: ${m.follower_count} Follower`).join("\n")
-  : "Keine Models vorhanden."}`;
+${modelsData.length
+  ? modelsData.map((m: any) => `${m.model_name}:${m.follower_count}`).join(", ")
+  : "keine"}`;
 
-    const systemPrompt = `Du bist ein exklusiver Agency-Berater und Performance-Analyst. Du hast Zugriff auf die Chatter-Daten, Coaching-Notizen und Model-Informationen einer Content-Agentur.
-
-Dein Stil:
-- Professionell, prägnant, auf den Punkt
-- Nutze Zahlen und konkrete Fakten aus den Daten
-- Gib konkrete Handlungsempfehlungen
-- Antworte auf Deutsch
-- Formatiere deine Antworten mit Markdown (fett, Listen, Überschriften)
-- Wenn du Umsätze nennst, formatiere sie mit € 
-- Vergleiche Trends über die verfügbaren Tage
+    const systemPrompt = `Du bist Agency-Performance-Berater. Prägnant, faktenbasiert, auf Deutsch, mit Markdown. Nutze die Daten unten, nenne Zahlen mit € und gib konkrete Empfehlungen.
 
 ${dataContext}`;
+
+    const wantStream = stream !== false;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -93,7 +92,8 @@ ${dataContext}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
+        stream: wantStream,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.map((m: any) => ({
@@ -101,36 +101,41 @@ ${dataContext}`;
             content: m.content,
           })),
         ],
-        max_tokens: 4096,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
       console.error("[ai-consultant] AI Gateway error:", response.status, errText);
-
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte warte kurz." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "AI-Credits aufgebraucht. Bitte Credits aufladen." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      return new Response(JSON.stringify({ error: `AI Gateway Fehler: ${response.status}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      return new Response(JSON.stringify({ error: `AI Gateway Fehler: ${response.status}`, details: errText }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (wantStream && response.body) {
+      // Pass-through SSE stream to client
+      return new Response(response.body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
       });
     }
 
     const aiResult = await response.json();
     const text = aiResult.choices?.[0]?.message?.content || "";
-
     return new Response(JSON.stringify({ reply: text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
