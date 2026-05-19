@@ -176,7 +176,7 @@ export default function AIConsultant() {
             </motion.div>
           ))}
 
-          {loading && (
+          {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
             <div className="flex justify-start">
               <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl px-6 py-4 flex items-center gap-2">
                 <span className="h-4 w-4 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
