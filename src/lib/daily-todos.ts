@@ -332,6 +332,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     try {
       const troubles = await detectModelTroubles(platform, modelNames);
       for (const t of troubles.slice(0, 8)) {
+        // Wenn der aktuelle Chatter nicht mehr im neuesten Report ist, Todo skippen.
+        if (t.currentChatter && !isActive(t.currentChatter)) continue;
         const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
           ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
           : 0;
