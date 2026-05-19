@@ -1,68 +1,47 @@
-## Ziel
+## Befund
 
-Die Today-Page wird auf eine Ebene reduziert (Unterkategorien als Tabs) und die Karten bekommen das gewählte Apple-Minimalist-Glass-Design mit inline Signal-Liste.
+Auf dem Dashboard sieht der Brezzels-Workspace heute **0 Chatter mit Verzug** — auf der Today-Seite tauchen aber **30+ Karten in der Kategorie „Verzug"** auf (Karolina 14T, Alan 13T, Jesse 13T, Melina 13T usw.). Diskrepanz ist real und reproduzierbar.
 
-## 1. Tab-Struktur umbauen (`src/pages/Today.tsx`)
+### Ursache
 
-Aktuell: zwei Tab-Ebenen + Section-Header in der Liste = 4-fache Redundanz.
+Beide Seiten messen verschieden:
 
-Neu: eine Ebene.
+- **Dashboard** liest `analysis_reports.result_json.categories`. Brezzels hat heute keine `WARNUNG`-Kategorie, weil das Backend-Categorize die Chatter mit hohem `response_delay_days` als **ONBOARDING TAG X** klassifiziert (Karolina = Tag 12, Alan = Tag 11 etc.). Bei Onboarding-Chattern werden die alten unbeantworteten Chats nicht als Versäumnis gewertet — sie sind ja gerade erst angelernt.
+- **Today** (`src/lib/daily-todos.ts` Zeile 205–217 und `src/lib/today-engine.ts` Verzug-Branch) liest `chatter_history.response_delay_days` direkt. Ab `delay >= 3` wird unabhängig vom Kategorie-Status ein Verzug-Todo erzeugt. Die Onboarding-Information wird ignoriert.
 
-- **Section-Tabs raus**: "Jetzt machen / Im Auge behalten / Wins / Erledigt" verschwinden komplett aus der UI.
-- **Unterkategorien werden die Haupt-Tabs**: "Alle · N", "Verzug · N", "Recovery · N", "Account-Tausch · N", "Talent · N". "Alle" ist Default.
-- **Status-Filter** (Wins / Erledigt / Snoozed) wandert in ein dezentes Dropdown rechts oben neben den Tabs ("Status: Offen ▾"). Default = Offen (= bisheriges "Jetzt machen" + "Im Auge behalten" zusammen).
-- **Section-Header in der Liste raus** (kein "VERZUG · 1" mehr über jeder Karte) — die Kategorie ist durch den aktiven Tab schon klar. Bei Tab "Alle" werden Karten weiterhin nach Kategorie gruppiert mit einem ganz dezenten Trenner (kleine Caps-Überschrift, kein farbiger Punkt, kein €-Wert rechts — das ist bereits in der Karte).
-- Header-KPI ("Offener €-Hebel / Wo +12.426 €") und Progressbar bleiben unverändert.
+Beispiel Karolina Pintaske: Report sagt `Offene Chats: "12 Chats seit 14 Tagen"`, Kategorie = `ONBOARDING TAG 12`. Today macht daraus „Karolina dringend — 14 Tage Verzug" mit kritischer Priorität.
 
-## 2. Karte redesignen (`src/components/PersonActionCard.tsx`)
+## Plan
 
-Komplette visuelle Überarbeitung nach gewählter v3-Vorlage. Funktionalität (Done / Snooze / Dismiss / Expand / Belege) bleibt 1:1 erhalten, nur Layout & Optik ändern sich.
+Ziel: Today-Verzug deckt sich mit der Dashboard-Realität — Onboarding-Chatter werden nicht als Verzug eskaliert.
 
-**Aufbau:**
+### 1. Report-Kategorien einmal laden (`src/lib/daily-todos.ts`)
 
-```text
-┌──────────────────────────────────────────────────┐
-│ Jonas Jo   [Verzug-Bundle]      ~+613 €/Wo       │
-│ 4 AKTIVE SIGNALE DETEKTIERT     • Kritisch       │
-├──────────────────────────────────────────────────┤
-│ ▍ Zahlungsziel überschritten        →           │
-│   Vor 12 Min.                                    │
-│ ▍ Lastschrift fehlgeschlagen        →           │
-│ ▍ Mahnung Stufe 2                   →           │
-│ ▍ Inaktivität Dashboard             →           │
-├──────────────────────────────────────────────────┤
-│ [JJ●] System-Agent      ⏱  ✕   [Abschließen ✓]  │
-└──────────────────────────────────────────────────┘
+In `generateDailyTodos` zusätzlich zum bestehenden `analysis_reports`-Read das aktuellste `result_json.categories` ziehen und eine `Set<normalizedName>` mit allen Chattern bauen, deren Kategorie `/ONBOARDING/i` matcht (`onboardingNames`).
+
+### 2. Verzug-Branch absichern
+
+Vor dem Push des Verzug-Todos prüfen:
+```ts
+if (delay >= 3 && !onboardingNames.has(normalizeChatterName(name))) { ... }
 ```
+Damit verschwinden alle Onboarding-Karten aus der Verzug-Spalte auf Today. Die Chatter bleiben in den anderen Today-Kategorien (Aktivität, Revenue) sichtbar, falls sie dort eigenständig triggern.
 
-**Konkrete Änderungen:**
+### 3. Gleiche Filterung in `today-engine.ts`
 
-- Karten-Container: `rounded-2xl bg-card border border-border/40`, dezenter Tone-Glow oben (Gradient `from-{tone}/10 to-transparent`, nur sichtbar).
-- Header-Zone: Name (xl, bold, weiß), kleines Bundle-Pill (Verzug-Bundle / Recovery-Bundle …), darunter Caps-Hinweis "N AKTIVE SIGNALE". Rechts: €-Wert in Tone-Farbe (rot/amber/cyan/emerald je Kategorie), darunter Status-Pill mit pulsierendem Dot.
-- Signal-Liste **inline immer sichtbar** (nicht mehr nur per Expand). Jedes Signal: linker Tone-Balken (Intensität spiegelt Recency/Severity), Titel in Caps + Zeitstempel darunter, Chevron rechts. Bei Klick → Beleg/Detail-Drawer (gleiche Datenquelle wie bisheriges Expand).
-- Footer-Bar (eigene innere Pill `bg-white/[0.02] border-white/[0.05] rounded-xl p-2`): links Avatar + Zuordnung, rechts Snooze-Icon, Dismiss-Icon (klein, dezent) und primärer Button "Abschließen" (weiß auf schwarz statt grün, premium).
-- Confidence (`~`) bleibt vor €-Wert wie bisher.
-- Bei nur 1 Signal: Signal-Liste zeigt 1 Eintrag, kein "+N Bundle"-Label.
-- Wins / Erledigt-Variante: Footer-Button verschwindet, Karte wirkt grayed-out (opacity 60, kein Glow).
+Der Engine-eigene Verzug-Pfad (Zeile ~392, „verzug" Branch in `buildIntent`) benutzt dieselben `chatter_history`-Rohdaten. Hier ebenfalls die Onboarding-Set-Quelle einmal pro `buildTodayActions`-Run laden und beim Verzug-Intent denselben Skip einbauen, damit Karten und Engine konsistent sind.
 
-## 3. Tone-Farben
+### 4. Sanity-Logging
 
-Bleiben semantisch wie heute:
-- Verzug → `red`
-- Recovery → `cyan`
-- Account-Tausch → `amber`
-- Talent → `violet`/`emerald`
+Einmaliges `console.debug("[today] verzug filtered onboarding:", n)` damit du in der Konsole siehst, wie viele Karten der Filter entfernt — kein toast, kein UI-Hinweis.
 
-Werden via Token-Map angesteuert, nicht hardcoded.
+### Nicht im Scope
 
-## 4. Aufwand & Scope
+- Anomaly-Detector (`detect-anomalies` Edge Function): liefert Verzug-Alerts auf `/anomalies`, ist eine andere Seite. Falls dort dieselbe Diskrepanz stört, separat anfassen.
+- Recovery / Account-Tausch / Talent: unverändert.
+- Keine DB- oder Edge-Function-Änderungen, rein Frontend-Logik.
 
-- Nur Frontend, keine Datenmodell-Änderungen.
-- Bestehende Filter-/Aggregations-Logik in Today.tsx bleibt; nur die Tab-Quelle wechselt von Section → Kategorie und Status-Filter wird Dropdown.
-- Mobile bleibt funktional (Tabs horizontal scrollbar, Karten vollbreit).
+### Erwartetes Ergebnis Brezzels heute
 
-## Out of scope
-
-- Keine Änderungen am Dashboard-Widget "Heute zu tun".
-- Keine Änderungen an Swipe-Mode.
-- Keine neuen Daten oder Edge Functions.
+- Verzug-Tab geht von 30+ Karten auf ~0–2 (nur echte Nicht-Onboarding-Verzüge wie ein potentieller älterer Chatter, falls vorhanden).
+- Dashboard und Today zeigen denselben Verzug-Status.
