@@ -471,7 +471,7 @@ export default function LiveTracking() {
     // Chatter aus älteren Reports / Historie ausblenden, die im aktuellen
     // Report nicht mehr enthalten sind.
     const filteredKeys = activeNames
-      ? new Set([...keys].filter((k) => activeNames.has(k)))
+      ? new Set([...keys].filter((k) => activeNames.has(normalizeChatterName(k))))
       : keys;
     const out: ChatterStatus[] = [];
     filteredKeys.forEach((key) => {
