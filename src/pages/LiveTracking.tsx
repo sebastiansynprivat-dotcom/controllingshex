@@ -507,9 +507,12 @@ export default function LiveTracking() {
         if (k) set.add(k);
       });
     }
+    if (activeNames) {
+      for (const k of [...set]) if (!activeNames.has(k)) set.delete(k);
+    }
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick]);
+  }, [liveActivityAt, serverLiveNow, liveWindowMs, uiTick, activeNames]);
 
   // ── Smart Todo-Kategorisierung ─────────────────────────────────────
   // Einbezogen: alle Chatter, die generell Umsatz bringen (Ø ≥ 5 €/Tag).
