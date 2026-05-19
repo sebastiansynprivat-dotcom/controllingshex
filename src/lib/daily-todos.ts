@@ -384,6 +384,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     for (const o of orphans) {
       if (soloCount >= 3) break;
       if (matchedUnderusers.has(o.chatter.toLowerCase())) continue;
+      if (!isActive(o.chatter)) continue;
       soloCount++;
       const reasons: string[] = [];
       if (o.oldestChatDays >= 1) reasons.push(`ältester Chat ${o.oldestChatDays}T offen`);
