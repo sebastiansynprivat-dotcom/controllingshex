@@ -5,6 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function round(n: number, d = 0) {
+  const f = Math.pow(10, d);
+  return Math.round(n * f) / f;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -33,53 +38,137 @@ Deno.serve(async (req) => {
 
     const activePlatform = platform || "Maloum";
 
-    // Leaner context: 7 Tage statt 14, max 200 Zeilen statt 500
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Voller Kontext (14 Tage), aber wir aggregieren serverseitig zu kompaktem Format.
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const fromDate = fourteenDaysAgo.toISOString().split("T")[0];
 
-    const [historyRes, notesRes, modelsRes] = await Promise.all([
-      supabase
-        .from("chatter_history")
-        .select("chatter_name,analysis_date,revenue_today,mass_dms,open_chats,response_delay_days,category_name")
-        .eq("platform", activePlatform)
-        .gte("analysis_date", sevenDaysAgo.toISOString().split("T")[0])
-        .order("analysis_date", { ascending: false })
-        .limit(200),
+    // Pagination um 1000-Zeilen Limit zu umgehen
+    async function fetchAllHistory() {
+      const all: any[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from("chatter_history")
+          .select("chatter_name,analysis_date,revenue_today,mass_dms,open_chats,response_delay_days,category,account")
+          .eq("platform", activePlatform)
+          .gte("analysis_date", fromDate)
+          .order("analysis_date", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error || !data) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        offset += pageSize;
+        if (offset > 10000) break; // safety
+      }
+      return all;
+    }
+
+    const [historyData, notesRes, modelsRes] = await Promise.all([
+      fetchAllHistory(),
       supabase
         .from("coaching_notes")
         .select("chatter_name,note_text,created_at")
         .eq("platform", activePlatform)
         .order("created_at", { ascending: false })
-        .limit(30),
+        .limit(60),
       supabase
         .from("models")
         .select("model_name,follower_count")
-        .eq("platform", activePlatform)
-        .limit(50),
+        .eq("platform", activePlatform),
     ]);
 
-    const historyData = historyRes.data ?? [];
     const notesData = notesRes.data ?? [];
     const modelsData = modelsRes.data ?? [];
 
-    const dataContext = `DATEN (${activePlatform}, 7 Tage):
+    // Aggregation pro Chatter
+    const today = new Date().toISOString().split("T")[0];
+    const byChatter = new Map<string, any[]>();
+    for (const r of historyData) {
+      const arr = byChatter.get(r.chatter_name) ?? [];
+      arr.push(r);
+      byChatter.set(r.chatter_name, arr);
+    }
 
-CHATTER (${historyData.length} Einträge):
-${historyData.length
-  ? historyData.map((r: any) => `${r.chatter_name}|${r.analysis_date}|€${r.revenue_today}|DMs:${r.mass_dms}|Offen:${r.open_chats}|Verzug:${r.response_delay_days}|${r.category_name ?? "-"}`).join("\n")
-  : "keine"}
+    type Agg = {
+      name: string;
+      account: string;
+      category: string;
+      days: number;
+      totalRev: number;
+      avgRev: number;
+      maxRev: number;
+      todayRev: number | null;
+      todayDelay: number | null;
+      todayOpen: number | null;
+      todayDms: number | null;
+      trend: number; // last3 vs prev (%)
+    };
 
-NOTIZEN:
+    const aggs: Agg[] = [];
+    for (const [name, rows] of byChatter) {
+      const sorted = [...rows].sort((a, b) => (a.analysis_date < b.analysis_date ? 1 : -1));
+      const todayRow = sorted.find((r) => r.analysis_date === today) ?? sorted[0];
+      const revs = sorted.map((r) => Number(r.revenue_today) || 0);
+      const total = revs.reduce((s, v) => s + v, 0);
+      const last3 = revs.slice(0, 3);
+      const prev = revs.slice(3, 6);
+      const avgLast3 = last3.length ? last3.reduce((s, v) => s + v, 0) / last3.length : 0;
+      const avgPrev = prev.length ? prev.reduce((s, v) => s + v, 0) / prev.length : 0;
+      const trend = avgPrev > 0 ? ((avgLast3 - avgPrev) / avgPrev) * 100 : 0;
+
+      aggs.push({
+        name,
+        account: todayRow?.account ?? "",
+        category: todayRow?.category ?? "-",
+        days: rows.length,
+        totalRev: round(total),
+        avgRev: round(total / rows.length),
+        maxRev: round(Math.max(...revs)),
+        todayRev: todayRow ? Number(todayRow.revenue_today) || 0 : null,
+        todayDelay: todayRow?.response_delay_days ?? null,
+        todayOpen: todayRow?.open_chats ?? null,
+        todayDms: todayRow?.mass_dms ?? null,
+        trend: round(trend, 0),
+      });
+    }
+    aggs.sort((a, b) => b.totalRev - a.totalRev);
+
+    // Kompaktes Tabellen-Format (eine Zeile pro Chatter)
+    const header = "name|account|cat|14dRev|avg|today|delay|open|dms|trend%";
+    const tableLines = aggs.map((a) =>
+      [
+        a.name,
+        a.account,
+        a.category,
+        a.totalRev,
+        a.avgRev,
+        a.todayRev ?? "-",
+        a.todayDelay ?? "-",
+        a.todayOpen ?? "-",
+        a.todayDms ?? "-",
+        a.trend > 0 ? `+${a.trend}` : a.trend,
+      ].join("|")
+    );
+
+    const dataContext = `DATEN (${activePlatform}, 14 Tage, ${aggs.length} Chatter):
+
+CHATTER (eine Zeile = Aggregat pro Chatter):
+${header}
+${tableLines.join("\n")}
+
+NOTIZEN (${notesData.length}):
 ${notesData.length
-  ? notesData.map((n: any) => `[${n.created_at?.slice(0,10)}] ${n.chatter_name}: ${n.note_text}`).join("\n")
+  ? notesData.map((n: any) => `[${n.created_at?.slice(0, 10)}] ${n.chatter_name}: ${n.note_text}`).join("\n")
   : "keine"}
 
-MODELS:
+MODELS (${modelsData.length}):
 ${modelsData.length
   ? modelsData.map((m: any) => `${m.model_name}:${m.follower_count}`).join(", ")
   : "keine"}`;
 
-    const systemPrompt = `Du bist Agency-Performance-Berater. Prägnant, faktenbasiert, auf Deutsch, mit Markdown. Nutze die Daten unten, nenne Zahlen mit € und gib konkrete Empfehlungen.
+    const systemPrompt = `Du bist Agency-Performance-Berater. Prägnant, faktenbasiert, auf Deutsch, mit Markdown. Antworten kurz und konkret, immer mit Zahlen (€) und Handlungsempfehlung. Wenn nach Rohwerten pro Tag gefragt wird, sag dass nur Aggregate vorliegen.
 
 ${dataContext}`;
 
@@ -123,7 +212,6 @@ ${dataContext}`;
     }
 
     if (wantStream && response.body) {
-      // Pass-through SSE stream to client
       return new Response(response.body, {
         headers: {
           ...corsHeaders,
