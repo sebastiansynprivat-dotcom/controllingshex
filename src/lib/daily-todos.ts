@@ -232,11 +232,11 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       });
       continue;
     }
-    if (!todayEntry || historical.length < 2) continue;
-
-    // Verzug — Onboarding-Chatter werden hier ausgeklammert (Dashboard tut das auch)
+    // Verzug — Onboarding Tag 1–5 ausklammern (Dashboard tut das auch).
+    // WICHTIG: VOR dem Historie-Gate prüfen, da Verzug ein harter Fakt aus dem
+    // aktuellen Report ist und nicht von 14T-Historie abhängt.
     const delay = todayMaxDelay;
-    if (delay >= 3 && !isOnboarding(name)) {
+    if (todayEntry && delay >= 3 && !isOnboarding(name)) {
       todos.push({
         key: `verzug:${name}:${today}`,
         category: "verzug",
@@ -247,6 +247,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         meta: { delayDays: delay, todayOpenChats },
       });
     }
+
+    if (!todayEntry || historical.length < 2) continue;
 
 
     // Mass-DM Drop
