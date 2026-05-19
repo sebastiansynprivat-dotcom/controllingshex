@@ -508,7 +508,7 @@ export default function LiveTracking() {
       });
     }
     if (activeNames) {
-      for (const k of [...set]) if (!activeNames.has(k)) set.delete(k);
+      for (const k of [...set]) if (!activeNames.has(normalizeChatterName(k))) set.delete(k);
     }
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
