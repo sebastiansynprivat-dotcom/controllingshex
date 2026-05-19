@@ -38,15 +38,69 @@ export default function AIConsultant() {
     setInput("");
     setLoading(true);
 
+    // Optimistic empty assistant message we stream into
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
     try {
-      const { data, error } = await supabase.functions.invoke("ai-consultant", {
-        body: { messages: newMessages, platform },
+      const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/ai-consultant`;
+      const { data: { session } } = await supabase.auth.getSession();
+      const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token ?? anon}`,
+          "apikey": anon,
+        },
+        body: JSON.stringify({ messages: newMessages, platform, stream: true }),
       });
 
-      if (error) throw error;
-      const reply = data?.reply || "Keine Antwort erhalten.";
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errJson.error || `HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Kein Stream verfügbar");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let acc = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          try {
+            const json = JSON.parse(payload);
+            const delta = json.choices?.[0]?.delta?.content ?? "";
+            if (delta) {
+              acc += delta;
+              setMessages((prev) => {
+                const next = [...prev];
+                next[next.length - 1] = { role: "assistant", content: acc };
+                return next;
+              });
+            }
+          } catch { /* ignore partial json */ }
+        }
+      }
+
+      if (!acc) {
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { role: "assistant", content: "Keine Antwort erhalten." };
+          return next;
+        });
+      }
     } catch (err: any) {
+      setMessages((prev) => prev.slice(0, -1));
       toast.error(err.message || "Fehler beim Senden.");
     } finally {
       setLoading(false);
