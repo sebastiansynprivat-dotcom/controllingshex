@@ -493,7 +493,7 @@ export default function LiveTracking() {
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, profiles, tick]);
+  }, [rows, profiles, tick, activeNames]);
 
   const liveNowKeys = useMemo(() => {
     const cutoff = Date.now() - liveWindowMs;
