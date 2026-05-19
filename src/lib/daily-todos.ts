@@ -94,8 +94,34 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const isActive = (name: string) =>
     activeNames === null ? true : activeNames.has(normalizeChatterName(name));
 
+  // Onboarding-Chatter aus dem neuesten Report → Verzug nicht eskalieren,
+  // weil Dashboard sie ebenfalls nicht als WARNUNG zählt (siehe categorize).
+  const onboardingNames = new Set<string>();
+  try {
+    const { data: latestReport } = await supabase
+      .from("analysis_reports")
+      .select("result_json")
+      .eq("platform", platform)
+      .not("result_json", "is", null)
+      .order("analysis_date", { ascending: false })
+      .limit(1);
+    const cats = (latestReport?.[0]?.result_json as
+      | { categories?: { categoryName?: string; chatters?: { name?: string }[] }[] }
+      | null)?.categories;
+    for (const cat of cats ?? []) {
+      if (!/ONBOARDING/i.test(cat.categoryName ?? "")) continue;
+      for (const ch of cat.chatters ?? []) {
+        if (ch?.name) onboardingNames.add(normalizeChatterName(ch.name));
+      }
+    }
+  } catch (e) {
+    console.warn("[daily-todos] onboarding lookup failed", e);
+  }
+  const isOnboarding = (name: string) => onboardingNames.has(normalizeChatterName(name));
+
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
+
 
   // Models + Follower laden, um sie auf der Karte anzuzeigen.
   const { data: modelRowsForLookup } = await supabase
