@@ -471,7 +471,7 @@ export default function LiveTracking() {
     // Chatter aus älteren Reports / Historie ausblenden, die im aktuellen
     // Report nicht mehr enthalten sind.
     const filteredKeys = activeNames
-      ? new Set([...keys].filter((k) => activeNames.has(k)))
+      ? new Set([...keys].filter((k) => activeNames.has(normalizeChatterName(k))))
       : keys;
     const out: ChatterStatus[] = [];
     filteredKeys.forEach((key) => {
@@ -508,7 +508,7 @@ export default function LiveTracking() {
       });
     }
     if (activeNames) {
-      for (const k of [...set]) if (!activeNames.has(k)) set.delete(k);
+      for (const k of [...set]) if (!activeNames.has(normalizeChatterName(k))) set.delete(k);
     }
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
