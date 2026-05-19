@@ -94,9 +94,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const isActive = (name: string) =>
     activeNames === null ? true : activeNames.has(normalizeChatterName(name));
 
-  // Onboarding-Chatter aus dem neuesten Report → Verzug nicht eskalieren,
-  // weil Dashboard sie ebenfalls nicht als WARNUNG zählt (siehe categorize).
-  const onboardingNames = new Set<string>();
+  // Onboarding Tag 1–5 aus dem neuesten Report → Verzug nicht eskalieren.
+  // Ab Tag 6 zählt Verzug wieder normal.
+  const earlyOnboardingNames = new Set<string>();
   try {
     const { data: latestReport } = await supabase
       .from("analysis_reports")
@@ -109,15 +109,21 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       | { categories?: { categoryName?: string; chatters?: { name?: string }[] }[] }
       | null)?.categories;
     for (const cat of cats ?? []) {
-      if (!/ONBOARDING/i.test(cat.categoryName ?? "")) continue;
+      const catName = cat.categoryName ?? "";
+      if (!/ONBOARDING/i.test(catName)) continue;
+      const tagMatch = catName.match(/TAG\s*(\d+)/i);
+      const day = tagMatch ? parseInt(tagMatch[1], 10) : null;
+      // Nur Tag 1–5 ausklammern. Wenn kein Tag erkennbar ist (generisches "ONBOARDING"),
+      // ebenfalls ausklammern (konservativer Fallback).
+      if (day !== null && day > 5) continue;
       for (const ch of cat.chatters ?? []) {
-        if (ch?.name) onboardingNames.add(normalizeChatterName(ch.name));
+        if (ch?.name) earlyOnboardingNames.add(normalizeChatterName(ch.name));
       }
     }
   } catch (e) {
     console.warn("[daily-todos] onboarding lookup failed", e);
   }
-  const isOnboarding = (name: string) => onboardingNames.has(normalizeChatterName(name));
+  const isOnboarding = (name: string) => earlyOnboardingNames.has(normalizeChatterName(name));
 
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
