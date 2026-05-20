@@ -14,6 +14,10 @@ import {
   Clock,
   GitCompareArrows,
   Search,
+  Mic,
+  Loader2,
+  Download,
+  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
