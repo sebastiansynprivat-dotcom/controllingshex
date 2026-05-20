@@ -116,7 +116,13 @@ Letzte Notizen: ${notes.map((n: any) => n.note_text).join(" | ") || "keine"}`;
     }
 
     const audioBuffer = await ttsRes.arrayBuffer();
-    const audioB64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    const bytes = new Uint8Array(audioBuffer);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as unknown as number[]);
+    }
+    const audioB64 = btoa(binary);
 
     return new Response(JSON.stringify({ audio: audioB64, text: memoText }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
