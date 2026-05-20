@@ -196,6 +196,40 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [notes, setNotes] = useState<CoachingNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [memoLoading, setMemoLoading] = useState(false);
+  const [memoUrl, setMemoUrl] = useState<string | null>(null);
+  const [memoText, setMemoText] = useState<string | null>(null);
+
+  const generateMemo = useCallback(async () => {
+    setMemoLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-voice-memo", {
+        body: { chatterName, platform },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const bin = atob(data.audio);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const blob = new Blob([arr], { type: "audio/mpeg" });
+      if (memoUrl) URL.revokeObjectURL(memoUrl);
+      setMemoUrl(URL.createObjectURL(blob));
+      setMemoText(data.text || null);
+    } catch (e: any) {
+      toast.error(e?.message || "Memo konnte nicht generiert werden");
+    } finally {
+      setMemoLoading(false);
+    }
+  }, [chatterName, platform, memoUrl]);
+
+  // Reset memo wenn Chatter wechselt
+  useEffect(() => {
+    if (memoUrl) URL.revokeObjectURL(memoUrl);
+    setMemoUrl(null);
+    setMemoText(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatterName, platform]);
+
   const [allLabels, setAllLabels] = useState<ChatterLabel[]>([]);
   const [assignedLabelIds, setAssignedLabelIds] = useState<Set<string>>(new Set());
   const [showNewLabel, setShowNewLabel] = useState(false);
