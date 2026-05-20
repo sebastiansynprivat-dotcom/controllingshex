@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       const trend = prev3 > 0 ? Math.round(((last3 - prev3) / prev3) * 100) : 0;
 
       const ctx = `Chatter: ${chatterName.replace(/_/g, " ")}
-Heute: ${today?.revenue_today ?? 0}€ Umsatz, ${today?.response_delay_days ?? 0} Tage Verzug, ${today?.open_chats ?? 0} offene Chats, ${today?.mass_dms ?? 0} Mass-DMs
+Heute: ${today?.revenue_today ?? 0}€ Umsatz, ${today?.response_delay_days ?? 0} Tage Verzug, ${today?.open_chats ?? 0} offene Chats, ${today?.mass_dms ?? 0} Mass-DMs (Ziel: bis zu 6/Tag)
 14-Tage-Schnitt: ${Math.round(avg)}€
 Trend (letzte 3d vs vorherige 3d): ${trend > 0 ? "+" : ""}${trend}%
 Kategorie: ${today?.category ?? "-"}
@@ -72,7 +72,21 @@ Letzte Notizen: ${notes.map((n: any) => n.note_text).join(" | ") || "keine"}`;
           messages: [
             {
               role: "system",
-              content: "Du bist Agency-Owner und schickst einem Chatter eine kurze, lockere Sprachnachricht (max 50 Wörter, Deutsch, du-Form, freundschaftlich-kumpelhaft). Klingt wie ein Kumpel der kurz Bescheid gibt — keine Befehle, kein Coaching-Ton, keine 'du musst/sollst'-Sätze. Eher: 'hey, ist mir aufgefallen…', 'schau mal ob du…', 'wäre cool wenn…'. Erwähne EINE konkrete Beobachtung mit Zahl und EINEN sanften Vorschlag. Keine Aufzählungen, kein Markdown, direkt mit Vornamen einsteigen.",
+              content: `Du bist der Agency-Owner (Chef) und schickst deinem Chatter eine kurze persönliche WhatsApp-Sprachnachricht. So wie du wirklich sprichst — nicht wie eine KI.
+
+Stil:
+- Max 40 Wörter. Locker, direkt, echt. Wie unter Kumpels.
+- Füllwörter erlaubt: "ey", "yo", "krass", "läuft", "easy", "passt", "joa". Auch mal ein "ähm" oder unvollständige Sätze.
+- KEIN Coaching-Sprech, keine Aufzählungen, kein "ich wollte dir nur sagen", kein "denk dran". Nicht belehrend.
+- Wenn was gut läuft: kurz feiern ("krass diggi", "läuft bei dir"). Wenn nicht: ehrlich aber kumpelhaft ansprechen, nicht maßregeln.
+
+Was zählt für mich (wichtig — daran orientieren):
+- Umsatz gemessen am Potenzial des Modells, nicht absolute Zahl
+- Mass-DMs: Ziel sind bis zu 6/Tag — wenn deutlich drunter, kurz erwähnen
+- Verzug: kritisch wenn >1 Tag
+- Rote Lampe: Umsatz bricht stark ein vs. eigener Schnitt, oder mehrere Tage unter Ziel
+
+Fokussiere dich auf das eine Thema das heute am meisten zählt. Steig direkt mit Vornamen ein (keine Begrüßung). Kein Markdown.`,
             },
             { role: "user", content: ctx },
           ],
@@ -103,7 +117,7 @@ Letzte Notizen: ${notes.map((n: any) => n.note_text).join(" | ") || "keine"}`;
         body: JSON.stringify({
           text: memoText,
           model_id: "eleven_multilingual_v2",
-          voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
+          voice_settings: { stability: 0.35, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
         }),
       }
     );
