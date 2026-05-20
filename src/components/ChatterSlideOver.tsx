@@ -1443,6 +1443,51 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       )}
                     </div>
 
+                    {/* ── Voice-Memo ── */}
+                    <div className="space-y-3">
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
+                        Voice-Memo
+                      </p>
+                      {!memoUrl && (
+                        <button
+                          onClick={generateMemo}
+                          disabled={memoLoading}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/25 text-primary hover:from-primary/20 hover:to-primary/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {memoLoading ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm font-light">Generiere mit deiner Stimme…</span></>
+                          ) : (
+                            <><Mic className="h-4 w-4" /><span className="text-sm font-light">Memo generieren</span></>
+                          )}
+                        </button>
+                      )}
+                      {memoUrl && (
+                        <div className="premium-card space-y-2 rounded-xl p-3">
+                          <audio src={memoUrl} controls className="w-full h-10" />
+                          {memoText && (
+                            <p className="text-[11px] text-white/55 font-light leading-relaxed italic">„{memoText}"</p>
+                          )}
+                          <div className="flex gap-2">
+                            <a
+                              href={memoUrl}
+                              download={`memo-${chatterName}.mp3`}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-white/70 hover:bg-white/[0.06] transition-colors"
+                            >
+                              <Download className="h-3.5 w-3.5" />Download
+                            </a>
+                            <button
+                              onClick={generateMemo}
+                              disabled={memoLoading}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-white/70 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                            >
+                              {memoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                              Neu
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* ── Management-Logbuch — direkt unter Labels ── */}
                     <div className="space-y-5">
                       <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
