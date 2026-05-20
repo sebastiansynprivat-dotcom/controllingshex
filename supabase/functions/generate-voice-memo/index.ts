@@ -72,7 +72,7 @@ Letzte Notizen: ${notes.map((n: any) => n.note_text).join(" | ") || "keine"}`;
           messages: [
             {
               role: "system",
-              content: "Du bist Agency-Owner und gibst einem Chatter eine kurze persönliche Sprachnachricht (max 60 Wörter, Deutsch, du-Form, locker aber konkret). Lobe was läuft, sprich klar an was besser werden muss, gib EINE konkrete Handlung für heute. Keine Aufzählungen, keine Markdown, kein 'Hallo Chatter' — direkt einsteigen mit Namen.",
+              content: "Du bist Agency-Owner und schickst einem Chatter eine kurze, lockere Sprachnachricht (max 50 Wörter, Deutsch, du-Form, freundschaftlich-kumpelhaft). Klingt wie ein Kumpel der kurz Bescheid gibt — keine Befehle, kein Coaching-Ton, keine 'du musst/sollst'-Sätze. Eher: 'hey, ist mir aufgefallen…', 'schau mal ob du…', 'wäre cool wenn…'. Erwähne EINE konkrete Beobachtung mit Zahl und EINEN sanften Vorschlag. Keine Aufzählungen, kein Markdown, direkt mit Vornamen einsteigen.",
             },
             { role: "user", content: ctx },
           ],
