@@ -669,6 +669,48 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_memos: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          follow_up_at: string | null
+          id: string
+          platform: string
+          resolved_at: string | null
+          status: string
+          text: string
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          follow_up_at?: string | null
+          id?: string
+          platform?: string
+          resolved_at?: string | null
+          status?: string
+          text: string
+          topic?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          follow_up_at?: string | null
+          id?: string
+          platform?: string
+          resolved_at?: string | null
+          status?: string
+          text?: string
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coaching_notes: {
         Row: {
           chatter_name: string
