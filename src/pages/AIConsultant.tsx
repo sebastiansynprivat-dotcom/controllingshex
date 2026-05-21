@@ -142,8 +142,30 @@ export default function AIConsultant() {
                 }`}
               >
                 {msg.role === "assistant" ? (
-                  <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <div className="space-y-3">
+                    {msg.tool_calls && msg.tool_calls.length > 0 && (
+                      <div className="space-y-1.5">
+                        {msg.tool_calls.map((tc, idx) => {
+                          const label =
+                            tc.name === "create_memo" ? `Memo angelegt: ${tc.args?.chatter_name}${tc.args?.follow_up_days ? ` · Reminder in ${tc.args.follow_up_days}d` : ""}` :
+                            tc.name === "read_memos" ? `Memos gelesen${tc.args?.chatter_name ? ` (${tc.args.chatter_name})` : ""} → ${tc.result?.memos?.length ?? 0}` :
+                            tc.name === "resolve_memo" ? "Memo erledigt" :
+                            tc.name === "delete_memo" ? "Memo gelöscht" : tc.name;
+                          const ok = tc.result?.ok !== false;
+                          return (
+                            <div key={idx} className={`flex items-center gap-2 text-[11px] font-light px-2.5 py-1.5 rounded-md border ${ok ? "bg-primary/5 border-primary/15 text-primary/80" : "bg-red-500/5 border-red-500/15 text-red-400/80"}`}>
+                              <Wrench className="h-3 w-3 shrink-0" />
+                              <span>{label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {msg.content && (
+                      <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm font-light">{msg.content}</p>
