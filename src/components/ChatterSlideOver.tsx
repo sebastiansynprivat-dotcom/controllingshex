@@ -41,6 +41,15 @@ interface CoachingNote {
   created_at: string;
 }
 
+interface ChatterMemo {
+  id: string;
+  text: string;
+  topic: string | null;
+  follow_up_at: string | null;
+  status: string;
+  created_at: string;
+}
+
 interface ChatterLabel {
   id: string;
   label_name: string;
