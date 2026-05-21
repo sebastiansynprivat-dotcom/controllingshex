@@ -417,7 +417,13 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .eq("chatter_name", chatterName)
         .eq("platform", platform)
         .order("created_at", { ascending: false }),
-    ]).then(([histRes, notesRes]) => {
+      supabase
+        .from("chatter_memos")
+        .select("id, text, topic, follow_up_at, status, created_at")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .order("created_at", { ascending: false }),
+    ]).then(([histRes, notesRes, memosRes]) => {
       setHistory(
         (histRes.data || []).map((r: any) => {
           const rev = Number(r.revenue_today) || 0;
@@ -431,6 +437,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         }),
       );
       setNotes((notesRes.data as CoachingNote[]) || []);
+      setChatterMemos((memosRes.data as ChatterMemo[]) || []);
       setLoading(false);
     });
   }, [chatterName, platform]);
