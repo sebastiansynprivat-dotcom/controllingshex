@@ -1,21 +1,28 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 
+interface ToolCall {
+  name: string;
+  args: any;
+  result: any;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  tool_calls?: ToolCall[];
 }
 
 const quickActions = [
-  "Wer ist mein Top-Performer diese Woche?",
+  "Was steht heute an? Welche Memos sind fällig?",
+  "Was war zuletzt mit meinen Top-3-Chattern besprochen?",
   "Wer hat heute massiv abgebaut?",
-  "Welche Chatter haben den höchsten Antwort-Verzug?",
-  "Gib mir eine Zusammenfassung der letzten 7 Tage.",
+  "Notier: gib Sarah noch 2 Tage für Mass-DMs hoch",
 ];
 
 export default function AIConsultant() {
@@ -37,8 +44,6 @@ export default function AIConsultant() {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-
-    // Optimistic empty assistant message we stream into
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
@@ -52,53 +57,24 @@ export default function AIConsultant() {
           "Authorization": `Bearer ${session?.access_token ?? anon}`,
           "apikey": anon,
         },
-        body: JSON.stringify({ messages: newMessages, platform, stream: true }),
+        body: JSON.stringify({
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          platform,
+        }),
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        throw new Error(errJson.error || `HTTP ${res.status}`);
-      }
+      const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Kein Stream verfügbar");
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let acc = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data:")) continue;
-          const payload = trimmed.slice(5).trim();
-          if (!payload || payload === "[DONE]") continue;
-          try {
-            const json = JSON.parse(payload);
-            const delta = json.choices?.[0]?.delta?.content ?? "";
-            if (delta) {
-              acc += delta;
-              setMessages((prev) => {
-                const next = [...prev];
-                next[next.length - 1] = { role: "assistant", content: acc };
-                return next;
-              });
-            }
-          } catch { /* ignore partial json */ }
-        }
-      }
-
-      if (!acc) {
-        setMessages((prev) => {
-          const next = [...prev];
-          next[next.length - 1] = { role: "assistant", content: "Keine Antwort erhalten." };
-          return next;
-        });
-      }
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = {
+          role: "assistant",
+          content: json.reply || "Keine Antwort erhalten.",
+          tool_calls: json.tool_calls || [],
+        };
+        return next;
+      });
     } catch (err: any) {
       setMessages((prev) => prev.slice(0, -1));
       toast.error(err.message || "Fehler beim Senden.");
@@ -166,8 +142,30 @@ export default function AIConsultant() {
                 }`}
               >
                 {msg.role === "assistant" ? (
-                  <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <div className="space-y-3">
+                    {msg.tool_calls && msg.tool_calls.length > 0 && (
+                      <div className="space-y-1.5">
+                        {msg.tool_calls.map((tc, idx) => {
+                          const label =
+                            tc.name === "create_memo" ? `Memo angelegt: ${tc.args?.chatter_name}${tc.args?.follow_up_days ? ` · Reminder in ${tc.args.follow_up_days}d` : ""}` :
+                            tc.name === "read_memos" ? `Memos gelesen${tc.args?.chatter_name ? ` (${tc.args.chatter_name})` : ""} → ${tc.result?.memos?.length ?? 0}` :
+                            tc.name === "resolve_memo" ? "Memo erledigt" :
+                            tc.name === "delete_memo" ? "Memo gelöscht" : tc.name;
+                          const ok = tc.result?.ok !== false;
+                          return (
+                            <div key={idx} className={`flex items-center gap-2 text-[11px] font-light px-2.5 py-1.5 rounded-md border ${ok ? "bg-primary/5 border-primary/15 text-primary/80" : "bg-red-500/5 border-red-500/15 text-red-400/80"}`}>
+                              <Wrench className="h-3 w-3 shrink-0" />
+                              <span>{label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {msg.content && (
+                      <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm font-light">{msg.content}</p>
