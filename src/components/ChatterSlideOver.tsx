@@ -607,6 +607,71 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     setSavingNote(false);
   };
 
+  const saveChatterMemo = async () => {
+    const text = memoInputText.trim();
+    if (!text) return;
+    setSavingChatterMemo(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Nicht eingeloggt.");
+      setSavingChatterMemo(false);
+      return;
+    }
+    let followUpAt: string | null = null;
+    const days = parseInt(memoFollowupDays, 10);
+    if (!isNaN(days) && days > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      d.setHours(8, 0, 0, 0);
+      followUpAt = d.toISOString();
+    }
+    const { data, error } = await supabase
+      .from("chatter_memos")
+      .insert({
+        user_id: user.id,
+        chatter_name: chatterName,
+        platform,
+        text,
+        follow_up_at: followUpAt,
+      })
+      .select("id, text, topic, follow_up_at, status, created_at")
+      .single();
+    if (error) {
+      toast.error("Memo konnte nicht gespeichert werden.");
+    } else if (data) {
+      setChatterMemos((prev) => [data as ChatterMemo, ...prev]);
+      setMemoInputText("");
+      setMemoFollowupDays("");
+      toast.success(followUpAt ? `Memo gespeichert · Reminder in ${days} Tagen` : "Memo gespeichert.");
+    }
+    setSavingChatterMemo(false);
+  };
+
+  const resolveChatterMemo = async (id: string) => {
+    const { error } = await supabase
+      .from("chatter_memos")
+      .update({ status: "resolved", resolved_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      toast.error("Konnte nicht aktualisiert werden.");
+      return;
+    }
+    setChatterMemos((prev) => prev.map((m) => (m.id === id ? { ...m, status: "resolved" } : m)));
+  };
+
+  const deleteChatterMemo = async (id: string) => {
+    const { error } = await supabase.from("chatter_memos").delete().eq("id", id);
+    if (error) {
+      toast.error("Konnte nicht gelöscht werden.");
+      return;
+    }
+    setChatterMemos((prev) => prev.filter((m) => m.id !== id));
+  };
+
+
+
 
   const avgRevenue = history.length ? history.reduce((s, r) => s + r.revenue_today, 0) / history.length : 0;
   const maxRevenue = history.length ? Math.max(...history.map((r) => r.revenue_today)) : 0;
