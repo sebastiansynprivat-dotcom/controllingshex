@@ -205,6 +205,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [notes, setNotes] = useState<CoachingNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [chatterMemos, setChatterMemos] = useState<ChatterMemo[]>([]);
+  const [memoInputText, setMemoInputText] = useState("");
+  const [memoFollowupDays, setMemoFollowupDays] = useState<string>("");
+  const [savingChatterMemo, setSavingChatterMemo] = useState(false);
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoUrl, setMemoUrl] = useState<string | null>(null);
   const [memoText, setMemoText] = useState<string | null>(null);
