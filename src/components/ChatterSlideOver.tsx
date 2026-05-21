@@ -41,6 +41,15 @@ interface CoachingNote {
   created_at: string;
 }
 
+interface ChatterMemo {
+  id: string;
+  text: string;
+  topic: string | null;
+  follow_up_at: string | null;
+  status: string;
+  created_at: string;
+}
+
 interface ChatterLabel {
   id: string;
   label_name: string;
@@ -196,6 +205,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [notes, setNotes] = useState<CoachingNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [chatterMemos, setChatterMemos] = useState<ChatterMemo[]>([]);
+  const [memoInputText, setMemoInputText] = useState("");
+  const [memoFollowupDays, setMemoFollowupDays] = useState<string>("");
+  const [savingChatterMemo, setSavingChatterMemo] = useState(false);
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoUrl, setMemoUrl] = useState<string | null>(null);
   const [memoText, setMemoText] = useState<string | null>(null);
@@ -404,7 +417,13 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .eq("chatter_name", chatterName)
         .eq("platform", platform)
         .order("created_at", { ascending: false }),
-    ]).then(([histRes, notesRes]) => {
+      supabase
+        .from("chatter_memos")
+        .select("id, text, topic, follow_up_at, status, created_at")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .order("created_at", { ascending: false }),
+    ]).then(([histRes, notesRes, memosRes]) => {
       setHistory(
         (histRes.data || []).map((r: any) => {
           const rev = Number(r.revenue_today) || 0;
@@ -418,6 +437,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         }),
       );
       setNotes((notesRes.data as CoachingNote[]) || []);
+      setChatterMemos((memosRes.data as ChatterMemo[]) || []);
       setLoading(false);
     });
   }, [chatterName, platform]);
@@ -586,6 +606,71 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     }
     setSavingNote(false);
   };
+
+  const saveChatterMemo = async () => {
+    const text = memoInputText.trim();
+    if (!text) return;
+    setSavingChatterMemo(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Nicht eingeloggt.");
+      setSavingChatterMemo(false);
+      return;
+    }
+    let followUpAt: string | null = null;
+    const days = parseInt(memoFollowupDays, 10);
+    if (!isNaN(days) && days > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      d.setHours(8, 0, 0, 0);
+      followUpAt = d.toISOString();
+    }
+    const { data, error } = await supabase
+      .from("chatter_memos")
+      .insert({
+        user_id: user.id,
+        chatter_name: chatterName,
+        platform,
+        text,
+        follow_up_at: followUpAt,
+      })
+      .select("id, text, topic, follow_up_at, status, created_at")
+      .single();
+    if (error) {
+      toast.error("Memo konnte nicht gespeichert werden.");
+    } else if (data) {
+      setChatterMemos((prev) => [data as ChatterMemo, ...prev]);
+      setMemoInputText("");
+      setMemoFollowupDays("");
+      toast.success(followUpAt ? `Memo gespeichert · Reminder in ${days} Tagen` : "Memo gespeichert.");
+    }
+    setSavingChatterMemo(false);
+  };
+
+  const resolveChatterMemo = async (id: string) => {
+    const { error } = await supabase
+      .from("chatter_memos")
+      .update({ status: "resolved", resolved_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      toast.error("Konnte nicht aktualisiert werden.");
+      return;
+    }
+    setChatterMemos((prev) => prev.map((m) => (m.id === id ? { ...m, status: "resolved" } : m)));
+  };
+
+  const deleteChatterMemo = async (id: string) => {
+    const { error } = await supabase.from("chatter_memos").delete().eq("id", id);
+    if (error) {
+      toast.error("Konnte nicht gelöscht werden.");
+      return;
+    }
+    setChatterMemos((prev) => prev.filter((m) => m.id !== id));
+  };
+
+
 
 
   const avgRevenue = history.length ? history.reduce((s, r) => s + r.revenue_today, 0) / history.length : 0;
@@ -1021,7 +1106,124 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 )}
               </div>
 
+              {/* Vereinbarungen & Reminder — chatter_memos */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Vereinbarungen · Reminder</p>
+                  {chatterMemos.filter((m) => m.status === "open").length > 0 && (
+                    <span className="text-[10px] text-white/40 font-light">
+                      {chatterMemos.filter((m) => m.status === "open").length} offen
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <textarea
+                    value={memoInputText}
+                    onChange={(e) => setMemoInputText(e.target.value)}
+                    placeholder='z.B. "Bekommt noch 2 Tage zum Hochfahren Mass-DMs"'
+                    rows={2}
+                    className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={60}
+                      value={memoFollowupDays}
+                      onChange={(e) => setMemoFollowupDays(e.target.value)}
+                      placeholder="d"
+                      title="Reminder in X Tagen (optional)"
+                      className="w-12 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2 py-1.5 text-sm text-foreground/80 font-light placeholder:text-white/15 text-center focus:outline-none focus:border-primary/20"
+                    />
+                    <button
+                      onClick={saveChatterMemo}
+                      disabled={savingChatterMemo || !memoInputText.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                {chatterMemos.length > 0 && (
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {chatterMemos.map((m) => {
+                      const isResolved = m.status === "resolved";
+                      const due = m.follow_up_at ? new Date(m.follow_up_at) : null;
+                      const now = new Date();
+                      const overdue = due && !isResolved && due.getTime() < now.getTime();
+                      const daysLeft = due
+                        ? Math.ceil((due.getTime() - now.getTime()) / 86400000)
+                        : null;
+                      return (
+                        <div
+                          key={m.id}
+                          className={`group rounded-xl px-3 py-2.5 border ${
+                            isResolved
+                              ? "bg-white/[0.01] border-white/[0.03] opacity-50"
+                              : overdue
+                                ? "bg-amber-500/[0.04] border-amber-500/20"
+                                : "bg-white/[0.02] border-white/[0.05]"
+                          }`}
+                        >
+                          <p
+                            className={`text-xs font-light leading-relaxed ${
+                              isResolved ? "line-through text-white/30" : "text-foreground/80"
+                            }`}
+                          >
+                            {m.text}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-2 text-[10px] font-light">
+                              <span className="text-white/25">{formatDateTime(m.created_at)}</span>
+                              {due && (
+                                <span
+                                  className={
+                                    isResolved
+                                      ? "text-white/25"
+                                      : overdue
+                                        ? "text-amber-300"
+                                        : daysLeft !== null && daysLeft <= 1
+                                          ? "text-amber-300/80"
+                                          : "text-primary/70"
+                                  }
+                                >
+                                  ·{" "}
+                                  {overdue
+                                    ? `Frist abgelaufen (${Math.abs(daysLeft!)}d)`
+                                    : daysLeft === 0
+                                      ? "heute fällig"
+                                      : daysLeft === 1
+                                        ? "morgen fällig"
+                                        : `in ${daysLeft}d fällig`}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {!isResolved && (
+                                <button
+                                  onClick={() => resolveChatterMemo(m.id)}
+                                  className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/15"
+                                >
+                                  ✓ Erledigt
+                                </button>
+                              )}
+                              <button
+                                onClick={() => deleteChatterMemo(m.id)}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-white/40 hover:bg-white/[0.08]"
+                              >
+                                Löschen
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
+
               <WeekTrendCard history={history} compact />
 
               {/* Online-Zeiten (Stunden-Profil) */}
