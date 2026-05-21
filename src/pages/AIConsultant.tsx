@@ -1,21 +1,28 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 
+interface ToolCall {
+  name: string;
+  args: any;
+  result: any;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  tool_calls?: ToolCall[];
 }
 
 const quickActions = [
-  "Wer ist mein Top-Performer diese Woche?",
+  "Was steht heute an? Welche Memos sind fällig?",
+  "Was war zuletzt mit meinen Top-3-Chattern besprochen?",
   "Wer hat heute massiv abgebaut?",
-  "Welche Chatter haben den höchsten Antwort-Verzug?",
-  "Gib mir eine Zusammenfassung der letzten 7 Tage.",
+  "Notier: gib Sarah noch 2 Tage für Mass-DMs hoch",
 ];
 
 export default function AIConsultant() {
