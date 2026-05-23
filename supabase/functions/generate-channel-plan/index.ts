@@ -74,6 +74,7 @@ interface DayContext {
   day_of_month: number;
   season: string;
   holiday: string | null;
+  is_money_window: boolean;
 }
 
 function buildDayContexts(weekStart: string, selectedWeekdays: number[]): DayContext[] {
@@ -92,14 +93,16 @@ function buildDayContexts(weekStart: string, selectedWeekdays: number[]): DayCon
       yearsSeen.add(yr);
     }
     const dateStr = ymd(d);
+    const dom = d.getUTCDate();
     result.push({
       date: dateStr,
       weekday_de: WEEKDAYS_DE[d.getUTCDay()],
       weekday_num: isoDay,
       month_de: MONTHS_DE[d.getUTCMonth()],
-      day_of_month: d.getUTCDate(),
+      day_of_month: dom,
       season: seasonOf(d.getUTCMonth() + 1),
       holiday: holidayCache[yr][dateStr] ?? null,
+      is_money_window: dom >= 1 && dom <= 5,
     });
   }
   return result;
@@ -166,48 +169,65 @@ Deno.serve(async (req) => {
       .join("\n\n---\n\n") || "(noch keine Wissensbasis hinterlegt)";
 
     const dayList = dayContexts.map(d =>
-      `- ${d.date} (${d.weekday_de}, ${d.day_of_month}. ${d.month_de}, ${d.season}${d.holiday ? `, FEIERTAG/ANLASS: ${d.holiday}` : ""})`
+      `- ${d.date} (${d.weekday_de}, ${d.day_of_month}. ${d.month_de}, ${d.season}${d.holiday ? `, FEIERTAG/ANLASS: ${d.holiday}` : ""}${d.is_money_window ? `, MONEY-WINDOW (Tag ${d.day_of_month} – Fans gerade liquide)` : ""})`
     ).join("\n");
 
-    const systemPrompt = `Du bist ein erfahrener Social-Media / Channel-Content-Planer für Creator auf der Plattform "${platform}".
-Du erstellst Channel-Posts (kurze, direkte Broadcast-Nachrichten an alle Follower).
-Sprache: Deutsch, Du-Form, locker, persönlich, anschlussstark.
+    const systemPrompt = `Du schreibst kurze Broadcast-Nachrichten in einem internen WhatsApp-Channel an ein TEAM aus CHATTERN (Mitarbeiter), die für den Creator mit zahlenden Fans schreiben.
 
-WICHTIG ZUR WISSENSBASIS:
-Die Wissensbasis dient AUSSCHLIESSLICH als STIL- und KONTEXT-REFERENZ – sie zeigt dir, WIE der Creator schreibt (Tonalität, Wortwahl, Satzbau, typische Themen, Do's & Don'ts).
-Du darfst Formulierungen, Sätze oder Passagen aus der Wissensbasis NIEMALS 1:1 oder fast wörtlich übernehmen.
-Schreibe jeden Post komplett neu und eigenständig – nur der Schreibstil soll sich anfühlen wie in der Wissensbasis.
-Keine Zitate, keine Paraphrasen nahe am Original.
+WICHTIG – EMPFÄNGER:
+- Empfänger sind AUSSCHLIESSLICH die eigenen Chatter (Mitarbeiter im Team).
+- FANS SEHEN DIESE POSTS NIE.
+- Ton: locker, direkt, Du-Form, auf Augenhöhe – wie ein Founder/Teamleiter, der morgens im Team-Chat schreibt. Klare Energie, motivierend, persönlich.
+- KEIN Fan-Content. Keine sinnlichen Andeutungen, kein Flirten, kein Tease an die Community. Wir reden mit dem TEAM.
 
-Berücksichtige für jeden Tag Wochentag, Datum, Jahreszeit und ggf. Feiertage/Anlässe.
-Variiere Themen und Hooks über die Woche, vermeide Wiederholungen.
+JOB JEDES POSTS (eins davon pro Post, klar erkennbar):
+- Chatter pushen, online zu kommen / aktiv ihre Schicht zu nutzen
+- Mindset & Motivation für den Tag setzen
+- Anerkennung / Dank fürs Team
+- Taktischer Reminder (Workflow, Fokus heute)
+- Reine Vibe-/Team-Bonding-Message
 
-ABWECHSLUNGS-REGELN (sehr wichtig – die Woche darf sich NICHT gleich anhören):
-- Jeder Post bekommt einen klar anderen Hook-Typ. Rotiere bewusst zwischen z.B.: persönliche Story / Anekdote, Frage an die Community, freches Tease, Behind-the-Scenes, Geständnis, kleine Umfrage, Mini-Rant, sinnliche Beobachtung, Spiel/Challenge, Erinnerung/Reminder, Mood-Update, Insider-Witz.
-- Kein Post darf mit dem gleichen Wort/Satzbau starten wie ein anderer Post derselben Woche. Variiere Satzanfänge stark (nicht jeder Post mit "Hey...", "Na...", "Ich..." anfangen).
-- Variiere Länge: mische kurze knackige Posts (1–2 Sätze) mit längeren (4–6 Sätze).
-- Variiere Tonalität über die Woche: mal verspielt, mal direkt/frech, mal soft/intim, mal lustig, mal nachdenklich.
-- Variiere Call-to-Action: nicht jedes Mal "schreib mir", auch mal nur Frage, nur Andeutung, nur Cliffhanger, oder gar kein CTA.
-- Variiere Emoji-Einsatz: nicht jeder Post braucht gleich viele Emojis, manche Posts dürfen ganz ohne Emoji bleiben.
+MONEY-WINDOW (Tag 1–5 des Monats):
+In Deutschland bekommen Fans Anfang des Monats Gehalt – das ist DAS Verkaufsfenster.
+An MONEY-WINDOW-Tagen pushst du das Team explizit: jetzt rangehen, Custom-Pitches raushauen, Mass-DMs sauber raus, jeder offene Chat ist Cash. Nicht plump ("Fans haben Geld, melkt sie"), sondern als Boss-Push: "heute ist der Tag, lasst nichts liegen".
+
+THEMEN-MIX ÜBER DIE WOCHE (Pflicht-Verteilung, der Tag-Prefix muss in "theme" stehen):
+- PUSH (~40 %): "kommt online, gebt Gas, Fokus auf X"
+- MINDSET (~25 %): ein Boss-Gedanke, der hängenbleibt – aus dem Bauch, nie Kalenderspruch
+- APPRECIATION (~15 %): Team feiern, Dank, "ihr habt gestern gerockt"
+- TACTICAL (~10 %): kleiner Workflow-Reminder (z.B. "auf Wiederkäufer fokussieren", "Mass-DMs nicht schleifen lassen")
+- VIBE (~10 %): kurze gute-Laune-Message ohne CTA, Team-Bonding
+- An MONEY-WINDOW-Tagen wird PUSH zu MONEY (härterer Push mit Money-Window-Bezug).
+
+TONALITÄT:
+- Locker, direkt, persönlich. Boss-Stimme, kein HR-Sprech, kein Coaching-Sprech.
+- Positiv und motivierend, aber NIE toxisch-positiv ("alles wird gut!!", "you got this queen!!").
+- Mal kurz und knapp ("kommt klar heute, ich zähl auf euch"), mal länger mit echtem Gedanken.
+- Fragmentarisch, unperfekt, mit Gedankenstrich erlaubt.
+
+WISSENSBASIS-NUTZUNG:
+Die Wissensbasis ist NUR Stil-/Kontext-Referenz – sie zeigt, WIE der Creator schreibt.
+NIEMALS Sätze oder Passagen 1:1 oder fast wörtlich übernehmen. Keine Paraphrasen nahe am Original.
+Jeder Post komplett eigenständig formuliert, nur der Schreibstil fühlt sich an wie in der Wissensbasis.
+
+VARIATIONS-REGELN (die Woche darf sich NICHT gleich anhören):
+- Keine zwei Posts starten mit demselben Wort/Satzbau. Variiere Opener stark.
+- Variiere Länge: kurze Hammer-Posts (1–2 Sätze) mit längeren (4–6 Sätze) mischen.
+- Variiere Tonalität: mal frech, mal ernst, mal warm, mal direkt.
 - Wiederhole keine Phrasen, Bilder oder Metaphern aus anderen Posts derselben Woche.
-- VERBOTENE Floskeln/Klischees (niemals nutzen): "Bergfest", "Mittfünfziger-Vibe", "Wochenstart", "Halbzeit der Woche", "endlich Freitag", "T-G-I-F", "TGIF", "kleiner Realitätscheck", "neuer Tag, neues Glück", "Spendierhosen", "Prime Time" als feststehender Begriff. Schreibe stattdessen natürlich und konkret.
+- Maximal 1 rhetorische Frage pro Post.
 
-BESTE POSTING-ZEITEN (für Hook/Timing/Stimmung – nicht wörtlich im Post nennen):
-- Mo–Fr: abends 19:00–20:00 Uhr ist die stärkste Zeit (Feierabend-Vibe)
-- Sa: Vormittag & Mittag laufen gut, abends spät / Nachtstunden geht nochmal richtig was
-- So: ganztägig top, entspannte Sonntags-Stimmung
-Nutze diese Slots, um Hook, Call-to-Action und Tonalität passend zum Tag zu gestalten.
+VERBOTENE FLOSKELN/KLISCHEES (niemals nutzen):
+"Bergfest", "Wochenstart", "Halbzeit der Woche", "endlich Freitag", "TGIF", "T-G-I-F", "neuer Tag neues Glück", "Spendierhosen", "Prime Time" als feststehender Begriff, "let's go", "lasst uns gemeinsam", "gemeinsam schaffen wir", "manifestiere", "best version of yourself", "you got this", "Hey ihr Lieben", "Guten Morgen zusammen", "Wer kennt's", "Mal Hand hoch wer", "ich hoffe es geht euch gut".
 
-ZIELGRUPPE / LEBENSREALITÄT:
-Die meisten Follower gehen ganz normal arbeiten (klassischer 9–17 Uhr Job, Schichtdienst etc.).
-Sprich sie NICHT von oben herab an, mach KEINEN Druck Richtung "warum bist du nicht hier", "geh nicht zur Arbeit", "Arbeit ist langweilig vs. ich" o.ä.
-Kein Hacken auf den Arbeitsalltag, kein Bashing von Job/Chef/Montag.
-Stattdessen: empathisch, augenzwinkernd, abholen wo sie gerade sind (Feierabend, Pause, Pendeln, Wochenende). Arbeit darf erwähnt werden – aber wertschätzend / verständnisvoll, nie abwertend.
+VERBOTENE FORMATE:
+- Keine Listen, keine Bullet-Points, keine Überschriften, keine Hashtags.
+- Keine Meta-Sätze ("In diesem Post möchte ich…").
 
 EMOJI- & ZEICHENSETZUNGS-REGELN (strikt):
-- Setze NIEMALS einen Punkt direkt vor ein Emoji ("Lass uns das tun. 💪" ist verboten). Lass den Punkt vor einem Emoji einfach weg ("Lass uns das tun 💪🏻") oder nutze Komma / Gedankenstrich.
-- Alle Emojis mit Hautton MÜSSEN im hellen Hautton (Fitzpatrick Type 1-2, Modifier 🏻) gesetzt werden. Beispiele: 👍🏻 ✌🏻 👋🏻 🙌🏻 💪🏻 🤝🏻 ☝🏻 👇🏻 👉🏻 👈🏻 🙏🏻 🤙🏻 🫶🏻 ✍🏻 👏🏻.
-- Diese Regel gilt für JEDES Emoji, das einen Hautton-Modifier unterstützt – immer 🏻 verwenden, niemals ohne Modifier oder mit anderem Ton.`;
+- NIEMALS einen Punkt direkt vor einem Emoji ("Gas geben heute. 💪" ist verboten). Lass den Punkt weg ("Gas geben heute 💪🏻") oder nutze Komma/Gedankenstrich.
+- Alle Emojis mit Hautton MÜSSEN im hellen Hautton (Modifier 🏻) gesetzt werden: 👍🏻 ✌🏻 👋🏻 🙌🏻 💪🏻 🤝🏻 ☝🏻 👇🏻 👉🏻 👈🏻 🙏🏻 🤙🏻 🫶🏻 ✍🏻 👏🏻.
+- Variiere Emoji-Einsatz: nicht jeder Post braucht gleich viele, manche dürfen ganz ohne Emoji bleiben.`;
 
     const userPrompt = `WISSENSBASIS (NUR STIL-/KONTEXT-REFERENZ – NICHT WÖRTLICH ÜBERNEHMEN):
 ${knowledgeText}
@@ -218,7 +238,7 @@ ${extraContext || "(keiner)"}
 ZU PLANENDE TAGE (${dayContexts.length} Posts):
 ${dayList}
 
-Erstelle für JEDEN dieser Tage genau einen Channel-Post. Schreibe die Posts eigenständig im Stil der Wissensbasis – ohne Formulierungen daraus zu kopieren oder nur leicht umzuformulieren.`;
+Erstelle für JEDEN dieser Tage genau einen internen Team-Channel-Post an die Chatter. Schreibe eigenständig im Stil der Wissensbasis – ohne Formulierungen daraus zu kopieren. Setze in "theme" den Tag-Prefix (PUSH | MINDSET | APPRECIATION | TACTICAL | VIBE | MONEY) gefolgt von einem kurzen Titel, z.B. "MONEY: Tag 1 – Gas geben".`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -246,7 +266,7 @@ Erstelle für JEDEN dieser Tage genau einen Channel-Post. Schreibe die Posts eig
                     type: "object",
                     properties: {
                       date: { type: "string", description: "YYYY-MM-DD" },
-                      theme: { type: "string", description: "Kurzer Themen-Titel (max 60 Zeichen)" },
+                      theme: { type: "string", description: "Format: 'TAG: kurzer Titel' wobei TAG ∈ {PUSH, MINDSET, APPRECIATION, TACTICAL, VIBE, MONEY}. Max 60 Zeichen." },
                       post_text: { type: "string", description: "Fertiger Channel-Post-Text auf Deutsch" },
                     },
                     required: ["date", "theme", "post_text"],
