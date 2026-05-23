@@ -74,6 +74,7 @@ interface DayContext {
   day_of_month: number;
   season: string;
   holiday: string | null;
+  is_money_window: boolean;
 }
 
 function buildDayContexts(weekStart: string, selectedWeekdays: number[]): DayContext[] {
@@ -92,14 +93,16 @@ function buildDayContexts(weekStart: string, selectedWeekdays: number[]): DayCon
       yearsSeen.add(yr);
     }
     const dateStr = ymd(d);
+    const dom = d.getUTCDate();
     result.push({
       date: dateStr,
       weekday_de: WEEKDAYS_DE[d.getUTCDay()],
       weekday_num: isoDay,
       month_de: MONTHS_DE[d.getUTCMonth()],
-      day_of_month: d.getUTCDate(),
+      day_of_month: dom,
       season: seasonOf(d.getUTCMonth() + 1),
       holiday: holidayCache[yr][dateStr] ?? null,
+      is_money_window: dom >= 1 && dom <= 5,
     });
   }
   return result;
