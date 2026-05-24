@@ -161,8 +161,39 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
                   <div className="flex items-center gap-1 shrink-0">
                     {!isEditing && (
                       <>
-                        <button onClick={() => copy(d.post_text)} className="p-1.5 rounded-md text-foreground/70 hover:text-primary hover:bg-primary/10" title="Copy"><Copy className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => startEdit(d)} className="p-1.5 rounded-md text-foreground/70 hover:text-foreground hover:bg-white/[0.06]" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => copy(d.post_text)} disabled={regenId === d.id} className="p-1.5 rounded-md text-foreground/70 hover:text-primary hover:bg-primary/10 disabled:opacity-40" title="Copy"><Copy className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => startEdit(d)} disabled={regenId === d.id} className="p-1.5 rounded-md text-foreground/70 hover:text-foreground hover:bg-white/[0.06] disabled:opacity-40" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                        <Popover open={hintOpenId === d.id} onOpenChange={(o) => { if (!o) { setHintOpenId(null); setHintText(""); } }}>
+                          <PopoverTrigger asChild>
+                            <button
+                              onClick={() => { setHintOpenId(d.id); setHintText(""); }}
+                              disabled={regenId === d.id}
+                              className="p-1.5 rounded-md text-foreground/70 hover:text-primary hover:bg-primary/10 disabled:opacity-40"
+                              title="Neu generieren"
+                            >
+                              {regenId === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-72 bg-[hsl(var(--surface-1))] border-white/[0.1] p-3 space-y-2">
+                            <div className="text-[11px] text-foreground/70 font-medium">Hinweis an die KI (optional)</div>
+                            <Textarea
+                              autoFocus
+                              value={hintText}
+                              onChange={(e) => setHintText(e.target.value)}
+                              rows={3}
+                              placeholder="z.B. kürzer, weniger pushig, lieber MINDSET-LIFE …"
+                              className="bg-white/[0.05] border-white/[0.12] text-xs min-h-[70px]"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => { setHintOpenId(null); setHintText(""); }} className="h-8 bg-white/[0.04] hover:bg-white/[0.08] text-foreground border-white/[0.12] text-xs">
+                                Abbrechen
+                              </Button>
+                              <Button size="sm" onClick={() => doRegenerate(d.id, hintText)} className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground border-0 text-xs">
+                                <Sparkles className="h-3 w-3 mr-1" /> Neu generieren
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </>
                     )}
                     {isEditing && (
