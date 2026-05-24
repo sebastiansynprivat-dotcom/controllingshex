@@ -87,6 +87,21 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
     catch (e: any) { toast.error(e.message || "Fehler"); }
   };
 
+  const doRegenerate = async (dayId: string, hint?: string) => {
+    setRegenId(dayId);
+    setHintOpenId(null);
+    setHintText("");
+    try {
+      const updated = await regeneratePlanDay(dayId, hint);
+      setDays((arr) => arr.map((x) => x.id === dayId ? { ...x, theme: updated.theme, post_text: updated.post_text, context_notes: updated.context_notes } : x));
+      toast.success("Tag neu generiert");
+    } catch (e: any) {
+      toast.error(e.message || "Fehler bei Regenerierung");
+    } finally {
+      setRegenId(null);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-4 w-4 animate-spin text-foreground/40" /></div>;
   }
