@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Pencil, Check, X, Trash2, Loader2, CalendarDays, PartyPopper } from "lucide-react";
+import { Copy, Pencil, Check, X, Trash2, Loader2, CalendarDays, PartyPopper, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -7,12 +7,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  ChannelPlan, ChannelPlanDay, listPlans, listPlanDays, updatePlanDay, deletePlan,
+  ChannelPlan, ChannelPlanDay, listPlans, listPlanDays, updatePlanDay, deletePlan, regeneratePlanDay,
 } from "@/lib/channel-plan";
 
 interface Props {
@@ -35,6 +36,9 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
   const [draftTheme, setDraftTheme] = useState("");
   const [draftPost, setDraftPost] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ChannelPlan | null>(null);
+  const [regenId, setRegenId] = useState<string | null>(null);
+  const [hintOpenId, setHintOpenId] = useState<string | null>(null);
+  const [hintText, setHintText] = useState("");
 
   const loadPlans = async () => {
     setLoading(true);
@@ -81,6 +85,21 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
     const p = pendingDelete; setPendingDelete(null);
     try { await deletePlan(p.id); toast.success("Plan gelöscht"); await loadPlans(); }
     catch (e: any) { toast.error(e.message || "Fehler"); }
+  };
+
+  const doRegenerate = async (dayId: string, hint?: string) => {
+    setRegenId(dayId);
+    setHintOpenId(null);
+    setHintText("");
+    try {
+      const updated = await regeneratePlanDay(dayId, hint);
+      setDays((arr) => arr.map((x) => x.id === dayId ? { ...x, theme: updated.theme, post_text: updated.post_text, context_notes: updated.context_notes } : x));
+      toast.success("Tag neu generiert");
+    } catch (e: any) {
+      toast.error(e.message || "Fehler bei Regenerierung");
+    } finally {
+      setRegenId(null);
+    }
   };
 
   if (loading) {
@@ -142,8 +161,39 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
                   <div className="flex items-center gap-1 shrink-0">
                     {!isEditing && (
                       <>
-                        <button onClick={() => copy(d.post_text)} className="p-1.5 rounded-md text-foreground/70 hover:text-primary hover:bg-primary/10" title="Copy"><Copy className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => startEdit(d)} className="p-1.5 rounded-md text-foreground/70 hover:text-foreground hover:bg-white/[0.06]" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => copy(d.post_text)} disabled={regenId === d.id} className="p-1.5 rounded-md text-foreground/70 hover:text-primary hover:bg-primary/10 disabled:opacity-40" title="Copy"><Copy className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => startEdit(d)} disabled={regenId === d.id} className="p-1.5 rounded-md text-foreground/70 hover:text-foreground hover:bg-white/[0.06] disabled:opacity-40" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                        <Popover open={hintOpenId === d.id} onOpenChange={(o) => { if (!o) { setHintOpenId(null); setHintText(""); } }}>
+                          <PopoverTrigger asChild>
+                            <button
+                              onClick={() => { setHintOpenId(d.id); setHintText(""); }}
+                              disabled={regenId === d.id}
+                              className="p-1.5 rounded-md text-foreground/70 hover:text-primary hover:bg-primary/10 disabled:opacity-40"
+                              title="Neu generieren"
+                            >
+                              {regenId === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-72 bg-[hsl(var(--surface-1))] border-white/[0.1] p-3 space-y-2">
+                            <div className="text-[11px] text-foreground/70 font-medium">Hinweis an die KI (optional)</div>
+                            <Textarea
+                              autoFocus
+                              value={hintText}
+                              onChange={(e) => setHintText(e.target.value)}
+                              rows={3}
+                              placeholder="z.B. kürzer, weniger pushig, lieber MINDSET-LIFE …"
+                              className="bg-white/[0.05] border-white/[0.12] text-xs min-h-[70px]"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => { setHintOpenId(null); setHintText(""); }} className="h-8 bg-white/[0.04] hover:bg-white/[0.08] text-foreground border-white/[0.12] text-xs">
+                                Abbrechen
+                              </Button>
+                              <Button size="sm" onClick={() => doRegenerate(d.id, hintText)} className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground border-0 text-xs">
+                                <Sparkles className="h-3 w-3 mr-1" /> Neu generieren
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </>
                     )}
                     {isEditing && (
