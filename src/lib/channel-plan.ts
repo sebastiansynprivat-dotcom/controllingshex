@@ -91,6 +91,21 @@ export async function updatePlanDay(id: string, theme: string, post_text: string
   if (error) throw error;
 }
 
+export async function regeneratePlanDay(day_id: string, hint?: string): Promise<ChannelPlanDay> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Nicht eingeloggt");
+  const { data, error } = await supabase.functions.invoke("regenerate-channel-plan-day", {
+    body: { day_id, hint: hint?.trim() || undefined },
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+  if (error) {
+    const msg = (data as any)?.error || error.message || "Regeneration failed";
+    throw new Error(msg);
+  }
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return (data as any).day as ChannelPlanDay;
+}
+
 export async function deletePlan(id: string) {
   const { error } = await supabase.from("channel_plans").delete().eq("id", id);
   if (error) throw error;
