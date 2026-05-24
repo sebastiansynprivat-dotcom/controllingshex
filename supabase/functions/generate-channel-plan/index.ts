@@ -395,6 +395,7 @@ Erstelle für JEDEN dieser Tage genau einen internen Team-Channel-Post. Schreibe
             day_of_month: ctx.day_of_month,
             month_de: ctx.month_de,
             weekday_de: ctx.weekday_de,
+            length: d.length ?? null,
           },
           position: i,
         };
