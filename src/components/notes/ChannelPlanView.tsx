@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Pencil, Check, X, Trash2, Loader2, CalendarDays, PartyPopper } from "lucide-react";
+import { Copy, Pencil, Check, X, Trash2, Loader2, CalendarDays, PartyPopper, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -7,12 +7,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  ChannelPlan, ChannelPlanDay, listPlans, listPlanDays, updatePlanDay, deletePlan,
+  ChannelPlan, ChannelPlanDay, listPlans, listPlanDays, updatePlanDay, deletePlan, regeneratePlanDay,
 } from "@/lib/channel-plan";
 
 interface Props {
