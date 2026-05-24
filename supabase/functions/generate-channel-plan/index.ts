@@ -306,10 +306,11 @@ Erstelle für JEDEN dieser Tage genau einen internen Team-Channel-Post. Schreibe
                     type: "object",
                     properties: {
                       date: { type: "string", description: "YYYY-MM-DD" },
-                      theme: { type: "string", description: "Format: 'TAG: kurzer Titel' wobei TAG ∈ {PUSH, MINDSET, APPRECIATION, TACTICAL, VIBE, MONEY}. Max 60 Zeichen." },
+                      theme: { type: "string", description: "Format: 'TAG: kurzer Titel' wobei TAG ∈ {PUSH, MINDSET-JOB, MINDSET-LIFE, DEEP, APPRECIATION, TACTICAL, VIBE, MONEY}. Max 60 Zeichen." },
+                      length: { type: "string", enum: ["short", "medium", "long"], description: "short=1–2 Sätze, medium=3–4, long=5–8" },
                       post_text: { type: "string", description: "Fertiger Channel-Post-Text auf Deutsch" },
                     },
-                    required: ["date", "theme", "post_text"],
+                    required: ["date", "theme", "length", "post_text"],
                     additionalProperties: false,
                   },
                 },
