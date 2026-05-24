@@ -36,6 +36,9 @@ export default function ChannelPlanView({ platform, refreshKey }: Props) {
   const [draftTheme, setDraftTheme] = useState("");
   const [draftPost, setDraftPost] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ChannelPlan | null>(null);
+  const [regenId, setRegenId] = useState<string | null>(null);
+  const [hintOpenId, setHintOpenId] = useState<string | null>(null);
+  const [hintText, setHintText] = useState("");
 
   const loadPlans = async () => {
     setLoading(true);
