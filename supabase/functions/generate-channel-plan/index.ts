@@ -350,7 +350,7 @@ Erstelle für JEDEN dieser Tage genau einen internen Team-Channel-Post. Schreibe
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    let parsed: { days: { date: string; theme: string; post_text: string }[] };
+    let parsed: { days: { date: string; theme: string; length?: string; post_text: string }[] };
     try {
       parsed = JSON.parse(toolCall.function.arguments);
     } catch {
