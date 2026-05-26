@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { TrendingUp, TrendingDown, Minus, ChevronRight, AlertTriangle } from "lucide-react";
@@ -282,7 +283,30 @@ function BucketCard({
             <div className="flex-1 min-w-0">
               <div className="text-[12px] text-foreground/90 font-light truncate">{m.modelName}</div>
               <div className="text-[10px] text-white/35 font-light truncate mt-0.5">
-                {m.currentChatter || "kein Chatter"}
+                {m.currentChatter ? (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(m.currentChatter!);
+                      toast.success(`Chatter "${m.currentChatter}" kopiert`);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(m.currentChatter!);
+                        toast.success(`Chatter "${m.currentChatter}" kopiert`);
+                      }
+                    }}
+                    className="hover:text-white/70 hover:underline underline-offset-2 cursor-pointer transition-colors"
+                  >
+                    {m.currentChatter}
+                  </span>
+                ) : (
+                  "kein Chatter"
+                )}
                 {m.currentPhaseDays != null && ` · Phase ${m.currentPhaseDays}T`}
               </div>
             </div>
