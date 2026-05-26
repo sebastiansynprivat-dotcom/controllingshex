@@ -126,6 +126,26 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                 </div>
               </div>
 
+              {/* Möglicher Umsatz */}
+              <div className="premium-card rounded-xl p-3 border border-yellow-400/15 bg-gradient-to-b from-yellow-400/[0.04] to-transparent">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-yellow-200/70 font-semibold">Möglicher Umsatz</p>
+                    <p className="text-[10.5px] text-white/40 font-light mt-0.5">
+                      Wenn jeder Tag dem Schnitt der aktiven Tage entsprochen hätte
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-2xl font-extralight tabular-nums text-yellow-100">{fmtEur(potentialRevenue)}</p>
+                    {deltaPotential > 0 && (
+                      <p className="text-[10.5px] text-yellow-200/55 font-light tabular-nums mt-0.5">
+                        + {fmtEur(deltaPotential)} möglich
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Aggregierter Graph */}
               <div className="premium-card rounded-2xl p-4 sm:p-5">
                 <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-3">
