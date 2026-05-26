@@ -396,20 +396,25 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
 
 function LoginRow({ label, value, onCopy, mono, extra }: { label: string; value: string; onCopy: () => void; mono?: boolean; extra?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 bg-white/[0.02] border border-white/[0.05] rounded-md px-2.5 py-1.5">
-      <div className="flex-1 min-w-0">
-        <p className="text-[9.5px] uppercase tracking-wider text-white/35 font-medium">{label}</p>
-        <p className={cn("text-[12px] text-foreground/85 font-light truncate", mono && "font-mono")}>{value}</p>
-      </div>
-      {extra}
+    <div className="flex items-stretch gap-1 bg-white/[0.02] border border-white/[0.05] rounded-md overflow-hidden">
       <button
+        type="button"
         onClick={onCopy}
-        className="text-white/40 hover:text-white/80 transition-colors p-1"
+        className="flex-1 min-w-0 text-left px-2.5 py-1.5 hover:bg-white/[0.04] active:bg-white/[0.07] transition-colors cursor-pointer group"
+        title={`${label} kopieren`}
         aria-label={`${label} kopieren`}
-        title="Kopieren"
       >
-        <Copy className="h-3 w-3" />
+        <p className="text-[9.5px] uppercase tracking-wider text-white/35 font-medium flex items-center gap-1">
+          {label}
+          <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+        </p>
+        <p className={cn("text-[12px] text-foreground/85 font-light truncate", mono && "font-mono")}>{value}</p>
       </button>
+      {extra && (
+        <div className="flex items-center pr-1.5">
+          {extra}
+        </div>
+      )}
     </div>
   );
 }
