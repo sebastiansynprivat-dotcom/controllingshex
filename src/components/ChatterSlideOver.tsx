@@ -64,6 +64,8 @@ interface Props {
   inline?: boolean;
   /** Optional: zweiter Chatter, mit dem die Vergleichsansicht direkt geöffnet wird. */
   initialCompareWith?: string | null;
+  /** Split-View: rendert das Panel auf der rechten Bildschirmhälfte (nebeneinander mit dem Model-Monitor). */
+  splitView?: boolean;
 }
 
 function toTitleCase(name: string): string {
@@ -199,7 +201,7 @@ function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null }: Props) {
+export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
@@ -1324,8 +1326,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           animate={{
             x: 0,
             opacity: 1,
-            width: compareWith ? "100vw" : "min(100vw, 520px)",
-            left: compareWith ? 0 : "auto",
+            width: splitView ? "50vw" : compareWith ? "100vw" : "min(100vw, 520px)",
+            left: splitView ? "50vw" : compareWith ? 0 : "auto",
           }}
           exit={{ x: 40, opacity: 0 }}
           transition={{
