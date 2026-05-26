@@ -112,7 +112,9 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
 
           {!loading && tl && tl.daily.length > 0 && (
             <>
-              {/* Krisen-Alarm */}
+              {modelName && <ModelNotesLabelsPanel platform={platform} modelName={modelName} />}
+
+
               {tl.vsPreviousPct !== null && tl.vsPreviousPct <= -20 && tl.currentPhase && tl.previousPhase && (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-4 flex gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
