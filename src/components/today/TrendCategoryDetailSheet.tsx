@@ -159,11 +159,47 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                 </div>
               </div>
 
-              {/* Aggregierter Graph */}
-              <div className="premium-card rounded-2xl p-4 sm:p-5">
-                <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-3">
-                  {direction === "down" ? "Models im Rückgang pro Tag" : "Models pro Tag aktiv"}
-                </p>
+              {(() => {
+                const first = aggregated[0]?.count ?? 0;
+                const last = aggregated[aggregated.length - 1]?.count ?? 0;
+                let periodPct: number | null = null;
+                let periodIsNew = false;
+                if (aggregated.length >= 2) {
+                  if (first === 0 && last > 0) periodIsNew = true;
+                  else if (first > 0) periodPct = Math.round(((last - first) / first) * 100);
+                  else periodPct = 0;
+                }
+                const invert = direction === "down";
+                const isPositive = periodIsNew || (periodPct ?? 0) > 0;
+                const isNegative = (periodPct ?? 0) < 0;
+                const badgeCls = periodPct === null && !periodIsNew
+                  ? "border-white/10 bg-white/[0.03] text-white/50"
+                  : isPositive
+                    ? (invert ? "border-red-500/30 bg-red-500/[0.08] text-red-300" : "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300")
+                    : isNegative
+                      ? (invert ? "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300" : "border-red-500/30 bg-red-500/[0.08] text-red-300")
+                      : "border-white/10 bg-white/[0.03] text-white/50";
+                const arrow = periodIsNew || (periodPct ?? 0) > 0 ? "▲" : (periodPct ?? 0) < 0 ? "▼" : "–";
+                const text = periodIsNew ? "neu" : periodPct === null ? "—" : `${periodPct > 0 ? "+" : ""}${periodPct}%`;
+                return (
+                  <div className="premium-card rounded-2xl p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+                        {direction === "down" ? "Models im Rückgang pro Tag" : "Models pro Tag aktiv"}
+                      </p>
+                      {aggregated.length >= 2 && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10.5px] font-medium tabular-nums",
+                            badgeCls,
+                          )}
+                          title="Veränderung im gewählten Zeitraum (erster vs. letzter Tag)"
+                        >
+                          <span className="text-[11px] leading-none">{arrow}</span>
+                          {text} im Zeitraum
+                        </span>
+                      )}
+                    </div>
                 {aggregated.length < 2 ? (
                   <div className="h-32 flex items-center justify-center text-[12px] text-white/30 font-light">
                     Zu wenig Datenpunkte für einen Verlauf.
@@ -193,15 +229,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                             fontSize: 12,
                           }}
                           labelFormatter={(v) => `Datum: ${v}`}
-                          formatter={(value: number, _name, item: any) => {
-                            const d = item?.payload?.deltaPct as number | null | undefined;
-                            const isNew = !!item?.payload?.isNew;
-                            const label = direction === "down" ? "Im Rückgang" : "Aktiv";
-                            let suffix = "";
-                            if (isNew) suffix = " · neu ggü. Vortag";
-                            else if (typeof d === "number") suffix = ` · ${d > 0 ? "+" : ""}${d}% ggü. Vortag`;
-                            return [`${value} Models${suffix}`, label];
-                          }}
+                          formatter={(value: number) => [`${value} Models`, direction === "down" ? "Im Rückgang" : "Aktiv"]}
                         />
                         <Area
                           type="monotone"
@@ -214,10 +242,9 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                     </ResponsiveContainer>
                   </div>
                 )}
-                {aggregated.length >= 2 && (
-                  <DailyDeltaStrip data={aggregated} direction={direction} />
-                )}
-              </div>
+                  </div>
+                );
+              })()}
 
               {/* Buckets */}
               <div className="space-y-3">
