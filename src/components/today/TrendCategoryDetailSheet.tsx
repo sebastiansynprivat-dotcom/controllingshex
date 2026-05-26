@@ -78,16 +78,17 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     [filteredRows],
   );
 
-  // Möglicher Umsatz: pro Model = Schnitt der aktiven Tage × Gesamt-Tage im Zeitraum.
-  // Idee: wenn jeder Tag so produktiv gewesen wäre wie ein "normaler" aktiver Tag.
+  // Möglicher Umsatz: pro Model = Ø der Chatter-Schnitte (jeder Chatter zählt gleich)
+  // × Gesamttage im Zeitraum. So sieht man, was möglich wäre, wenn jeder Chatter
+  // auf den kompletten Schnitt aller Chatter des Models käme.
   const potentialRevenue = useMemo(() => {
     let sum = 0;
     for (const r of filteredRows) {
-      const activeDays = r.daily.filter((p) => p.revenue > 0);
-      if (activeDays.length === 0) { sum += r.totalRevenue; continue; }
-      const avgActive = activeDays.reduce((s, p) => s + p.revenue, 0) / activeDays.length;
-      const totalDays = r.daily.length || activeDays.length;
-      sum += avgActive * totalDays;
+      const totalDays = r.daily.length;
+      if (totalDays === 0) { sum += r.totalRevenue; continue; }
+      if (r.chatterAvgs.length === 0) { sum += r.totalRevenue; continue; }
+      const meanChatterAvg = r.chatterAvgs.reduce((s, c) => s + c.avgPerActiveDay, 0) / r.chatterAvgs.length;
+      sum += meanChatterAvg * totalDays;
     }
     return sum;
   }, [filteredRows]);
