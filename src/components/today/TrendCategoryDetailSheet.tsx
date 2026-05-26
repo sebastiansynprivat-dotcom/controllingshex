@@ -65,7 +65,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     return rows.filter((r) => r.trend === direction);
   }, [rows, direction]);
 
-  const aggregated = useMemo(() => aggregateDaily(filteredRows), [filteredRows]);
+  const aggregated = useMemo(() => aggregateModelCountDaily(filteredRows), [filteredRows]);
 
   const totalRevenue = useMemo(
     () => filteredRows.reduce((s, r) => s + r.totalRevenue, 0),
