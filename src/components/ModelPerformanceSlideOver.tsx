@@ -215,16 +215,19 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                 {tl.phases.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {Array.from(chatterColors.entries()).map(([name, color]) => (
-                      <div
+                      <button
+                        type="button"
                         key={name}
-                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]"
+                        onClick={(e) => copyChatter(name, e)}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.07] hover:border-white/[0.12] transition-colors cursor-pointer"
+                        title="Klick zum Kopieren"
                       >
                         <span
                           className="h-2 w-2 rounded-full"
                           style={{ background: color }}
                         />
                         <span className="text-[10px] text-white/55 font-light">{name}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
