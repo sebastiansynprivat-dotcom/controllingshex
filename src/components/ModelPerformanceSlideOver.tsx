@@ -6,6 +6,16 @@ import { loadModelTimeline, formatEur, type ModelTimeline, type ChatterPhase } f
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import ModelNotesLabelsPanel from "@/components/ModelNotesLabelsPanel";
+import { toast } from "sonner";
+
+function copyChatter(name: string, e?: React.SyntheticEvent) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  navigator.clipboard.writeText(name);
+  toast.success(`Chatter "${name}" kopiert`);
+}
 
 
 interface Props {
@@ -205,16 +215,19 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                 {tl.phases.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {Array.from(chatterColors.entries()).map(([name, color]) => (
-                      <div
+                      <button
+                        type="button"
                         key={name}
-                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]"
+                        onClick={(e) => copyChatter(name, e)}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.07] hover:border-white/[0.12] transition-colors cursor-pointer"
+                        title="Klick zum Kopieren"
                       >
                         <span
                           className="h-2 w-2 rounded-full"
                           style={{ background: color }}
                         />
                         <span className="text-[10px] text-white/55 font-light">{name}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -281,7 +294,14 @@ function PhaseRow({ phase, isCurrent, vsPrev, color }: {
       <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: color }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[14px] text-foreground/85 font-light">{phase.chatterName}</span>
+          <button
+            type="button"
+            onClick={(e) => copyChatter(phase.chatterName, e)}
+            className="text-[14px] text-foreground/85 font-light hover:text-white hover:underline underline-offset-2 cursor-pointer transition-colors text-left"
+            title="Klick zum Kopieren"
+          >
+            {phase.chatterName}
+          </button>
           {isCurrent && (
             <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25">
               Aktuell
