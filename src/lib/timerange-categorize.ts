@@ -9,7 +9,7 @@ import type { ActionCategoryName } from "@/lib/action-categories";
 import { supabase } from "@/integrations/supabase/client";
 import { parseLocaleNumber } from "@/lib/parse-number";
 
-export type TimeRangePreset = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
+export type TimeRangePreset = "today" | "yesterday" | "7d" | "14d" | "30d" | "90d" | "custom";
 
 export interface TimeRange {
   preset: TimeRangePreset;
