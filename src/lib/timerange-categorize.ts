@@ -87,6 +87,7 @@ export function rangeLabel(range: TimeRange): string {
     case "7d": return "Letzte 7 Tage";
     case "14d": return "Letzte 14 Tage";
     case "30d": return "Letzte 30 Tage";
+    case "90d": return "Letzte 90 Tage";
     case "custom": return `${range.from} → ${range.to}`;
   }
 }
