@@ -71,6 +71,7 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
 
   const [labels, setLabels] = useState<ModelLabel[]>([]);
   const [assignments, setAssignments] = useState<LabelAssignment[]>([]);
+  const [notes, setNotes] = useState<ModelNote[]>([]);
   const [labelFilter, setLabelFilter] = useState<Set<string>>(new Set());
   const [showLabelManager, setShowLabelManager] = useState(false);
 
@@ -95,17 +96,26 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
   }, [platform]);
 
   const reloadLabels = useCallback(async () => {
-    const [labelsRes, assignRes] = await Promise.all([
+    const [labelsRes, assignRes, notesRes] = await Promise.all([
       supabase.from("model_labels").select("id, label_name, color").eq("platform", platform).order("label_name"),
       supabase.from("model_label_assignments").select("id, model_name, label_id").eq("platform", platform),
+      supabase.from("model_notes").select("id, model_name, note_text, created_at").eq("platform", platform).order("created_at", { ascending: false }),
     ]);
     if (!labelsRes.error && labelsRes.data) setLabels(labelsRes.data as ModelLabel[]);
     if (!assignRes.error && assignRes.data) setAssignments(assignRes.data as LabelAssignment[]);
+    if (!notesRes.error && notesRes.data) setNotes(notesRes.data as ModelNote[]);
   }, [platform]);
 
   useEffect(() => {
     reloadLabels();
     setLabelFilter(new Set());
+  }, [reloadLabels]);
+
+  // Refresh when window regains focus (catches changes made in slide-over)
+  useEffect(() => {
+    const onFocus = () => { reloadLabels(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [reloadLabels]);
 
   const assignmentsByModel = useMemo(() => {
@@ -117,6 +127,16 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
     }
     return map;
   }, [assignments]);
+
+  const notesByModel = useMemo(() => {
+    const map = new Map<string, ModelNote[]>();
+    for (const n of notes) {
+      const list = map.get(n.model_name) ?? [];
+      list.push(n);
+      map.set(n.model_name, list);
+    }
+    return map;
+  }, [notes]);
 
   const labelsById = useMemo(() => {
     const map = new Map<string, ModelLabel>();
