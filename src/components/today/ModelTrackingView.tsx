@@ -240,7 +240,7 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
       {subtab === "overview" ? (
         <>
           {/* Trend summary */}
-          <TrendSummary rows={rows} loading={loading} />
+          <TrendSummary rows={rows} loading={loading} onSelect={setDetailDirection} />
 
           {/* Filter bar */}
           <div className="space-y-3">
