@@ -139,7 +139,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-yellow-200/70 font-semibold">Möglicher Umsatz</p>
                     <p className="text-[10.5px] text-white/40 font-light mt-0.5">
-                      Wenn jeder Tag dem Schnitt der aktiven Tage entsprochen hätte
+                      Wenn jeder Chatter auf den Ø-Schnitt aller Chatter des Models käme
                     </p>
                   </div>
                   <div className="text-right shrink-0">
