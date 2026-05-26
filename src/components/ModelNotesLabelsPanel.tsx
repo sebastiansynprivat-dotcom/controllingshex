@@ -261,7 +261,11 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
   const copy = (label: string, value: string | null) => {
     if (!value) return;
     navigator.clipboard.writeText(value);
-    toast.success(`${label} kopiert`);
+    toast.success("Erfolgreich kopiert", {
+      description: label,
+      position: "bottom-right",
+      duration: 2000,
+    });
   };
 
   const handleSave = async () => {
