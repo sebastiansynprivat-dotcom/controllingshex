@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, Search, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, Search, ChevronRight, StickyNote, Send, Trash2, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
 import { cn } from "@/lib/utils";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import { buildTimeRange, type TimeRange } from "@/lib/timerange-categorize";
