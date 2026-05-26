@@ -15,6 +15,8 @@ import {
   type ModelAlert,
   type TrendDirection,
 } from "@/lib/model-tracking-overview";
+import TrendCategoryDetailSheet from "@/components/today/TrendCategoryDetailSheet";
+
 
 interface Props {
   platform: string;
@@ -74,6 +76,8 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
   const [notes, setNotes] = useState<ModelNote[]>([]);
   const [labelFilter, setLabelFilter] = useState<Set<string>>(new Set());
   const [showLabelManager, setShowLabelManager] = useState(false);
+  const [detailDirection, setDetailDirection] = useState<TrendDirection | null>(null);
+
 
   useEffect(() => {
     let cancel = false;
@@ -238,7 +242,7 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
       {subtab === "overview" ? (
         <>
           {/* Trend summary */}
-          <TrendSummary rows={rows} loading={loading} />
+          <TrendSummary rows={rows} loading={loading} onSelect={setDetailDirection} />
 
           {/* Filter bar */}
           <div className="space-y-3">
@@ -378,9 +382,21 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
       ) : (
         <AlertsList loading={alertsLoading} alerts={alerts} onSelectModel={onSelectModel} />
       )}
+
+      <TrendCategoryDetailSheet
+        open={detailDirection !== null}
+        onClose={() => setDetailDirection(null)}
+        direction={detailDirection}
+        rows={rows}
+        onSelectModel={(name, chatter) => {
+          setDetailDirection(null);
+          onSelectModel(name, chatter);
+        }}
+      />
     </div>
   );
 }
+
 
 function ModelRow({
   row,
@@ -599,7 +615,15 @@ function LabelManager({
   );
 }
 
-function TrendSummary({ rows, loading }: { rows: ModelOverviewRow[]; loading: boolean }) {
+function TrendSummary({
+  rows,
+  loading,
+  onSelect,
+}: {
+  rows: ModelOverviewRow[];
+  loading: boolean;
+  onSelect: (d: TrendDirection) => void;
+}) {
   const counts = useMemo(() => {
     const c = { up: 0, flat: 0, down: 0, none: 0 } as Record<TrendDirection, number>;
     for (const r of rows) c[r.trend]++;
@@ -616,8 +640,19 @@ function TrendSummary({ rows, loading }: { rows: ModelOverviewRow[]; loading: bo
       {items.map((it) => {
         const Icon = it.icon;
         const pct = total > 0 ? Math.round((it.value / total) * 100) : 0;
+        const disabled = loading || it.value === 0;
         return (
-          <div key={it.key} className="premium-card rounded-xl p-3 flex flex-col gap-2">
+          <button
+            key={it.key}
+            type="button"
+            onClick={() => !disabled && onSelect(it.key)}
+            disabled={disabled}
+            className={cn(
+              "premium-card rounded-xl p-3 flex flex-col gap-2 text-left transition-all",
+              !disabled && "hover:bg-white/[0.04] hover:border-white/15 cursor-pointer",
+              disabled && "opacity-70 cursor-default",
+            )}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/45 font-semibold">
                 <Icon className={cn("h-3 w-3", it.tone)} />
@@ -631,12 +666,14 @@ function TrendSummary({ rows, loading }: { rows: ModelOverviewRow[]; loading: bo
             <div className="h-0.5 rounded-full bg-white/[0.05] overflow-hidden">
               <div className={cn("h-full transition-all", it.bar)} style={{ width: `${pct}%` }} />
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
   );
 }
+
+
 
 
 function Sparkline({ points, trend }: { points: number[]; trend: TrendDirection }) {

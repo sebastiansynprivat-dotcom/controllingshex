@@ -30,7 +30,14 @@ export interface ModelOverviewRow {
   trendPct: number | null;
   /** Slope in €/Tag — für Sortierung intern. */
   slope: number;
+  /** Tage, die der aktuelle Chatter ununterbrochen auf dem Model ist (lookback bis 365T). */
+  currentPhaseDays: number | null;
+  /** Gab es vor der aktuellen Chatter-Phase eine andere? */
+  previousPhaseExisted: boolean;
+  /** War der Trend der vorherigen Phase bereits negativ (slope < 0)? */
+  previousPhaseTrendDown: boolean;
 }
+
 
 /** Linear regression — returns slope (€/day) and intercept. */
 function linearRegression(points: { x: number; y: number }[]): { slope: number; intercept: number } {
@@ -148,6 +155,21 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     return Math.max(1, Math.floor((b - a) / 86400000) + 1);
   })();
 
+  // Per-model phases aus 365T-Pool ableiten (für currentPhaseDays etc.)
+  const poolByModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
+  for (const r of poolRows) {
+    const acc = r.account?.trim();
+    if (!acc) continue;
+    const dateMap = poolByModel.get(acc) ?? new Map();
+    const day = dateMap.get(r.analysis_date) ?? { revenue: 0, chatters: new Map<string, number>() };
+    const rev = Number(r.revenue_today) || 0;
+    day.revenue += rev;
+    const cName = r.chatter_name?.trim() || "—";
+    day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + rev);
+    dateMap.set(r.analysis_date, day);
+    poolByModel.set(acc, dateMap);
+  }
+
   const out: ModelOverviewRow[] = [];
   for (const modelName of modelSet) {
     const dateMap = byModel.get(modelName);
@@ -167,6 +189,45 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     const totalRevenue = daily.reduce((s, p) => s + p.revenue, 0);
     const avgPerDay = totalRevenue / rangeDaysCount;
     const trendResult = computeTrend(daily, rangeDaysCount);
+
+    // Phasen aus 365T-Pool
+    const poolDateMap = poolByModel.get(modelName);
+    let currentPhaseDays: number | null = null;
+    let previousPhaseExisted = false;
+    let previousPhaseTrendDown = false;
+    if (poolDateMap) {
+      const poolDates = Array.from(poolDateMap.keys()).sort();
+      const poolDaily: DailyPoint[] = poolDates.map((d) => {
+        const entry = poolDateMap.get(d)!;
+        let topChatter: string | null = null;
+        let topRev = -1;
+        for (const [name, rev] of entry.chatters) {
+          if (rev > topRev) { topRev = rev; topChatter = name; }
+        }
+        return { date: d, revenue: entry.revenue, chatter: topChatter };
+      });
+      const phases = derivePhases(poolDaily);
+      const currentPhase = phases[phases.length - 1] ?? null;
+      const previousPhase = phases.length >= 2 ? phases[phases.length - 2] : null;
+      if (currentPhase) {
+        // Days seit fromDate des current phase bis heute (Kalendertage, nicht nur Daten-Tage)
+        const from = new Date(currentPhase.fromDate + "T00:00:00Z").getTime();
+        const now = new Date(todayIso + "T00:00:00Z").getTime();
+        currentPhaseDays = Math.max(1, Math.floor((now - from) / 86400000) + 1);
+      }
+      if (previousPhase) {
+        previousPhaseExisted = true;
+        // Slope der vorherigen Phase
+        const prevPoints = poolDaily
+          .filter((p) => p.date >= previousPhase.fromDate && p.date <= previousPhase.toDate)
+          .map((p, i) => ({ x: i, y: p.revenue }));
+        if (prevPoints.length >= 3) {
+          const { slope } = linearRegression(prevPoints);
+          previousPhaseTrendDown = slope < 0;
+        }
+      }
+    }
+
     out.push({
       modelName,
       daily,
@@ -177,12 +238,16 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       trend: trendResult.direction,
       trendPct: trendResult.pct,
       slope: trendResult.slope,
+      currentPhaseDays,
+      previousPhaseExisted,
+      previousPhaseTrendDown,
     });
   }
 
   out.sort((a, b) => b.totalRevenue - a.totalRevenue);
   return out;
 }
+
 
 // ─────────────────────────── ALERTS ───────────────────────────
 
