@@ -6,6 +6,16 @@ import { loadModelTimeline, formatEur, type ModelTimeline, type ChatterPhase } f
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import ModelNotesLabelsPanel from "@/components/ModelNotesLabelsPanel";
+import { toast } from "sonner";
+
+function copyChatter(name: string, e?: React.SyntheticEvent) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  navigator.clipboard.writeText(name);
+  toast.success(`Chatter "${name}" kopiert`);
+}
 
 
 interface Props {
