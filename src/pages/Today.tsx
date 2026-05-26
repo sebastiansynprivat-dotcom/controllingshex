@@ -534,6 +534,8 @@ export default function Today() {
               </AnimatePresence>
             </div>
           )}
+            </>
+          )}
         </motion.div>
       </AnimatePresence>
 
