@@ -72,6 +72,22 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     [filteredRows],
   );
 
+  // Möglicher Umsatz: pro Model = Schnitt der aktiven Tage × Gesamt-Tage im Zeitraum.
+  // Idee: wenn jeder Tag so produktiv gewesen wäre wie ein "normaler" aktiver Tag.
+  const potentialRevenue = useMemo(() => {
+    let sum = 0;
+    for (const r of filteredRows) {
+      const activeDays = r.daily.filter((p) => p.revenue > 0);
+      if (activeDays.length === 0) { sum += r.totalRevenue; continue; }
+      const avgActive = activeDays.reduce((s, p) => s + p.revenue, 0) / activeDays.length;
+      const totalDays = r.daily.length || activeDays.length;
+      sum += avgActive * totalDays;
+    }
+    return sum;
+  }, [filteredRows]);
+
+  const deltaPotential = Math.max(0, potentialRevenue - totalRevenue);
+
   const buckets = useMemo<BucketDefinition[]>(
     () => (direction ? categorizeRowsByChatterAge(filteredRows, direction) : []),
     [filteredRows, direction],
@@ -107,6 +123,26 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                 <div className="premium-card rounded-xl p-3">
                   <p className="text-[10px] uppercase tracking-wider text-white/45 font-semibold">Gesamt-Umsatz</p>
                   <p className="text-2xl font-extralight tabular-nums text-foreground/90 mt-1">{fmtEur(totalRevenue)}</p>
+                </div>
+              </div>
+
+              {/* Möglicher Umsatz */}
+              <div className="premium-card rounded-xl p-3 border border-yellow-400/15 bg-gradient-to-b from-yellow-400/[0.04] to-transparent">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-yellow-200/70 font-semibold">Möglicher Umsatz</p>
+                    <p className="text-[10.5px] text-white/40 font-light mt-0.5">
+                      Wenn jeder Tag dem Schnitt der aktiven Tage entsprochen hätte
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-2xl font-extralight tabular-nums text-yellow-100">{fmtEur(potentialRevenue)}</p>
+                    {deltaPotential > 0 && (
+                      <p className="text-[10.5px] text-yellow-200/55 font-light tabular-nums mt-0.5">
+                        + {fmtEur(deltaPotential)} möglich
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
