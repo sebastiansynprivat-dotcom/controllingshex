@@ -4,7 +4,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { TrendingUp, TrendingDown, Minus, ChevronRight, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtEur, type ModelOverviewRow, type TrendDirection } from "@/lib/model-tracking-overview";
-import { categorizeRowsByChatterAge, aggregateDaily, NEW_CHATTER_THRESHOLD_DAYS, type BucketDefinition } from "@/lib/model-tracking-buckets";
+import { categorizeRowsByChatterAge, aggregateModelCountDaily, NEW_CHATTER_THRESHOLD_DAYS, type BucketDefinition } from "@/lib/model-tracking-buckets";
 
 interface Props {
   open: boolean;
