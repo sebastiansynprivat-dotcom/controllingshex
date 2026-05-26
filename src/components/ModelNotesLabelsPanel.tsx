@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Tag, StickyNote, Plus, X, Send, Trash2 } from "lucide-react";
+import { Tag, StickyNote, Plus, X, Send, Trash2, KeyRound, Copy, Pencil, Check, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -214,6 +214,202 @@ export default function ModelNotesLabelsPanel({ platform, modelName }: Props) {
           </ul>
         )}
       </div>
+
+      {/* Login data */}
+      <ModelLoginData platform={platform} modelName={modelName} />
+    </div>
+  );
+}
+
+interface LoginData {
+  email: string | null;
+  password: string | null;
+  profile_url: string | null;
+}
+
+function ModelLoginData({ platform, modelName }: { platform: string; modelName: string }) {
+  const [data, setData] = useState<LoginData>({ email: null, password: null, profile_url: null });
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<LoginData>({ email: null, password: null, profile_url: null });
+  const [showPw, setShowPw] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data: row } = await supabase
+        .from("models")
+        .select("id, email, password, profile_url")
+        .eq("platform", platform)
+        .eq("model_name", modelName)
+        .maybeSingle();
+      if (cancelled) return;
+      if (row) {
+        setModelId(row.id);
+        const d = { email: row.email, password: row.password, profile_url: row.profile_url };
+        setData(d);
+        setDraft(d);
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [platform, modelName]);
+
+  const copy = (label: string, value: string | null) => {
+    if (!value) return;
+    navigator.clipboard.writeText(value);
+    toast.success(`${label} kopiert`);
+  };
+
+  const handleSave = async () => {
+    if (!modelId) { toast.error("Model nicht gefunden"); return; }
+    setSaving(true);
+    const { error } = await supabase
+      .from("models")
+      .update({
+        email: draft.email?.trim() || null,
+        password: draft.password?.trim() || null,
+        profile_url: draft.profile_url?.trim() || null,
+      })
+      .eq("id", modelId);
+    setSaving(false);
+    if (error) { toast.error("Speichern fehlgeschlagen"); return; }
+    setData(draft);
+    setEditing(false);
+    toast.success("Login-Daten gespeichert");
+  };
+
+  const handleCancel = () => {
+    setDraft(data);
+    setEditing(false);
+  };
+
+  const hasAny = data.email || data.password || data.profile_url;
+
+  return (
+    <div className="space-y-2 pt-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-white/45 font-semibold">
+          <KeyRound className="h-3 w-3" />
+          Login-Daten
+        </div>
+        {!editing && !loading && (
+          <button
+            onClick={() => setEditing(true)}
+            className="text-white/40 hover:text-white/80 transition-colors p-1"
+            aria-label="Bearbeiten"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="text-[11px] text-white/30 font-light">Lade …</div>
+      ) : editing ? (
+        <div className="space-y-2">
+          <input
+            value={draft.email ?? ""}
+            onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+            placeholder="E-Mail"
+            className="w-full bg-white/[0.025] border border-white/[0.07] rounded-md px-2.5 py-1.5 text-[12px] text-foreground/90 placeholder:text-white/25 focus:outline-none focus:border-white/15"
+          />
+          <input
+            value={draft.password ?? ""}
+            onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
+            placeholder="Passwort"
+            className="w-full bg-white/[0.025] border border-white/[0.07] rounded-md px-2.5 py-1.5 text-[12px] text-foreground/90 placeholder:text-white/25 focus:outline-none focus:border-white/15 font-mono"
+          />
+          <input
+            value={draft.profile_url ?? ""}
+            onChange={(e) => setDraft((d) => ({ ...d, profile_url: e.target.value }))}
+            placeholder="Profil-URL"
+            className="w-full bg-white/[0.025] border border-white/[0.07] rounded-md px-2.5 py-1.5 text-[12px] text-foreground/90 placeholder:text-white/25 focus:outline-none focus:border-white/15"
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={handleCancel}
+              className="px-3 py-1.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11px] text-white/70 hover:bg-white/[0.08]"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-3 py-1.5 rounded-md bg-white/[0.08] border border-white/15 text-[11px] text-foreground/90 hover:bg-white/[0.12] disabled:opacity-40 flex items-center gap-1.5"
+            >
+              <Check className="h-3 w-3" />
+              Speichern
+            </button>
+          </div>
+        </div>
+      ) : !hasAny ? (
+        <div className="text-[11px] text-white/30 font-light italic">Noch keine Login-Daten hinterlegt.</div>
+      ) : (
+        <div className="space-y-1.5">
+          {data.email && (
+            <LoginRow label="E-Mail" value={data.email} onCopy={() => copy("E-Mail", data.email)} />
+          )}
+          {data.password && (
+            <LoginRow
+              label="Passwort"
+              value={showPw ? data.password : "••••••••••"}
+              mono
+              onCopy={() => copy("Passwort", data.password)}
+              extra={
+                <button
+                  onClick={() => setShowPw((v) => !v)}
+                  className="text-white/40 hover:text-white/80 transition-colors p-1"
+                  aria-label={showPw ? "Verbergen" : "Anzeigen"}
+                >
+                  {showPw ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+              }
+            />
+          )}
+          {data.profile_url && (
+            <LoginRow
+              label="Profil"
+              value={data.profile_url}
+              onCopy={() => copy("Profil-URL", data.profile_url)}
+              extra={
+                <a
+                  href={data.profile_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/40 hover:text-white/80 transition-colors p-1"
+                  aria-label="Profil öffnen"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              }
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoginRow({ label, value, onCopy, mono, extra }: { label: string; value: string; onCopy: () => void; mono?: boolean; extra?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 bg-white/[0.02] border border-white/[0.05] rounded-md px-2.5 py-1.5">
+      <div className="flex-1 min-w-0">
+        <p className="text-[9.5px] uppercase tracking-wider text-white/35 font-medium">{label}</p>
+        <p className={cn("text-[12px] text-foreground/85 font-light truncate", mono && "font-mono")}>{value}</p>
+      </div>
+      {extra}
+      <button
+        onClick={onCopy}
+        className="text-white/40 hover:text-white/80 transition-colors p-1"
+        aria-label={`${label} kopieren`}
+        title="Kopieren"
+      >
+        <Copy className="h-3 w-3" />
+      </button>
     </div>
   );
 }
