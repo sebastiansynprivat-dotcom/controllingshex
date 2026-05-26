@@ -881,6 +881,68 @@ export type Database = {
           },
         ]
       }
+      model_label_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          label_id: string
+          model_name: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label_id: string
+          model_name: string
+          platform: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label_id?: string
+          model_name?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_label_assignments_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "model_labels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      model_labels: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          label_name: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          label_name: string
+          platform: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          label_name?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       model_notes: {
         Row: {
           created_at: string
