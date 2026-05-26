@@ -267,8 +267,34 @@ function ModelRow({ row, platform, onOpenDetails }: { row: ModelOverviewRow; pla
         <div className="flex-1 min-w-0">
           <div className="text-[13px] text-foreground/90 font-light truncate">{row.modelName}</div>
           <div className="text-[10.5px] text-white/35 font-light mt-0.5 truncate">
-            {row.currentChatter ?? "kein Chatter"} · {row.pointCount} Tage
+            {row.currentChatter ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(row.currentChatter!);
+                  toast.success(`Chatter "${row.currentChatter}" kopiert`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(row.currentChatter!);
+                    toast.success(`Chatter "${row.currentChatter}" kopiert`);
+                  }
+                }}
+                className="hover:text-white/80 hover:underline underline-offset-2 cursor-pointer transition-colors"
+                title="Klick zum Kopieren"
+              >
+                {row.currentChatter}
+              </span>
+            ) : (
+              "kein Chatter"
+            )}
+            {" · "}{row.pointCount} Tage
           </div>
+
         </div>
         <Sparkline points={row.daily.map((p) => p.revenue)} trend={row.trend} />
         <div className="text-right shrink-0 min-w-[70px]">
