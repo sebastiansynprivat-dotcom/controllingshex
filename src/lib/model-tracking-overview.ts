@@ -138,11 +138,11 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   const yearAgoIso = yearAgo.toISOString().split("T")[0];
   const todayIso = today.toISOString().split("T")[0];
 
-  // 1) Pool: alle distinct accounts in last 365d
+  // 1) Pool: alle distinct Models in last 365d (account-String wird gesplittet)
   const poolRows = await fetchRangeRows(platform, yearAgoIso, todayIso);
   const modelSet = new Set<string>();
   for (const r of poolRows) {
-    if (r.account && r.account.trim()) modelSet.add(r.account.trim());
+    for (const acc of splitAccounts(r.account)) modelSet.add(acc);
   }
 
   // 2) Range-Daten: pro (model, date) summieren
@@ -152,24 +152,38 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
 
   const byModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of rangeRows) {
-    const acc = r.account?.trim();
-    if (!acc) continue;
-    const dateMap = byModel.get(acc) ?? new Map();
-    const day = dateMap.get(r.analysis_date) ?? { revenue: 0, chatters: new Map<string, number>() };
-    const rev = Number(r.revenue_today) || 0;
-    day.revenue += rev;
-    const cName = r.chatter_name?.trim() || "—";
-    day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + rev);
-    dateMap.set(r.analysis_date, day);
-    byModel.set(acc, dateMap);
+    for (const part of expandRow(r)) {
+      const dateMap = byModel.get(part.account) ?? new Map();
+      const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
+      day.revenue += part.revenue;
+      const cName = part.chatter || "—";
+      day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + part.revenue);
+      dateMap.set(part.date, day);
+      byModel.set(part.account, dateMap);
+    }
   }
 
-  // 3) Last chatter (most recent analysis_date overall, take top revenue chatter that day)
+  // 3) Last chatter: pro Model letzter Tag mit Aktivität, dort Top-Revenue-Chatter
+  //    (0-Revenue-Chatter werden ignoriert, solange ein positiver existiert).
   const latestChatter = new Map<string, string>();
-  for (const r of [...poolRows].sort((a, b) => a.analysis_date.localeCompare(b.analysis_date))) {
-    const acc = r.account?.trim();
-    if (!acc || !r.chatter_name?.trim()) continue;
-    latestChatter.set(acc, r.chatter_name.trim());
+  for (const [modelName, dateMap] of byModel.entries()) {
+    const sortedDates = Array.from(dateMap.keys()).sort();
+    // letzter Tag mit positivem Revenue ODER fallback letzter Tag überhaupt
+    let chosenDate: string | null = null;
+    for (let i = sortedDates.length - 1; i >= 0; i--) {
+      const entry = dateMap.get(sortedDates[i])!;
+      if (entry.revenue > 0) { chosenDate = sortedDates[i]; break; }
+    }
+    if (!chosenDate) chosenDate = sortedDates[sortedDates.length - 1] ?? null;
+    if (!chosenDate) continue;
+    const entry = dateMap.get(chosenDate)!;
+    let topName: string | null = null;
+    let topRev = -1;
+    for (const [name, rev] of entry.chatters) {
+      if (name === "—") continue;
+      if (rev > topRev) { topRev = rev; topName = name; }
+    }
+    if (topName) latestChatter.set(modelName, topName);
   }
 
   const rangeDaysCount = (() => {
@@ -181,16 +195,15 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   // Per-model phases aus 365T-Pool ableiten (für currentPhaseDays etc.)
   const poolByModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of poolRows) {
-    const acc = r.account?.trim();
-    if (!acc) continue;
-    const dateMap = poolByModel.get(acc) ?? new Map();
-    const day = dateMap.get(r.analysis_date) ?? { revenue: 0, chatters: new Map<string, number>() };
-    const rev = Number(r.revenue_today) || 0;
-    day.revenue += rev;
-    const cName = r.chatter_name?.trim() || "—";
-    day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + rev);
-    dateMap.set(r.analysis_date, day);
-    poolByModel.set(acc, dateMap);
+    for (const part of expandRow(r)) {
+      const dateMap = poolByModel.get(part.account) ?? new Map();
+      const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
+      day.revenue += part.revenue;
+      const cName = part.chatter || "—";
+      day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + part.revenue);
+      dateMap.set(part.date, day);
+      poolByModel.set(part.account, dateMap);
+    }
   }
 
   const out: ModelOverviewRow[] = [];
