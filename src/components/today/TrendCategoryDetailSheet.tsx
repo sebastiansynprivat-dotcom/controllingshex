@@ -193,7 +193,15 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                             fontSize: 12,
                           }}
                           labelFormatter={(v) => `Datum: ${v}`}
-                          formatter={(value: number) => [`${value} Models`, direction === "down" ? "Im Rückgang" : "Aktiv"]}
+                          formatter={(value: number, _name, item: any) => {
+                            const d = item?.payload?.deltaPct as number | null | undefined;
+                            const isNew = !!item?.payload?.isNew;
+                            const label = direction === "down" ? "Im Rückgang" : "Aktiv";
+                            let suffix = "";
+                            if (isNew) suffix = " · neu ggü. Vortag";
+                            else if (typeof d === "number") suffix = ` · ${d > 0 ? "+" : ""}${d}% ggü. Vortag`;
+                            return [`${value} Models${suffix}`, label];
+                          }}
                         />
                         <Area
                           type="monotone"
@@ -205,6 +213,9 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
+                )}
+                {aggregated.length >= 2 && (
+                  <DailyDeltaStrip data={aggregated} direction={direction} />
                 )}
               </div>
 
