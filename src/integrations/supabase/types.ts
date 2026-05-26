@@ -881,6 +881,36 @@ export type Database = {
           },
         ]
       }
+      model_notes: {
+        Row: {
+          created_at: string
+          id: string
+          model_name: string
+          note_text: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_name: string
+          note_text: string
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_name?: string
+          note_text?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           created_at: string
