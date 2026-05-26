@@ -66,12 +66,18 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     return rows.filter((r) => r.trend === direction);
   }, [rows, direction]);
 
-  const aggregated = useMemo(
-    () => direction === "down"
+  const aggregated = useMemo(() => {
+    const base = direction === "down"
       ? aggregateModelsInDeclineDaily(filteredRows)
-      : aggregateModelCountDaily(filteredRows),
-    [filteredRows, direction],
-  );
+      : aggregateModelCountDaily(filteredRows);
+    return base.map((d, i) => {
+      if (i === 0) return { ...d, deltaPct: null as number | null, isNew: false };
+      const prev = base[i - 1].count;
+      if (prev === 0 && d.count === 0) return { ...d, deltaPct: 0, isNew: false };
+      if (prev === 0 && d.count > 0) return { ...d, deltaPct: null, isNew: true };
+      return { ...d, deltaPct: Math.round(((d.count - prev) / prev) * 100), isNew: false };
+    });
+  }, [filteredRows, direction]);
 
   const totalRevenue = useMemo(
     () => filteredRows.reduce((s, r) => s + r.totalRevenue, 0),
