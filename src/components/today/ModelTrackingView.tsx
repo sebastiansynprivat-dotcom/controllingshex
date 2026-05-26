@@ -359,16 +359,14 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
               <AnimatePresence initial={false}>
                 {filtered.map((r) => {
                   const rowAssignments = assignmentsByModel.get(r.modelName) ?? [];
+                  const rowNotes = notesByModel.get(r.modelName) ?? [];
                   return (
                     <ModelRow
                       key={r.modelName}
                       row={r}
-                      platform={platform}
-                      labels={labels}
                       labelsById={labelsById}
                       assignments={rowAssignments}
-                      onAssign={(labelId) => handleAssign(r.modelName, labelId)}
-                      onUnassign={handleUnassign}
+                      notes={rowNotes}
                       onOpenDetails={() => onSelectModel(r.modelName, r.currentChatter)}
                     />
                   );
