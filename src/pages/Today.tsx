@@ -31,6 +31,7 @@ import {
 
 type StatusMode = "open" | "wins" | "done";
 type KindTab = "all" | ActionSourceKind;
+type TopTab = "actions" | "tracking";
 
 
 
