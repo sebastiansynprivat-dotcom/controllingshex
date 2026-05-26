@@ -1326,8 +1326,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           animate={{
             x: 0,
             opacity: 1,
-            width: compareWith ? "100vw" : "min(100vw, 520px)",
-            left: compareWith ? 0 : "auto",
+            width: splitView ? "50vw" : compareWith ? "100vw" : "min(100vw, 520px)",
+            left: splitView ? "50vw" : compareWith ? 0 : "auto",
           }}
           exit={{ x: 40, opacity: 0 }}
           transition={{
