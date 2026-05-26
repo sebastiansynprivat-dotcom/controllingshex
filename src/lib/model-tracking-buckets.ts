@@ -196,3 +196,25 @@ export function aggregateModelCountDaily(rows: ModelOverviewRow[]): { date: stri
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, count]) => ({ date, count }));
 }
+
+/**
+ * Pro Tag: wie viele Models lagen an dem Tag unter ihrem eigenen Schnitt
+ * der aktiven Tage (= "im Rückgang" an dem Tag).
+ * Tage ohne Daten zählen nicht als Rückgang.
+ */
+export function aggregateModelsInDeclineDaily(rows: ModelOverviewRow[]): { date: string; count: number }[] {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const active = r.daily.filter((p) => p.revenue > 0);
+    if (active.length === 0) continue;
+    const avgActive = active.reduce((s, p) => s + p.revenue, 0) / active.length;
+    for (const p of r.daily) {
+      if (p.revenue < avgActive) {
+        map.set(p.date, (map.get(p.date) ?? 0) + 1);
+      }
+    }
+  }
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, count]) => ({ date, count }));
+}
