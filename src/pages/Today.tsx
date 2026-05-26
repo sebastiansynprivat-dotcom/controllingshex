@@ -539,23 +539,40 @@ export default function Today() {
         </motion.div>
       </AnimatePresence>
 
-      {selectedChatter && (
-        <ChatterSlideOver
-          open={!!selectedChatter}
-          onClose={() => setSelectedChatter(null)}
-          chatterName={selectedChatter.name}
-          initialCompareWith={selectedChatter.compareWith}
-          platform={platform}
-        />
-      )}
+      {/* Split-View: wenn Model-Monitor mit Chatter geöffnet wird,
+          rendert sich der Chatter-SlideOver gleichzeitig auf der rechten Hälfte. */}
+      {(() => {
+        const splitActive = !!selectedModel && !!selectedModel.chatter;
+        const chatterOpen = !!selectedChatter || splitActive;
+        const chatterName = selectedChatter?.name ?? selectedModel?.chatter ?? null;
+        const chatterCompare = selectedChatter?.compareWith ?? null;
+        return (
+          <>
+            {chatterOpen && chatterName && (
+              <ChatterSlideOver
+                open={chatterOpen}
+                onClose={() => {
+                  setSelectedChatter(null);
+                  if (splitActive) setSelectedModel(null);
+                }}
+                chatterName={chatterName}
+                initialCompareWith={chatterCompare}
+                platform={platform}
+                splitView={splitActive}
+              />
+            )}
 
-      <ModelPerformanceSlideOver
-        open={!!selectedModel}
-        onClose={() => setSelectedModel(null)}
-        modelName={selectedModel?.name ?? null}
-        focusChatter={selectedModel?.chatter ?? null}
-        platform={platform}
-      />
+            <ModelPerformanceSlideOver
+              open={!!selectedModel}
+              onClose={() => setSelectedModel(null)}
+              modelName={selectedModel?.name ?? null}
+              focusChatter={selectedModel?.chatter ?? null}
+              platform={platform}
+              splitView={splitActive}
+            />
+          </>
+        );
+      })()}
     </>
   );
 }
