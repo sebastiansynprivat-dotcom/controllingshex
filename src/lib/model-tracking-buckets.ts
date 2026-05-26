@@ -181,3 +181,18 @@ export function aggregateDaily(rows: ModelOverviewRow[]): { date: string; revenu
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, revenue]) => ({ date, revenue }));
 }
+
+/**
+ * Pro Tag: wie viele der übergebenen Models hatten an dem Tag Umsatz > 0.
+ */
+export function aggregateModelCountDaily(rows: ModelOverviewRow[]): { date: string; count: number }[] {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    for (const p of r.daily) {
+      if (p.revenue > 0) map.set(p.date, (map.get(p.date) ?? 0) + 1);
+    }
+  }
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, count]) => ({ date, count }));
+}
