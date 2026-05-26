@@ -81,6 +81,29 @@ interface RawRow {
   analysis_date: string;
 }
 
+/**
+ * Splittet den `account`-Wert in einzelne Model-Namen.
+ * Die Datenquelle liefert manchmal kommagetrennte Listen wie
+ * "scarlett.sore, tinibaby" — jedes Stück ist ein eigenes Model.
+ */
+function splitAccounts(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/** Expand row -> 1 Eintrag pro Model, Revenue gleichmäßig aufgeteilt. */
+function expandRow(r: RawRow): Array<{ account: string; chatter: string | null; revenue: number; date: string }> {
+  const accounts = splitAccounts(r.account);
+  if (accounts.length === 0) return [];
+  const rev = Number(r.revenue_today) || 0;
+  const share = rev / accounts.length;
+  const chatter = r.chatter_name?.trim() || null;
+  return accounts.map((acc) => ({ account: acc, chatter, revenue: share, date: r.analysis_date }));
+}
+
 async function fetchRangeRows(platform: string, from: string, to: string): Promise<RawRow[]> {
   const all: RawRow[] = [];
   let offset = 0;
