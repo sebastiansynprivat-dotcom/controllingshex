@@ -1,39 +1,89 @@
 ## Ziel
-Einzelne Tages-Posts im Wochenplan neu generieren können, wenn dir einer nicht gefällt – ohne den ganzen Plan zu überschreiben.
 
-## UI (`ChannelPlanView.tsx`)
-- Neuer Button "🔄 Neu" pro Tageskarte (neben Copy/Edit). Mit Tooltip "Diesen Tag neu generieren".
-- Beim Klick: optionales kleines Popover/Inline-Input für "Hinweis an die KI" (z.B. "kürzer", "weniger pushig", "mit Mindset-Life-Thema") – kann auch leer gelassen werden.
-- Während Regenerierung: Spinner auf der Karte, andere Aktionen disabled.
-- Nach Erfolg: nur diese eine Karte wird ersetzt (theme, post_text, length im context_notes).
+Unter `/today` einen zweiten Top-Level-Tab **"Model Tracking"** ergänzen, der alle Models einer Plattform mit Chatter, Umsatz-Verlauf und Trend zeigt — plus einen kleinen Alerts-Subtab nur für relevante Models.
 
-## API-Layer (`src/lib/channel-plan.ts`)
-- Neue Funktion `regeneratePlanDay({ day_id, hint? })` → ruft Edge-Function `regenerate-channel-plan-day` und gibt den aktualisierten `ChannelPlanDay` zurück.
+## Struktur
 
-## Edge Function (neu: `supabase/functions/regenerate-channel-plan-day/index.ts`)
-- Auth wie bei `generate-channel-plan`.
-- Input: `{ day_id: uuid, hint?: string }`.
-- Lädt:
-  - den Ziel-Tag (mit `plan_id`, `plan_date`, `weekday`, `context_notes`, `theme`, `post_text`),
-  - alle anderen Tage desselben Plans (für Kontext: was schon gepostet wurde, Themen-Mix, Variations-Regeln),
-  - die Wissensbasis (wie in der bestehenden Function),
-  - `generation_context` des Plans.
-- Baut den `DayContext` für genau diesen einen Tag (Saison, Feiertag, Money-Window) – Logik wiederverwendet (kopiert oder in shared helper, hier pragmatisch kopiert da Edge-Functions keinen Shared-Code-Pfad in diesem Projekt haben).
-- Prompt:
-  - Gleicher System-Prompt wie `generate-channel-plan` (Empfänger, Rollen, Themen-Mix, Money-Window, Längen, Verbote, Emoji-Regeln).
-  - User-Prompt zeigt: Wissensbasis + Extra-Kontext + "Bereits geplante Posts dieser Woche" (date, theme, post_text – kompakt) + der EINE Zieltag + alter Post + Hinweis vom User.
-  - Anweisung: genau EINEN neuen Post liefern, der zum Wochen-Mix passt, NICHT wiederholt was schon da ist, optional auf den `hint` eingeht.
-- Tool-Schema: `regenerate_day` mit `{ theme, length, post_text }`.
-- Update via Service-Role-Client: `channel_plan_days` UPDATE `theme`, `post_text`, `context_notes.length` für die Row.
-- Response: aktualisierte Row.
+```text
+/today
+├─ Tab: Aktionen   (bestehend)
+└─ Tab: Model Tracking  (NEU)
+    ├─ Subtab: Übersicht
+    └─ Subtab: Alerts
+```
 
-## Memory
-- Kleiner Eintrag in `mem://features/channel-audience.md`: einzelne Tage können regeneriert werden, dabei wird Wochen-Kontext (andere Posts) als Anti-Wiederholung mitgegeben.
+Tab-Switch oben auf der Seite (gleicher Stil wie bestehende KindTabs).
 
-## Files
-- neu: `supabase/functions/regenerate-channel-plan-day/index.ts`
-- edit: `src/lib/channel-plan.ts` (Funktion `regeneratePlanDay`)
-- edit: `src/components/notes/ChannelPlanView.tsx` (Button + Popover + State + Aufruf)
-- edit: `mem://features/channel-audience.md`
+## Subtab 1 — Übersicht
 
-Keine DB-Migration nötig.
+**Filter-Leiste oben:**
+- `TimeRangeToggle` (bestehende Komponente: Heute / Gestern / 7T / 14T / 30T / Custom)
+- Trend-Chips als Multi-Select: ↑ Wachstum · → Stabil · ↓ Rückgang · — Keine Daten
+- Suchfeld (Model-Name)
+- Sortierung: Umsatz ↓ (default), Trend, Name
+
+**Liste — eine Zeile pro Model:**
+- Model-Name + aktueller Chatter (kleinerer Text)
+- Mini-Sparkline (tägl. Umsatz im gewählten Zeitraum)
+- Gesamt-€ im Zeitraum + Ø/Tag
+- Trend-Badge mit %
+- Klick → öffnet bestehenden `ModelPerformanceSlideOver`
+
+**Datenquelle:** `chatter_history` (account = Model, revenue_today, chatter_name, analysis_date). Aggregiert pro Tag auf Client-Seite (analog `loadModelTimeline`).
+
+**Models-Pool:** ALLE Models, die jemals in `chatter_history` für die Plattform aufgetaucht sind (kein Cutoff) — auch "tote". Models ohne Datenpunkt im gewählten Zeitraum erscheinen mit Trend = "— Keine Daten" und 0 €.
+
+## Trend-Berechnung
+
+Pro Model im gewählten Zeitraum: lineare Regression (least-squares slope) über **alle vorhandenen Tagespunkte** im Range, normalisiert als %/Tag relativ zum Zeitraum-Schnitt.
+
+- Slope > +5% → **↑ Wachstum**
+- Slope zwischen −5% und +5% → **→ Stabil**
+- Slope < −5% → **↓ Rückgang**
+- <3 Datenpunkte → **— Keine Daten**
+
+Ein Wert wie "+18%" oder "−24%" wird als Badge daneben gezeigt (= prozentuale Veränderung Ende vs. Anfang des Zeitraums laut Regression).
+
+## Subtab 2 — Alerts
+
+Nur **wirtschaftlich relevante** Models, die heute Aufmerksamkeit brauchen. Ein Model qualifiziert sich als "relevant" wenn ALLE gelten:
+- Gesamt-Umsatz letzte 30T ≥ Schwelle (Default 100 €, in den Settings konfigurierbar via existierender `settings`-Tabelle, Key `model_tracking_relevance_eur`)
+- Mindestens 5 Datenpunkte in den letzten 30T
+
+Alerts (nur für relevante Models):
+1. **Im Rückgang** — bestehende `detectModelTroubles()` Logik (Drop seit Chatter-Wechsel ODER letzte 7T < 60% des 30T-Schnitts).
+2. **Neuer Chatter ohne Performance** — Chatter-Phase ≤7 Tage alt UND Phasen-Schnitt < 70% des Vorgänger-Schnitts.
+
+Jede Alert-Karte: Model · Chatter · kurzer Grund · Δ% · Klick → `ModelPerformanceSlideOver`.
+Counter-Badge am Subtab.
+
+Wording: "im Rückgang" (nie "absäuft") — laut Memory.
+
+## Technische Umsetzung
+
+**Neue Datei:** `src/lib/model-tracking-overview.ts`
+- `loadAllModels(platform)` → liefert alle distinct accounts aus `chatter_history`
+- `loadOverviewTimelines(platform, from, to, modelNames)` → batched (ein Query mit `IN`), gruppiert clientseitig pro (model, day) wie in `model-tracking.ts`
+- `computeTrendSlope(daily): { direction, pct }` mit linearer Regression
+- `detectNewChatterUnderperform(timelines)` → liefert Alert-Liste
+
+**Neue Komponente:** `src/components/today/ModelTrackingView.tsx`
+- State: `timeRange`, `trendFilters`, `search`, `sort`, `subtab`
+- Lädt einmal pro `platform`/`timeRange`-Wechsel
+- Rendert Filter-Leiste, Liste, Sparkline-SVG inline (kein Recharts nötig für Mini-Sparkline)
+
+**Neue Komponente:** `src/components/today/ModelAlertsList.tsx`
+- Nutzt `detectModelTroubles()` aus `model-tracking.ts` + `detectNewChatterUnderperform()`
+- Filtert auf relevante Models (Schwelle)
+
+**Änderung:** `src/pages/Today.tsx`
+- Oben Tab-Switch: `Aktionen` | `Model Tracking`
+- Bei "Model Tracking" rendert `<ModelTrackingView platform={platform} />`, sonst bestehende Action-Logik
+- Slide-Over `selectedModel` State wird gehoben/geteilt
+
+**Keine Schema-Änderungen** nötig — alles aus `chatter_history` + `settings`.
+
+## Out of Scope
+- Manuelle Models-Auswahl/Ausblendung (kommt später, falls Pool zu unübersichtlich wird)
+- Push-Notifications für Alerts
+- Vergleich Models untereinander (eigene Compare-View)
