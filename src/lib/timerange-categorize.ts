@@ -9,7 +9,7 @@ import type { ActionCategoryName } from "@/lib/action-categories";
 import { supabase } from "@/integrations/supabase/client";
 import { parseLocaleNumber } from "@/lib/parse-number";
 
-export type TimeRangePreset = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
+export type TimeRangePreset = "today" | "yesterday" | "7d" | "14d" | "30d" | "90d" | "custom";
 
 export interface TimeRange {
   preset: TimeRangePreset;
@@ -63,6 +63,8 @@ export function buildTimeRange(preset: TimeRangePreset, customFrom?: string, cus
       return { preset, from: subDays(13), to: todayIso };
     case "30d":
       return { preset, from: subDays(29), to: todayIso };
+    case "90d":
+      return { preset, from: subDays(89), to: todayIso };
     case "custom": {
       let from = customFrom || todayIso;
       let to = customTo || todayIso;
@@ -85,6 +87,7 @@ export function rangeLabel(range: TimeRange): string {
     case "7d": return "Letzte 7 Tage";
     case "14d": return "Letzte 14 Tage";
     case "30d": return "Letzte 30 Tage";
+    case "90d": return "Letzte 90 Tage";
     case "custom": return `${range.from} → ${range.to}`;
   }
 }
