@@ -380,9 +380,21 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
       ) : (
         <AlertsList loading={alertsLoading} alerts={alerts} onSelectModel={onSelectModel} />
       )}
+
+      <TrendCategoryDetailSheet
+        open={detailDirection !== null}
+        onClose={() => setDetailDirection(null)}
+        direction={detailDirection}
+        rows={rows}
+        onSelectModel={(name, chatter) => {
+          setDetailDirection(null);
+          onSelectModel(name, chatter);
+        }}
+      />
     </div>
   );
 }
+
 
 function ModelRow({
   row,
