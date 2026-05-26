@@ -74,6 +74,8 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
   const [notes, setNotes] = useState<ModelNote[]>([]);
   const [labelFilter, setLabelFilter] = useState<Set<string>>(new Set());
   const [showLabelManager, setShowLabelManager] = useState(false);
+  const [detailDirection, setDetailDirection] = useState<TrendDirection | null>(null);
+
 
   useEffect(() => {
     let cancel = false;
