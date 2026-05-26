@@ -209,9 +209,13 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
 
       {subtab === "overview" ? (
         <>
+          {/* Trend summary */}
+          <TrendSummary rows={rows} loading={loading} />
+
           {/* Filter bar */}
           <div className="space-y-3">
             <TimeRangeToggle value={range} onChange={setRange} />
+
             <div className="flex flex-wrap items-center gap-1.5">
               {TREND_ORDER.map((d) => {
                 const cfg = TREND_LABELS[d];
