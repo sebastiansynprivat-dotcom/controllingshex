@@ -243,6 +243,70 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
   );
 }
 
+function DailyDeltaStrip({
+  data,
+  direction,
+}: {
+  data: Array<{ date: string; count: number; deltaPct: number | null; isNew: boolean }>;
+  direction: TrendDirection | null;
+}) {
+  // Bei "down" ist ein Anstieg der Anzahl schlecht (rot), Rückgang gut (grün).
+  // Bei "up"/sonst ist mehr besser.
+  const invert = direction === "down";
+  return (
+    <div className="mt-3 -mx-1 overflow-x-auto">
+      <div className="flex gap-1 px-1 min-w-min">
+        {data.map((d, i) => {
+          const isFirst = i === 0;
+          let cls = "border-white/10 bg-white/[0.03] text-white/50";
+          let icon = "–";
+          let text = "—";
+          if (isFirst) {
+            // Startwert
+          } else if (d.isNew) {
+            cls = invert
+              ? "border-red-500/30 bg-red-500/[0.08] text-red-300"
+              : "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300";
+            icon = "▲";
+            text = "neu";
+          } else if (d.deltaPct === null || d.deltaPct === 0) {
+            icon = "–";
+            text = "0%";
+          } else if (d.deltaPct > 0) {
+            cls = invert
+              ? "border-red-500/30 bg-red-500/[0.08] text-red-300"
+              : "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300";
+            icon = "▲";
+            text = `+${d.deltaPct}%`;
+          } else {
+            cls = invert
+              ? "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300"
+              : "border-red-500/30 bg-red-500/[0.08] text-red-300";
+            icon = "▼";
+            text = `${d.deltaPct}%`;
+          }
+          return (
+            <div
+              key={d.date}
+              className={cn(
+                "shrink-0 flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-md border text-[9.5px] font-light tabular-nums",
+                cls,
+              )}
+              title={`${d.date} · ${d.count} Models${d.deltaPct !== null && !d.isNew ? ` · ${d.deltaPct > 0 ? "+" : ""}${d.deltaPct}%` : ""}`}
+            >
+              <span className="text-[10px] leading-none">{icon}</span>
+              <span className="leading-none">{text}</span>
+              <span className="text-[8.5px] text-white/30 leading-none mt-0.5">
+                {d.date.slice(5).replace("-", "/")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function BucketCard({
   bucket,
   onSelectModel,
