@@ -298,6 +298,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       currentPhaseDays,
       previousPhaseExisted,
       previousPhaseTrendDown,
+      chatterAvgs,
     });
   }
 
