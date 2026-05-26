@@ -36,6 +36,14 @@ interface LabelAssignment {
   label_id: string;
 }
 
+interface ModelNote {
+  id: string;
+  model_name: string;
+  note_text: string;
+  created_at: string;
+}
+
+
 const LABEL_COLORS = [
   "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
   "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16",
@@ -63,6 +71,7 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
 
   const [labels, setLabels] = useState<ModelLabel[]>([]);
   const [assignments, setAssignments] = useState<LabelAssignment[]>([]);
+  const [notes, setNotes] = useState<ModelNote[]>([]);
   const [labelFilter, setLabelFilter] = useState<Set<string>>(new Set());
   const [showLabelManager, setShowLabelManager] = useState(false);
 
@@ -87,17 +96,26 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
   }, [platform]);
 
   const reloadLabels = useCallback(async () => {
-    const [labelsRes, assignRes] = await Promise.all([
+    const [labelsRes, assignRes, notesRes] = await Promise.all([
       supabase.from("model_labels").select("id, label_name, color").eq("platform", platform).order("label_name"),
       supabase.from("model_label_assignments").select("id, model_name, label_id").eq("platform", platform),
+      supabase.from("model_notes").select("id, model_name, note_text, created_at").eq("platform", platform).order("created_at", { ascending: false }),
     ]);
     if (!labelsRes.error && labelsRes.data) setLabels(labelsRes.data as ModelLabel[]);
     if (!assignRes.error && assignRes.data) setAssignments(assignRes.data as LabelAssignment[]);
+    if (!notesRes.error && notesRes.data) setNotes(notesRes.data as ModelNote[]);
   }, [platform]);
 
   useEffect(() => {
     reloadLabels();
     setLabelFilter(new Set());
+  }, [reloadLabels]);
+
+  // Refresh when window regains focus (catches changes made in slide-over)
+  useEffect(() => {
+    const onFocus = () => { reloadLabels(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [reloadLabels]);
 
   const assignmentsByModel = useMemo(() => {
@@ -109,6 +127,16 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
     }
     return map;
   }, [assignments]);
+
+  const notesByModel = useMemo(() => {
+    const map = new Map<string, ModelNote[]>();
+    for (const n of notes) {
+      const list = map.get(n.model_name) ?? [];
+      list.push(n);
+      map.set(n.model_name, list);
+    }
+    return map;
+  }, [notes]);
 
   const labelsById = useMemo(() => {
     const map = new Map<string, ModelLabel>();
@@ -331,16 +359,14 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
               <AnimatePresence initial={false}>
                 {filtered.map((r) => {
                   const rowAssignments = assignmentsByModel.get(r.modelName) ?? [];
+                  const rowNotes = notesByModel.get(r.modelName) ?? [];
                   return (
                     <ModelRow
                       key={r.modelName}
                       row={r}
-                      platform={platform}
-                      labels={labels}
                       labelsById={labelsById}
                       assignments={rowAssignments}
-                      onAssign={(labelId) => handleAssign(r.modelName, labelId)}
-                      onUnassign={handleUnassign}
+                      notes={rowNotes}
                       onOpenDetails={() => onSelectModel(r.modelName, r.currentChatter)}
                     />
                   );
@@ -356,95 +382,27 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
   );
 }
 
-interface ModelNote {
-  id: string;
-  note_text: string;
-  created_at: string;
-}
-
 function ModelRow({
   row,
-  platform,
-  labels,
   labelsById,
   assignments,
-  onAssign,
-  onUnassign,
+  notes,
   onOpenDetails,
 }: {
   row: ModelOverviewRow;
-  platform: string;
-  labels: ModelLabel[];
   labelsById: Map<string, ModelLabel>;
   assignments: LabelAssignment[];
-  onAssign: (labelId: string) => void;
-  onUnassign: (assignmentId: string) => void;
+  notes: ModelNote[];
   onOpenDetails: () => void;
 }) {
   const cfg = TREND_LABELS[row.trend];
   const Icon = cfg.icon;
-  const [expanded, setExpanded] = useState(false);
-  const [notes, setNotes] = useState<ModelNote[]>([]);
-  const [loadingNotes, setLoadingNotes] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [showAddLabel, setShowAddLabel] = useState(false);
-
-  const loadNotes = async () => {
-    setLoadingNotes(true);
-    const { data, error } = await supabase
-      .from("model_notes")
-      .select("id, note_text, created_at")
-      .eq("platform", platform)
-      .eq("model_name", row.modelName)
-      .order("created_at", { ascending: false });
-    if (!error && data) setNotes(data as ModelNote[]);
-    setLoadingNotes(false);
-  };
-
-  const handleToggle = () => {
-    const next = !expanded;
-    setExpanded(next);
-    if (next && notes.length === 0) loadNotes();
-  };
-
-  const handleSave = async () => {
-    const text = draft.trim();
-    if (!text) return;
-    setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
-    const { data, error } = await supabase
-      .from("model_notes")
-      .insert({ user_id: user.id, platform, model_name: row.modelName, note_text: text })
-      .select("id, note_text, created_at")
-      .single();
-    if (error) {
-      toast.error("Notiz konnte nicht gespeichert werden");
-    } else if (data) {
-      setNotes((prev) => [data as ModelNote, ...prev]);
-      setDraft("");
-    }
-    setSaving(false);
-  };
-
-  const handleDeleteNote = async (id: string) => {
-    const prev = notes;
-    setNotes(notes.filter((n) => n.id !== id));
-    const { error } = await supabase.from("model_notes").delete().eq("id", id);
-    if (error) {
-      toast.error("Löschen fehlgeschlagen");
-      setNotes(prev);
-    }
-  };
-
-  const assignedLabelIds = new Set(assignments.map((a) => a.label_id));
-  const availableLabels = labels.filter((l) => !assignedLabelIds.has(l.id));
+  const latestNote = notes[0];
 
   return (
     <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <button
-        onClick={handleToggle}
+        onClick={onOpenDetails}
         className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/[0.025] transition-colors text-left"
       >
         <span className={cn("h-2 w-2 rounded-full shrink-0", cfg.dot)} />
@@ -505,159 +463,31 @@ function ModelRow({
             {row.trendPct != null ? `${row.trendPct > 0 ? "+" : ""}${row.trendPct}%` : "—"}
           </div>
         </div>
-        <ChevronRight className={cn("h-3.5 w-3.5 text-white/20 shrink-0 transition-transform", expanded && "rotate-90")} />
+        <ChevronRight className="h-3.5 w-3.5 text-white/20 shrink-0" />
       </button>
 
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="overflow-hidden bg-white/[0.015]"
-          >
-            <div className="px-4 py-3 space-y-3 border-t border-white/[0.04]">
-              {/* Labels section */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-white/45 font-semibold">
-                  <Tag className="h-3 w-3" />
-                  Labels
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {assignments.length === 0 && !showAddLabel && (
-                    <span className="text-[11px] text-white/30 font-light italic">Keine Labels zugewiesen.</span>
-                  )}
-                  {assignments.map((a) => {
-                    const l = labelsById.get(a.label_id);
-                    if (!l) return null;
-                    return (
-                      <span
-                        key={a.id}
-                        className="group inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium"
-                        style={{ backgroundColor: `${l.color}22`, color: l.color, border: `1px solid ${l.color}55` }}
-                      >
-                        {l.label_name}
-                        <button
-                          onClick={() => onUnassign(a.id)}
-                          className="opacity-60 hover:opacity-100 transition-opacity"
-                          aria-label="Label entfernen"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                  {availableLabels.length > 0 && (
-                    showAddLabel ? (
-                      <div className="inline-flex items-center gap-1 bg-white/[0.04] border border-white/[0.1] rounded-full px-1">
-                        <select
-                          autoFocus
-                          defaultValue=""
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              onAssign(e.target.value);
-                              setShowAddLabel(false);
-                            }
-                          }}
-                          className="bg-transparent text-[10.5px] text-foreground/90 py-0.5 pl-1 pr-1 focus:outline-none"
-                        >
-                          <option value="" disabled>Label wählen …</option>
-                          {availableLabels.map((l) => (
-                            <option key={l.id} value={l.id} className="bg-[#1a1a1a]">{l.label_name}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => setShowAddLabel(false)}
-                          className="text-white/40 hover:text-white/80 pr-1"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowAddLabel(true)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] text-white/55 border border-dashed border-white/15 hover:text-white/90 hover:border-white/30 transition-colors"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Label
-                      </button>
-                    )
-                  )}
-                  {labels.length === 0 && (
-                    <span className="text-[10px] text-white/30 italic">Erst Labels oben anlegen.</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Notes section */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-white/45 font-semibold">
-                  <StickyNote className="h-3 w-3" />
-                  Notizen
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onOpenDetails(); }}
-                  className="flex items-center gap-1 text-[10.5px] text-white/45 hover:text-white/80 transition-colors"
-                >
-                  Details
-                  <ExternalLink className="h-2.5 w-2.5" />
-                </button>
-              </div>
-
-              <div className="flex gap-2">
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSave(); }
-                  }}
-                  placeholder="Notiz zu diesem Model … (⌘+Enter)"
-                  rows={2}
-                  className="flex-1 bg-white/[0.025] border border-white/[0.07] rounded-md px-2.5 py-1.5 text-[12px] text-foreground/90 placeholder:text-white/25 focus:outline-none focus:border-white/15 resize-none"
-                />
-                <button
-                  onClick={handleSave}
-                  disabled={!draft.trim() || saving}
-                  className="self-start px-3 py-1.5 rounded-md bg-white/[0.08] border border-white/15 text-[11px] text-foreground/90 hover:bg-white/[0.12] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                >
-                  <Send className="h-3 w-3" />
-                  Speichern
-                </button>
-              </div>
-
-              {loadingNotes ? (
-                <div className="text-[11px] text-white/30 font-light">Lade Notizen …</div>
-              ) : notes.length === 0 ? (
-                <div className="text-[11px] text-white/30 font-light italic">Noch keine Notizen.</div>
-              ) : (
-                <ul className="space-y-1.5">
-                  {notes.map((n) => (
-                    <li key={n.id} className="group flex items-start gap-2 bg-white/[0.02] border border-white/[0.05] rounded-md px-2.5 py-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-foreground/85 font-light whitespace-pre-wrap break-words">{n.note_text}</p>
-                        <p className="text-[10px] text-white/30 font-light mt-1 tabular-nums">
-                          {new Date(n.created_at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteNote(n.id)}
-                        className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-300 transition-all p-1"
-                        aria-label="Notiz löschen"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+      {latestNote && (
+        <div className="px-4 pb-3 -mt-1">
+          <div className="flex items-start gap-2 bg-white/[0.02] border-l-2 border-white/15 rounded-r-md px-2.5 py-1.5">
+            <StickyNote className="h-3 w-3 text-white/35 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11.5px] text-foreground/75 font-light line-clamp-2 whitespace-pre-wrap break-words">
+                {latestNote.note_text}
+              </p>
+              {notes.length > 1 && (
+                <p className="text-[9.5px] text-white/30 font-light mt-0.5">
+                  +{notes.length - 1} weitere {notes.length - 1 === 1 ? "Notiz" : "Notizen"}
+                </p>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
+
+
 
 function LabelManager({
   platform,
