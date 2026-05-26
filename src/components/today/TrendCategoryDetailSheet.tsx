@@ -66,12 +66,18 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     return rows.filter((r) => r.trend === direction);
   }, [rows, direction]);
 
-  const aggregated = useMemo(
-    () => direction === "down"
+  const aggregated = useMemo(() => {
+    const base = direction === "down"
       ? aggregateModelsInDeclineDaily(filteredRows)
-      : aggregateModelCountDaily(filteredRows),
-    [filteredRows, direction],
-  );
+      : aggregateModelCountDaily(filteredRows);
+    return base.map((d, i) => {
+      if (i === 0) return { ...d, deltaPct: null as number | null, isNew: false };
+      const prev = base[i - 1].count;
+      if (prev === 0 && d.count === 0) return { ...d, deltaPct: 0, isNew: false };
+      if (prev === 0 && d.count > 0) return { ...d, deltaPct: null, isNew: true };
+      return { ...d, deltaPct: Math.round(((d.count - prev) / prev) * 100), isNew: false };
+    });
+  }, [filteredRows, direction]);
 
   const totalRevenue = useMemo(
     () => filteredRows.reduce((s, r) => s + r.totalRevenue, 0),
@@ -187,7 +193,15 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                             fontSize: 12,
                           }}
                           labelFormatter={(v) => `Datum: ${v}`}
-                          formatter={(value: number) => [`${value} Models`, direction === "down" ? "Im Rückgang" : "Aktiv"]}
+                          formatter={(value: number, _name, item: any) => {
+                            const d = item?.payload?.deltaPct as number | null | undefined;
+                            const isNew = !!item?.payload?.isNew;
+                            const label = direction === "down" ? "Im Rückgang" : "Aktiv";
+                            let suffix = "";
+                            if (isNew) suffix = " · neu ggü. Vortag";
+                            else if (typeof d === "number") suffix = ` · ${d > 0 ? "+" : ""}${d}% ggü. Vortag`;
+                            return [`${value} Models${suffix}`, label];
+                          }}
                         />
                         <Area
                           type="monotone"
@@ -199,6 +213,9 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
+                )}
+                {aggregated.length >= 2 && (
+                  <DailyDeltaStrip data={aggregated} direction={direction} />
                 )}
               </div>
 
@@ -223,6 +240,70 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DailyDeltaStrip({
+  data,
+  direction,
+}: {
+  data: Array<{ date: string; count: number; deltaPct: number | null; isNew: boolean }>;
+  direction: TrendDirection | null;
+}) {
+  // Bei "down" ist ein Anstieg der Anzahl schlecht (rot), Rückgang gut (grün).
+  // Bei "up"/sonst ist mehr besser.
+  const invert = direction === "down";
+  return (
+    <div className="mt-3 -mx-1 overflow-x-auto">
+      <div className="flex gap-1 px-1 min-w-min">
+        {data.map((d, i) => {
+          const isFirst = i === 0;
+          let cls = "border-white/10 bg-white/[0.03] text-white/50";
+          let icon = "–";
+          let text = "—";
+          if (isFirst) {
+            // Startwert
+          } else if (d.isNew) {
+            cls = invert
+              ? "border-red-500/30 bg-red-500/[0.08] text-red-300"
+              : "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300";
+            icon = "▲";
+            text = "neu";
+          } else if (d.deltaPct === null || d.deltaPct === 0) {
+            icon = "–";
+            text = "0%";
+          } else if (d.deltaPct > 0) {
+            cls = invert
+              ? "border-red-500/30 bg-red-500/[0.08] text-red-300"
+              : "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300";
+            icon = "▲";
+            text = `+${d.deltaPct}%`;
+          } else {
+            cls = invert
+              ? "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300"
+              : "border-red-500/30 bg-red-500/[0.08] text-red-300";
+            icon = "▼";
+            text = `${d.deltaPct}%`;
+          }
+          return (
+            <div
+              key={d.date}
+              className={cn(
+                "shrink-0 flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-md border text-[9.5px] font-light tabular-nums",
+                cls,
+              )}
+              title={`${d.date} · ${d.count} Models${d.deltaPct !== null && !d.isNew ? ` · ${d.deltaPct > 0 ? "+" : ""}${d.deltaPct}%` : ""}`}
+            >
+              <span className="text-[10px] leading-none">{icon}</span>
+              <span className="leading-none">{text}</span>
+              <span className="text-[8.5px] text-white/30 leading-none mt-0.5">
+                {d.date.slice(5).replace("-", "/")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
