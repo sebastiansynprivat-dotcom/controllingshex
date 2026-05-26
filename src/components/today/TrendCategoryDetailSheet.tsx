@@ -154,7 +154,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
               {/* Aggregierter Graph */}
               <div className="premium-card rounded-2xl p-4 sm:p-5">
                 <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-3">
-                  Models pro Tag aktiv
+                  {direction === "down" ? "Models im Rückgang pro Tag" : "Models pro Tag aktiv"}
                 </p>
                 {aggregated.length < 2 ? (
                   <div className="h-32 flex items-center justify-center text-[12px] text-white/30 font-light">
