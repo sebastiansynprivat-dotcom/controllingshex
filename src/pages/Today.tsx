@@ -7,6 +7,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import PersonActionCard from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
+import ModelTrackingView from "@/components/today/ModelTrackingView";
 import {
   buildTodayActions,
   type UnifiedAction,
