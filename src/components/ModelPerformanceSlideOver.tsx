@@ -5,6 +5,8 @@ import { TrendingDown, TrendingUp, AlertTriangle, User } from "lucide-react";
 import { loadModelTimeline, formatEur, type ModelTimeline, type ChatterPhase } from "@/lib/model-tracking";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import ModelNotesLabelsPanel from "@/components/ModelNotesLabelsPanel";
+
 
 interface Props {
   open: boolean;
