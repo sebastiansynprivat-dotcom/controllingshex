@@ -64,6 +64,8 @@ interface Props {
   inline?: boolean;
   /** Optional: zweiter Chatter, mit dem die Vergleichsansicht direkt geöffnet wird. */
   initialCompareWith?: string | null;
+  /** Split-View: rendert das Panel auf der rechten Bildschirmhälfte (nebeneinander mit dem Model-Monitor). */
+  splitView?: boolean;
 }
 
 function toTitleCase(name: string): string {
