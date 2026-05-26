@@ -36,6 +36,8 @@ export interface ModelOverviewRow {
   previousPhaseExisted: boolean;
   /** War der Trend der vorherigen Phase bereits negativ (slope < 0)? */
   previousPhaseTrendDown: boolean;
+  /** Per-Chatter Ø Umsatz / aktivem Tag (nur Tage mit Umsatz > 0) im Zeitraum. */
+  chatterAvgs: Array<{ chatter: string; avgPerActiveDay: number; activeDays: number }>;
 }
 
 
@@ -226,6 +228,25 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     const avgPerDay = totalRevenue / rangeDaysCount;
     const trendResult = computeTrend(daily, rangeDaysCount);
 
+    // Per-Chatter Ø: nur Tage mit revenue > 0 zählen pro Chatter
+    const chatterTotals = new Map<string, { rev: number; days: number }>();
+    if (dateMap) {
+      for (const [, entry] of dateMap) {
+        for (const [name, rev] of entry.chatters) {
+          if (name === "—" || rev <= 0) continue;
+          const c = chatterTotals.get(name) ?? { rev: 0, days: 0 };
+          c.rev += rev;
+          c.days += 1;
+          chatterTotals.set(name, c);
+        }
+      }
+    }
+    const chatterAvgs = Array.from(chatterTotals.entries()).map(([chatter, v]) => ({
+      chatter,
+      avgPerActiveDay: v.days > 0 ? v.rev / v.days : 0,
+      activeDays: v.days,
+    }));
+
     // Phasen aus 365T-Pool
     const poolDateMap = poolByModel.get(modelName);
     let currentPhaseDays: number | null = null;
@@ -277,6 +298,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       currentPhaseDays,
       previousPhaseExisted,
       previousPhaseTrendDown,
+      chatterAvgs,
     });
   }
 

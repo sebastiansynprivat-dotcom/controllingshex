@@ -78,16 +78,17 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     [filteredRows],
   );
 
-  // Möglicher Umsatz: pro Model = Schnitt der aktiven Tage × Gesamt-Tage im Zeitraum.
-  // Idee: wenn jeder Tag so produktiv gewesen wäre wie ein "normaler" aktiver Tag.
+  // Möglicher Umsatz: pro Model = Ø der Chatter-Schnitte (jeder Chatter zählt gleich)
+  // × Gesamttage im Zeitraum. So sieht man, was möglich wäre, wenn jeder Chatter
+  // auf den kompletten Schnitt aller Chatter des Models käme.
   const potentialRevenue = useMemo(() => {
     let sum = 0;
     for (const r of filteredRows) {
-      const activeDays = r.daily.filter((p) => p.revenue > 0);
-      if (activeDays.length === 0) { sum += r.totalRevenue; continue; }
-      const avgActive = activeDays.reduce((s, p) => s + p.revenue, 0) / activeDays.length;
-      const totalDays = r.daily.length || activeDays.length;
-      sum += avgActive * totalDays;
+      const totalDays = r.daily.length;
+      if (totalDays === 0) { sum += r.totalRevenue; continue; }
+      if (r.chatterAvgs.length === 0) { sum += r.totalRevenue; continue; }
+      const meanChatterAvg = r.chatterAvgs.reduce((s, c) => s + c.avgPerActiveDay, 0) / r.chatterAvgs.length;
+      sum += meanChatterAvg * totalDays;
     }
     return sum;
   }, [filteredRows]);
@@ -138,7 +139,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-yellow-200/70 font-semibold">Möglicher Umsatz</p>
                     <p className="text-[10.5px] text-white/40 font-light mt-0.5">
-                      Wenn jeder Tag dem Schnitt der aktiven Tage entsprochen hätte
+                      Wenn jeder Chatter auf den Ø-Schnitt aller Chatter des Models käme
                     </p>
                   </div>
                   <div className="text-right shrink-0">
