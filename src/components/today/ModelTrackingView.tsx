@@ -176,7 +176,12 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
             <div className="premium-card rounded-2xl overflow-hidden divide-y divide-white/[0.04]">
               <AnimatePresence initial={false}>
                 {filtered.map((r) => (
-                  <ModelRow key={r.modelName} row={r} onClick={() => onSelectModel(r.modelName, r.currentChatter)} />
+                  <ModelRow
+                    key={r.modelName}
+                    row={r}
+                    platform={platform}
+                    onOpenDetails={() => onSelectModel(r.modelName, r.currentChatter)}
+                  />
                 ))}
               </AnimatePresence>
             </div>
@@ -189,35 +194,168 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
   );
 }
 
-function ModelRow({ row, onClick }: { row: ModelOverviewRow; onClick: () => void }) {
+interface ModelNote {
+  id: string;
+  note_text: string;
+  created_at: string;
+}
+
+function ModelRow({ row, platform, onOpenDetails }: { row: ModelOverviewRow; platform: string; onOpenDetails: () => void }) {
   const cfg = TREND_LABELS[row.trend];
   const Icon = cfg.icon;
+  const [expanded, setExpanded] = useState(false);
+  const [notes, setNotes] = useState<ModelNote[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadNotes = async () => {
+    setLoadingNotes(true);
+    const { data, error } = await supabase
+      .from("model_notes")
+      .select("id, note_text, created_at")
+      .eq("platform", platform)
+      .eq("model_name", row.modelName)
+      .order("created_at", { ascending: false });
+    if (!error && data) setNotes(data as ModelNote[]);
+    setLoadingNotes(false);
+  };
+
+  const handleToggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && notes.length === 0) loadNotes();
+  };
+
+  const handleSave = async () => {
+    const text = draft.trim();
+    if (!text) return;
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+    const { data, error } = await supabase
+      .from("model_notes")
+      .insert({ user_id: user.id, platform, model_name: row.modelName, note_text: text })
+      .select("id, note_text, created_at")
+      .single();
+    if (error) {
+      toast.error("Notiz konnte nicht gespeichert werden");
+    } else if (data) {
+      setNotes((prev) => [data as ModelNote, ...prev]);
+      setDraft("");
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    const prev = notes;
+    setNotes(notes.filter((n) => n.id !== id));
+    const { error } = await supabase.from("model_notes").delete().eq("id", id);
+    if (error) {
+      toast.error("Löschen fehlgeschlagen");
+      setNotes(prev);
+    }
+  };
+
   return (
-    <motion.button
-      layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClick}
-      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/[0.025] transition-colors text-left"
-    >
-      <span className={cn("h-2 w-2 rounded-full shrink-0", cfg.dot)} />
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] text-foreground/90 font-light truncate">{row.modelName}</div>
-        <div className="text-[10.5px] text-white/35 font-light mt-0.5 truncate">
-          {row.currentChatter ?? "kein Chatter"} · {row.pointCount} Tage
+    <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <button
+        onClick={handleToggle}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/[0.025] transition-colors text-left"
+      >
+        <span className={cn("h-2 w-2 rounded-full shrink-0", cfg.dot)} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] text-foreground/90 font-light truncate">{row.modelName}</div>
+          <div className="text-[10.5px] text-white/35 font-light mt-0.5 truncate">
+            {row.currentChatter ?? "kein Chatter"} · {row.pointCount} Tage
+          </div>
         </div>
-      </div>
-      <Sparkline points={row.daily.map((p) => p.revenue)} trend={row.trend} />
-      <div className="text-right shrink-0 min-w-[70px]">
-        <div className="text-[12.5px] text-foreground/90 font-light tabular-nums">{fmtEur(row.totalRevenue)}</div>
-        <div className={cn("text-[10.5px] font-light tabular-nums flex items-center gap-1 justify-end", cfg.tone)}>
-          <Icon className="h-2.5 w-2.5" />
-          {row.trendPct != null ? `${row.trendPct > 0 ? "+" : ""}${row.trendPct}%` : "—"}
+        <Sparkline points={row.daily.map((p) => p.revenue)} trend={row.trend} />
+        <div className="text-right shrink-0 min-w-[70px]">
+          <div className="text-[12.5px] text-foreground/90 font-light tabular-nums">{fmtEur(row.totalRevenue)}</div>
+          <div className={cn("text-[10.5px] font-light tabular-nums flex items-center gap-1 justify-end", cfg.tone)}>
+            <Icon className="h-2.5 w-2.5" />
+            {row.trendPct != null ? `${row.trendPct > 0 ? "+" : ""}${row.trendPct}%` : "—"}
+          </div>
         </div>
-      </div>
-      <ChevronRight className="h-3.5 w-3.5 text-white/20 shrink-0" />
-    </motion.button>
+        <ChevronRight className={cn("h-3.5 w-3.5 text-white/20 shrink-0 transition-transform", expanded && "rotate-90")} />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden bg-white/[0.015]"
+          >
+            <div className="px-4 py-3 space-y-3 border-t border-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-white/45 font-semibold">
+                  <StickyNote className="h-3 w-3" />
+                  Notizen
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpenDetails(); }}
+                  className="flex items-center gap-1 text-[10.5px] text-white/45 hover:text-white/80 transition-colors"
+                >
+                  Details
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSave(); }
+                  }}
+                  placeholder="Notiz zu diesem Model … (⌘+Enter)"
+                  rows={2}
+                  className="flex-1 bg-white/[0.025] border border-white/[0.07] rounded-md px-2.5 py-1.5 text-[12px] text-foreground/90 placeholder:text-white/25 focus:outline-none focus:border-white/15 resize-none"
+                />
+                <button
+                  onClick={handleSave}
+                  disabled={!draft.trim() || saving}
+                  className="self-start px-3 py-1.5 rounded-md bg-white/[0.08] border border-white/15 text-[11px] text-foreground/90 hover:bg-white/[0.12] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <Send className="h-3 w-3" />
+                  Speichern
+                </button>
+              </div>
+
+              {loadingNotes ? (
+                <div className="text-[11px] text-white/30 font-light">Lade Notizen …</div>
+              ) : notes.length === 0 ? (
+                <div className="text-[11px] text-white/30 font-light italic">Noch keine Notizen.</div>
+              ) : (
+                <ul className="space-y-1.5">
+                  {notes.map((n) => (
+                    <li key={n.id} className="group flex items-start gap-2 bg-white/[0.02] border border-white/[0.05] rounded-md px-2.5 py-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] text-foreground/85 font-light whitespace-pre-wrap break-words">{n.note_text}</p>
+                        <p className="text-[10px] text-white/30 font-light mt-1 tabular-nums">
+                          {new Date(n.created_at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDelete(n.id)}
+                        className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-300 transition-all p-1"
+                        aria-label="Notiz löschen"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
