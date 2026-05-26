@@ -297,7 +297,40 @@ export default function Today() {
             )}
           </div>
 
+          {/* Top-Level Tab Switch */}
+          <div className="flex items-center gap-1.5 border-b border-white/[0.05] pb-0">
+            {[
+              { id: "actions" as const, label: "Aktionen" },
+              { id: "tracking" as const, label: "Model Tracking" },
+            ].map((t) => {
+              const active = topTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTopTab(t.id)}
+                  className={cn(
+                    "px-3 py-2 text-[12px] font-medium tracking-wide transition-all border-b-2 -mb-px",
+                    active
+                      ? "border-foreground/70 text-foreground"
+                      : "border-transparent text-white/40 hover:text-white/70",
+                  )}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {topTab === "tracking" ? (
+            <ModelTrackingView
+              platform={platform}
+              onSelectModel={(name, chatter) => setSelectedModel({ name, chatter })}
+            />
+          ) : (
+            <>
+
           {/* A3 — Wochen-Recap (nur Sonntag) */}
+
           {!loading && recap && recap.count > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
