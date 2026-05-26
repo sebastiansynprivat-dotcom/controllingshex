@@ -18,6 +18,7 @@ const PRESETS: { id: TimeRangePreset; label: string }[] = [
   { id: "7d", label: "7T" },
   { id: "14d", label: "14T" },
   { id: "30d", label: "30T" },
+  { id: "90d", label: "90T" },
 ];
 
 export default function TimeRangeToggle({ value, onChange }: Props) {
