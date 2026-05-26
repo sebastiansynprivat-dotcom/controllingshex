@@ -81,6 +81,7 @@ export default function Today() {
   const [kindTab, setKindTab] = useState<KindTab>("all");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
+  const [topTab, setTopTab] = useState<TopTab>("actions");
   const isSunday = new Date().getDay() === 0;
 
 
