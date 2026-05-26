@@ -30,7 +30,14 @@ export interface ModelOverviewRow {
   trendPct: number | null;
   /** Slope in €/Tag — für Sortierung intern. */
   slope: number;
+  /** Tage, die der aktuelle Chatter ununterbrochen auf dem Model ist (lookback bis 365T). */
+  currentPhaseDays: number | null;
+  /** Gab es vor der aktuellen Chatter-Phase eine andere? */
+  previousPhaseExisted: boolean;
+  /** War der Trend der vorherigen Phase bereits negativ (slope < 0)? */
+  previousPhaseTrendDown: boolean;
 }
+
 
 /** Linear regression — returns slope (€/day) and intercept. */
 function linearRegression(points: { x: number; y: number }[]): { slope: number; intercept: number } {
