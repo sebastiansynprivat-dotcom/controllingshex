@@ -15,6 +15,8 @@ import {
   type ModelAlert,
   type TrendDirection,
 } from "@/lib/model-tracking-overview";
+import TrendCategoryDetailSheet from "@/components/today/TrendCategoryDetailSheet";
+
 
 interface Props {
   platform: string;
