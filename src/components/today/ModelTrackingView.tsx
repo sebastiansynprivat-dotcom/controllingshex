@@ -209,9 +209,13 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
 
       {subtab === "overview" ? (
         <>
+          {/* Trend summary */}
+          <TrendSummary rows={rows} loading={loading} />
+
           {/* Filter bar */}
           <div className="space-y-3">
             <TimeRangeToggle value={range} onChange={setRange} />
+
             <div className="flex flex-wrap items-center gap-1.5">
               {TREND_ORDER.map((d) => {
                 const cfg = TREND_LABELS[d];
@@ -764,6 +768,46 @@ function LabelManager({
     </div>
   );
 }
+
+function TrendSummary({ rows, loading }: { rows: ModelOverviewRow[]; loading: boolean }) {
+  const counts = useMemo(() => {
+    const c = { up: 0, flat: 0, down: 0, none: 0 } as Record<TrendDirection, number>;
+    for (const r of rows) c[r.trend]++;
+    return c;
+  }, [rows]);
+  const total = rows.length;
+  const items: { key: TrendDirection; label: string; value: number; icon: typeof TrendingUp; tone: string; bar: string }[] = [
+    { key: "up", label: "Wachstum", value: counts.up, icon: TrendingUp, tone: "text-emerald-300", bar: "bg-emerald-400/70" },
+    { key: "flat", label: "Stabil", value: counts.flat, icon: Minus, tone: "text-white/65", bar: "bg-white/40" },
+    { key: "down", label: "Rückgang", value: counts.down, icon: TrendingDown, tone: "text-red-300", bar: "bg-red-400/70" },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {items.map((it) => {
+        const Icon = it.icon;
+        const pct = total > 0 ? Math.round((it.value / total) * 100) : 0;
+        return (
+          <div key={it.key} className="premium-card rounded-xl p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/45 font-semibold">
+                <Icon className={cn("h-3 w-3", it.tone)} />
+                {it.label}
+              </div>
+              <span className="text-[10px] text-white/35 tabular-nums font-light">{loading ? "—" : `${pct}%`}</span>
+            </div>
+            <div className="text-2xl font-extralight tabular-nums text-foreground/90">
+              {loading ? "—" : it.value}
+            </div>
+            <div className="h-0.5 rounded-full bg-white/[0.05] overflow-hidden">
+              <div className={cn("h-full transition-all", it.bar)} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function Sparkline({ points, trend }: { points: number[]; trend: TrendDirection }) {
   if (points.length < 2) {
