@@ -294,7 +294,14 @@ function PhaseRow({ phase, isCurrent, vsPrev, color }: {
       <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: color }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[14px] text-foreground/85 font-light">{phase.chatterName}</span>
+          <button
+            type="button"
+            onClick={(e) => copyChatter(phase.chatterName, e)}
+            className="text-[14px] text-foreground/85 font-light hover:text-white hover:underline underline-offset-2 cursor-pointer transition-colors text-left"
+            title="Klick zum Kopieren"
+          >
+            {phase.chatterName}
+          </button>
           {isCurrent && (
             <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25">
               Aktuell
