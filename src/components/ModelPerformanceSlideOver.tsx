@@ -45,7 +45,7 @@ function formatDateShort(iso: string): string {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
 
-export default function ModelPerformanceSlideOver({ open, onClose, modelName, platform, focusChatter }: Props) {
+export default function ModelPerformanceSlideOver({ open, onClose, modelName, platform, focusChatter, splitView = false }: Props) {
   const [period, setPeriod] = useState<7 | 14 | 30 | 90>(30);
   const [tl, setTl] = useState<ModelTimeline | null>(null);
   const [loading, setLoading] = useState(false);
