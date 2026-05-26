@@ -1,89 +1,62 @@
 ## Ziel
 
-Unter `/today` einen zweiten Top-Level-Tab **"Model Tracking"** ergänzen, der alle Models einer Plattform mit Chatter, Umsatz-Verlauf und Trend zeigt — plus einen kleinen Alerts-Subtab nur für relevante Models.
+Die drei Übersichtskarten oben im Model-Tracking (**Wachstum**, **Stabil**, **Rückgang**) werden klickbar. Pro Karte öffnet sich ein Slide-Over/Modal mit:
 
-## Struktur
+1. **Aggregiertem Umsatzgraph** über den aktuell gewählten Zeitraum (alle Models dieser Kategorie zusammenaddiert pro Tag).
+2. **Buckets nach Chatter-Alter** (alt = ≥ 30 Tage auf diesem Model, neu = < 30 Tage).
+3. **Model-Liste pro Bucket** mit Mini-Sparkline, Chatter-Name, Umsatz und Trend-%.
 
-```text
-/today
-├─ Tab: Aktionen   (bestehend)
-└─ Tab: Model Tracking  (NEU)
-    ├─ Subtab: Übersicht
-    └─ Subtab: Alerts
-```
+## Bucket-Logik
 
-Tab-Switch oben auf der Seite (gleicher Stil wie bestehende KindTabs).
+Bezugspunkt = aktuelle Chatter-Phase des Models (letzte zusammenhängende Phase bis heute). Dauer wird aus den bestehenden Phasen in `model-tracking.ts` berechnet.
 
-## Subtab 1 — Übersicht
+**Rückgang** (3 Buckets):
+- **Alter Chatter** → aktuelle Phase ≥ 30 Tage. Echtes Coaching-Signal.
+- **Neuer Chatter** → aktuelle Phase < 30 Tage. Einarbeitung, weniger dramatisch.
+- **Wechsel hat nicht geholfen** → aktuelle Phase < 30 Tage UND vorherige Phase existiert UND Model fiel schon vorher. Wechsel war Reaktion auf Rückgang, hat aber nichts gebracht.
 
-**Filter-Leiste oben:**
-- `TimeRangeToggle` (bestehende Komponente: Heute / Gestern / 7T / 14T / 30T / Custom)
-- Trend-Chips als Multi-Select: ↑ Wachstum · → Stabil · ↓ Rückgang · — Keine Daten
-- Suchfeld (Model-Name)
-- Sortierung: Umsatz ↓ (default), Trend, Name
+Ein Model landet in genau einem Bucket. Priorität: „Wechsel hat nicht geholfen" > „Neuer Chatter" > „Alter Chatter".
 
-**Liste — eine Zeile pro Model:**
-- Model-Name + aktueller Chatter (kleinerer Text)
-- Mini-Sparkline (tägl. Umsatz im gewählten Zeitraum)
-- Gesamt-€ im Zeitraum + Ø/Tag
-- Trend-Badge mit %
-- Klick → öffnet bestehenden `ModelPerformanceSlideOver`
+**Wachstum** (2 Buckets):
+- **Alter Chatter zieht** → Phase ≥ 30 Tage. Konstante Leistung.
+- **Neuer Chatter hebt das Model** → Phase < 30 Tage. Wechsel war gute Entscheidung.
 
-**Datenquelle:** `chatter_history` (account = Model, revenue_today, chatter_name, analysis_date). Aggregiert pro Tag auf Client-Seite (analog `loadModelTimeline`).
+**Stabil** (2 Buckets, gleiche Logik wie Wachstum):
+- **Stabil unter altem Chatter**
+- **Stabil unter neuem Chatter**
 
-**Models-Pool:** ALLE Models, die jemals in `chatter_history` für die Plattform aufgetaucht sind (kein Cutoff) — auch "tote". Models ohne Datenpunkt im gewählten Zeitraum erscheinen mit Trend = "— Keine Daten" und 0 €.
+## UI / Interaktion
 
-## Trend-Berechnung
-
-Pro Model im gewählten Zeitraum: lineare Regression (least-squares slope) über **alle vorhandenen Tagespunkte** im Range, normalisiert als %/Tag relativ zum Zeitraum-Schnitt.
-
-- Slope > +5% → **↑ Wachstum**
-- Slope zwischen −5% und +5% → **→ Stabil**
-- Slope < −5% → **↓ Rückgang**
-- <3 Datenpunkte → **— Keine Daten**
-
-Ein Wert wie "+18%" oder "−24%" wird als Badge daneben gezeigt (= prozentuale Veränderung Ende vs. Anfang des Zeitraums laut Regression).
-
-## Subtab 2 — Alerts
-
-Nur **wirtschaftlich relevante** Models, die heute Aufmerksamkeit brauchen. Ein Model qualifiziert sich als "relevant" wenn ALLE gelten:
-- Gesamt-Umsatz letzte 30T ≥ Schwelle (Default 100 €, in den Settings konfigurierbar via existierender `settings`-Tabelle, Key `model_tracking_relevance_eur`)
-- Mindestens 5 Datenpunkte in den letzten 30T
-
-Alerts (nur für relevante Models):
-1. **Im Rückgang** — bestehende `detectModelTroubles()` Logik (Drop seit Chatter-Wechsel ODER letzte 7T < 60% des 30T-Schnitts).
-2. **Neuer Chatter ohne Performance** — Chatter-Phase ≤7 Tage alt UND Phasen-Schnitt < 70% des Vorgänger-Schnitts.
-
-Jede Alert-Karte: Model · Chatter · kurzer Grund · Δ% · Klick → `ModelPerformanceSlideOver`.
-Counter-Badge am Subtab.
-
-Wording: "im Rückgang" (nie "absäuft") — laut Memory.
+- `TrendSummary`-Karten bekommen `onClick` und werden zu `<button>` mit Hover-State.
+- Neuer Slide-Over `TrendCategoryDetailSheet` (rechts, gleiche Optik wie `ModelPerformanceSlideOver`).
+- Header: Kategoriename + Gesamtzahl + Gesamt-Umsatz im Zeitraum.
+- **Graph**: aggregierter Tagesumsatz als Area/Line-Chart. Bei Rückgang in Rot, Stabil neutral, Wachstum grün (semantische Tokens).
+- Darunter: Tabs/Akkordeons pro Bucket mit Header (Bucket-Name + Count + Bucket-Umsatz) und einer kompakten Liste der Models (Name, Chatter, Sparkline, Umsatz, Trend-%). Klick auf ein Model öffnet das bestehende `ModelPerformanceSlideOver`.
+- Filter (Suche, Labels, TimeRange) aus dem Tracking-Tab werden respektiert — der Pop-Up nutzt dieselbe gefilterte Liste, die der Tab gerade anzeigt.
 
 ## Technische Umsetzung
 
-**Neue Datei:** `src/lib/model-tracking-overview.ts`
-- `loadAllModels(platform)` → liefert alle distinct accounts aus `chatter_history`
-- `loadOverviewTimelines(platform, from, to, modelNames)` → batched (ein Query mit `IN`), gruppiert clientseitig pro (model, day) wie in `model-tracking.ts`
-- `computeTrendSlope(daily): { direction, pct }` mit linearer Regression
-- `detectNewChatterUnderperform(timelines)` → liefert Alert-Liste
+**Neue Datei** `src/lib/model-tracking-buckets.ts`:
+- `categorizeRowsByChatterAge(rows, currentPhaseByModel)` → liefert pro `TrendDirection` ein Array von Buckets `{ key, label, models }`.
+- Benötigt aktuelle Chatter-Phase pro Model. Quelle: bereits in `ModelOverviewRow` vorhanden (`currentChatter`) — wir brauchen aber zusätzlich die **Dauer der aktuellen Phase**. Erweitern: `loadModelOverview` gibt `currentPhaseDays` und `hadPreviousPhase` mit zurück (kommt aus den daily-Daten, die schon geladen werden).
+- `aggregateDaily(rows)` → addiert `daily[].revenue` pro Datum über alle übergebenen Models.
 
-**Neue Komponente:** `src/components/today/ModelTrackingView.tsx`
-- State: `timeRange`, `trendFilters`, `search`, `sort`, `subtab`
-- Lädt einmal pro `platform`/`timeRange`-Wechsel
-- Rendert Filter-Leiste, Liste, Sparkline-SVG inline (kein Recharts nötig für Mini-Sparkline)
+**Erweiterung** `src/lib/model-tracking-overview.ts`:
+- `ModelOverviewRow` bekommt: `currentPhaseDays: number | null`, `previousPhaseExisted: boolean`, `previousPhaseTrendDown: boolean`.
+- Berechnung in `loadModelOverview` aus den bereits durchlaufenen Phasen.
 
-**Neue Komponente:** `src/components/today/ModelAlertsList.tsx`
-- Nutzt `detectModelTroubles()` aus `model-tracking.ts` + `detectNewChatterUnderperform()`
-- Filtert auf relevante Models (Schwelle)
+**Neue Komponente** `src/components/today/TrendCategoryDetailSheet.tsx`:
+- Props: `open`, `onClose`, `direction: TrendDirection`, `models: ModelOverviewRow[]`, `range`, `platform`, `onSelectModel`.
+- Recharts `AreaChart` für aggregierten Verlauf.
+- Bucket-Sektionen via `categorizeRowsByChatterAge`.
 
-**Änderung:** `src/pages/Today.tsx`
-- Oben Tab-Switch: `Aktionen` | `Model Tracking`
-- Bei "Model Tracking" rendert `<ModelTrackingView platform={platform} />`, sonst bestehende Action-Logik
-- Slide-Over `selectedModel` State wird gehoben/geteilt
+**Änderungen** `src/components/today/ModelTrackingView.tsx`:
+- `TrendSummary`-Items klickbar machen (`onClick(direction)`).
+- State `detailDirection: TrendDirection | null`.
+- Sheet rendern; übergebene Models = **gefilterte** Liste (`filtered`), damit Suche/Labels respektiert werden — aber nach `direction` zusätzlich gefiltert.
 
-**Keine Schema-Änderungen** nötig — alles aus `chatter_history` + `settings`.
+## Out of scope
 
-## Out of Scope
-- Manuelle Models-Auswahl/Ausblendung (kommt später, falls Pool zu unübersichtlich wird)
-- Push-Notifications für Alerts
-- Vergleich Models untereinander (eigene Compare-View)
+- Keine neuen DB-Tabellen, keine Migration.
+- Keine Änderung am Alerts-Tab — der bleibt wie er ist (eigener Workflow).
+- Keine Persistenz der „neuer/alter Chatter"-Schwelle als User-Setting — fest 30 Tage.
