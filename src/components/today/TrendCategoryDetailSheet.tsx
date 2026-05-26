@@ -185,7 +185,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                             fontSize: 12,
                           }}
                           labelFormatter={(v) => `Datum: ${v}`}
-                          formatter={(value: number) => [`${value} Models`, "Aktiv"]}
+                          formatter={(value: number) => [`${value} Models`, direction === "down" ? "Im Rückgang" : "Aktiv"]}
                         />
                         <Area
                           type="monotone"
