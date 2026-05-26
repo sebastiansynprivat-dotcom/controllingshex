@@ -348,19 +348,18 @@ export async function detectRelevantModelAlerts(
 
   const rows = await fetchRangeRows(platform, fromIso, toIso);
 
-  // Group per model -> per day
+  // Group per model -> per day (account-String wird gesplittet)
   const byModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of rows) {
-    const acc = r.account?.trim();
-    if (!acc) continue;
-    const dateMap = byModel.get(acc) ?? new Map();
-    const day = dateMap.get(r.analysis_date) ?? { revenue: 0, chatters: new Map<string, number>() };
-    const rev = Number(r.revenue_today) || 0;
-    day.revenue += rev;
-    const cName = r.chatter_name?.trim() || "—";
-    day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + rev);
-    dateMap.set(r.analysis_date, day);
-    byModel.set(acc, dateMap);
+    for (const part of expandRow(r)) {
+      const dateMap = byModel.get(part.account) ?? new Map();
+      const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
+      day.revenue += part.revenue;
+      const cName = part.chatter || "—";
+      day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + part.revenue);
+      dateMap.set(part.date, day);
+      byModel.set(part.account, dateMap);
+    }
   }
 
   const thirtyAgo = new Date(today);
