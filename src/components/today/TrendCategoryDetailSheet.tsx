@@ -4,7 +4,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { TrendingUp, TrendingDown, Minus, ChevronRight, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtEur, type ModelOverviewRow, type TrendDirection } from "@/lib/model-tracking-overview";
-import { categorizeRowsByChatterAge, aggregateDaily, NEW_CHATTER_THRESHOLD_DAYS, type BucketDefinition } from "@/lib/model-tracking-buckets";
+import { categorizeRowsByChatterAge, aggregateModelCountDaily, NEW_CHATTER_THRESHOLD_DAYS, type BucketDefinition } from "@/lib/model-tracking-buckets";
 
 interface Props {
   open: boolean;
@@ -65,7 +65,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     return rows.filter((r) => r.trend === direction);
   }, [rows, direction]);
 
-  const aggregated = useMemo(() => aggregateDaily(filteredRows), [filteredRows]);
+  const aggregated = useMemo(() => aggregateModelCountDaily(filteredRows), [filteredRows]);
 
   const totalRevenue = useMemo(
     () => filteredRows.reduce((s, r) => s + r.totalRevenue, 0),
@@ -113,7 +113,7 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
               {/* Aggregierter Graph */}
               <div className="premium-card rounded-2xl p-4 sm:p-5">
                 <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-3">
-                  Aggregierter Umsatz-Verlauf
+                  Models pro Tag aktiv
                 </p>
                 {aggregated.length < 2 ? (
                   <div className="h-32 flex items-center justify-center text-[12px] text-white/30 font-light">
@@ -133,7 +133,8 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                         <YAxis
                           tick={{ fill: "hsl(0 0% 100% / 0.3)", fontSize: 10 }}
                           stroke="hsl(0 0% 100% / 0.05)"
-                          tickFormatter={(v) => `${Math.round(Number(v))}€`}
+                          allowDecimals={false}
+                          tickFormatter={(v) => `${Math.round(Number(v))}`}
                         />
                         <Tooltip
                           contentStyle={{
@@ -143,11 +144,11 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
                             fontSize: 12,
                           }}
                           labelFormatter={(v) => `Datum: ${v}`}
-                          formatter={(value: number) => [`${Math.round(value)} €`, "Summe"]}
+                          formatter={(value: number) => [`${value} Models`, "Aktiv"]}
                         />
                         <Area
                           type="monotone"
-                          dataKey="revenue"
+                          dataKey="count"
                           stroke={meta.stroke}
                           fill={meta.fill}
                           strokeWidth={1.8}
