@@ -36,6 +36,8 @@ export interface ModelOverviewRow {
   previousPhaseExisted: boolean;
   /** War der Trend der vorherigen Phase bereits negativ (slope < 0)? */
   previousPhaseTrendDown: boolean;
+  /** Per-Chatter Ø Umsatz / aktivem Tag (nur Tage mit Umsatz > 0) im Zeitraum. */
+  chatterAvgs: Array<{ chatter: string; avgPerActiveDay: number; activeDays: number }>;
 }
 
 
