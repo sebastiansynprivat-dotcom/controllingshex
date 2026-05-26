@@ -27,6 +27,8 @@ interface Props {
   platform: string;
   /** Wenn gesetzt, wird unter dem Model-Verlauf eine Vergleichsansicht für diesen Chatter eingeblendet. */
   focusChatter?: string | null;
+  /** Split-View: rendert das Panel auf der linken Bildschirmhälfte ohne Overlay, damit daneben ein zweites Panel sichtbar bleibt. */
+  splitView?: boolean;
 }
 
 const PHASE_COLORS = [
