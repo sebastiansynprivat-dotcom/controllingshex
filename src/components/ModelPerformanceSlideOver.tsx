@@ -80,6 +80,58 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
 
   const phasesReversed = useMemo(() => (tl ? [...tl.phases].reverse() : []), [tl]);
 
+  const body = (
+    <div className="p-6 sm:p-8 space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-extralight tracking-tight text-foreground">
+          {modelName}
+        </h2>
+        <p className="text-[11px] text-white/30 font-light tracking-wider uppercase">
+          Performance & Chatter-Verlauf
+        </p>
+      </div>
+      {(() => { return null; })()}
+      {/* original inner content begins below — wrapped by replacement */}
+    </div>
+  );
+
+  if (splitView) {
+    return (
+      <AnimatePresence>
+        {open && (
+          <motion.aside
+            initial={{ x: -40, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -40, opacity: 0 }}
+            transition={{ type: "spring", damping: 32, stiffness: 280, opacity: { duration: 0.3 } }}
+            className="fixed inset-y-0 left-0 z-50 w-1/2 border-r border-white/[0.06] bg-[#0e0e0e] overflow-y-auto shadow-[20px_0_60px_-15px_rgba(0,0,0,0.6)]"
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Schließen"
+              className="absolute right-4 top-4 z-10 h-8 w-8 rounded-md flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <SplitBody
+              modelName={modelName}
+              period={period}
+              setPeriod={setPeriod}
+              loading={loading}
+              tl={tl}
+              platform={platform}
+              focusChatter={focusChatter ?? null}
+              dateRange={dateRange}
+              chatterColors={chatterColors}
+              phasesReversed={phasesReversed}
+            />
+          </motion.aside>
+        )}
+      </AnimatePresence>
+    );
+  }
+
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
