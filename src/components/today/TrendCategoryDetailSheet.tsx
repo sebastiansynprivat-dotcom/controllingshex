@@ -72,6 +72,22 @@ export default function TrendCategoryDetailSheet({ open, onClose, direction, row
     [filteredRows],
   );
 
+  // Möglicher Umsatz: pro Model = Schnitt der aktiven Tage × Gesamt-Tage im Zeitraum.
+  // Idee: wenn jeder Tag so produktiv gewesen wäre wie ein "normaler" aktiver Tag.
+  const potentialRevenue = useMemo(() => {
+    let sum = 0;
+    for (const r of filteredRows) {
+      const activeDays = r.daily.filter((p) => p.revenue > 0);
+      if (activeDays.length === 0) { sum += r.totalRevenue; continue; }
+      const avgActive = activeDays.reduce((s, p) => s + p.revenue, 0) / activeDays.length;
+      const totalDays = r.daily.length || activeDays.length;
+      sum += avgActive * totalDays;
+    }
+    return sum;
+  }, [filteredRows]);
+
+  const deltaPotential = Math.max(0, potentialRevenue - totalRevenue);
+
   const buckets = useMemo<BucketDefinition[]>(
     () => (direction ? categorizeRowsByChatterAge(filteredRows, direction) : []),
     [filteredRows, direction],
