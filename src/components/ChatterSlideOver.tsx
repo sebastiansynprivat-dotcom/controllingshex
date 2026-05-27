@@ -472,7 +472,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .eq("platform", platform);
       if (cancelled) return;
       const accounts = Array.from(
-        new Set((histRows || []).map((r: any) => (r.account || "").trim()).filter((a: string) => a.length > 0)),
+        new Set(
+          (histRows || [])
+            .flatMap((r: any) =>
+              (r.account || "")
+                .split(",")
+                .map((s: string) => s.trim())
+                .filter((s: string) => s.length > 0),
+            ),
+        ),
       );
       if (accounts.length === 0) {
         setChatterModels([]);
@@ -483,6 +491,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .select("model_name, email, password")
         .eq("platform", platform)
         .in("model_name", accounts);
+
       if (cancelled) return;
       const byName = new Map<string, { email: string | null; password: string | null }>();
       for (const m of (modelRows || []) as any[]) {
