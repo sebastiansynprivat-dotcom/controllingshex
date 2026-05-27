@@ -835,7 +835,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     // Inline/Split mode: compact two-pane layout, reused for the Today comparison view.
     return (
       <div
-        className={`${splitView ? "fixed inset-y-0 right-0 z-50 w-1/2 shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)]" : "h-full"} min-h-0 flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl`}
+        className={`${splitView ? "fixed inset-y-0 right-0 z-50 w-1/2 shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)]" : "h-full"} min-h-0 flex flex-col border-l border-white/[0.06] bg-zinc-950 backdrop-blur-3xl`}
       >
         {/* ── Hero Header ── */}
         <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
