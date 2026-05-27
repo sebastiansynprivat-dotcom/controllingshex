@@ -164,9 +164,20 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     ? poolRows
     : await fetchRangeRows(platform, range.from, range.to);
 
+  // Follower-Map laden für gewichtete Aufteilung bei Multi-Account-Zeilen
+  const { data: modelRows } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("platform", platform);
+  const followerMap = new Map<string, number>();
+  for (const m of modelRows || []) {
+    const name = (m.model_name || "").toString().trim().toLowerCase();
+    if (name) followerMap.set(name, Number(m.follower_count) || 0);
+  }
+
   const byModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of rangeRows) {
-    for (const part of expandRow(r)) {
+    for (const part of expandRow(r, followerMap)) {
       const dateMap = byModel.get(part.account) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
@@ -176,6 +187,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       byModel.set(part.account, dateMap);
     }
   }
+
 
   // 3) Last chatter: pro Model letzter Tag mit Aktivität, dort Top-Revenue-Chatter
   //    (0-Revenue-Chatter werden ignoriert, solange ein positiver existiert).
