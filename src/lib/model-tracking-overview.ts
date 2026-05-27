@@ -96,15 +96,27 @@ function splitAccounts(raw: string | null | undefined): string[] {
     .filter((s) => s.length > 0);
 }
 
-/** Expand row -> 1 Eintrag pro Model, Revenue gleichmäßig aufgeteilt. */
-function expandRow(r: RawRow): Array<{ account: string; chatter: string | null; revenue: number; date: string }> {
+/** Expand row -> 1 Eintrag pro Model. Revenue wird Follower-gewichtet
+ *  aufgeteilt (Fallback: gleichmäßig), passend zur Account-Performance-Logik. */
+function expandRow(
+  r: RawRow,
+  followerMap?: Map<string, number>,
+): Array<{ account: string; chatter: string | null; revenue: number; date: string }> {
   const accounts = splitAccounts(r.account);
   if (accounts.length === 0) return [];
   const rev = Number(r.revenue_today) || 0;
-  const share = rev / accounts.length;
   const chatter = r.chatter_name?.trim() || null;
-  return accounts.map((acc) => ({ account: acc, chatter, revenue: share, date: r.analysis_date }));
+  if (accounts.length === 1) {
+    return [{ account: accounts[0], chatter, revenue: rev, date: r.analysis_date }];
+  }
+  const weights = accounts.map((a) => Math.max(0, followerMap?.get(a.toLowerCase()) ?? 0));
+  const weightSum = weights.reduce((s, w) => s + w, 0);
+  return accounts.map((acc, i) => {
+    const share = weightSum > 0 ? rev * (weights[i] / weightSum) : rev / accounts.length;
+    return { account: acc, chatter, revenue: share, date: r.analysis_date };
+  });
 }
+
 
 async function fetchRangeRows(platform: string, from: string, to: string): Promise<RawRow[]> {
   const all: RawRow[] = [];
