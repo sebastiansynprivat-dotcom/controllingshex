@@ -81,7 +81,8 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
   const phasesReversed = useMemo(() => (tl ? [...tl.phases].reverse() : []), [tl]);
 
   const body = (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className={splitView ? "p-4 space-y-5" : "p-6 sm:p-8 space-y-6"}>
+
       <div className="space-y-1">
         <h2 className="text-2xl font-extralight tracking-tight text-foreground">
           {modelName}
