@@ -251,7 +251,44 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     }
     const totalRevenue = daily.reduce((s, p) => s + p.revenue, 0);
     const avgPerDay = totalRevenue / rangeDaysCount;
-    const trendResult = computeTrend(daily, rangeDaysCount);
+
+    // Trend = Baseline-Vergleich: Ø Tagesumsatz im gewählten Range vs.
+    // Ø Tagesumsatz über die gesamte verfügbare Historie (365T-Pool)
+    // OHNE den gewählten Range. Nur Tage mit revenue > 0 zählen (Pausen raus).
+    const poolForTrend = poolByModel.get(modelName);
+    let trendResult: { direction: TrendDirection; pct: number | null; slope: number } = {
+      direction: "none",
+      pct: null,
+      slope: 0,
+    };
+    if (poolForTrend) {
+      let baseSum = 0, baseDays = 0;
+      let curSum = 0, curDays = 0;
+      for (const [d, entry] of poolForTrend) {
+        if (entry.revenue <= 0) continue;
+        const inRange = d >= range.from && d <= range.to;
+        if (inRange) {
+          curSum += entry.revenue;
+          curDays += 1;
+        } else {
+          baseSum += entry.revenue;
+          baseDays += 1;
+        }
+      }
+      // Min-Samples damit der Vergleich aussagekräftig ist
+      if (baseDays >= 5 && curDays >= 3) {
+        const baseline = baseSum / baseDays;
+        const current = curSum / curDays;
+        if (baseline > 0) {
+          const pct = Math.round(((current - baseline) / baseline) * 100);
+          let direction: TrendDirection;
+          if (pct > 20) direction = "up";
+          else if (pct < -20) direction = "down";
+          else direction = "flat";
+          trendResult = { direction, pct, slope: current - baseline };
+        }
+      }
+    }
 
     // Per-Chatter Ø: nur Tage mit revenue > 0 zählen pro Chatter
     const chatterTotals = new Map<string, { rev: number; days: number }>();
