@@ -471,13 +471,15 @@ function ModelRow({
             {" · "}{row.pointCount} Tage
           </div>
           {(row.baselineAvg != null || row.currentAvg != null) && (
-            <div className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums flex items-center gap-1.5 flex-wrap">
-              <span>
-                Ø sonst: <span className="text-white/65">{row.baselineAvg != null ? fmtEur(row.baselineAvg) : "—"}</span>
+            <div className="text-[11.5px] mt-1 tabular-nums flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-baseline gap-1">
+                <span className="text-white/45 font-light">Ø sonst</span>
+                <span className="text-white/85 font-medium">{row.baselineAvg != null ? fmtEur(row.baselineAvg) : "—"}</span>
               </span>
-              <span className="text-white/20">→</span>
-              <span>
-                jetzt: <span className={cn("font-medium", cfg.tone)}>{row.currentAvg != null ? fmtEur(row.currentAvg) : "—"}</span>
+              <span className="text-white/25">→</span>
+              <span className="inline-flex items-baseline gap-1">
+                <span className="text-white/45 font-light">jetzt</span>
+                <span className={cn("font-semibold", cfg.tone)}>{row.currentAvg != null ? fmtEur(row.currentAvg) : "—"}</span>
               </span>
             </div>
           )}
