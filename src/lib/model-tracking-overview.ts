@@ -38,6 +38,10 @@ export interface ModelOverviewRow {
   previousPhaseTrendDown: boolean;
   /** Per-Chatter Ø Umsatz / aktivem Tag (nur Tage mit Umsatz > 0) im Zeitraum. */
   chatterAvgs: Array<{ chatter: string; avgPerActiveDay: number; activeDays: number }>;
+  /** Ø Tagesumsatz (nur Tage > 0) über die gesamte Historie OHNE den gewählten Range. */
+  baselineAvg: number | null;
+  /** Ø Tagesumsatz (nur Tage > 0) im gewählten Range. */
+  currentAvg: number | null;
 }
 
 
