@@ -830,10 +830,13 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       </div>
     ) : null;
 
-  if (inline) {
-    // Inline mode: render directly without portal/overlay
+  if (inline || splitView) {
+    if (!open) return null;
+    // Inline/Split mode: compact two-pane layout, reused for the Today comparison view.
     return (
-      <div className="h-full min-h-0 flex flex-col border-l border-white/[0.06] bg-zinc-950/[0.97] backdrop-blur-3xl">
+      <div
+        className={`${splitView ? "fixed inset-y-0 right-0 z-50 w-1/2 shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.6)]" : "h-full"} min-h-0 flex flex-col border-l border-white/[0.06] bg-zinc-950 backdrop-blur-3xl`}
+      >
         {/* ── Hero Header ── */}
         <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
           <div
@@ -874,6 +877,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               )}
             </div>
           </div>
+          {splitView && (
+            <button
+              onClick={onClose}
+              aria-label="Schließen"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/55 hover:bg-white/[0.06] hover:text-white transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none">
           {loading ? (
