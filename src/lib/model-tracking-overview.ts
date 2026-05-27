@@ -96,15 +96,27 @@ function splitAccounts(raw: string | null | undefined): string[] {
     .filter((s) => s.length > 0);
 }
 
-/** Expand row -> 1 Eintrag pro Model, Revenue gleichmäßig aufgeteilt. */
-function expandRow(r: RawRow): Array<{ account: string; chatter: string | null; revenue: number; date: string }> {
+/** Expand row -> 1 Eintrag pro Model. Revenue wird Follower-gewichtet
+ *  aufgeteilt (Fallback: gleichmäßig), passend zur Account-Performance-Logik. */
+function expandRow(
+  r: RawRow,
+  followerMap?: Map<string, number>,
+): Array<{ account: string; chatter: string | null; revenue: number; date: string }> {
   const accounts = splitAccounts(r.account);
   if (accounts.length === 0) return [];
   const rev = Number(r.revenue_today) || 0;
-  const share = rev / accounts.length;
   const chatter = r.chatter_name?.trim() || null;
-  return accounts.map((acc) => ({ account: acc, chatter, revenue: share, date: r.analysis_date }));
+  if (accounts.length === 1) {
+    return [{ account: accounts[0], chatter, revenue: rev, date: r.analysis_date }];
+  }
+  const weights = accounts.map((a) => Math.max(0, followerMap?.get(a.toLowerCase()) ?? 0));
+  const weightSum = weights.reduce((s, w) => s + w, 0);
+  return accounts.map((acc, i) => {
+    const share = weightSum > 0 ? rev * (weights[i] / weightSum) : rev / accounts.length;
+    return { account: acc, chatter, revenue: share, date: r.analysis_date };
+  });
 }
+
 
 async function fetchRangeRows(platform: string, from: string, to: string): Promise<RawRow[]> {
   const all: RawRow[] = [];
@@ -152,9 +164,20 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     ? poolRows
     : await fetchRangeRows(platform, range.from, range.to);
 
+  // Follower-Map laden für gewichtete Aufteilung bei Multi-Account-Zeilen
+  const { data: modelRows } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("platform", platform);
+  const followerMap = new Map<string, number>();
+  for (const m of modelRows || []) {
+    const name = (m.model_name || "").toString().trim().toLowerCase();
+    if (name) followerMap.set(name, Number(m.follower_count) || 0);
+  }
+
   const byModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of rangeRows) {
-    for (const part of expandRow(r)) {
+    for (const part of expandRow(r, followerMap)) {
       const dateMap = byModel.get(part.account) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
@@ -164,6 +187,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       byModel.set(part.account, dateMap);
     }
   }
+
 
   // 3) Last chatter: pro Model letzter Tag mit Aktivität, dort Top-Revenue-Chatter
   //    (0-Revenue-Chatter werden ignoriert, solange ein positiver existiert).
@@ -197,7 +221,8 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   // Per-model phases aus 365T-Pool ableiten (für currentPhaseDays etc.)
   const poolByModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of poolRows) {
-    for (const part of expandRow(r)) {
+    for (const part of expandRow(r, followerMap)) {
+
       const dateMap = poolByModel.get(part.account) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
