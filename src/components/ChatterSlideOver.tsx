@@ -1481,7 +1481,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               className={`${compareWith ? `sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 ${activePane === "primary" ? "flex-1" : "hidden sm:block"}` : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
               style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
             >
-              <div className="p-5 sm:p-10 pb-16 space-y-8 sm:space-y-12">
+              <div className={`${splitView ? "p-4 space-y-6" : "p-5 sm:p-10 space-y-8 sm:space-y-12"} pb-16`}>
                 {loading ? (
                   <ProfileSkeleton />
                 ) : history.length === 0 && !liveProfile ? (
