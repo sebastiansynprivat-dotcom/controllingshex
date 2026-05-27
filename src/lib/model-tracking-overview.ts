@@ -38,6 +38,10 @@ export interface ModelOverviewRow {
   previousPhaseTrendDown: boolean;
   /** Per-Chatter Ø Umsatz / aktivem Tag (nur Tage mit Umsatz > 0) im Zeitraum. */
   chatterAvgs: Array<{ chatter: string; avgPerActiveDay: number; activeDays: number }>;
+  /** Ø Tagesumsatz (nur Tage > 0) über die gesamte Historie OHNE den gewählten Range. */
+  baselineAvg: number | null;
+  /** Ø Tagesumsatz (nur Tage > 0) im gewählten Range. */
+  currentAvg: number | null;
 }
 
 
@@ -263,6 +267,8 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       pct: null,
       slope: 0,
     };
+    let baselineAvg: number | null = null;
+    let currentAvg: number | null = null;
     let baselineUsed = false;
     if (poolForTrend) {
       let baseSum = 0, baseDays = 0;
@@ -278,28 +284,21 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
           baseDays += 1;
         }
       }
-      if (baseDays >= 3 && curDays >= 2) {
-        const baseline = baseSum / baseDays;
-        const current = curSum / curDays;
-        if (baseline > 0) {
-          const pct = Math.round(((current - baseline) / baseline) * 100);
-          let direction: TrendDirection;
-          if (pct > 20) direction = "up";
-          else if (pct < -20) direction = "down";
-          else direction = "flat";
-          trendResult = { direction, pct, slope: current - baseline };
-          baselineUsed = true;
-        }
+      if (baseDays > 0) baselineAvg = baseSum / baseDays;
+      if (curDays > 0) currentAvg = curSum / curDays;
+      if (baseDays >= 3 && curDays >= 2 && baselineAvg && baselineAvg > 0 && currentAvg != null) {
+        const pct = Math.round(((currentAvg - baselineAvg) / baselineAvg) * 100);
+        let direction: TrendDirection;
+        if (pct > 20) direction = "up";
+        else if (pct < -20) direction = "down";
+        else direction = "flat";
+        trendResult = { direction, pct, slope: currentAvg - baselineAvg };
+        baselineUsed = true;
       }
     }
-    // Fallback: Range-interne Regression (alter Trend), damit jeder Account
-    // mit genug Range-Daten in eine Kategorie kommt.
     if (!baselineUsed) {
       trendResult = computeTrend(daily, rangeDaysCount);
     }
-    // Letzter Fallback: Wenn immer noch "none" (zu wenig Daten überall),
-    // als "flat" einsortieren — damit jedes Model in einer Kategorie landet
-    // und die Summe der Trend-Karten = Gesamtzahl der Models bleibt.
     if (trendResult.direction === "none") {
       trendResult = { direction: "flat", pct: null, slope: 0 };
     }
@@ -375,6 +374,8 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       previousPhaseExisted,
       previousPhaseTrendDown,
       chatterAvgs,
+      baselineAvg,
+      currentAvg,
     });
   }
 
