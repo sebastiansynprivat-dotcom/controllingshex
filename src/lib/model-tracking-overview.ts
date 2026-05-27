@@ -255,12 +255,15 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     // Trend = Baseline-Vergleich: Ø Tagesumsatz im gewählten Range vs.
     // Ø Tagesumsatz über die gesamte verfügbare Historie (365T-Pool)
     // OHNE den gewählten Range. Nur Tage mit revenue > 0 zählen (Pausen raus).
+    // Fallback: Wenn zu wenig Baseline-Daten, nutze Range-interne Regression,
+    // damit der Account NICHT aus den Trend-Kategorien rausfliegt.
     const poolForTrend = poolByModel.get(modelName);
     let trendResult: { direction: TrendDirection; pct: number | null; slope: number } = {
       direction: "none",
       pct: null,
       slope: 0,
     };
+    let baselineUsed = false;
     if (poolForTrend) {
       let baseSum = 0, baseDays = 0;
       let curSum = 0, curDays = 0;
@@ -275,8 +278,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
           baseDays += 1;
         }
       }
-      // Min-Samples damit der Vergleich aussagekräftig ist
-      if (baseDays >= 5 && curDays >= 3) {
+      if (baseDays >= 3 && curDays >= 2) {
         const baseline = baseSum / baseDays;
         const current = curSum / curDays;
         if (baseline > 0) {
@@ -286,8 +288,14 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
           else if (pct < -20) direction = "down";
           else direction = "flat";
           trendResult = { direction, pct, slope: current - baseline };
+          baselineUsed = true;
         }
       }
+    }
+    // Fallback: Range-interne Regression (alter Trend), damit jeder Account
+    // mit genug Range-Daten in eine Kategorie kommt.
+    if (!baselineUsed) {
+      trendResult = computeTrend(daily, rangeDaysCount);
     }
 
     // Per-Chatter Ø: nur Tage mit revenue > 0 zählen pro Chatter
