@@ -81,10 +81,10 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
   const phasesReversed = useMemo(() => (tl ? [...tl.phases].reverse() : []), [tl]);
 
   const body = (
-    <div className={splitView ? "p-4 space-y-5" : "p-6 sm:p-8 space-y-6"}>
+    <div className={splitView ? "p-4 sm:p-6 space-y-5" : "p-6 sm:p-8 space-y-6"}>
 
-      <div className="space-y-1">
-        <h2 className="text-2xl font-extralight tracking-tight text-foreground">
+      <div className="space-y-1 pr-10">
+        <h2 className="text-xl sm:text-2xl font-extralight tracking-tight text-foreground truncate">
           {modelName}
         </h2>
         <p className="text-[11px] text-white/30 font-light tracking-wider uppercase">
@@ -146,11 +146,11 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
           )}
 
           {/* Chart */}
-          <div className="premium-card rounded-2xl p-4 sm:p-5">
+          <div className="premium-card rounded-2xl p-4 sm:p-5 min-w-0">
             <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-3">
               Umsatz-Verlauf
             </p>
-            <div className="h-64 w-full">
+            <div className={splitView ? "h-56 w-full min-w-0" : "h-64 w-full min-w-0"}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={tl.daily} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke="hsl(0 0% 100% / 0.04)" />
@@ -209,17 +209,17 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
             </div>
 
             {tl.phases.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 mt-3 min-w-0">
                 {Array.from(chatterColors.entries()).map(([name, color]) => (
                   <button
                     type="button"
                     key={name}
                     onClick={(e) => copyChatter(name, e)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.07] hover:border-white/[0.12] transition-colors cursor-pointer"
+                    className="flex min-w-0 items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.07] hover:border-white/[0.12] transition-colors cursor-pointer"
                     title="Klick zum Kopieren"
                   >
                     <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-                    <span className="text-[10px] text-white/55 font-light">{name}</span>
+                    <span className="truncate text-[10px] text-white/55 font-light">{name}</span>
                   </button>
                 ))}
               </div>
