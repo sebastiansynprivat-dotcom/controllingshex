@@ -633,7 +633,86 @@ function LabelManager({
   );
 }
 
+function TopUnderperformers({
+  rows,
+  loading,
+  onSelectModel,
+}: {
+  rows: ModelOverviewRow[];
+  loading: boolean;
+  onSelectModel: (name: string, chatter: string | null) => void;
+}) {
+  const items = useMemo(() => {
+    const candidates = rows
+      .filter((r) => {
+        if (r.baselineAvg == null || r.baselineAvg < 20) return false;
+        const cur = r.currentAvg ?? 0;
+        // entweder klassischer Rückgang oder fast komplett eingestellt
+        const dropPct = ((cur - r.baselineAvg) / r.baselineAvg) * 100;
+        return dropPct <= -25;
+      })
+      .map((r) => {
+        const cur = r.currentAvg ?? 0;
+        const absDrop = r.baselineAvg! - cur;
+        const dropPct = Math.round(((cur - r.baselineAvg!) / r.baselineAvg!) * 100);
+        return { row: r, absDrop, dropPct };
+      })
+      .sort((a, b) => b.absDrop - a.absDrop)
+      .slice(0, 8);
+    return candidates;
+  }, [rows]);
+
+  if (loading || items.length === 0) return null;
+
+  return (
+    <div className="premium-card rounded-2xl p-3.5 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+          <span className="text-[10.5px] uppercase tracking-wider text-white/65 font-semibold">
+            Starke Accounts, aktuell schwach
+          </span>
+        </div>
+        <span className="text-[10px] text-white/30 tabular-nums">{items.length}</span>
+      </div>
+      <p className="text-[10.5px] text-white/35 font-light leading-snug">
+        Accounts mit hohem Normal-Ø, die gerade kaum oder deutlich weniger laufen — sortiert nach absolutem Einbruch.
+      </p>
+      <div className="divide-y divide-white/[0.04]">
+        {items.map(({ row, dropPct }) => (
+          <button
+            key={row.modelName}
+            onClick={() => onSelectModel(row.modelName, row.currentChatter)}
+            className="w-full py-2 flex items-center gap-3 hover:bg-white/[0.025] transition-colors text-left"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12.5px] text-foreground/90 font-light truncate">{row.modelName}</span>
+                {row.currentChatter && (
+                  <span className="text-[10.5px] text-white/40 font-light truncate">· {row.currentChatter}</span>
+                )}
+              </div>
+              <div className="text-[11px] mt-0.5 tabular-nums flex items-center gap-1.5 flex-wrap">
+                <span className="text-white/45 font-light">Ø sonst</span>
+                <span className="text-white/80 font-medium">{fmtEur(row.baselineAvg!)}</span>
+                <span className="text-white/25">→</span>
+                <span className="text-white/45 font-light">jetzt</span>
+                <span className="text-red-300 font-semibold">{fmtEur(row.currentAvg ?? 0)}</span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="text-[12px] font-light text-red-300 tabular-nums">{dropPct}%</div>
+            </div>
+            <ChevronRight className="h-3.5 w-3.5 text-white/20 shrink-0" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TrendSummary({
+
   rows,
   loading,
   onSelect,
