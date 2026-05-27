@@ -470,6 +470,17 @@ function ModelRow({
             )}
             {" · "}{row.pointCount} Tage
           </div>
+          {(row.baselineAvg != null || row.currentAvg != null) && (
+            <div className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums flex items-center gap-1.5 flex-wrap">
+              <span>
+                Ø sonst: <span className="text-white/65">{row.baselineAvg != null ? fmtEur(row.baselineAvg) : "—"}</span>
+              </span>
+              <span className="text-white/20">→</span>
+              <span>
+                jetzt: <span className={cn("font-medium", cfg.tone)}>{row.currentAvg != null ? fmtEur(row.currentAvg) : "—"}</span>
+              </span>
+            </div>
+          )}
         </div>
         <Sparkline points={row.daily.map((p) => p.revenue)} trend={row.trend} />
         <div className="text-right shrink-0 min-w-[70px]">
