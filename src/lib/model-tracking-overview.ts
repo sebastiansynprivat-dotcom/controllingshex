@@ -221,7 +221,8 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   // Per-model phases aus 365T-Pool ableiten (für currentPhaseDays etc.)
   const poolByModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of poolRows) {
-    for (const part of expandRow(r)) {
+    for (const part of expandRow(r, followerMap)) {
+
       const dateMap = poolByModel.get(part.account) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
