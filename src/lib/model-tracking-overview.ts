@@ -374,6 +374,8 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       previousPhaseExisted,
       previousPhaseTrendDown,
       chatterAvgs,
+      baselineAvg,
+      currentAvg,
     });
   }
 
