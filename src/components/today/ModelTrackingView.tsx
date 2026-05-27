@@ -244,6 +244,11 @@ export default function ModelTrackingView({ platform, onSelectModel }: Props) {
           {/* Trend summary */}
           <TrendSummary rows={rows} loading={loading} onSelect={setDetailDirection} />
 
+          {/* Top Underperformer: starke Accounts, aktuell schwach */}
+          <TopUnderperformers rows={rows} loading={loading} onSelectModel={onSelectModel} />
+
+
+
           {/* Filter bar */}
           <div className="space-y-3">
             <TimeRangeToggle value={range} onChange={setRange} />
