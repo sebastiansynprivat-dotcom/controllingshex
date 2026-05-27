@@ -297,6 +297,12 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     if (!baselineUsed) {
       trendResult = computeTrend(daily, rangeDaysCount);
     }
+    // Letzter Fallback: Wenn immer noch "none" (zu wenig Daten überall),
+    // als "flat" einsortieren — damit jedes Model in einer Kategorie landet
+    // und die Summe der Trend-Karten = Gesamtzahl der Models bleibt.
+    if (trendResult.direction === "none") {
+      trendResult = { direction: "flat", pct: null, slope: 0 };
+    }
 
     // Per-Chatter Ø: nur Tage mit revenue > 0 zählen pro Chatter
     const chatterTotals = new Map<string, { rev: number; days: number }>();
