@@ -354,7 +354,7 @@ Schreib JETZT die fertige Nachricht. MAX 60 Wörter. 3 kurze Absätze (Leerzeile
             parameters: {
               type: "object",
               properties: {
-                message: { type: "string", description: "Fertiger Nachrichtentext auf Deutsch, 3-6 Sätze." },
+                message: { type: "string", description: "Fertiger Nachrichtentext auf Deutsch, MAX 60 Wörter, 3 kurze Absätze, WhatsApp-Bold mit *einem* Sternchen." },
               },
               required: ["message"],
               additionalProperties: false,
