@@ -936,6 +936,16 @@ export default function MonthlyGoals() {
         />
       )}
 
+      {bulkTargets && (
+        <BulkGoalMessagesDialog
+          open={!!bulkTargets}
+          onClose={() => setBulkTargets(null)}
+          platform={platform}
+          targets={bulkTargets}
+        />
+      )}
+
+
       <ChatterSlideOver
         open={!!selected}
         chatterName={selected ?? ""}
