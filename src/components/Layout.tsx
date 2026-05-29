@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { HotStreakListener } from "@/components/HotStreakListener";
 import { motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 
