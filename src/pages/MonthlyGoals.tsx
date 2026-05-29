@@ -494,10 +494,12 @@ export default function MonthlyGoals() {
 
 
         // 3b) Roster pro Chatter aus letzten 14 Tagen (aktuelle Zuordnung)
+        //     + chattersByModel: wer arbeitet aktuell am selben Model (für anteilige Verteilung)
         const fourteenAgoIso = toIsoDateLocal(
           new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14),
         );
         const rosterByChatter = new Map<string, Set<string>>();
+        const chattersByModel = new Map<string, Set<string>>();
         const sumByChatter = new Map<string, number>();
         const daysByChatter = new Map<string, Set<string>>();
         for (const h of histAllRows) {
@@ -509,13 +511,17 @@ export default function MonthlyGoals() {
           if (!daysByChatter.has(h.chatter_name)) daysByChatter.set(h.chatter_name, new Set());
           daysByChatter.get(h.chatter_name)!.add(h.analysis_date);
 
-          // Roster aus letzten 14 Tagen
+          // Roster + Reverse-Index aus letzten 14 Tagen
           if (h.analysis_date >= fourteenAgoIso) {
             const models = splitAccounts(h.account);
             if (models.length > 0) {
               if (!rosterByChatter.has(h.chatter_name)) rosterByChatter.set(h.chatter_name, new Set());
               const set = rosterByChatter.get(h.chatter_name)!;
-              for (const m of models) set.add(m);
+              for (const m of models) {
+                set.add(m);
+                if (!chattersByModel.has(m)) chattersByModel.set(m, new Set());
+                chattersByModel.get(m)!.add(h.chatter_name);
+              }
             }
           }
         }
@@ -548,17 +554,26 @@ export default function MonthlyGoals() {
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
 
           const roster = Array.from(rosterByChatter.get(chatter) ?? []);
-          const modelRes = roster.length > 0
-            ? suggestFromModels(roster, modelBaselines, today, 1.10)
-            : { goal: 0, modelBaselineEurPerDay: 0 };
+          // Anteiliger Modellschnitt: jedes Model wird durch Anzahl Chatter (letzte 14 Tage) geteilt
+          let perChatterDailyBaseline = 0;
+          for (const m of roster) {
+            const modelDaily = modelBaselines.get(m.toLowerCase()) ?? 0;
+            const share = Math.max(1, chattersByModel.get(m)?.size ?? 1);
+            perChatterDailyBaseline += modelDaily / share;
+          }
+          const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+          const rawModelGoal = perChatterDailyBaseline * daysInMonth * 1.10;
+          const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
+            ? Math.max(50, Math.round(rawModelGoal / 50) * 50)
+            : 0;
 
           let basis: "model" | "fallback";
           let suggested: number;
-          if (modelRes.goal > 0) {
+          if (modelGoal > 0) {
             basis = "model";
-            suggested = modelRes.goal;
+            suggested = modelGoal;
           } else {
-            // Fallback: alter Chatter-Schnitt (nur wenn sinnvoll)
+            // Fallback: Chatter-Schnitt 60d (nur wenn sinnvoll)
             if (avg <= 1) continue;
             basis = "fallback";
             suggested = suggestMonthlyGoal(avg, today);
@@ -570,7 +585,7 @@ export default function MonthlyGoals() {
             monthRevenue: monthRev,
             suggested,
             models: roster,
-            modelBaselineEurPerDay: modelRes.modelBaselineEurPerDay,
+            modelBaselineEurPerDay: perChatterDailyBaseline,
             basis,
           });
         }
