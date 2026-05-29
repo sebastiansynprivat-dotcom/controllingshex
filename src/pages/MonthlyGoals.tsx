@@ -732,7 +732,7 @@ export default function MonthlyGoals() {
         .limit(1);
       if (aSelErr) throw aSelErr;
 
-      const tasks: Promise<any>[] = [
+      const tasks: any[] = [
         supabase.from("coaching_notes").insert({
           platform,
           chatter_name: chatter,
