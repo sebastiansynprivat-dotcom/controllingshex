@@ -330,7 +330,7 @@ ${modelLine}
 - NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
 - WOCHE-1-ZIEL (Tag 1–7): mind. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)} = ca. 30 % des Monatsziels. Begründung im Text: Money-Window am Monatsanfang (Fans haben frisches Geld), wenn man die erste Woche pusht wird's nach hinten raus entspannter.
 
-PFLICHT-INHALTE (alles muss rein, aber MAX 60 Wörter gesamt, 3 kurze Absätze):
+PFLICHT-INHALTE (alles muss rein, aber MAX 100 Wörter gesamt, 3 kurze Absätze):
 A) 1 Satz: Recap + Fans/Kunden haben frisches Gehalt → leicht zu verkaufen.
 B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter. Konkrete VORGABE: Mass-DMs stündlich, solange du online bist. Kein Tipp, keine Alternative.
 C) 1 Satz: Neues Ziel *${fmtEUR(proposedGoal)}* für ${goalMonthName}, davon *${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}* in Woche 1.
