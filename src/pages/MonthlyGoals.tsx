@@ -720,6 +720,13 @@ export default function MonthlyGoals() {
                     key={row.chatter}
                     row={row}
                     onOpen={() => setSelected(row.chatter)}
+                    onMessage={() =>
+                      setMessageFor({
+                        chatter: row.chatter,
+                        proposedGoal: row.progress.goal,
+                        currentGoal: row.progress.goal,
+                      })
+                    }
                   />
                 ))}
               </div>
