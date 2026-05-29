@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   pushAvailableHere,
   subscribeToPush,
@@ -15,6 +16,7 @@ export function HotStreakSettings() {
   const [perm, setPerm] = useState<NotificationPermission>("default");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
   const avail = pushAvailableHere();
 
   useEffect(() => {
@@ -50,6 +52,22 @@ export function HotStreakSettings() {
     }
     setBusy(false);
   };
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-push");
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success(`Test-Push an ${data.sent}/${data.total} Gerät(e) gesendet 🏻`);
+      } else {
+        toast.error(data?.error ?? "Konnte Test-Push nicht senden");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Test-Push fehlgeschlagen");
+    }
+    setTesting(false);
+  };
+
 
   return (
     <div className="bg-white/[0.02] border border-primary/10 rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
