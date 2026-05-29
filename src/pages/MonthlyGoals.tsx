@@ -197,6 +197,9 @@ interface SuggestionRow {
   avg30: number;
   monthRevenue: number;
   suggested: number;
+  models: string[];
+  modelBaselineEurPerDay: number;
+  basis: "model" | "fallback";
 }
 
 function SuggestionCard({
