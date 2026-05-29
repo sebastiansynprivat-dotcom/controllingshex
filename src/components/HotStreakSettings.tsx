@@ -96,15 +96,25 @@ export function HotStreakSettings() {
           <div className="text-[11px] text-emerald-400/70 bg-emerald-500/[0.04] border border-emerald-500/10 rounded-lg p-3 font-light">
             ✓ Aktiv auf diesem Gerät
           </div>
-          <Button
-            onClick={handleDisable}
-            disabled={busy}
-            variant="outline"
-            className="bg-white/[0.02] hover:bg-white/[0.04] border-white/10 text-white/60 font-light text-[12px] tracking-wider"
-          >
-            <BellOff className="h-3.5 w-3.5 mr-2" />
-            {busy ? "Deaktiviere…" : "Push deaktivieren"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleTest}
+              disabled={testing}
+              className="bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20 hover:border-primary/30 font-light text-[12px] tracking-wider"
+            >
+              <Send className="h-3.5 w-3.5 mr-2" />
+              {testing ? "Sende…" : "Test-Push senden"}
+            </Button>
+            <Button
+              onClick={handleDisable}
+              disabled={busy}
+              variant="outline"
+              className="bg-white/[0.02] hover:bg-white/[0.04] border-white/10 text-white/60 font-light text-[12px] tracking-wider"
+            >
+              <BellOff className="h-3.5 w-3.5 mr-2" />
+              {busy ? "Deaktiviere…" : "Push deaktivieren"}
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
