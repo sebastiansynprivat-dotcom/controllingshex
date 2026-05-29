@@ -153,6 +153,9 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <HotStreakSettings />
+
+
       {/* Link Email/Password — only show for OAuth-only users */}
       {isOAuthOnly && (
         <div className="bg-white/[0.02] border border-primary/10 rounded-2xl p-5 sm:p-8 space-y-5 backdrop-blur-2xl">
