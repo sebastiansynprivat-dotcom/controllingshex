@@ -8,6 +8,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   return (
     <SidebarProvider>
+      <HotStreakListener />
       <div
         className="fixed inset-0 flex w-screen bg-depth overflow-hidden max-w-[100vw]"
         style={{
