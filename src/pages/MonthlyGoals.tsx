@@ -718,26 +718,40 @@ export default function MonthlyGoals() {
         labelId = created.id;
       }
 
-      // 2) Assignment + Notiz parallel
+      // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
       const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
       const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
-      const [assignRes, noteRes] = await Promise.all([
-        supabase.from("chatter_label_assignments").insert({
-          platform,
-          chatter_name: chatter,
-          label_id: labelId!,
-          user_id: user.id,
-        }),
+
+      const { data: existingAssign, error: aSelErr } = await supabase
+        .from("chatter_label_assignments")
+        .select("id")
+        .eq("platform", platform)
+        .eq("label_id", labelId!)
+        .eq("chatter_name", chatter)
+        .limit(1);
+      if (aSelErr) throw aSelErr;
+
+      const tasks: Promise<any>[] = [
         supabase.from("coaching_notes").insert({
           platform,
           chatter_name: chatter,
           note_text: noteText,
           user_id: user.id,
         }),
-      ]);
-      if (assignRes.error) throw assignRes.error;
-      if (noteRes.error) throw noteRes.error;
+      ];
+      if (!existingAssign || existingAssign.length === 0) {
+        tasks.unshift(
+          supabase.from("chatter_label_assignments").insert({
+            platform,
+            chatter_name: chatter,
+            label_id: labelId!,
+            user_id: user.id,
+          }),
+        );
+      }
+      const results = await Promise.all(tasks);
+      for (const r of results) if (r.error) throw r.error;
 
       toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
       setReloadKey((k) => k + 1);
