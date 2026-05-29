@@ -114,3 +114,66 @@ export function suggestMonthlyGoal(avgDailyRevenue: number, today: Date = new Da
   if (!Number.isFinite(raw) || raw <= 0) return 0;
   return Math.max(50, Math.round(raw / 50) * 50);
 }
+
+/**
+ * Splittet einen Account-String aus chatter_history in einzelne Model-Slugs.
+ * Akzeptiert Komma oder Semikolon als Trenner. Lowercase + trim. Leere Tokens raus.
+ */
+export function splitAccounts(account: string | null | undefined): string[] {
+  if (!account) return [];
+  return account
+    .split(/[,;]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * Berechnet pro Model den Ø EUR/Tag über die übergebenen History-Rows (letzte 60 Tage).
+ * Mehrere Models in einer Row teilen den Umsatz gleichmäßig (Anteilig).
+ * 0-€-Tage zählen mit (drücken den Schnitt – realistisch).
+ * Key = lowercase model slug.
+ */
+export function computeModelBaselines(
+  rows: Array<{ account: string | null; revenue_today: number | null; analysis_date: string }>,
+): Map<string, number> {
+  const sumByModel = new Map<string, number>();
+  const daysByModel = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const models = splitAccounts(r.account);
+    if (models.length === 0) continue;
+    const rev = Number(r.revenue_today ?? 0);
+    const share = rev / models.length;
+    for (const m of models) {
+      sumByModel.set(m, (sumByModel.get(m) ?? 0) + share);
+      if (!daysByModel.has(m)) daysByModel.set(m, new Set());
+      daysByModel.get(m)!.add(r.analysis_date);
+    }
+  }
+  const result = new Map<string, number>();
+  for (const [m, sum] of sumByModel) {
+    const days = daysByModel.get(m)?.size ?? 0;
+    if (days > 0) result.set(m, sum / days);
+  }
+  return result;
+}
+
+/**
+ * Ziel = Σ(Ø EUR/Tag pro Model im Roster) × Tage im Monat × stretch, auf 50 € gerundet.
+ * Models ohne Baseline werden mit 0 gewichtet.
+ */
+export function suggestFromModels(
+  roster: string[],
+  baselines: Map<string, number>,
+  today: Date = new Date(),
+  stretch: number = 1.10,
+): { goal: number; modelBaselineEurPerDay: number } {
+  const baseline = roster.reduce(
+    (acc, m) => acc + (baselines.get(m.toLowerCase()) ?? 0),
+    0,
+  );
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const raw = baseline * daysInMonth * stretch;
+  const goal = Number.isFinite(raw) && raw > 0 ? Math.max(50, Math.round(raw / 50) * 50) : 0;
+  return { goal, modelBaselineEurPerDay: baseline };
+}
+
