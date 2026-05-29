@@ -102,22 +102,50 @@ Deno.serve(async (req) => {
 
     if (histRes.error) throw histRes.error;
 
-    let lastMonthRev = 0;
-    let prevPrevMonthRev = 0;
-    let thisMonthRev = 0;
-    let lastMonthDays = 0;
+    // Aggregate per DISTINCT day (chatter_history hat oft mehrere Rows/Tag pro Account)
+    const lastFrom = iso(firstOfLastMonth);
+    const lastTo = iso(lastOfLastMonth);
+    const prevFrom = iso(firstOfPrevPrevMonth);
+    const prevTo = iso(lastOfPrevPrevMonth);
+    const thisFrom = iso(firstOfThisMonth);
+
+    const dayMap = new Map<string, { rev: number; bucket: "last" | "prev" | "this" }>();
     for (const h of histRes.data ?? []) {
       const d = h.analysis_date as string;
       const rev = Number(h.revenue_today ?? 0);
-      if (d >= iso(firstOfLastMonth) && d <= iso(lastOfLastMonth)) {
-        lastMonthRev += rev;
-        if (rev > 0) lastMonthDays += 1;
-      } else if (d >= iso(firstOfPrevPrevMonth) && d <= iso(lastOfPrevPrevMonth)) {
-        prevPrevMonthRev += rev;
-      } else if (d >= iso(firstOfThisMonth)) {
-        thisMonthRev += rev;
+      let bucket: "last" | "prev" | "this" | null = null;
+      if (d >= lastFrom && d <= lastTo) bucket = "last";
+      else if (d >= prevFrom && d <= prevTo) bucket = "prev";
+      else if (d >= thisFrom) bucket = "this";
+      if (!bucket) continue;
+      const key = `${bucket}|${d}`;
+      const cur = dayMap.get(key) ?? { rev: 0, bucket };
+      cur.rev += rev;
+      dayMap.set(key, cur);
+    }
+
+    let lastMonthRev = 0, lastWorkedDays = 0, lastEarningDays = 0;
+    let prevMonthRev = 0, prevWorkedDays = 0, prevEarningDays = 0;
+    let thisMonthRev = 0;
+    for (const v of dayMap.values()) {
+      if (v.bucket === "last") {
+        lastMonthRev += v.rev;
+        lastWorkedDays += 1;
+        if (v.rev > 0) lastEarningDays += 1;
+      } else if (v.bucket === "prev") {
+        prevMonthRev += v.rev;
+        prevWorkedDays += 1;
+        if (v.rev > 0) prevEarningDays += 1;
+      } else if (v.bucket === "this") {
+        thisMonthRev += v.rev;
       }
     }
+    const daysInLastMonth = lastOfLastMonth.getUTCDate();
+    const daysInPrevPrevMonth = lastOfPrevPrevMonth.getUTCDate();
+    const lastAvgPerWorkedDay = lastWorkedDays > 0 ? lastMonthRev / lastWorkedDays : 0;
+    const prevAvgPerWorkedDay = prevWorkedDays > 0 ? prevMonthRev / prevWorkedDays : 0;
+    const lastEarningRatio = lastWorkedDays > 0 ? lastEarningDays / lastWorkedDays : 0;
+    const lastAttendanceRatio = daysInLastMonth > 0 ? lastWorkedDays / daysInLastMonth : 0;
 
     // Try to extract previous goal from notes if not provided
     let priorGoal: number | null = currentGoal;
@@ -146,7 +174,7 @@ Deno.serve(async (req) => {
     const thisMonthName = MONTHS_DE[firstOfThisMonth.getUTCMonth()];
 
     const goalHit = priorGoal != null && priorGoal > 0 ? (lastMonthRev / priorGoal) * 100 : null;
-    const vsPrev = prevPrevMonthRev > 0 ? ((lastMonthRev - prevPrevMonthRev) / prevPrevMonthRev) * 100 : null;
+    const vsPrev = prevMonthRev > 0 ? ((lastMonthRev - prevMonthRev) / prevMonthRev) * 100 : null;
 
     let tone: "strong" | "ok" | "weak";
     if (goalHit != null) {
@@ -157,17 +185,35 @@ Deno.serve(async (req) => {
       tone = "ok";
     }
 
+    const manyZeroDays = lastWorkedDays >= 5 && lastEarningRatio < 0.5;
+    const lowAttendance = lastAttendanceRatio < 0.4 && lastWorkedDays > 0;
+
+    const toneLine = tone === "strong"
+      ? "Letzter Monat war stark. Echtes Lob, dann klarer Push noch einen draufzulegen."
+      : tone === "ok"
+      ? "Solide, nicht spektakulär. Anerkennen, dann auf nächstes Level pushen."
+      : "Letzter Monat war unter Ziel/schwach. NICHT abwerten – locker einordnen, klar machen dass das nicht schlimm ist, Vertrauen geben, motivieren den nächsten Monat zu drehen.";
+
+    const contextHints: string[] = [];
+    if (manyZeroDays) {
+      contextHints.push(`WICHTIG: Viele Nullrunden – nur ${lastEarningDays} von ${lastWorkedDays} Arbeitstagen brachten Umsatz. Sprich das diplomatisch an: die Schichten wurden nicht ausgenutzt. Fokus: mehr aus den vorhandenen Schichten holen, nicht "mehr arbeiten".`);
+    }
+    if (lowAttendance) {
+      contextHints.push(`WICHTIG: Nur ${lastWorkedDays} von ${daysInLastMonth} Kalendertagen aktiv. Bewerte die TAGES-Leistung (Ø ${fmtEUR(lastAvgPerWorkedDay)}/Tag), NICHT die Monatssumme. Kein Bashing wegen niedriger Gesamt-EUR.`);
+    }
+
     const userPrompt = `Schreib genau eine Direktnachricht an den Chatter "${chatterName}".
 
 ZAHLEN (verwende sie ehrlich, runde EUR auf volle Hundert wenn sinnvoll):
-- Letzter Monat (${lastMonthName}): Umsatz ${fmtEUR(lastMonthRev)}${lastMonthDays ? ` an ${lastMonthDays} aktiven Tagen` : ""}.
+- Letzter Monat (${lastMonthName}): Umsatz ${fmtEUR(lastMonthRev)} an ${lastWorkedDays} von ${daysInLastMonth} Kalendertagen aktiv${lastWorkedDays > 0 ? ` (Ø ${fmtEUR(lastAvgPerWorkedDay)}/Arbeitstag)` : ""}.
+- Davon Earning-Tage (>0 €): ${lastEarningDays}${lastWorkedDays > 0 ? ` von ${lastWorkedDays} (${Math.round(lastEarningRatio * 100)}%) – also ${lastWorkedDays - lastEarningDays} Nullrunden` : ""}.
 - Altes Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}.
 - Zielerreichung letzter Monat: ${goalHit != null ? Math.round(goalHit) + "%" : "—"}.
-- Vormonat davor: ${prevPrevMonthRev > 0 ? fmtEUR(prevPrevMonthRev) : "—"}${vsPrev != null ? ` (Trend ${vsPrev >= 0 ? "+" : ""}${Math.round(vsPrev)}% vs. davor)` : ""}.
+- Vormonat davor: ${prevMonthRev > 0 ? `${fmtEUR(prevMonthRev)} an ${prevWorkedDays}/${daysInPrevPrevMonth} Tagen (Ø ${fmtEUR(prevAvgPerWorkedDay)}/Tag)` : "—"}${vsPrev != null ? ` (Trend Gesamtumsatz ${vsPrev >= 0 ? "+" : ""}${Math.round(vsPrev)}% vs. davor)` : ""}.
 - Aktueller Monat bisher (${thisMonthName}): ${fmtEUR(thisMonthRev)}.
 - NEUES Monatsziel für ${thisMonthName}: ${fmtEUR(proposedGoal)} — MUSS in der Nachricht genannt werden.
 
-TONE: ${tone === "strong" ? "Letzter Monat war stark. Echtes Lob, dann klarer Push noch einen draufzulegen." : tone === "ok" ? "Solide, nicht spektakulär. Anerkennen, dann auf nächstes Level pushen." : "Letzter Monat war unter Ziel/schwach. NICHT abwerten – locker einordnen, klar machen dass das nicht schlimm ist, Vertrauen geben, motivieren den nächsten Monat zu drehen."}
+TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
 Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji-Regeln beachten).`;
 
