@@ -284,17 +284,36 @@ Deno.serve(async (req) => {
       ? `- Models im aktuellen Roster: ${roster.length} (${roster.slice(0, 5).join(", ")}${roster.length > 5 ? ", …" : ""}) – kombiniertes Tages-Potenzial Ø ${fmtEUR(modelBaselineEurPerDay)}/Tag (Basis letzte 60 Tage, alle Chatter).`
       : "- Models im Roster: keine erkannt (Account-Feld leer).";
 
+    // Vormonats-Vergleich nur, wenn Chatter schon im Vormonat dabei war
+    const showPrior = !startedAfterPriorMonth;
+    const priorLine = showPrior
+      ? `- Vormonat ${priorMonthName} (komplett): ${priorRev > 0 ? `${fmtEUR(priorRev)} an ${priorWorkedDays}/${daysInPriorMonth} Tagen (Ø ${fmtEUR(priorAvgPerWorkedDay)}/Tag)` : "—"}${vsPrior != null ? ` (Trend Hochrechnung vs. Vormonat ${vsPrior >= 0 ? "+" : ""}${Math.round(vsPrior)}%)` : ""}.`
+      : `- Vormonat ${priorMonthName}: NICHT relevant – Chatter war damals noch nicht dabei. KEINE Vergleiche mit ${priorMonthName} ziehen.`;
+
+    const tenureLine = onboardedOn
+      ? startedThisMonth
+        ? `- Onboarding: Chatter ist erst seit ${tenureDays} Tagen dabei (Start im ${recapMonthName}). Recap mit Augenmaß – ist quasi Einstieg. KEIN Vormonats-Vergleich.`
+        : startedDuringPriorMonth
+        ? `- Onboarding: Chatter startete im ${priorMonthName} (seit ${tenureDays} Tagen dabei). Daten aus ${priorMonthName} sind nur Teilmonat – nicht als voller Vormonat behandeln, kein "letzter Monat lief schlecht".`
+        : isNewbie
+        ? `- Onboarding: Chatter ist seit ${tenureDays} Tagen dabei (relativ neu). Tonalität entsprechend: Aufbau-Phase, nicht abrechnen.`
+        : `- Onboarding: Chatter ist seit ${tenureDays} Tagen dabei (etabliert).`
+      : "";
+
     const userPrompt = `Schreib genau eine Direktnachricht an den Chatter "${chatterName}".
 
 WICHTIG ZUM TIMING:
 - Das NEUE Monatsziel zählt für ${goalMonthName} (Folgemonat, hat noch nicht begonnen).
 - Der laufende Monat ist ${recapMonthName} – davon gibt's einen KURZEN Recap (1 Satz), das ist NICHT das Hauptthema.
 - Nachricht muss klar vermitteln: "Für ${goalMonthName} ist dein Ziel X €" – nicht für den aktuellen Monat.
+${startedAfterPriorMonth ? `- ACHTUNG: Chatter war im ${priorMonthName} noch nicht im Team. Erwähne NICHTS über ${priorMonthName} – weder Zahlen noch Performance.` : ""}
+${startedThisMonth ? `- ACHTUNG: Chatter ist erst diesen Monat (${recapMonthName}) gestartet. Recap sehr wohlwollend formulieren – das sind Einstiegs-Tage, keine volle Bewertungsbasis.` : ""}
 
 ZAHLEN (verwende sie ehrlich, runde EUR auf volle Hundert wenn sinnvoll):
 - Laufender Monat (${recapMonthName}) bisher: ${fmtEUR(recapRev)} an ${recapWorkedDays} von ${daysInRecapSoFar} Tagen aktiv${recapWorkedDays > 0 ? ` (Ø ${fmtEUR(recapAvgPerWorkedDay)}/Arbeitstag)` : ""}. Hochrechnung Monatsende: ~${fmtEUR(projectedRecap)}.
 - Earning-Tage (>0 €) im ${recapMonthName}: ${recapEarningDays}${recapWorkedDays > 0 ? ` von ${recapWorkedDays} (${Math.round(recapEarningRatio * 100)}%)` : ""}.
-- Vormonat ${priorMonthName} (komplett): ${priorRev > 0 ? `${fmtEUR(priorRev)} an ${priorWorkedDays}/${daysInPriorMonth} Tagen (Ø ${fmtEUR(priorAvgPerWorkedDay)}/Tag)` : "—"}${vsPrior != null ? ` (Trend Hochrechnung vs. Vormonat ${vsPrior >= 0 ? "+" : ""}${Math.round(vsPrior)}%)` : ""}.
+${priorLine}
+${tenureLine}
 - Altes/aktuelles Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}${goalHit != null ? ` – Hochrechnung trifft das zu ${Math.round(goalHit)}%` : ""}.
 ${modelLine}
 - NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
