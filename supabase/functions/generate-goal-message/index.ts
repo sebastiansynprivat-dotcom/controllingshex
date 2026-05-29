@@ -69,15 +69,16 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Date ranges
+    // Date ranges — Recap = LAUFENDER Monat (so weit), Ziel = FOLGEMONAT
     const today = new Date();
     const y = today.getUTCFullYear();
     const m = today.getUTCMonth(); // 0-11
+    const firstOfNextMonth = new Date(Date.UTC(y, m + 1, 1));
+    const lastOfNextMonth = new Date(Date.UTC(y, m + 2, 0));
     const firstOfThisMonth = new Date(Date.UTC(y, m, 1));
+    const lastOfThisMonth = new Date(Date.UTC(y, m + 1, 0));
     const firstOfLastMonth = new Date(Date.UTC(y, m - 1, 1));
     const lastOfLastMonth = new Date(Date.UTC(y, m, 0));
-    const firstOfPrevPrevMonth = new Date(Date.UTC(y, m - 2, 1));
-    const lastOfPrevPrevMonth = new Date(Date.UTC(y, m - 1, 0));
 
     const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
         .eq("user_id", userId)
         .eq("platform", platform)
         .eq("chatter_name", chatterName)
-        .gte("analysis_date", iso(firstOfPrevPrevMonth))
+        .gte("analysis_date", iso(firstOfLastMonth))
         .lte("analysis_date", iso(today)),
       admin
         .from("coaching_notes")
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
         if (models.length === 0) continue;
         const share = Number(r.revenue_today ?? 0) / models.length;
         for (const m of models) {
-          if (!rosterSet.has(m)) continue; // nur Models im Roster zählen
+          if (!rosterSet.has(m)) continue;
           sumByModel.set(m, (sumByModel.get(m) ?? 0) + share);
           if (!daysByModel.has(m)) daysByModel.set(m, new Set());
           daysByModel.get(m)!.add(r.analysis_date);
@@ -153,23 +154,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Aggregate per DISTINCT day
+    // recap = laufender Monat (bisher), prior = letzter Monat (komplett) für Trend
+    const recapFrom = iso(firstOfThisMonth);
+    const recapTo = iso(today);
+    const priorFrom = iso(firstOfLastMonth);
+    const priorTo = iso(lastOfLastMonth);
 
-
-    // Aggregate per DISTINCT day (chatter_history hat oft mehrere Rows/Tag pro Account)
-    const lastFrom = iso(firstOfLastMonth);
-    const lastTo = iso(lastOfLastMonth);
-    const prevFrom = iso(firstOfPrevPrevMonth);
-    const prevTo = iso(lastOfPrevPrevMonth);
-    const thisFrom = iso(firstOfThisMonth);
-
-    const dayMap = new Map<string, { rev: number; bucket: "last" | "prev" | "this" }>();
+    const dayMap = new Map<string, { rev: number; bucket: "recap" | "prior" }>();
     for (const h of histRes.data ?? []) {
       const d = h.analysis_date as string;
       const rev = Number(h.revenue_today ?? 0);
-      let bucket: "last" | "prev" | "this" | null = null;
-      if (d >= lastFrom && d <= lastTo) bucket = "last";
-      else if (d >= prevFrom && d <= prevTo) bucket = "prev";
-      else if (d >= thisFrom) bucket = "this";
+      let bucket: "recap" | "prior" | null = null;
+      if (d >= recapFrom && d <= recapTo) bucket = "recap";
+      else if (d >= priorFrom && d <= priorTo) bucket = "prior";
       if (!bucket) continue;
       const key = `${bucket}|${d}`;
       const cur = dayMap.get(key) ?? { rev: 0, bucket };
@@ -177,28 +175,27 @@ Deno.serve(async (req) => {
       dayMap.set(key, cur);
     }
 
-    let lastMonthRev = 0, lastWorkedDays = 0, lastEarningDays = 0;
-    let prevMonthRev = 0, prevWorkedDays = 0, prevEarningDays = 0;
-    let thisMonthRev = 0;
+    let recapRev = 0, recapWorkedDays = 0, recapEarningDays = 0;
+    let priorRev = 0, priorWorkedDays = 0, priorEarningDays = 0;
     for (const v of dayMap.values()) {
-      if (v.bucket === "last") {
-        lastMonthRev += v.rev;
-        lastWorkedDays += 1;
-        if (v.rev > 0) lastEarningDays += 1;
-      } else if (v.bucket === "prev") {
-        prevMonthRev += v.rev;
-        prevWorkedDays += 1;
-        if (v.rev > 0) prevEarningDays += 1;
-      } else if (v.bucket === "this") {
-        thisMonthRev += v.rev;
+      if (v.bucket === "recap") {
+        recapRev += v.rev;
+        recapWorkedDays += 1;
+        if (v.rev > 0) recapEarningDays += 1;
+      } else {
+        priorRev += v.rev;
+        priorWorkedDays += 1;
+        if (v.rev > 0) priorEarningDays += 1;
       }
     }
-    const daysInLastMonth = lastOfLastMonth.getUTCDate();
-    const daysInPrevPrevMonth = lastOfPrevPrevMonth.getUTCDate();
-    const lastAvgPerWorkedDay = lastWorkedDays > 0 ? lastMonthRev / lastWorkedDays : 0;
-    const prevAvgPerWorkedDay = prevWorkedDays > 0 ? prevMonthRev / prevWorkedDays : 0;
-    const lastEarningRatio = lastWorkedDays > 0 ? lastEarningDays / lastWorkedDays : 0;
-    const lastAttendanceRatio = daysInLastMonth > 0 ? lastWorkedDays / daysInLastMonth : 0;
+    const daysInRecapSoFar = today.getUTCDate(); // Tage des laufenden Monats bisher
+    const daysInRecapMonth = lastOfThisMonth.getUTCDate();
+    const daysInPriorMonth = lastOfLastMonth.getUTCDate();
+    const daysInGoalMonth = lastOfNextMonth.getUTCDate();
+    const recapAvgPerWorkedDay = recapWorkedDays > 0 ? recapRev / recapWorkedDays : 0;
+    const priorAvgPerWorkedDay = priorWorkedDays > 0 ? priorRev / priorWorkedDays : 0;
+    const recapEarningRatio = recapWorkedDays > 0 ? recapEarningDays / recapWorkedDays : 0;
+    const recapAttendanceRatio = daysInRecapSoFar > 0 ? recapWorkedDays / daysInRecapSoFar : 0;
 
     // Try to extract previous goal from notes if not provided
     let priorGoal: number | null = currentGoal;
@@ -223,36 +220,41 @@ Deno.serve(async (req) => {
       new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
     const MONTHS_DE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-    const lastMonthName = MONTHS_DE[firstOfLastMonth.getUTCMonth()];
-    const thisMonthName = MONTHS_DE[firstOfThisMonth.getUTCMonth()];
+    const recapMonthName = MONTHS_DE[firstOfThisMonth.getUTCMonth()];
+    const priorMonthName = MONTHS_DE[firstOfLastMonth.getUTCMonth()];
+    const goalMonthName = MONTHS_DE[firstOfNextMonth.getUTCMonth()];
 
-    const goalHit = priorGoal != null && priorGoal > 0 ? (lastMonthRev / priorGoal) * 100 : null;
-    const vsPrev = prevMonthRev > 0 ? ((lastMonthRev - prevMonthRev) / prevMonthRev) * 100 : null;
+    // Hochrechnung des laufenden Monats: pace = bisher pro Tag * Tage gesamt
+    const projectedRecap = daysInRecapSoFar > 0
+      ? (recapRev / daysInRecapSoFar) * daysInRecapMonth
+      : 0;
+    const goalHit = priorGoal != null && priorGoal > 0 ? (projectedRecap / priorGoal) * 100 : null;
+    const vsPrior = priorRev > 0 ? ((projectedRecap - priorRev) / priorRev) * 100 : null;
 
     let tone: "strong" | "ok" | "weak";
     if (goalHit != null) {
       tone = goalHit >= 95 ? "strong" : goalHit >= 75 ? "ok" : "weak";
-    } else if (vsPrev != null) {
-      tone = vsPrev >= 5 ? "strong" : vsPrev >= -10 ? "ok" : "weak";
+    } else if (vsPrior != null) {
+      tone = vsPrior >= 5 ? "strong" : vsPrior >= -10 ? "ok" : "weak";
     } else {
       tone = "ok";
     }
 
-    const manyZeroDays = lastWorkedDays >= 5 && lastEarningRatio < 0.5;
-    const lowAttendance = lastAttendanceRatio < 0.4 && lastWorkedDays > 0;
+    const manyZeroDays = recapWorkedDays >= 5 && recapEarningRatio < 0.5;
+    const lowAttendance = recapAttendanceRatio < 0.4 && recapWorkedDays > 0;
 
     const toneLine = tone === "strong"
-      ? "Letzter Monat war stark. Echtes Lob, dann klarer Push noch einen draufzulegen."
+      ? `Laufender Monat (${recapMonthName}) sieht stark aus. Kurz anerkennen, dann klar machen: ${goalMonthName} legen wir nochmal eine Schippe drauf.`
       : tone === "ok"
-      ? "Solide, nicht spektakulär. Anerkennen, dann auf nächstes Level pushen."
-      : "Letzter Monat war unter Ziel/schwach. NICHT abwerten – locker einordnen, klar machen dass das nicht schlimm ist, Vertrauen geben, motivieren den nächsten Monat zu drehen.";
+      ? `Laufender Monat (${recapMonthName}) ist solide. Kurz einordnen, dann auf ${goalMonthName} pushen.`
+      : `Laufender Monat (${recapMonthName}) bleibt hinter Erwartung. NICHT abwerten – locker einordnen, Vertrauen geben, klar machen dass wir ${goalMonthName} sauber drehen.`;
 
     const contextHints: string[] = [];
     if (manyZeroDays) {
-      contextHints.push(`WICHTIG: Viele Nullrunden – nur ${lastEarningDays} von ${lastWorkedDays} Arbeitstagen brachten Umsatz. Sprich das diplomatisch an: die Schichten wurden nicht ausgenutzt. Fokus: mehr aus den vorhandenen Schichten holen, nicht "mehr arbeiten".`);
+      contextHints.push(`Viele Nullrunden im laufenden Monat – nur ${recapEarningDays} von ${recapWorkedDays} Arbeitstagen brachten Umsatz. Diplomatisch ansprechen: Schichten besser nutzen, nicht "mehr arbeiten".`);
     }
     if (lowAttendance) {
-      contextHints.push(`WICHTIG: Nur ${lastWorkedDays} von ${daysInLastMonth} Kalendertagen aktiv. Bewerte die TAGES-Leistung (Ø ${fmtEUR(lastAvgPerWorkedDay)}/Tag), NICHT die Monatssumme. Kein Bashing wegen niedriger Gesamt-EUR.`);
+      contextHints.push(`Geringe Präsenz im laufenden Monat (${recapWorkedDays} von ${daysInRecapSoFar} Tagen bisher). Bewerte die TAGES-Leistung (Ø ${fmtEUR(recapAvgPerWorkedDay)}/Tag), NICHT die Monatssumme.`);
     }
 
     const modelLine = roster.length > 0 && modelBaselineEurPerDay > 0
@@ -261,19 +263,24 @@ Deno.serve(async (req) => {
 
     const userPrompt = `Schreib genau eine Direktnachricht an den Chatter "${chatterName}".
 
+WICHTIG ZUM TIMING:
+- Das NEUE Monatsziel zählt für ${goalMonthName} (Folgemonat, hat noch nicht begonnen).
+- Der laufende Monat ist ${recapMonthName} – davon gibt's einen KURZEN Recap (1 Satz), das ist NICHT das Hauptthema.
+- Nachricht muss klar vermitteln: "Für ${goalMonthName} ist dein Ziel X €" – nicht für den aktuellen Monat.
+
 ZAHLEN (verwende sie ehrlich, runde EUR auf volle Hundert wenn sinnvoll):
-- Letzter Monat (${lastMonthName}): Umsatz ${fmtEUR(lastMonthRev)} an ${lastWorkedDays} von ${daysInLastMonth} Kalendertagen aktiv${lastWorkedDays > 0 ? ` (Ø ${fmtEUR(lastAvgPerWorkedDay)}/Arbeitstag)` : ""}.
-- Davon Earning-Tage (>0 €): ${lastEarningDays}${lastWorkedDays > 0 ? ` von ${lastWorkedDays} (${Math.round(lastEarningRatio * 100)}%) – also ${lastWorkedDays - lastEarningDays} Nullrunden` : ""}.
-- Altes Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}.
-- Zielerreichung letzter Monat: ${goalHit != null ? Math.round(goalHit) + "%" : "—"}.
-- Vormonat davor: ${prevMonthRev > 0 ? `${fmtEUR(prevMonthRev)} an ${prevWorkedDays}/${daysInPrevPrevMonth} Tagen (Ø ${fmtEUR(prevAvgPerWorkedDay)}/Tag)` : "—"}${vsPrev != null ? ` (Trend Gesamtumsatz ${vsPrev >= 0 ? "+" : ""}${Math.round(vsPrev)}% vs. davor)` : ""}.
-- Aktueller Monat bisher (${thisMonthName}): ${fmtEUR(thisMonthRev)}.
+- Laufender Monat (${recapMonthName}) bisher: ${fmtEUR(recapRev)} an ${recapWorkedDays} von ${daysInRecapSoFar} Tagen aktiv${recapWorkedDays > 0 ? ` (Ø ${fmtEUR(recapAvgPerWorkedDay)}/Arbeitstag)` : ""}. Hochrechnung Monatsende: ~${fmtEUR(projectedRecap)}.
+- Earning-Tage (>0 €) im ${recapMonthName}: ${recapEarningDays}${recapWorkedDays > 0 ? ` von ${recapWorkedDays} (${Math.round(recapEarningRatio * 100)}%)` : ""}.
+- Vormonat ${priorMonthName} (komplett): ${priorRev > 0 ? `${fmtEUR(priorRev)} an ${priorWorkedDays}/${daysInPriorMonth} Tagen (Ø ${fmtEUR(priorAvgPerWorkedDay)}/Tag)` : "—"}${vsPrior != null ? ` (Trend Hochrechnung vs. Vormonat ${vsPrior >= 0 ? "+" : ""}${Math.round(vsPrior)}%)` : ""}.
+- Altes/aktuelles Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}${goalHit != null ? ` – Hochrechnung trifft das zu ${Math.round(goalHit)}%` : ""}.
 ${modelLine}
-- NEUES Monatsziel für ${thisMonthName}: ${fmtEUR(proposedGoal)} — MUSS in der Nachricht genannt werden. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
+- NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
 
 TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
-Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji-Regeln beachten).`;
+Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji-Regeln beachten). Das Ziel MUSS eindeutig für ${goalMonthName} sein.`;
+
+
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -341,24 +348,29 @@ Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji
       JSON.stringify({
         message: parsed.message,
         context: {
-          last_month_revenue: lastMonthRev,
-          last_month_name: lastMonthName,
-          last_worked_days: lastWorkedDays,
-          last_earning_days: lastEarningDays,
-          last_zero_days: lastWorkedDays - lastEarningDays,
-          days_in_last_month: daysInLastMonth,
-          last_avg_per_worked_day: lastAvgPerWorkedDay,
+          // Recap (laufender Monat) – wird im Dialog unter "last_month_*" Keys angezeigt
+          last_month_revenue: recapRev,
+          last_month_name: `${recapMonthName} (bisher)`,
+          last_worked_days: recapWorkedDays,
+          last_earning_days: recapEarningDays,
+          last_zero_days: recapWorkedDays - recapEarningDays,
+          days_in_last_month: daysInRecapSoFar,
+          last_avg_per_worked_day: recapAvgPerWorkedDay,
           prior_goal: priorGoal,
           goal_hit_pct: goalHit,
-          vs_prev_pct: vsPrev,
-          prev_month_revenue: prevMonthRev,
-          prev_worked_days: prevWorkedDays,
-          this_month_revenue: thisMonthRev,
-          this_month_name: thisMonthName,
+          vs_prev_pct: vsPrior,
+          prev_month_revenue: priorRev,
+          prev_worked_days: priorWorkedDays,
+          this_month_revenue: projectedRecap,
+          this_month_name: goalMonthName,
+          goal_month_name: goalMonthName,
+          recap_month_name: recapMonthName,
+          projected_recap: projectedRecap,
           roster,
           model_baseline_eur_per_day: modelBaselineEurPerDay,
           tone,
         },
+
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
