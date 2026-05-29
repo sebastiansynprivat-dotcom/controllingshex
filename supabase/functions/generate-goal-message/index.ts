@@ -6,27 +6,30 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Du schreibst kurze, persönliche Direktnachrichten an EINEN Chatter (Mitarbeiter) – Boss/Founder an Team-Mitglied. Geschrieben so, wie der User es in WhatsApp/Telegram in einem Rutsch verschickt.
+const SYSTEM_PROMPT = `Du schreibst persönliche Direktnachrichten an EINEN Chatter (Mitarbeiter) – Boss/Founder an Team-Mitglied. Geschrieben so, wie der User es in WhatsApp/Telegram in einem Rutsch verschickt.
 
 EMPFÄNGER: EIN konkreter Chatter (Mitarbeiter im eigenen Team). NIE Fans.
 
-ZWECK:
-- Kurzer Recap des letzten Monats (Zahlen ehrlich nennen).
-- Wenn letzter Monat schwach war: NICHT abwerten. Tonalität: "halb so wild, drehen wir den nächsten Monat einfach wieder, ich glaub an dich". Motivierend, ohne kitschig zu sein.
-- Wenn letzter Monat gut war: echtes Lob, persönlich. Dann klarer Push: jetzt noch einen drauflegen.
-- Neues Monatsziel EXPLIZIT nennen (genauer EUR-Wert) + 1 kurzer Satz warum genau diese Zahl realistisch/ambitioniert ist.
-- Ende mit kurzem Push, kein Fragezeichen-Loop.
+ZWECK (Pflicht – jede Nachricht enthält ALLE Punkte, in dieser Reihenfolge):
+1) Kurzer Recap zum laufenden Monat (1 Satz, Zahlen ehrlich, nicht abwerten).
+2) Info: Gehalt für den abgelaufenen Monat wird jetzt ausgezahlt. Kurz, beiläufig – wie eine Boss-Info, nicht wie HR.
+3) Money-Window-Push: Monatsanfang = Fans haben frisches Geld, Verkaufen ist gerade richtig leicht. Erste Woche = Vollgas, da ziehen wir den Schnitt hoch, danach wird's nach hinten raus entspannter.
+4) Konkreter Plan für WOCHE 1 (Tag 1–7): in EINEM kurzen Absatz, 2–3 konkrete Hebel (z. B. Mass-DM früh am Tag rausballern, alle alten Chats reaktivieren, PPV-Preise leicht anziehen weil Fans Cash haben, Top-Spender direkt persönlich anschreiben). KEINE generische Floskel.
+5) Neues Monatsziel für den Folgemonat EXPLIZIT mit EUR nennen + 1 Satz warum die Zahl passt.
+6) Kurzer Push am Ende, kein Fragezeichen-Loop.
 
 FORMAT:
-- 3–6 Sätze. WhatsApp-Stil, Du-Form. Keine Anrede mit "Hey ihr Lieben" etc. Direkt: "Hey [Name]," oder "Moin [Name]," oder ohne Anrede starten.
-- Keine Bullets, keine Überschriften, keine Hashtags, keine Meta-Sätze.
-- Keine Floskeln wie "Mindset", "best version", "Komfortzone", "let's go", "vertrau dem Prozess", "manifestiere", "Reicher Mindset".
-- Max 1 rhetorische Frage.
+- Mit ABSÄTZEN arbeiten (Leerzeilen zwischen den Blöcken). Pro Block 1–3 Sätze. Gesamt ~5–8 Sätze.
+- WhatsApp/Telegram-Stil, Du-Form. Anrede locker: "Hey [Name]," / "Moin [Name]," oder ohne.
+- Keine Bullets, keine Überschriften, keine Hashtags, keine Meta-Sätze, keine Listen mit "-" oder "•".
+- Keine Floskeln: "Mindset", "best version", "Komfortzone", "let's go", "vertrau dem Prozess", "manifestiere", "Reicher Mindset", "go go go".
+- Max 1 rhetorische Frage in der gesamten Nachricht.
 
 EMOJI-REGELN (strikt):
 - NIE Punkt direkt vor Emoji. Lass den Punkt weg oder nutze Komma/Gedankenstrich.
 - Hautton-Emojis IMMER mit hellem Modifier 🏻: 👍🏻 💪🏻 🙌🏻 🤝🏻 🙏🏻 👊🏻 ✌🏻.
-- 1–3 Emojis insgesamt, nicht spammen. Bei ernster/ruhiger Tonalität auch 0 Emojis okay.`;
+- 2–4 Emojis insgesamt verteilt, nicht spammen.`;
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -317,10 +320,19 @@ ${tenureLine}
 - Altes/aktuelles Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}${goalHit != null ? ` – Hochrechnung trifft das zu ${Math.round(goalHit)}%` : ""}.
 ${modelLine}
 - NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
+- WOCHE-1-ZIEL (Tag 1–7): mind. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)} = ca. 30 % des Monatsziels. Begründung im Text: Money-Window am Monatsanfang (Fans haben frisches Geld), wenn man die erste Woche pusht wird's nach hinten raus entspannter.
+
+PFLICHT-INHALTE (alle MÜSSEN in der Nachricht vorkommen, mit Absätzen getrennt):
+A) Recap laufender Monat (1 Satz, ehrlich, nicht abwerten).
+B) Info: Gehalt für ${recapMonthName} wird jetzt ausgezahlt (kurz, beiläufig, Boss-Ton).
+C) Money-Window-Push: Monatsanfang = Fans frisch bezahlt, Verkaufen gerade richtig leicht. Erste Woche Vollgas → danach entspannter.
+D) Konkreter Plan für Woche 1 (2–3 Hebel, NICHT generisch): z. B. Mass-DM früh raus, alte Chats reaktivieren, PPV-Preise leicht hochziehen, Top-Spender persönlich anschreiben. Wenn Roster bekannt: an Models koppeln.
+E) Neues Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} + Woche-1-Zwischenziel ca. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}.
+F) Kurzer Push am Ende.
 
 TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
-Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji-Regeln beachten). Das Ziel MUSS eindeutig für ${goalMonthName} sein.`;
+Schreib JETZT die fertige Nachricht. Nutze ABSÄTZE (Leerzeilen zwischen den Blöcken A–F, manche Blöcke dürfen zusammen in einem Absatz stehen wenn's natürlich liest – aber mindestens 3 Absätze insgesamt). WhatsApp-Stil, Du-Form, Emoji-Regeln beachten. Das Ziel MUSS eindeutig für ${goalMonthName} sein.`;
 
 
 
