@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { HotStreakListener } from "@/components/HotStreakListener";
 import { motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 
@@ -7,6 +8,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   return (
     <SidebarProvider>
+      <HotStreakListener />
       <div
         className="fixed inset-0 flex w-screen bg-depth overflow-hidden max-w-[100vw]"
         style={{
