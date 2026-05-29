@@ -237,17 +237,37 @@ function SuggestionCard({
               ? `Basis: eigener Schnitt – über Model-Potenzial (Ø ${formatEUR(row.avg30)}/Tag vs. ${formatEUR(row.modelBaselineEurPerDay)}/Tag)`
               : "Basis: Chatter-Schnitt (kein Model erkannt)"}
           </p>
+          {row.currentGoal != null && (
+            <p className="text-[11px] text-amber-200/80 font-light mt-1">
+              Aktuell: <span className="tabular-nums">{formatEUR(row.currentGoal)}</span> → neu{" "}
+              <span className="tabular-nums text-emerald-200">{formatEUR(parsed || row.suggested)}</span>
+              {row.currentGoal > 0 && (
+                <span className="ml-1 text-white/45">
+                  ({((parsed || row.suggested) >= row.currentGoal ? "+" : "")}
+                  {Math.round((((parsed || row.suggested) - row.currentGoal) / row.currentGoal) * 100)}%)
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <span
           className={`text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full font-light shrink-0 ${
-            row.basis === "model"
+            row.currentGoal != null
+              ? "border border-amber-300/30 bg-amber-400/10 text-amber-200"
+              : row.basis === "model"
               ? "border border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
               : row.basis === "chatter"
               ? "border border-sky-300/30 bg-sky-400/10 text-sky-200"
               : "border border-amber-300/30 bg-amber-400/10 text-amber-200"
           } border`}
         >
-          {row.basis === "model" ? "Vorschlag" : row.basis === "chatter" ? "Overperformer" : "Fallback"}
+          {row.currentGoal != null
+            ? "Update"
+            : row.basis === "model"
+            ? "Vorschlag"
+            : row.basis === "chatter"
+            ? "Overperformer"
+            : "Fallback"}
         </span>
       </div>
 
