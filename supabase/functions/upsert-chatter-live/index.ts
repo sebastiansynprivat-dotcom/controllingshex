@@ -140,6 +140,22 @@ Deno.serve(async (req) => {
 
   await supabase.rpc("recompute_live_now");
 
+  // Fire-and-forget hot-streak check (don't block response)
+  try {
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/hot-streak-check`;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({ rows }),
+    }).catch((e) => console.error("hot-streak-check call failed:", e));
+  } catch (e) {
+    console.error("hot-streak-check dispatch error:", e);
+  }
+
   return new Response(JSON.stringify({ success: true, count: data?.length ?? 0, rows: data }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
