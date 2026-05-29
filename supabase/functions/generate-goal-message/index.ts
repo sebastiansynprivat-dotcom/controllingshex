@@ -320,10 +320,19 @@ ${tenureLine}
 - Altes/aktuelles Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}${goalHit != null ? ` – Hochrechnung trifft das zu ${Math.round(goalHit)}%` : ""}.
 ${modelLine}
 - NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
+- WOCHE-1-ZIEL (Tag 1–7): mind. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)} = ca. 30 % des Monatsziels. Begründung im Text: Money-Window am Monatsanfang (Fans haben frisches Geld), wenn man die erste Woche pusht wird's nach hinten raus entspannter.
+
+PFLICHT-INHALTE (alle MÜSSEN in der Nachricht vorkommen, mit Absätzen getrennt):
+A) Recap laufender Monat (1 Satz, ehrlich, nicht abwerten).
+B) Info: Gehalt für ${recapMonthName} wird jetzt ausgezahlt (kurz, beiläufig, Boss-Ton).
+C) Money-Window-Push: Monatsanfang = Fans frisch bezahlt, Verkaufen gerade richtig leicht. Erste Woche Vollgas → danach entspannter.
+D) Konkreter Plan für Woche 1 (2–3 Hebel, NICHT generisch): z. B. Mass-DM früh raus, alte Chats reaktivieren, PPV-Preise leicht hochziehen, Top-Spender persönlich anschreiben. Wenn Roster bekannt: an Models koppeln.
+E) Neues Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} + Woche-1-Zwischenziel ca. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}.
+F) Kurzer Push am Ende.
 
 TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
-Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji-Regeln beachten). Das Ziel MUSS eindeutig für ${goalMonthName} sein.`;
+Schreib JETZT die fertige Nachricht. Nutze ABSÄTZE (Leerzeilen zwischen den Blöcken A–F, manche Blöcke dürfen zusammen in einem Absatz stehen wenn's natürlich liest – aber mindestens 3 Absätze insgesamt). WhatsApp-Stil, Du-Form, Emoji-Regeln beachten. Das Ziel MUSS eindeutig für ${goalMonthName} sein.`;
 
 
 
