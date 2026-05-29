@@ -332,8 +332,10 @@ ${modelLine}
 
 PFLICHT-INHALTE (alles muss rein, aber MAX 60 Wörter gesamt, 3 kurze Absätze):
 A) 1 Satz: Recap + Fans/Kunden haben frisches Gehalt → leicht zu verkaufen.
-B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter + EIN konkreter Hebel.
+B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter. Konkrete VORGABE: Mass-DMs stündlich, solange du online bist. Kein Tipp, keine Alternative.
 C) 1 Satz: Neues Ziel *${fmtEUR(proposedGoal)}* für ${goalMonthName}, davon *${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}* in Woche 1.
+
+VERBOTENE TIPPS (diese NIEMALS erwähnen oder als Alternative anbieten): keine Tageszeit-Tipps, keine persönliche Sprachnotiz, kein exklusiver Teaser, keine anderen verkaufspsychologischen Kniffe.
 
 FETT-REGEL: WhatsApp nutzt EIN Sternchen (*text*), NICHT zwei. Nur Zahlen + 2–3 Schlüsselbegriffe fett.
 
