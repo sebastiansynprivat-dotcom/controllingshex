@@ -10,7 +10,7 @@ const SYSTEM_PROMPT = `Du schreibst SEHR KURZE persönliche Direktnachrichten an
 
 EMPFÄNGER: EIN konkreter Chatter (Mitarbeiter im eigenen Team). NIE Fans.
 
-LÄNGE (hart): MAX 60 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine Füllwörter. Wenn's länger wird → kürzen.
+LÄNGE (hart): MAX 100 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine Füllwörter. Wenn's länger wird → kürzen.
 
 INHALT (alles muss rein, aber knapp):
 1) 1 Satz: Recap laufender Monat + Info, dass Fans/Kunden jetzt frisches Gehalt auf dem Konto haben → leicht zu verkaufen.
