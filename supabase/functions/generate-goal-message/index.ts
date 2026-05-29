@@ -255,6 +255,10 @@ Deno.serve(async (req) => {
       contextHints.push(`WICHTIG: Nur ${lastWorkedDays} von ${daysInLastMonth} Kalendertagen aktiv. Bewerte die TAGES-Leistung (Ø ${fmtEUR(lastAvgPerWorkedDay)}/Tag), NICHT die Monatssumme. Kein Bashing wegen niedriger Gesamt-EUR.`);
     }
 
+    const modelLine = roster.length > 0 && modelBaselineEurPerDay > 0
+      ? `- Models im aktuellen Roster: ${roster.length} (${roster.slice(0, 5).join(", ")}${roster.length > 5 ? ", …" : ""}) – kombiniertes Tages-Potenzial Ø ${fmtEUR(modelBaselineEurPerDay)}/Tag (Basis letzte 60 Tage, alle Chatter).`
+      : "- Models im Roster: keine erkannt (Account-Feld leer).";
+
     const userPrompt = `Schreib genau eine Direktnachricht an den Chatter "${chatterName}".
 
 ZAHLEN (verwende sie ehrlich, runde EUR auf volle Hundert wenn sinnvoll):
@@ -264,7 +268,8 @@ ZAHLEN (verwende sie ehrlich, runde EUR auf volle Hundert wenn sinnvoll):
 - Zielerreichung letzter Monat: ${goalHit != null ? Math.round(goalHit) + "%" : "—"}.
 - Vormonat davor: ${prevMonthRev > 0 ? `${fmtEUR(prevMonthRev)} an ${prevWorkedDays}/${daysInPrevPrevMonth} Tagen (Ø ${fmtEUR(prevAvgPerWorkedDay)}/Tag)` : "—"}${vsPrev != null ? ` (Trend Gesamtumsatz ${vsPrev >= 0 ? "+" : ""}${Math.round(vsPrev)}% vs. davor)` : ""}.
 - Aktueller Monat bisher (${thisMonthName}): ${fmtEUR(thisMonthRev)}.
-- NEUES Monatsziel für ${thisMonthName}: ${fmtEUR(proposedGoal)} — MUSS in der Nachricht genannt werden.
+${modelLine}
+- NEUES Monatsziel für ${thisMonthName}: ${fmtEUR(proposedGoal)} — MUSS in der Nachricht genannt werden. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
 
 TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
