@@ -20,6 +20,9 @@ import {
   computeGoalProgress,
   formatEUR,
   suggestMonthlyGoal,
+  splitAccounts,
+  computeModelBaselines,
+  suggestFromModels,
   type GoalProgress,
   type GoalStatus,
 } from "@/lib/monthly-goals";
@@ -194,6 +197,9 @@ interface SuggestionRow {
   avg30: number;
   monthRevenue: number;
   suggested: number;
+  models: string[];
+  modelBaselineEurPerDay: number;
+  basis: "model" | "fallback";
 }
 
 function SuggestionCard({
@@ -222,16 +228,27 @@ function SuggestionCard({
             {row.chatter}
           </h3>
           <p className="text-[11px] text-white/35 font-light mt-0.5">
-            Vorschlag basierend auf All-Time-Durchschnitt
+            {row.basis === "model"
+              ? `Basis: ${row.models.length} ${row.models.length === 1 ? "Model" : "Models"} · Ø ${formatEUR(row.modelBaselineEurPerDay)}/Tag Potenzial`
+              : "Basis: Chatter-Schnitt (kein Model erkannt)"}
           </p>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 font-light shrink-0">
-          Vorschlag
+        <span
+          className={`text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full font-light shrink-0 ${
+            row.basis === "model"
+              ? "border border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
+              : "border border-amber-300/30 bg-amber-400/10 text-amber-200"
+          } border`}
+        >
+          {row.basis === "model" ? "Vorschlag" : "Fallback"}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <Stat label="Ø Tag (gesamt)" value={formatEUR(row.avg30)} />
+        <Stat
+          label={row.basis === "model" ? "Ø Tag (Models)" : "Ø Tag (Chatter)"}
+          value={formatEUR(row.basis === "model" ? row.modelBaselineEurPerDay : row.avg30)}
+        />
         <Stat label="Monat bisher" value={formatEUR(row.monthRevenue)} />
       </div>
 
@@ -367,12 +384,18 @@ export default function MonthlyGoals() {
           labelChatters = Array.from(new Set((assigns ?? []).map((a) => a.chatter_name)));
         }
 
-        // 3) All-Time-Historie + Notizen für gelabelte parallel
+        // 60-Tage-Fenster für Model-Baseline + Chatter-Roster
+        const sixtyDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 60);
+        const sixtyAgoIso = toIsoDateLocal(sixtyDaysAgo);
+
+        // 3) Historie (60 Tage, inkl. account) + Notizen für gelabelte parallel
         const [histAllRes, notesRes, histMonthRes] = await Promise.all([
           supabase
             .from("chatter_history")
-            .select("chatter_name, revenue_today, analysis_date")
-            .eq("platform", platform),
+            .select("chatter_name, revenue_today, analysis_date, account")
+            .eq("platform", platform)
+            .gte("analysis_date", sixtyAgoIso)
+            .lte("analysis_date", todayIso),
           labelChatters.length > 0
             ? supabase
                 .from("coaching_notes")
@@ -428,20 +451,44 @@ export default function MonthlyGoals() {
           });
         }
 
-        // === Zukünftige Monatsziele (Vorschläge, All-Time-Schnitt) ===
-        // Pro Chatter: Summe Umsatz und Anzahl unterschiedlicher analysis_date-Tage.
+        // === Zukünftige Monatsziele (Vorschläge — basiert auf Model-Performance) ===
+        const histAllRows = (histAllRes.data ?? []) as Array<{
+          chatter_name: string;
+          revenue_today: number | null;
+          analysis_date: string;
+          account: string | null;
+        }>;
+
+        // 3a) Model-Baselines aus allen Rows der letzten 60 Tage
+        const modelBaselines = computeModelBaselines(histAllRows);
+
+        // 3b) Roster pro Chatter aus letzten 14 Tagen (aktuelle Zuordnung)
+        const fourteenAgoIso = toIsoDateLocal(
+          new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14),
+        );
+        const rosterByChatter = new Map<string, Set<string>>();
         const sumByChatter = new Map<string, number>();
         const daysByChatter = new Map<string, Set<string>>();
-        for (const h of histAllRes.data ?? []) {
+        for (const h of histAllRows) {
+          // Chatter-Schnitt (Fallback) über 60 Tage
           sumByChatter.set(
             h.chatter_name,
             (sumByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
           );
-          if (!daysByChatter.has(h.chatter_name)) {
-            daysByChatter.set(h.chatter_name, new Set());
-          }
+          if (!daysByChatter.has(h.chatter_name)) daysByChatter.set(h.chatter_name, new Set());
           daysByChatter.get(h.chatter_name)!.add(h.analysis_date);
+
+          // Roster aus letzten 14 Tagen
+          if (h.analysis_date >= fourteenAgoIso) {
+            const models = splitAccounts(h.account);
+            if (models.length > 0) {
+              if (!rosterByChatter.has(h.chatter_name)) rosterByChatter.set(h.chatter_name, new Set());
+              const set = rosterByChatter.get(h.chatter_name)!;
+              for (const m of models) set.add(m);
+            }
+          }
         }
+
         const labelSet = new Set(labelChatters);
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
@@ -449,13 +496,33 @@ export default function MonthlyGoals() {
           const days = daysByChatter.get(chatter)?.size ?? 0;
           if (days === 0) continue;
           const avg = sum / days;
-          if (avg <= 1) continue; // > 1 € / Tag Schwelle
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
+
+          const roster = Array.from(rosterByChatter.get(chatter) ?? []);
+          const modelRes = roster.length > 0
+            ? suggestFromModels(roster, modelBaselines, today, 1.10)
+            : { goal: 0, modelBaselineEurPerDay: 0 };
+
+          let basis: "model" | "fallback";
+          let suggested: number;
+          if (modelRes.goal > 0) {
+            basis = "model";
+            suggested = modelRes.goal;
+          } else {
+            // Fallback: alter Chatter-Schnitt (nur wenn sinnvoll)
+            if (avg <= 1) continue;
+            basis = "fallback";
+            suggested = suggestMonthlyGoal(avg, today);
+          }
+
           sugg.push({
             chatter,
             avg30: avg,
             monthRevenue: monthRev,
-            suggested: suggestMonthlyGoal(avg, today),
+            suggested,
+            models: roster,
+            modelBaselineEurPerDay: modelRes.modelBaselineEurPerDay,
+            basis,
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
