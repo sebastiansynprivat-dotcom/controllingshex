@@ -1,43 +1,49 @@
-# Nachricht akkurater machen — echte vs. „leere" Arbeitstage
+# Monatsziel = Model-Potenzial × 1.10
 
-## Was gerade schiefläuft
+## Idee
+Statt aus Chatter-Anwesenheitstagen wird das Ziel aus der **realen Model-Performance** abgeleitet. So zählen 0-€-Tage des Chatters nicht mehr gegen ihn — das Ziel hängt daran, was seine Models normalerweise abwerfen.
 
-`generate-goal-message` zählt `lastMonthDays` als Anzahl Rows mit `revenue_today > 0`. Aber `chatter_history` hat **mehrere Rows pro Tag** (pro Account/Modell). Beispiel echte Daten: 78 Rows in 41 Tagen → AI bekommt „73 aktive Tage" obwohl der Monat nur ~30 hat.
+## Datenquelle
+`chatter_history.account` enthält die Models eines Chatters (oft komma-separiert, z. B. `mandyrosee, candyxx, lolahorny`). Wir aggregieren pro **einzelnem Model** (Account-String aufsplitten) über die letzten 60 Tage.
 
-Zweites Problem: 0-€-Tage werden ignoriert. Ein Chatter, der 22 Tage gearbeitet hat aber 8 Mal 0 € machte, sieht gleich aus wie einer, der 14 Tage gearbeitet hat — beide zeigen „14 aktive Tage". Dadurch wird der Schwächere künstlich besser bewertet.
+## Berechnung pro Chatter
 
-## Lösung
+**Schritt 1 — Aktuelle Model-Zuordnung des Chatters**
+Aus den letzten 14 Tagen `chatter_history` für den Chatter: alle vorkommenden Model-Slugs sammeln (Set). Das ist sein „aktueller Roster".
 
-Edge Function `generate-goal-message` erweitern, sodass die AI ein realistischeres Bild bekommt:
+**Schritt 2 — Baseline pro Model**
+Pro Model über alle Chatter, letzte 60 Tage:
+- `model_avg_per_day` = `SUM(revenue_today_anteilig) / COUNT(DISTINCT analysis_date mit dieser Model-Erwähnung)`
+- Wenn eine Row mehrere Models hat → Revenue gleichmäßig auf die genannten Models splitten (z. B. 3 Models in einem `account`-String → je 1/3).
+- Tage mit 0 € zählen mit (drücken den Schnitt – realistisch).
 
-**1. Distinct-Tage rechnen (statt Rows zählen)**
-- `workedDays` = DISTINCT `analysis_date` mit mindestens einer Row im Monat (= war eingeloggt / Report wurde abgegeben).
-- `earningDays` = DISTINCT `analysis_date` mit Summe `revenue_today > 0`.
-- `zeroDays` = `workedDays - earningDays` (war da, aber 0 € gemacht).
-- `daysInMonth` = Kalendertage des letzten Monats.
-
-**2. Aussagekräftigere Kennzahlen für die AI**
-- Durchschnitt pro **Arbeitstag** (nicht pro Earning-Tag): `lastMonthRev / workedDays`.
-- Zusätzlich: Quote `earningDays / workedDays` → erkennt jemanden, der oft „leer" rausgeht.
-- Vergleich mit Vormonat: gleiche Logik auf `prevPrevMonth` anwenden, damit „Trend"-Aussage stimmt.
-
-**3. Tonalitäts-Heuristik verbessern**
-Aktuell nur `goalHit %` oder `vsPrev %`. Neu zusätzlich:
-- Wenn `earningDays / workedDays < 0.5` → Tonalität-Hinweis im Prompt: „viele Nullrunden" → AI soll das thematisieren („zu viele leere Tage, lass uns die Schichten besser nutzen") statt nur Gesamtsumme zu loben/kritisieren.
-- Wenn `workedDays < daysInMonth * 0.4` → Hinweis „war wenig da" → AI berücksichtigt das (kein hartes Bashen wegen niedriger Summe).
-
-**4. Prompt erweitern**
-Neuer Daten-Block an die AI:
+**Schritt 3 — Chatter-Ziel**
 ```
-- Arbeitstage letzter Monat: 22 von 30 Kalendertagen
-- Davon Earning-Tage: 14 (64%) — also 8 Nullrunden
-- Ø pro Arbeitstag: 145 €
-- Vormonat: 18 Arbeitstage, 12 Earning-Tage, Ø 180 €/Tag
+monthGoal = Σ(model_avg_per_day) × daysInMonth × 1.10
 ```
-Plus expliziter Hinweis im System-Prompt: „Wenn viele Nullrunden: erwähn das diplomatisch, nicht abwertend. Wenn wenig Tage gearbeitet: bewerte die Tagesleistung, nicht die Monatssumme."
+gerundet auf 50 €. Ergibt: starke Model-Mappe → höheres Ziel, schwache → niedrigeres. Komplett unabhängig von Chatter-Anwesenheit.
+
+## Fallback
+- Chatter ohne erkennbares Model in den letzten 14 Tagen → alte Logik (avgDaily × Tage × 1.10) als Backup.
+- Model ohne Historie → wird mit 0 € gewichtet (gibt nur, was die anderen Models tragen).
+
+## UI-Änderungen (`MonthlyGoals.tsx`)
+- `SuggestionRow` bekommt zwei neue Felder: `models: string[]` und `basis: "model" | "fallback"`.
+- Im SuggestionCard kleines Sublabel: „basiert auf 3 Models · Ø 145 €/Tag" — der User sieht woraus das Ziel berechnet wurde.
+- Wenn Fallback aktiv: Badge „kein Model-Match" damit klar ist warum.
+
+## Edge Function `generate-goal-message`
+Der Goal-Message-Generator bekommt zusätzlich:
+- `roster: string[]` — die Models des Chatters
+- `model_baseline_eur_per_day` — Summe der Model-Schnitte
+Im Prompt kurz erwähnen: „Ziel basiert auf der normalen Performance deiner Models (X €/Tag-Potenzial)." Das macht die Nachricht für den Chatter nachvollziehbarer.
 
 ## Geltungsbereich
+- `src/lib/monthly-goals.ts`: neue Funktion `suggestFromModels(roster, modelBaselines, today)`.
+- `src/pages/MonthlyGoals.tsx`: zusätzliche Aggregation pro Model + Anwendung der neuen Logik in der SuggestionRow-Erzeugung. UI-Sublabel + Badge.
+- `supabase/functions/generate-goal-message/index.ts`: Roster + Model-Baseline berechnen, in Prompt einbauen.
+- Kein DB-Schema-Change.
 
-- Nur `supabase/functions/generate-goal-message/index.ts`.
-- Frontend-Dialog zeigt im Kontext-Bar zusätzlich `Arbeitstage X/Y · davon Earning Z` an, damit du auf einen Blick siehst was die AI gesehen hat.
-- Kein DB-Change.
+## Was nicht ändert
+- Schon gesetzte/in Notizen gespeicherte Ziele bleiben unverändert (nur Vorschläge nutzen die neue Logik).
+- 0-€-Tage in der Nachrichten-Analyse bleiben weiterhin transparent („X Nullrunden") — der User sieht das im Kontext-Bar.
