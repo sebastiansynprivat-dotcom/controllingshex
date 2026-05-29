@@ -623,6 +623,7 @@ export default function MonthlyGoals() {
             models: roster,
             modelBaselineEurPerDay: perChatterDailyBaseline,
             basis,
+            currentGoal: currentGoalByChatter.get(chatter) ?? null,
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
