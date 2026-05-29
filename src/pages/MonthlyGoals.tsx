@@ -567,9 +567,18 @@ export default function MonthlyGoals() {
             ? Math.max(50, Math.round(rawModelGoal / 50) * 50)
             : 0;
 
-          let basis: "model" | "fallback";
+          // Wenn Chatter deutlich BESSER als Model-Schnitt performt (>10% drüber),
+          // → eigenes Ergebnis + 10 % nehmen statt Model-Schnitt zu deckeln.
+          const chatterGoal = avg > 1
+            ? Math.max(50, Math.round((avg * daysInMonth * 1.10) / 50) * 50)
+            : 0;
+
+          let basis: "model" | "chatter" | "fallback";
           let suggested: number;
-          if (modelGoal > 0) {
+          if (modelGoal > 0 && chatterGoal > 0 && avg > perChatterDailyBaseline * 1.10) {
+            basis = "chatter";
+            suggested = chatterGoal;
+          } else if (modelGoal > 0) {
             basis = "model";
             suggested = modelGoal;
           } else {
@@ -578,6 +587,7 @@ export default function MonthlyGoals() {
             basis = "fallback";
             suggested = suggestMonthlyGoal(avg, today);
           }
+
 
           sugg.push({
             chatter,
