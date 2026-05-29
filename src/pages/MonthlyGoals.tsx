@@ -765,6 +765,9 @@ export default function MonthlyGoals() {
                       busy={acceptingChatter === s.chatter}
                       onAccept={(goal) => acceptSuggestion(s.chatter, goal)}
                       onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
+                      onMessage={(goal) =>
+                        setMessageFor({ chatter: s.chatter, proposedGoal: goal, currentGoal: null })
+                      }
                     />
                   ))}
                 </div>
@@ -773,6 +776,17 @@ export default function MonthlyGoals() {
           </>
         )}
       </div>
+
+      {messageFor && (
+        <GoalMessageDialog
+          open={!!messageFor}
+          onClose={() => setMessageFor(null)}
+          chatter={messageFor.chatter}
+          platform={platform}
+          proposedGoal={messageFor.proposedGoal}
+          currentGoal={messageFor.currentGoal}
+        />
+      )}
 
       <ChatterSlideOver
         open={!!selected}
