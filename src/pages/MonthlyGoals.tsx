@@ -547,13 +547,14 @@ export default function MonthlyGoals() {
           }
         }
 
-        // Chatter mit echtem Monatsziel (Note vorhanden) ausschließen — Label allein reicht nicht,
-        // sonst fallen Chatter raus, die zwar das Label "Monatsziel" haben, aber noch keine Note.
-        const hasGoalSet = new Set(goalByChatter.keys());
+        // Map: bestehende Monatsziele (zum Anzeigen + Überschreiben)
+        const currentGoalByChatter = new Map<string, number>();
+        for (const [c, g] of goalByChatter) currentGoalByChatter.set(c, g.goal);
+
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
-          if (hasGoalSet.has(chatter)) continue;
-          // Nur Chatter, die im neuesten Report noch dabei waren
+          // Bewusst KEIN Skip für Chatter mit bestehendem Ziel — sie sollen erscheinen
+          // und das alte Ziel beim Annehmen überschreiben.
           if (!activeInLatestReport.has(chatter)) continue;
           const days = daysByChatter.get(chatter)?.size ?? 0;
           if (days === 0) continue;
