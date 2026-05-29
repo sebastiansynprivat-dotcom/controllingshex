@@ -288,6 +288,16 @@ function SuggestionCard({
           Skip
         </button>
       </div>
+
+      <button
+        type="button"
+        disabled={busy || parsed <= 0}
+        onClick={() => onMessage(parsed || row.suggested)}
+        className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors disabled:opacity-50"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        Nachricht generieren
+      </button>
     </div>
   );
 }
