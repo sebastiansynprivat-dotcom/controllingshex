@@ -324,7 +324,7 @@ ${modelLine}
 
 PFLICHT-INHALTE (alle MÜSSEN in der Nachricht vorkommen, mit Absätzen getrennt):
 A) Recap laufender Monat (1 Satz, ehrlich, nicht abwerten).
-B) Info: Gehalt für ${recapMonthName} wird jetzt ausgezahlt (kurz, beiläufig, Boss-Ton).
+B) Info: Fans/Kunden haben frisches Gehalt auf dem Konto – sie sind liquide und bereit zu kaufen (kurz, beiläufig, Boss-Ton).
 C) Money-Window-Push: Monatsanfang = Fans frisch bezahlt, Verkaufen gerade richtig leicht. Erste Woche Vollgas → danach entspannter.
 D) Konkreter Plan für Woche 1 (2–3 Hebel, NICHT generisch): z. B. Mass-DM früh raus, alte Chats reaktivieren, PPV-Preise leicht hochziehen, Top-Spender persönlich anschreiben. Wenn Roster bekannt: an Models koppeln.
 E) Neues Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} + Woche-1-Zwischenziel ca. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}.
