@@ -882,9 +882,23 @@ export default function MonthlyGoals() {
               </div>
             ) : (
               <>
-                <p className="text-[11px] text-white/40 font-light">
-                  Nur Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet).
-                </p>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
+                    Nur Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet).
+                  </p>
+                  <button
+                    onClick={() =>
+                      setBulkOpen(
+                        visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-xs font-light hover:bg-emerald-400/25 transition-colors shrink-0"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Nachrichten für alle generieren
+                  </button>
+                </div>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {visibleSuggestions.map((s) => (
