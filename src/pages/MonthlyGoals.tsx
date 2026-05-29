@@ -315,6 +315,7 @@ export default function MonthlyGoals() {
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
