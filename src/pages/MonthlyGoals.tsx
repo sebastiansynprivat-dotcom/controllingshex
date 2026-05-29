@@ -9,7 +9,8 @@
  *  - On-Track-Status (grün / amber / rot)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil } from "lucide-react";
+import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare } from "lucide-react";
+import GoalMessageDialog from "@/components/GoalMessageDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -71,7 +72,7 @@ function ProgressBar({ pct, status }: { pct: number; status: GoalProgress["statu
   );
 }
 
-function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) {
+function GoalCard({ row, onOpen, onMessage }: { row: ChatterGoalRow; onOpen: () => void; onMessage: () => void }) {
   const p = row.progress;
   const deficitColor =
     p.deficit <= 0 ? "text-emerald-300"
@@ -82,7 +83,6 @@ function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) 
 
   const handleClick = () => {
     if (clickTimer.current) {
-      // Double click: open profile
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
       onOpen();
@@ -90,7 +90,6 @@ function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) 
     }
     clickTimer.current = setTimeout(() => {
       clickTimer.current = null;
-      // Single click: copy name
       navigator.clipboard?.writeText(row.chatter).then(
         () => toast.success(`"${row.chatter}" kopiert`),
         () => toast.error("Kopieren fehlgeschlagen"),
@@ -105,10 +104,12 @@ function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) 
   }, []);
 
   return (
-    <button
+    <div
       onClick={handleClick}
+      role="button"
+      tabIndex={0}
       title="1× Klick: Name kopieren · 2× Klick: Profil öffnen"
-      className="text-left w-full rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] via-white/[0.02] to-transparent p-4 sm:p-5 hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-300 group"
+      className="text-left w-full rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] via-white/[0.02] to-transparent p-4 sm:p-5 hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-300 group cursor-pointer"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
@@ -152,7 +153,15 @@ function GoalCard({ row, onOpen }: { row: ChatterGoalRow; onOpen: () => void }) 
           Ø Soll/Tag: <span className="text-white/65 tabular-nums">{formatEUR(p.dailyTarget)}</span>
         </span>
       </div>
-    </button>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); onMessage(); }}
+        className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        Nachricht generieren
+      </button>
+    </div>
   );
 }
 
@@ -191,11 +200,13 @@ function SuggestionCard({
   row,
   onAccept,
   onSkip,
+  onMessage,
   busy,
 }: {
   row: SuggestionRow;
   onAccept: (goal: number) => void;
   onSkip: () => void;
+  onMessage: (goal: number) => void;
   busy: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -277,6 +288,16 @@ function SuggestionCard({
           Skip
         </button>
       </div>
+
+      <button
+        type="button"
+        disabled={busy || parsed <= 0}
+        onClick={() => onMessage(parsed || row.suggested)}
+        className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors disabled:opacity-50"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        Nachricht generieren
+      </button>
     </div>
   );
 }
@@ -294,6 +315,7 @@ export default function MonthlyGoals() {
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -698,6 +720,13 @@ export default function MonthlyGoals() {
                     key={row.chatter}
                     row={row}
                     onOpen={() => setSelected(row.chatter)}
+                    onMessage={() =>
+                      setMessageFor({
+                        chatter: row.chatter,
+                        proposedGoal: row.progress.goal,
+                        currentGoal: row.progress.goal,
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -736,6 +765,9 @@ export default function MonthlyGoals() {
                       busy={acceptingChatter === s.chatter}
                       onAccept={(goal) => acceptSuggestion(s.chatter, goal)}
                       onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
+                      onMessage={(goal) =>
+                        setMessageFor({ chatter: s.chatter, proposedGoal: goal, currentGoal: null })
+                      }
                     />
                   ))}
                 </div>
@@ -744,6 +776,17 @@ export default function MonthlyGoals() {
           </>
         )}
       </div>
+
+      {messageFor && (
+        <GoalMessageDialog
+          open={!!messageFor}
+          onClose={() => setMessageFor(null)}
+          chatter={messageFor.chatter}
+          platform={platform}
+          proposedGoal={messageFor.proposedGoal}
+          currentGoal={messageFor.currentGoal}
+        />
+      )}
 
       <ChatterSlideOver
         open={!!selected}
