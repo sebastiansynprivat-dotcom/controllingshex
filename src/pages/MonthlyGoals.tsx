@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare } from "lucide-react";
 import GoalMessageDialog from "@/components/GoalMessageDialog";
+import BulkGoalMessagesDialog, { type BulkTarget } from "@/components/BulkGoalMessagesDialog";
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
