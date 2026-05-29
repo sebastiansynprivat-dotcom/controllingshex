@@ -228,16 +228,27 @@ function SuggestionCard({
             {row.chatter}
           </h3>
           <p className="text-[11px] text-white/35 font-light mt-0.5">
-            Vorschlag basierend auf All-Time-Durchschnitt
+            {row.basis === "model"
+              ? `Basis: ${row.models.length} ${row.models.length === 1 ? "Model" : "Models"} · Ø ${formatEUR(row.modelBaselineEurPerDay)}/Tag Potenzial`
+              : "Basis: Chatter-Schnitt (kein Model erkannt)"}
           </p>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 font-light shrink-0">
-          Vorschlag
+        <span
+          className={`text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full font-light shrink-0 ${
+            row.basis === "model"
+              ? "border border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
+              : "border border-amber-300/30 bg-amber-400/10 text-amber-200"
+          } border`}
+        >
+          {row.basis === "model" ? "Vorschlag" : "Fallback"}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <Stat label="Ø Tag (gesamt)" value={formatEUR(row.avg30)} />
+        <Stat
+          label={row.basis === "model" ? "Ø Tag (Models)" : "Ø Tag (Chatter)"}
+          value={formatEUR(row.basis === "model" ? row.modelBaselineEurPerDay : row.avg30)}
+        />
         <Stat label="Monat bisher" value={formatEUR(row.monthRevenue)} />
       </div>
 
