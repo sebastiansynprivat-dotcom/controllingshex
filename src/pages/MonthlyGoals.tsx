@@ -561,6 +561,22 @@ export default function MonthlyGoals() {
     return () => { cancelled = true; };
   }, [platform, reloadKey]);
 
+  // Auto-Refresh, sobald ein neuer Report hochgeladen wird (neue chatter_history Rows)
+  useEffect(() => {
+    const channel = supabase
+      .channel(`monthly-goals-history-${platform}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chatter_history", filter: `platform=eq.${platform}` },
+        () => setReloadKey((k) => k + 1),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
+
   async function acceptSuggestion(chatter: string, goal: number) {
     if (goal <= 0) {
       toast.error("Ziel muss > 0 sein");
