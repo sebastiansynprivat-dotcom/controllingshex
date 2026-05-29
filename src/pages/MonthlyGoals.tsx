@@ -836,7 +836,7 @@ export default function MonthlyGoals() {
         <div className="flex gap-1.5 border-b border-white/[0.06] pb-0">
           {([
             ["current", "Aktuelle Monatsziele", rows.length],
-            ["future", "Zukünftige Monatsziele", visibleSuggestions.length],
+            ["future", "Zukünftige Monatsziele", suggestionsGenerated ? visibleSuggestions.length : 0],
           ] as ["current" | "future", string, number][]).map(([k, label, count]) => (
             <button
               key={k}
