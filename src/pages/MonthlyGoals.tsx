@@ -320,7 +320,7 @@ function SuggestionCard({
           className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-sm font-light hover:bg-emerald-400/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-          Annehmen
+          {row.currentGoal != null ? "Überschreiben" : "Annehmen"}
         </button>
         <button
           disabled={busy}
