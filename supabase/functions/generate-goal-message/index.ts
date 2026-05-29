@@ -12,7 +12,7 @@ EMPFÄNGER: EIN konkreter Chatter (Mitarbeiter im eigenen Team). NIE Fans.
 
 ZWECK (Pflicht – jede Nachricht enthält ALLE Punkte, in dieser Reihenfolge):
 1) Kurzer Recap zum laufenden Monat (1 Satz, Zahlen ehrlich, nicht abwerten).
-2) Info: Gehalt für den abgelaufenen Monat wird jetzt ausgezahlt. Kurz, beiläufig – wie eine Boss-Info, nicht wie HR.
+2) Info: Fans/Kunden haben frisches Gehalt auf dem Konto – sie sind liquide und bereit zu kaufen. Kurz, beiläufig – wie eine Boss-Info, nicht wie HR.
 3) Money-Window-Push: Monatsanfang = Fans haben frisches Geld, Verkaufen ist gerade richtig leicht. Erste Woche = Vollgas, da ziehen wir den Schnitt hoch, danach wird's nach hinten raus entspannter.
 4) Konkreter Plan für WOCHE 1 (Tag 1–7): in EINEM kurzen Absatz, 2–3 konkrete Hebel (z. B. Mass-DM früh am Tag rausballern, alle alten Chats reaktivieren, PPV-Preise leicht anziehen weil Fans Cash haben, Top-Spender direkt persönlich anschreiben). KEINE generische Floskel.
 5) Neues Monatsziel für den Folgemonat EXPLIZIT mit EUR nennen + 1 Satz warum die Zahl passt.
@@ -324,7 +324,7 @@ ${modelLine}
 
 PFLICHT-INHALTE (alle MÜSSEN in der Nachricht vorkommen, mit Absätzen getrennt):
 A) Recap laufender Monat (1 Satz, ehrlich, nicht abwerten).
-B) Info: Gehalt für ${recapMonthName} wird jetzt ausgezahlt (kurz, beiläufig, Boss-Ton).
+B) Info: Fans/Kunden haben frisches Gehalt auf dem Konto – sie sind liquide und bereit zu kaufen (kurz, beiläufig, Boss-Ton).
 C) Money-Window-Push: Monatsanfang = Fans frisch bezahlt, Verkaufen gerade richtig leicht. Erste Woche Vollgas → danach entspannter.
 D) Konkreter Plan für Woche 1 (2–3 Hebel, NICHT generisch): z. B. Mass-DM früh raus, alte Chats reaktivieren, PPV-Preise leicht hochziehen, Top-Spender persönlich anschreiben. Wenn Roster bekannt: an Models koppeln.
 E) Neues Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} + Woche-1-Zwischenziel ca. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}.
