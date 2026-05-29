@@ -798,6 +798,45 @@ export type Database = {
         }
         Relationships: []
       }
+      hot_streak_alerts: {
+        Row: {
+          alert_date: string
+          baseline_avg: number
+          chatter_name: string
+          expected_pace: number
+          id: string
+          pace_pct: number
+          platform: string
+          revenue_at_alert: number
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_date?: string
+          baseline_avg?: number
+          chatter_name: string
+          expected_pace?: number
+          id?: string
+          pace_pct?: number
+          platform?: string
+          revenue_at_alert?: number
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_date?: string
+          baseline_avg?: number
+          chatter_name?: string
+          expected_pace?: number
+          id?: string
+          pace_pct?: number
+          platform?: string
+          revenue_at_alert?: number
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       live_now_counts: {
         Row: {
           chatter_names: string[]
@@ -1012,6 +1051,39 @@ export type Database = {
           profile_url?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }

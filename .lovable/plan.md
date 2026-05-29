@@ -1,29 +1,43 @@
-# Fix: 4Based Models hinzufügen schlägt fehl
+# Hot-Streak Alerts: Chatter über Pace
 
-## Ursache
-Auf der Tabelle `public.models` liegt ein CHECK-Constraint:
+## Trigger-Logik
+Ein Chatter löst einen Hot-Streak-Alert aus, wenn beim Live-Update gilt:
+- **Heutiger Umsatz ≥ 150% der erwarteten Pace** (basierend auf 14-Tage-Schnitt × Tagesfortschritt seit 06:00 Berlin)
+- Mindestens **30 €** heute (Spam-Filter für kleine Tage)
+- Letzter Alert für diesen Chatter heute liegt **>2h zurück** (Dedupe — sonst spamt's bei jedem Live-Tick)
 
-```
-models_platform_check: platform IN ('Maloum', 'Brezzels', 'FansyMe')
-```
+## Komponenten
 
-"4Based" ist dort nicht enthalten, daher wirft Postgres beim Insert einen Constraint-Fehler. Der Frontend-Code in `src/pages/Models.tsx` ist korrekt — er sendet `platform: "4Based"` aus dem `PlatformContext`, aber die DB lehnt ab.
+### 1. Datenbank (Migration)
+- `push_subscriptions` (user_id, endpoint UNIQUE, p256dh, auth, created_at)
+- `hot_streak_alerts` (user_id, platform, chatter_name, date, revenue_at_alert, pace_pct, sent_at) — für Dedupe + History
 
-Nebenbefund: Der alte Wert "FansyMe" entspricht offenbar dem heutigen "4Based" (Umbenennung), wurde aber nie im Constraint nachgezogen.
+### 2. Secrets
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (mailto:) — generiere ich, du fügst sie ein
 
-## Änderung
-Eine Migration, die den Constraint austauscht:
+### 3. Edge Functions
+- **`save-push-subscription`** — speichert die Browser-Subscription nach Permission-Grant
+- **`hot-streak-check`** — wird am Ende von `upsert-chatter-live` aufgerufen, scannt frische Live-Zeilen, vergleicht gegen 14-Tage-Profile, sendet Push via `web-push` (npm:) an alle Subscriptions des Owners
 
-- `models_platform_check` droppen
-- Neuen Constraint setzen: `platform IN ('Maloum', 'Brezzels', '4Based')`
-- Bestehende Zeilen mit `platform = 'FansyMe'` auf `'4Based'` migrieren (falls vorhanden), damit die neue Whitelist nicht greift
+### 4. Frontend
+- **Service Worker** `public/sw.js` — empfängt Push, zeigt OS-Notification mit Chatter-Name + "💰 250% vs Pace · 180€"
+- **Settings → "Hot-Streak Alerts"**: Button "Browser-Push aktivieren" → fragt Permission, registriert SW, speichert Subscription
+  - Sichtbarer Hinweis: "Funktioniert nur in der veröffentlichten App, nicht im Lovable-Editor. Auf iPhone: zuerst zum Home-Screen hinzufügen."
+- **In-App Fallback im Live-Tracking**:
+  - Realtime-Subscription auf `hot_streak_alerts`
+  - Sonner-Toast (🔥 "Lena läuft heiß · 220% · 180€")
+  - "🔥"-Badge an Chatter-Karte solange Streak heute aktiv
 
-Kein Code-Change nötig.
+### 5. PWA-Manifest
+Minimal-Manifest (`manifest.json` existiert schon) — keine `vite-plugin-pwa` Integration, kein Caching, **nur** der Push-SW. Der SW wird im Editor-Iframe nicht registriert (Guard auf `window.self !== window.top`).
 
-## Technisch
-```sql
-UPDATE public.models SET platform = '4Based' WHERE platform = 'FansyMe';
-ALTER TABLE public.models DROP CONSTRAINT models_platform_check;
-ALTER TABLE public.models ADD CONSTRAINT models_platform_check
-  CHECK (platform IN ('Maloum', 'Brezzels', '4Based'));
-```
+## Was du danach tust
+1. Migration freigeben
+2. VAPID-Secrets eintragen (zeige ich dir, sobald generiert)
+3. Auf der veröffentlichten URL einmal "Push aktivieren" klicken + Permission geben
+4. (iPhone) App zum Home-Screen hinzufügen, dann dort Permission geben
+
+## Was bewusst NICHT drin ist
+- Kein Vollkasko-PWA (keine Offline-Cache, kein Install-Prompt-Banner) — vermeidet die SW-Stale-Cache-Probleme im Preview
+- Keine Sound-/Vibration-Customization (nutzt OS-Defaults)
+- Keine "kalte" Streak-Erkennung am Tagesende — feuert nur live während Aktivität
