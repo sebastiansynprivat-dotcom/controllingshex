@@ -484,15 +484,9 @@ export default function MonthlyGoals() {
         }
 
         // === Zukünftige Monatsziele (Vorschläge — basiert auf Model-Performance) ===
-        const histAllRows = (histAllRes.data ?? []) as Array<{
-          chatter_name: string;
-          revenue_today: number | null;
-          analysis_date: string;
-          account: string | null;
-        }>;
-
         // 3a) Model-Baselines aus allen Rows der letzten 60 Tage
         const modelBaselines = computeModelBaselines(histAllRows);
+
 
         // 3b) Roster pro Chatter aus letzten 14 Tagen (aktuelle Zuordnung)
         const fourteenAgoIso = toIsoDateLocal(
