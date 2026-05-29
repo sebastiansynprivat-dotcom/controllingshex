@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { HotStreakListener } from "@/components/HotStreakListener";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 
@@ -26,8 +27,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               paddingRight: "calc(1rem + max(env(safe-area-inset-right), 0px))",
             }}
           >
-            <div className="content-frame flex items-center px-0 sm:px-4 lg:px-6">
+            <div className="content-frame flex items-center justify-between px-0 sm:px-4 lg:px-6">
               <SidebarTrigger className="text-white/60 hover:text-white/90 transition-colors duration-500 h-10 w-10 -ml-2" />
+              <NotificationsPanel />
             </div>
           </header>
           <main
