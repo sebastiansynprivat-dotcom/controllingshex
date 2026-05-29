@@ -355,6 +355,8 @@ Schreib JETZT die fertige Nachricht (3–6 Sätze, WhatsApp-Stil, Du-Form, Emoji
           prev_worked_days: prevWorkedDays,
           this_month_revenue: thisMonthRev,
           this_month_name: thisMonthName,
+          roster,
+          model_baseline_eur_per_day: modelBaselineEurPerDay,
           tone,
         },
       }),
