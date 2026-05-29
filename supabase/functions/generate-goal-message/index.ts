@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     // Roster: Models des Chatters aus den letzten 14 Tagen
     const fourteenAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    const [histRes, notesRes, rosterRes] = await Promise.all([
+    const [histRes, notesRes, rosterRes, tenureRes] = await Promise.all([
       admin
         .from("chatter_history")
         .select("revenue_today, analysis_date")
@@ -110,9 +110,32 @@ Deno.serve(async (req) => {
         .eq("chatter_name", chatterName)
         .gte("analysis_date", iso(fourteenAgo))
         .lte("analysis_date", iso(today)),
+      admin
+        .from("chatter_history")
+        .select("analysis_date")
+        .eq("user_id", userId)
+        .eq("platform", platform)
+        .eq("chatter_name", chatterName)
+        .order("analysis_date", { ascending: true })
+        .limit(1),
     ]);
 
     if (histRes.error) throw histRes.error;
+
+    // Onboarding-Datum (erstes Auftauchen in chatter_history)
+    const onboardedOnIso: string | null =
+      (tenureRes.data?.[0]?.analysis_date as string | undefined) ?? null;
+    const onboardedOn = onboardedOnIso ? new Date(onboardedOnIso + "T00:00:00Z") : null;
+    const tenureDays = onboardedOn
+      ? Math.max(0, Math.floor((today.getTime() - onboardedOn.getTime()) / 86_400_000))
+      : null;
+    const startedAfterPriorMonth = onboardedOn ? onboardedOn > lastOfLastMonth : false;
+    const startedDuringPriorMonth = onboardedOn
+      ? onboardedOn >= firstOfLastMonth && onboardedOn <= lastOfLastMonth
+      : false;
+    const startedThisMonth = onboardedOn ? onboardedOn >= firstOfThisMonth : false;
+    const isNewbie = tenureDays != null && tenureDays < 30;
+
 
     // Roster aufbauen
     const splitAccounts = (s: string | null | undefined): string[] =>
