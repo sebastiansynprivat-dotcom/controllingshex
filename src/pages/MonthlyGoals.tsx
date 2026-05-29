@@ -464,7 +464,7 @@ export default function MonthlyGoals() {
           }
         }
         const monthRevByChatter = new Map<string, number>();
-        for (const h of histMonthRes.data ?? []) {
+        for (const h of histMonthRows ?? []) {
           monthRevByChatter.set(
             h.chatter_name,
             (monthRevByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
