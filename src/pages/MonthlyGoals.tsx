@@ -202,6 +202,7 @@ interface SuggestionRow {
   models: string[];
   modelBaselineEurPerDay: number;
   basis: "model" | "chatter" | "fallback";
+  currentGoal: number | null;
 }
 
 function SuggestionCard({
@@ -236,17 +237,37 @@ function SuggestionCard({
               ? `Basis: eigener Schnitt – über Model-Potenzial (Ø ${formatEUR(row.avg30)}/Tag vs. ${formatEUR(row.modelBaselineEurPerDay)}/Tag)`
               : "Basis: Chatter-Schnitt (kein Model erkannt)"}
           </p>
+          {row.currentGoal != null && (
+            <p className="text-[11px] text-amber-200/80 font-light mt-1">
+              Aktuell: <span className="tabular-nums">{formatEUR(row.currentGoal)}</span> → neu{" "}
+              <span className="tabular-nums text-emerald-200">{formatEUR(parsed || row.suggested)}</span>
+              {row.currentGoal > 0 && (
+                <span className="ml-1 text-white/45">
+                  ({((parsed || row.suggested) >= row.currentGoal ? "+" : "")}
+                  {Math.round((((parsed || row.suggested) - row.currentGoal) / row.currentGoal) * 100)}%)
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <span
           className={`text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full font-light shrink-0 ${
-            row.basis === "model"
+            row.currentGoal != null
+              ? "border border-amber-300/30 bg-amber-400/10 text-amber-200"
+              : row.basis === "model"
               ? "border border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
               : row.basis === "chatter"
               ? "border border-sky-300/30 bg-sky-400/10 text-sky-200"
               : "border border-amber-300/30 bg-amber-400/10 text-amber-200"
           } border`}
         >
-          {row.basis === "model" ? "Vorschlag" : row.basis === "chatter" ? "Overperformer" : "Fallback"}
+          {row.currentGoal != null
+            ? "Update"
+            : row.basis === "model"
+            ? "Vorschlag"
+            : row.basis === "chatter"
+            ? "Overperformer"
+            : "Fallback"}
         </span>
       </div>
 
@@ -299,7 +320,7 @@ function SuggestionCard({
           className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-sm font-light hover:bg-emerald-400/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-          Annehmen
+          {row.currentGoal != null ? "Überschreiben" : "Annehmen"}
         </button>
         <button
           disabled={busy}
@@ -341,6 +362,7 @@ export default function MonthlyGoals() {
   const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
   const [bulkTargets, setBulkTargets] = useState<BulkTarget[] | null>(null);
   const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
+  const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
 
 
   useEffect(() => {
@@ -546,13 +568,14 @@ export default function MonthlyGoals() {
           }
         }
 
-        // Chatter mit echtem Monatsziel (Note vorhanden) ausschließen — Label allein reicht nicht,
-        // sonst fallen Chatter raus, die zwar das Label "Monatsziel" haben, aber noch keine Note.
-        const hasGoalSet = new Set(goalByChatter.keys());
+        // Map: bestehende Monatsziele (zum Anzeigen + Überschreiben)
+        const currentGoalByChatter = new Map<string, number>();
+        for (const [c, g] of goalByChatter) currentGoalByChatter.set(c, g.goal);
+
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
-          if (hasGoalSet.has(chatter)) continue;
-          // Nur Chatter, die im neuesten Report noch dabei waren
+          // Bewusst KEIN Skip für Chatter mit bestehendem Ziel — sie sollen erscheinen
+          // und das alte Ziel beim Annehmen überschreiben.
           if (!activeInLatestReport.has(chatter)) continue;
           const days = daysByChatter.get(chatter)?.size ?? 0;
           if (days === 0) continue;
@@ -621,6 +644,7 @@ export default function MonthlyGoals() {
             models: roster,
             modelBaselineEurPerDay: perChatterDailyBaseline,
             basis,
+            currentGoal: currentGoalByChatter.get(chatter) ?? null,
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
@@ -694,26 +718,40 @@ export default function MonthlyGoals() {
         labelId = created.id;
       }
 
-      // 2) Assignment + Notiz parallel
+      // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
       const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
       const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
-      const [assignRes, noteRes] = await Promise.all([
-        supabase.from("chatter_label_assignments").insert({
-          platform,
-          chatter_name: chatter,
-          label_id: labelId!,
-          user_id: user.id,
-        }),
+
+      const { data: existingAssign, error: aSelErr } = await supabase
+        .from("chatter_label_assignments")
+        .select("id")
+        .eq("platform", platform)
+        .eq("label_id", labelId!)
+        .eq("chatter_name", chatter)
+        .limit(1);
+      if (aSelErr) throw aSelErr;
+
+      const tasks: any[] = [
         supabase.from("coaching_notes").insert({
           platform,
           chatter_name: chatter,
           note_text: noteText,
           user_id: user.id,
         }),
-      ]);
-      if (assignRes.error) throw assignRes.error;
-      if (noteRes.error) throw noteRes.error;
+      ];
+      if (!existingAssign || existingAssign.length === 0) {
+        tasks.unshift(
+          supabase.from("chatter_label_assignments").insert({
+            platform,
+            chatter_name: chatter,
+            label_id: labelId!,
+            user_id: user.id,
+          }),
+        );
+      }
+      const results = await Promise.all(tasks);
+      for (const r of results) if (r.error) throw r.error;
 
       toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
       setReloadKey((k) => k + 1);
@@ -798,7 +836,7 @@ export default function MonthlyGoals() {
         <div className="flex gap-1.5 border-b border-white/[0.06] pb-0">
           {([
             ["current", "Aktuelle Monatsziele", rows.length],
-            ["future", "Zukünftige Monatsziele", visibleSuggestions.length],
+            ["future", "Zukünftige Monatsziele", suggestionsGenerated ? visibleSuggestions.length : 0],
           ] as ["current" | "future", string, number][]).map(([k, label, count]) => (
             <button
               key={k}
@@ -927,30 +965,62 @@ export default function MonthlyGoals() {
               <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-6 text-sm text-red-200">
                 {error}
               </div>
+            ) : !suggestionsGenerated ? (
+              <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-10 text-center space-y-4">
+                <Sparkles className="h-8 w-8 mx-auto text-emerald-300/60" />
+                <div className="space-y-1">
+                  <p className="text-sm text-white/80 font-light">
+                    Vorschläge für alle Chatter aus dem neuesten Report
+                  </p>
+                  <p className="text-[11px] text-white/40 font-light max-w-md mx-auto">
+                    Inkl. Chatter mit bestehendem Monatsziel — Annehmen überschreibt das aktuelle Ziel.
+                    Smoothing für neue Chatter (&lt;14 Tage) ist eingebaut.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSuggestionsGenerated(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-sm font-light hover:bg-emerald-400/25 transition-colors"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Zukünftige Monatsziele generieren
+                </button>
+              </div>
             ) : visibleSuggestions.length === 0 ? (
               <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
                 <Sparkles className="h-8 w-8 mx-auto text-white/20 mb-3" />
                 <p className="text-sm text-white/55 font-light">
-                  Keine offenen Vorschläge. Alle aktiven Chatter haben bereits ein Monatsziel oder machen weniger als 1 € / Tag im Schnitt.
+                  Keine Chatter im neuesten Report mit ausreichend Daten für einen Vorschlag.
                 </p>
               </div>
             ) : (
               <>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
-                    Nur Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet).
+                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet, mit Smoothing für neue Chatter). Karten mit „Update"-Badge überschreiben das bestehende Monatsziel.
                   </p>
-                  <button
-                    onClick={() =>
-                      setBulkOpen(
-                        visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
-                      )
-                    }
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-xs font-light hover:bg-emerald-400/25 transition-colors shrink-0"
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    Nachrichten für alle generieren
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setSkipped(new Set());
+                        setReloadKey((k) => k + 1);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors"
+                    >
+                      <Loader2 className="h-3.5 w-3.5" />
+                      Neu generieren
+                    </button>
+                    <button
+                      onClick={() =>
+                        setBulkOpen(
+                          visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-xs font-light hover:bg-emerald-400/25 transition-colors"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Nachrichten für alle generieren
+                    </button>
+                  </div>
                 </div>
 
 
@@ -963,7 +1033,7 @@ export default function MonthlyGoals() {
                       onAccept={(goal) => acceptSuggestion(s.chatter, goal)}
                       onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
                       onMessage={(goal) =>
-                        setMessageFor({ chatter: s.chatter, proposedGoal: goal, currentGoal: null })
+                        setMessageFor({ chatter: s.chatter, proposedGoal: goal, currentGoal: s.currentGoal })
                       }
                     />
                   ))}
