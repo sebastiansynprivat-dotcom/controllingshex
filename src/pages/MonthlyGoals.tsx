@@ -20,6 +20,9 @@ import {
   computeGoalProgress,
   formatEUR,
   suggestMonthlyGoal,
+  splitAccounts,
+  computeModelBaselines,
+  suggestFromModels,
   type GoalProgress,
   type GoalStatus,
 } from "@/lib/monthly-goals";
