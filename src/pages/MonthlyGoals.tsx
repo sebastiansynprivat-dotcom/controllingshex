@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare } from "lucide-react";
 import GoalMessageDialog from "@/components/GoalMessageDialog";
+import BulkGoalMessagesDialog, { type BulkTarget } from "@/components/BulkGoalMessagesDialog";
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -333,6 +335,9 @@ export default function MonthlyGoals() {
   const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
+  const [bulkTargets, setBulkTargets] = useState<BulkTarget[] | null>(null);
+  const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -882,9 +887,23 @@ export default function MonthlyGoals() {
               </div>
             ) : (
               <>
-                <p className="text-[11px] text-white/40 font-light">
-                  Nur Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet).
-                </p>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
+                    Nur Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet).
+                  </p>
+                  <button
+                    onClick={() =>
+                      setBulkOpen(
+                        visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-xs font-light hover:bg-emerald-400/25 transition-colors shrink-0"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Nachrichten für alle generieren
+                  </button>
+                </div>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {visibleSuggestions.map((s) => (
@@ -916,6 +935,16 @@ export default function MonthlyGoals() {
           currentGoal={messageFor.currentGoal}
         />
       )}
+
+      {bulkTargets && (
+        <BulkGoalMessagesDialog
+          open={!!bulkTargets}
+          onClose={() => setBulkTargets(null)}
+          platform={platform}
+          targets={bulkTargets}
+        />
+      )}
+
 
       <ChatterSlideOver
         open={!!selected}
