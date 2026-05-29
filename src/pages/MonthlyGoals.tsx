@@ -489,10 +489,28 @@ export default function MonthlyGoals() {
           }
         }
 
+        // Neueste Report-Datum bestimmen + Chatter, die dort vorkamen
+        let latestReportDate: string | null = null;
+        for (const h of histAllRows) {
+          if (!latestReportDate || h.analysis_date > latestReportDate) {
+            latestReportDate = h.analysis_date;
+          }
+        }
+        const activeInLatestReport = new Set<string>();
+        if (latestReportDate) {
+          for (const h of histAllRows) {
+            if (h.analysis_date === latestReportDate && h.chatter_name) {
+              activeInLatestReport.add(h.chatter_name);
+            }
+          }
+        }
+
         const labelSet = new Set(labelChatters);
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
           if (labelSet.has(chatter)) continue;
+          // Nur Chatter, die im neuesten Report noch dabei waren
+          if (!activeInLatestReport.has(chatter)) continue;
           const days = daysByChatter.get(chatter)?.size ?? 0;
           if (days === 0) continue;
           const avg = sum / days;
@@ -527,6 +545,7 @@ export default function MonthlyGoals() {
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
 
+
         if (!cancelled) {
           setRows(built);
           setSuggestions(sugg);
@@ -541,6 +560,22 @@ export default function MonthlyGoals() {
     load();
     return () => { cancelled = true; };
   }, [platform, reloadKey]);
+
+  // Auto-Refresh, sobald ein neuer Report hochgeladen wird (neue chatter_history Rows)
+  useEffect(() => {
+    const channel = supabase
+      .channel(`monthly-goals-history-${platform}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chatter_history", filter: `platform=eq.${platform}` },
+        () => setReloadKey((k) => k + 1),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
 
   async function acceptSuggestion(chatter: string, goal: number) {
     if (goal <= 0) {
@@ -822,8 +857,9 @@ export default function MonthlyGoals() {
             ) : (
               <>
                 <p className="text-[11px] text-white/40 font-light">
-                  Vorschläge basierend auf All-Time Ø Tagesumsatz × Tage im Monat × 110 % (auf 50 € gerundet).
+                  Nur Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet).
                 </p>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {visibleSuggestions.map((s) => (
                     <SuggestionCard
