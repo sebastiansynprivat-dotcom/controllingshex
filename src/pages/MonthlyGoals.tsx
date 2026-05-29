@@ -232,6 +232,8 @@ function SuggestionCard({
           <p className="text-[11px] text-white/35 font-light mt-0.5">
             {row.basis === "model"
               ? `Basis: ${row.models.length} ${row.models.length === 1 ? "Model" : "Models"} · Ø ${formatEUR(row.modelBaselineEurPerDay)}/Tag Potenzial`
+              : row.basis === "chatter"
+              ? `Basis: eigener Schnitt – über Model-Potenzial (Ø ${formatEUR(row.avg30)}/Tag vs. ${formatEUR(row.modelBaselineEurPerDay)}/Tag)`
               : "Basis: Chatter-Schnitt (kein Model erkannt)"}
           </p>
         </div>
@@ -239,10 +241,12 @@ function SuggestionCard({
           className={`text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full font-light shrink-0 ${
             row.basis === "model"
               ? "border border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
+              : row.basis === "chatter"
+              ? "border border-sky-300/30 bg-sky-400/10 text-sky-200"
               : "border border-amber-300/30 bg-amber-400/10 text-amber-200"
           } border`}
         >
-          {row.basis === "model" ? "Vorschlag" : "Fallback"}
+          {row.basis === "model" ? "Vorschlag" : row.basis === "chatter" ? "Overperformer" : "Fallback"}
         </span>
       </div>
 
