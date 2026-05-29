@@ -200,11 +200,13 @@ function SuggestionCard({
   row,
   onAccept,
   onSkip,
+  onMessage,
   busy,
 }: {
   row: SuggestionRow;
   onAccept: (goal: number) => void;
   onSkip: () => void;
+  onMessage: (goal: number) => void;
   busy: boolean;
 }) {
   const [editing, setEditing] = useState(false);
