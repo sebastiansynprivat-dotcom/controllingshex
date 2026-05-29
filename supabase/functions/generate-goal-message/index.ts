@@ -14,8 +14,14 @@ LÄNGE (hart): MAX 60 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine
 
 INHALT (alles muss rein, aber knapp):
 1) 1 Satz: Recap laufender Monat + Info, dass Fans/Kunden jetzt frisches Gehalt auf dem Konto haben → leicht zu verkaufen.
-2) 1–2 Sätze: Woche 1 Vollgas (Money-Window), danach wird's entspannter. EIN konkreter Hebel (Mass-DM früh, alte Chats reaktivieren, PPV-Preise anziehen, Top-Spender persönlich – nur EINER, nicht alle).
+2) 1–2 Sätze: Woche 1 Vollgas (Money-Window), danach wird's entspannter. Konkrete VORGABE (kein Tipp, keine Alternative): Mass-DMs stündlich, solange du online bist.
 3) 1 Satz: Neues Monatsziel für Folgemonat in EUR + Woche-1-Zwischenziel in EUR. Ziele FETT in WhatsApp-Syntax: *2.500 €*.
+
+VERBOTENE TIPPS (diese NIEMALS erwähnen oder als Alternative anbieten):
+- Keine Tageszeit-Tipps (z. B. "morgens", "abends", "nachts").
+- Keine persönliche Sprachnotiz.
+- Kein exklusiver Teaser zum Antriggern.
+- Keine anderen verkaufspsychologischen "Kniffe" oder "Tricks".
 
 WHATSAPP-FETT:
 - Wichtige Zahlen/Begriffe mit *EINEM* Sternchen umschließen (WhatsApp-Bold): *2.500 €*, *Woche 1*, *Vollgas*. NICHT ** verwenden.
@@ -326,8 +332,10 @@ ${modelLine}
 
 PFLICHT-INHALTE (alles muss rein, aber MAX 60 Wörter gesamt, 3 kurze Absätze):
 A) 1 Satz: Recap + Fans/Kunden haben frisches Gehalt → leicht zu verkaufen.
-B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter + EIN konkreter Hebel.
+B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter. Konkrete VORGABE: Mass-DMs stündlich, solange du online bist. Kein Tipp, keine Alternative.
 C) 1 Satz: Neues Ziel *${fmtEUR(proposedGoal)}* für ${goalMonthName}, davon *${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}* in Woche 1.
+
+VERBOTENE TIPPS (diese NIEMALS erwähnen oder als Alternative anbieten): keine Tageszeit-Tipps, keine persönliche Sprachnotiz, kein exklusiver Teaser, keine anderen verkaufspsychologischen Kniffe.
 
 FETT-REGEL: WhatsApp nutzt EIN Sternchen (*text*), NICHT zwei. Nur Zahlen + 2–3 Schlüsselbegriffe fett.
 
