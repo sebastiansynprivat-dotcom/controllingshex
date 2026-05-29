@@ -201,7 +201,7 @@ interface SuggestionRow {
   suggested: number;
   models: string[];
   modelBaselineEurPerDay: number;
-  basis: "model" | "fallback";
+  basis: "model" | "chatter" | "fallback";
 }
 
 function SuggestionCard({
