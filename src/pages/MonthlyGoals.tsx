@@ -571,15 +571,32 @@ export default function MonthlyGoals() {
             ? Math.max(50, Math.round(rawModelGoal / 50) * 50)
             : 0;
 
+          // Smoothing für neue Chatter: wenn jemand erst wenige Tage dabei ist,
+          // dürfen 2 gute Tage das Ziel nicht hochreißen.
+          // Wir blenden den Chatter-Schnitt linear mit dem Model-Baseline,
+          // bis er 14 aktive Tage hat (volles Vertrauen).
+          const MIN_DAYS_FULL_TRUST = 14;
+          const MIN_DAYS_CHATTER_OVERRIDE = 10; // erst ab so vielen Tagen darf Chatter Model schlagen
+          const trustWeight = Math.min(1, days / MIN_DAYS_FULL_TRUST);
+          const smoothedAvg = perChatterDailyBaseline > 0
+            ? trustWeight * avg + (1 - trustWeight) * perChatterDailyBaseline
+            : avg;
+
           // Wenn Chatter deutlich BESSER als Model-Schnitt performt (>10% drüber),
           // → eigenes Ergebnis + 10 % nehmen statt Model-Schnitt zu deckeln.
+          // ABER: nur wenn er genug Datenbasis hat (≥10 Tage).
           const chatterGoal = avg > 1
-            ? Math.max(50, Math.round((avg * daysInMonth * 1.10) / 50) * 50)
+            ? Math.max(50, Math.round((smoothedAvg * daysInMonth * 1.10) / 50) * 50)
             : 0;
 
           let basis: "model" | "chatter" | "fallback";
           let suggested: number;
-          if (modelGoal > 0 && chatterGoal > 0 && avg > perChatterDailyBaseline * 1.10) {
+          if (
+            modelGoal > 0 &&
+            chatterGoal > 0 &&
+            days >= MIN_DAYS_CHATTER_OVERRIDE &&
+            avg > perChatterDailyBaseline * 1.10
+          ) {
             basis = "chatter";
             suggested = chatterGoal;
           } else if (modelGoal > 0) {
@@ -591,6 +608,7 @@ export default function MonthlyGoals() {
             basis = "fallback";
             suggested = suggestMonthlyGoal(avg, today);
           }
+
 
 
           sugg.push({
