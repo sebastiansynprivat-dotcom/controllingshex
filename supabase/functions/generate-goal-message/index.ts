@@ -10,7 +10,7 @@ const SYSTEM_PROMPT = `Du schreibst SEHR KURZE persönliche Direktnachrichten an
 
 EMPFÄNGER: EIN konkreter Chatter (Mitarbeiter im eigenen Team). NIE Fans.
 
-LÄNGE (hart): MAX 60 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine Füllwörter. Wenn's länger wird → kürzen.
+LÄNGE (hart): MAX 100 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine Füllwörter. Wenn's länger wird → kürzen.
 
 INHALT (alles muss rein, aber knapp):
 1) 1 Satz: Recap laufender Monat + Info, dass Fans/Kunden jetzt frisches Gehalt auf dem Konto haben → leicht zu verkaufen.
@@ -330,7 +330,7 @@ ${modelLine}
 - NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
 - WOCHE-1-ZIEL (Tag 1–7): mind. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)} = ca. 30 % des Monatsziels. Begründung im Text: Money-Window am Monatsanfang (Fans haben frisches Geld), wenn man die erste Woche pusht wird's nach hinten raus entspannter.
 
-PFLICHT-INHALTE (alles muss rein, aber MAX 60 Wörter gesamt, 3 kurze Absätze):
+PFLICHT-INHALTE (alles muss rein, aber MAX 100 Wörter gesamt, 3 kurze Absätze):
 A) 1 Satz: Recap + Fans/Kunden haben frisches Gehalt → leicht zu verkaufen.
 B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter. Konkrete VORGABE: Mass-DMs stündlich, solange du online bist. Kein Tipp, keine Alternative.
 C) 1 Satz: Neues Ziel *${fmtEUR(proposedGoal)}* für ${goalMonthName}, davon *${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}* in Woche 1.
@@ -341,7 +341,7 @@ FETT-REGEL: WhatsApp nutzt EIN Sternchen (*text*), NICHT zwei. Nur Zahlen + 2–
 
 TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
-Schreib JETZT die fertige Nachricht. MAX 60 Wörter. 3 kurze Absätze (Leerzeile zwischen). Ziel klar für ${goalMonthName}. Keine Floskeln, keine Listen, max 2 Emojis.`;
+Schreib JETZT die fertige Nachricht. MAX 100 Wörter. 3 kurze Absätze (Leerzeile zwischen). Ziel klar für ${goalMonthName}. Keine Floskeln, keine Listen, max 2 Emojis.`;
 
 
 
@@ -362,7 +362,7 @@ Schreib JETZT die fertige Nachricht. MAX 60 Wörter. 3 kurze Absätze (Leerzeile
             parameters: {
               type: "object",
               properties: {
-                message: { type: "string", description: "Fertiger Nachrichtentext auf Deutsch, MAX 60 Wörter, 3 kurze Absätze, WhatsApp-Bold mit *einem* Sternchen." },
+                message: { type: "string", description: "Fertiger Nachrichtentext auf Deutsch, MAX 100 Wörter, 3 kurze Absätze, WhatsApp-Bold mit *einem* Sternchen." },
               },
               required: ["message"],
               additionalProperties: false,
