@@ -341,7 +341,7 @@ FETT-REGEL: WhatsApp nutzt EIN Sternchen (*text*), NICHT zwei. Nur Zahlen + 2–
 
 TONE: ${toneLine}${contextHints.length ? "\n\n" + contextHints.join("\n") : ""}
 
-Schreib JETZT die fertige Nachricht. MAX 60 Wörter. 3 kurze Absätze (Leerzeile zwischen). Ziel klar für ${goalMonthName}. Keine Floskeln, keine Listen, max 2 Emojis.`;
+Schreib JETZT die fertige Nachricht. MAX 100 Wörter. 3 kurze Absätze (Leerzeile zwischen). Ziel klar für ${goalMonthName}. Keine Floskeln, keine Listen, max 2 Emojis.`;
 
 
 
