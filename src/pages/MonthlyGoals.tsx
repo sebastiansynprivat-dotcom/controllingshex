@@ -388,14 +388,40 @@ export default function MonthlyGoals() {
         const sixtyDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 60);
         const sixtyAgoIso = toIsoDateLocal(sixtyDaysAgo);
 
-        // 3) Historie (60 Tage, inkl. account) + Notizen für gelabelte parallel
-        const [histAllRes, notesRes, histMonthRes] = await Promise.all([
-          supabase
-            .from("chatter_history")
-            .select("chatter_name, revenue_today, analysis_date, account")
-            .eq("platform", platform)
-            .gte("analysis_date", sixtyAgoIso)
-            .lte("analysis_date", todayIso),
+        // 3) Historie (60 Tage, inkl. account) — paginiert (Supabase Default-Limit = 1000)
+        async function fetchAllHistory<T>(
+          builder: () => any,
+        ): Promise<T[]> {
+          const pageSize = 1000;
+          const all: T[] = [];
+          let from = 0;
+          // Hard-Cap, falls jemals etwas Komisches passiert
+          for (let i = 0; i < 50; i++) {
+            const { data, error } = await builder().range(from, from + pageSize - 1);
+            if (error) throw error;
+            const chunk = (data ?? []) as T[];
+            all.push(...chunk);
+            if (chunk.length < pageSize) break;
+            from += pageSize;
+          }
+          return all;
+        }
+
+        const [histAllRows, notesRes, histMonthRows] = await Promise.all([
+          fetchAllHistory<{
+            chatter_name: string;
+            revenue_today: number | null;
+            analysis_date: string;
+            account: string | null;
+          }>(() =>
+            supabase
+              .from("chatter_history")
+              .select("chatter_name, revenue_today, analysis_date, account")
+              .eq("platform", platform)
+              .gte("analysis_date", sixtyAgoIso)
+              .lte("analysis_date", todayIso)
+              .order("analysis_date", { ascending: false }),
+          ),
           labelChatters.length > 0
             ? supabase
                 .from("coaching_notes")
@@ -405,18 +431,24 @@ export default function MonthlyGoals() {
                 .order("created_at", { ascending: false })
             : Promise.resolve({ data: [], error: null } as any),
           labelChatters.length > 0
-            ? supabase
-                .from("chatter_history")
-                .select("chatter_name, revenue_today, analysis_date")
-                .eq("platform", platform)
-                .in("chatter_name", labelChatters)
-                .gte("analysis_date", reportStartIso)
-                .lte("analysis_date", todayIso)
-            : Promise.resolve({ data: [], error: null } as any),
+            ? fetchAllHistory<{
+                chatter_name: string;
+                revenue_today: number | null;
+                analysis_date: string;
+              }>(() =>
+                supabase
+                  .from("chatter_history")
+                  .select("chatter_name, revenue_today, analysis_date")
+                  .eq("platform", platform)
+                  .in("chatter_name", labelChatters)
+                  .gte("analysis_date", reportStartIso)
+                  .lte("analysis_date", todayIso),
+              )
+            : Promise.resolve([] as Array<{ chatter_name: string; revenue_today: number | null; analysis_date: string }>),
         ]);
-        if (histAllRes.error) throw histAllRes.error;
-        if (notesRes.error) throw notesRes.error;
-        if (histMonthRes.error) throw histMonthRes.error;
+        if ((notesRes as any).error) throw (notesRes as any).error;
+
+
 
         // === Aktuelle Monatsziele ===
         const goalByChatter = new Map<string, { goal: number; text: string; date: string }>();
