@@ -335,6 +335,9 @@ export default function MonthlyGoals() {
   const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
+  const [bulkTargets, setBulkTargets] = useState<BulkTarget[] | null>(null);
+  const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
+
 
   useEffect(() => {
     let cancelled = false;
