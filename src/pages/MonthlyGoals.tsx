@@ -489,10 +489,28 @@ export default function MonthlyGoals() {
           }
         }
 
+        // Neueste Report-Datum bestimmen + Chatter, die dort vorkamen
+        let latestReportDate: string | null = null;
+        for (const h of histAllRows) {
+          if (!latestReportDate || h.analysis_date > latestReportDate) {
+            latestReportDate = h.analysis_date;
+          }
+        }
+        const activeInLatestReport = new Set<string>();
+        if (latestReportDate) {
+          for (const h of histAllRows) {
+            if (h.analysis_date === latestReportDate && h.chatter_name) {
+              activeInLatestReport.add(h.chatter_name);
+            }
+          }
+        }
+
         const labelSet = new Set(labelChatters);
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
           if (labelSet.has(chatter)) continue;
+          // Nur Chatter, die im neuesten Report noch dabei waren
+          if (!activeInLatestReport.has(chatter)) continue;
           const days = daysByChatter.get(chatter)?.size ?? 0;
           if (days === 0) continue;
           const avg = sum / days;
@@ -526,6 +544,7 @@ export default function MonthlyGoals() {
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
+
 
         if (!cancelled) {
           setRows(built);
