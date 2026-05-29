@@ -81,7 +81,10 @@ Deno.serve(async (req) => {
 
     const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-    const [histRes, notesRes] = await Promise.all([
+    // Roster: Models des Chatters aus den letzten 14 Tagen
+    const fourteenAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const [histRes, notesRes, rosterRes] = await Promise.all([
       admin
         .from("chatter_history")
         .select("revenue_today, analysis_date")
@@ -98,9 +101,59 @@ Deno.serve(async (req) => {
         .eq("chatter_name", chatterName)
         .order("created_at", { ascending: false })
         .limit(5),
+      admin
+        .from("chatter_history")
+        .select("account")
+        .eq("user_id", userId)
+        .eq("platform", platform)
+        .eq("chatter_name", chatterName)
+        .gte("analysis_date", iso(fourteenAgo))
+        .lte("analysis_date", iso(today)),
     ]);
 
     if (histRes.error) throw histRes.error;
+
+    // Roster aufbauen
+    const splitAccounts = (s: string | null | undefined): string[] =>
+      !s ? [] : s.split(/[,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const rosterSet = new Set<string>();
+    for (const r of (rosterRes.data ?? []) as Array<{ account: string | null }>) {
+      for (const m of splitAccounts(r.account)) rosterSet.add(m);
+    }
+    const roster = Array.from(rosterSet);
+
+    // Model-Baselines: alle Rows der letzten 60 Tage (egal welcher Chatter) für die Models im Roster
+    let modelBaselineEurPerDay = 0;
+    if (roster.length > 0) {
+      const sixtyAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+      const { data: baseRows } = await admin
+        .from("chatter_history")
+        .select("account, revenue_today, analysis_date")
+        .eq("user_id", userId)
+        .eq("platform", platform)
+        .gte("analysis_date", iso(sixtyAgo))
+        .lte("analysis_date", iso(today));
+
+      const sumByModel = new Map<string, number>();
+      const daysByModel = new Map<string, Set<string>>();
+      for (const r of (baseRows ?? []) as Array<{ account: string | null; revenue_today: number | null; analysis_date: string }>) {
+        const models = splitAccounts(r.account);
+        if (models.length === 0) continue;
+        const share = Number(r.revenue_today ?? 0) / models.length;
+        for (const m of models) {
+          if (!rosterSet.has(m)) continue; // nur Models im Roster zählen
+          sumByModel.set(m, (sumByModel.get(m) ?? 0) + share);
+          if (!daysByModel.has(m)) daysByModel.set(m, new Set());
+          daysByModel.get(m)!.add(r.analysis_date);
+        }
+      }
+      for (const m of roster) {
+        const days = daysByModel.get(m)?.size ?? 0;
+        if (days > 0) modelBaselineEurPerDay += (sumByModel.get(m) ?? 0) / days;
+      }
+    }
+
+
 
     // Aggregate per DISTINCT day (chatter_history hat oft mehrere Rows/Tag pro Account)
     const lastFrom = iso(firstOfLastMonth);
