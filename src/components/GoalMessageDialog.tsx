@@ -123,13 +123,26 @@ export default function GoalMessageDialog({
           </div>
 
           {context && (
-            <div className="text-[11px] text-white/45 font-light leading-relaxed">
-              {context.last_month_name}: {formatEUR(context.last_month_revenue)}
-              {context.prior_goal ? ` / Ziel ${formatEUR(context.prior_goal)}` : ""}
-              {context.goal_hit_pct != null ? ` · ${Math.round(context.goal_hit_pct)}%` : ""}
-              {context.vs_prev_pct != null
-                ? ` · Trend ${context.vs_prev_pct >= 0 ? "+" : ""}${Math.round(context.vs_prev_pct)}%`
-                : ""}
+            <div className="text-[11px] text-white/45 font-light leading-relaxed space-y-0.5">
+              <div>
+                {context.last_month_name}: {formatEUR(context.last_month_revenue)}
+                {context.prior_goal ? ` / Ziel ${formatEUR(context.prior_goal)}` : ""}
+                {context.goal_hit_pct != null ? ` · ${Math.round(context.goal_hit_pct)}%` : ""}
+                {context.vs_prev_pct != null
+                  ? ` · Trend ${context.vs_prev_pct >= 0 ? "+" : ""}${Math.round(context.vs_prev_pct)}%`
+                  : ""}
+              </div>
+              {context.last_worked_days != null && (
+                <div className="text-white/35">
+                  {context.last_worked_days}/{context.days_in_last_month} Tage aktiv
+                  {context.last_earning_days != null
+                    ? ` · ${context.last_earning_days} Earning · ${context.last_zero_days} Nullrunden`
+                    : ""}
+                  {context.last_avg_per_worked_day
+                    ? ` · Ø ${formatEUR(context.last_avg_per_worked_day)}/Tag`
+                    : ""}
+                </div>
+              )}
             </div>
           )}
 

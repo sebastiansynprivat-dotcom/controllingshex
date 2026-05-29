@@ -1,42 +1,43 @@
-# Monats-Nachricht pro Chatter generieren
+# Nachricht akkurater machen — echte vs. „leere" Arbeitstage
 
-Auf der Monatsziele-Seite kommt pro Chatter (sowohl bei "Aktuelle Ziele" als auch bei "Vorschlägen") ein neuer Button **"Nachricht generieren"**. Klick öffnet ein Modal mit einer fertig formulierten Direktnachricht an den Chatter (Boss → Mitarbeiter, locker, persönlich, kein HR-Sprech), die du in einem Rutsch kopieren und per Chat verschicken kannst.
+## Was gerade schiefläuft
 
-## Inhalt der Nachricht
-- Kurzer Recap des **letzten Monats** (Umsatz, vs. Ziel falls eins existierte, vs. Vormonat).
-- Wenn schlecht gelaufen → Tonalität: nicht abwertend, "halb so wild, drehen wir den nächsten Monat einfach wieder", motivierend.
-- Wenn gut gelaufen → echtes Lob + Push: jetzt noch einen drauflegen.
-- Vorschlag/Festlegung des **neuen Monatsziels** (Zahl klar drin) mit kurzer Begründung warum genau diese Zahl.
-- 3–5 Sätze, WhatsApp-Stil, Du-Form, deine Emoji-Regeln (kein Punkt vor Emoji, Hautton 🏻).
+`generate-goal-message` zählt `lastMonthDays` als Anzahl Rows mit `revenue_today > 0`. Aber `chatter_history` hat **mehrere Rows pro Tag** (pro Account/Modell). Beispiel echte Daten: 78 Rows in 41 Tagen → AI bekommt „73 aktive Tage" obwohl der Monat nur ~30 hat.
 
-## UI
+Zweites Problem: 0-€-Tage werden ignoriert. Ein Chatter, der 22 Tage gearbeitet hat aber 8 Mal 0 € machte, sieht gleich aus wie einer, der 14 Tage gearbeitet hat — beide zeigen „14 aktive Tage". Dadurch wird der Schwächere künstlich besser bewertet.
 
-- Neuer Button "Nachricht" (Icon `MessageSquare`) auf `GoalCard` und `SuggestionCard`.
-- Klick → Modal mit:
-  - Loading-State während die Edge Function läuft
-  - Textarea mit generierter Nachricht (editierbar)
-  - Felder: vorgeschlagenes neues Ziel (vorbelegt, änderbar) — wird in den Prompt eingespeist, damit AI die Zahl konsistent nennt
-  - Buttons: **Kopieren**, **Neu generieren**, **Schließen**
-- Bei Aktuellen Zielen: Default-Ziel = aktuelles Ziel (oder leichte Steigerung wenn übertroffen).
-- Bei Vorschlägen: Default-Ziel = bereits berechneter `suggested`-Wert.
+## Lösung
 
-## Backend
+Edge Function `generate-goal-message` erweitern, sodass die AI ein realistischeres Bild bekommt:
 
-Neue Edge Function `generate-goal-message`:
-- Input: `chatter_name`, `platform`, `proposed_goal` (number), optional `current_goal`.
-- Lädt serverseitig:
-  - Umsatz **letzter Kalendermonat** (chatter_history)
-  - Umsatz **aktueller Monat bisher**
-  - Falls vorhanden: altes Monatsziel (aus letzter Coaching-Notiz mit Zahl)
-- Rechnet: Ziel-Erreichung letzter Monat in %, Differenz zu Vormonat, Trend.
-- Ruft Lovable AI Gateway (`google/gemini-3-flash-preview`) mit System-Prompt im Stil deiner bestehenden Channel-Plan-Funktion (Boss/Founder-Tonalität, Emoji-Regeln, keine Floskeln) + strukturierten Daten.
-- Gibt `{ message: string }` zurück. 429/402 sauber durchreichen.
+**1. Distinct-Tage rechnen (statt Rows zählen)**
+- `workedDays` = DISTINCT `analysis_date` mit mindestens einer Row im Monat (= war eingeloggt / Report wurde abgegeben).
+- `earningDays` = DISTINCT `analysis_date` mit Summe `revenue_today > 0`.
+- `zeroDays` = `workedDays - earningDays` (war da, aber 0 € gemacht).
+- `daysInMonth` = Kalendertage des letzten Monats.
 
-Kein DB-Schema-Change.
+**2. Aussagekräftigere Kennzahlen für die AI**
+- Durchschnitt pro **Arbeitstag** (nicht pro Earning-Tag): `lastMonthRev / workedDays`.
+- Zusätzlich: Quote `earningDays / workedDays` → erkennt jemanden, der oft „leer" rausgeht.
+- Vergleich mit Vormonat: gleiche Logik auf `prevPrevMonth` anwenden, damit „Trend"-Aussage stimmt.
 
-## Technische Details
+**3. Tonalitäts-Heuristik verbessern**
+Aktuell nur `goalHit %` oder `vsPrev %`. Neu zusätzlich:
+- Wenn `earningDays / workedDays < 0.5` → Tonalität-Hinweis im Prompt: „viele Nullrunden" → AI soll das thematisieren („zu viele leere Tage, lass uns die Schichten besser nutzen") statt nur Gesamtsumme zu loben/kritisieren.
+- Wenn `workedDays < daysInMonth * 0.4` → Hinweis „war wenig da" → AI berücksichtigt das (kein hartes Bashen wegen niedriger Summe).
 
-- Neue Datei: `supabase/functions/generate-goal-message/index.ts` (CORS, JWT-Validation via `supabase.auth.getUser()`, Service-Role-Client für History-Reads, Lovable AI Gateway Call mit Tool-Calling für strukturierte `message`-Ausgabe).
-- Neue Komponente: `src/components/GoalMessageDialog.tsx` (shadcn Dialog + Textarea + Buttons, `supabase.functions.invoke("generate-goal-message", …)`).
-- Edits in `src/pages/MonthlyGoals.tsx`: Button auf `GoalCard` und `SuggestionCard` durchreichen, State für offenen Dialog (`messageFor: { chatter, currentGoal?, proposedGoal }`).
-- Emoji-/Wording-Regeln aus `mem://` werden im System-Prompt der Edge Function hartkodiert.
+**4. Prompt erweitern**
+Neuer Daten-Block an die AI:
+```
+- Arbeitstage letzter Monat: 22 von 30 Kalendertagen
+- Davon Earning-Tage: 14 (64%) — also 8 Nullrunden
+- Ø pro Arbeitstag: 145 €
+- Vormonat: 18 Arbeitstage, 12 Earning-Tage, Ø 180 €/Tag
+```
+Plus expliziter Hinweis im System-Prompt: „Wenn viele Nullrunden: erwähn das diplomatisch, nicht abwertend. Wenn wenig Tage gearbeitet: bewerte die Tagesleistung, nicht die Monatssumme."
+
+## Geltungsbereich
+
+- Nur `supabase/functions/generate-goal-message/index.ts`.
+- Frontend-Dialog zeigt im Kontext-Bar zusätzlich `Arbeitstage X/Y · davon Earning Z` an, damit du auf einen Blick siehst was die AI gesehen hat.
+- Kein DB-Change.
