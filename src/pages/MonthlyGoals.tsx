@@ -546,10 +546,12 @@ export default function MonthlyGoals() {
           }
         }
 
-        const labelSet = new Set(labelChatters);
+        // Chatter mit echtem Monatsziel (Note vorhanden) ausschließen — Label allein reicht nicht,
+        // sonst fallen Chatter raus, die zwar das Label "Monatsziel" haben, aber noch keine Note.
+        const hasGoalSet = new Set(goalByChatter.keys());
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
-          if (labelSet.has(chatter)) continue;
+          if (hasGoalSet.has(chatter)) continue;
           // Nur Chatter, die im neuesten Report noch dabei waren
           if (!activeInLatestReport.has(chatter)) continue;
           const days = daysByChatter.get(chatter)?.size ?? 0;
