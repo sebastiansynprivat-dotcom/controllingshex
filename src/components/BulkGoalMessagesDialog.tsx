@@ -122,7 +122,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     const runNext = async (): Promise<void> => {
       if (cancelRef.current) return;
       const i = cursor++;
-      if (i >= targets.length) return;
+      if (i >= effectiveTargets.length) return;
       setResults((prev) => {
         const next = [...prev];
         next[i] = { ...next[i], status: "loading" };
@@ -131,9 +131,9 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       try {
         const { data, error } = await supabase.functions.invoke("generate-goal-message", {
           body: {
-            chatter_name: targets[i].chatter,
+            chatter_name: effectiveTargets[i].chatter,
             platform,
-            proposed_goal: targets[i].goal,
+            proposed_goal: effectiveTargets[i].goal,
             current_goal: null,
           },
         });
@@ -154,7 +154,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       }
       return runNext();
     };
-    const workers = Array.from({ length: Math.min(CONCURRENCY, targets.length) }, () => runNext());
+    const workers = Array.from({ length: Math.min(CONCURRENCY, effectiveTargets.length) }, () => runNext());
     Promise.all(workers).catch(() => {});
     return () => {
       cancelRef.current = true;
