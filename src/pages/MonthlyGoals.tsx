@@ -1076,7 +1076,7 @@ export default function MonthlyGoals() {
                       busy={acceptingChatter === s.chatter}
                       onAccept={async (goal) => {
                         await acceptSuggestion(s.chatter, goal);
-                        setSkipped((prev) => new Set(prev).add(s.chatter));
+                        applyAcceptedGoal(s.chatter, goal, s.monthRevenue);
                       }}
                       onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
                       onMessage={(goal) =>
