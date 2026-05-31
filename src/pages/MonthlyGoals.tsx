@@ -813,12 +813,14 @@ export default function MonthlyGoals() {
    * - Chatter aus Future ausblenden
    * - currentGoal in Suggestions reflektieren
    */
-  function applyAcceptedGoal(chatter: string, goal: number, monthRevenue: number) {
+  function applyAcceptedGoal(chatter: string, goal: number, _monthRevenue: number) {
     const today = new Date();
-    const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+    // Ziel gilt für den nächsten Monat → Label & Progress entsprechend.
+    const monthLabel = nextMonthLabel(today);
     const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
     const noteDate = today.toISOString();
-    const progress = computeGoalProgress(goal, monthRevenue, today);
+    // Künftiger Monat → noch kein Umsatz, Progress relativ zum 1. des Zielmonats.
+    const progress = computeGoalProgress(goal, 0, firstOfNextMonth(today));
 
     setRows((prev) => {
       const idx = prev.findIndex((r) => r.chatter === chatter);
