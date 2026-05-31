@@ -753,11 +753,12 @@ export default function MonthlyGoals() {
       const results = await Promise.all(tasks);
       for (const r of results) if (r.error) throw r.error;
 
-      toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
-      setReloadKey((k) => k + 1);
+      if (!opts?.silentToast) toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
+      if (!opts?.silentReload) setReloadKey((k) => k + 1);
     } catch (e: any) {
       console.error("[MonthlyGoals] accept failed", e);
-      toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
+      if (!opts?.silentToast) toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
+      throw e;
     } finally {
       setAcceptingChatter(null);
     }
