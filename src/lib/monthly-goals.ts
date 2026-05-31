@@ -13,8 +13,12 @@
  */
 export function parseGoalFromNote(text: string | null | undefined): number | null {
   if (!text) return null;
+  // Wenn ein ":" im Text ist, nur den Teil DANACH parsen — sonst pickt der
+  // Regex Jahreszahlen wie "Mai 2026" aus dem Label-Prefix.
+  const colonIdx = text.lastIndexOf(":");
+  const haystack = colonIdx >= 0 ? text.slice(colonIdx + 1) : text;
   // Finde ersten Zahlenblock mit optionalen Tausender-Trennern und optionalem Dezimalteil
-  const match = text.match(/-?\d{1,3}(?:[.\s]\d{3})+(?:,\d+)?|-?\d+(?:[.,]\d+)?/);
+  const match = haystack.match(/-?\d{1,3}(?:[.\s]\d{3})+(?:,\d+)?|-?\d+(?:[.,]\d+)?/);
   if (!match) return null;
   let raw = match[0];
 
