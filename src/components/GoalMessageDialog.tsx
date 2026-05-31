@@ -119,12 +119,41 @@ export default function GoalMessageDialog({
               variant="outline"
               size="sm"
               disabled={loading || goal <= 0}
-              onClick={() => generate(goal)}
+              onClick={() => generate(goal, scenario)}
             >
               {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               <span className="ml-1.5">Neu generieren</span>
             </Button>
           </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light mr-1">
+              Szenario
+            </span>
+            {([
+              ["auto", "Auto"],
+              ["growth", "Steigerung"],
+              ["flat", "Flat"],
+              ["decline", "Abfall"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setScenario(key);
+                  void generate(goal, key);
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${
+                  scenario === key
+                    ? "bg-emerald-300/15 border-emerald-300/40 text-emerald-100"
+                    : "bg-white/[0.03] border-white/10 text-white/60 hover:text-white/90"
+                }`}
+              >
+                {label}
+                {key === "auto" && context?.auto_scenario ? ` (${context.auto_scenario})` : ""}
+              </button>
+            ))}
+
 
           {context && (
             <div className="text-[11px] text-white/45 font-light leading-relaxed space-y-0.5">
