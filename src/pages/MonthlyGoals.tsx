@@ -1040,7 +1040,10 @@ export default function MonthlyGoals() {
                       key={s.chatter}
                       row={s}
                       busy={acceptingChatter === s.chatter}
-                      onAccept={(goal) => acceptSuggestion(s.chatter, goal)}
+                      onAccept={async (goal) => {
+                        await acceptSuggestion(s.chatter, goal);
+                        setSkipped((prev) => new Set(prev).add(s.chatter));
+                      }}
                       onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
                       onMessage={(goal) =>
                         setMessageFor({ chatter: s.chatter, proposedGoal: goal, currentGoal: s.currentGoal })
@@ -1074,9 +1077,10 @@ export default function MonthlyGoals() {
           }}
           platform={platform}
           targets={bulkTargets}
-          onAccept={(chatter, goal) =>
-            acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true })
-          }
+          onAccept={async (chatter, goal) => {
+            await acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true });
+            setSkipped((prev) => new Set(prev).add(chatter));
+          }}
         />
       )}
 
