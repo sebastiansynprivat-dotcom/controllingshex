@@ -39,6 +39,36 @@ function toIsoDateLocal(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Label für nächsten Monat, z.B. "Juni 2026" */
+function nextMonthLabel(today: Date): string {
+  const next = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  return next.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+}
+
+/** Erster Tag des nächsten Monats (für Progress-Berechnung künftiger Ziele) */
+function firstOfNextMonth(today: Date): Date {
+  return new Date(today.getFullYear(), today.getMonth() + 1, 1);
+}
+
+/**
+ * Liest aus "Monatsziel <Month> <Year>: ..." den Stichtag (1. des Zielmonats).
+ * Gibt null zurück, wenn kein Monat geparst werden kann.
+ */
+const DE_MONTHS: Record<string, number> = {
+  januar: 0, februar: 1, märz: 2, maerz: 2, april: 3, mai: 4, juni: 5,
+  juli: 6, august: 7, september: 8, oktober: 9, november: 10, dezember: 11,
+};
+function parseTargetMonth(noteText: string | null | undefined): Date | null {
+  if (!noteText) return null;
+  const m = noteText.match(/Monatsziel\s+([A-Za-zäöüÄÖÜ]+)\s+(\d{4})/i);
+  if (!m) return null;
+  const month = DE_MONTHS[m[1].toLowerCase()];
+  const year = parseInt(m[2], 10);
+  if (month === undefined || !Number.isFinite(year)) return null;
+  return new Date(year, month, 1);
+}
+
+
 interface ChatterGoalRow {
   chatter: string;
   noteText: string;
@@ -514,15 +544,21 @@ export default function MonthlyGoals() {
           monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + v);
         }
         const built: ChatterGoalRow[] = [];
+        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         for (const c of labelChatters) {
           const g = goalByChatter.get(c);
           if (!g) continue;
-          const rev = monthRevByChatter.get(c) ?? 0;
+          // Wenn die Note auf einen zukünftigen Monat zeigt (z.B. heute = Mai,
+          // Note = "Monatsziel Juni 2026"), Progress gegen Zielmonat-Start mit 0 €.
+          const target = parseTargetMonth(g.text);
+          const isFuture = !!target && target > currentMonthStart;
+          const rev = isFuture ? 0 : (monthRevByChatter.get(c) ?? 0);
+          const refDate = isFuture ? target! : today;
           built.push({
             chatter: c,
             noteText: g.text,
             noteDate: g.date,
-            progress: computeGoalProgress(g.goal, rev, today),
+            progress: computeGoalProgress(g.goal, rev, refDate),
           });
         }
 
@@ -732,7 +768,8 @@ export default function MonthlyGoals() {
 
       // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
-      const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+      // Ziel gilt IMMER für den nächsten Monat (Vorschläge sind zukunftsorientiert).
+      const monthLabel = nextMonthLabel(today);
       const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
 
       const { data: existingAssign, error: aSelErr } = await supabase
@@ -782,12 +819,14 @@ export default function MonthlyGoals() {
    * - Chatter aus Future ausblenden
    * - currentGoal in Suggestions reflektieren
    */
-  function applyAcceptedGoal(chatter: string, goal: number, monthRevenue: number) {
+  function applyAcceptedGoal(chatter: string, goal: number, _monthRevenue: number) {
     const today = new Date();
-    const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+    // Ziel gilt für den nächsten Monat → Label & Progress entsprechend.
+    const monthLabel = nextMonthLabel(today);
     const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
     const noteDate = today.toISOString();
-    const progress = computeGoalProgress(goal, monthRevenue, today);
+    // Künftiger Monat → noch kein Umsatz, Progress relativ zum 1. des Zielmonats.
+    const progress = computeGoalProgress(goal, 0, firstOfNextMonth(today));
 
     setRows((prev) => {
       const idx = prev.findIndex((r) => r.chatter === chatter);
