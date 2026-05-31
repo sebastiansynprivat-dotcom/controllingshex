@@ -207,12 +207,14 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       return;
     }
     if (autoAccept && onAccept && !acceptedSet.has(r.chatter)) {
-      const ok = await acceptGoal(r.chatter, r.goal);
-      if (ok) toast.success(`Kopiert & Ziel gesetzt: ${formatEUR(r.goal)}`);
+      const goal = editedGoals[r.chatter] ?? r.goal;
+      const ok = await acceptGoal(r.chatter, goal);
+      if (ok) toast.success(`Kopiert & Ziel gesetzt: ${formatEUR(goal)}`);
       else toast.error(`Kopiert, aber Ziel-Setzen fehlgeschlagen`);
     } else {
       toast.success("Kopiert");
     }
+
   }
 
   async function copyAll() {
