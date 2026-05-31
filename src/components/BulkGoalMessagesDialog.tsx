@@ -90,7 +90,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       try {
         const { data, error } = await supabase.functions.invoke("generate-goal-message", {
           body: {
-            chatter_name: targets[i].chatter,
+            chatter_name: targets[i].chatter.split(" ")[0],
             platform,
             proposed_goal: targets[i].goal,
             current_goal: null,
