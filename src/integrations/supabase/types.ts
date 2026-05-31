@@ -1081,6 +1081,30 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_goal_skips: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          id: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          id?: string
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
