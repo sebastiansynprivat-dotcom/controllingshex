@@ -389,7 +389,7 @@ export default function MonthlyGoals() {
         if (!user) throw new Error("Nicht angemeldet");
 
         const today = new Date();
-        const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
+        const reportStart = new Date(today.getFullYear(), today.getMonth(), 1);
         const reportStartIso = toIsoDateLocal(reportStart);
         const todayIso = toIsoDateLocal(today);
         // (kein 30-Tage-Fenster mehr — Vorschlag = All-Time-Durchschnitt)
