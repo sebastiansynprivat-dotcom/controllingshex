@@ -544,15 +544,21 @@ export default function MonthlyGoals() {
           monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + v);
         }
         const built: ChatterGoalRow[] = [];
+        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         for (const c of labelChatters) {
           const g = goalByChatter.get(c);
           if (!g) continue;
-          const rev = monthRevByChatter.get(c) ?? 0;
+          // Wenn die Note auf einen zukünftigen Monat zeigt (z.B. heute = Mai,
+          // Note = "Monatsziel Juni 2026"), Progress gegen Zielmonat-Start mit 0 €.
+          const target = parseTargetMonth(g.text);
+          const isFuture = !!target && target > currentMonthStart;
+          const rev = isFuture ? 0 : (monthRevByChatter.get(c) ?? 0);
+          const refDate = isFuture ? target! : today;
           built.push({
             chatter: c,
             noteText: g.text,
             noteDate: g.date,
-            progress: computeGoalProgress(g.goal, rev, today),
+            progress: computeGoalProgress(g.goal, rev, refDate),
           });
         }
 
