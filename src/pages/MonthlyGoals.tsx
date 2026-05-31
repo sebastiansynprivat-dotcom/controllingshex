@@ -1232,6 +1232,7 @@ export default function MonthlyGoals() {
             const monthRev = suggestions.find((s) => s.chatter === chatter)?.monthRevenue ?? 0;
             applyAcceptedGoal(chatter, goal, monthRev);
           }}
+          onSkip={(chatter) => setSkipped((prev) => new Set(prev).add(chatter))}
         />
       )}
 
