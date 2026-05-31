@@ -427,31 +427,33 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-white/45 font-light flex items-center gap-1.5 mt-0.5">
+                      <div className="text-[11px] text-white/45 font-light flex items-center gap-2 mt-0.5">
                         <span>Ziel:</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={10}
-                          value={effectiveGoal}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setEditedGoals((prev) => {
-                              const next = { ...prev };
-                              if (v === "") {
-                                next[r.chatter] = 0;
-                              } else {
-                                const n = Number(v);
-                                if (!Number.isFinite(n) || n < 0) return prev;
-                                next[r.chatter] = Math.round(n);
-                              }
-                              return next;
-                            });
-                          }}
-                          disabled={accepted || accepting || skipped}
-                          className="w-20 bg-white/[0.04] border border-white/10 rounded px-1.5 py-0.5 text-[11px] text-white/85 tabular-nums focus:outline-none focus:border-white/25 disabled:opacity-60 disabled:cursor-not-allowed"
-                        />
-                        <span>€</span>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            step={10}
+                            value={effectiveGoal}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setEditedGoals((prev) => {
+                                const next = { ...prev };
+                                if (v === "") {
+                                  next[r.chatter] = 0;
+                                } else {
+                                  const n = Number(v);
+                                  if (!Number.isFinite(n) || n < 0) return prev;
+                                  next[r.chatter] = Math.round(n);
+                                }
+                                return next;
+                              });
+                            }}
+                            disabled={accepted || accepting || skipped}
+                            className="w-24 bg-white/[0.07] border border-white/[0.14] rounded-md pl-2.5 pr-6 py-1 text-xs font-semibold text-white/90 tabular-nums shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-400/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-white/20"
+                          />
+                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-white/40 font-medium">€</span>
+                        </div>
                         {goalEdited && (
                           <span className="text-[9px] uppercase tracking-[0.14em] text-amber-300/80">
                             bearbeitet · vorher {formatEUR(r.goal)}
