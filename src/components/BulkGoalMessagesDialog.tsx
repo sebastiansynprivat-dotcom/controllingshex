@@ -22,6 +22,7 @@ interface Props {
   onClose: () => void;
   platform: string;
   targets: BulkTarget[];
+  onAccept?: (chatter: string, goal: number) => Promise<void>;
 }
 
 type Status = "pending" | "loading" | "done" | "error";
@@ -35,12 +36,30 @@ interface Result {
 }
 
 const CONCURRENCY = 3;
+const LS_KEY = "bulkGoalMessages.autoAcceptOnCopy";
 
-export default function BulkGoalMessagesDialog({ open, onClose, platform, targets }: Props) {
+export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [acceptedSet, setAcceptedSet] = useState<Set<string>>(new Set());
+  const [acceptingSet, setAcceptingSet] = useState<Set<string>>(new Set());
+  const [acceptErrors, setAcceptErrors] = useState<Record<string, string>>({});
+  const [autoAccept, setAutoAccept] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem(LS_KEY);
+      return v === null ? true : v === "1";
+    } catch {
+      return true;
+    }
+  });
   const cancelRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, autoAccept ? "1" : "0");
+    } catch {}
+  }, [autoAccept]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,8 +73,10 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     setResults(initial);
     setCopiedIdx(null);
     setCopiedAll(false);
+    setAcceptedSet(new Set());
+    setAcceptingSet(new Set());
+    setAcceptErrors({});
 
-    // Worker-Pool mit begrenzter Parallelität
     let cursor = 0;
     const runNext = async (): Promise<void> => {
       if (cancelRef.current) return;
@@ -99,19 +120,52 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     };
   }, [open, platform, targets]);
 
+  async function acceptGoal(chatter: string, goal: number): Promise<boolean> {
+    if (!onAccept) return false;
+    if (acceptedSet.has(chatter)) return true;
+    setAcceptingSet((prev) => new Set(prev).add(chatter));
+    setAcceptErrors((prev) => {
+      const { [chatter]: _, ...rest } = prev;
+      return rest;
+    });
+    try {
+      await onAccept(chatter, goal);
+      setAcceptedSet((prev) => new Set(prev).add(chatter));
+      return true;
+    } catch (e: any) {
+      setAcceptErrors((prev) => ({ ...prev, [chatter]: e?.message || "Fehler" }));
+      return false;
+    } finally {
+      setAcceptingSet((prev) => {
+        const next = new Set(prev);
+        next.delete(chatter);
+        return next;
+      });
+    }
+  }
+
   async function copyOne(idx: number, text: string) {
+    const r = results[idx];
     try {
       await navigator.clipboard.writeText(text);
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1500);
     } catch {
       toast.error("Kopieren fehlgeschlagen");
+      return;
+    }
+    if (autoAccept && onAccept && !acceptedSet.has(r.chatter)) {
+      const ok = await acceptGoal(r.chatter, r.goal);
+      if (ok) toast.success(`Kopiert & Ziel gesetzt: ${formatEUR(r.goal)}`);
+      else toast.error(`Kopiert, aber Ziel-Setzen fehlgeschlagen`);
+    } else {
+      toast.success("Kopiert");
     }
   }
 
   async function copyAll() {
-    const blocks = results
-      .filter((r) => r.status === "done" && r.message)
+    const doneResults = results.filter((r) => r.status === "done" && r.message);
+    const blocks = doneResults
       .map((r) => `— ${r.chatter} · Ziel ${formatEUR(r.goal)} —\n${r.message}`)
       .join("\n\n");
     if (!blocks) {
@@ -121,10 +175,25 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     try {
       await navigator.clipboard.writeText(blocks);
       setCopiedAll(true);
-      toast.success("Alle Nachrichten kopiert");
       setTimeout(() => setCopiedAll(false), 1800);
     } catch {
       toast.error("Kopieren fehlgeschlagen");
+      return;
+    }
+    if (autoAccept && onAccept) {
+      const toAccept = doneResults.filter((r) => !acceptedSet.has(r.chatter));
+      if (toAccept.length === 0) {
+        toast.success("Alle Nachrichten kopiert");
+        return;
+      }
+      const outcomes = await Promise.all(toAccept.map((r) => acceptGoal(r.chatter, r.goal)));
+      const okCount = outcomes.filter(Boolean).length;
+      const failCount = outcomes.length - okCount;
+      toast.success(
+        `Alle Nachrichten kopiert · ${okCount} Ziel${okCount === 1 ? "" : "e"} gesetzt${failCount > 0 ? ` · ${failCount} Fehler` : ""}`,
+      );
+    } else {
+      toast.success("Alle Nachrichten kopiert");
     }
   }
 
@@ -147,10 +216,16 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.06]">
-          <div className="text-[11px] text-white/45 font-light">
-            Parallel: {CONCURRENCY} · Setzt KEINE Ziele — nur Nachrichten-Generierung
-          </div>
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.06] flex-wrap">
+          <label className="flex items-center gap-2 text-[11px] text-white/65 font-light cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={autoAccept}
+              onChange={(e) => setAutoAccept(e.target.checked)}
+              className="accent-emerald-400"
+            />
+            Ziel beim Kopieren übernehmen
+          </label>
           <Button size="sm" disabled={doneCount === 0} onClick={copyAll}>
             {copiedAll ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             <span className="ml-1.5">{copiedAll ? "Alle kopiert" : "Alle kopieren"}</span>
@@ -158,56 +233,78 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
         </div>
 
         <div className="overflow-y-auto flex-1 space-y-2 pr-1 -mr-1">
-          {results.map((r, idx) => (
-            <div
-              key={`${r.chatter}-${idx}`}
-              className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-white/90 truncate">{r.chatter}</div>
-                  <div className="text-[11px] text-white/45 font-light">
-                    Ziel: {formatEUR(r.goal)}
+          {results.map((r, idx) => {
+            const accepted = acceptedSet.has(r.chatter);
+            const accepting = acceptingSet.has(r.chatter);
+            const acceptErr = acceptErrors[r.chatter];
+            return (
+              <div
+                key={`${r.chatter}-${idx}`}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-white/90 truncate flex items-center gap-2">
+                      {r.chatter}
+                      {accepted && (
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-300/90 font-light inline-flex items-center gap-1">
+                          <Check className="h-3 w-3" /> Ziel gesetzt
+                        </span>
+                      )}
+                      {accepting && (
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-light inline-flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" /> setzt Ziel…
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-white/45 font-light">
+                      Ziel: {formatEUR(r.goal)}
+                    </div>
+                    {acceptErr && (
+                      <div className="text-[11px] text-red-300/80 font-light mt-0.5">
+                        Ziel-Setzen: {acceptErr}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {r.status === "loading" && (
+                      <span className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-light flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" /> lädt
+                      </span>
+                    )}
+                    {r.status === "pending" && (
+                      <span className="text-[10px] uppercase tracking-[0.18em] text-white/30 font-light">
+                        wartet
+                      </span>
+                    )}
+                    {r.status === "error" && (
+                      <span className="text-[10px] uppercase tracking-[0.18em] text-red-300 font-light flex items-center gap-1">
+                        <X className="h-3 w-3" /> Fehler
+                      </span>
+                    )}
+                    {r.status === "done" && (
+                      <button
+                        onClick={() => copyOne(idx, r.message)}
+                        className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
+                      >
+                        {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {copiedIdx === idx ? "Kopiert" : "Kopieren"}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {r.status === "loading" && (
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-light flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" /> lädt
-                    </span>
-                  )}
-                  {r.status === "pending" && (
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-white/30 font-light">
-                      wartet
-                    </span>
-                  )}
-                  {r.status === "error" && (
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-red-300 font-light flex items-center gap-1">
-                      <X className="h-3 w-3" /> Fehler
-                    </span>
-                  )}
-                  {r.status === "done" && (
-                    <button
-                      onClick={() => copyOne(idx, r.message)}
-                      className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
-                    >
-                      {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      {copiedIdx === idx ? "Kopiert" : "Kopieren"}
-                    </button>
-                  )}
-                </div>
+                {r.status === "error" ? (
+                  <div className="text-xs text-red-300/80 font-light">{r.error}</div>
+                ) : r.message ? (
+                  <pre className="text-xs text-white/80 font-light whitespace-pre-wrap leading-relaxed font-sans">
+                    {r.message}
+                  </pre>
+                ) : (
+                  <div className="h-12 rounded-md bg-white/[0.02] animate-pulse" />
+                )}
               </div>
-              {r.status === "error" ? (
-                <div className="text-xs text-red-300/80 font-light">{r.error}</div>
-              ) : r.message ? (
-                <pre className="text-xs text-white/80 font-light whitespace-pre-wrap leading-relaxed font-sans">
-                  {r.message}
-                </pre>
-              ) : (
-                <div className="h-12 rounded-md bg-white/[0.02] animate-pulse" />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="flex justify-end pt-2 border-t border-white/[0.06]">

@@ -681,10 +681,10 @@ export default function MonthlyGoals() {
   }, [platform]);
 
 
-  async function acceptSuggestion(chatter: string, goal: number) {
+  async function acceptSuggestion(chatter: string, goal: number, opts?: { silentReload?: boolean; silentToast?: boolean }) {
     if (goal <= 0) {
-      toast.error("Ziel muss > 0 sein");
-      return;
+      if (!opts?.silentToast) toast.error("Ziel muss > 0 sein");
+      throw new Error("Ziel muss > 0 sein");
     }
     setAcceptingChatter(chatter);
     try {
@@ -753,11 +753,12 @@ export default function MonthlyGoals() {
       const results = await Promise.all(tasks);
       for (const r of results) if (r.error) throw r.error;
 
-      toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
-      setReloadKey((k) => k + 1);
+      if (!opts?.silentToast) toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
+      if (!opts?.silentReload) setReloadKey((k) => k + 1);
     } catch (e: any) {
       console.error("[MonthlyGoals] accept failed", e);
-      toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
+      if (!opts?.silentToast) toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
+      throw e;
     } finally {
       setAcceptingChatter(null);
     }
@@ -1058,9 +1059,15 @@ export default function MonthlyGoals() {
       {bulkTargets && (
         <BulkGoalMessagesDialog
           open={!!bulkTargets}
-          onClose={() => setBulkTargets(null)}
+          onClose={() => {
+            setBulkTargets(null);
+            setReloadKey((k) => k + 1);
+          }}
           platform={platform}
           targets={bulkTargets}
+          onAccept={(chatter, goal) =>
+            acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true })
+          }
         />
       )}
 
