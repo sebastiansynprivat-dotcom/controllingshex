@@ -25,7 +25,9 @@ interface Props {
   targets: BulkTarget[];
   onAccept?: (chatter: string, goal: number) => Promise<void>;
   onSkip?: (chatter: string) => void;
+  onUnaccept?: (chatter: string) => Promise<void>;
 }
+
 
 type Status = "pending" | "loading" | "done" | "error";
 
