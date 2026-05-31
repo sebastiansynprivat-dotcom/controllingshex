@@ -766,6 +766,40 @@ export default function MonthlyGoals() {
     }
   }
 
+  /**
+   * Optimistisches UI-Update nach erfolgreichem Accept:
+   * - Row in "Aktuelle Monatsziele" anlegen oder updaten
+   * - Chatter aus Future ausblenden
+   * - currentGoal in Suggestions reflektieren
+   */
+  function applyAcceptedGoal(chatter: string, goal: number, monthRevenue: number) {
+    const today = new Date();
+    const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+    const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
+    const noteDate = today.toISOString();
+    const progress = computeGoalProgress(goal, monthRevenue, today);
+
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.chatter === chatter);
+      if (idx === -1) {
+        return [...prev, { chatter, noteText, noteDate, progress }];
+      }
+      const next = [...prev];
+      next[idx] = { ...next[idx], noteText, noteDate, progress };
+      return next;
+    });
+    setSuggestions((prev) =>
+      prev.map((s) => (s.chatter === chatter ? { ...s, currentGoal: goal } : s)),
+    );
+    setSkipped((prev) => {
+      if (prev.has(chatter)) return prev;
+      const next = new Set(prev);
+      next.add(chatter);
+      return next;
+    });
+  }
+
+
   const visibleSuggestions = useMemo(
     () => suggestions.filter((s) => !skipped.has(s.chatter)),
     [suggestions, skipped],
