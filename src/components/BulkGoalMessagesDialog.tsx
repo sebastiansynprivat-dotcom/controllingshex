@@ -99,10 +99,13 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     } catch {}
   }, [nameFilter]);
 
+  // Chatter mit bereits gesetztem Ziel komplett rausfiltern
+  const effectiveTargets = targets.filter((t) => t.currentGoal == null);
+
   useEffect(() => {
     if (!open) return;
     cancelRef.current = false;
-    const initial: Result[] = targets.map((t) => ({
+    const initial: Result[] = effectiveTargets.map((t) => ({
       chatter: t.chatter,
       goal: t.goal,
       status: "pending",
