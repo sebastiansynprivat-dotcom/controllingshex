@@ -56,7 +56,7 @@ export default function GoalMessageDialog({
     try {
       const { data, error } = await supabase.functions.invoke("generate-goal-message", {
         body: {
-          chatter_name: chatter.split(" ")[0],
+          chatter_name: chatter,
           platform,
           proposed_goal: useGoal,
           current_goal: currentGoal ?? null,

@@ -157,8 +157,9 @@ Deno.serve(async (req) => {
     const priorMonthName = MONTHS_DE[firstOfLastMonth.getUTCMonth()];
     const week1 = Math.round((proposedGoal * 0.30) / 50) * 50;
 
+    const firstName = chatterName.split(/\s+/)[0] || chatterName;
     const message = substitute(template, {
-      name: chatterName,
+      name: firstName,
       ziel: fmtEUR(proposedGoal),
       woche1: fmtEUR(week1),
       monat: goalMonthName,
