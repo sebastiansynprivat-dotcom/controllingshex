@@ -315,34 +315,47 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
             const accepted = acceptedSet.has(r.chatter);
             const accepting = acceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
+            const isWhatsApp = classifyName(r.chatter) === "whatsapp";
             return (
               <div
                 key={`${r.chatter}-${idx}`}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
+                className={`rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition-opacity ${accepted ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-white/90 truncate flex items-center gap-2">
-                      {r.chatter}
-                      {accepted && (
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-300/90 font-light inline-flex items-center gap-1">
-                          <Check className="h-3 w-3" /> Ziel gesetzt
-                        </span>
+                  <div className="min-w-0 flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (accepted || accepting || !onAccept) return;
+                        acceptGoal(r.chatter, r.goal).then((ok) => {
+                          if (ok) toast.success(`Ziel gesetzt: ${formatEUR(r.goal)}`);
+                        });
+                      }}
+                      disabled={accepted || accepting || !onAccept}
+                      className="mt-0.5 shrink-0 text-white/40 hover:text-emerald-300 transition-colors disabled:hover:text-emerald-300 disabled:cursor-default"
+                      title={accepted ? "Bereits abgehakt" : "Abhaken — Ziel übernehmen"}
+                    >
+                      {accepting ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-white/55" />
+                      ) : accepted ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                      ) : (
+                        <Circle className="h-5 w-5" />
                       )}
-                      {accepting && (
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-light inline-flex items-center gap-1">
-                          <Loader2 className="h-3 w-3 animate-spin" /> setzt Ziel…
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-white/45 font-light">
-                      Ziel: {formatEUR(r.goal)}
-                    </div>
-                    {acceptErr && (
-                      <div className="text-[11px] text-red-300/80 font-light mt-0.5">
-                        Ziel-Setzen: {acceptErr}
+                    </button>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-white/90 truncate flex items-center gap-2">
+                        {r.chatter}
                       </div>
-                    )}
+                      <div className="text-[11px] text-white/45 font-light">
+                        Ziel: {formatEUR(r.goal)}
+                      </div>
+                      {acceptErr && (
+                        <div className="text-[11px] text-red-300/80 font-light mt-0.5">
+                          Ziel-Setzen: {acceptErr}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {r.status === "loading" && (
@@ -362,7 +375,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                     )}
                     {r.status === "done" && (
                       <>
-                        {classifyName(r.chatter) === "whatsapp" && (
+                        {isWhatsApp ? (
                           <button
                             onClick={async () => {
                               try { await navigator.clipboard.writeText(r.message); } catch {}
@@ -379,14 +392,15 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                             <MessageCircle className="h-3 w-3" />
                             WhatsApp
                           </button>
+                        ) : (
+                          <button
+                            onClick={() => copyOne(idx, r.message)}
+                            className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
+                          >
+                            {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                            {copiedIdx === idx ? "Kopiert" : "Kopieren"}
+                          </button>
                         )}
-                        <button
-                          onClick={() => copyOne(idx, r.message)}
-                          className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
-                        >
-                          {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                          {copiedIdx === idx ? "Kopiert" : "Kopieren"}
-                        </button>
                       </>
                     )}
                   </div>
