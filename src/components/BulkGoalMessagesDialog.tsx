@@ -24,6 +24,7 @@ interface Props {
   platform: string;
   targets: BulkTarget[];
   onAccept?: (chatter: string, goal: number) => Promise<void>;
+  onSkip?: (chatter: string) => void;
 }
 
 type Status = "pending" | "loading" | "done" | "error";
@@ -62,13 +63,14 @@ function classifyName(name: string): "whatsapp" | "platform" {
   return "platform";
 }
 
-export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept }: Props) {
+export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [acceptedSet, setAcceptedSet] = useState<Set<string>>(new Set());
   const [acceptingSet, setAcceptingSet] = useState<Set<string>>(new Set());
   const [acceptErrors, setAcceptErrors] = useState<Record<string, string>>({});
+  const [skippedSet, setSkippedSet] = useState<Set<string>>(new Set());
   const [autoAccept, setAutoAccept] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem(LS_KEY);
@@ -315,25 +317,27 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
             const accepted = acceptedSet.has(r.chatter);
             const accepting = acceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
+            const skipped = skippedSet.has(r.chatter);
             const isWhatsApp = classifyName(r.chatter) === "whatsapp";
+            const dimmed = accepted || skipped;
             return (
               <div
                 key={`${r.chatter}-${idx}`}
-                className={`rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition-opacity ${accepted ? "opacity-60" : ""}`}
+                className={`rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition-opacity ${dimmed ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="min-w-0 flex items-start gap-2">
                     <button
                       type="button"
                       onClick={() => {
-                        if (accepted || accepting || !onAccept) return;
+                        if (accepted || accepting || skipped || !onAccept) return;
                         acceptGoal(r.chatter, r.goal).then((ok) => {
                           if (ok) toast.success(`Ziel gesetzt: ${formatEUR(r.goal)}`);
                         });
                       }}
-                      disabled={accepted || accepting || !onAccept}
-                      className="mt-0.5 shrink-0 text-white/40 hover:text-emerald-300 transition-colors disabled:hover:text-emerald-300 disabled:cursor-default"
-                      title={accepted ? "Bereits abgehakt" : "Abhaken — Ziel übernehmen"}
+                      disabled={accepted || accepting || skipped || !onAccept}
+                      className="mt-0.5 shrink-0 text-white/40 hover:text-emerald-300 transition-colors disabled:hover:text-white/40 disabled:cursor-default"
+                      title={accepted ? "Bereits abgehakt" : skipped ? "Übersprungen" : "Abhaken — Ziel übernehmen"}
                     >
                       {accepting ? (
                         <Loader2 className="h-5 w-5 animate-spin text-white/55" />
@@ -343,9 +347,36 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                         <Circle className="h-5 w-5" />
                       )}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (accepted || accepting) return;
+                        setSkippedSet((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(r.chatter)) {
+                            next.delete(r.chatter);
+                          } else {
+                            next.add(r.chatter);
+                            onSkip?.(r.chatter);
+                            toast.success(`${r.chatter} übersprungen`);
+                          }
+                          return next;
+                        });
+                      }}
+                      disabled={accepted || accepting}
+                      className={`mt-0.5 shrink-0 transition-colors disabled:cursor-default ${skipped ? "text-red-300" : "text-white/40 hover:text-red-300"}`}
+                      title={skipped ? "Skip aufheben" : "Überspringen — kein Monatsziel setzen"}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-white/90 truncate flex items-center gap-2">
                         {r.chatter}
+                        {skipped && (
+                          <span className="text-[9px] uppercase tracking-[0.18em] text-red-300/80 font-light px-1.5 py-0.5 rounded border border-red-400/20 bg-red-400/5">
+                            übersprungen
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-white/45 font-light">
                         Ziel: {formatEUR(r.goal)}
