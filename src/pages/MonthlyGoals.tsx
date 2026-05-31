@@ -907,6 +907,54 @@ export default function MonthlyGoals() {
     }
   }
 
+  async function revertAcceptedGoal(chatter: string) {
+    try {
+      const { data: lbl, error: lErr } = await supabase
+        .from("chatter_labels")
+        .select("id")
+        .eq("platform", platform)
+        .eq("label_name", LABEL_NAME)
+        .maybeSingle();
+      if (lErr) throw lErr;
+
+      if (lbl?.id) {
+        const { error: aErr } = await supabase
+          .from("chatter_label_assignments")
+          .delete()
+          .eq("platform", platform)
+          .eq("label_id", lbl.id)
+          .eq("chatter_name", chatter);
+        if (aErr) throw aErr;
+      }
+
+      const { error: nErr } = await supabase
+        .from("coaching_notes")
+        .delete()
+        .eq("platform", platform)
+        .eq("chatter_name", chatter)
+        .ilike("note_text", "Monatsziel%");
+      if (nErr) throw nErr;
+
+      setRows((prev) => prev.filter((r) => r.chatter !== chatter));
+      setSuggestions((prev) =>
+        prev.map((s) => (s.chatter === chatter ? { ...s, currentGoal: null } : s)),
+      );
+      setSkipped((prev) => {
+        if (!prev.has(chatter)) return prev;
+        const next = new Set(prev);
+        next.delete(chatter);
+        return next;
+      });
+      toast.success(`Monatsziel für ${chatter} entfernt`);
+    } catch (e: any) {
+      console.error("[MonthlyGoals] revert failed", e);
+      toast.error(e?.message ?? "Fehler beim Zurücksetzen");
+      throw e;
+    }
+  }
+
+
+
 
   const visibleSuggestions = useMemo(
     () => suggestions.filter((s) => !skipped.has(s.chatter)),
