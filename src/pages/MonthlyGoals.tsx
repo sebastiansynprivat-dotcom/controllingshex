@@ -709,9 +709,17 @@ export default function MonthlyGoals() {
         sugg.sort((a, b) => b.suggested - a.suggested);
 
 
+        // Persisted Skips laden
+        const { data: skipRows, error: skipErr } = await supabase
+          .from("monthly_goal_skips")
+          .select("chatter_name")
+          .eq("platform", platform);
+        if (skipErr) console.warn("[MonthlyGoals] skip load failed", skipErr);
+
         if (!cancelled) {
           setRows(built);
           setSuggestions(sugg);
+          setSkipped(new Set((skipRows ?? []).map((r) => r.chatter_name)));
         }
       } catch (e: any) {
         console.error("[MonthlyGoals] load failed", e);
