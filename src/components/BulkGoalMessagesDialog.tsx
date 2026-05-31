@@ -15,6 +15,7 @@ import { formatEUR } from "@/lib/monthly-goals";
 export interface BulkTarget {
   chatter: string;
   goal: number;
+  currentGoal?: number | null;
 }
 
 interface Props {
