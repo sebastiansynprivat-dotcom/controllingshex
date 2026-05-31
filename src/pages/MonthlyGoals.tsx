@@ -9,9 +9,10 @@
  *  - On-Track-Status (grün / amber / rot)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare } from "lucide-react";
+import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare, FileText } from "lucide-react";
 import GoalMessageDialog from "@/components/GoalMessageDialog";
 import BulkGoalMessagesDialog, { type BulkTarget } from "@/components/BulkGoalMessagesDialog";
+import GoalMessageTemplatesDialog from "@/components/GoalMessageTemplatesDialog";
 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
