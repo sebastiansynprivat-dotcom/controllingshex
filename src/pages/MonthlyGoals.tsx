@@ -762,7 +762,8 @@ export default function MonthlyGoals() {
 
       // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
-      const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+      // Ziel gilt IMMER für den nächsten Monat (Vorschläge sind zukunftsorientiert).
+      const monthLabel = nextMonthLabel(today);
       const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
 
       const { data: existingAssign, error: aSelErr } = await supabase
