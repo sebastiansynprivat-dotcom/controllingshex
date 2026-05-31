@@ -24,7 +24,8 @@ interface Props {
   platform: string;
   targets: BulkTarget[];
   onAccept?: (chatter: string, goal: number) => Promise<void>;
-  onSkip?: (chatter: string) => void;
+  onSkip?: (chatter: string) => void | Promise<void>;
+  onUnskip?: (chatter: string) => void | Promise<void>;
   onUnaccept?: (chatter: string) => Promise<void>;
 }
 
@@ -65,7 +66,7 @@ function classifyName(name: string): "whatsapp" | "platform" {
   return "platform";
 }
 
-export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip, onUnaccept }: Props) {
+export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip, onUnskip, onUnaccept }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -393,9 +394,10 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                           const next = new Set(prev);
                           if (next.has(r.chatter)) {
                             next.delete(r.chatter);
+                            void onUnskip?.(r.chatter);
                           } else {
                             next.add(r.chatter);
-                            onSkip?.(r.chatter);
+                            void onSkip?.(r.chatter);
                             toast.success(`${r.chatter} übersprungen`);
                           }
                           return next;

@@ -709,9 +709,17 @@ export default function MonthlyGoals() {
         sugg.sort((a, b) => b.suggested - a.suggested);
 
 
+        // Persisted Skips laden
+        const { data: skipRows, error: skipErr } = await supabase
+          .from("monthly_goal_skips")
+          .select("chatter_name")
+          .eq("platform", platform);
+        if (skipErr) console.warn("[MonthlyGoals] skip load failed", skipErr);
+
         if (!cancelled) {
           setRows(built);
           setSuggestions(sugg);
+          setSkipped(new Set((skipRows ?? []).map((r) => r.chatter_name)));
         }
       } catch (e: any) {
         console.error("[MonthlyGoals] load failed", e);
@@ -857,6 +865,57 @@ export default function MonthlyGoals() {
       next.add(chatter);
       return next;
     });
+    // Skip aufheben in DB, falls Chatter vorher übersprungen war — Accept overruled Skip
+    void persistUnskip(chatter);
+  }
+
+  async function persistSkip(chatter: string) {
+    setSkipped((prev) => {
+      if (prev.has(chatter)) return prev;
+      const next = new Set(prev);
+      next.add(chatter);
+      return next;
+    });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error("Nicht angemeldet");
+      const { error } = await supabase
+        .from("monthly_goal_skips")
+        .upsert(
+          { user_id: user.id, platform, chatter_name: chatter },
+          { onConflict: "user_id,platform,chatter_name" },
+        );
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("[MonthlyGoals] persistSkip failed", e);
+      toast.error(`Skip konnte nicht gespeichert werden: ${e?.message ?? "Fehler"}`);
+      setSkipped((prev) => {
+        if (!prev.has(chatter)) return prev;
+        const next = new Set(prev);
+        next.delete(chatter);
+        return next;
+      });
+    }
+  }
+
+  async function persistUnskip(chatter: string) {
+    setSkipped((prev) => {
+      if (!prev.has(chatter)) return prev;
+      const next = new Set(prev);
+      next.delete(chatter);
+      return next;
+    });
+    try {
+      const { error } = await supabase
+        .from("monthly_goal_skips")
+        .delete()
+        .eq("platform", platform)
+        .eq("chatter_name", chatter);
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("[MonthlyGoals] persistUnskip failed", e);
+    }
   }
 
   const [clearingAll, setClearingAll] = useState(false);
@@ -1256,7 +1315,7 @@ export default function MonthlyGoals() {
                         await acceptSuggestion(s.chatter, goal);
                         applyAcceptedGoal(s.chatter, goal, s.monthRevenue);
                       }}
-                      onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
+                      onSkip={() => persistSkip(s.chatter)}
                       onMessage={(goal) =>
                         setMessageFor({ chatter: s.chatter, proposedGoal: goal, currentGoal: s.currentGoal })
                       }
@@ -1293,7 +1352,8 @@ export default function MonthlyGoals() {
             const monthRev = suggestions.find((s) => s.chatter === chatter)?.monthRevenue ?? 0;
             applyAcceptedGoal(chatter, goal, monthRev);
           }}
-          onSkip={(chatter) => setSkipped((prev) => new Set(prev).add(chatter))}
+          onSkip={(chatter) => persistSkip(chatter)}
+          onUnskip={(chatter) => persistUnskip(chatter)}
           onUnaccept={revertAcceptedGoal}
         />
 
