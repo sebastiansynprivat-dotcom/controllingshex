@@ -153,6 +153,9 @@ export default function GoalMessageDialog({
                 {key === "auto" && context?.auto_scenario ? ` (${context.auto_scenario})` : ""}
               </button>
             ))}
+          </div>
+
+
 
 
           {context && (
