@@ -799,6 +799,65 @@ export default function MonthlyGoals() {
     });
   }
 
+  const [clearingAll, setClearingAll] = useState(false);
+  async function clearAllCurrentGoals() {
+    if (rows.length === 0) return;
+    const ok = window.confirm(
+      `Wirklich alle ${rows.length} aktuellen Monatsziele für ${platform} löschen?\n\nDie Chatter bleiben in den Vorschlägen sichtbar und können neu vergeben werden.`,
+    );
+    if (!ok) return;
+    setClearingAll(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error("Nicht angemeldet");
+
+      // Label-ID holen
+      const { data: lbl, error: lErr } = await supabase
+        .from("chatter_labels")
+        .select("id")
+        .eq("platform", platform)
+        .eq("label_name", LABEL_NAME)
+        .maybeSingle();
+      if (lErr) throw lErr;
+
+      const chatterNames = rows.map((r) => r.chatter);
+
+      // 1) Label-Assignments löschen
+      if (lbl?.id && chatterNames.length > 0) {
+        const { error: aErr } = await supabase
+          .from("chatter_label_assignments")
+          .delete()
+          .eq("platform", platform)
+          .eq("label_id", lbl.id)
+          .in("chatter_name", chatterNames);
+        if (aErr) throw aErr;
+      }
+
+      // 2) Monatsziel-Notes löschen (nur die mit "Monatsziel"-Prefix)
+      if (chatterNames.length > 0) {
+        const { error: nErr } = await supabase
+          .from("coaching_notes")
+          .delete()
+          .eq("platform", platform)
+          .in("chatter_name", chatterNames)
+          .ilike("note_text", "Monatsziel%");
+        if (nErr) throw nErr;
+      }
+
+      // Optimistisch UI leeren
+      setRows([]);
+      setSuggestions((prev) => prev.map((s) => ({ ...s, currentGoal: null })));
+      setSkipped(new Set());
+      toast.success(`${chatterNames.length} Monatsziele gelöscht`);
+    } catch (e: any) {
+      console.error("[MonthlyGoals] clearAll failed", e);
+      toast.error(e?.message ?? "Fehler beim Löschen");
+    } finally {
+      setClearingAll(false);
+    }
+  }
+
 
   const visibleSuggestions = useMemo(
     () => suggestions.filter((s) => !skipped.has(s.chatter)),
