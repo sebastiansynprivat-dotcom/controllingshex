@@ -798,6 +798,33 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_message_templates: {
+        Row: {
+          created_at: string
+          id: string
+          scenario: Database["public"]["Enums"]["goal_message_scenario"]
+          template: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scenario: Database["public"]["Enums"]["goal_message_scenario"]
+          template: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scenario?: Database["public"]["Enums"]["goal_message_scenario"]
+          template?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hot_streak_alerts: {
         Row: {
           alert_date: string
@@ -1419,6 +1446,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      goal_message_scenario: "growth" | "flat" | "decline"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1547,6 +1575,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      goal_message_scenario: ["growth", "flat", "decline"],
     },
   },
 } as const

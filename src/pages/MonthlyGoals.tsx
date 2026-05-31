@@ -9,9 +9,10 @@
  *  - On-Track-Status (grün / amber / rot)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare } from "lucide-react";
+import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare, FileText } from "lucide-react";
 import GoalMessageDialog from "@/components/GoalMessageDialog";
 import BulkGoalMessagesDialog, { type BulkTarget } from "@/components/BulkGoalMessagesDialog";
+import GoalMessageTemplatesDialog from "@/components/GoalMessageTemplatesDialog";
 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -362,6 +363,7 @@ export default function MonthlyGoals() {
   const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
   const [bulkTargets, setBulkTargets] = useState<BulkTarget[] | null>(null);
   const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
 
 
@@ -1011,6 +1013,13 @@ export default function MonthlyGoals() {
                       Neu generieren
                     </button>
                     <button
+                      onClick={() => setTemplatesOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Vorlagen
+                    </button>
+                    <button
                       onClick={() =>
                         setBulkOpen(
                           visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
@@ -1070,6 +1079,11 @@ export default function MonthlyGoals() {
           }
         />
       )}
+
+      <GoalMessageTemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+      />
 
 
       <ChatterSlideOver
