@@ -468,16 +468,17 @@ export default function MonthlyGoals() {
                 chatter_name: string;
                 revenue_today: number | null;
                 analysis_date: string;
+                account: string | null;
               }>(() =>
                 supabase
                   .from("chatter_history")
-                  .select("chatter_name, revenue_today, analysis_date")
+                  .select("chatter_name, revenue_today, analysis_date, account")
                   .eq("platform", platform)
                   .in("chatter_name", labelChatters)
                   .gte("analysis_date", reportStartIso)
                   .lte("analysis_date", todayIso),
               )
-            : Promise.resolve([] as Array<{ chatter_name: string; revenue_today: number | null; analysis_date: string }>),
+            : Promise.resolve([] as Array<{ chatter_name: string; revenue_today: number | null; analysis_date: string; account: string | null }>),
         ]);
         if ((notesRes as any).error) throw (notesRes as any).error;
 
@@ -496,12 +497,21 @@ export default function MonthlyGoals() {
             });
           }
         }
-        const monthRevByChatter = new Map<string, number>();
+        // Dedupliziere doppelte Reports pro Tag: pro (chatter, date, account)
+        // nehmen wir MAX(revenue_today). Verhindert Doppelzählung wenn am
+        // selben Tag mehrere Reports mit gleicher Account-Struktur ankommen
+        // (z.B. einmal mit leerem account "" und einmal mit Account-Namen).
+        const monthRevMax = new Map<string, number>(); // key = chatter|date|account
         for (const h of histMonthRows ?? []) {
-          monthRevByChatter.set(
-            h.chatter_name,
-            (monthRevByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
-          );
+          const key = `${h.chatter_name}|${h.analysis_date}|${(h.account ?? "").trim()}`;
+          const v = Number(h.revenue_today ?? 0);
+          const prev = monthRevMax.get(key) ?? 0;
+          if (v > prev) monthRevMax.set(key, v);
+        }
+        const monthRevByChatter = new Map<string, number>();
+        for (const [key, v] of monthRevMax) {
+          const chatter = key.split("|")[0];
+          monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + v);
         }
         const built: ChatterGoalRow[] = [];
         for (const c of labelChatters) {
