@@ -220,8 +220,9 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
   async function copyAll() {
     const doneResults = results.filter((r) => r.status === "done" && r.message);
     const blocks = doneResults
-      .map((r) => `— ${r.chatter} · Ziel ${formatEUR(r.goal)} —\n${r.message}`)
+      .map((r) => `— ${r.chatter} · Ziel ${formatEUR(editedGoals[r.chatter] ?? r.goal)} —\n${r.message}`)
       .join("\n\n");
+
     if (!blocks) {
       toast.error("Noch keine Nachrichten zum Kopieren");
       return;
