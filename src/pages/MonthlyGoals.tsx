@@ -1013,6 +1013,13 @@ export default function MonthlyGoals() {
                       Neu generieren
                     </button>
                     <button
+                      onClick={() => setTemplatesOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Vorlagen
+                    </button>
+                    <button
                       onClick={() =>
                         setBulkOpen(
                           visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
