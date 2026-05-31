@@ -756,7 +756,7 @@ export default function MonthlyGoals() {
       for (const r of results) if (r.error) throw r.error;
 
       if (!opts?.silentToast) toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
-      if (!opts?.silentReload) setReloadKey((k) => k + 1);
+      // Kein reloadKey-Bump mehr — Caller macht optimistisches UI-Update.
     } catch (e: any) {
       console.error("[MonthlyGoals] accept failed", e);
       if (!opts?.silentToast) toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
@@ -765,6 +765,40 @@ export default function MonthlyGoals() {
       setAcceptingChatter(null);
     }
   }
+
+  /**
+   * Optimistisches UI-Update nach erfolgreichem Accept:
+   * - Row in "Aktuelle Monatsziele" anlegen oder updaten
+   * - Chatter aus Future ausblenden
+   * - currentGoal in Suggestions reflektieren
+   */
+  function applyAcceptedGoal(chatter: string, goal: number, monthRevenue: number) {
+    const today = new Date();
+    const monthLabel = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+    const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
+    const noteDate = today.toISOString();
+    const progress = computeGoalProgress(goal, monthRevenue, today);
+
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.chatter === chatter);
+      if (idx === -1) {
+        return [...prev, { chatter, noteText, noteDate, progress }];
+      }
+      const next = [...prev];
+      next[idx] = { ...next[idx], noteText, noteDate, progress };
+      return next;
+    });
+    setSuggestions((prev) =>
+      prev.map((s) => (s.chatter === chatter ? { ...s, currentGoal: goal } : s)),
+    );
+    setSkipped((prev) => {
+      if (prev.has(chatter)) return prev;
+      const next = new Set(prev);
+      next.add(chatter);
+      return next;
+    });
+  }
+
 
   const visibleSuggestions = useMemo(
     () => suggestions.filter((s) => !skipped.has(s.chatter)),
@@ -1042,7 +1076,7 @@ export default function MonthlyGoals() {
                       busy={acceptingChatter === s.chatter}
                       onAccept={async (goal) => {
                         await acceptSuggestion(s.chatter, goal);
-                        setSkipped((prev) => new Set(prev).add(s.chatter));
+                        applyAcceptedGoal(s.chatter, goal, s.monthRevenue);
                       }}
                       onSkip={() => setSkipped((prev) => new Set(prev).add(s.chatter))}
                       onMessage={(goal) =>
@@ -1073,13 +1107,13 @@ export default function MonthlyGoals() {
           open={!!bulkTargets}
           onClose={() => {
             setBulkTargets(null);
-            setReloadKey((k) => k + 1);
           }}
           platform={platform}
           targets={bulkTargets}
           onAccept={async (chatter, goal) => {
             await acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true });
-            setSkipped((prev) => new Set(prev).add(chatter));
+            const monthRev = suggestions.find((s) => s.chatter === chatter)?.monthRevenue ?? 0;
+            applyAcceptedGoal(chatter, goal, monthRev);
           }}
         />
       )}
