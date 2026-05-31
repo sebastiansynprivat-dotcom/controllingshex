@@ -123,7 +123,11 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     setCopiedAll(false);
     setAcceptedSet(new Set());
     setAcceptingSet(new Set());
+    setUnacceptingSet(new Set());
+    setEditedGoals({});
+    setSkippedSet(new Set());
     setAcceptErrors({});
+
 
     let cursor = 0;
     const runNext = async (): Promise<void> => {
