@@ -958,7 +958,7 @@ export default function MonthlyGoals() {
           <>
             {/* Status filter */}
             {rows.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {([
                   ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
                   ["on_track", "On Track", statusCounts.on_track, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
@@ -978,6 +978,15 @@ export default function MonthlyGoals() {
                     <span className="tabular-nums opacity-70">{count}</span>
                   </button>
                 ))}
+                <button
+                  onClick={clearAllCurrentGoals}
+                  disabled={clearingAll}
+                  className="ml-auto text-[11px] px-3 py-1.5 rounded-full border border-red-400/20 bg-red-500/[0.06] text-red-200/85 hover:bg-red-500/[0.12] hover:text-red-100 transition-colors font-light flex items-center gap-1.5 disabled:opacity-50"
+                  title="Alle aktuellen Monatsziele für diese Plattform löschen"
+                >
+                  {clearingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  Alle löschen
+                </button>
               </div>
             )}
 
