@@ -1080,6 +1080,11 @@ export default function MonthlyGoals() {
         />
       )}
 
+      <GoalMessageTemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+      />
+
 
       <ChatterSlideOver
         open={!!selected}
