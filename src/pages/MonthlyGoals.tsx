@@ -1281,7 +1281,9 @@ export default function MonthlyGoals() {
             applyAcceptedGoal(chatter, goal, monthRev);
           }}
           onSkip={(chatter) => setSkipped((prev) => new Set(prev).add(chatter))}
+          onUnaccept={revertAcceptedGoal}
         />
+
       )}
 
       <GoalMessageTemplatesDialog
