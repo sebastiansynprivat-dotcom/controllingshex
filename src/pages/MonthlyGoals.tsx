@@ -756,7 +756,7 @@ export default function MonthlyGoals() {
       for (const r of results) if (r.error) throw r.error;
 
       if (!opts?.silentToast) toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
-      if (!opts?.silentReload) setReloadKey((k) => k + 1);
+      // Kein reloadKey-Bump mehr — Caller macht optimistisches UI-Update.
     } catch (e: any) {
       console.error("[MonthlyGoals] accept failed", e);
       if (!opts?.silentToast) toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
