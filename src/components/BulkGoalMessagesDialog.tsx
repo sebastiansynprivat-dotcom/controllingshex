@@ -394,9 +394,10 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                           const next = new Set(prev);
                           if (next.has(r.chatter)) {
                             next.delete(r.chatter);
+                            void onUnskip?.(r.chatter);
                           } else {
                             next.add(r.chatter);
-                            onSkip?.(r.chatter);
+                            void onSkip?.(r.chatter);
                             toast.success(`${r.chatter} übersprungen`);
                           }
                           return next;
