@@ -24,7 +24,8 @@ interface Props {
   platform: string;
   targets: BulkTarget[];
   onAccept?: (chatter: string, goal: number) => Promise<void>;
-  onSkip?: (chatter: string) => void;
+  onSkip?: (chatter: string) => void | Promise<void>;
+  onUnskip?: (chatter: string) => void | Promise<void>;
   onUnaccept?: (chatter: string) => Promise<void>;
 }
 
