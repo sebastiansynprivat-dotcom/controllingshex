@@ -1059,9 +1059,15 @@ export default function MonthlyGoals() {
       {bulkTargets && (
         <BulkGoalMessagesDialog
           open={!!bulkTargets}
-          onClose={() => setBulkTargets(null)}
+          onClose={() => {
+            setBulkTargets(null);
+            setReloadKey((k) => k + 1);
+          }}
           platform={platform}
           targets={bulkTargets}
+          onAccept={(chatter, goal) =>
+            acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true })
+          }
         />
       )}
 
