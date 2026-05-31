@@ -168,6 +168,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         message,
         scenario,
+        auto_scenario: autoScenario,
+
         context: {
           last_month_revenue: recapRev,
           last_month_name: `${recapMonthName} (bisher)`,
