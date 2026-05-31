@@ -363,6 +363,7 @@ export default function MonthlyGoals() {
   const [messageFor, setMessageFor] = useState<{ chatter: string; proposedGoal: number; currentGoal: number | null } | null>(null);
   const [bulkTargets, setBulkTargets] = useState<BulkTarget[] | null>(null);
   const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
 
 
