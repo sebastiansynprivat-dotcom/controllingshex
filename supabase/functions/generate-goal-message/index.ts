@@ -58,12 +58,17 @@ Deno.serve(async (req) => {
     const platform: string = (body.platform || "").toString().trim();
     const proposedGoal = Number(body.proposed_goal);
     const currentGoal = body.current_goal != null ? Number(body.current_goal) : null;
+    const scenarioOverride: Scenario | null =
+      body.scenario_override === "growth" || body.scenario_override === "flat" || body.scenario_override === "decline"
+        ? body.scenario_override
+        : null;
 
     if (!chatterName || !platform || !Number.isFinite(proposedGoal) || proposedGoal <= 0) {
       return new Response(JSON.stringify({ error: "Missing or invalid input" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
