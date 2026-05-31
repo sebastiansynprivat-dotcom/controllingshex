@@ -1,28 +1,23 @@
-## Änderungen am Bulk-Goal-Messages-Dialog
+## Skip-Option im Bulk-Nachrichten-Dialog
 
-### 1. Chatter mit bereits gesetztem Ziel ausblenden
-- `BulkTarget` um optionales Feld `currentGoal: number | null` erweitern.
-- In `MonthlyGoals.tsx` beim Erstellen der `bulkTargets` den `currentGoal`-Wert aus `suggestions` mitgeben.
-- Im Dialog vor dem Rendern filtern: Einträge mit `currentGoal != null` werden komplett **nicht** angezeigt (auch nicht in den Filter-Counts „Alle / WhatsApp / Plattform").
-- Header-Count `({results.length})` zeigt die effektive Anzahl nach Filter.
+Im `BulkGoalMessagesDialog` (öffnet sich beim Klick auf „Nachrichten für alle") gibt es aktuell pro Karte nur das Häkchen zum Übernehmen. Ich füge daneben einen **Skip-Button** (X-Icon) hinzu.
 
-### 2. Abhaken-Symbol oben auf jeder Karte
-- Links neben dem Chatter-Namen ein klickbarer Kreis-/Check-Button (`Circle` → `CheckCircle2` beim Klick).
-- Klick triggert `acceptGoal(chatter, goal)` → ruft den existierenden `onAccept`-Callback aus `MonthlyGoals` auf → Goal wird in DB gespeichert und optimistisch nach „Aktuelle Monatsziele" verschoben.
-- Während Accept läuft: Spinner statt Check.
-- Wenn fertig: grüner Check + die Karte bleibt sichtbar mit dezenter Opacity, damit User sehen welche schon abgehakt sind. (Alternative: ausblenden. Default = bleibt mit reduzierter Opacity, das matched besseren Workflow.)
+### Verhalten
+- **Skip pro Karte**: X-Button im Karten-Header neben dem grünen Häkchen.
+- Klick → Chatter wird in `skippedSet` aufgenommen, Karte wird ausgegraut (gleiche `opacity-60` Behandlung wie „accepted") und mit Badge „Übersprungen" markiert. WhatsApp-/Copy-Buttons werden deaktiviert.
+- **Persistenz**: Skip wird in den Parent (`MonthlyGoals.tsx`) über einen neuen Callback `onSkip(chatter)` gemeldet → Chatter landet im bestehenden `skipped: Set<string>` State, sodass er auch nach Dialog-Schließen aus den Vorschlägen verschwindet (gleicher Mechanismus wie der bereits existierende Swipe-Skip).
+- Toggle: Erneutes Klicken auf X = Skip rückgängig.
+- Skip + Accept schließen sich gegenseitig aus.
 
-### 3. Kopier-Button im WhatsApp-Tab entfernen
-- In der WhatsApp-Karte (`classifyName === "whatsapp"`) wird der „Kopieren"-Button **nicht** mehr gerendert — nur der grüne WhatsApp-Button (kopiert weiterhin Text in Clipboard + öffnet WhatsApp).
-- Plattform-Tab bleibt unverändert: Kopieren-Button wie bisher.
+### Files
+- `src/components/BulkGoalMessagesDialog.tsx`
+  - Neuer Prop `onSkip?: (chatter: string) => void`
+  - Neuer State `skippedSet: Set<string>`
+  - X-Button (`lucide-react` `X` ist bereits importiert) im Karten-Header
+  - Visuelles Styling konsistent mit Accept (opacity-60, rotes Akzent statt emerald)
+- `src/pages/MonthlyGoals.tsx`
+  - `<BulkGoalMessagesDialog … onSkip={(c) => setSkipped(prev => new Set(prev).add(c))} />`
 
-### 4. „Ziel beim Kopieren übernehmen"-Checkbox
-- Bleibt erhalten (für Plattform-Tab-Workflow weiterhin nützlich). WhatsApp-Button respektiert sie ebenfalls beim Klick.
-
-### Technische Details
-- **Dateien**: `src/components/BulkGoalMessagesDialog.tsx`, `src/pages/MonthlyGoals.tsx`
-- **Neue Imports**: `Circle`, `CheckCircle2` aus `lucide-react`
-- **BulkTarget-Interface**: `currentGoal?: number | null` ergänzen (optional, default null)
-- **Filter-Logik**: In `visibleResults` zusätzlich `results.filter(r => initialTargetMap.get(r.chatter)?.currentGoal == null)` — Map beim Init aus `targets` aufbauen
-- **Counts**: `waCount` / `platformCount` ebenfalls auf gefilterte Liste berechnen
-- **Card-Header**: Abhaken-Button linksbündig vor `r.chatter`, Größe `h-5 w-5`, hover-state, accent-Farbe emerald
+### Nicht im Scope
+- Keine DB-Persistenz des Skips (genau wie der bestehende Swipe-Skip nur session-lokal).
+- Kein „Skip alle"-Bulk-Button — nur pro Karte.
