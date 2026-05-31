@@ -9,7 +9,7 @@
  *  - On-Track-Status (grün / amber / rot)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare, FileText } from "lucide-react";
+import { Target, Sparkles, TrendingUp, TrendingDown, Loader2, Check, X, Pencil, MessageSquare, FileText, Trash2 } from "lucide-react";
 import GoalMessageDialog from "@/components/GoalMessageDialog";
 import BulkGoalMessagesDialog, { type BulkTarget } from "@/components/BulkGoalMessagesDialog";
 import GoalMessageTemplatesDialog from "@/components/GoalMessageTemplatesDialog";
@@ -799,6 +799,65 @@ export default function MonthlyGoals() {
     });
   }
 
+  const [clearingAll, setClearingAll] = useState(false);
+  async function clearAllCurrentGoals() {
+    if (rows.length === 0) return;
+    const ok = window.confirm(
+      `Wirklich alle ${rows.length} aktuellen Monatsziele für ${platform} löschen?\n\nDie Chatter bleiben in den Vorschlägen sichtbar und können neu vergeben werden.`,
+    );
+    if (!ok) return;
+    setClearingAll(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error("Nicht angemeldet");
+
+      // Label-ID holen
+      const { data: lbl, error: lErr } = await supabase
+        .from("chatter_labels")
+        .select("id")
+        .eq("platform", platform)
+        .eq("label_name", LABEL_NAME)
+        .maybeSingle();
+      if (lErr) throw lErr;
+
+      const chatterNames = rows.map((r) => r.chatter);
+
+      // 1) Label-Assignments löschen
+      if (lbl?.id && chatterNames.length > 0) {
+        const { error: aErr } = await supabase
+          .from("chatter_label_assignments")
+          .delete()
+          .eq("platform", platform)
+          .eq("label_id", lbl.id)
+          .in("chatter_name", chatterNames);
+        if (aErr) throw aErr;
+      }
+
+      // 2) Monatsziel-Notes löschen (nur die mit "Monatsziel"-Prefix)
+      if (chatterNames.length > 0) {
+        const { error: nErr } = await supabase
+          .from("coaching_notes")
+          .delete()
+          .eq("platform", platform)
+          .in("chatter_name", chatterNames)
+          .ilike("note_text", "Monatsziel%");
+        if (nErr) throw nErr;
+      }
+
+      // Optimistisch UI leeren
+      setRows([]);
+      setSuggestions((prev) => prev.map((s) => ({ ...s, currentGoal: null })));
+      setSkipped(new Set());
+      toast.success(`${chatterNames.length} Monatsziele gelöscht`);
+    } catch (e: any) {
+      console.error("[MonthlyGoals] clearAll failed", e);
+      toast.error(e?.message ?? "Fehler beim Löschen");
+    } finally {
+      setClearingAll(false);
+    }
+  }
+
 
   const visibleSuggestions = useMemo(
     () => suggestions.filter((s) => !skipped.has(s.chatter)),
@@ -899,7 +958,7 @@ export default function MonthlyGoals() {
           <>
             {/* Status filter */}
             {rows.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {([
                   ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
                   ["on_track", "On Track", statusCounts.on_track, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
@@ -919,6 +978,15 @@ export default function MonthlyGoals() {
                     <span className="tabular-nums opacity-70">{count}</span>
                   </button>
                 ))}
+                <button
+                  onClick={clearAllCurrentGoals}
+                  disabled={clearingAll}
+                  className="ml-auto text-[11px] px-3 py-1.5 rounded-full border border-red-400/20 bg-red-500/[0.06] text-red-200/85 hover:bg-red-500/[0.12] hover:text-red-100 transition-colors font-light flex items-center gap-1.5 disabled:opacity-50"
+                  title="Alle aktuellen Monatsziele für diese Plattform löschen"
+                >
+                  {clearingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  Alle löschen
+                </button>
               </div>
             )}
 
