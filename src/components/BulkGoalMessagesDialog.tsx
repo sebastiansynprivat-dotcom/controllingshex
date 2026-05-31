@@ -25,7 +25,9 @@ interface Props {
   targets: BulkTarget[];
   onAccept?: (chatter: string, goal: number) => Promise<void>;
   onSkip?: (chatter: string) => void;
+  onUnaccept?: (chatter: string) => Promise<void>;
 }
+
 
 type Status = "pending" | "loading" | "done" | "error";
 
@@ -63,7 +65,7 @@ function classifyName(name: string): "whatsapp" | "platform" {
   return "platform";
 }
 
-export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip }: Props) {
+export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip, onUnaccept }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -71,6 +73,9 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
   const [acceptingSet, setAcceptingSet] = useState<Set<string>>(new Set());
   const [acceptErrors, setAcceptErrors] = useState<Record<string, string>>({});
   const [skippedSet, setSkippedSet] = useState<Set<string>>(new Set());
+  const [unacceptingSet, setUnacceptingSet] = useState<Set<string>>(new Set());
+  const [editedGoals, setEditedGoals] = useState<Record<string, number>>({});
+
   const [autoAccept, setAutoAccept] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem(LS_KEY);
@@ -118,7 +123,11 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     setCopiedAll(false);
     setAcceptedSet(new Set());
     setAcceptingSet(new Set());
+    setUnacceptingSet(new Set());
+    setEditedGoals({});
+    setSkippedSet(new Set());
     setAcceptErrors({});
+
 
     let cursor = 0;
     const runNext = async (): Promise<void> => {
@@ -198,19 +207,22 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       return;
     }
     if (autoAccept && onAccept && !acceptedSet.has(r.chatter)) {
-      const ok = await acceptGoal(r.chatter, r.goal);
-      if (ok) toast.success(`Kopiert & Ziel gesetzt: ${formatEUR(r.goal)}`);
+      const goal = editedGoals[r.chatter] ?? r.goal;
+      const ok = await acceptGoal(r.chatter, goal);
+      if (ok) toast.success(`Kopiert & Ziel gesetzt: ${formatEUR(goal)}`);
       else toast.error(`Kopiert, aber Ziel-Setzen fehlgeschlagen`);
     } else {
       toast.success("Kopiert");
     }
+
   }
 
   async function copyAll() {
     const doneResults = results.filter((r) => r.status === "done" && r.message);
     const blocks = doneResults
-      .map((r) => `— ${r.chatter} · Ziel ${formatEUR(r.goal)} —\n${r.message}`)
+      .map((r) => `— ${r.chatter} · Ziel ${formatEUR(editedGoals[r.chatter] ?? r.goal)} —\n${r.message}`)
       .join("\n\n");
+
     if (!blocks) {
       toast.error("Noch keine Nachrichten zum Kopieren");
       return;
@@ -229,7 +241,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
         toast.success("Alle Nachrichten kopiert");
         return;
       }
-      const outcomes = await Promise.all(toAccept.map((r) => acceptGoal(r.chatter, r.goal)));
+      const outcomes = await Promise.all(toAccept.map((r) => acceptGoal(r.chatter, editedGoals[r.chatter] ?? r.goal)));
       const okCount = outcomes.filter(Boolean).length;
       const failCount = outcomes.length - okCount;
       toast.success(
@@ -316,10 +328,13 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
           {visibleResults.map(({ r, idx }) => {
             const accepted = acceptedSet.has(r.chatter);
             const accepting = acceptingSet.has(r.chatter);
+            const unaccepting = unacceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
             const skipped = skippedSet.has(r.chatter);
             const isWhatsApp = classifyName(r.chatter) === "whatsapp";
             const dimmed = accepted || skipped;
+            const effectiveGoal = editedGoals[r.chatter] ?? r.goal;
+            const goalEdited = editedGoals[r.chatter] != null && editedGoals[r.chatter] !== r.goal;
             return (
               <div
                 key={`${r.chatter}-${idx}`}
@@ -329,17 +344,40 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                   <div className="min-w-0 flex items-start gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (accepted || accepting || skipped || !onAccept) return;
-                        acceptGoal(r.chatter, r.goal).then((ok) => {
-                          if (ok) toast.success(`Ziel gesetzt: ${formatEUR(r.goal)}`);
+                      onClick={async () => {
+                        if (accepting || unaccepting) return;
+                        if (accepted) {
+                          if (!onUnaccept) return;
+                          setUnacceptingSet((prev) => new Set(prev).add(r.chatter));
+                          try {
+                            await onUnaccept(r.chatter);
+                            setAcceptedSet((prev) => {
+                              const next = new Set(prev);
+                              next.delete(r.chatter);
+                              return next;
+                            });
+                          } catch {
+                            /* toast wird vom Parent gezeigt */
+                          } finally {
+                            setUnacceptingSet((prev) => {
+                              const next = new Set(prev);
+                              next.delete(r.chatter);
+                              return next;
+                            });
+                          }
+                          return;
+                        }
+                        if (skipped || !onAccept) return;
+                        const goal = editedGoals[r.chatter] ?? r.goal;
+                        acceptGoal(r.chatter, goal).then((ok) => {
+                          if (ok) toast.success(`Ziel gesetzt: ${formatEUR(goal)}`);
                         });
                       }}
-                      disabled={accepted || accepting || skipped || !onAccept}
+                      disabled={accepting || unaccepting || (!accepted && (skipped || !onAccept)) || (accepted && !onUnaccept)}
                       className="mt-0.5 shrink-0 text-white/40 hover:text-emerald-300 transition-colors disabled:hover:text-white/40 disabled:cursor-default"
-                      title={accepted ? "Bereits abgehakt" : skipped ? "Übersprungen" : "Abhaken — Ziel übernehmen"}
+                      title={accepted ? "Klicken zum Rückgängigmachen" : skipped ? "Übersprungen" : "Abhaken — Ziel übernehmen"}
                     >
-                      {accepting ? (
+                      {accepting || unaccepting ? (
                         <Loader2 className="h-5 w-5 animate-spin text-white/55" />
                       ) : accepted ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-300" />
@@ -378,8 +416,36 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-white/45 font-light">
-                        Ziel: {formatEUR(r.goal)}
+                      <div className="text-[11px] text-white/45 font-light flex items-center gap-1.5 mt-0.5">
+                        <span>Ziel:</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={10}
+                          value={effectiveGoal}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setEditedGoals((prev) => {
+                              const next = { ...prev };
+                              if (v === "") {
+                                next[r.chatter] = 0;
+                              } else {
+                                const n = Number(v);
+                                if (!Number.isFinite(n) || n < 0) return prev;
+                                next[r.chatter] = Math.round(n);
+                              }
+                              return next;
+                            });
+                          }}
+                          disabled={accepted || accepting || skipped}
+                          className="w-20 bg-white/[0.04] border border-white/10 rounded px-1.5 py-0.5 text-[11px] text-white/85 tabular-nums focus:outline-none focus:border-white/25 disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                        <span>€</span>
+                        {goalEdited && (
+                          <span className="text-[9px] uppercase tracking-[0.14em] text-amber-300/80">
+                            bearbeitet · vorher {formatEUR(r.goal)}
+                          </span>
+                        )}
                       </div>
                       {acceptErr && (
                         <div className="text-[11px] text-red-300/80 font-light mt-0.5">
@@ -388,6 +454,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                       )}
                     </div>
                   </div>
+
                   <div className="flex items-center gap-2 shrink-0">
                     {r.status === "loading" && (
                       <span className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-light flex items-center gap-1">
