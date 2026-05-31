@@ -73,6 +73,9 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
   const [acceptingSet, setAcceptingSet] = useState<Set<string>>(new Set());
   const [acceptErrors, setAcceptErrors] = useState<Record<string, string>>({});
   const [skippedSet, setSkippedSet] = useState<Set<string>>(new Set());
+  const [unacceptingSet, setUnacceptingSet] = useState<Set<string>>(new Set());
+  const [editedGoals, setEditedGoals] = useState<Record<string, number>>({});
+
   const [autoAccept, setAutoAccept] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem(LS_KEY);
