@@ -305,10 +305,6 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
             const accepting = acceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
             return (
-            const accepted = acceptedSet.has(r.chatter);
-            const accepting = acceptingSet.has(r.chatter);
-            const acceptErr = acceptErrors[r.chatter];
-            return (
               <div
                 key={`${r.chatter}-${idx}`}
                 className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
