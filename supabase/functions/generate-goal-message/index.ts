@@ -13,7 +13,7 @@ EMPFÄNGER: EIN konkreter Chatter (Mitarbeiter im eigenen Team). NIE Fans.
 LÄNGE (hart): MAX 100 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine Füllwörter. Wenn's länger wird → kürzen.
 
 INHALT (alles muss rein, aber knapp):
-1) 1 Satz: Recap laufender Monat + Info, dass Fans/Kunden jetzt frisches Gehalt auf dem Konto haben → leicht zu verkaufen.
+1) 1 Satz Recap zum laufenden Monat — REIN QUALITATIV, KEINE Zahlen/Prozente/EUR zum bisherigen Monat. Tonalität je nach Lage: stark → kurzes Lob + "legen nächsten Monat noch eine Schippe drauf"; solide/mittelmäßig → "läuft okay, nächsten Monat holen wir die Steigerung locker rein, ist nicht schlimm dass es diesmal kein Sprung war"; schwach → "war nicht unser Monat, halb so wild, nächsten Monat drehen wir das sauber". Plus Hinweis: Fans/Kunden haben jetzt frisches Gehalt → leicht zu verkaufen.
 2) 1–2 Sätze: Woche 1 Vollgas (Money-Window), danach wird's entspannter. Konkrete VORGABE (kein Tipp, keine Alternative): Mass-DMs stündlich, solange du online bist.
 3) 1 Satz: Neues Monatsziel für Folgemonat in EUR + Woche-1-Zwischenziel in EUR. Ziele FETT in WhatsApp-Syntax: *2.500 €*.
 
@@ -278,17 +278,17 @@ Deno.serve(async (req) => {
     const lowAttendance = recapAttendanceRatio < 0.4 && recapWorkedDays > 0;
 
     const toneLine = tone === "strong"
-      ? `Laufender Monat (${recapMonthName}) sieht stark aus. Kurz anerkennen, dann klar machen: ${goalMonthName} legen wir nochmal eine Schippe drauf.`
+      ? `Laufender Monat (${recapMonthName}) läuft stark. Kurz qualitativ anerkennen ("starker Monat", "läuft richtig gut"), KEINE Zahlen nennen, dann klar machen: ${goalMonthName} legen wir nochmal eine Schippe drauf.`
       : tone === "ok"
-      ? `Laufender Monat (${recapMonthName}) ist solide. Kurz einordnen, dann auf ${goalMonthName} pushen.`
-      : `Laufender Monat (${recapMonthName}) bleibt hinter Erwartung. NICHT abwerten – locker einordnen, Vertrauen geben, klar machen dass wir ${goalMonthName} sauber drehen.`;
+      ? `Laufender Monat (${recapMonthName}) ist mittelmäßig/solide. Locker einordnen ("Monat war okay, kein Sprung — halb so wild"), KEINE Zahlen, dann: nächsten Monat (${goalMonthName}) holen wir die Steigerung locker rein.`
+      : `Laufender Monat (${recapMonthName}) war nicht stark. NICHT abwerten, KEINE Zahlen nennen, locker einordnen ("war nicht unser Monat, halb so wild"), Vertrauen geben, klar machen dass wir ${goalMonthName} sauber drehen.`;
 
     const contextHints: string[] = [];
     if (manyZeroDays) {
-      contextHints.push(`Viele Nullrunden im laufenden Monat – nur ${recapEarningDays} von ${recapWorkedDays} Arbeitstagen brachten Umsatz. Diplomatisch ansprechen: Schichten besser nutzen, nicht "mehr arbeiten".`);
+      contextHints.push(`Intern-Info (NICHT in Nachricht nennen, nur für deine Tonalität): viele Nullrunden im laufenden Monat. Recap entsprechend etwas vorsichtiger – aber weiterhin OHNE Zahlen, nur qualitativ.`);
     }
     if (lowAttendance) {
-      contextHints.push(`Geringe Präsenz im laufenden Monat (${recapWorkedDays} von ${daysInRecapSoFar} Tagen bisher). Bewerte die TAGES-Leistung (Ø ${fmtEUR(recapAvgPerWorkedDay)}/Tag), NICHT die Monatssumme.`);
+      contextHints.push(`Intern-Info (NICHT in Nachricht nennen): geringe Präsenz im laufenden Monat. Recap weiterhin qualitativ + wohlwollend halten.`);
     }
 
     const modelLine = roster.length > 0 && modelBaselineEurPerDay > 0
@@ -320,18 +320,16 @@ WICHTIG ZUM TIMING:
 ${startedAfterPriorMonth ? `- ACHTUNG: Chatter war im ${priorMonthName} noch nicht im Team. Erwähne NICHTS über ${priorMonthName} – weder Zahlen noch Performance.` : ""}
 ${startedThisMonth ? `- ACHTUNG: Chatter ist erst diesen Monat (${recapMonthName}) gestartet. Recap sehr wohlwollend formulieren – das sind Einstiegs-Tage, keine volle Bewertungsbasis.` : ""}
 
-ZAHLEN (verwende sie ehrlich, runde EUR auf volle Hundert wenn sinnvoll):
-- Laufender Monat (${recapMonthName}) bisher: ${fmtEUR(recapRev)} an ${recapWorkedDays} von ${daysInRecapSoFar} Tagen aktiv${recapWorkedDays > 0 ? ` (Ø ${fmtEUR(recapAvgPerWorkedDay)}/Arbeitstag)` : ""}. Hochrechnung Monatsende: ~${fmtEUR(projectedRecap)}.
-- Earning-Tage (>0 €) im ${recapMonthName}: ${recapEarningDays}${recapWorkedDays > 0 ? ` von ${recapWorkedDays} (${Math.round(recapEarningRatio * 100)}%)` : ""}.
-${priorLine}
+ZAHLEN (NUR Folgemonats-Ziel + Woche-1-Ziel dürfen in der Nachricht stehen. Recap-Zahlen zum laufenden Monat & Vormonat sind nur INTERN für deine Tonalitäts-Einschätzung — NIEMALS in der Nachricht nennen, weder EUR noch %):
+- INTERN Tonalitäts-Lage: ${tone === "strong" ? "stark" : tone === "ok" ? "mittelmäßig/solide" : "schwach"}.
 ${tenureLine}
-- Altes/aktuelles Monatsziel: ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}${goalHit != null ? ` – Hochrechnung trifft das zu ${Math.round(goalHit)}%` : ""}.
-${modelLine}
-- NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}. ${roster.length > 0 && modelBaselineEurPerDay > 0 ? "Das Ziel basiert auf dem normalen Performance-Niveau seiner Models – erwähne KURZ dass das Ziel realistisch ist weil die Models das Potenzial haben." : ""}
+- Altes/aktuelles Monatsziel (NICHT in Nachricht nennen): ${priorGoal != null ? fmtEUR(priorGoal) : "keins hinterlegt"}.
+${modelLine.replace(/^- /, "- INTERN (nicht nennen): ")}
+- NEUES Monatsziel für ${goalMonthName}: ${fmtEUR(proposedGoal)} (${daysInGoalMonth} Tage) — MUSS in der Nachricht genannt werden, klar als Ziel für ${goalMonthName}.
 - WOCHE-1-ZIEL (Tag 1–7): mind. ${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)} = ca. 30 % des Monatsziels. Begründung im Text: Money-Window am Monatsanfang (Fans haben frisches Geld), wenn man die erste Woche pusht wird's nach hinten raus entspannter.
 
 PFLICHT-INHALTE (alles muss rein, aber MAX 100 Wörter gesamt, 3 kurze Absätze):
-A) 1 Satz: Recap + Fans/Kunden haben frisches Gehalt → leicht zu verkaufen.
+A) 1 Satz Recap REIN QUALITATIV (KEINE Zahlen, kein "X €", kein "%", kein "Y Tage"): ${tone === "strong" ? `kurzes Lob ("starker Monat" / "läuft richtig gut")` : tone === "ok" ? `locker einordnen ("Monat war okay, kein Riesensprung — halb so wild, nächsten Monat holen wir die Steigerung locker rein")` : `aufbauend ("war nicht unser Monat, halb so wild — nächsten Monat drehen wir das sauber")`}. Im selben Satz oder direkt anschließend: Fans/Kunden haben jetzt frisches Gehalt → leicht zu verkaufen.
 B) 1–2 Sätze: *Woche 1* Vollgas (Money-Window), danach entspannter. Konkrete VORGABE: Mass-DMs stündlich, solange du online bist. Kein Tipp, keine Alternative.
 C) 1 Satz: Neues Ziel *${fmtEUR(proposedGoal)}* für ${goalMonthName}, davon *${fmtEUR(Math.round((proposedGoal * 0.30) / 50) * 50)}* in Woche 1.
 
