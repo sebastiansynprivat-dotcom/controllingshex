@@ -1077,9 +1077,10 @@ export default function MonthlyGoals() {
           }}
           platform={platform}
           targets={bulkTargets}
-          onAccept={(chatter, goal) =>
-            acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true })
-          }
+          onAccept={async (chatter, goal) => {
+            await acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true });
+            setSkipped((prev) => new Set(prev).add(chatter));
+          }}
         />
       )}
 
