@@ -69,6 +69,14 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       return true;
     }
   });
+  const [nameFilter, setNameFilter] = useState<NameFilter>(() => {
+    try {
+      const v = localStorage.getItem(LS_FILTER_KEY);
+      return v === "whatsapp" || v === "platform" ? v : "all";
+    } catch {
+      return "all";
+    }
+  });
   const cancelRef = useRef(false);
 
   useEffect(() => {
@@ -76,6 +84,12 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
       localStorage.setItem(LS_KEY, autoAccept ? "1" : "0");
     } catch {}
   }, [autoAccept]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_FILTER_KEY, nameFilter);
+    } catch {}
+  }, [nameFilter]);
 
   useEffect(() => {
     if (!open) return;
