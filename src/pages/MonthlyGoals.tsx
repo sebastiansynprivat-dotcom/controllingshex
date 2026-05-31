@@ -1107,13 +1107,13 @@ export default function MonthlyGoals() {
           open={!!bulkTargets}
           onClose={() => {
             setBulkTargets(null);
-            setReloadKey((k) => k + 1);
           }}
           platform={platform}
           targets={bulkTargets}
           onAccept={async (chatter, goal) => {
             await acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true });
-            setSkipped((prev) => new Set(prev).add(chatter));
+            const monthRev = suggestions.find((s) => s.chatter === chatter)?.monthRevenue ?? 0;
+            applyAcceptedGoal(chatter, goal, monthRev);
           }}
         />
       )}
