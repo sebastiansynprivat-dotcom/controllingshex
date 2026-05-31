@@ -241,7 +241,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
         toast.success("Alle Nachrichten kopiert");
         return;
       }
-      const outcomes = await Promise.all(toAccept.map((r) => acceptGoal(r.chatter, r.goal)));
+      const outcomes = await Promise.all(toAccept.map((r) => acceptGoal(r.chatter, editedGoals[r.chatter] ?? r.goal)));
       const okCount = outcomes.filter(Boolean).length;
       const failCount = outcomes.length - okCount;
       toast.success(
