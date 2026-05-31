@@ -227,10 +227,36 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     }
   }
 
+  const visibleResults = nameFilter === "all"
+    ? results.map((r, idx) => ({ r, idx }))
+    : results
+        .map((r, idx) => ({ r, idx }))
+        .filter(({ r }) => classifyName(r.chatter) === nameFilter);
+
+  const waCount = results.filter((r) => classifyName(r.chatter) === "whatsapp").length;
+  const platformCount = results.length - waCount;
+
   const doneCount = results.filter((r) => r.status === "done").length;
   const errCount = results.filter((r) => r.status === "error").length;
   const loadingCount = results.filter((r) => r.status === "loading" || r.status === "pending").length;
   const allDone = loadingCount === 0 && results.length > 0;
+
+  const filterBtn = (val: NameFilter, label: string, count: number) => {
+    const active = nameFilter === val;
+    return (
+      <button
+        type="button"
+        onClick={() => setNameFilter(val)}
+        className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors font-light ${
+          active
+            ? "bg-white/10 border-white/20 text-white"
+            : "bg-white/[0.02] border-white/[0.06] text-white/55 hover:text-white/85 hover:bg-white/[0.05]"
+        }`}
+      >
+        {label} <span className="text-white/40">· {count}</span>
+      </button>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -245,6 +271,12 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
               : `Generiere… ${doneCount}/${results.length} fertig${errCount > 0 ? ` · ${errCount} Fehler` : ""}`}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex items-center gap-1.5 pb-2 flex-wrap">
+          {filterBtn("all", "Alle", results.length)}
+          {filterBtn("whatsapp", "WhatsApp", waCount)}
+          {filterBtn("platform", "Plattform", platformCount)}
+        </div>
 
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.06] flex-wrap">
           <label className="flex items-center gap-2 text-[11px] text-white/65 font-light cursor-pointer select-none">
@@ -263,7 +295,16 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
         </div>
 
         <div className="overflow-y-auto flex-1 space-y-2 pr-1 -mr-1">
-          {results.map((r, idx) => {
+          {visibleResults.length === 0 && (
+            <div className="text-[11px] text-white/40 font-light text-center py-6">
+              Keine Einträge für diesen Filter.
+            </div>
+          )}
+          {visibleResults.map(({ r, idx }) => {
+            const accepted = acceptedSet.has(r.chatter);
+            const accepting = acceptingSet.has(r.chatter);
+            const acceptErr = acceptErrors[r.chatter];
+            return (
             const accepted = acceptedSet.has(r.chatter);
             const accepting = acceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
