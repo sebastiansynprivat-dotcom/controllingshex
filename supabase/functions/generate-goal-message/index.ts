@@ -136,12 +136,14 @@ Deno.serve(async (req) => {
       : 0;
     const vsPrior = priorRev > 0 ? ((projectedRecap - priorRev) / priorRev) * 100 : null;
 
-    // Scenario detection
-    let scenario: Scenario;
-    if (vsPrior == null) scenario = "flat";
-    else if (vsPrior >= 5) scenario = "growth";
-    else if (vsPrior <= -5) scenario = "decline";
-    else scenario = "flat";
+    // Scenario detection (auto), optionally overridden by client
+    let autoScenario: Scenario;
+    if (vsPrior == null) autoScenario = "flat";
+    else if (vsPrior >= 5) autoScenario = "growth";
+    else if (vsPrior <= -5) autoScenario = "decline";
+    else autoScenario = "flat";
+    const scenario: Scenario = scenarioOverride ?? autoScenario;
+
 
     // Pick template (user-defined or fallback)
     const userTemplates = new Map<Scenario, string>();
