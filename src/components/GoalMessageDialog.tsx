@@ -35,6 +35,7 @@ export default function GoalMessageDialog({
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [context, setContext] = useState<any>(null);
+  const [scenario, setScenario] = useState<"auto" | "growth" | "flat" | "decline">("auto");
 
   useEffect(() => {
     if (open) {
@@ -42,13 +43,14 @@ export default function GoalMessageDialog({
       setMessage("");
       setContext(null);
       setCopied(false);
+      setScenario("auto");
       // auto-generate on open
-      void generate(proposedGoal);
+      void generate(proposedGoal, "auto");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, chatter]);
 
-  async function generate(useGoal: number) {
+  async function generate(useGoal: number, useScenario: "auto" | "growth" | "flat" | "decline") {
     setLoading(true);
     setMessage("");
     try {
@@ -58,6 +60,7 @@ export default function GoalMessageDialog({
           platform,
           proposed_goal: useGoal,
           current_goal: currentGoal ?? null,
+          scenario_override: useScenario === "auto" ? null : useScenario,
         },
       });
       if (error) throw error;
@@ -71,6 +74,7 @@ export default function GoalMessageDialog({
       setLoading(false);
     }
   }
+
 
   async function handleCopy() {
     try {
