@@ -13,7 +13,7 @@ EMPFÄNGER: EIN konkreter Chatter (Mitarbeiter im eigenen Team). NIE Fans.
 LÄNGE (hart): MAX 100 Wörter gesamt. 3 kurze Absätze. Jeder Satz scharf, keine Füllwörter. Wenn's länger wird → kürzen.
 
 INHALT (alles muss rein, aber knapp):
-1) 1 Satz: Recap laufender Monat + Info, dass Fans/Kunden jetzt frisches Gehalt auf dem Konto haben → leicht zu verkaufen.
+1) 1 Satz Recap zum laufenden Monat — REIN QUALITATIV, KEINE Zahlen/Prozente/EUR zum bisherigen Monat. Tonalität je nach Lage: stark → kurzes Lob + "legen nächsten Monat noch eine Schippe drauf"; solide/mittelmäßig → "läuft okay, nächsten Monat holen wir die Steigerung locker rein, ist nicht schlimm dass es diesmal kein Sprung war"; schwach → "war nicht unser Monat, halb so wild, nächsten Monat drehen wir das sauber". Plus Hinweis: Fans/Kunden haben jetzt frisches Gehalt → leicht zu verkaufen.
 2) 1–2 Sätze: Woche 1 Vollgas (Money-Window), danach wird's entspannter. Konkrete VORGABE (kein Tipp, keine Alternative): Mass-DMs stündlich, solange du online bist.
 3) 1 Satz: Neues Monatsziel für Folgemonat in EUR + Woche-1-Zwischenziel in EUR. Ziele FETT in WhatsApp-Syntax: *2.500 €*.
 
