@@ -957,7 +957,9 @@ export default function MonthlyGoals() {
 
 
   const visibleSuggestions = useMemo(
-    () => suggestions.filter((s) => !skipped.has(s.chatter)),
+    // Chatter mit bereits gesetztem aktuellem Monatsziel werden nicht erneut vorgeschlagen.
+    // Erst nach Un-Accept (currentGoal = null) tauchen sie wieder hier auf.
+    () => suggestions.filter((s) => !skipped.has(s.chatter) && s.currentGoal == null),
     [suggestions, skipped],
   );
 
