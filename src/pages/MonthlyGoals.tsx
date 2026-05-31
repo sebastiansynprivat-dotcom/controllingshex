@@ -865,6 +865,57 @@ export default function MonthlyGoals() {
       next.add(chatter);
       return next;
     });
+    // Skip aufheben in DB, falls Chatter vorher übersprungen war — Accept overruled Skip
+    void persistUnskip(chatter);
+  }
+
+  async function persistSkip(chatter: string) {
+    setSkipped((prev) => {
+      if (prev.has(chatter)) return prev;
+      const next = new Set(prev);
+      next.add(chatter);
+      return next;
+    });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error("Nicht angemeldet");
+      const { error } = await supabase
+        .from("monthly_goal_skips")
+        .upsert(
+          { user_id: user.id, platform, chatter_name: chatter },
+          { onConflict: "user_id,platform,chatter_name" },
+        );
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("[MonthlyGoals] persistSkip failed", e);
+      toast.error(`Skip konnte nicht gespeichert werden: ${e?.message ?? "Fehler"}`);
+      setSkipped((prev) => {
+        if (!prev.has(chatter)) return prev;
+        const next = new Set(prev);
+        next.delete(chatter);
+        return next;
+      });
+    }
+  }
+
+  async function persistUnskip(chatter: string) {
+    setSkipped((prev) => {
+      if (!prev.has(chatter)) return prev;
+      const next = new Set(prev);
+      next.delete(chatter);
+      return next;
+    });
+    try {
+      const { error } = await supabase
+        .from("monthly_goal_skips")
+        .delete()
+        .eq("platform", platform)
+        .eq("chatter_name", chatter);
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("[MonthlyGoals] persistUnskip failed", e);
+    }
   }
 
   const [clearingAll, setClearingAll] = useState(false);
