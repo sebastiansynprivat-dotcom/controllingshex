@@ -357,13 +357,33 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                       </span>
                     )}
                     {r.status === "done" && (
-                      <button
-                        onClick={() => copyOne(idx, r.message)}
-                        className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
-                      >
-                        {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                        {copiedIdx === idx ? "Kopiert" : "Kopieren"}
-                      </button>
+                      <>
+                        {classifyName(r.chatter) === "whatsapp" && (
+                          <button
+                            onClick={async () => {
+                              try { await navigator.clipboard.writeText(r.message); } catch {}
+                              copyOne(idx, r.message);
+                              const isMobile = /iphone|ipad|android/i.test(navigator.userAgent);
+                              const url = isMobile
+                                ? `whatsapp://send?text=${encodeURIComponent(r.message)}`
+                                : `https://web.whatsapp.com/send?text=${encodeURIComponent(r.message)}`;
+                              window.open(url, "_blank", "noopener,noreferrer");
+                            }}
+                            className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 transition-colors"
+                            title="Nachricht kopieren & WhatsApp öffnen"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            WhatsApp
+                          </button>
+                        )}
+                        <button
+                          onClick={() => copyOne(idx, r.message)}
+                          className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
+                        >
+                          {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          {copiedIdx === idx ? "Kopiert" : "Kopieren"}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
