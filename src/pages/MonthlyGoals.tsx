@@ -681,10 +681,10 @@ export default function MonthlyGoals() {
   }, [platform]);
 
 
-  async function acceptSuggestion(chatter: string, goal: number) {
+  async function acceptSuggestion(chatter: string, goal: number, opts?: { silentReload?: boolean; silentToast?: boolean }) {
     if (goal <= 0) {
-      toast.error("Ziel muss > 0 sein");
-      return;
+      if (!opts?.silentToast) toast.error("Ziel muss > 0 sein");
+      throw new Error("Ziel muss > 0 sein");
     }
     setAcceptingChatter(chatter);
     try {

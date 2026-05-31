@@ -1,40 +1,26 @@
-## Was schiefläuft
+## Ziel
 
-In `src/pages/MonthlyGoals.tsx` (Zeile 392) wird der Monatsanfang für die "bisher gemacht"-Summe falsch gesetzt:
+Im Dialog „Nachrichten für alle generieren" soll beim Kopieren einer Nachricht das vorgeschlagene Monatsziel direkt mitgesetzt werden – sowohl beim einzelnen „Kopieren"-Button als auch bei „Alle kopieren". So spart man sich das separate „Annehmen" pro Karte.
 
-```ts
-const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
-```
+## Änderungen
 
-Das `2` heißt: nur Reports mit `analysis_date >= 2. des Monats` werden in `monthRevByChatter` eingerechnet. Der **1. des Monats fehlt komplett** in der Summe.
+### `src/components/BulkGoalMessagesDialog.tsx`
+- Neue Prop `onAccept(chatter: string, goal: number): Promise<void>` (vom Parent durchgereicht).
+- Neuer State `acceptedSet: Set<string>` + `acceptingSet: Set<string>` für UI-Feedback.
+- Optionaler Toggle oben im Dialog: **„Ziel beim Kopieren übernehmen"** (default: an), per `localStorage` gemerkt. So bleibt das alte Verhalten verfügbar, falls man nur Text will.
+- `copyOne(idx, text)`: nach erfolgreichem Clipboard-Write zusätzlich `onAccept(chatter, goal)` aufrufen (nur wenn Toggle an & noch nicht akzeptiert). Toast: „Kopiert & Ziel gesetzt: {EUR}".
+- `copyAll()`: nach Clipboard-Write parallel `onAccept` für alle noch nicht akzeptierten Chatter aufrufen. Toast: „Alle Nachrichten kopiert · N Ziele gesetzt".
+- Pro Card-Header dezenter Status-Hinweis, wenn Ziel gesetzt wurde („✓ Ziel gesetzt"). Bei laufendem Akzeptieren kleiner Spinner.
 
-Gleichzeitig nutzt `computeGoalProgress` in `src/lib/monthly-goals.ts`:
-```ts
-const daysPassed = Math.max(0, today.getDate() - 1);
-```
-…also "alle Tage bis gestern inkl." Auf den 5. eines Monats: `daysPassed = 4`, erwartet werden Tage 1–4 in der Summe — aber Tag 1 ist rausgefiltert. → "bisher gemacht" zu niedrig, `pacePct` zu niedrig, `requiredPerRemainingDay` zu hoch, Status fälschlich `off_track`.
+### `src/pages/MonthlyGoals.tsx`
+- `acceptSuggestion` so anpassen, dass es als Promise nutzbar bleibt (ist schon async) und an `BulkGoalMessagesDialog` als `onAccept` weitergegeben wird.
+- `setAcceptingChatter` ist single-slot — für Bulk genügt es, den lokalen Set-State im Dialog zu führen; `acceptSuggestion` ruft am Ende `setReloadKey(k => k+1)`, was die Liste neu lädt. Bei Bulk vermeiden wir N Reloads, indem wir Reload erst nach Schließen des Dialogs auslösen → kleine Anpassung: `acceptSuggestion` bekommt optionalen Parameter `{ silentReload?: boolean }`, der das `setReloadKey` überspringt. Dialog triggert beim Schließen einmalig `setReloadKey`.
 
-Vermutlich war der Gedanke „Report von gestern liegt erst heute vor, also Vormonats-Last-Day rausfiltern". Aber `analysis_date` ist das **Datum auf das sich der Report bezieht**, nicht der Upload-Tag. Der Vormonats-Last-Day hat `analysis_date = letzter Tag Vormonat` und wird durch `>= Monatsanfang` ohnehin schon ausgeschlossen.
+### UX-Detail
+- Wenn ein Ziel bereits gesetzt ist (`acceptedSet` hat den Chatter), wird beim erneuten Klick auf „Kopieren" nur noch der Text kopiert, kein zweites Insert.
+- Fehler beim Akzeptieren werden pro Card via dezentem roten Hinweis gezeigt und blockieren das Kopieren nicht.
 
-## Fix
+## Nicht-Ziele
 
-Eine Zeile in `src/pages/MonthlyGoals.tsx`:
-
-```ts
-// vorher
-const reportStart = new Date(today.getFullYear(), today.getMonth(), 2);
-// nachher
-const reportStart = new Date(today.getFullYear(), today.getMonth(), 1);
-```
-
-Damit deckt der Query-Range `analysis_date >= 1. des Monats` ab → Tag 1 wird in `monthRevByChatter` mitsummiert, konsistent mit `daysPassed`-Logik in `computeGoalProgress`.
-
-## Was nicht geändert wird
-
-- `computeGoalProgress` bleibt — Logik passt.
-- 60-Tage-Fenster für Model-Baseline + Roster bleibt unverändert.
-- Keine DB-Änderung, keine UI-Änderung.
-
-## Verifikation nach dem Fix
-
-Stichprobe per Chatter: `SUM(revenue_today)` aus `chatter_history` für Monatsanfang…heute mit dem im UI angezeigten "Monat bisher" vergleichen — muss übereinstimmen.
+- Kein neuer Backend-Code, keine Schema-Änderungen.
+- Verhalten der einzelnen `SuggestionCard` („Annehmen"-Button) bleibt unverändert.
