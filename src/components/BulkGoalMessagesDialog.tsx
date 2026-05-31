@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Copy, Check, X, MessageCircle, Circle, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -408,7 +409,18 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                       <X className="h-5 w-5" />
                     </button>
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-white/90 truncate flex items-center gap-2">
+                      <div
+                        className="text-sm font-semibold text-white/90 truncate flex items-center gap-2 cursor-pointer hover:text-white transition-colors"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(r.chatter);
+                            toast.success(`"${r.chatter}" kopiert`);
+                          } catch {
+                            toast.error("Kopieren fehlgeschlagen");
+                          }
+                        }}
+                        title="Klicken zum Kopieren"
+                      >
                         {r.chatter}
                         {skipped && (
                           <span className="text-[9px] uppercase tracking-[0.18em] text-red-300/80 font-light px-1.5 py-0.5 rounded border border-red-400/20 bg-red-400/5">

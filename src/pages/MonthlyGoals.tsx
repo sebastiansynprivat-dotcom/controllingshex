@@ -258,7 +258,18 @@ function SuggestionCard({
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-emerald-500/[0.04] via-white/[0.02] to-transparent p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-white/90 truncate">
+          <h3
+            className="text-base sm:text-lg font-semibold text-white/90 truncate cursor-pointer hover:text-white transition-colors"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(row.chatter);
+                toast.success(`"${row.chatter}" kopiert`);
+              } catch {
+                toast.error("Kopieren fehlgeschlagen");
+              }
+            }}
+            title="Klicken zum Kopieren"
+          >
             {row.chatter}
           </h3>
           <p className="text-[11px] text-white/35 font-light mt-0.5">
