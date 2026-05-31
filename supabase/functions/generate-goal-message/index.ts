@@ -278,17 +278,17 @@ Deno.serve(async (req) => {
     const lowAttendance = recapAttendanceRatio < 0.4 && recapWorkedDays > 0;
 
     const toneLine = tone === "strong"
-      ? `Laufender Monat (${recapMonthName}) sieht stark aus. Kurz anerkennen, dann klar machen: ${goalMonthName} legen wir nochmal eine Schippe drauf.`
+      ? `Laufender Monat (${recapMonthName}) läuft stark. Kurz qualitativ anerkennen ("starker Monat", "läuft richtig gut"), KEINE Zahlen nennen, dann klar machen: ${goalMonthName} legen wir nochmal eine Schippe drauf.`
       : tone === "ok"
-      ? `Laufender Monat (${recapMonthName}) ist solide. Kurz einordnen, dann auf ${goalMonthName} pushen.`
-      : `Laufender Monat (${recapMonthName}) bleibt hinter Erwartung. NICHT abwerten – locker einordnen, Vertrauen geben, klar machen dass wir ${goalMonthName} sauber drehen.`;
+      ? `Laufender Monat (${recapMonthName}) ist mittelmäßig/solide. Locker einordnen ("Monat war okay, kein Sprung — halb so wild"), KEINE Zahlen, dann: nächsten Monat (${goalMonthName}) holen wir die Steigerung locker rein.`
+      : `Laufender Monat (${recapMonthName}) war nicht stark. NICHT abwerten, KEINE Zahlen nennen, locker einordnen ("war nicht unser Monat, halb so wild"), Vertrauen geben, klar machen dass wir ${goalMonthName} sauber drehen.`;
 
     const contextHints: string[] = [];
     if (manyZeroDays) {
-      contextHints.push(`Viele Nullrunden im laufenden Monat – nur ${recapEarningDays} von ${recapWorkedDays} Arbeitstagen brachten Umsatz. Diplomatisch ansprechen: Schichten besser nutzen, nicht "mehr arbeiten".`);
+      contextHints.push(`Intern-Info (NICHT in Nachricht nennen, nur für deine Tonalität): viele Nullrunden im laufenden Monat. Recap entsprechend etwas vorsichtiger – aber weiterhin OHNE Zahlen, nur qualitativ.`);
     }
     if (lowAttendance) {
-      contextHints.push(`Geringe Präsenz im laufenden Monat (${recapWorkedDays} von ${daysInRecapSoFar} Tagen bisher). Bewerte die TAGES-Leistung (Ø ${fmtEUR(recapAvgPerWorkedDay)}/Tag), NICHT die Monatssumme.`);
+      contextHints.push(`Intern-Info (NICHT in Nachricht nennen): geringe Präsenz im laufenden Monat. Recap weiterhin qualitativ + wohlwollend halten.`);
     }
 
     const modelLine = roster.length > 0 && modelBaselineEurPerDay > 0
