@@ -63,13 +63,14 @@ function classifyName(name: string): "whatsapp" | "platform" {
   return "platform";
 }
 
-export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept }: Props) {
+export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [acceptedSet, setAcceptedSet] = useState<Set<string>>(new Set());
   const [acceptingSet, setAcceptingSet] = useState<Set<string>>(new Set());
   const [acceptErrors, setAcceptErrors] = useState<Record<string, string>>({});
+  const [skippedSet, setSkippedSet] = useState<Set<string>>(new Set());
   const [autoAccept, setAutoAccept] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem(LS_KEY);
