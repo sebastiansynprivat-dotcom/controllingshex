@@ -1173,7 +1173,7 @@ export default function MonthlyGoals() {
                     <button
                       onClick={() =>
                         setBulkOpen(
-                          visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested })),
+                          visibleSuggestions.map((s) => ({ chatter: s.chatter, goal: s.suggested, currentGoal: s.currentGoal })),
                         )
                       }
                       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-xs font-light hover:bg-emerald-400/25 transition-colors"
