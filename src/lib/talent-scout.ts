@@ -126,16 +126,34 @@ interface ChatterAgg {
   activeDays: number;
   streak: number;
   avgDelay: number;
+  dmDays: number;              // Tage mit Mass-DMs
+  chatWorkDays: number;        // Tage mit Bewegung in open_chats (Arbeit am Inbox)
+  revenueDays: number;         // Tage mit Umsatz > 0
+  avgRevenue: number;          // Ø € pro aktivem Tag
   // Live-Werte heute — für Underuser-Score
   liveOpenChats: number;
   liveOldestChatDays: number;
 }
 
+/**
+ * Talent-Score (Stufen):
+ *  1. Grundvoraussetzung: arbeitet aktiv Chats ab + schickt Mass-DMs.
+ *     Ohne diese beiden Faktoren → 0, Chatter taucht nicht als Talent auf.
+ *  2. Bonus-Stufe: zusätzlich Umsatz → Revenue-Boost (markiert visuell stärker).
+ */
 function workhorseScore(a: ChatterAgg): number {
   const denom = Math.max(1, HISTORY_DAYS - 1); // ohne heute
+  const chatWork = Math.min(1, a.chatWorkDays / denom);
+  const dmConst = Math.min(1, a.dmDays / denom);
+  // Hartes Gate: beide Grundvoraussetzungen müssen ≥1 sein, sonst 0
+  if (a.chatWorkDays < 2 || a.dmDays < 2) return 0;
   const presence = Math.min(1, a.activeDays / denom);
   const streakRatio = Math.min(1, a.streak / denom);
-  let s = presence * 50 + streakRatio * 35;
+  // Basis-Score aus Aktivität + DMs + Streak
+  let s = chatWork * 30 + dmConst * 30 + presence * 15 + streakRatio * 10;
+  // Revenue-Boost (0..1.5×) — je mehr Umsatztage, desto stärker
+  const revRatio = Math.min(1, a.revenueDays / denom);
+  s *= 1 + revRatio * 0.5;
   if (
     a.daysOnboarded != null &&
     a.daysOnboarded >= ONBOARDING_BONUS_MIN &&
@@ -144,6 +162,10 @@ function workhorseScore(a: ChatterAgg): number {
     s *= ONBOARDING_BONUS_FACTOR;
   }
   return s;
+}
+
+function hasRevenueBoost(a: ChatterAgg): boolean {
+  return a.revenueDays >= 3 && a.dmDays >= 2 && a.chatWorkDays >= 2;
 }
 
 /** Live-Schmerz-Score: nur oldest_chat (Tage) und unread_chats (heute). */
