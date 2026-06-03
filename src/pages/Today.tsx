@@ -472,7 +472,32 @@ export default function Today() {
               <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-background/80 to-transparent z-10" />
               <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/80 to-transparent z-10" />
               <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 scrollbar-none">
+                {statusOptions.map((o) => {
+                  const active = status === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      onClick={() => {
+                        setStatus(o.id);
+                        setKindTab("all");
+                      }}
+                      className={cn(
+                        "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5 uppercase tracking-wider text-[10.5px] font-semibold",
+                        active
+                          ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                          : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                      )}
+                    >
+                      {o.label}
+                      <span className={cn("tabular-nums text-[10px]", active ? "text-white/70" : "text-white/30")}>
+                        {o.count}
+                      </span>
+                    </button>
+                  );
+                })}
+                <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
                 <button
+
                   onClick={() => setKindTab("all")}
                   className={cn(
                     "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
