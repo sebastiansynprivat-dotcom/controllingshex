@@ -4,7 +4,13 @@ import "./index.css";
 
 const syncAppHeight = () => {
   const viewport = window.visualViewport;
-  const height = viewport?.height ?? window.innerHeight;
+  const innerH = window.innerHeight;
+  const vvH = viewport?.height ?? innerH;
+  // iOS standalone: visualViewport.height schließt den Home-Indicator-Bereich aus
+  // und erzeugt sonst einen schwarzen Streifen unten. innerHeight nutzen,
+  // außer das Keyboard ist offen (dann ist vvH deutlich kleiner).
+  const keyboardOpen = innerH - vvH > 100;
+  const height = keyboardOpen ? vvH : innerH;
   const offsetTop = viewport?.offsetTop ?? 0;
 
   document.documentElement.style.setProperty("--app-height", `${Math.ceil(height)}px`);
