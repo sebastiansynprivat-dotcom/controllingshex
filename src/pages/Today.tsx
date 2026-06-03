@@ -468,19 +468,8 @@ export default function Today() {
 
           {/* A2 — Pending Feedback */}
 
-          {/* MatchBoard — als Filter "Match Board" sichtbar; im Hintergrund laden wir Counts immer */}
-          {!loading && (
-            <div className={cn(isBoardTab ? "" : "hidden")}>
-              <MatchBoard
-                platform={platform}
-                view="full"
-                onCountsChange={setBoardCounts}
-                onChatterClick={(name, compareWith) =>
-                  setSelectedChatter({ name, compareWith: compareWith ?? null })
-                }
-              />
-            </div>
-          )}
+
+
 
 
 
