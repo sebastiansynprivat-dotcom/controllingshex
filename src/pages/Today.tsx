@@ -382,34 +382,8 @@ export default function Today() {
             </div>
           )}
 
-          {/* Status-Pills + Kategorie-Tabs */}
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-1.5">
-              {statusOptions.map((o) => {
-                const active = status === o.id;
-                return (
-                  <button
-                    key={o.id}
-                    onClick={() => {
-                      setStatus(o.id);
-                      setKindTab("all");
-                    }}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                      active
-                        ? "bg-white/[0.07] border-white/15 text-foreground/90"
-                        : "bg-transparent border-white/[0.06] text-white/35 hover:text-white/65",
-                    )}
-                  >
-                    {o.label}
-                    <span className={cn("tabular-nums text-[10px]", active ? "text-white/55" : "text-white/25")}>
-                      {o.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+
+
 
 
           {/* Content */}
