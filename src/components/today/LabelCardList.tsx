@@ -225,7 +225,7 @@ function LabelCardRow({
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <MagneticHover as="span" range={18} pull={0.55}>
+              <MagneticHover as="span" range={18}>
                 <button
                   type="button"
                   onClick={async (e) => {

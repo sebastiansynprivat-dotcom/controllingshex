@@ -324,7 +324,7 @@ export default function PersonActionCard({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <MagneticHover as="span" range={20} pull={0.55}>
+                <MagneticHover as="span" range={20}>
                   {action.chatterName ? (
                     <button
                       type="button"
