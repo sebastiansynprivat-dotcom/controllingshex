@@ -454,45 +454,8 @@ export default function Today() {
                 );
               })}
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
-              <button
-                onClick={() => setKindTab("all")}
-                className={cn(
-                  "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                  kindTab === "all"
-                    ? "bg-white/10 border-white/20 text-foreground"
-                    : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
-                )}
-              >
-                Alle
-                <span className={cn("tabular-nums text-[10.5px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
-                  {statusList.length}
-                </span>
-              </button>
-              {availableKinds.map((g) => {
-                const Icon = g.icon;
-                const active = kindTab === g.id;
-                return (
-                  <button
-                    key={g.id}
-                    onClick={() => setKindTab(g.id)}
-                    className={cn(
-                      "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                      active
-                        ? "bg-white/10 border-white/20 text-foreground"
-                        : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
-                    )}
-                  >
-                    <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
-                    {g.label}
-                    <span className={cn("tabular-nums text-[10.5px]", active ? "text-white/70" : "text-white/30")}>
-                      {g.items.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
+
 
           {/* Content */}
           {loading ? (
@@ -549,8 +512,71 @@ export default function Today() {
 
             </>
           )}
+
+          {/* Spacer damit die letzte Karte nicht hinter der Bottom-Bar verschwindet */}
+          <div aria-hidden className="h-20" />
         </motion.div>
       </AnimatePresence>
+
+      {/* Bottom-Nav: Kategorie-Filter — luxuriös, frosted, sticky am unteren Rand */}
+      {!loading && (availableKinds.length > 0 || kindTab !== "all") && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+          className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+        >
+          <div className="pointer-events-auto mx-auto max-w-3xl px-3 pb-3 sm:px-6">
+            <div className="relative rounded-[20px] border border-white/[0.07] bg-background/65 backdrop-blur-2xl shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.02)_inset] overflow-hidden">
+              {/* Top hairline highlight */}
+              <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+              {/* Edge fade masks */}
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-background/80 to-transparent z-10" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/80 to-transparent z-10" />
+              <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 scrollbar-none">
+                <button
+                  onClick={() => setKindTab("all")}
+                  className={cn(
+                    "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                    kindTab === "all"
+                      ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                      : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                  )}
+                >
+                  Alle
+                  <span className={cn("tabular-nums text-[10px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
+                    {statusList.length}
+                  </span>
+                </button>
+                {availableKinds.map((g) => {
+                  const Icon = g.icon;
+                  const active = kindTab === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => setKindTab(g.id)}
+                      className={cn(
+                        "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                        active
+                          ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                          : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                      )}
+                    >
+                      <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
+                      {g.label}
+                      <span className={cn("tabular-nums text-[10px]", active ? "text-white/70" : "text-white/30")}>
+                        {g.items.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
 
       {/* Split-View: wenn Model-Monitor mit Chatter geöffnet wird,
           rendert sich der Chatter-SlideOver gleichzeitig auf der rechten Hälfte. */}
