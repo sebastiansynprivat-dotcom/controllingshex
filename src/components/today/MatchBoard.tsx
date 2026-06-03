@@ -54,6 +54,8 @@ type MismatchCard = {
   tierLabel: string;
   followers: number;
   avgRevenue: number;
+  todayRevenue: number;
+  peakRevenue: number;
   openChats: number;
   oldestChatDays: number;
   activeDays: number;
@@ -181,6 +183,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           tierLabel: o.tier.label,
           followers: o.followers,
           avgRevenue: o.avgRevenue6d,
+          todayRevenue: o.todayRevenue,
+          peakRevenue: o.peakRevenue,
           openChats: o.openChats,
           oldestChatDays: o.oldestChatDays,
           activeDays: o.activeDays,
@@ -252,6 +256,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         tierLabel: o.tier.label,
         followers: o.followers,
         avgRevenue: o.avgRevenue6d,
+        todayRevenue: o.todayRevenue,
+        peakRevenue: o.peakRevenue,
         openChats: o.openChats,
         oldestChatDays: o.oldestChatDays,
         activeDays: o.activeDays,
@@ -485,7 +491,10 @@ function SortableMismatchCard({ card, onClick }: { card: MismatchCard; onClick: 
           )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums truncate">
-          {fmtFollowers(card.followers)} Follower · Ø {Math.round(card.avgRevenue)} €/Tag
+          {fmtFollowers(card.followers)} Follower · heute {Math.round(card.todayRevenue)} € · Ø {Math.round(card.avgRevenue)} €/Tag
+          {card.peakRevenue > 0 && (
+            <span className="text-emerald-300/70"> · Peak {Math.round(card.peakRevenue)} €</span>
+          )}
         </p>
         <p className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums truncate">
           bei {card.chatter} · ältester Chat {card.oldestChatDays}T · {card.openChats} ungelesen
