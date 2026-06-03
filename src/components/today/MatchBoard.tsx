@@ -166,6 +166,7 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           revenueDays: m.riserRevenueDays,
           avgRevenue: m.riserAvgRevenue,
           tierLabel: m.underuserTier.label,
+          isCritical: m.isCritical,
         }));
 
         const mismatchCards: MismatchCard[] = orphans.map((o: OrphanWarning) => ({
@@ -177,6 +178,7 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           openChats: o.openChats,
           oldestChatDays: o.oldestChatDays,
           activeDays: o.activeDays,
+          isCritical: o.isCritical,
         }));
 
         if (cancel) return;
