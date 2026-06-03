@@ -49,6 +49,9 @@ export interface TalentMatch {
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
+  underuserFollowers: number;
+  underuserAvgRevenue6d: number;
+  underuserRecentAvgRevenue2d: number;
   underuserActiveDays: number;  // historische 7T-Aktivität, nur zur Anzeige
   underuserOpenChats: number;   // LIVE: unread_chats heute
   underuserOldestChatDays: number; // LIVE: oldest_chat heute (Tage)
