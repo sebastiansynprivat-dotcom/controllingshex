@@ -536,6 +536,16 @@ export default function Today() {
               </AnimatePresence>
             </div>
           )}
+
+          {/* Talent ↔ Account-Board (Drag & Drop) */}
+          {!loading && status === "open" && (
+            <MatchBoard
+              platform={platform}
+              onChatterClick={(name, compareWith) =>
+                setSelectedChatter({ name, compareWith: compareWith ?? null })
+              }
+            />
+          )}
             </>
           )}
         </motion.div>
