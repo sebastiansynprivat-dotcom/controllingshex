@@ -10,7 +10,7 @@ import DailyTodoList from "@/components/DailyTodoList";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import { Link } from "react-router-dom";
 import { ListChecks, ArrowRight } from "lucide-react";
-import { ForecastBanner } from "@/components/ForecastBanner";
+
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { onChatterDataUpdated } from "@/lib/data-events";
