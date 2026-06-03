@@ -417,7 +417,7 @@ export default function Today() {
             <div className="text-center py-12 text-white/25 text-xs font-light tracking-wide">
               Bündele Tagesaufgaben …
             </div>
-          ) : visibleList.length === 0 ? (
+          ) : isBoardTab ? null : visibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : kindTab === "all" ? (
             <div className="space-y-5">
