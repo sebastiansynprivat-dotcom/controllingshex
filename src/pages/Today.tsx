@@ -598,7 +598,9 @@ export default function Today() {
                       onClick={() => {
                         setStatus(o.id);
                         setKindTab("all");
+                        setExtraFilter("none");
                       }}
+
                       className={cn(
                         "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5 uppercase tracking-wider text-[10.5px] font-semibold",
                         active
