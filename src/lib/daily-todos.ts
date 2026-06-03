@@ -73,9 +73,9 @@ function todayStr(): string {
 
 export async function generateDailyTodos(platform: string): Promise<DailyTodo[]> {
   const today = todayStr();
-  const fourteenAgo = new Date();
-  fourteenAgo.setDate(fourteenAgo.getDate() - 14);
-  const sinceStr = fourteenAgo.toISOString().split("T")[0];
+  const thirtyAgo = new Date();
+  thirtyAgo.setDate(thirtyAgo.getDate() - 30);
+  const sinceStr = thirtyAgo.toISOString().split("T")[0];
 
   const { data: history } = await supabase
     .from("chatter_history")
@@ -88,15 +88,16 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   if (rows.length === 0) return [];
 
   // Nur Chatter berücksichtigen, die im neuesten Report noch enthalten sind.
-  // Wer nicht mehr im aktuellen Report auftaucht, ist „raus" und wird komplett
-  // aus den To-Dos gefiltert.
   const activeNames = await loadActiveChatterNames(platform);
   const isActive = (name: string) =>
     activeNames === null ? true : activeNames.has(normalizeChatterName(name));
 
-  // Onboarding Tag 1–5 aus dem neuesten Report → Verzug nicht eskalieren.
-  // Ab Tag 6 zählt Verzug wieder normal.
-  const earlyOnboardingNames = new Set<string>();
+  // Onboarding-Phasen aus dem neuesten Report.
+  //  - Tag 1: KOMPLETT raus, kein Todo (auch nicht Verzug).
+  //  - Tag 2–5: nur Verzug zählt, andere Trigger ignorieren.
+  //  - Ab Tag 6: alles normal.
+  const day1Names = new Set<string>();
+  const day2to5Names = new Set<string>();
   try {
     const { data: latestReport } = await supabase
       .from("analysis_reports")
@@ -113,17 +114,22 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       if (!/ONBOARDING/i.test(catName)) continue;
       const tagMatch = catName.match(/TAG\s*(\d+)/i);
       const day = tagMatch ? parseInt(tagMatch[1], 10) : null;
-      // Nur Tag 1–5 ausklammern. Wenn kein Tag erkennbar ist (generisches "ONBOARDING"),
-      // ebenfalls ausklammern (konservativer Fallback).
-      if (day !== null && day > 5) continue;
+      // Wenn kein Tag erkennbar → konservativ als Tag 2–5 behandeln
+      // (Verzug zählt, Rest nicht).
+      const bucket = day === 1 ? day1Names
+        : day === null ? day2to5Names
+        : day >= 2 && day <= 5 ? day2to5Names
+        : null;
+      if (!bucket) continue;
       for (const ch of cat.chatters ?? []) {
-        if (ch?.name) earlyOnboardingNames.add(normalizeChatterName(ch.name));
+        if (ch?.name) bucket.add(normalizeChatterName(ch.name));
       }
     }
   } catch (e) {
     console.warn("[daily-todos] onboarding lookup failed", e);
   }
-  const isOnboarding = (name: string) => earlyOnboardingNames.has(normalizeChatterName(name));
+  const isDay1 = (name: string) => day1Names.has(normalizeChatterName(name));
+  const isDay2to5 = (name: string) => day2to5Names.has(normalizeChatterName(name));
 
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
