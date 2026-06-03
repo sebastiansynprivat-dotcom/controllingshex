@@ -270,11 +270,8 @@ export default function Today() {
         // A1 — Outcome-Snapshot fürs ROI-Lernen
         recordActionDone(platform, action).catch(() => {});
       }
-      else if (kind === "snooze") toast.success("4h verschoben");
-      else toast.success("Heute ausgeblendet");
     } catch {
       setStates(prevStates);
-      toast.error("Speichern fehlgeschlagen");
     }
   };
 
