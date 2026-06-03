@@ -360,9 +360,42 @@ export default function Today() {
   // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
   const isReadonly = status === "done";
 
+  // Ambient Filter-Tint — gibt jeder Filter-Auswahl eine eigene Stimmungsfarbe
+  const activeTint = (() => {
+    if (status === "wins")  return { key: "wins",    color: "163,230,53",  intensity: 0.14 }; // Lime → Dopamin
+    if (status === "done")  return { key: "done",    color: "148,163,184", intensity: 0.05 }; // Slate → ruhig
+    if (extraFilter === "onboarding") return { key: "onb", color: "52,211,153", intensity: 0.11 };
+    if (extraFilter === "labels")     return { key: "lbl", color: "251,191,36", intensity: 0.10 };
+    if (kindTab !== "all") {
+      const map: Partial<Record<ActionSourceKind, string>> = {
+        verzug: "248,113,113", recovery: "251,146,60", wakeup: "52,211,153",
+        swap: "34,211,238",   phase: "56,189,248",    revenue: "52,211,153",
+        activity: "45,212,191", model: "232,121,249", slot: "129,140,248",
+        positive: "163,230,53",
+      };
+      return { key: kindTab, color: map[kindTab] ?? "255,255,255", intensity: 0.11 };
+    }
+    return { key: "open", color: "255,255,255", intensity: 0.015 };
+  })();
+
 
   return (
     <>
+      {/* Ambient Filter-Tint Layer — wechselt smooth zwischen Stimmungen */}
+      <AnimatePresence mode="sync">
+        <motion.div
+          key={activeTint.key}
+          aria-hidden
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 -z-10 pointer-events-none"
+          style={{
+            background: `radial-gradient(ellipse 90% 55% at 50% 0%, rgba(${activeTint.color}, ${activeTint.intensity}) 0%, rgba(${activeTint.color}, ${activeTint.intensity * 0.45}) 35%, transparent 70%)`,
+          }}
+        />
+      </AnimatePresence>
       <AnimatePresence mode="wait">
         <motion.div
           key={platform}
