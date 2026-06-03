@@ -11,11 +11,11 @@ import UploadPage from "@/pages/Upload";
 import Models from "@/pages/Models";
 import SettingsPage from "@/pages/SettingsPage";
 import AIConsultant from "@/pages/AIConsultant";
-import Videocoaching from "@/pages/Videocoaching";
+
 import Leaderboard from "@/pages/Leaderboard";
 import Notes from "@/pages/Notes";
 import TinderMode from "@/pages/TinderMode";
-import Forecast from "@/pages/Forecast";
+
 import Anomalies from "@/pages/Anomalies";
 import MonthlyGoals from "@/pages/MonthlyGoals";
 import Auth from "@/pages/Auth";
@@ -52,12 +52,10 @@ const AppRoutes = () => (
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/live" element={<LiveTracking />} />
               <Route path="/today" element={<Today />} />
-              <Route path="/forecast" element={<Forecast />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
               <Route path="/monatsziele" element={<MonthlyGoals />} />
-              <Route path="/absence" element={<Navigate to="/forecast" replace />} />
               <Route path="/upload" element={<UploadPage />} />
-              <Route path="/videocoaching" element={<Videocoaching />} />
+
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/ai-consultant" element={<AIConsultant />} />
               <Route path="/notes" element={<Notes />} />
