@@ -8,6 +8,7 @@ import PersonActionCard from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
+import MatchBoard from "@/components/today/MatchBoard";
 import {
   buildTodayActions,
   type UnifiedAction,
@@ -249,7 +250,8 @@ export default function Today() {
     { id: "done", label: "Erledigt", count: filtered.done.length },
   ];
 
-  const isReadonly = status !== "open";
+  // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
+  const isReadonly = status === "done";
 
   return (
     <>
@@ -533,6 +535,16 @@ export default function Today() {
                 ))}
               </AnimatePresence>
             </div>
+          )}
+
+          {/* Talent ↔ Account-Board (Drag & Drop) */}
+          {!loading && status === "open" && (
+            <MatchBoard
+              platform={platform}
+              onChatterClick={(name, compareWith) =>
+                setSelectedChatter({ name, compareWith: compareWith ?? null })
+              }
+            />
           )}
             </>
           )}

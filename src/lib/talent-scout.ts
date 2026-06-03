@@ -41,6 +41,11 @@ export interface TalentMatch {
   riserTier: AccountTier | null;
   riserStreak: number;          // längste aktive Strecke in 7T (ohne heute)
   riserActiveDays: number;      // aktive Tage in 7T (ohne heute)
+  riserDmDays: number;          // Tage mit Mass-DMs in 7T
+  riserChatWorkDays: number;    // Tage, an denen offene Chats abgearbeitet wurden
+  riserRevenueDays: number;     // Tage mit Umsatz in 7T (Bonus-Stufe)
+  riserHasRevenueBoost: boolean; // ≥3 Tage mit Umsatz UND > 0 Mass-DM-Tage
+  riserAvgRevenue: number;      // Ø € pro aktivem Tag (Anzeige)
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
@@ -121,16 +126,34 @@ interface ChatterAgg {
   activeDays: number;
   streak: number;
   avgDelay: number;
+  dmDays: number;              // Tage mit Mass-DMs
+  chatWorkDays: number;        // Tage mit Bewegung in open_chats (Arbeit am Inbox)
+  revenueDays: number;         // Tage mit Umsatz > 0
+  avgRevenue: number;          // Ø € pro aktivem Tag
   // Live-Werte heute — für Underuser-Score
   liveOpenChats: number;
   liveOldestChatDays: number;
 }
 
+/**
+ * Talent-Score (Stufen):
+ *  1. Grundvoraussetzung: arbeitet aktiv Chats ab + schickt Mass-DMs.
+ *     Ohne diese beiden Faktoren → 0, Chatter taucht nicht als Talent auf.
+ *  2. Bonus-Stufe: zusätzlich Umsatz → Revenue-Boost (markiert visuell stärker).
+ */
 function workhorseScore(a: ChatterAgg): number {
   const denom = Math.max(1, HISTORY_DAYS - 1); // ohne heute
+  const chatWork = Math.min(1, a.chatWorkDays / denom);
+  const dmConst = Math.min(1, a.dmDays / denom);
+  // Hartes Gate: beide Grundvoraussetzungen müssen ≥1 sein, sonst 0
+  if (a.chatWorkDays < 2 || a.dmDays < 2) return 0;
   const presence = Math.min(1, a.activeDays / denom);
   const streakRatio = Math.min(1, a.streak / denom);
-  let s = presence * 50 + streakRatio * 35;
+  // Basis-Score aus Aktivität + DMs + Streak
+  let s = chatWork * 30 + dmConst * 30 + presence * 15 + streakRatio * 10;
+  // Revenue-Boost (0..1.5×) — je mehr Umsatztage, desto stärker
+  const revRatio = Math.min(1, a.revenueDays / denom);
+  s *= 1 + revRatio * 0.5;
   if (
     a.daysOnboarded != null &&
     a.daysOnboarded >= ONBOARDING_BONUS_MIN &&
@@ -139,6 +162,10 @@ function workhorseScore(a: ChatterAgg): number {
     s *= ONBOARDING_BONUS_FACTOR;
   }
   return s;
+}
+
+function hasRevenueBoost(a: ChatterAgg): boolean {
+  return a.revenueDays >= 3 && a.dmDays >= 2 && a.chatWorkDays >= 2;
 }
 
 /** Live-Schmerz-Score: nur oldest_chat (Tage) und unread_chats (heute). */
@@ -267,13 +294,25 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
 
     const denom = rows.length;
     const activeSet = new Set<string>();
+    const dmSet = new Set<string>();
+    const chatWorkSet = new Set<string>();
+    const revSet = new Set<string>();
+    const revVals: number[] = [];
     for (const r of rows) {
-      const isAct =
-        Number(r.revenue_today ?? 0) > 0 ||
-        Number(r.mass_dms ?? 0) > 0 ||
-        Number(r.open_chats ?? 0) > 0;
+      const rev = Number(r.revenue_today ?? 0);
+      const dm = Number(r.mass_dms ?? 0);
+      const chats = Number(r.open_chats ?? 0);
+      const isAct = rev > 0 || dm > 0 || chats > 0;
       if (isAct) activeSet.add(r.analysis_date);
+      if (dm > 0) dmSet.add(r.analysis_date);
+      // "Chats abgearbeitet" — Annäherung: an dem Tag waren offene Chats sichtbar
+      // (Person hat den Inbox-Stack bearbeitet) ODER es kam Umsatz / DM dazu.
+      if (chats > 0 || dm > 0 || rev > 0) chatWorkSet.add(r.analysis_date);
+      if (rev > 0) { revSet.add(r.analysis_date); revVals.push(rev); }
     }
+    const avgRevenue = revVals.length === 0
+      ? 0
+      : revVals.reduce((s, v) => s + v, 0) / revVals.length;
 
     const liveRow = liveByChatter.get(k);
     aggs.push({
@@ -285,6 +324,10 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       activeDays: activeSet.size,
       streak: computeStreak(activeSet),
       avgDelay: rows.reduce((s, r) => s + (r.response_delay_days ?? 0), 0) / Math.max(1, denom),
+      dmDays: dmSet.size,
+      chatWorkDays: chatWorkSet.size,
+      revenueDays: revSet.size,
+      avgRevenue,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
     });
@@ -301,10 +344,10 @@ export async function findTalentMatches(
   if (aggs.length === 0) return [];
   const rejected = rejectedPairs ?? new Set<string>();
 
-  // Workhorses — nach Verlässlichkeit der letzten Tage.
+  // Workhorses — Gate: ≥3 aktive Tage, ≥2 Chat-Work-Tage, ≥2 DM-Tage (in workhorseScore enthalten).
   const workhorses = aggs
     .map((a) => ({ a, score: workhorseScore(a) }))
-    .filter((w) => w.a.activeDays >= 2)
+    .filter((w) => w.score > 0 && w.a.activeDays >= 3)
     .sort((x, y) => y.score - x.score)
     .slice(0, MAX_WORKHORSES);
 
@@ -339,7 +382,9 @@ export async function findTalentMatches(
     });
     if (!candidate) continue;
 
-    const pairScore = candidate.pain * 0.6 + w.score * 0.4;
+    // Pair-Score: Pain + Workhorse-Score + Revenue-Bonus
+    const revBoost = hasRevenueBoost(w.a) ? 15 : 0;
+    const pairScore = candidate.pain * 0.55 + w.score * 0.4 + revBoost;
     if (pairScore < MIN_PAIR_SCORE) continue;
 
     usedOrphans.add(norm(candidate.a.name));
@@ -351,6 +396,11 @@ export async function findTalentMatches(
       riserTier: w.a.tier,
       riserStreak: w.a.streak,
       riserActiveDays: w.a.activeDays,
+      riserDmDays: w.a.dmDays,
+      riserChatWorkDays: w.a.chatWorkDays,
+      riserRevenueDays: w.a.revenueDays,
+      riserHasRevenueBoost: hasRevenueBoost(w.a),
+      riserAvgRevenue: Math.round(w.a.avgRevenue),
       underuser: candidate.a.name,
       underuserTier: candidate.a.tier!,
       underuserAccount: candidate.a.account,
