@@ -34,6 +34,7 @@ import {
 } from "@/lib/action-outcomes";
 import {
   ensureSystemLabels,
+  isSystemLabel,
   loadChatterLabels,
   loadLabelAssignments,
   type ChatterLabel,
