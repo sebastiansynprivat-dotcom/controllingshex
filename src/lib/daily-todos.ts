@@ -397,12 +397,17 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     for (const m of matches) {
       const onbPart = m.riserDaysOnboarded != null ? `, ${m.riserDaysOnboarded}T onboarded` : "";
       const tierPart = m.riserTier ? ` (${m.riserTier.label})` : "";
+      const boostIcon = m.riserHasRevenueBoost ? "⭐ " : "🚀 ";
+      const boostPart = m.riserHasRevenueBoost
+        ? ` · zusätzlich ${m.riserRevenueDays}/6T Umsatz (Ø ${m.riserAvgRevenue} €/Tag)`
+        : "";
+      const scoreBoost = m.riserHasRevenueBoost ? 12 : 0;
       todos.push({
         key: `talent:${m.riser}:${m.underuser}:${today}`,
         category: "talent",
-        score: 70 + Math.round(m.matchScore / 10),
-        title: `🚀 ${m.riser} auf ${m.underuserAccount} hochziehen`,
-        why: `${m.riser}${tierPart}: ${m.riserStreak} Tage am Stück aktiv (${m.riserActiveDays}/6 davor)${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} jetzt live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
+        score: 70 + Math.round(m.matchScore / 10) + scoreBoost,
+        title: `${boostIcon}${m.riser} auf ${m.underuserAccount} hochziehen`,
+        why: `${m.riser}${tierPart}: ${m.riserChatWorkDays}/6T Chats abgearbeitet · ${m.riserDmDays}/6T Mass-DMs${boostPart}${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
         chatterName: m.riser,
         compareWith: m.underuser,
         meta: {
