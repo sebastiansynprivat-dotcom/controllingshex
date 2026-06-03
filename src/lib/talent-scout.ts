@@ -272,6 +272,7 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
   const sorted = [...histPast].sort((a, b) => b.analysis_date.localeCompare(a.analysis_date));
   const byChatter = new Map<string, HistoryRow[]>();
   const accountByChatter = new Map<string, string>();
+  const accountSetByChatter = new Map<string, Set<string>>();
   for (const r of sorted) {
     if (!r.chatter_name) continue;
     if (!isActive(r.chatter_name)) continue;
@@ -279,11 +280,18 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     const arr = byChatter.get(k) ?? [];
     arr.push(r);
     byChatter.set(k, arr);
-    if (!accountByChatter.has(k)) {
-      const acc = (r.account ?? "").split(",")[0]?.trim() ?? "";
-      if (acc) accountByChatter.set(k, acc);
+    const accs = (r.account ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (accs.length) {
+      if (!accountByChatter.has(k)) accountByChatter.set(k, accs[0]);
+      const set = accountSetByChatter.get(k) ?? new Set<string>();
+      for (const a of accs) set.add(a.toLowerCase());
+      accountSetByChatter.set(k, set);
     }
   }
+
 
   function computeStreak(daySet: Set<string>): number {
     if (daySet.size === 0) return 0;
