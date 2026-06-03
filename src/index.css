@@ -669,3 +669,17 @@
   animation: shimmer 2.4s cubic-bezier(0.32, 0.72, 0, 1) infinite;
   pointer-events: none;
 }
+
+/* Luxury custom cursor: hide native cursor on desktop pointer devices */
+@media (hover: hover) and (pointer: fine) {
+  html.lux-cursor-active,
+  html.lux-cursor-active body,
+  html.lux-cursor-active * {
+    cursor: none !important;
+  }
+  html.lux-cursor-active input,
+  html.lux-cursor-active textarea,
+  html.lux-cursor-active [contenteditable="true"] {
+    cursor: text !important;
+  }
+}
