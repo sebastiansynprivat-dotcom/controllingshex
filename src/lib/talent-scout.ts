@@ -39,24 +39,25 @@ export interface TalentMatch {
   riser: string;
   riserDaysOnboarded: number | null;
   riserTier: AccountTier | null;
-  riserStreak: number;          // längste aktive Strecke in 7T (ohne heute)
-  riserActiveDays: number;      // aktive Tage in 7T (ohne heute)
-  riserDmDays: number;          // Tage mit Mass-DMs in 7T
-  riserChatWorkDays: number;    // Tage, an denen offene Chats abgearbeitet wurden
-  riserRevenueDays: number;     // Tage mit Umsatz in 7T (Bonus-Stufe)
-  riserHasRevenueBoost: boolean; // ≥3 Tage mit Umsatz UND > 0 Mass-DM-Tage
-  riserAvgRevenue: number;      // Ø € pro aktivem Tag (Anzeige)
+  riserStreak: number;
+  riserActiveDays: number;
+  riserDmDays: number;
+  riserChatWorkDays: number;
+  riserRevenueDays: number;
+  riserHasRevenueBoost: boolean;
+  riserAvgRevenue: number;
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
   underuserFollowers: number;
   underuserAvgRevenue6d: number;
   underuserRecentAvgRevenue2d: number;
-  underuserActiveDays: number;  // historische 7T-Aktivität, nur zur Anzeige
-  underuserOpenChats: number;   // LIVE: unread_chats heute
-  underuserOldestChatDays: number; // LIVE: oldest_chat heute (Tage)
-  underuserDelayDays: number;   // historischer Verzug, nur zur Anzeige
-  matchScore: number;           // 0–100
+  underuserActiveDays: number;
+  underuserOpenChats: number;
+  underuserOldestChatDays: number;
+  underuserDelayDays: number;
+  matchScore: number;
+  isCritical: boolean;          // visuell markiert — dringend on Track bringen
 }
 
 export interface OrphanWarning {
@@ -68,9 +69,10 @@ export interface OrphanWarning {
   recentAvgRevenue2d: number;
   activeDays: number;
   delayDays: number;
-  openChats: number;             // LIVE
-  oldestChatDays: number;        // LIVE
+  openChats: number;
+  oldestChatDays: number;
   painScore: number;
+  isCritical: boolean;          // visuell markiert — Top/Growth stark im Rückgang
 }
 
 interface OnboardingRow { chatter_name: string; onboarded_on: string }
