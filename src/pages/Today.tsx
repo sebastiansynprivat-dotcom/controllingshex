@@ -249,7 +249,8 @@ export default function Today() {
     { id: "done", label: "Erledigt", count: filtered.done.length },
   ];
 
-  const isReadonly = status !== "open";
+  // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
+  const isReadonly = status === "done";
 
   return (
     <>
