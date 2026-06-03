@@ -35,6 +35,7 @@ import {
 import {
   ensureSystemLabels,
   isSystemLabel,
+  isUpgradeReceivedLabel,
   loadChatterLabels,
   loadLabelAssignments,
   type ChatterLabel,
