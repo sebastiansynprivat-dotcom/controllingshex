@@ -246,7 +246,7 @@ export default function MatchBoard({ platform, onChatterClick }: Props) {
     );
   }
 
-  if (talents.length === 0 && mismatches.length === 0) return null;
+  // Auch wenn beide Seiten leer sind: Board zeigen, damit klar ist, dass es existiert.
 
   return (
     <motion.div
