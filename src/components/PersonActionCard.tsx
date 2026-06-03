@@ -202,11 +202,10 @@ export default function PersonActionCard({
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 80, transition: { duration: 0.2 } }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, x: 80, transition: { duration: 0.18 } }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
       className={cn(
         "group relative w-full transition-all duration-300",
         readonly && "opacity-60",
