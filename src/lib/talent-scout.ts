@@ -493,6 +493,8 @@ export async function findOrphanedAccounts(platform: string): Promise<OrphanWarn
         followers: a.followers,
         avgRevenue6d: a.avgRevenue,
         recentAvgRevenue2d: a.recentAvgRevenue2d,
+        todayRevenue: a.todayRevenue,
+        peakRevenue: a.peakRevenue,
         activeDays: a.activeDays,
         delayDays: Math.round(a.avgDelay * 10) / 10,
         openChats: a.liveOpenChats,
