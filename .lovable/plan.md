@@ -1,46 +1,68 @@
 ## Ziel
 
-Die Bottom-Filter-Bar (Heute-Tab) bekommt zusätzlich zwei Chips: **Talente** und **Account ungenutzt**. Damit ist das MatchBoard nicht mehr permanent oben sichtbar, sondern wird als eigene Filter-Ansicht behandelt — konsistent zum bestehenden Layout.
+Match Board komplett entfernen. Stattdessen im Heute-Tab zwei neue Filter:
+- **Onboarding** — alle Chatter ab Onboarding-Tag 5, gruppiert nach Tag, zum sequenziellen Durchgehen
+- **Labels** (eine Pill mit Custom-Auswahl) — zeigt gelabelte Chatter als normale abhakbare Karten
 
-## Verhalten
+Labels bleiben am Chatter kleben. Nach „Abschließen" verschwindet die Karte heute, taucht beim nächsten Report wieder auf — solange das Label gesetzt ist.
 
-Bottom-Bar Chips (von links nach rechts):
-- `Alle` · `Talent` · `Account ungenutzt` · dann die bestehenden Kind-Chips (Chatter, Model, …)
+## Label-Set (fix, vorgeseedet pro User & Platform)
 
-Aktive Auswahl:
-- **Alle** → wie heute: MatchBoard oben + gruppierte Cards darunter
-- **Talent** → nur die linke MatchBoard-Spalte (Talente) als Full-Width-Liste, normale Cards ausgeblendet
-- **Account ungenutzt** → nur die rechte MatchBoard-Spalte (Orphans) als Full-Width-Liste
-- **Chatter / Model / …** → wie heute, MatchBoard ausgeblendet
+| Emoji | Name | Farbe |
+|---|---|---|
+| 🟢 | Upgrade | emerald |
+| 💛 | Premium Upgrade | amber |
+| ❌ | Kein Upgrade | rose |
+| ⬇️ | Downgrade | slate |
 
-Counts auf den neuen Chips: `talents.length` bzw. `mismatches.length` aus MatchBoard.
+Bestehende `chatter_labels`-Tabelle wird verwendet. Beim ersten Today-Open werden die 4 Labels pro User/Platform geseedet falls fehlend. User darf weitere Custom-Labels über die bestehende Label-UI (TinderMode / ChatterSlideOver) anlegen — die tauchen dann auch im Label-Filter auf.
 
-## Technische Umsetzung
+## Onboarding-Filter
 
-`src/pages/Today.tsx`:
-- `KindTab` Type erweitern um `"talent" | "orphan"`.
-- MatchBoard liefert Counts nach oben via neuer optionaler Prop `onCountsChange?: (c: { talents: number; orphans: number }) => void`.
-- Neuer State `boardCounts` in Today.
-- MatchBoard bekommt neue Prop `view?: "full" | "talent-only" | "orphan-only"`:
-  - `full` (Default) = heutige 2-Spalten-Ansicht
-  - `talent-only` / `orphan-only` = nur eine Spalte, voller Breite, ohne Header-Titel "Talent ↔ Account-Board"
-- Rendering-Logik in Today:
-  - MatchBoard rendert immer (für Counts), aber Sichtbarkeit/Variant abhängig von `kindTab`:
-    - `kindTab === "all"` → `view="full"` anzeigen
-    - `kindTab === "talent"` → `view="talent-only"`, normale Card-Liste ausblenden
-    - `kindTab === "orphan"` → `view="orphan-only"`, normale Card-Liste ausblenden
-- Bottom-Bar Chips ergänzen (vor `availableKinds.map`):
-  - Talent-Chip: Icon `Sparkles`, Accent `text-violet-300`, Count = `boardCounts.talents`
-  - Orphan-Chip: Icon `AlertTriangle` (oder `UserX`), Accent `text-amber-300`, Count = `boardCounts.orphans`
-  - Nur anzeigen wenn Count > 0
-- `setStatus`-Reset von `kindTab` weiterhin auf `"all"`.
+- Filter-Pill „🌱 Onboarding" in der unteren Filterleiste
+- Quelle: `get_chatter_onboarding` RPC (existiert), `daysSince ≥ 5`
+- Optional Cut-Off: bis Tag X konfigurierbar — Vorschlag fix bei 14 Tagen (klärbar später)
+- Gruppiert nach Onboarding-Tag absteigend: „Tag 14", „Tag 13", …, „Tag 5"
+- Jede Zeile = kompakte Karte mit Chatter-Name, Account, aktuell zugewiesene Labels als Badges, Quick-Action: Label setzen/wechseln (Bottom-Sheet mit den 4 Buttons + Custom-Liste)
+- Klick auf Karte öffnet bestehenden ChatterSlideOver
+- Chatter mit irgendeinem Label gesetzt → fallen aus dem Onboarding-Filter raus (sind „durchgearbeitet")
 
-`src/components/today/MatchBoard.tsx`:
-- Props erweitern: `view?: "full" | "talent-only" | "orphan-only"`, `onCountsChange?`.
-- `useEffect` der Counts an Parent meldet nach jedem Load.
-- Conditional Rendering der Spalten + Grid → bei `*-only` einspaltig (`grid-cols-1`), Header optional ausblenden.
+## Label-Filter
 
-## Out of Scope
+- Eine Pill „🏷 Labels (N)" mit Dropdown/Sheet zum Custom-Auswählen welche Labels aktiv gezeigt werden (Multi-Select, persistent in localStorage)
+- Inhalt: für jeden Chatter mit aktivem ausgewähltem Label eine reguläre Action-Karte im gleichen Layout wie Verzug/Recovery/etc.
+- Karte zeigt: Chatter-Name, Account, Label-Badge(s), wichtigste Live-Metriken (offene Chats, ältester Chat) + Heute-Umsatz
+- „Abschließen"-Button setzt nur `daily_todo_state` (key z.B. `label:${labelName}:${chatter}`) auf done für heute
+- Beim nächsten Tag/Report (neuer `todayISO`) erscheinen sie wieder, solange das Label am Chatter dranhängt
+- Label entfernen → Karte verschwindet dauerhaft aus diesem Filter
 
-- Keine Änderung an Card-Inhalten, Priorität-Markierung oder Drag-and-Drop-Logik.
-- Keine Änderung an den Status-Pills (oben).
+## Match Board entfernen
+
+- `MatchBoard.tsx` Component und Filter-Pill aus `Today.tsx` raus
+- KindTab-Typ: `"board"` entfernen
+- `talent-scout.ts` darf bleiben (wird ggf. später wiederverwendet), wird aber nicht mehr im UI gemounted
+- `boardCounts` State raus
+
+## Technische Details
+
+**Neue Helpers in `src/lib/`:**
+- `onboarding-filter.ts` — lädt Chatter mit Onboarding-Tag ≥5 und ohne gesetztes Label, gruppiert nach Tag
+- `label-tasks.ts` — lädt alle Chatter mit aktivem Label-Assignment, baut Karten-Payload, prüft `daily_todo_state` für „heute schon abgehakt"
+
+**Seed-Logik:**
+- Auf Today-Mount: `ensureSystemLabels(platform)` — prüft `chatter_labels` für User/Platform auf die 4 Namen, fügt fehlende ein
+
+**Today.tsx Änderungen:**
+- KIND_DEFS um `onboarding` + `label` erweitern (eigene Icons/Farben)
+- Filter-Leiste: nach den existierenden Kind-Pills die zwei neuen Pills anhängen
+- Label-Pill: Click öffnet Multi-Select-Sheet (shadcn `Sheet`) mit Liste aller `chatter_labels` für User/Platform, Auswahl in localStorage `today.activeLabelFilters`
+- Content-Bereich rendert Onboarding-Gruppen bzw. Label-Karten in Eigenkomponenten (`OnboardingGroupedList`, `LabelChatterCard`)
+- Abhaken nutzt bestehende `daily_todo_state`-Logik mit eigenem `todo_key`-Schema
+
+**Status-Pills (Offen/Wins/Erledigt):** funktionieren mit den neuen Filtern automatisch via daily_todo_state.
+
+## Aus-Scope
+
+- Keine neuen DB-Migrations nötig — `chatter_labels` + `chatter_label_assignments` existieren bereits
+- Keine Änderung an bestehenden Verzug/Recovery/Wakeup-Karten
+- Keine Änderung an Label-Management-UI in TinderMode/ChatterSlideOver
