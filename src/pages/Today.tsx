@@ -803,7 +803,7 @@ export default function Today() {
           else next.add(id);
           setSelectedLabelIds(next);
         }}
-        onSelectAll={() => setSelectedLabelIds(new Set(labels.filter(isSystemLabel).map((l) => l.id)))}
+        onSelectAll={() => setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)))}
         onClearAll={() => setSelectedLabelIds(new Set())}
       />
     </>
