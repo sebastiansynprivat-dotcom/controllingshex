@@ -629,25 +629,42 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   const { stats, importanceFor } = statsBundle;
 
   // === Live-Snapshot (chatter_history_live) für Suppress- und Refresh-Layer ===
-  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; fresh: boolean };
+  // Lädt heute + gestern und nimmt pro Chatter den neuesten Eintrag (date desc, updated_at desc).
+  // "fresh" = updated_at innerhalb 6h → großzügig, weil Live > stale Snapshot.
+  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; fresh: boolean; updatedAt: number };
   const liveSnap = new Map<string, LiveSnap>();
   try {
+    const today = todayISO();
+    const y = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     const liveQ = await supabase
       .from("chatter_history_live")
-      .select("chatter_name, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
+      .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
       .ilike("platform", platform)
-      .eq("date", todayISO());
-    const FRESH_MS = 90 * 60 * 1000; // 90min
+      .gte("date", y);
+    const FRESH_MS = 6 * 60 * 60 * 1000; // 6h
     const now = Date.now();
-    for (const r of (liveQ.data ?? []) as { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null }[]) {
+    // pro Chatter den neuesten (date, updated_at) Eintrag wählen
+    type Row = { chatter_name: string; date: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null };
+    const sorted = [...(liveQ.data ?? []) as Row[]].sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
+    });
+    // Aggregation: nehme die neueste Zeile pro Chatter (entspricht today-bevorzugt, sonst gestern).
+    // Falls für denselben Chatter & date mehrere Zeilen existieren (mehrere telegram_id), summieren wir
+    // innerhalb des neuesten Datums.
+    const newestDateByChatter = new Map<string, string>();
+    for (const r of sorted) {
       if (!r.chatter_name) continue;
       const k = normalizeChatterName(r.chatter_name);
-      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, fresh: false };
+      if (!newestDateByChatter.has(k)) newestDateByChatter.set(k, r.date);
+      if (newestDateByChatter.get(k) !== r.date) continue; // nur Zeilen des neuesten Datums berücksichtigen
+      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, fresh: false, updatedAt: 0 };
       cur.rev += Number(r.revenue) || 0;
       cur.dm += r.mass_dms ?? 0;
       cur.unread += r.unread_chats ?? 0;
       cur.oldest = Math.max(cur.oldest, Number(r.oldest_chat) || 0);
       const upd = r.updated_at ? new Date(r.updated_at).getTime() : 0;
+      if (upd > cur.updatedAt) cur.updatedAt = upd;
       if (upd && (now - upd) <= FRESH_MS) cur.fresh = true;
       liveSnap.set(k, cur);
     }
@@ -716,6 +733,9 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     if (meta?.todayOpenChats != null && live.unread !== Number(meta.todayOpenChats)) {
       parts.push(`${live.unread} offen`);
     }
+    if ((kind === "verzug" || meta?.delayDays != null) && Math.abs(live.oldest - Number(meta?.delayDays ?? 0)) >= 1) {
+      parts.push(`ältester ${Math.round(live.oldest)}T`);
+    }
     if (kind === "revenue" && meta?.todayRevenue != null && Math.abs(live.rev - Number(meta.todayRevenue)) >= 5) {
       parts.push(`${Math.round(live.rev)}€`);
     }
@@ -726,16 +746,26 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     return `${why} (live jetzt: ${parts.join(" · ")})`;
   }
 
-  /** Ersetzt veraltete Snapshot-Zahlen im Title (z.B. "X offene Chats") durch Live-Werte. */
+  /** Ersetzt veraltete Snapshot-Zahlen im Title (z.B. "X offene Chats", "X Tage Verzug") durch Live-Werte. */
   function refreshTitle(chatterKey: string | null, title: string, meta?: Record<string, any>): string {
     if (!chatterKey) return title;
     const live = liveSnap.get(chatterKey);
     if (!live || !live.fresh) return title;
-    const snap = meta?.todayOpenChats != null ? Number(meta.todayOpenChats) : null;
-    if (snap != null && live.unread !== snap) {
-      return title.replace(/\b\d+\s+offene Chats\b/, `${live.unread} offene Chats`);
+    let out = title;
+    // "X offene Chats"
+    if (/\b\d+\s+offene Chats\b/.test(out)) {
+      out = out.replace(/\b\d+\s+offene Chats\b/, `${live.unread} offene Chats`);
     }
-    return title;
+    // "X Tage Verzug" — nur ersetzen, wenn signifikant abweichend (≥1 Tag).
+    const verzugMatch = out.match(/\b(\d+)\s+Tage?\s+Verzug\b/);
+    if (verzugMatch) {
+      const snapDelay = Number(verzugMatch[1]);
+      const liveDelay = Math.round(live.oldest);
+      if (Math.abs(snapDelay - liveDelay) >= 1) {
+        out = out.replace(/\b\d+\s+Tage?\s+Verzug\b/, `${liveDelay} Tage Verzug`);
+      }
+    }
+    return out;
   }
 
   // followers-Map für Potential-Detector
