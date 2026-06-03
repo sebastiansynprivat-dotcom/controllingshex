@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Video, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,8 +19,6 @@ const items = [
   { title: "Live-Tracking", url: "/live", icon: Radio },
   { title: "Auffälligkeiten", url: "/auffaelligkeiten", icon: AlertOctagon },
   { title: "Monatsziele", url: "/monatsziele", icon: Target },
-  { title: "Frühwarnung", url: "/forecast", icon: AlertOctagon },
-  { title: "Videocoaching", url: "/videocoaching", icon: Video },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
   { title: "Upload", url: "/upload", icon: Upload },
   { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
@@ -29,6 +27,7 @@ const items = [
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
+
 
 export function AppSidebar() {
   const { state } = useSidebar();
