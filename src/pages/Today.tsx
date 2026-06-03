@@ -88,6 +88,10 @@ export default function Today() {
   const { platform } = usePlatform();
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
   const sidebarOffset = sidebarIsMobile ? "0px" : sidebarState === "collapsed" ? "5rem" : "16rem";
+  useEffect(() => {
+    document.documentElement.style.setProperty("--today-sidebar-offset", sidebarOffset);
+    return () => { document.documentElement.style.removeProperty("--today-sidebar-offset"); };
+  }, [sidebarOffset]);
   const [data, setData] = useState<TodayEngineResult | null>(null);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
