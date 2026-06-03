@@ -69,19 +69,28 @@ export default function LabelCardList({
               exit={{ opacity: 0 }}
               className="space-y-2"
             >
-              <div className="flex items-center gap-2 px-1 pb-1 opacity-80">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: label.color }}
-                />
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-[0.18em]"
-                  style={{ color: label.color }}
+              <div className="flex items-center gap-3 px-0.5">
+                <div
+                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border"
+                  style={{
+                    backgroundColor: `${label.color}10`,
+                    borderColor: `${label.color}33`,
+                  }}
                 >
-                  {label.label_name}
-                </span>
-                <span className="text-[10px] tabular-nums text-white/30 font-light">
-                  · {items.length}
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: label.color }}
+                  />
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+                    style={{ color: label.color }}
+                  >
+                    {label.label_name}
+                  </span>
+                </div>
+                <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
+                <span className="text-[10.5px] tabular-nums text-white/35 font-light">
+                  {items.length}
                 </span>
               </div>
               <div className="space-y-3">
