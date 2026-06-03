@@ -6,7 +6,7 @@
  * Reset-Knopf stellt den automatischen Rang wieder her.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Star, Sparkles, AlertTriangle, RotateCcw, GripVertical } from "lucide-react";
+import { Star, Sparkles, AlertTriangle, RotateCcw, GripVertical, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   DndContext,
@@ -42,6 +42,7 @@ type TalentCard = {
   revenueDays: number;
   avgRevenue: number;
   tierLabel: string;
+  isCritical: boolean;
 };
 
 type MismatchCard = {
@@ -53,6 +54,7 @@ type MismatchCard = {
   openChats: number;
   oldestChatDays: number;
   activeDays: number;
+  isCritical: boolean;
 };
 
 interface Props {
@@ -164,6 +166,7 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           revenueDays: m.riserRevenueDays,
           avgRevenue: m.riserAvgRevenue,
           tierLabel: m.underuserTier.label,
+          isCritical: m.isCritical,
         }));
 
         const mismatchCards: MismatchCard[] = orphans.map((o: OrphanWarning) => ({
@@ -175,6 +178,7 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           openChats: o.openChats,
           oldestChatDays: o.oldestChatDays,
           activeDays: o.activeDays,
+          isCritical: o.isCritical,
         }));
 
         if (cancel) return;
@@ -229,6 +233,7 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         revenueDays: m.riserRevenueDays,
         avgRevenue: m.riserAvgRevenue,
         tierLabel: m.underuserTier.label,
+        isCritical: m.isCritical,
       })));
     } else {
       const orphans = await findOrphanedAccounts(platform);
@@ -241,6 +246,7 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         openChats: o.openChats,
         oldestChatDays: o.oldestChatDays,
         activeDays: o.activeDays,
+        isCritical: o.isCritical,
       })));
     }
   };
@@ -379,12 +385,17 @@ function SortableTalentCard({ card, onClick }: { card: TalentCard; onClick: () =
       ref={setNodeRef}
       style={style}
       className={cn(
-        "rounded-xl border bg-white/[0.025] p-2.5 flex items-start gap-2 transition-colors",
-        card.hasRevenueBoost
-          ? "border-amber-400/30 bg-amber-400/[0.04] shadow-[0_0_20px_-8px_rgba(251,191,36,0.4)]"
-          : "border-white/[0.06] hover:border-white/[0.12]",
+        "relative rounded-xl border p-2.5 flex items-start gap-2 transition-colors",
+        card.isCritical
+          ? "border-rose-400/45 bg-rose-500/[0.06] shadow-[0_0_24px_-8px_rgba(244,63,94,0.55)] ring-1 ring-rose-400/20"
+          : card.hasRevenueBoost
+            ? "border-amber-400/30 bg-amber-400/[0.04] shadow-[0_0_20px_-8px_rgba(251,191,36,0.4)]"
+            : "border-white/[0.06] bg-white/[0.025] hover:border-white/[0.12]",
       )}
     >
+      {card.isCritical && (
+        <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-r bg-gradient-to-b from-rose-400 to-rose-500/40" />
+      )}
       <button
         {...attributes}
         {...listeners}
@@ -395,11 +406,17 @@ function SortableTalentCard({ card, onClick }: { card: TalentCard; onClick: () =
       </button>
       <button onClick={onClick} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-1.5">
-          {card.hasRevenueBoost && <Star className="h-3 w-3 text-amber-300 fill-amber-300" />}
+          {card.isCritical && <Flame className="h-3 w-3 text-rose-300 shrink-0" />}
+          {!card.isCritical && card.hasRevenueBoost && <Star className="h-3 w-3 text-amber-300 fill-amber-300" />}
           <span className="text-[12.5px] font-medium text-foreground/90 truncate">
             {card.riser}
           </span>
           <span className="text-[10px] text-white/35 font-light truncate">→ {card.account}</span>
+          {card.isCritical && (
+            <span className="ml-auto text-[9px] uppercase tracking-[0.18em] font-semibold text-rose-300/90 shrink-0">
+              Priorität
+            </span>
+          )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums">
           {card.chatWorkDays}/6T Chats · {card.dmDays}/6T DMs
@@ -419,8 +436,16 @@ function SortableMismatchCard({ card, onClick }: { card: MismatchCard; onClick: 
     <div
       ref={setNodeRef}
       style={style}
-      className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5 flex items-start gap-2 hover:border-white/[0.12] transition-colors"
+      className={cn(
+        "relative rounded-xl border p-2.5 flex items-start gap-2 transition-colors",
+        card.isCritical
+          ? "border-rose-400/45 bg-rose-500/[0.06] shadow-[0_0_24px_-8px_rgba(244,63,94,0.55)] ring-1 ring-rose-400/20"
+          : "border-white/[0.06] bg-white/[0.025] hover:border-white/[0.12]",
+      )}
     >
+      {card.isCritical && (
+        <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-r bg-gradient-to-b from-rose-400 to-rose-500/40" />
+      )}
       <button
         {...attributes}
         {...listeners}
@@ -431,12 +456,21 @@ function SortableMismatchCard({ card, onClick }: { card: MismatchCard; onClick: 
       </button>
       <button onClick={onClick} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-1.5">
+          {card.isCritical && <Flame className="h-3 w-3 text-rose-300 shrink-0" />}
           <span className="text-[12.5px] font-medium text-foreground/90 truncate">
             {card.account}
           </span>
-          <span className="text-[9.5px] uppercase tracking-wider text-amber-300/70 font-semibold">
+          <span className={cn(
+            "text-[9.5px] uppercase tracking-wider font-semibold",
+            card.isCritical ? "text-rose-300/90" : "text-amber-300/70",
+          )}>
             {card.tierLabel}
           </span>
+          {card.isCritical && (
+            <span className="ml-auto text-[9px] uppercase tracking-[0.18em] font-semibold text-rose-300/90 shrink-0">
+              Priorität
+            </span>
+          )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums truncate">
           bei {card.chatter} · ältester Chat {card.oldestChatDays}T · {card.openChats} ungelesen

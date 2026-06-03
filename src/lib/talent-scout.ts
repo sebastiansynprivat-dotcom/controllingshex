@@ -39,24 +39,25 @@ export interface TalentMatch {
   riser: string;
   riserDaysOnboarded: number | null;
   riserTier: AccountTier | null;
-  riserStreak: number;          // längste aktive Strecke in 7T (ohne heute)
-  riserActiveDays: number;      // aktive Tage in 7T (ohne heute)
-  riserDmDays: number;          // Tage mit Mass-DMs in 7T
-  riserChatWorkDays: number;    // Tage, an denen offene Chats abgearbeitet wurden
-  riserRevenueDays: number;     // Tage mit Umsatz in 7T (Bonus-Stufe)
-  riserHasRevenueBoost: boolean; // ≥3 Tage mit Umsatz UND > 0 Mass-DM-Tage
-  riserAvgRevenue: number;      // Ø € pro aktivem Tag (Anzeige)
+  riserStreak: number;
+  riserActiveDays: number;
+  riserDmDays: number;
+  riserChatWorkDays: number;
+  riserRevenueDays: number;
+  riserHasRevenueBoost: boolean;
+  riserAvgRevenue: number;
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
   underuserFollowers: number;
   underuserAvgRevenue6d: number;
   underuserRecentAvgRevenue2d: number;
-  underuserActiveDays: number;  // historische 7T-Aktivität, nur zur Anzeige
-  underuserOpenChats: number;   // LIVE: unread_chats heute
-  underuserOldestChatDays: number; // LIVE: oldest_chat heute (Tage)
-  underuserDelayDays: number;   // historischer Verzug, nur zur Anzeige
-  matchScore: number;           // 0–100
+  underuserActiveDays: number;
+  underuserOpenChats: number;
+  underuserOldestChatDays: number;
+  underuserDelayDays: number;
+  matchScore: number;
+  isCritical: boolean;          // visuell markiert — dringend on Track bringen
 }
 
 export interface OrphanWarning {
@@ -68,9 +69,10 @@ export interface OrphanWarning {
   recentAvgRevenue2d: number;
   activeDays: number;
   delayDays: number;
-  openChats: number;             // LIVE
-  oldestChatDays: number;        // LIVE
+  openChats: number;
+  oldestChatDays: number;
   painScore: number;
+  isCritical: boolean;          // visuell markiert — Top/Growth stark im Rückgang
 }
 
 interface OnboardingRow { chatter_name: string; onboarded_on: string }
@@ -136,6 +138,7 @@ interface ChatterAgg {
   chatWorkDays: number;        // Tage mit Bewegung in open_chats (Arbeit am Inbox)
   revenueDays: number;         // Tage mit Umsatz > 0
   avgRevenue: number;          // Ø € pro aktivem Tag
+  weeklyAvgRevenue: number;    // Ø € pro Tag (gesamt / HISTORY_DAYS-1) — Wochen-Pace
   recentAvgRevenue2d: number;  // Ø € der letzten 2 Tage (mit Umsatz)
   // Live-Werte heute — für Underuser-Score
   liveOpenChats: number;
@@ -320,6 +323,8 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     const avgRevenue = revVals.length === 0
       ? 0
       : revVals.reduce((s, v) => s + v, 0) / revVals.length;
+    const totalRevenue = revVals.reduce((s, v) => s + v, 0);
+    const weeklyAvgRevenue = totalRevenue / Math.max(1, HISTORY_DAYS - 1);
 
     // Letzte 2 abgeschlossene Tage: Ø Umsatz über Tage mit Umsatz > 0
     const recentDays = [isoDaysAgo(1), isoDaysAgo(2)];
@@ -345,6 +350,7 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       chatWorkDays: chatWorkSet.size,
       revenueDays: revSet.size,
       avgRevenue,
+      weeklyAvgRevenue,
       recentAvgRevenue2d,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
@@ -362,10 +368,22 @@ export async function findTalentMatches(
   if (aggs.length === 0) return [];
   const rejected = rejectedPairs ?? new Set<string>();
 
+  // Plattform-spezifischer Riser-Filter (auf den AKTUELLEN Account des Risers):
+  //   • Maloum:   Account-Followers < 300
+  //   • Brezzels: über die letzte Woche nie > 5 €/Tag im Schnitt (Pace ≤ 5 €/Tag)
+  // Auf anderen Plattformen kein zusätzlicher Filter.
+  const platformLc = platform.toLowerCase();
+  const passesRiserPlatformFilter = (a: ChatterAgg): boolean => {
+    if (!a.account) return false;
+    if (platformLc === "maloum") return a.followers > 0 && a.followers < 300;
+    if (platformLc === "brezzels") return a.weeklyAvgRevenue <= 5;
+    return true;
+  };
+
   // Workhorses — Gate: ≥3 aktive Tage, ≥2 Chat-Work-Tage, ≥2 DM-Tage (in workhorseScore enthalten).
   const workhorses = aggs
     .map((a) => ({ a, score: workhorseScore(a) }))
-    .filter((w) => w.score > 0 && w.a.activeDays >= 3)
+    .filter((w) => w.score > 0 && w.a.activeDays >= 3 && passesRiserPlatformFilter(w.a))
     .sort((x, y) => y.score - x.score)
     .slice(0, MAX_WORKHORSES);
 
@@ -408,6 +426,15 @@ export async function findTalentMatches(
     usedOrphans.add(norm(candidate.a.name));
     usedWorkhorses.add(wKey);
 
+    // Kritisch markieren: starker Workhorse + Revenue-Boost + viele Chat-Tage,
+    // ODER der Ziel-Account ist Top/Growth mit hohem Live-Schmerz.
+    const riserIsStrong =
+      hasRevenueBoost(w.a) && w.a.chatWorkDays >= 4 && w.a.dmDays >= 4;
+    const targetIsHot =
+      (candidate.a.tier!.id === "top" || candidate.a.tier!.id === "growth") &&
+      (candidate.a.liveOldestChatDays >= 4 || candidate.a.liveOpenChats >= 80);
+    const isCritical = riserIsStrong || targetIsHot;
+
     matches.push({
       riser: w.a.name,
       riserDaysOnboarded: w.a.daysOnboarded,
@@ -430,6 +457,7 @@ export async function findTalentMatches(
       underuserOldestChatDays: candidate.a.liveOldestChatDays,
       underuserDelayDays: Math.round(candidate.a.avgDelay * 10) / 10,
       matchScore: Math.min(100, Math.round(pairScore)),
+      isCritical,
     });
   }
 
@@ -442,19 +470,27 @@ export async function findOrphanedAccounts(platform: string): Promise<OrphanWarn
   if (aggs.length === 0) return [];
   return aggs
     .filter((a) => a.tier && a.account)
-    .map((a) => ({
-      chatter: a.name,
-      account: a.account,
-      tier: a.tier!,
-      followers: a.followers,
-      avgRevenue6d: a.avgRevenue,
-      recentAvgRevenue2d: a.recentAvgRevenue2d,
-      activeDays: a.activeDays,
-      delayDays: Math.round(a.avgDelay * 10) / 10,
-      openChats: a.liveOpenChats,
-      oldestChatDays: a.liveOldestChatDays,
-      painScore: Math.round(orphanPainScore(a)),
-    }))
+    .map((a) => {
+      // Kritisch: hochwertiger Account (Top/Growth) mit hohem Live-Schmerz
+      // — der MUSS wieder on Track kommen.
+      const isCritical =
+        (a.tier!.id === "top" || a.tier!.id === "growth") &&
+        (a.liveOldestChatDays >= 4 || a.liveOpenChats >= 80);
+      return {
+        chatter: a.name,
+        account: a.account,
+        tier: a.tier!,
+        followers: a.followers,
+        avgRevenue6d: a.avgRevenue,
+        recentAvgRevenue2d: a.recentAvgRevenue2d,
+        activeDays: a.activeDays,
+        delayDays: Math.round(a.avgDelay * 10) / 10,
+        openChats: a.liveOpenChats,
+        oldestChatDays: a.liveOldestChatDays,
+        painScore: Math.round(orphanPainScore(a)),
+        isCritical,
+      };
+    })
     .filter((o) => o.painScore > 0)
     .sort((x, y) => y.painScore - x.painScore);
 }
