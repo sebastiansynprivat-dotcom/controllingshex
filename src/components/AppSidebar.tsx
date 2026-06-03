@@ -41,14 +41,11 @@ export function AppSidebar() {
         {/* Brand */}
         <div className={`mb-10 transition-all duration-300 ease-in-out ${collapsed ? "flex justify-center px-0" : "px-3"}`}>
           {!collapsed ? (
-            <div className="space-y-1">
-              <div className="text-[9.5px] font-mono-ui tracking-[0.32em] uppercase text-white/35">Suite</div>
-              <h1 className="display-serif text-[22px] leading-none foil-text font-medium">
-                Controlling
-              </h1>
-            </div>
+            <h1 className="text-sm font-semibold tracking-[0.2em] uppercase gold-text">
+              Controlling
+            </h1>
           ) : (
-            <span className="display-serif text-base foil-text flex items-center justify-center w-10 h-10 rounded-lg premium-chip bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/25">
+            <span className="text-sm font-semibold gold-text flex items-center justify-center w-10 h-10 rounded-lg premium-chip bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/20">
               C
             </span>
           )}
