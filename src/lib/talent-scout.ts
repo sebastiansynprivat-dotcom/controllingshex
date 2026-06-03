@@ -358,7 +358,9 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     aggs.push({
       name,
       account,
+      numAccounts: Math.max(1, accountSetByChatter.get(k)?.size ?? 1),
       followers,
+
       tier,
       daysOnboarded: onboardedDays.get(k) ?? null,
       activeDays: activeSet.size,
