@@ -134,6 +134,59 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
 
+  // === LIVE-STATE laden (chatter_history_live) ===
+  // Wird benutzt, um Signale gegen den aktuellen Live-Stand abzugleichen:
+  //   - Verzug & offene Chats: falls live aufgelöst → Signal droppen
+  //   - sonst Live-Werte in die Beschreibung packen
+  interface LiveSnap {
+    unread: number;
+    oldest: number;
+    revenue: number;
+    massDms: number;
+    updatedAt: string;
+  }
+  const liveByName = new Map<string, LiveSnap>();
+  try {
+    const todayIso = todayStr();
+    const yIso = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const { data: liveRows } = await supabase
+      .from("chatter_history_live")
+      .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at")
+      .ilike("platform", platform)
+      .gte("date", yIso);
+    const sorted = [...(liveRows ?? [])].sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
+    });
+    for (const r of sorted) {
+      if (!r.chatter_name) continue;
+      const k = normalizeChatterName(r.chatter_name);
+      if (liveByName.has(k)) continue;
+      liveByName.set(k, {
+        unread: Math.max(0, Number(r.unread_chats ?? 0)),
+        oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
+        revenue: Math.max(0, Number(r.revenue ?? 0)),
+        massDms: Math.max(0, Number(r.mass_dms ?? 0)),
+        updatedAt: r.updated_at ?? todayIso,
+      });
+    }
+  } catch (e) {
+    console.warn("[daily-todos] live-state lookup failed", e);
+  }
+  const liveFor = (name: string): LiveSnap | null =>
+    liveByName.get(normalizeChatterName(name)) ?? null;
+  const liveAgeMin = (l: LiveSnap): number => {
+    const t = new Date(l.updatedAt).getTime();
+    return isFinite(t) ? Math.max(0, Math.round((Date.now() - t) / 60000)) : 9999;
+  };
+  const liveAgeLabel = (mins: number): string => {
+    if (mins < 60) return `${mins}min`;
+    const h = Math.floor(mins / 60);
+    return h < 24 ? `${h}h` : `${Math.floor(h / 24)}T`;
+  };
+
+
+
 
   // Models + Follower laden, um sie auf der Karte anzuzeigen.
   const { data: modelRowsForLookup } = await supabase
@@ -245,15 +298,24 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // Verzug — harter Fakt aus aktuellem Report, gilt auch ab Tag 2 Onboarding.
     const delay = todayMaxDelay;
     if (todayEntry && delay >= 3) {
-      todos.push({
-        key: `verzug:${name}:${today}`,
-        category: "verzug",
-        score: Math.round((90 + delay * 5) * importance),
-        title: `${name} dringend — ${delay} Tage Verzug${tag}`,
-        why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${modelSuffix}. Sofort entlasten oder Ursache klären.`,
-        chatterName: name,
-        meta: { delayDays: delay, todayOpenChats },
-      });
+      const live = liveFor(name);
+      // Live-Gegencheck: wenn live KEIN alter Chat mehr offen ist UND fast nix ungelesen
+      // → Verzug ist faktisch abgearbeitet, Signal droppen.
+      const resolved = live && live.oldest < 1 && live.unread < 5;
+      if (!resolved) {
+        const livePart = live
+          ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${Math.round(live.oldest)}T · ${live.unread} ungelesen`
+          : "";
+        todos.push({
+          key: `verzug:${name}:${today}`,
+          category: "verzug",
+          score: Math.round((90 + delay * 5) * importance),
+          title: `${name} dringend — ${delay} Tage Verzug${tag}`,
+          why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${livePart}${modelSuffix}. Sofort entlasten oder Ursache klären.`,
+          chatterName: name,
+          meta: { delayDays: delay, todayOpenChats },
+        });
+      }
     }
 
     if (!todayEntry || historical.length < 2) continue;
@@ -292,21 +354,28 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const dm14 = avg(days14.map((d) => d.dm));
     const dm30 = avg(days30.map((d) => d.dm));
     if (days30.length >= 8 && dm30 >= 3 && dm14 <= dm30 * 0.7 && todayDm < dm14 * 0.5) {
-      const drop14vs30 = Math.round(((dm30 - dm14) / dm30) * 100);
-      todos.push({
-        key: `dm:${name}:${today}`,
-        category: "activity",
-        score: Math.round((70 + Math.min(30, drop14vs30 / 2)) * importance),
-        title: `${name} Mass-DMs hochziehen (Ziel ${Math.round(dm30)}/Tag)${tag}`,
-        why: `Letzte 14T Ø ${dm14.toFixed(1)} vs. 30T Ø ${dm30.toFixed(1)} (−${drop14vs30} %) · heute ${todayDm}${modelSuffix}.`,
-        chatterName: name,
-        meta: {
-          todayMassDms: todayDm,
-          baselineMassDms: dm30,
-          missingMassDms: Math.max(0, Math.round(dm30 - todayDm)),
-          dropPct: drop14vs30,
-        },
-      });
+      const live = liveFor(name);
+      // Live-Gegencheck: wenn live heute schon ≥ 70% der 30T-Norm an DMs raus sind → resolved.
+      const liveDm = live?.massDms ?? todayDm;
+      const resolved = live && liveDm >= dm30 * 0.7;
+      if (!resolved) {
+        const drop14vs30 = Math.round(((dm30 - dm14) / dm30) * 100);
+        const livePart = live ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ${liveDm} DMs heute` : "";
+        todos.push({
+          key: `dm:${name}:${today}`,
+          category: "activity",
+          score: Math.round((70 + Math.min(30, drop14vs30 / 2)) * importance),
+          title: `${name} Mass-DMs hochziehen (Ziel ${Math.round(dm30)}/Tag)${tag}`,
+          why: `Letzte 14T Ø ${dm14.toFixed(1)} vs. 30T Ø ${dm30.toFixed(1)} (−${drop14vs30} %) · heute ${todayDm}${livePart}${modelSuffix}.`,
+          chatterName: name,
+          meta: {
+            todayMassDms: todayDm,
+            baselineMassDms: dm30,
+            missingMassDms: Math.max(0, Math.round(dm30 - todayDm)),
+            dropPct: drop14vs30,
+          },
+        });
+      }
     }
 
     // Revenue Drop — confirmed: 14T-Schnitt unter 30T-Schnitt × 0.75
@@ -314,16 +383,23 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const rev14 = avg(days14.map((d) => d.rev));
     const rev30 = avg(days30.map((d) => d.rev));
     if (days30.length >= 8 && rev30 >= 50 && rev14 <= rev30 * 0.75 && todayRev < rev14 * 0.7) {
-      const drop = Math.round(((rev30 - rev14) / rev30) * 100);
-      todos.push({
-        key: `rev:${name}:${today}`,
-        category: "revenue",
-        score: Math.round((75 + Math.min(25, drop / 3)) * importance),
-        title: `${name} checken — Umsatz im Rückgang (−${drop} % 14T vs. 30T)${tag}`,
-        why: `Letzte 14T Ø ${rev14.toFixed(0)} €/Tag vs. 30T Ø ${rev30.toFixed(0)} €/Tag · heute ${todayRev.toFixed(0)} €${modelSuffix}.`,
-        chatterName: name,
-        meta: { todayRevenue: todayRev, baselineRevenue: rev30, dropPct: drop },
-      });
+      const live = liveFor(name);
+      const liveRev = live?.revenue ?? todayRev;
+      // Live-Gegencheck: wenn live heute schon ≥ 80% der 30T-Norm € drin → resolved.
+      const resolved = live && liveRev >= rev30 * 0.8;
+      if (!resolved) {
+        const drop = Math.round(((rev30 - rev14) / rev30) * 100);
+        const livePart = live ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ${Math.round(liveRev)} € heute` : "";
+        todos.push({
+          key: `rev:${name}:${today}`,
+          category: "revenue",
+          score: Math.round((75 + Math.min(25, drop / 3)) * importance),
+          title: `${name} checken — Umsatz im Rückgang (−${drop} % 14T vs. 30T)${tag}`,
+          why: `Letzte 14T Ø ${rev14.toFixed(0)} €/Tag vs. 30T Ø ${rev30.toFixed(0)} €/Tag · heute ${todayRev.toFixed(0)} €${livePart}${modelSuffix}.`,
+          chatterName: name,
+          meta: { todayRevenue: todayRev, baselineRevenue: rev30, dropPct: drop },
+        });
+      }
     }
     // Positive Outlier — bestätigt: 14T-Schnitt deutlich über 30T-Schnitt
     if (days30.length >= 8 && rev30 >= 50 && rev14 >= rev30 * 1.4 && todayRev >= rev30 * 1.4) {
@@ -343,18 +419,27 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const baseChats = avg(days30.map((d) => d.chats));
     const chats14 = avg(days14.map((d) => d.chats));
     if (todayOpenChats >= 30 && baseChats > 0 && todayOpenChats > baseChats * 1.5 && chats14 > baseChats * 1.2) {
-      const up = Math.round(((todayOpenChats - baseChats) / baseChats) * 100);
-      todos.push({
-        key: `jam:${name}:${today}`,
-        category: "activity",
-        score: Math.round(65 * importance),
-        title: `${name} entlasten — ${todayOpenChats} offene Chats${tag}`,
-        why: `Heute +${up} % vs. 30T Ø ${baseChats.toFixed(0)} · 14T Ø bereits ${chats14.toFixed(0)}${modelSuffix}.`,
-        chatterName: name,
-        meta: { todayOpenChats: todayOpenChats, baselineOpenChats: baseChats },
-      });
+      const live = liveFor(name);
+      // Live-Gegencheck: Stack ist live schon klein → kein Jam mehr.
+      const resolved = live && live.unread < Math.max(15, baseChats * 0.8);
+      if (!resolved) {
+        const up = Math.round(((todayOpenChats - baseChats) / baseChats) * 100);
+        const livePart = live
+          ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ${live.unread} ungelesen${live.oldest >= 1 ? `, ältester ${Math.round(live.oldest)}T` : ""}`
+          : "";
+        todos.push({
+          key: `jam:${name}:${today}`,
+          category: "activity",
+          score: Math.round(65 * importance),
+          title: `${name} entlasten — ${todayOpenChats} offene Chats${tag}`,
+          why: `Heute +${up} % vs. 30T Ø ${baseChats.toFixed(0)} · 14T Ø bereits ${chats14.toFixed(0)}${livePart}${modelSuffix}.`,
+          chatterName: name,
+          meta: { todayOpenChats: todayOpenChats, baselineOpenChats: baseChats },
+        });
+      }
     }
   }
+
 
   // Models in Trouble
   const { data: modelRows } = await supabase
