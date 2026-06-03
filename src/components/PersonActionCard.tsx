@@ -30,39 +30,49 @@ const TONE: Record<
     barDim: string;
     dot: string;
     statusLabel: string;
+    pill: string;
+    insertBar: string;
   }
 > = {
   critical: {
-    glow: "from-red-500/15 via-red-500/5",
+    glow: "from-red-500/10 via-red-500/[0.03]",
     accent: "text-red-300",
     bar: "bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.4)]",
     barDim: "bg-red-500/40",
     dot: "bg-red-500",
     statusLabel: "Kritisch",
+    pill: "border-red-400/25 bg-red-500/[0.06] text-red-300/90",
+    insertBar: "bg-red-500/60",
   },
   warning: {
-    glow: "from-amber-500/15 via-amber-500/5",
+    glow: "from-amber-500/10 via-amber-500/[0.03]",
     accent: "text-amber-300",
     bar: "bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]",
     barDim: "bg-amber-500/40",
     dot: "bg-amber-500",
     statusLabel: "Warnung",
+    pill: "border-amber-400/25 bg-amber-500/[0.06] text-amber-300/90",
+    insertBar: "bg-amber-500/60",
   },
   info: {
-    glow: "from-cyan-500/12 via-cyan-500/4",
+    glow: "from-cyan-500/8 via-cyan-500/[0.02]",
     accent: "text-cyan-300",
     bar: "bg-cyan-500/80 shadow-[0_0_8px_rgba(6,182,212,0.35)]",
     barDim: "bg-cyan-500/35",
     dot: "bg-cyan-500",
     statusLabel: "Hinweis",
+    pill: "border-cyan-400/25 bg-cyan-500/[0.06] text-cyan-300/90",
+    insertBar: "bg-cyan-500/60",
   },
   positive: {
-    glow: "from-emerald-500/15 via-emerald-500/5",
+    glow: "from-emerald-500/10 via-emerald-500/[0.03]",
     accent: "text-emerald-300",
     bar: "bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]",
     barDim: "bg-emerald-500/40",
     dot: "bg-emerald-500",
     statusLabel: "Win",
+    pill: "border-emerald-400/25 bg-emerald-500/[0.06] text-emerald-300/90",
+    insertBar: "bg-emerald-500/60",
   },
 };
 
