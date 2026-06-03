@@ -32,7 +32,7 @@ import {
 } from "@/lib/action-outcomes";
 
 type StatusMode = "open" | "wins" | "done";
-type KindTab = "all" | ActionSourceKind | "board-talent" | "board-orphan";
+type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
 
@@ -42,8 +42,7 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  { id: "talent",   label: "Talent",         icon: Sparkles,       accent: "text-violet-300",   dot: "bg-violet-400/80" },
-  { id: "mismatch", label: "Mismatch",       icon: Shuffle,        accent: "text-amber-300",    dot: "bg-amber-400/80" },
+  // talent + mismatch absichtlich entfernt — werden visuell im MatchBoard (Talent / Account ungenutzt) abgebildet
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "activity", label: "Aktivität",      icon: Activity,       accent: "text-teal-300",     dot: "bg-teal-400/80" },
