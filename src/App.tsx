@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { PlatformProvider } from "@/contexts/PlatformContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
+import { LuxuryCursor } from "@/components/LuxuryCursor";
 import Dashboard from "@/pages/Dashboard";
 import UploadPage from "@/pages/Upload";
 import Models from "@/pages/Models";
@@ -74,6 +75,7 @@ const AppRoutes = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <LuxuryCursor />
       <Toaster />
       <Sonner />
       <AuthProvider>
