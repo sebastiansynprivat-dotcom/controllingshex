@@ -342,6 +342,7 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       chatWorkDays: chatWorkSet.size,
       revenueDays: revSet.size,
       avgRevenue,
+      recentAvgRevenue2d,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
     });
