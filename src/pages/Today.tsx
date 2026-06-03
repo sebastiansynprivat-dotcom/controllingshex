@@ -552,7 +552,6 @@ export default function Today() {
                 setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
                 try {
                   await setTodoStatus(platform, key, "done", null);
-                  toast.success("Erledigt 🏻");
                 } catch {
                   setStates(prev);
                   throw new Error("save failed");
