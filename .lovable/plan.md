@@ -1,30 +1,46 @@
 ## Ziel
 
-Die Talent-Match-Karten (Workhorse ↔ Underuser) sollen am Underuser-Account dieselben Kontext-Infos zeigen wie die Solo-Brach-Karten: Account-Name (schon da), Follower, Ø 6T-Umsatz, Ø letzte 2T.
+Die Bottom-Filter-Bar (Heute-Tab) bekommt zusätzlich zwei Chips: **Talente** und **Account ungenutzt**. Damit ist das MatchBoard nicht mehr permanent oben sichtbar, sondern wird als eigene Filter-Ansicht behandelt — konsistent zum bestehenden Layout.
 
-## Beispiel
+## Verhalten
 
-Statt:
-> ...Account Lia Rose (S) bei Janette Hornjak live: ältester Chat 12T offen · 68 ungelesen.
+Bottom-Bar Chips (von links nach rechts):
+- `Alle` · `Talent` · `Account ungenutzt` · dann die bestehenden Kind-Chips (Chatter, Model, …)
 
-Neu:
-> ...Account Lia Rose (S, 12.4k Follower) bei Janette Hornjak · Ø 6T: 142 € · zuletzt (2T): 38 € · ältester Chat 12T offen · 68 ungelesen.
+Aktive Auswahl:
+- **Alle** → wie heute: MatchBoard oben + gruppierte Cards darunter
+- **Talent** → nur die linke MatchBoard-Spalte (Talente) als Full-Width-Liste, normale Cards ausgeblendet
+- **Account ungenutzt** → nur die rechte MatchBoard-Spalte (Orphans) als Full-Width-Liste
+- **Chatter / Model / …** → wie heute, MatchBoard ausgeblendet
 
-## Umsetzung
+Counts auf den neuen Chips: `talents.length` bzw. `mismatches.length` aus MatchBoard.
 
-`src/lib/talent-scout.ts` — `TalentMatch` Interface erweitern:
-- `underuserFollowers: number`
-- `underuserAvgRevenue6d: number`
-- `underuserRecentAvgRevenue2d: number`
+## Technische Umsetzung
 
-In `findTalentMatches` aus `candidate.a` durchreichen (Felder existieren bereits in `ChatterAgg`).
+`src/pages/Today.tsx`:
+- `KindTab` Type erweitern um `"talent" | "orphan"`.
+- MatchBoard liefert Counts nach oben via neuer optionaler Prop `onCountsChange?: (c: { talents: number; orphans: number }) => void`.
+- Neuer State `boardCounts` in Today.
+- MatchBoard bekommt neue Prop `view?: "full" | "talent-only" | "orphan-only"`:
+  - `full` (Default) = heutige 2-Spalten-Ansicht
+  - `talent-only` / `orphan-only` = nur eine Spalte, voller Breite, ohne Header-Titel "Talent ↔ Account-Board"
+- Rendering-Logik in Today:
+  - MatchBoard rendert immer (für Counts), aber Sichtbarkeit/Variant abhängig von `kindTab`:
+    - `kindTab === "all"` → `view="full"` anzeigen
+    - `kindTab === "talent"` → `view="talent-only"`, normale Card-Liste ausblenden
+    - `kindTab === "orphan"` → `view="orphan-only"`, normale Card-Liste ausblenden
+- Bottom-Bar Chips ergänzen (vor `availableKinds.map`):
+  - Talent-Chip: Icon `Sparkles`, Accent `text-violet-300`, Count = `boardCounts.talents`
+  - Orphan-Chip: Icon `AlertTriangle` (oder `UserX`), Accent `text-amber-300`, Count = `boardCounts.orphans`
+  - Nur anzeigen wenn Count > 0
+- `setStatus`-Reset von `kindTab` weiterhin auf `"all"`.
 
-`src/lib/daily-todos.ts` — Talent-Match-Block (~Z. 482-504):
-- Helper `fmtFollowers` / `fmtEur` aus dem Orphan-Block in den Funktions-Scope ziehen (oben definieren), damit beide Blöcke ihn nutzen.
-- `why`-String für den Underuser-Teil neu zusammenbauen mit Follower + Ø 6T + zuletzt 2T + Live-Bits.
+`src/components/today/MatchBoard.tsx`:
+- Props erweitern: `view?: "full" | "talent-only" | "orphan-only"`, `onCountsChange?`.
+- `useEffect` der Counts an Parent meldet nach jedem Load.
+- Conditional Rendering der Spalten + Grid → bei `*-only` einspaltig (`grid-cols-1`), Header optional ausblenden.
 
-Riser-Teil bleibt unverändert.
+## Out of Scope
 
-## Nicht enthalten
-
-- Keine UI-Änderungen, nur Signal-Text.
+- Keine Änderung an Card-Inhalten, Priorität-Markierung oder Drag-and-Drop-Logik.
+- Keine Änderung an den Status-Pills (oben).
