@@ -21,8 +21,8 @@ export interface OnboardingGroup {
 }
 
 interface Options {
-  minDays?: number; // default 5
-  maxDays?: number; // default 14
+  minDays?: number; // default 6
+  maxDays?: number; // default 20
 }
 
 export async function loadOnboardingChatters(
