@@ -615,37 +615,65 @@ export default function Today() {
                 })}
                 <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
                 <button
-
-                  onClick={() => setKindTab("all")}
+                  onClick={() => { setExtraFilter("none"); setKindTab("all"); }}
                   className={cn(
                     "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                    kindTab === "all"
+                    kindTab === "all" && extraFilter === "none"
                       ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                       : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
                   )}
                 >
                   Alle
-                  <span className={cn("tabular-nums text-[10px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
+                  <span className={cn("tabular-nums text-[10px]", kindTab === "all" && extraFilter === "none" ? "text-white/70" : "text-white/30")}>
                     {statusList.length}
                   </span>
                 </button>
-                {(boardCounts.talents + boardCounts.orphans) > 0 && (
+                {onboardingCount > 0 && (
                   <button
-                    onClick={() => setKindTab("board")}
+                    onClick={() => { setExtraFilter("onboarding"); setKindTab("all"); }}
                     className={cn(
                       "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                      isBoardTab
+                      extraFilter === "onboarding"
+                        ? "bg-emerald-500/[0.12] border-emerald-400/30 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.4)]"
+                        : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                    )}
+                  >
+                    <Sprout className={cn("h-3 w-3", extraFilter === "onboarding" ? "text-emerald-300" : "text-white/40")} />
+                    Onboarding
+                    <span className={cn("tabular-nums text-[10px]", extraFilter === "onboarding" ? "text-emerald-200/85" : "text-white/30")}>
+                      {onboardingCount}
+                    </span>
+                  </button>
+                )}
+                {labels.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (extraFilter === "labels") {
+                        setLabelFilterOpen(true);
+                      } else {
+                        setExtraFilter("labels");
+                        setKindTab("all");
+                        // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
+                        if (selectedLabelIds.size === 0) {
+                          setSelectedLabelIds(new Set(labels.map((l) => l.id)));
+                        }
+                      }
+                    }}
+                    className={cn(
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      extraFilter === "labels"
                         ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                         : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
                     )}
                   >
-                    <Sparkles className={cn("h-3 w-3", isBoardTab ? "text-violet-300" : "text-white/40")} />
-                    Match Board
-                    <span className={cn("tabular-nums text-[10px]", isBoardTab ? "text-white/70" : "text-white/30")}>
-                      {boardCounts.talents + boardCounts.orphans}
+                    <Tag className={cn("h-3 w-3", extraFilter === "labels" ? "text-amber-200" : "text-white/40")} />
+                    Labels
+                    <span className={cn("tabular-nums text-[10px]", extraFilter === "labels" ? "text-white/70" : "text-white/30")}>
+                      {totalLabelOpenCount}
                     </span>
                   </button>
                 )}
+
                 {availableKinds.map((g) => {
                   const Icon = g.icon;
                   const active = kindTab === g.id;
