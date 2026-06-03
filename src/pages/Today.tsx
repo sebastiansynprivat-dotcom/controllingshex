@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing } from "lucide-react";
 import { toast } from "sonner";
@@ -529,8 +530,8 @@ export default function Today() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Bottom-Nav: Kategorie-Filter — luxuriös, frosted, sticky am unteren Rand */}
-      {!loading && (availableKinds.length > 0 || kindTab !== "all" || boardCounts.talents > 0 || boardCounts.orphans > 0) && (
+      {/* Bottom-Nav: Kategorie-Filter — via Portal an Body, garantiert viewport-fixed (premium mobile feel) */}
+      {!loading && (availableKinds.length > 0 || kindTab !== "all" || boardCounts.talents > 0 || boardCounts.orphans > 0) && createPortal(
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -619,7 +620,8 @@ export default function Today() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </motion.div>,
+        document.body,
       )}
 
 
