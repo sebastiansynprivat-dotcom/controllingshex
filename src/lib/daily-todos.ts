@@ -505,21 +505,41 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse
     const orphans = await findOrphanedAccounts(platform);
     let soloCount = 0;
+    const fmtFollowers = (n: number): string => {
+      if (!n || n <= 0) return "—";
+      if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+      if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+      return String(n);
+    };
+    const fmtEur = (n: number): string => `${Math.round(n)} €`;
+
     for (const o of orphans) {
       if (soloCount >= 3) break;
       if (matchedUnderusers.has(o.chatter.toLowerCase())) continue;
       if (!isActive(o.chatter)) continue;
       soloCount++;
-      const reasons: string[] = [];
-      if (o.oldestChatDays >= 1) reasons.push(`ältester Chat ${o.oldestChatDays}T offen`);
-      if (o.openChats > 0) reasons.push(`${o.openChats} ungelesen`);
-      if (o.activeDays <= 2) reasons.push(`nur ${o.activeDays}/6 Tage aktiv`);
+      const liveBits: string[] = [];
+      if (o.oldestChatDays >= 1) liveBits.push(`ältester Chat ${o.oldestChatDays}T offen`);
+      if (o.openChats > 0) liveBits.push(`${o.openChats} ungelesen`);
+      if (o.activeDays <= 2) liveBits.push(`nur ${o.activeDays}/6 Tage aktiv`);
+
+      const revParts: string[] = [];
+      if (o.avgRevenue6d > 0) revParts.push(`Ø 6T: ${fmtEur(o.avgRevenue6d)}`);
+      if (o.recentAvgRevenue2d > 0) {
+        revParts.push(`zuletzt (2T): ${fmtEur(o.recentAvgRevenue2d)}`);
+      } else if (o.avgRevenue6d > 0) {
+        revParts.push(`zuletzt (2T): 0 €`);
+      }
+
+      const head = `${o.tier.label}-Account ${o.account} (${fmtFollowers(o.followers)} Follower) bei ${o.chatter}`;
+      const body = [...revParts, ...liveBits].filter(Boolean).join(" · ") || "kaum Bewegung";
+
       todos.push({
         key: `talent-orphan:${o.account}:${today}`,
         category: "talent",
         score: 65 + Math.min(15, Math.round(o.painScore / 10)),
         title: `⚠️ Account ${o.account} liegt brach`,
-        why: `${o.tier.label}-Account bei ${o.chatter}: ${reasons.join(" · ") || "kaum Bewegung"}. Wechsel auf verlässlicheren Chatter prüfen.`,
+        why: `${head} · ${body}. Wechsel auf verlässlicheren Chatter prüfen.`,
         chatterName: o.chatter,
       });
     }
