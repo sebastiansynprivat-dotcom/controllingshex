@@ -680,7 +680,7 @@ export default function Today() {
                   return (
                     <button
                       key={g.id}
-                      onClick={() => setKindTab(g.id)}
+                      onClick={() => { setExtraFilter("none"); setKindTab(g.id); }}
                       className={cn(
                         "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
                         active
