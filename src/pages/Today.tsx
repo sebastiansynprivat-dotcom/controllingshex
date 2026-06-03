@@ -32,7 +32,7 @@ import {
 } from "@/lib/action-outcomes";
 
 type StatusMode = "open" | "wins" | "done";
-type KindTab = "all" | ActionSourceKind;
+type KindTab = "all" | ActionSourceKind | "board";
 type TopTab = "actions" | "tracking";
 
 
@@ -234,13 +234,14 @@ export default function Today() {
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
+  const isBoardTab = kindTab === "board";
   const visibleList =
-    kindTab === "all"
+    kindTab === "all" || isBoardTab
       ? statusList
       : statusList.filter((a) => a.primaryKind === kindTab);
 
-  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
-  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück (Board-Tab ausgenommen)
+  if (kindTab !== "all" && !isBoardTab && !availableKinds.some((g) => g.id === kindTab)) {
     queueMicrotask(() => setKindTab("all"));
   }
 
@@ -367,16 +368,18 @@ export default function Today() {
 
           {/* A2 — Pending Feedback */}
 
-          {/* Talent ↔ Account-Board (Drag & Drop) — eine einheitliche Übersicht oberhalb der Aktionsliste */}
-          {!loading && kindTab === "all" && (
-            <MatchBoard
-              platform={platform}
-              view="full"
-              onCountsChange={setBoardCounts}
-              onChatterClick={(name, compareWith) =>
-                setSelectedChatter({ name, compareWith: compareWith ?? null })
-              }
-            />
+          {/* MatchBoard — als Filter "Match Board" sichtbar; im Hintergrund laden wir Counts immer */}
+          {!loading && (
+            <div className={cn(isBoardTab ? "" : "hidden")}>
+              <MatchBoard
+                platform={platform}
+                view="full"
+                onCountsChange={setBoardCounts}
+                onChatterClick={(name, compareWith) =>
+                  setSelectedChatter({ name, compareWith: compareWith ?? null })
+                }
+              />
+            </div>
           )}
 
           {/* Status-Pills + Kategorie-Tabs */}
@@ -414,7 +417,7 @@ export default function Today() {
             <div className="text-center py-12 text-white/25 text-xs font-light tracking-wide">
               Bündele Tagesaufgaben …
             </div>
-          ) : visibleList.length === 0 ? (
+          ) : isBoardTab ? null : visibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : kindTab === "all" ? (
             <div className="space-y-5">
@@ -501,7 +504,23 @@ export default function Today() {
                     {statusList.length}
                   </span>
                 </button>
-                {/* Talent / Account ungenutzt erscheinen nur noch visuell im MatchBoard auf "Alle" — keine separaten Tab-Pills mehr */}
+                {(boardCounts.talents + boardCounts.orphans) > 0 && (
+                  <button
+                    onClick={() => setKindTab("board")}
+                    className={cn(
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      isBoardTab
+                        ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                        : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                    )}
+                  >
+                    <Sparkles className={cn("h-3 w-3", isBoardTab ? "text-violet-300" : "text-white/40")} />
+                    Match Board
+                    <span className={cn("tabular-nums text-[10px]", isBoardTab ? "text-white/70" : "text-white/30")}>
+                      {boardCounts.talents + boardCounts.orphans}
+                    </span>
+                  </button>
+                )}
                 {availableKinds.map((g) => {
                   const Icon = g.icon;
                   const active = kindTab === g.id;
