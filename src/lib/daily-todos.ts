@@ -134,6 +134,59 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
 
+  // === LIVE-STATE laden (chatter_history_live) ===
+  // Wird benutzt, um Signale gegen den aktuellen Live-Stand abzugleichen:
+  //   - Verzug & offene Chats: falls live aufgelöst → Signal droppen
+  //   - sonst Live-Werte in die Beschreibung packen
+  interface LiveSnap {
+    unread: number;
+    oldest: number;
+    revenue: number;
+    massDms: number;
+    updatedAt: string;
+  }
+  const liveByName = new Map<string, LiveSnap>();
+  try {
+    const todayIso = todayStr();
+    const yIso = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const { data: liveRows } = await supabase
+      .from("chatter_history_live")
+      .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at")
+      .ilike("platform", platform)
+      .gte("date", yIso);
+    const sorted = [...(liveRows ?? [])].sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
+    });
+    for (const r of sorted) {
+      if (!r.chatter_name) continue;
+      const k = normalizeChatterName(r.chatter_name);
+      if (liveByName.has(k)) continue;
+      liveByName.set(k, {
+        unread: Math.max(0, Number(r.unread_chats ?? 0)),
+        oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
+        revenue: Math.max(0, Number(r.revenue ?? 0)),
+        massDms: Math.max(0, Number(r.mass_dms ?? 0)),
+        updatedAt: r.updated_at ?? todayIso,
+      });
+    }
+  } catch (e) {
+    console.warn("[daily-todos] live-state lookup failed", e);
+  }
+  const liveFor = (name: string): LiveSnap | null =>
+    liveByName.get(normalizeChatterName(name)) ?? null;
+  const liveAgeMin = (l: LiveSnap): number => {
+    const t = new Date(l.updatedAt).getTime();
+    return isFinite(t) ? Math.max(0, Math.round((Date.now() - t) / 60000)) : 9999;
+  };
+  const liveAgeLabel = (mins: number): string => {
+    if (mins < 60) return `${mins}min`;
+    const h = Math.floor(mins / 60);
+    return h < 24 ? `${h}h` : `${Math.floor(h / 24)}T`;
+  };
+
+
+
 
   // Models + Follower laden, um sie auf der Karte anzuzeigen.
   const { data: modelRowsForLookup } = await supabase
