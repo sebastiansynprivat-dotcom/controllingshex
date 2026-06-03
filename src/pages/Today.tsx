@@ -268,7 +268,6 @@ export default function Today() {
     try {
       await Promise.all(action.todoKeys.map((k) => setTodoStatus(platform, k, status, newSnooze)));
       if (kind === "done") {
-        toast.success("Erledigt 🏻");
         // A1 — Outcome-Snapshot fürs ROI-Lernen
         recordActionDone(platform, action).catch(() => {});
       }
