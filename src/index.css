@@ -6,71 +6,75 @@
 
 @layer base {
   :root {
-    --background: 240 6% 4%;
-    --foreground: 0 0% 93%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100% / 0.02;
-    --card-foreground: 0 0% 93%;
+    --card: 0 0% 100% / 0.025;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 240 6% 5%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 40 45% 55%;
-    --primary-foreground: 240 6% 4%;
+    --primary: 40 58% 60%;
+    --primary-foreground: 0 0% 4%;
 
     --secondary: 0 0% 100% / 0.04;
-    --secondary-foreground: 0 0% 70%;
+    --secondary-foreground: 0 0% 72%;
 
     --muted: 0 0% 100% / 0.04;
-    --muted-foreground: 0 0% 40%;
+    --muted-foreground: 0 0% 44%;
 
-    --accent: 40 45% 55%;
-    --accent-foreground: 240 6% 4%;
+    --accent: 40 58% 60%;
+    --accent-foreground: 0 0% 4%;
 
     --destructive: 0 55% 48%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 100% / 0.05;
-    --input: 0 0% 100% / 0.05;
-    --ring: 40 45% 55%;
+    --border: 0 0% 100% / 0.06;
+    --input: 0 0% 100% / 0.06;
+    --ring: 40 58% 60%;
 
     --radius: 0.75rem;
 
-    --gold: 40 45% 55%;
-    --gold-light: 40 50% 65%;
-    --gold-dark: 40 40% 42%;
+    /* Gold scale — editorial */
+    --gold: 40 58% 60%;
+    --gold-light: 42 72% 74%;
+    --gold-dark: 38 48% 40%;
+    --gold-deep: 38 50% 26%;
 
-    --surface-1: 240 6% 5%;
-    --surface-2: 0 0% 100% / 0.02;
-    --surface-3: 0 0% 100% / 0.04;
+    /* Surface stack — 4 distinct tiers */
+    --surface-0: 0 0% 2%;
+    --surface-1: 0 0% 5%;
+    --surface-2: 0 0% 100% / 0.025;
+    --surface-3: 0 0% 100% / 0.05;
 
-    --sidebar-background: 240 6% 4%;
-    --sidebar-foreground: 0 0% 50%;
-    --sidebar-primary: 40 45% 55%;
-    --sidebar-primary-foreground: 240 6% 4%;
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 0 0% 52%;
+    --sidebar-primary: 40 58% 60%;
+    --sidebar-primary-foreground: 0 0% 4%;
     --sidebar-accent: 0 0% 100% / 0.04;
-    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 100% / 0.04;
-    --sidebar-ring: 40 45% 55%;
+    --sidebar-ring: 40 58% 60%;
 
     /* Text hierarchy tokens (Apple-Pro readability) */
-    --text-strong: 0 0% 96%;
-    --text: 0 0% 84%;
-    --text-muted: 0 0% 64%;
-    --text-subtle: 0 0% 46%;
+    --text-strong: 0 0% 97%;
+    --text: 0 0% 86%;
+    --text-muted: 0 0% 66%;
+    --text-subtle: 0 0% 48%;
 
     /* Layered card shadows */
     --shadow-card:
-      0 1px 0 0 hsl(0 0% 100% / 0.06) inset,
-      0 0 0 1px hsl(0 0% 0% / 0.25),
-      0 12px 32px -16px hsl(0 0% 0% / 0.55),
-      0 2px 6px -2px hsl(0 0% 0% / 0.35);
+      0 1px 0 0 hsl(0 0% 100% / 0.07) inset,
+      0 0 0 1px hsl(0 0% 0% / 0.3),
+      0 14px 36px -16px hsl(0 0% 0% / 0.6),
+      0 2px 6px -2px hsl(0 0% 0% / 0.4);
     --shadow-card-hover:
-      0 1px 0 0 hsl(0 0% 100% / 0.09) inset,
-      0 0 0 1px hsl(0 0% 0% / 0.25),
-      0 22px 44px -18px hsl(0 0% 0% / 0.65),
-      0 4px 10px -2px hsl(0 0% 0% / 0.4),
-      0 0 32px -10px hsl(40 50% 60% / 0.06);
+      0 1px 0 0 hsl(0 0% 100% / 0.11) inset,
+      0 0 0 1px hsl(40 50% 50% / 0.16),
+      0 26px 50px -18px hsl(0 0% 0% / 0.7),
+      0 4px 12px -2px hsl(0 0% 0% / 0.45),
+      0 0 42px -10px hsl(40 60% 60% / 0.1);
 
     /* Desktop content frame */
     --content-max: 1400px;
