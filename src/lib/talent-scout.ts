@@ -129,6 +129,7 @@ function lookupFollowers(
 interface ChatterAgg {
   name: string;
   account: string;
+  numAccounts: number;         // Anzahl Accounts, die dieser Chatter parallel betreut (für per-Account-Split)
   followers: number;
   tier: AccountTier | null;
   daysOnboarded: number | null;
@@ -148,6 +149,7 @@ interface ChatterAgg {
   liveOpenChats: number;
   liveOldestChatDays: number;
 }
+
 
 /**
  * Talent-Score (Stufen):
