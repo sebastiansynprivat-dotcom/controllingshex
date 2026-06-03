@@ -244,12 +244,11 @@ export default function Today() {
       try {
         const { addRejection } = await import("@/lib/talent-rejections");
         await addRejection(platform, rej.riser, rej.account);
-        toast.success("Anderer Account wird gesucht");
         // Today neu laden
         const fresh = await buildTodayActions(platform);
         setData(fresh);
       } catch {
-        toast.error("Konnte nicht speichern");
+        // still silent
       }
       return;
     }
