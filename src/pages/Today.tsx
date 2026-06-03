@@ -589,17 +589,10 @@ export default function Today() {
           className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
         >
-          {/* Long, soft fade so cards melt out — no visible container edge */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-0 right-0 bottom-0 h-[140%] bg-gradient-to-t from-background via-background/85 to-transparent"
-          />
           <div className="pointer-events-auto mx-auto max-w-3xl px-3 pb-3 sm:px-6">
-            <div className="relative overflow-hidden">
-              {/* Edge fade masks for horizontal scroll */}
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent z-10" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent z-10" />
-              <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 scrollbar-none">
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-background/70 backdrop-blur-2xl shadow-[0_16px_48px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.025)_inset]">
+              <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
+              <div className="relative flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 scrollbar-none">
                 {statusOptions.map((o) => {
                   const active = status === o.id;
                   return (
