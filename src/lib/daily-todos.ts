@@ -225,6 +225,31 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     return parts.join(", ");
   };
 
+  // Onboarding-Startdatum (erstes Auftauchen in Reports, accountübergreifend) pro Chatter.
+  const onboardedByName = new Map<string, string>();
+  try {
+    const { data: onboardRows } = await supabase.rpc("get_chatter_onboarding", { p_platform: platform });
+    for (const r of (onboardRows ?? []) as { chatter_name: string; onboarded_on: string }[]) {
+      if (r?.chatter_name && r?.onboarded_on) {
+        onboardedByName.set(normalizeChatterName(r.chatter_name), r.onboarded_on);
+      }
+    }
+  } catch (e) {
+    console.warn("[daily-todos] onboarding date lookup failed", e);
+  }
+  const formatStartDate = (iso: string): string => {
+    const d = new Date(iso);
+    if (!isFinite(d.getTime())) return iso;
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  };
+  const startSuffixFor = (name: string): string => {
+    const iso = onboardedByName.get(normalizeChatterName(name));
+    if (!iso) return "";
+    const start = new Date(iso);
+    const days = Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000));
+    return ` · Start ${formatStartDate(iso)} (Tag ${days + 1})`;
+  };
+
   const byChatter = new Map<string, HistoryRow[]>();
   for (const r of rows) {
     if (!r.chatter_name) continue;
