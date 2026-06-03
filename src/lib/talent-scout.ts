@@ -467,13 +467,13 @@ export async function findTalentMatches(
       riserChatWorkDays: w.a.chatWorkDays,
       riserRevenueDays: w.a.revenueDays,
       riserHasRevenueBoost: hasRevenueBoost(w.a),
-      riserAvgRevenue: Math.round(w.a.avgRevenue),
+      riserAvgRevenue: Math.round(w.a.avgRevenue / w.a.numAccounts),
       underuser: candidate.a.name,
       underuserTier: candidate.a.tier!,
       underuserAccount: candidate.a.account,
       underuserFollowers: candidate.a.followers,
-      underuserAvgRevenue6d: candidate.a.avgRevenue,
-      underuserRecentAvgRevenue2d: candidate.a.recentAvgRevenue2d,
+      underuserAvgRevenue6d: candidate.a.avgRevenue / candidate.a.numAccounts,
+      underuserRecentAvgRevenue2d: candidate.a.recentAvgRevenue2d / candidate.a.numAccounts,
       underuserActiveDays: candidate.a.activeDays,
       underuserOpenChats: candidate.a.liveOpenChats,
       underuserOldestChatDays: candidate.a.liveOldestChatDays,
@@ -481,6 +481,7 @@ export async function findTalentMatches(
       matchScore: Math.min(100, Math.round(pairScore)),
       isCritical,
     });
+
   }
 
   return matches;
