@@ -3,6 +3,7 @@
  */
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MagneticHover } from "@/components/MagneticHover";
 import {
   Sheet,
   SheetContent,
@@ -87,9 +88,11 @@ export default function LabelFilterSheet({
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: l.color }}
                 />
-                <span className="flex-1 text-[13.5px] font-medium text-foreground">
-                  {l.label_name}
-                </span>
+                <MagneticHover as="span" range={16} pull={0.5} className="flex-1">
+                  <span className="block text-[13.5px] font-medium text-foreground">
+                    {l.label_name}
+                  </span>
+                </MagneticHover>
                 <span className="text-[11px] text-white/35 tabular-nums">
                   {count}
                 </span>

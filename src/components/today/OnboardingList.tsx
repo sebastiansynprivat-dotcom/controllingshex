@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sprout, ChevronRight, Tag, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MagneticHover } from "@/components/MagneticHover";
 import {
   Sheet,
   SheetContent,
@@ -116,26 +117,28 @@ export default function OnboardingList({
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              await navigator.clipboard.writeText(c.chatterName);
-                              toast.success(`${c.chatterName} kopiert`);
-                            } catch {
-                              toast.error("Kopieren fehlgeschlagen");
-                            }
-                          }}
-                          className="group/copy inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 rounded-md hover:bg-white/[0.06] active:scale-[0.98] transition-all"
-                          aria-label={`${c.chatterName} kopieren`}
-                          title="Klicken zum Kopieren"
-                        >
-                          <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
-                            {c.chatterName}
-                          </span>
-                          <Copy className="h-3 w-3 text-white/25 group-hover/copy:text-white/70 transition-colors" />
-                        </button>
+                        <MagneticHover as="span" range={18} pull={0.55}>
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(c.chatterName);
+                                toast.success(`${c.chatterName} kopiert`);
+                              } catch {
+                                toast.error("Kopieren fehlgeschlagen");
+                              }
+                            }}
+                            className="group/copy inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 rounded-md hover:bg-white/[0.06] active:scale-[0.98] transition-all"
+                            aria-label={`${c.chatterName} kopieren`}
+                            title="Klicken zum Kopieren"
+                          >
+                            <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
+                              {c.chatterName}
+                            </span>
+                            <Copy className="h-3 w-3 text-white/25 group-hover/copy:text-white/70 transition-colors" />
+                          </button>
+                        </MagneticHover>
                       </div>
                       <p className="text-[11px] text-white/35 font-light mt-1 truncate">
                         {c.account ? `Account · ${c.account}` : "Kein Account zugewiesen"}
@@ -191,9 +194,11 @@ export default function OnboardingList({
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: l.color }}
                 />
-                <span className="text-[14px] font-medium text-foreground">
-                  {l.label_name}
-                </span>
+                <MagneticHover as="span" range={16} pull={0.5}>
+                  <span className="text-[14px] font-medium text-foreground">
+                    {l.label_name}
+                  </span>
+                </MagneticHover>
               </button>
             ))}
           </div>
