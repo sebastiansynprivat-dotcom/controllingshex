@@ -294,13 +294,25 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
 
     const denom = rows.length;
     const activeSet = new Set<string>();
+    const dmSet = new Set<string>();
+    const chatWorkSet = new Set<string>();
+    const revSet = new Set<string>();
+    const revVals: number[] = [];
     for (const r of rows) {
-      const isAct =
-        Number(r.revenue_today ?? 0) > 0 ||
-        Number(r.mass_dms ?? 0) > 0 ||
-        Number(r.open_chats ?? 0) > 0;
+      const rev = Number(r.revenue_today ?? 0);
+      const dm = Number(r.mass_dms ?? 0);
+      const chats = Number(r.open_chats ?? 0);
+      const isAct = rev > 0 || dm > 0 || chats > 0;
       if (isAct) activeSet.add(r.analysis_date);
+      if (dm > 0) dmSet.add(r.analysis_date);
+      // "Chats abgearbeitet" — Annäherung: an dem Tag waren offene Chats sichtbar
+      // (Person hat den Inbox-Stack bearbeitet) ODER es kam Umsatz / DM dazu.
+      if (chats > 0 || dm > 0 || rev > 0) chatWorkSet.add(r.analysis_date);
+      if (rev > 0) { revSet.add(r.analysis_date); revVals.push(rev); }
     }
+    const avgRevenue = revVals.length === 0
+      ? 0
+      : revVals.reduce((s, v) => s + v, 0) / revVals.length;
 
     const liveRow = liveByChatter.get(k);
     aggs.push({
@@ -312,6 +324,10 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       activeDays: activeSet.size,
       streak: computeStreak(activeSet),
       avgDelay: rows.reduce((s, r) => s + (r.response_delay_days ?? 0), 0) / Math.max(1, denom),
+      dmDays: dmSet.size,
+      chatWorkDays: chatWorkSet.size,
+      revenueDays: revSet.size,
+      avgRevenue,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
     });
@@ -328,10 +344,10 @@ export async function findTalentMatches(
   if (aggs.length === 0) return [];
   const rejected = rejectedPairs ?? new Set<string>();
 
-  // Workhorses — nach Verlässlichkeit der letzten Tage.
+  // Workhorses — Gate: ≥3 aktive Tage, ≥2 Chat-Work-Tage, ≥2 DM-Tage (in workhorseScore enthalten).
   const workhorses = aggs
     .map((a) => ({ a, score: workhorseScore(a) }))
-    .filter((w) => w.a.activeDays >= 2)
+    .filter((w) => w.score > 0 && w.a.activeDays >= 3)
     .sort((x, y) => y.score - x.score)
     .slice(0, MAX_WORKHORSES);
 
@@ -366,7 +382,9 @@ export async function findTalentMatches(
     });
     if (!candidate) continue;
 
-    const pairScore = candidate.pain * 0.6 + w.score * 0.4;
+    // Pair-Score: Pain + Workhorse-Score + Revenue-Bonus
+    const revBoost = hasRevenueBoost(w.a) ? 15 : 0;
+    const pairScore = candidate.pain * 0.55 + w.score * 0.4 + revBoost;
     if (pairScore < MIN_PAIR_SCORE) continue;
 
     usedOrphans.add(norm(candidate.a.name));
@@ -378,6 +396,11 @@ export async function findTalentMatches(
       riserTier: w.a.tier,
       riserStreak: w.a.streak,
       riserActiveDays: w.a.activeDays,
+      riserDmDays: w.a.dmDays,
+      riserChatWorkDays: w.a.chatWorkDays,
+      riserRevenueDays: w.a.revenueDays,
+      riserHasRevenueBoost: hasRevenueBoost(w.a),
+      riserAvgRevenue: Math.round(w.a.avgRevenue),
       underuser: candidate.a.name,
       underuserTier: candidate.a.tier!,
       underuserAccount: candidate.a.account,
