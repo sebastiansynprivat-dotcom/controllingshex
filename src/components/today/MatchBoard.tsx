@@ -256,6 +256,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         tierLabel: o.tier.label,
         followers: o.followers,
         avgRevenue: o.avgRevenue6d,
+        todayRevenue: o.todayRevenue,
+        peakRevenue: o.peakRevenue,
         openChats: o.openChats,
         oldestChatDays: o.oldestChatDays,
         activeDays: o.activeDays,
