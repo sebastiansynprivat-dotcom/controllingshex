@@ -10,6 +10,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MagneticHover } from "@/components/MagneticHover";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
 
 interface Props {
@@ -322,9 +323,11 @@ export default function PersonActionCard({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
-                  {displayName}
-                </h3>
+                <MagneticHover as="span" range={56} strength={0.28} maxShift={8}>
+                  <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
+                    {displayName}
+                  </h3>
+                </MagneticHover>
                 <span
                   className={cn(
                     "px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0",
