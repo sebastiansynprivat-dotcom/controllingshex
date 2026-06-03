@@ -140,6 +140,8 @@ interface ChatterAgg {
   avgRevenue: number;          // Ø € pro aktivem Tag
   weeklyAvgRevenue: number;    // Ø € pro Tag (gesamt / HISTORY_DAYS-1) — Wochen-Pace
   recentAvgRevenue2d: number;  // Ø € der letzten 2 Tage (mit Umsatz)
+  todayRevenue: number;        // Umsatz heute (live)
+  peakRevenue: number;         // Bester historischer Tagesumsatz — Potenzial
   // Live-Werte heute — für Underuser-Score
   liveOpenChats: number;
   liveOldestChatDays: number;
