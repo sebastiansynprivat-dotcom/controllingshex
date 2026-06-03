@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -9,7 +9,9 @@ import PersonActionCard from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
-import MatchBoard from "@/components/today/MatchBoard";
+import OnboardingList from "@/components/today/OnboardingList";
+import LabelCardList from "@/components/today/LabelCardList";
+import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import {
   buildTodayActions,
   type UnifiedAction,
@@ -30,9 +32,17 @@ import {
   type ActionOutcomeRow,
   type WeekRecap,
 } from "@/lib/action-outcomes";
+import {
+  ensureSystemLabels,
+  loadChatterLabels,
+  loadLabelAssignments,
+  type ChatterLabel,
+  type LabelAssignment,
+} from "@/lib/chatter-labels";
 
 type StatusMode = "open" | "wins" | "done";
-type KindTab = "all" | ActionSourceKind | "board";
+type ExtraFilter = "none" | "onboarding" | "labels";
+type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
 
@@ -42,7 +52,6 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  // talent + mismatch absichtlich entfernt — werden visuell im MatchBoard (Talent / Account ungenutzt) abgebildet
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "activity", label: "Aktivität",      icon: Activity,       accent: "text-teal-300",     dot: "bg-teal-400/80" },
@@ -50,6 +59,7 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "slot",     label: "Slot / Schicht", icon: CalendarClock,  accent: "text-indigo-300",   dot: "bg-indigo-400/80" },
   { id: "positive", label: "Wins-Signal",    icon: ThumbsUp,       accent: "text-lime-300",     dot: "bg-lime-400/80" },
 ];
+
 
 function groupByKind(actions: UnifiedAction[]) {
   const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
@@ -80,10 +90,27 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
-  const [boardCounts, setBoardCounts] = useState<{ talents: number; orphans: number }>({ talents: 0, orphans: 0 });
+  const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
+
+  // Labels + Onboarding
+  const [labels, setLabels] = useState<ChatterLabel[]>([]);
+  const [assignments, setAssignments] = useState<LabelAssignment[]>([]);
+  const [onboardingGroups, setOnboardingGroups] = useState<import("@/lib/onboarding-filter").OnboardingGroup[]>([]);
+  const [labelCards, setLabelCards] = useState<import("@/lib/label-tasks").LabelCard[]>([]);
+  const [labelFilterOpen, setLabelFilterOpen] = useState(false);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("today.activeLabelFilters");
+      if (raw) return new Set(JSON.parse(raw));
+    } catch {}
+    return new Set();
+  });
+  const [labelDataNonce, setLabelDataNonce] = useState(0);
+  const reloadLabelData = () => setLabelDataNonce((n) => n + 1);
+
   const isSunday = new Date().getDay() === 0;
 
 
@@ -93,11 +120,14 @@ export default function Today() {
     month: "long",
   });
 
+
   useEffect(() => {
     let cancel = false;
     setLoading(true);
     // Backfill alte Outcomes vorab — füllt 24/48/72h-Snapshots
     backfillOutcomes(platform).catch(() => {});
+    // System-Labels seeden (idempotent)
+    ensureSystemLabels(platform).catch(() => {});
     Promise.all([
       buildTodayActions(platform),
       loadTodoStates(platform),
@@ -115,6 +145,41 @@ export default function Today() {
       .finally(() => !cancel && setLoading(false));
     return () => { cancel = true; };
   }, [platform, isSunday]);
+
+  // Labels + Onboarding + Label-Karten — separat & reagiert auf labelDataNonce
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const [lbls, asgs] = await Promise.all([
+          loadChatterLabels(platform),
+          loadLabelAssignments(platform),
+        ]);
+        if (cancel) return;
+        setLabels(lbls);
+        setAssignments(asgs);
+
+        const [onboarding, lblCards] = await Promise.all([
+          (await import("@/lib/onboarding-filter")).loadOnboardingChatters(platform, lbls, asgs),
+          (await import("@/lib/label-tasks")).loadLabelCards(platform, lbls, asgs),
+        ]);
+        if (cancel) return;
+        setOnboardingGroups(onboarding);
+        setLabelCards(lblCards);
+      } catch (e) {
+        console.error("[Today/labels]", e);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [platform, labelDataNonce]);
+
+  // localStorage sync für selectedLabelIds
+  useEffect(() => {
+    try {
+      localStorage.setItem("today.activeLabelFilters", JSON.stringify([...selectedLabelIds]));
+    } catch {}
+  }, [selectedLabelIds]);
+
 
   const visibility = (action: UnifiedAction): "open" | "done" | "hidden" | "snoozed-active" => {
     const now = new Date();
@@ -234,16 +299,50 @@ export default function Today() {
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
-  const isBoardTab = kindTab === "board";
   const visibleList =
-    kindTab === "all" || isBoardTab
+    kindTab === "all"
       ? statusList
       : statusList.filter((a) => a.primaryKind === kindTab);
 
-  // Falls aktiver Kind-Tab leer wird, auf "all" zurück (Board-Tab ausgenommen)
-  if (kindTab !== "all" && !isBoardTab && !availableKinds.some((g) => g.id === kindTab)) {
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
+  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
     queueMicrotask(() => setKindTab("all"));
   }
+
+  // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
+  const labelCountsByLabel = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of labelCards) {
+      if (states[c.todoKey]?.status === "done") continue;
+      m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
+    }
+    return m;
+  }, [labelCards, states]);
+
+  const visibleLabelCards = useMemo(
+    () => labelCards.filter((c) => selectedLabelIds.has(c.label.id)),
+    [labelCards, selectedLabelIds],
+  );
+  const labelDoneKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of labelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
+    return s;
+  }, [labelCards, states]);
+
+  const totalLabelOpenCount = useMemo(() => {
+    let n = 0;
+    for (const c of labelCards) {
+      if (!selectedLabelIds.has(c.label.id)) continue;
+      if (states[c.todoKey]?.status === "done") continue;
+      n += 1;
+    }
+    return n;
+  }, [labelCards, selectedLabelIds, states]);
+
+  const onboardingCount = useMemo(
+    () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
+    [onboardingGroups],
+  );
 
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
     { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
@@ -253,6 +352,7 @@ export default function Today() {
 
   // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
   const isReadonly = status === "done";
+
 
   return (
     <>
@@ -368,19 +468,8 @@ export default function Today() {
 
           {/* A2 — Pending Feedback */}
 
-          {/* MatchBoard — als Filter "Match Board" sichtbar; im Hintergrund laden wir Counts immer */}
-          {!loading && (
-            <div className={cn(isBoardTab ? "" : "hidden")}>
-              <MatchBoard
-                platform={platform}
-                view="full"
-                onCountsChange={setBoardCounts}
-                onChatterClick={(name, compareWith) =>
-                  setSelectedChatter({ name, compareWith: compareWith ?? null })
-                }
-              />
-            </div>
-          )}
+
+
 
 
 
@@ -391,9 +480,38 @@ export default function Today() {
             <div className="text-center py-12 text-white/25 text-xs font-light tracking-wide">
               Bündele Tagesaufgaben …
             </div>
-          ) : isBoardTab ? null : visibleList.length === 0 ? (
+          ) : extraFilter === "onboarding" ? (
+            <OnboardingList
+              groups={onboardingGroups}
+              allLabels={labels}
+              platform={platform}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onAssigned={reloadLabelData}
+            />
+          ) : extraFilter === "labels" ? (
+            <LabelCardList
+              cards={visibleLabelCards}
+              doneKeys={labelDoneKeys}
+              platform={platform}
+              readonly={isReadonly}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onComplete={async (key) => {
+                const prev = { ...states };
+                setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
+                try {
+                  await setTodoStatus(platform, key, "done", null);
+                  toast.success("Erledigt 🏻");
+                } catch {
+                  setStates(prev);
+                  throw new Error("save failed");
+                }
+              }}
+              onLabelRemoved={reloadLabelData}
+            />
+          ) : visibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
+
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={kindTab}
@@ -456,7 +574,7 @@ export default function Today() {
       </AnimatePresence>
 
       {/* Bottom-Nav: Kategorie-Filter — via Portal an Body, garantiert viewport-fixed (premium mobile feel) */}
-      {!loading && (availableKinds.length > 0 || kindTab !== "all" || boardCounts.talents > 0 || boardCounts.orphans > 0) && createPortal(
+      {!loading && (availableKinds.length > 0 || kindTab !== "all" || onboardingCount > 0 || labels.length > 0) && createPortal(
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -480,7 +598,9 @@ export default function Today() {
                       onClick={() => {
                         setStatus(o.id);
                         setKindTab("all");
+                        setExtraFilter("none");
                       }}
+
                       className={cn(
                         "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5 uppercase tracking-wider text-[10.5px] font-semibold",
                         active
@@ -497,44 +617,72 @@ export default function Today() {
                 })}
                 <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
                 <button
-
-                  onClick={() => setKindTab("all")}
+                  onClick={() => { setExtraFilter("none"); setKindTab("all"); }}
                   className={cn(
                     "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                    kindTab === "all"
+                    kindTab === "all" && extraFilter === "none"
                       ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                       : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
                   )}
                 >
                   Alle
-                  <span className={cn("tabular-nums text-[10px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
+                  <span className={cn("tabular-nums text-[10px]", kindTab === "all" && extraFilter === "none" ? "text-white/70" : "text-white/30")}>
                     {statusList.length}
                   </span>
                 </button>
-                {(boardCounts.talents + boardCounts.orphans) > 0 && (
+                {onboardingCount > 0 && (
                   <button
-                    onClick={() => setKindTab("board")}
+                    onClick={() => { setExtraFilter("onboarding"); setKindTab("all"); }}
                     className={cn(
                       "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                      isBoardTab
+                      extraFilter === "onboarding"
+                        ? "bg-emerald-500/[0.12] border-emerald-400/30 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.4)]"
+                        : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                    )}
+                  >
+                    <Sprout className={cn("h-3 w-3", extraFilter === "onboarding" ? "text-emerald-300" : "text-white/40")} />
+                    Onboarding
+                    <span className={cn("tabular-nums text-[10px]", extraFilter === "onboarding" ? "text-emerald-200/85" : "text-white/30")}>
+                      {onboardingCount}
+                    </span>
+                  </button>
+                )}
+                {labels.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (extraFilter === "labels") {
+                        setLabelFilterOpen(true);
+                      } else {
+                        setExtraFilter("labels");
+                        setKindTab("all");
+                        // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
+                        if (selectedLabelIds.size === 0) {
+                          setSelectedLabelIds(new Set(labels.map((l) => l.id)));
+                        }
+                      }
+                    }}
+                    className={cn(
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      extraFilter === "labels"
                         ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                         : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
                     )}
                   >
-                    <Sparkles className={cn("h-3 w-3", isBoardTab ? "text-violet-300" : "text-white/40")} />
-                    Match Board
-                    <span className={cn("tabular-nums text-[10px]", isBoardTab ? "text-white/70" : "text-white/30")}>
-                      {boardCounts.talents + boardCounts.orphans}
+                    <Tag className={cn("h-3 w-3", extraFilter === "labels" ? "text-amber-200" : "text-white/40")} />
+                    Labels
+                    <span className={cn("tabular-nums text-[10px]", extraFilter === "labels" ? "text-white/70" : "text-white/30")}>
+                      {totalLabelOpenCount}
                     </span>
                   </button>
                 )}
+
                 {availableKinds.map((g) => {
                   const Icon = g.icon;
                   const active = kindTab === g.id;
                   return (
                     <button
                       key={g.id}
-                      onClick={() => setKindTab(g.id)}
+                      onClick={() => { setExtraFilter("none"); setKindTab(g.id); }}
                       className={cn(
                         "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
                         active
@@ -592,9 +740,26 @@ export default function Today() {
           </>
         );
       })()}
+
+      <LabelFilterSheet
+        open={labelFilterOpen}
+        onOpenChange={setLabelFilterOpen}
+        labels={labels}
+        countsByLabel={labelCountsByLabel}
+        selectedIds={selectedLabelIds}
+        onToggle={(id) => {
+          const next = new Set(selectedLabelIds);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          setSelectedLabelIds(next);
+        }}
+        onSelectAll={() => setSelectedLabelIds(new Set(labels.map((l) => l.id)))}
+        onClearAll={() => setSelectedLabelIds(new Set())}
+      />
     </>
   );
 }
+
 
 function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: boolean }) {
   const cfg = status === "open"
