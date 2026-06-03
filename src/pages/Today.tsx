@@ -32,7 +32,7 @@ import {
 } from "@/lib/action-outcomes";
 
 type StatusMode = "open" | "wins" | "done";
-type KindTab = "all" | ActionSourceKind;
+type KindTab = "all" | ActionSourceKind | "board";
 type TopTab = "actions" | "tracking";
 
 
