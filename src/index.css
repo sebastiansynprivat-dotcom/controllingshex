@@ -173,6 +173,19 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     letter-spacing: -0.02em;
   }
+
+  /* Editorial display headlines */
+  .font-display-serif,
+  .display-serif {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-feature-settings: 'ss01';
+    font-optical-sizing: auto;
+    letter-spacing: -0.025em;
+  }
+
+  .font-mono-ui {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
 }
 
 @layer utilities {
