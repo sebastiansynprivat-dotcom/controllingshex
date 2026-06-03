@@ -418,14 +418,24 @@ export default function Today() {
             </motion.div>
           )}
 
-          {/* Talent ↔ Account-Board (Drag & Drop) — prominent ganz oben */}
+          {/* Talent ↔ Account-Board (Drag & Drop) — sichtbar bei "Alle" oder als Filter-Ansicht */}
           {!loading && (
-            <MatchBoard
-              platform={platform}
-              onChatterClick={(name, compareWith) =>
-                setSelectedChatter({ name, compareWith: compareWith ?? null })
-              }
-            />
+            <div className={cn((kindTab === "all" || isBoardTab) ? "" : "hidden")}>
+              <MatchBoard
+                platform={platform}
+                view={
+                  kindTab === "board-talent"
+                    ? "talent-only"
+                    : kindTab === "board-orphan"
+                      ? "orphan-only"
+                      : "full"
+                }
+                onCountsChange={setBoardCounts}
+                onChatterClick={(name, compareWith) =>
+                  setSelectedChatter({ name, compareWith: compareWith ?? null })
+                }
+              />
+            </div>
           )}
 
           {/* Status-Pills + Kategorie-Tabs */}
