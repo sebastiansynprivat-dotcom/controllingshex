@@ -106,7 +106,9 @@ export default function Today() {
     try {
       const raw = localStorage.getItem("today.activeLabelFilters");
       if (raw) return new Set(JSON.parse(raw));
-    } catch {}
+    } catch {
+      // ignore corrupted local filter cache
+    }
     return new Set();
   });
   const [labelDataNonce, setLabelDataNonce] = useState(0);
@@ -178,7 +180,9 @@ export default function Today() {
   useEffect(() => {
     try {
       localStorage.setItem("today.activeLabelFilters", JSON.stringify([...selectedLabelIds]));
-    } catch {}
+    } catch {
+      // ignore unavailable localStorage
+    }
   }, [selectedLabelIds]);
 
 
