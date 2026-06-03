@@ -52,12 +52,10 @@ const AppRoutes = () => (
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/live" element={<LiveTracking />} />
               <Route path="/today" element={<Today />} />
-              <Route path="/forecast" element={<Forecast />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
               <Route path="/monatsziele" element={<MonthlyGoals />} />
-              <Route path="/absence" element={<Navigate to="/forecast" replace />} />
               <Route path="/upload" element={<UploadPage />} />
-              <Route path="/videocoaching" element={<Videocoaching />} />
+
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/ai-consultant" element={<AIConsultant />} />
               <Route path="/notes" element={<Notes />} />
