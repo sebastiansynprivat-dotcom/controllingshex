@@ -367,13 +367,13 @@ export default function Today() {
     if (extraFilter === "onboarding") return { key: "onb", color: "52,211,153", intensity: 0.11 };
     if (extraFilter === "labels")     return { key: "lbl", color: "251,191,36", intensity: 0.10 };
     if (kindTab !== "all") {
-      const map: Record<ActionSourceKind, string> = {
+      const map: Partial<Record<ActionSourceKind, string>> = {
         verzug: "248,113,113", recovery: "251,146,60", wakeup: "52,211,153",
         swap: "34,211,238",   phase: "56,189,248",    revenue: "52,211,153",
         activity: "45,212,191", model: "232,121,249", slot: "129,140,248",
         positive: "163,230,53",
       };
-      return { key: kindTab, color: map[kindTab], intensity: 0.11 };
+      return { key: kindTab, color: map[kindTab] ?? "255,255,255", intensity: 0.11 };
     }
     return { key: "open", color: "255,255,255", intensity: 0.015 };
   })();
