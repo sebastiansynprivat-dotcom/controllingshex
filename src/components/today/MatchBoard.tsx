@@ -42,6 +42,8 @@ type TalentCard = {
   revenueDays: number;
   avgRevenue: number;
   tierLabel: string;
+  accountFollowers: number;
+  accountAvgRevenue: number;
   isCritical: boolean;
 };
 
@@ -51,6 +53,7 @@ type MismatchCard = {
   account: string;
   tierLabel: string;
   followers: number;
+  avgRevenue: number;
   openChats: number;
   oldestChatDays: number;
   activeDays: number;
