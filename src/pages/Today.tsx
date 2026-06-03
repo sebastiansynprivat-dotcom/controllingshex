@@ -12,6 +12,7 @@ import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   buildTodayActions,
   type UnifiedAction,
