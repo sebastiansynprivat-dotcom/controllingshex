@@ -49,6 +49,9 @@ export interface TalentMatch {
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
+  underuserFollowers: number;
+  underuserAvgRevenue6d: number;
+  underuserRecentAvgRevenue2d: number;
   underuserActiveDays: number;  // historische 7T-Aktivität, nur zur Anzeige
   underuserOpenChats: number;   // LIVE: unread_chats heute
   underuserOldestChatDays: number; // LIVE: oldest_chat heute (Tage)
@@ -419,6 +422,9 @@ export async function findTalentMatches(
       underuser: candidate.a.name,
       underuserTier: candidate.a.tier!,
       underuserAccount: candidate.a.account,
+      underuserFollowers: candidate.a.followers,
+      underuserAvgRevenue6d: candidate.a.avgRevenue,
+      underuserRecentAvgRevenue2d: candidate.a.recentAvgRevenue2d,
       underuserActiveDays: candidate.a.activeDays,
       underuserOpenChats: candidate.a.liveOpenChats,
       underuserOldestChatDays: candidate.a.liveOldestChatDays,
