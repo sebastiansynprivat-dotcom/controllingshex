@@ -15,7 +15,7 @@ import AIConsultant from "@/pages/AIConsultant";
 import Leaderboard from "@/pages/Leaderboard";
 import Notes from "@/pages/Notes";
 import TinderMode from "@/pages/TinderMode";
-import Forecast from "@/pages/Forecast";
+
 import Anomalies from "@/pages/Anomalies";
 import MonthlyGoals from "@/pages/MonthlyGoals";
 import Auth from "@/pages/Auth";
