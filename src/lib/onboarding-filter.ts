@@ -1,5 +1,5 @@
 /**
- * Onboarding-Filter — Chatter ab Tag 5 nach Onboarding, ohne System-Label,
+ * Onboarding-Filter — Chatter Tag 6–20 nach Onboarding, ohne System-Label,
  * gruppiert nach Onboarding-Tag absteigend für sequenzielles Durcharbeiten.
  */
 import { supabase } from "@/integrations/supabase/client";
@@ -21,8 +21,8 @@ export interface OnboardingGroup {
 }
 
 interface Options {
-  minDays?: number; // default 5
-  maxDays?: number; // default 14
+  minDays?: number; // default 6
+  maxDays?: number; // default 20
 }
 
 export async function loadOnboardingChatters(
@@ -31,8 +31,8 @@ export async function loadOnboardingChatters(
   assignments: LabelAssignment[],
   opts: Options = {},
 ): Promise<OnboardingGroup[]> {
-  const minDays = opts.minDays ?? 5;
-  const maxDays = opts.maxDays ?? Number.POSITIVE_INFINITY;
+  const minDays = opts.minDays ?? 6;
+  const maxDays = opts.maxDays ?? 20;
 
   const [onboardingRes, activeNames, accountsRes] = await Promise.all([
     supabase.rpc("get_chatter_onboarding", { p_platform: platform }),
