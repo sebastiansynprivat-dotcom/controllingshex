@@ -290,8 +290,6 @@ export default function Dashboard() {
             {/* Revenue Recovery Queue — Tagesziel mit konkretem €-Hebel */}
             <RecoveryQueueCard platform={platform} onChatterSelect={setSelectedChatter} />
 
-            {/* Forecast-Frühwarnung Banner */}
-            <ForecastBanner platform={platform} />
 
             {/* Auffälligkeiten — synchron mit /auffaelligkeiten und Swipe-Mode */}
             <AnomalyPanel
