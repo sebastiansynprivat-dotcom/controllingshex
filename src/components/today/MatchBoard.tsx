@@ -58,6 +58,9 @@ type MismatchCard = {
 interface Props {
   platform: string;
   onChatterClick?: (name: string, compareWith?: string | null) => void;
+  view?: "full" | "talent-only" | "orphan-only";
+  onCountsChange?: (counts: { talents: number; orphans: number }) => void;
+  hideHeader?: boolean;
 }
 
 const fmtFollowers = (n: number) =>
