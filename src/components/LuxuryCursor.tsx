@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 export function LuxuryCursor() {
   const [enabled, setEnabled] = useState(false);
   const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
 
   const mouse = useRef({ x: -100, y: -100 });
   const stateRef = useRef({ hover: false, down: false, visible: false });
@@ -35,6 +36,7 @@ export function LuxuryCursor() {
       if (!stateRef.current.visible) {
         stateRef.current.visible = true;
         if (dotRef.current) dotRef.current.style.opacity = "1";
+        if (ringRef.current) ringRef.current.style.opacity = "1";
       }
       const target = e.target as HTMLElement | null;
       const interactive = !!target?.closest(
@@ -46,6 +48,7 @@ export function LuxuryCursor() {
     const onLeave = () => {
       stateRef.current.visible = false;
       if (dotRef.current) dotRef.current.style.opacity = "0";
+      if (ringRef.current) ringRef.current.style.opacity = "0";
     };
     const onDown = () => (stateRef.current.down = true);
     const onUp = () => (stateRef.current.down = false);
@@ -59,10 +62,15 @@ export function LuxuryCursor() {
     const tick = () => {
       const hover = stateRef.current.hover;
       const down = stateRef.current.down;
-      const scale = hover ? 0.6 : down ? 1.3 : 1;
+      const dotScale = hover ? 0.6 : down ? 1.3 : 1;
+      const ringScale = hover ? 1.4 : down ? 0.8 : 1;
 
+      const tx = `translate3d(${mouse.current.x}px, ${mouse.current.y}px, 0) translate(-50%, -50%)`;
       if (dotRef.current) {
-        dotRef.current.style.transform = `translate3d(${mouse.current.x}px, ${mouse.current.y}px, 0) translate(-50%, -50%) scale(${scale})`;
+        dotRef.current.style.transform = `${tx} scale(${dotScale})`;
+      }
+      if (ringRef.current) {
+        ringRef.current.style.transform = `${tx} scale(${ringScale})`;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -81,28 +89,50 @@ export function LuxuryCursor() {
   if (!enabled) return null;
 
   return (
-    <div
-      ref={dotRef}
-      aria-hidden
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: 5,
-        height: 5,
-        borderRadius: "9999px",
-        background:
-          "radial-gradient(circle at 35% 35%, hsl(var(--gold-light)), hsl(var(--gold-dark)))",
-        boxShadow:
-          "0 0 6px hsl(var(--gold) / 0.6), 0 0 2px hsl(var(--gold-light) / 0.8)",
-        pointerEvents: "none",
-        zIndex: 2147483647,
-        opacity: 0,
-        transition: "opacity 200ms ease",
-        willChange: "transform",
-      }}
-    />
+    <>
+      <div
+        ref={ringRef}
+        aria-hidden
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: 26,
+          height: 26,
+          borderRadius: "9999px",
+          border: "1px solid hsl(var(--gold) / 0.55)",
+          boxShadow: "0 0 8px hsl(var(--gold) / 0.18)",
+          pointerEvents: "none",
+          zIndex: 2147483646,
+          opacity: 0,
+          transition: "opacity 200ms ease",
+          willChange: "transform",
+        }}
+      />
+      <div
+        ref={dotRef}
+        aria-hidden
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: 5,
+          height: 5,
+          borderRadius: "9999px",
+          background:
+            "radial-gradient(circle at 35% 35%, hsl(var(--gold-light)), hsl(var(--gold-dark)))",
+          boxShadow:
+            "0 0 6px hsl(var(--gold) / 0.6), 0 0 2px hsl(var(--gold-light) / 0.8)",
+          pointerEvents: "none",
+          zIndex: 2147483647,
+          opacity: 0,
+          transition: "opacity 200ms ease",
+          willChange: "transform",
+        }}
+      />
+    </>
   );
 }
+
 
 export default LuxuryCursor;
