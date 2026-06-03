@@ -30,39 +30,49 @@ const TONE: Record<
     barDim: string;
     dot: string;
     statusLabel: string;
+    pill: string;
+    insertBar: string;
   }
 > = {
   critical: {
-    glow: "from-red-500/15 via-red-500/5",
+    glow: "from-red-500/10 via-red-500/[0.03]",
     accent: "text-red-300",
     bar: "bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.4)]",
     barDim: "bg-red-500/40",
     dot: "bg-red-500",
     statusLabel: "Kritisch",
+    pill: "border-red-400/25 bg-red-500/[0.06] text-red-300/90",
+    insertBar: "bg-red-500/60",
   },
   warning: {
-    glow: "from-amber-500/15 via-amber-500/5",
+    glow: "from-amber-500/10 via-amber-500/[0.03]",
     accent: "text-amber-300",
     bar: "bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]",
     barDim: "bg-amber-500/40",
     dot: "bg-amber-500",
     statusLabel: "Warnung",
+    pill: "border-amber-400/25 bg-amber-500/[0.06] text-amber-300/90",
+    insertBar: "bg-amber-500/60",
   },
   info: {
-    glow: "from-cyan-500/12 via-cyan-500/4",
+    glow: "from-cyan-500/8 via-cyan-500/[0.02]",
     accent: "text-cyan-300",
     bar: "bg-cyan-500/80 shadow-[0_0_8px_rgba(6,182,212,0.35)]",
     barDim: "bg-cyan-500/35",
     dot: "bg-cyan-500",
     statusLabel: "Hinweis",
+    pill: "border-cyan-400/25 bg-cyan-500/[0.06] text-cyan-300/90",
+    insertBar: "bg-cyan-500/60",
   },
   positive: {
-    glow: "from-emerald-500/15 via-emerald-500/5",
+    glow: "from-emerald-500/10 via-emerald-500/[0.03]",
     accent: "text-emerald-300",
     bar: "bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]",
     barDim: "bg-emerald-500/40",
     dot: "bg-emerald-500",
     statusLabel: "Win",
+    pill: "border-emerald-400/25 bg-emerald-500/[0.06] text-emerald-300/90",
+    insertBar: "bg-emerald-500/60",
   },
 };
 
@@ -306,20 +316,25 @@ export default function PersonActionCard({
         )}
       />
 
-      <div className="relative flex flex-col overflow-hidden rounded-2xl bg-[#0C0C0C] border border-white/10 shadow-2xl">
+      <div className="relative flex flex-col overflow-hidden rounded-2xl bg-white/[0.025] backdrop-blur-xl border border-white/[0.06] shadow-2xl transition-all duration-300 group-hover:border-white/[0.12] group-hover:bg-white/[0.04] group-hover:-translate-y-px group-hover:shadow-[0_18px_50px_-22px_rgba(0,0,0,0.7)]">
         {/* Header */}
-        <div className="p-5 border-b border-white/[0.04] bg-gradient-to-r from-white/[0.015] to-transparent">
+        <div className="p-5 pb-4">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
                   {displayName}
                 </h3>
-                <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-[9px] font-bold text-white/45 uppercase tracking-widest shrink-0">
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0",
+                    tone.pill,
+                  )}
+                >
                   {bundled ? bundleLabel : singleLabel}
                 </span>
               </div>
-              <p className="text-[10.5px] font-semibold text-white/35 uppercase tracking-[0.12em]">
+              <p className="text-[10.5px] font-bold text-white/35 uppercase tracking-[0.18em]">
                 {bundled
                   ? `${action.signals.length} aktive Signale detektiert`
                   : "1 Signal detektiert"}
@@ -352,9 +367,9 @@ export default function PersonActionCard({
               </div>
               <div
                 className={cn(
-                  "mt-1 text-[9px] font-bold uppercase tracking-[0.15em] flex items-center justify-end gap-1.5",
+                  "mt-1 text-[9px] font-bold uppercase tracking-[0.18em] flex items-center justify-end gap-1.5",
                   tone.accent,
-                  "opacity-80",
+                  "opacity-85",
                 )}
               >
                 <span className={cn("w-1 h-1 rounded-full animate-pulse", tone.dot)} />
@@ -364,18 +379,18 @@ export default function PersonActionCard({
           </div>
 
           {(action.inPeakNow || peakLabel || showCoi) && (
-            <div className="flex items-center gap-4 mt-3 text-[10.5px] text-white/40 tabular-nums">
+            <div className="flex items-center gap-2 mt-3.5">
               {action.inPeakNow ? (
-                <span className="flex items-center gap-1 text-emerald-300/90">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.04] text-[10.5px] font-medium text-emerald-300/90 tabular-nums">
                   <Zap className="h-3 w-3" /> Peak jetzt
                 </span>
               ) : peakLabel ? (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.04] text-[10.5px] font-medium text-white/55 tabular-nums">
                   <Zap className="h-3 w-3" /> {peakLabel}
                 </span>
               ) : null}
               {showCoi && (
-                <span className="flex items-center gap-1 text-rose-300/85">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.04] text-[10.5px] font-medium text-rose-300/85 tabular-nums">
                   <TrendingDown className="h-3 w-3" />
                   −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €
                 </span>
@@ -385,14 +400,8 @@ export default function PersonActionCard({
         </div>
 
         {/* Signal-Liste */}
-        <div className="p-3 flex flex-col gap-1.5">
+        <div className="px-5 pb-4 flex flex-col gap-2">
           {rows.map((r, i) => {
-            const intensityCls =
-              r.intensity === "strong"
-                ? tone.bar
-                : r.intensity === "medium"
-                  ? tone.barDim
-                  : "bg-white/10";
             const clickable =
               !!r.compareWith && !!action.chatterName && !readonly;
             return (
@@ -405,61 +414,62 @@ export default function PersonActionCard({
                   else openDetails();
                 }}
                 className={cn(
-                  "group/item flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors",
-                  i === 0
-                    ? "bg-white/[0.03] border-white/[0.06]"
-                    : "bg-white/[0.02] border-white/[0.04]",
-                  "hover:bg-white/[0.05]",
+                  "group/item relative w-full text-left rounded-xl bg-black/30 border border-white/[0.04] p-4 pr-10 transition-colors overflow-hidden",
+                  "hover:bg-black/40 hover:border-white/[0.08]",
+                  i > 0 && "bg-black/20",
                 )}
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={cn("w-1 h-8 rounded-full shrink-0", intensityCls)} />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11.5px] font-bold text-white/85 uppercase tracking-wide break-words">
-                      {r.title}
+                <div
+                  className={cn(
+                    "absolute left-0 top-0 bottom-0 w-1",
+                    i === 0 ? tone.insertBar : tone.barDim,
+                  )}
+                />
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider break-words">
+                    {r.title}
+                  </span>
+                  {r.meta && (
+                    <span className="text-[11.5px] text-white/55 font-light break-words leading-relaxed">
+                      {r.meta}
                     </span>
-                    {r.meta && (
-                      <span className="text-[10px] text-white/40 font-light break-words leading-snug mt-0.5">
-                        {r.meta}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
-                <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover/item:text-white/50 transition-colors shrink-0" />
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 group-hover/item:text-white/55 transition-colors shrink-0" />
               </button>
             );
           })}
           {restCount > 0 && (
-            <p className="text-[10px] text-white/35 font-light px-3 pt-0.5">
+            <p className="text-[10px] text-white/35 font-light px-1 pt-0.5">
               + {restCount} weitere Signal{restCount > 1 ? "e" : ""}
             </p>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 pt-0">
-          <div className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.05] p-2">
+        <div className="px-5 pb-5 pt-1">
+          <div className="flex items-center justify-between border-t border-white/[0.05] pt-3">
             <button
               type="button"
               onClick={(e) => {
                 stop(e);
                 openDetails();
               }}
-              className="flex items-center gap-3 pl-1 pr-2 py-0.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
+              className="flex items-center gap-3 -ml-1 pl-1 pr-2 py-1 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
             >
               <div className="relative shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-white/10 to-transparent text-[10px] font-bold text-white/75 border border-white/10">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-white/12 to-transparent text-[10px] font-bold text-white/80 border border-white/10">
                   {initials(action.chatterName ?? action.modelName)}
                 </div>
                 <div
                   className={cn(
-                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0C0C0C]",
+                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background",
                     tone.dot,
                   )}
                 />
               </div>
               <div className="flex flex-col leading-tight min-w-0 text-left">
-                <span className="text-[11px] font-medium text-white/75 truncate">
+                <span className="text-[12px] font-medium text-white/80 truncate">
                   {action.chatterName ?? action.modelName ?? "Details"}
                 </span>
                 {compareTarget && (
@@ -469,6 +479,7 @@ export default function PersonActionCard({
                 )}
               </div>
             </button>
+
 
             <div className="flex items-center gap-1">
               {headlineSignal.rejectAccount && !readonly && (
@@ -515,7 +526,7 @@ export default function PersonActionCard({
                       stop(e);
                       handleComplete();
                     }}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.98] transition-all disabled:opacity-80"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.97] transition-all disabled:opacity-80 shadow-[0_0_24px_-6px_rgba(255,255,255,0.18)]"
                   >
                     Abschließen
                     <Check className="h-3 w-3" strokeWidth={3} />
