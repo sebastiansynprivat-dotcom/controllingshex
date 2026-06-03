@@ -194,9 +194,11 @@ export default function OnboardingList({
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: l.color }}
                 />
-                <span className="text-[14px] font-medium text-foreground">
-                  {l.label_name}
-                </span>
+                <MagneticHover as="span" range={16} pull={0.5}>
+                  <span className="text-[14px] font-medium text-foreground">
+                    {l.label_name}
+                  </span>
+                </MagneticHover>
               </button>
             ))}
           </div>
