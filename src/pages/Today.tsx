@@ -310,14 +310,19 @@ export default function Today() {
   }
 
   // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
+  const systemLabelIdSet = useMemo(
+    () => new Set(labels.filter(isSystemLabel).map((l) => l.id)),
+    [labels],
+  );
   const labelCountsByLabel = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of labelCards) {
+      if (!systemLabelIdSet.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
       m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
     }
     return m;
-  }, [labelCards, states]);
+  }, [labelCards, states, systemLabelIdSet]);
 
   const visibleLabelCards = useMemo(
     () => labelCards.filter((c) => selectedLabelIds.has(c.label.id)),
