@@ -42,6 +42,8 @@ type TalentCard = {
   revenueDays: number;
   avgRevenue: number;
   tierLabel: string;
+  accountFollowers: number;
+  accountAvgRevenue: number;
   isCritical: boolean;
 };
 
@@ -51,6 +53,7 @@ type MismatchCard = {
   account: string;
   tierLabel: string;
   followers: number;
+  avgRevenue: number;
   openChats: number;
   oldestChatDays: number;
   activeDays: number;
@@ -166,6 +169,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           revenueDays: m.riserRevenueDays,
           avgRevenue: m.riserAvgRevenue,
           tierLabel: m.underuserTier.label,
+          accountFollowers: m.underuserFollowers,
+          accountAvgRevenue: m.underuserAvgRevenue6d,
           isCritical: m.isCritical,
         }));
 
@@ -174,7 +179,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
           chatter: o.chatter,
           account: o.account,
           tierLabel: o.tier.label,
-          followers: 0,
+          followers: o.followers,
+          avgRevenue: o.avgRevenue6d,
           openChats: o.openChats,
           oldestChatDays: o.oldestChatDays,
           activeDays: o.activeDays,
@@ -233,6 +239,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         revenueDays: m.riserRevenueDays,
         avgRevenue: m.riserAvgRevenue,
         tierLabel: m.underuserTier.label,
+        accountFollowers: m.underuserFollowers,
+        accountAvgRevenue: m.underuserAvgRevenue6d,
         isCritical: m.isCritical,
       })));
     } else {
@@ -242,7 +250,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         chatter: o.chatter,
         account: o.account,
         tierLabel: o.tier.label,
-        followers: 0,
+        followers: o.followers,
+        avgRevenue: o.avgRevenue6d,
         openChats: o.openChats,
         oldestChatDays: o.oldestChatDays,
         activeDays: o.activeDays,
@@ -419,6 +428,9 @@ function SortableTalentCard({ card, onClick }: { card: TalentCard; onClick: () =
           )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums">
+          {fmtFollowers(card.accountFollowers)} Follower · Ø {Math.round(card.accountAvgRevenue)} €/Tag
+        </p>
+        <p className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums">
           {card.chatWorkDays}/6T Chats · {card.dmDays}/6T DMs
           {card.hasRevenueBoost && (
             <span className="text-amber-300/80"> · {card.revenueDays}/6T Umsatz Ø {card.avgRevenue} €</span>
@@ -473,6 +485,9 @@ function SortableMismatchCard({ card, onClick }: { card: MismatchCard; onClick: 
           )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums truncate">
+          {fmtFollowers(card.followers)} Follower · Ø {Math.round(card.avgRevenue)} €/Tag
+        </p>
+        <p className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums truncate">
           bei {card.chatter} · ältester Chat {card.oldestChatDays}T · {card.openChats} ungelesen
         </p>
       </button>
