@@ -370,7 +370,7 @@ export default function Today() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="max-w-3xl mx-auto space-y-6"
+          className="max-w-3xl mx-auto space-y-6 pb-32"
         >
           {/* Header */}
           <div>
