@@ -295,28 +295,25 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       });
       continue;
     }
-    // Verzug — harter Fakt aus aktuellem Report, gilt auch ab Tag 2 Onboarding.
-    const delay = todayMaxDelay;
-    if (todayEntry && delay >= 3) {
-      const live = liveFor(name);
-      // Live-Gegencheck: wenn live KEIN alter Chat mehr offen ist UND fast nix ungelesen
-      // → Verzug ist faktisch abgearbeitet, Signal droppen.
-      const resolved = live && live.oldest < 1 && live.unread < 5;
-      if (!resolved) {
-        const livePart = live
-          ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${Math.round(live.oldest)}T · ${live.unread} ungelesen`
-          : "";
+    // Verzug — ausschließlich auf Live-Daten basiert (kein History-Report mehr).
+    const live = liveFor(name);
+    if (live) {
+      const oldestDays = Math.round(live.oldest);
+      // Trigger nur bei echtem Live-Rückstand
+      const isBacklog = oldestDays >= 3 || live.unread >= 20;
+      if (isBacklog) {
         todos.push({
           key: `verzug:${name}:${today}`,
           category: "verzug",
-          score: Math.round((90 + delay * 5) * importance),
-          title: `${name} dringend — ${delay} Tage Verzug${tag}`,
-          why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${livePart}${modelSuffix}. Sofort entlasten oder Ursache klären.`,
+          score: Math.round((90 + oldestDays * 5) * importance),
+          title: `${name} dringend — ältester Chat ${oldestDays}T${tag}`,
+          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${live.unread} ungelesen${modelSuffix}. Sofort entlasten oder Ursache klären.`,
           chatterName: name,
-          meta: { delayDays: delay, todayOpenChats },
+          meta: { delayDays: oldestDays, todayOpenChats: live.unread },
         });
       }
     }
+
 
     if (!todayEntry || historical.length < 2) continue;
     if (onlyVerzug) continue; // Tag 2–5: ab hier nichts mehr
