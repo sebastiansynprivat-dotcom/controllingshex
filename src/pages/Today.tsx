@@ -480,9 +480,38 @@ export default function Today() {
             <div className="text-center py-12 text-white/25 text-xs font-light tracking-wide">
               Bündele Tagesaufgaben …
             </div>
-          ) : isBoardTab ? null : visibleList.length === 0 ? (
+          ) : extraFilter === "onboarding" ? (
+            <OnboardingList
+              groups={onboardingGroups}
+              allLabels={labels}
+              platform={platform}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onAssigned={reloadLabelData}
+            />
+          ) : extraFilter === "labels" ? (
+            <LabelCardList
+              cards={visibleLabelCards}
+              doneKeys={labelDoneKeys}
+              platform={platform}
+              readonly={isReadonly}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onComplete={async (key) => {
+                const prev = { ...states };
+                setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
+                try {
+                  await setTodoStatus(platform, key, "done", null);
+                  toast.success("Erledigt 🏻");
+                } catch {
+                  setStates(prev);
+                  throw new Error("save failed");
+                }
+              }}
+              onLabelRemoved={reloadLabelData}
+            />
+          ) : visibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
+
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={kindTab}
