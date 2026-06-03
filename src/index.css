@@ -82,12 +82,15 @@
     @apply border-border;
   }
 
-  html, body, #root {
+  html, body {
     position: fixed;
     inset: 0;
     width: 100vw;
-    height: var(--app-height, 100dvh);
-    min-height: var(--app-height, 100dvh);
+    /* Volle Viewport-Höhe inkl. Safe-Areas — verhindert schwarzen Streifen unten in iOS Standalone */
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
     max-width: 100vw;
     background-color: hsl(var(--background));
@@ -95,18 +98,21 @@
     padding: 0;
     margin: 0;
     overscroll-behavior: none;
-    /* Native Browser-Scrollbars überall ausblenden — Apple-like clean */
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
   #root {
-    /* Landscape-Notch (iPhone quer): Inhalt aus dem Notch-Bereich raushalten,
-       Hintergrund läuft trotzdem bis an den Rand (auf html/body). */
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: var(--app-height, 100dvh);
+    min-height: var(--app-height, 100dvh);
+    overflow-x: hidden;
+    background-color: hsl(var(--background));
+    /* Landscape-Notch (iPhone quer): Inhalt aus dem Notch-Bereich raushalten */
     padding-left: max(env(safe-area-inset-left), 0px);
     padding-right: max(env(safe-area-inset-right), 0px);
   }
-  .app-standalone,
-  .app-standalone body,
   .app-standalone #root {
     top: var(--app-viewport-offset-top, 0px);
     height: var(--app-height, 100dvh);
@@ -148,8 +154,8 @@
   body {
     @apply bg-background text-foreground antialiased;
     margin: 0;
-    min-height: var(--app-height, 100dvh);
-    height: var(--app-height, 100dvh);
+    min-height: 100dvh;
+    height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
     touch-action: pan-y;
