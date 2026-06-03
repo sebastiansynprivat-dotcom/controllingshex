@@ -3,17 +3,17 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   children: ReactNode;
-  /** Wie weit das unsichtbare Anziehungs-/Hit-Feld um das Element erweitert wird (px). */
+  /** Wie weit das unsichtbare Anziehungsfeld um das Element erweitert wird (px). */
   range?: number;
   className?: string;
   as?: "span" | "div";
 }
 
 /**
- * Magnetischer Cursor-Effekt: Sobald der Mauszeiger in das erweiterte Hit-Feld
- * eintritt, gleitet der globale LuxuryCursor sanft zur Element-Mitte
- * (per Snap-Event). Kein zusätzlicher Dot — der bestehende Cursor "hüpft"
- * smooth rüber. Der Klick-Bereich ist vergrößert.
+ * Magnetischer Cursor-Effekt: Sobald der Mauszeiger nah genug am Element ist,
+ * gleitet der globale LuxuryCursor sanft zur Element-Mitte (per Snap-Event).
+ * Es wird KEIN Overlay-Span gerendert — Klicks auf umliegende Elemente
+ * bleiben uneingeschränkt möglich.
  */
 export function MagneticHover({
   children,
@@ -22,15 +22,15 @@ export function MagneticHover({
   as = "span",
 }: Props) {
   const wrapRef = useRef<HTMLElement | null>(null);
-  const overlayRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
 
     const wrap = wrapRef.current;
-    const overlay = overlayRef.current;
-    if (!wrap || !overlay) return;
+    if (!wrap) return;
+
+    let inside = false;
 
     const dispatchSnap = () => {
       const rect = wrap.getBoundingClientRect();
@@ -44,30 +44,28 @@ export function MagneticHover({
       window.dispatchEvent(new CustomEvent("lux-cursor-release"));
     };
 
-    overlay.addEventListener("pointerenter", dispatchSnap);
-    overlay.addEventListener("pointerleave", release);
-    // Bei Scroll/Resize: Position aktualisieren, solange drin
-    return () => {
-      overlay.removeEventListener("pointerenter", dispatchSnap);
-      overlay.removeEventListener("pointerleave", release);
-      release();
+    const onMove = (e: PointerEvent) => {
+      const rect = wrap.getBoundingClientRect();
+      const within =
+        e.clientX >= rect.left - range &&
+        e.clientX <= rect.right + range &&
+        e.clientY >= rect.top - range &&
+        e.clientY <= rect.bottom + range;
+      if (within && !inside) {
+        inside = true;
+        dispatchSnap();
+      } else if (!within && inside) {
+        inside = false;
+        release();
+      }
     };
-  }, []);
 
-  const forwardClick = (e: React.MouseEvent) => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    e.stopPropagation();
-    e.preventDefault();
-    const interactive = wrap.querySelector<HTMLElement>(
-      'button,a,[role="button"],[tabindex]:not([tabindex="-1"])',
-    );
-    if (interactive) {
-      interactive.click();
-    } else {
-      wrap.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    }
-  };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      if (inside) release();
+    };
+  }, [range]);
 
   const Wrapper = as;
   return (
@@ -76,16 +74,6 @@ export function MagneticHover({
       className={cn("relative inline-block", className)}
     >
       {children}
-      <span
-        ref={overlayRef}
-        aria-hidden
-        onClick={forwardClick}
-        style={{
-          position: "absolute",
-          inset: `-${range}px`,
-          zIndex: 1,
-        }}
-      />
     </Wrapper>
   );
 }
