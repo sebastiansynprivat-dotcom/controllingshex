@@ -218,10 +218,31 @@
   }
 
   .gold-text {
-    background: linear-gradient(135deg, hsl(40 50% 65%), hsl(40 40% 50%));
+    background: linear-gradient(135deg, hsl(42 75% 78%) 0%, hsl(40 60% 60%) 50%, hsl(38 55% 48%) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Foil-text — richer multi-stop gold sweep for display headlines */
+  .foil-text {
+    background: linear-gradient(
+      100deg,
+      hsl(42 78% 82%) 0%,
+      hsl(40 65% 62%) 28%,
+      hsl(38 45% 38%) 50%,
+      hsl(40 65% 62%) 72%,
+      hsl(42 78% 82%) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-sweep 9s ease-in-out infinite;
+  }
+  @keyframes foil-sweep {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
   }
 
   .gold-text-subtle {
@@ -229,6 +250,81 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Editorial eyebrow — small caps mono gold label above headlines */
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: hsl(40 50% 62%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px; height: 1px;
+    background: linear-gradient(90deg, hsl(40 55% 55% / 0.75), transparent);
+  }
+
+  /* Hairline gold divider */
+  .hairline-gold {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(90deg, transparent 0%, hsl(40 50% 55% / 0.32) 18%, hsl(40 50% 55% / 0.32) 82%, transparent 100%);
+    margin: 0;
+  }
+
+  /* Editorial card — black matte with gold left hairline */
+  .editorial-card {
+    position: relative;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.025) 0%, hsl(0 0% 0% / 0.35) 100%);
+    border: 1px solid hsl(0 0% 100% / 0.055);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: border-color 320ms cubic-bezier(0.16,1,0.3,1), box-shadow 320ms cubic-bezier(0.16,1,0.3,1), transform 320ms cubic-bezier(0.16,1,0.3,1);
+  }
+  .editorial-card::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 14%; bottom: 14%;
+    width: 1.5px;
+    background: linear-gradient(180deg, transparent, hsl(40 60% 60% / 0.85) 28%, hsl(40 60% 60% / 0.85) 72%, transparent);
+    box-shadow: 0 0 12px hsl(40 60% 60% / 0.35);
+  }
+  .editorial-card:hover {
+    border-color: hsl(40 50% 55% / 0.2);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Foil shimmer button */
+  .btn-foil {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(40 60% 60%) 0%, hsl(38 50% 46%) 100%);
+    color: hsl(0 0% 4%);
+    border: 1px solid hsl(40 60% 55% / 0.5);
+    box-shadow: 0 1px 0 hsl(40 80% 85% / 0.35) inset, 0 8px 24px -8px hsl(40 60% 50% / 0.45);
+    transition: transform 200ms cubic-bezier(0.16,1,0.3,1), box-shadow 200ms;
+  }
+  .btn-foil::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, hsl(0 0% 100% / 0.4) 50%, transparent 70%);
+    transform: translateX(-130%);
+    transition: transform 750ms cubic-bezier(0.22,1,0.36,1);
+    pointer-events: none;
+  }
+  .btn-foil:hover::after { transform: translateX(130%); }
+  .btn-foil:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 hsl(40 80% 88% / 0.45) inset, 0 14px 32px -10px hsl(40 60% 50% / 0.6);
   }
 
   .gold-glow {
