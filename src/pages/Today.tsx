@@ -8,6 +8,7 @@ import PersonActionCard from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
+import MatchBoard from "@/components/today/MatchBoard";
 import {
   buildTodayActions,
   type UnifiedAction,
