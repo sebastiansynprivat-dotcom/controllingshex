@@ -1,5 +1,5 @@
 /**
- * Onboarding-Filter — Chatter ab Tag 5 nach Onboarding, ohne System-Label,
+ * Onboarding-Filter — Chatter Tag 6–20 nach Onboarding, ohne System-Label,
  * gruppiert nach Onboarding-Tag absteigend für sequenzielles Durcharbeiten.
  */
 import { supabase } from "@/integrations/supabase/client";
