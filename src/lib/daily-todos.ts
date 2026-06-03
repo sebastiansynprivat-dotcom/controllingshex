@@ -214,6 +214,10 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const todos: DailyTodo[] = [];
 
   for (const [name, entries] of byChatter) {
+    // Tag-1 Onboarding → komplett überspringen
+    if (isDay1(name)) continue;
+    const onlyVerzug = isDay2to5(name);
+
     const todayEntries = entries.filter((e) => e.analysis_date === latestDate);
     const todayEntry = todayEntries[0];
     const historical = entries.filter((e) => e.analysis_date !== latestDate);
@@ -226,7 +230,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const todayMaxDelay = todayEntries.reduce((m, e) => Math.max(m, e.response_delay_days ?? 0), 0);
 
     // Inaktivität — fehlt heute, war aber regelmäßig da
-    if (!todayEntry && historical.length >= 5) {
+    if (!todayEntry && historical.length >= 5 && !onlyVerzug) {
       todos.push({
         key: `inactive:${name}:${today}`,
         category: "activity",
@@ -238,11 +242,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       });
       continue;
     }
-    // Verzug — Onboarding Tag 1–5 ausklammern (Dashboard tut das auch).
-    // WICHTIG: VOR dem Historie-Gate prüfen, da Verzug ein harter Fakt aus dem
-    // aktuellen Report ist und nicht von 14T-Historie abhängt.
+    // Verzug — harter Fakt aus aktuellem Report, gilt auch ab Tag 2 Onboarding.
     const delay = todayMaxDelay;
-    if (todayEntry && delay >= 3 && !isOnboarding(name)) {
+    if (todayEntry && delay >= 3) {
       todos.push({
         key: `verzug:${name}:${today}`,
         category: "verzug",
@@ -255,75 +257,101 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     }
 
     if (!todayEntry || historical.length < 2) continue;
+    if (onlyVerzug) continue; // Tag 2–5: ab hier nichts mehr
 
+    // 14T / 30T Aggregate für Confirmation-Gate
+    const past14Cutoff = new Date();
+    past14Cutoff.setDate(past14Cutoff.getDate() - 14);
+    const past14Iso = past14Cutoff.toISOString().split("T")[0];
+    const last14 = historical.filter((e) => e.analysis_date >= past14Iso);
+    const last30 = historical;
 
-    // Mass-DM Drop
+    const sumRev = (arr: HistoryRow[]) =>
+      arr.reduce((s, e) => s + Number(e.revenue_today ?? 0), 0);
+    const sumDm = (arr: HistoryRow[]) => arr.reduce((s, e) => s + (e.mass_dms ?? 0), 0);
+
+    // Pro-Tag Aggregate (über alle Account-Zeilen eines Tages summieren)
+    const aggByDay = (arr: HistoryRow[]) => {
+      const m = new Map<string, { rev: number; dm: number; chats: number }>();
+      for (const e of arr) {
+        const cur = m.get(e.analysis_date) ?? { rev: 0, dm: 0, chats: 0 };
+        cur.rev += Number(e.revenue_today ?? 0);
+        cur.dm += e.mass_dms ?? 0;
+        cur.chats += e.open_chats ?? 0;
+        m.set(e.analysis_date, cur);
+      }
+      return Array.from(m.values());
+    };
+    const days14 = aggByDay(last14);
+    const days30 = aggByDay(last30);
+    const avg = (vals: number[]) =>
+      vals.length === 0 ? 0 : vals.reduce((s, v) => s + v, 0) / vals.length;
+
+    // Mass-DM Drop — confirmed: 14T-Schnitt unter 30T-Schnitt × 0.7 UND Heute unter 14T × 0.5
     const todayDm = todayEntries.reduce((s, e) => s + (e.mass_dms ?? 0), 0);
-    const baseDm = median(historical.map((e) => e.mass_dms ?? 0));
-    if (baseDm >= 3) {
-      const drop = ((baseDm - todayDm) / baseDm) * 100;
-      if (drop >= 50) {
-        todos.push({
-          key: `dm:${name}:${today}`,
-          category: "activity",
-          score: Math.round((70 + Math.min(30, drop / 3)) * importance),
-          title: `${name} Mass-DMs hochziehen (Ziel 6/Tag)${tag}`,
-          why: `Heute ${todayDm} statt Ø ${baseDm.toFixed(0)} (−${Math.round(drop)}%)${modelSuffix}.`,
-          chatterName: name,
-          meta: {
-            todayMassDms: todayDm,
-            baselineMassDms: baseDm,
-            missingMassDms: Math.max(0, Math.round(baseDm - todayDm)),
-            dropPct: drop,
-          },
-        });
-      }
+    const dm14 = avg(days14.map((d) => d.dm));
+    const dm30 = avg(days30.map((d) => d.dm));
+    if (days30.length >= 8 && dm30 >= 3 && dm14 <= dm30 * 0.7 && todayDm < dm14 * 0.5) {
+      const drop14vs30 = Math.round(((dm30 - dm14) / dm30) * 100);
+      todos.push({
+        key: `dm:${name}:${today}`,
+        category: "activity",
+        score: Math.round((70 + Math.min(30, drop14vs30 / 2)) * importance),
+        title: `${name} Mass-DMs hochziehen (Ziel ${Math.round(dm30)}/Tag)${tag}`,
+        why: `Letzte 14T Ø ${dm14.toFixed(1)} vs. 30T Ø ${dm30.toFixed(1)} (−${drop14vs30} %) · heute ${todayDm}${modelSuffix}.`,
+        chatterName: name,
+        meta: {
+          todayMassDms: todayDm,
+          baselineMassDms: dm30,
+          missingMassDms: Math.max(0, Math.round(dm30 - todayDm)),
+          dropPct: drop14vs30,
+        },
+      });
     }
 
-    // Revenue Drop
-    const todayRev = todayEntries.reduce((s, e) => s + Number(e.revenue_today ?? 0), 0);
-    const baseRev = median(historical.map((e) => Number(e.revenue_today ?? 0)));
-    if (baseRev >= 50) {
-      const drop = ((baseRev - todayRev) / baseRev) * 100;
-      if (drop >= 40) {
-        todos.push({
-          key: `rev:${name}:${today}`,
-          category: "revenue",
-          score: Math.round((75 + Math.min(25, drop / 4)) * importance),
-          title: `${name} checken — Umsatz −${Math.round(drop)}%${tag}`,
-          why: `Heute ${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix}.`,
-          chatterName: name,
-          meta: { todayRevenue: todayRev, baselineRevenue: baseRev, dropPct: drop },
-        });
-      }
-      // Positive Outlier
-      if (todayRev >= baseRev * 1.8) {
-        const up = Math.round(((todayRev - baseRev) / baseRev) * 100);
-        todos.push({
-          key: `pos:${name}:${today}`,
-          category: "positive",
-          score: Math.round(40 * importance),
-          title: `Was läuft bei ${name} richtig? (+${up}%)`,
-          why: `${todayRev.toFixed(0)}€ vs. Ø ${baseRev.toFixed(0)}€${modelSuffix} — Erfolgsrezept abgreifen.`,
-          chatterName: name,
-          meta: { todayRevenue: todayRev, baselineRevenue: baseRev },
-        });
-      }
+    // Revenue Drop — confirmed: 14T-Schnitt unter 30T-Schnitt × 0.75
+    const todayRev = sumRev(todayEntries);
+    const rev14 = avg(days14.map((d) => d.rev));
+    const rev30 = avg(days30.map((d) => d.rev));
+    if (days30.length >= 8 && rev30 >= 50 && rev14 <= rev30 * 0.75 && todayRev < rev14 * 0.7) {
+      const drop = Math.round(((rev30 - rev14) / rev30) * 100);
+      todos.push({
+        key: `rev:${name}:${today}`,
+        category: "revenue",
+        score: Math.round((75 + Math.min(25, drop / 3)) * importance),
+        title: `${name} checken — Umsatz im Rückgang (−${drop} % 14T vs. 30T)${tag}`,
+        why: `Letzte 14T Ø ${rev14.toFixed(0)} €/Tag vs. 30T Ø ${rev30.toFixed(0)} €/Tag · heute ${todayRev.toFixed(0)} €${modelSuffix}.`,
+        chatterName: name,
+        meta: { todayRevenue: todayRev, baselineRevenue: rev30, dropPct: drop },
+      });
+    }
+    // Positive Outlier — bestätigt: 14T-Schnitt deutlich über 30T-Schnitt
+    if (days30.length >= 8 && rev30 >= 50 && rev14 >= rev30 * 1.4 && todayRev >= rev30 * 1.4) {
+      const up = Math.round(((rev14 - rev30) / rev30) * 100);
+      todos.push({
+        key: `pos:${name}:${today}`,
+        category: "positive",
+        score: Math.round(40 * importance),
+        title: `Was läuft bei ${name} richtig? (+${up} % 14T)`,
+        why: `Letzte 14T Ø ${rev14.toFixed(0)} € vs. 30T Ø ${rev30.toFixed(0)} €${modelSuffix} — Erfolgsrezept abgreifen.`,
+        chatterName: name,
+        meta: { todayRevenue: todayRev, baselineRevenue: rev30 },
+      });
     }
 
-    // Chat Jam
-    const todayChats = todayOpenChats;
-    const baseChats = median(historical.map((e) => e.open_chats ?? 0));
-    if (todayChats >= 30 && baseChats > 0 && todayChats > baseChats * 1.5) {
-      const up = Math.round(((todayChats - baseChats) / baseChats) * 100);
+    // Chat Jam — bleibt absolute Schwelle; zusätzlich confirmation, dass auch 14T-Schnitt erhöht ist
+    const baseChats = avg(days30.map((d) => d.chats));
+    const chats14 = avg(days14.map((d) => d.chats));
+    if (todayOpenChats >= 30 && baseChats > 0 && todayOpenChats > baseChats * 1.5 && chats14 > baseChats * 1.2) {
+      const up = Math.round(((todayOpenChats - baseChats) / baseChats) * 100);
       todos.push({
         key: `jam:${name}:${today}`,
         category: "activity",
         score: Math.round(65 * importance),
-        title: `${name} entlasten — ${todayChats} offene Chats${tag}`,
-        why: `+${up}% vs. Ø ${baseChats.toFixed(0)} offene Chats${modelSuffix}.`,
+        title: `${name} entlasten — ${todayOpenChats} offene Chats${tag}`,
+        why: `Heute +${up} % vs. 30T Ø ${baseChats.toFixed(0)} · 14T Ø bereits ${chats14.toFixed(0)}${modelSuffix}.`,
         chatterName: name,
-        meta: { todayOpenChats: todayChats, baselineOpenChats: baseChats },
+        meta: { todayOpenChats: todayOpenChats, baselineOpenChats: baseChats },
       });
     }
   }
