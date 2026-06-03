@@ -5,7 +5,7 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useState } from "react";
 import { Check, ChevronRight, Clock, MessageCircle, X as XIcon, Tag } from "lucide-react";
-import { toast } from "sonner";
+
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
 import type { LabelCard } from "@/lib/label-tasks";
@@ -143,7 +143,6 @@ function LabelCardRow({
     }
     window.setTimeout(() => {
       onComplete(card.todoKey).catch(() => {
-        toast.error("Speichern fehlgeschlagen");
         setCelebrating(false);
       });
     }, 420);
@@ -155,10 +154,8 @@ function LabelCardRow({
     setRemoving(true);
     try {
       await removeLabelFromChatter(platform, card.chatterName, card.label.id);
-      toast.success(`Label entfernt`);
       onLabelRemoved();
     } catch {
-      toast.error("Konnte nicht entfernen");
       setRemoving(false);
     }
   };
@@ -235,10 +232,7 @@ function LabelCardRow({
                     e.stopPropagation();
                     try {
                       await navigator.clipboard.writeText(card.chatterName);
-                      toast.success(`${card.chatterName} kopiert`);
-                    } catch {
-                      toast.error("Kopieren fehlgeschlagen");
-                    }
+                    } catch {}
                   }}
                   aria-label={`${card.chatterName} kopieren`}
                   title="Klicken zum Kopieren"

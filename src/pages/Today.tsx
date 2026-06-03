@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag } from "lucide-react";
-import { toast } from "sonner";
+
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
 import PersonActionCard from "@/components/PersonActionCard";

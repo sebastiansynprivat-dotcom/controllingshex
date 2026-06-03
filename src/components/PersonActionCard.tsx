@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { toast } from "sonner";
+
 import {
   Check,
   Clock,
@@ -332,10 +332,7 @@ export default function PersonActionCard({
                         e.stopPropagation();
                         try {
                           await navigator.clipboard.writeText(action.chatterName!);
-                          toast.success(`${action.chatterName} kopiert`);
-                        } catch {
-                          toast.error("Kopieren fehlgeschlagen");
-                        }
+                        } catch {}
                       }}
                       aria-label={`${action.chatterName} kopieren`}
                       title="Klicken zum Kopieren"
