@@ -7,6 +7,7 @@ import {
   ChevronRight,
   RefreshCw,
   TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
