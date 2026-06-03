@@ -255,6 +255,10 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
 
   // Auch wenn beide Seiten leer sind: Board zeigen, damit klar ist, dass es existiert.
 
+  const showTalent = view === "full" || view === "talent-only";
+  const showOrphan = view === "full" || view === "orphan-only";
+  const gridCols = view === "full" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -262,63 +266,67 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
       transition={{ duration: 0.4 }}
       className="space-y-2"
     >
-      <div className="flex items-center gap-2 px-1">
-        <span className="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-white/55">
-          Talent ↔ Account-Board
-        </span>
-        <span className="text-[10px] text-white/30 font-light">
-          · per Drag &amp; Drop sortierbar
-        </span>
-      </div>
+      {!hideHeader && view === "full" && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-white/55">
+            Talent ↔ Account-Board
+          </span>
+          <span className="text-[10px] text-white/30 font-light">
+            · per Drag &amp; Drop sortierbar
+          </span>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* LINKS — Talente */}
-        <BoardColumn
-          title="Talente"
-          icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}
-          accent="text-violet-300"
-          emptyText="Aktuell keine Talente — Grundvoraussetzung Chats + Mass-DMs nicht erfüllt."
-          count={talents.length}
-          onReset={() => resetSide("talent")}
-        >
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd("talent")}>
-            <SortableContext items={talents.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {talents.map((t) => (
-                  <SortableTalentCard
-                    key={t.id}
-                    card={t}
-                    onClick={() => onChatterClick?.(t.riser, null)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </BoardColumn>
+      <div className={cn("grid gap-3", gridCols)}>
+        {showTalent && (
+          <BoardColumn
+            title="Talente"
+            icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}
+            accent="text-violet-300"
+            emptyText="Aktuell keine Talente — Grundvoraussetzung Chats + Mass-DMs nicht erfüllt."
+            count={talents.length}
+            onReset={() => resetSide("talent")}
+          >
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd("talent")}>
+              <SortableContext items={talents.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {talents.map((t) => (
+                    <SortableTalentCard
+                      key={t.id}
+                      card={t}
+                      onClick={() => onChatterClick?.(t.riser, null)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </BoardColumn>
+        )}
 
-        {/* RECHTS — Account-Mismatch */}
-        <BoardColumn
-          title="Account ungenutzt"
-          icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-300" />}
-          accent="text-amber-300"
-          emptyText="Keine kritischen Mismatches gerade."
-          count={mismatches.length}
-          onReset={() => resetSide("mismatch")}
-        >
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd("mismatch")}>
-            <SortableContext items={mismatches.map((m) => m.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {mismatches.map((m) => (
-                  <SortableMismatchCard
-                    key={m.id}
-                    card={m}
-                    onClick={() => onChatterClick?.(m.chatter, null)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </BoardColumn>
+        {showOrphan && (
+          <BoardColumn
+            title="Account ungenutzt"
+            icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-300" />}
+            accent="text-amber-300"
+            emptyText="Keine kritischen Mismatches gerade."
+            count={mismatches.length}
+            onReset={() => resetSide("mismatch")}
+          >
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd("mismatch")}>
+              <SortableContext items={mismatches.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {mismatches.map((m) => (
+                    <SortableMismatchCard
+                      key={m.id}
+                      card={m}
+                      onClick={() => onChatterClick?.(m.chatter, null)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </BoardColumn>
+        )}
       </div>
     </motion.div>
   );
