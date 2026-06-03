@@ -80,6 +80,7 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
+  const [boardCounts, setBoardCounts] = useState<{ talents: number; orphans: number }>({ talents: 0, orphans: 0 });
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
