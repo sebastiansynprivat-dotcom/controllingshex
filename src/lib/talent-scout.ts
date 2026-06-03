@@ -60,6 +60,9 @@ export interface OrphanWarning {
   chatter: string;
   account: string;
   tier: AccountTier;
+  followers: number;
+  avgRevenue6d: number;
+  recentAvgRevenue2d: number;
   activeDays: number;
   delayDays: number;
   openChats: number;             // LIVE
@@ -130,6 +133,7 @@ interface ChatterAgg {
   chatWorkDays: number;        // Tage mit Bewegung in open_chats (Arbeit am Inbox)
   revenueDays: number;         // Tage mit Umsatz > 0
   avgRevenue: number;          // Ø € pro aktivem Tag
+  recentAvgRevenue2d: number;  // Ø € der letzten 2 Tage (mit Umsatz)
   // Live-Werte heute — für Underuser-Score
   liveOpenChats: number;
   liveOldestChatDays: number;
@@ -314,6 +318,16 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       ? 0
       : revVals.reduce((s, v) => s + v, 0) / revVals.length;
 
+    // Letzte 2 abgeschlossene Tage: Ø Umsatz über Tage mit Umsatz > 0
+    const recentDays = [isoDaysAgo(1), isoDaysAgo(2)];
+    const recentRevVals = rows
+      .filter((r) => recentDays.includes(r.analysis_date))
+      .map((r) => Number(r.revenue_today ?? 0))
+      .filter((v) => v > 0);
+    const recentAvgRevenue2d = recentRevVals.length === 0
+      ? 0
+      : recentRevVals.reduce((s, v) => s + v, 0) / recentRevVals.length;
+
     const liveRow = liveByChatter.get(k);
     aggs.push({
       name,
@@ -328,6 +342,7 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       chatWorkDays: chatWorkSet.size,
       revenueDays: revSet.size,
       avgRevenue,
+      recentAvgRevenue2d,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
     });
@@ -425,6 +440,9 @@ export async function findOrphanedAccounts(platform: string): Promise<OrphanWarn
       chatter: a.name,
       account: a.account,
       tier: a.tier!,
+      followers: a.followers,
+      avgRevenue6d: a.avgRevenue,
+      recentAvgRevenue2d: a.recentAvgRevenue2d,
       activeDays: a.activeDays,
       delayDays: Math.round(a.avgDelay * 10) / 10,
       openChats: a.liveOpenChats,
