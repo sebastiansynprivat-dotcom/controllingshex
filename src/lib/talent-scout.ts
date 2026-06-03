@@ -317,6 +317,16 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       ? 0
       : revVals.reduce((s, v) => s + v, 0) / revVals.length;
 
+    // Letzte 2 abgeschlossene Tage: Ø Umsatz über Tage mit Umsatz > 0
+    const recentDays = [isoDaysAgo(1), isoDaysAgo(2)];
+    const recentRevVals = rows
+      .filter((r) => recentDays.includes(r.analysis_date))
+      .map((r) => Number(r.revenue_today ?? 0))
+      .filter((v) => v > 0);
+    const recentAvgRevenue2d = recentRevVals.length === 0
+      ? 0
+      : recentRevVals.reduce((s, v) => s + v, 0) / recentRevVals.length;
+
     const liveRow = liveByChatter.get(k);
     aggs.push({
       name,
