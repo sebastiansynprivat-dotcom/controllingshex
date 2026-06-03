@@ -354,21 +354,28 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const dm14 = avg(days14.map((d) => d.dm));
     const dm30 = avg(days30.map((d) => d.dm));
     if (days30.length >= 8 && dm30 >= 3 && dm14 <= dm30 * 0.7 && todayDm < dm14 * 0.5) {
-      const drop14vs30 = Math.round(((dm30 - dm14) / dm30) * 100);
-      todos.push({
-        key: `dm:${name}:${today}`,
-        category: "activity",
-        score: Math.round((70 + Math.min(30, drop14vs30 / 2)) * importance),
-        title: `${name} Mass-DMs hochziehen (Ziel ${Math.round(dm30)}/Tag)${tag}`,
-        why: `Letzte 14T Ø ${dm14.toFixed(1)} vs. 30T Ø ${dm30.toFixed(1)} (−${drop14vs30} %) · heute ${todayDm}${modelSuffix}.`,
-        chatterName: name,
-        meta: {
-          todayMassDms: todayDm,
-          baselineMassDms: dm30,
-          missingMassDms: Math.max(0, Math.round(dm30 - todayDm)),
-          dropPct: drop14vs30,
-        },
-      });
+      const live = liveFor(name);
+      // Live-Gegencheck: wenn live heute schon ≥ 70% der 30T-Norm an DMs raus sind → resolved.
+      const liveDm = live?.massDms ?? todayDm;
+      const resolved = live && liveDm >= dm30 * 0.7;
+      if (!resolved) {
+        const drop14vs30 = Math.round(((dm30 - dm14) / dm30) * 100);
+        const livePart = live ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ${liveDm} DMs heute` : "";
+        todos.push({
+          key: `dm:${name}:${today}`,
+          category: "activity",
+          score: Math.round((70 + Math.min(30, drop14vs30 / 2)) * importance),
+          title: `${name} Mass-DMs hochziehen (Ziel ${Math.round(dm30)}/Tag)${tag}`,
+          why: `Letzte 14T Ø ${dm14.toFixed(1)} vs. 30T Ø ${dm30.toFixed(1)} (−${drop14vs30} %) · heute ${todayDm}${livePart}${modelSuffix}.`,
+          chatterName: name,
+          meta: {
+            todayMassDms: todayDm,
+            baselineMassDms: dm30,
+            missingMassDms: Math.max(0, Math.round(dm30 - todayDm)),
+            dropPct: drop14vs30,
+          },
+        });
+      }
     }
 
     // Revenue Drop — confirmed: 14T-Schnitt unter 30T-Schnitt × 0.75
@@ -376,16 +383,23 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const rev14 = avg(days14.map((d) => d.rev));
     const rev30 = avg(days30.map((d) => d.rev));
     if (days30.length >= 8 && rev30 >= 50 && rev14 <= rev30 * 0.75 && todayRev < rev14 * 0.7) {
-      const drop = Math.round(((rev30 - rev14) / rev30) * 100);
-      todos.push({
-        key: `rev:${name}:${today}`,
-        category: "revenue",
-        score: Math.round((75 + Math.min(25, drop / 3)) * importance),
-        title: `${name} checken — Umsatz im Rückgang (−${drop} % 14T vs. 30T)${tag}`,
-        why: `Letzte 14T Ø ${rev14.toFixed(0)} €/Tag vs. 30T Ø ${rev30.toFixed(0)} €/Tag · heute ${todayRev.toFixed(0)} €${modelSuffix}.`,
-        chatterName: name,
-        meta: { todayRevenue: todayRev, baselineRevenue: rev30, dropPct: drop },
-      });
+      const live = liveFor(name);
+      const liveRev = live?.revenue ?? todayRev;
+      // Live-Gegencheck: wenn live heute schon ≥ 80% der 30T-Norm € drin → resolved.
+      const resolved = live && liveRev >= rev30 * 0.8;
+      if (!resolved) {
+        const drop = Math.round(((rev30 - rev14) / rev30) * 100);
+        const livePart = live ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ${Math.round(liveRev)} € heute` : "";
+        todos.push({
+          key: `rev:${name}:${today}`,
+          category: "revenue",
+          score: Math.round((75 + Math.min(25, drop / 3)) * importance),
+          title: `${name} checken — Umsatz im Rückgang (−${drop} % 14T vs. 30T)${tag}`,
+          why: `Letzte 14T Ø ${rev14.toFixed(0)} €/Tag vs. 30T Ø ${rev30.toFixed(0)} €/Tag · heute ${todayRev.toFixed(0)} €${livePart}${modelSuffix}.`,
+          chatterName: name,
+          meta: { todayRevenue: todayRev, baselineRevenue: rev30, dropPct: drop },
+        });
+      }
     }
     // Positive Outlier — bestätigt: 14T-Schnitt deutlich über 30T-Schnitt
     if (days30.length >= 8 && rev30 >= 50 && rev14 >= rev30 * 1.4 && todayRev >= rev30 * 1.4) {
