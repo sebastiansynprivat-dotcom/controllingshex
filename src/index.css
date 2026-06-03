@@ -86,13 +86,13 @@
     position: fixed;
     inset: 0;
     width: 100vw;
-    /* Volle Viewport-Höhe inkl. Safe-Areas — verhindert schwarzen Streifen unten in iOS Standalone */
-    height: 100vh;
-    height: var(--app-height, 100dvh);
-    min-height: 100vh;
-    min-height: var(--app-height, 100dvh);
-    overflow-x: hidden;
     max-width: 100vw;
+    /* Volle Screen-Höhe inkl. Home-Indicator-Safe-Area (lvh = large viewport, schließt Safe-Area mit ein) */
+    height: 100vh;
+    height: 100lvh;
+    min-height: 100vh;
+    min-height: 100lvh;
+    overflow-x: hidden;
     background-color: hsl(var(--background));
     -webkit-overflow-scrolling: touch;
     padding: 0;
@@ -105,8 +105,9 @@
     position: fixed;
     inset: 0;
     width: 100vw;
-    height: var(--app-height, 100dvh);
-    min-height: var(--app-height, 100dvh);
+    height: 100lvh;
+    height: var(--app-height, 100lvh);
+    min-height: var(--app-height, 100lvh);
     overflow-x: hidden;
     background-color: hsl(var(--background));
     /* Landscape-Notch (iPhone quer): Inhalt aus dem Notch-Bereich raushalten */
@@ -115,14 +116,11 @@
   }
   .app-standalone #root {
     top: var(--app-viewport-offset-top, 0px);
-    height: var(--app-height, 100dvh);
   }
   html {
-    /* Verhindert weißen Bounce/Underscroll auf iOS in den Safe-Area-Bereichen */
     background-color: hsl(var(--background));
   }
   body {
-    /* Erweitert den dunklen Hintergrund auch in die Safe-Area-Bereiche (Notch & Home-Indicator) */
     background-color: hsl(var(--background));
   }
   html::-webkit-scrollbar,
@@ -141,8 +139,7 @@
   html {
     -webkit-text-size-adjust: 100%;
     font-size: 16px;
-    min-height: -webkit-fill-available;
-    min-height: 100dvh;
+    min-height: 100lvh;
   }
 
   @media (min-width: 1024px) {
@@ -154,8 +151,6 @@
   body {
     @apply bg-background text-foreground antialiased;
     margin: 0;
-    min-height: var(--app-height, 100dvh);
-    height: var(--app-height, 100dvh);
     overflow: hidden;
     overscroll-behavior: none;
     touch-action: pan-y;
