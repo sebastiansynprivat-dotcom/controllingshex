@@ -417,6 +417,16 @@ export default function Today() {
             </motion.div>
           )}
 
+          {/* Talent ↔ Account-Board (Drag & Drop) — prominent ganz oben */}
+          {!loading && (
+            <MatchBoard
+              platform={platform}
+              onChatterClick={(name, compareWith) =>
+                setSelectedChatter({ name, compareWith: compareWith ?? null })
+              }
+            />
+          )}
+
           {/* Status-Pills + Kategorie-Tabs */}
           <div className="space-y-2.5">
             <div className="flex items-center gap-1.5">
