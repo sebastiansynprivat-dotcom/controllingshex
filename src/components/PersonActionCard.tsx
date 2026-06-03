@@ -6,7 +6,7 @@ import {
   X as XIcon,
   ChevronRight,
   RefreshCw,
-  Zap,
+  TrendingDown,
   TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
