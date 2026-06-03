@@ -239,6 +239,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         revenueDays: m.riserRevenueDays,
         avgRevenue: m.riserAvgRevenue,
         tierLabel: m.underuserTier.label,
+        accountFollowers: m.underuserFollowers,
+        accountAvgRevenue: m.underuserAvgRevenue6d,
         isCritical: m.isCritical,
       })));
     } else {
@@ -248,7 +250,8 @@ export default function MatchBoard({ platform, onChatterClick, view = "full", on
         chatter: o.chatter,
         account: o.account,
         tierLabel: o.tier.label,
-        followers: 0,
+        followers: o.followers,
+        avgRevenue: o.avgRevenue6d,
         openChats: o.openChats,
         oldestChatDays: o.oldestChatDays,
         activeDays: o.activeDays,
