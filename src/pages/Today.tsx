@@ -244,12 +244,11 @@ export default function Today() {
       try {
         const { addRejection } = await import("@/lib/talent-rejections");
         await addRejection(platform, rej.riser, rej.account);
-        toast.success("Anderer Account wird gesucht");
         // Today neu laden
         const fresh = await buildTodayActions(platform);
         setData(fresh);
       } catch {
-        toast.error("Konnte nicht speichern");
+        // still silent
       }
       return;
     }
@@ -271,11 +270,8 @@ export default function Today() {
         // A1 — Outcome-Snapshot fürs ROI-Lernen
         recordActionDone(platform, action).catch(() => {});
       }
-      else if (kind === "snooze") toast.success("4h verschoben");
-      else toast.success("Heute ausgeblendet");
     } catch {
       setStates(prevStates);
-      toast.error("Speichern fehlgeschlagen");
     }
   };
 
@@ -283,9 +279,8 @@ export default function Today() {
     setPendingFeedback((prev) => prev.filter((p) => p.id !== id));
     try {
       await setOutcomeFeedback(id, helped);
-      toast.success(helped ? "Danke 🏻" : "Notiert");
     } catch {
-      toast.error("Konnte nicht speichern");
+      // silent
     }
   };
 
