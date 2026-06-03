@@ -90,10 +90,27 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
-  const [boardCounts, setBoardCounts] = useState<{ talents: number; orphans: number }>({ talents: 0, orphans: 0 });
+  const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
+
+  // Labels + Onboarding
+  const [labels, setLabels] = useState<ChatterLabel[]>([]);
+  const [assignments, setAssignments] = useState<LabelAssignment[]>([]);
+  const [onboardingGroups, setOnboardingGroups] = useState<import("@/lib/onboarding-filter").OnboardingGroup[]>([]);
+  const [labelCards, setLabelCards] = useState<import("@/lib/label-tasks").LabelCard[]>([]);
+  const [labelFilterOpen, setLabelFilterOpen] = useState(false);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("today.activeLabelFilters");
+      if (raw) return new Set(JSON.parse(raw));
+    } catch {}
+    return new Set();
+  });
+  const [labelDataNonce, setLabelDataNonce] = useState(0);
+  const reloadLabelData = () => setLabelDataNonce((n) => n + 1);
+
   const isSunday = new Date().getDay() === 0;
 
 
@@ -102,6 +119,7 @@ export default function Today() {
     day: "numeric",
     month: "long",
   });
+
 
   useEffect(() => {
     let cancel = false;
