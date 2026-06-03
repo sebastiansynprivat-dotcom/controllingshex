@@ -67,6 +67,8 @@ export interface OrphanWarning {
   followers: number;
   avgRevenue6d: number;
   recentAvgRevenue2d: number;
+  todayRevenue: number;
+  peakRevenue: number;
   activeDays: number;
   delayDays: number;
   openChats: number;
