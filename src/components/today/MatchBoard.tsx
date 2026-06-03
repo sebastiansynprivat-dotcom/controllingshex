@@ -485,6 +485,9 @@ function SortableMismatchCard({ card, onClick }: { card: MismatchCard; onClick: 
           )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums truncate">
+          {fmtFollowers(card.followers)} Follower · Ø {Math.round(card.avgRevenue)} €/Tag
+        </p>
+        <p className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums truncate">
           bei {card.chatter} · ältester Chat {card.oldestChatDays}T · {card.openChats} ungelesen
         </p>
       </button>
