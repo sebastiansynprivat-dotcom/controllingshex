@@ -614,7 +614,7 @@ export default function Today() {
                       }}
 
                       className={cn(
-                        "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5 uppercase tracking-wider text-[10.5px] font-semibold",
+                        "shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                         active
                           ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                           : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
@@ -631,7 +631,7 @@ export default function Today() {
                 <button
                   onClick={() => { setExtraFilter("none"); setKindTab("all"); }}
                   className={cn(
-                    "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                    "shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                     kindTab === "all" && extraFilter === "none"
                       ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                       : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
@@ -646,7 +646,7 @@ export default function Today() {
                   <button
                     onClick={() => { setExtraFilter("onboarding"); setKindTab("all"); }}
                     className={cn(
-                      "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                       extraFilter === "onboarding"
                         ? "bg-emerald-500/[0.12] border-emerald-400/30 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.4)]"
                         : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
@@ -674,7 +674,7 @@ export default function Today() {
                       }
                     }}
                     className={cn(
-                      "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                      "shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                       extraFilter === "labels"
                         ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                         : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
@@ -696,7 +696,7 @@ export default function Today() {
                       key={g.id}
                       onClick={() => { setExtraFilter("none"); setKindTab(g.id); }}
                       className={cn(
-                        "shrink-0 px-3.5 py-1.5 rounded-full text-[11.5px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
+                        "shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                         active
                           ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
                           : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
