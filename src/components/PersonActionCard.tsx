@@ -108,7 +108,19 @@ export default function PersonActionCard({
   onAct,
   readonly = false,
 }: Props) {
+  const [celebrating, setCelebrating] = useState(false);
   const tone = TONE[action.tone];
+
+  const handleComplete = () => {
+    if (celebrating) return;
+    setCelebrating(true);
+    // leichte Vibration als Premium-Haptik (falls verfügbar)
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { (navigator as any).vibrate?.([8, 30, 14]); } catch {}
+    }
+    // Animation laufen lassen, dann Aktion auslösen → Exit-Animation übernimmt
+    window.setTimeout(() => onAct(action, "done"), 620);
+  };
 
   const headlineSignal = action.signals[0];
   const bundled = action.signals.length > 1;
