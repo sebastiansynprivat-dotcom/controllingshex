@@ -740,9 +740,26 @@ export default function Today() {
           </>
         );
       })()}
+
+      <LabelFilterSheet
+        open={labelFilterOpen}
+        onOpenChange={setLabelFilterOpen}
+        labels={labels}
+        countsByLabel={labelCountsByLabel}
+        selectedIds={selectedLabelIds}
+        onToggle={(id) => {
+          const next = new Set(selectedLabelIds);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          setSelectedLabelIds(next);
+        }}
+        onSelectAll={() => setSelectedLabelIds(new Set(labels.map((l) => l.id)))}
+        onClearAll={() => setSelectedLabelIds(new Set())}
+      />
     </>
   );
 }
+
 
 function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: boolean }) {
   const cfg = status === "open"
