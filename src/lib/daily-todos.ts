@@ -405,18 +405,27 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const baseChats = avg(days30.map((d) => d.chats));
     const chats14 = avg(days14.map((d) => d.chats));
     if (todayOpenChats >= 30 && baseChats > 0 && todayOpenChats > baseChats * 1.5 && chats14 > baseChats * 1.2) {
-      const up = Math.round(((todayOpenChats - baseChats) / baseChats) * 100);
-      todos.push({
-        key: `jam:${name}:${today}`,
-        category: "activity",
-        score: Math.round(65 * importance),
-        title: `${name} entlasten — ${todayOpenChats} offene Chats${tag}`,
-        why: `Heute +${up} % vs. 30T Ø ${baseChats.toFixed(0)} · 14T Ø bereits ${chats14.toFixed(0)}${modelSuffix}.`,
-        chatterName: name,
-        meta: { todayOpenChats: todayOpenChats, baselineOpenChats: baseChats },
-      });
+      const live = liveFor(name);
+      // Live-Gegencheck: Stack ist live schon klein → kein Jam mehr.
+      const resolved = live && live.unread < Math.max(15, baseChats * 0.8);
+      if (!resolved) {
+        const up = Math.round(((todayOpenChats - baseChats) / baseChats) * 100);
+        const livePart = live
+          ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ${live.unread} ungelesen${live.oldest >= 1 ? `, ältester ${Math.round(live.oldest)}T` : ""}`
+          : "";
+        todos.push({
+          key: `jam:${name}:${today}`,
+          category: "activity",
+          score: Math.round(65 * importance),
+          title: `${name} entlasten — ${todayOpenChats} offene Chats${tag}`,
+          why: `Heute +${up} % vs. 30T Ø ${baseChats.toFixed(0)} · 14T Ø bereits ${chats14.toFixed(0)}${livePart}${modelSuffix}.`,
+          chatterName: name,
+          meta: { todayOpenChats: todayOpenChats, baselineOpenChats: baseChats },
+        });
+      }
     }
   }
+
 
   // Models in Trouble
   const { data: modelRows } = await supabase
