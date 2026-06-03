@@ -299,16 +299,50 @@ export default function Today() {
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
-  const isBoardTab = kindTab === "board";
   const visibleList =
-    kindTab === "all" || isBoardTab
+    kindTab === "all"
       ? statusList
       : statusList.filter((a) => a.primaryKind === kindTab);
 
-  // Falls aktiver Kind-Tab leer wird, auf "all" zurück (Board-Tab ausgenommen)
-  if (kindTab !== "all" && !isBoardTab && !availableKinds.some((g) => g.id === kindTab)) {
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
+  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
     queueMicrotask(() => setKindTab("all"));
   }
+
+  // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
+  const labelCountsByLabel = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of labelCards) {
+      if (states[c.todoKey]?.status === "done") continue;
+      m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
+    }
+    return m;
+  }, [labelCards, states]);
+
+  const visibleLabelCards = useMemo(
+    () => labelCards.filter((c) => selectedLabelIds.has(c.label.id)),
+    [labelCards, selectedLabelIds],
+  );
+  const labelDoneKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of labelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
+    return s;
+  }, [labelCards, states]);
+
+  const totalLabelOpenCount = useMemo(() => {
+    let n = 0;
+    for (const c of labelCards) {
+      if (!selectedLabelIds.has(c.label.id)) continue;
+      if (states[c.todoKey]?.status === "done") continue;
+      n += 1;
+    }
+    return n;
+  }, [labelCards, selectedLabelIds, states]);
+
+  const onboardingCount = useMemo(
+    () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
+    [onboardingGroups],
+  );
 
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
     { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
@@ -318,6 +352,7 @@ export default function Today() {
 
   // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
   const isReadonly = status === "done";
+
 
   return (
     <>
