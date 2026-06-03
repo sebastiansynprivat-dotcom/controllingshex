@@ -419,50 +419,58 @@ export default function Today() {
             </div>
           ) : isBoardTab ? null : visibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
-          ) : kindTab === "all" ? (
-            <div className="space-y-5">
-              <AnimatePresence initial={false}>
-                {groupByKind(visibleList).map((g) => (
-                  <div key={g.id} className="space-y-2">
-                    <div className="flex items-center gap-2 px-1 pb-1 opacity-70">
-                      <span className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", g.accent)}>
-                        {g.label}
-                      </span>
-                      <span className="text-[10px] tabular-nums text-white/30 font-light">
-                        · {g.items.length}
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {g.items.map((a) => (
-                        <PersonActionCard
-                          key={a.bundleKey}
-                          action={a}
-                          onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                          onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                          onAct={act}
-                          readonly={isReadonly}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </AnimatePresence>
-            </div>
           ) : (
-            <div className="space-y-3">
-              <AnimatePresence initial={false}>
-                {visibleList.map((a) => (
-                  <PersonActionCard
-                    key={a.bundleKey}
-                    action={a}
-                    onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                    onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                    onAct={act}
-                    readonly={isReadonly}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={kindTab}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12, ease: "easeOut" }}
+              >
+                {kindTab === "all" ? (
+                  <div className="space-y-5">
+                    {groupByKind(visibleList).map((g) => (
+                      <div key={g.id} className="space-y-2">
+                        <div className="flex items-center gap-2 px-1 pb-1 opacity-70">
+                          <span className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", g.accent)}>
+                            {g.label}
+                          </span>
+                          <span className="text-[10px] tabular-nums text-white/30 font-light">
+                            · {g.items.length}
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          {g.items.map((a) => (
+                            <PersonActionCard
+                              key={a.bundleKey}
+                              action={a}
+                              onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                              onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                              onAct={act}
+                              readonly={isReadonly}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {visibleList.map((a) => (
+                      <PersonActionCard
+                        key={a.bundleKey}
+                        action={a}
+                        onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                        onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                        onAct={act}
+                        readonly={isReadonly}
+                      />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           )}
 
             </>
