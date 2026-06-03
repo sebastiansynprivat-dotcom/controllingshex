@@ -332,7 +332,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           category: "verzug",
           score: Math.round((90 + oldestDays * 5) * importance),
           title: `${name} dringend — ältester Chat ${oldestDays}T${tag}`,
-          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${live.unread} ungelesen${modelSuffix}. Sofort entlasten oder Ursache klären.`,
+          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${live.unread} ungelesen${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
           chatterName: name,
           meta: { delayDays: oldestDays, todayOpenChats: live.unread },
         });
