@@ -510,11 +510,12 @@ export default function PersonActionCard({
                   </button>
                   <button
                     type="button"
+                    disabled={celebrating}
                     onClick={(e) => {
                       stop(e);
-                      onAct(action, "done");
+                      handleComplete();
                     }}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.98] transition-all disabled:opacity-80"
                   >
                     Abschließen
                     <Check className="h-3 w-3" strokeWidth={3} />
