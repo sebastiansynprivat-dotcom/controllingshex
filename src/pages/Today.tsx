@@ -624,7 +624,7 @@ export default function Today() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none overflow-visible bg-background/92 backdrop-blur-2xl sm:bg-transparent sm:backdrop-blur-0"
+          className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none overflow-visible bg-background/92 backdrop-blur-2xl sm:bg-transparent sm:backdrop-blur-0 sm:left-[var(--sidebar-width,16rem)] sm:group-data-[state=collapsed]/sidebar-wrapper:left-[var(--sidebar-width-icon,5rem)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
         >
           <div
