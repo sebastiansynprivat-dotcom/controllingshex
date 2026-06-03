@@ -589,16 +589,28 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 export async function loadTodoStates(
   platform: string
 ): Promise<Record<string, TodoState>> {
-  const today = todayStr();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return {};
+
+  // Abgehakte Aufgaben bleiben weg, bis ein NEUER Report hochgeladen wird.
+  // Lower-Bound = Zeitpunkt des aktuellsten Reports (oder heute 00:00 als Fallback).
+  const { data: latestReport } = await supabase
+    .from("analysis_reports")
+    .select("created_at")
+    .eq("user_id", user.id)
+    .eq("platform", platform)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const sinceIso = latestReport?.created_at ?? todayStr() + "T00:00:00Z";
 
   const { data } = await supabase
     .from("daily_todo_state")
     .select("todo_key, status, snoozed_until")
     .eq("user_id", user.id)
     .eq("platform", platform)
-    .gte("acted_at", today + "T00:00:00Z");
+    .gte("acted_at", sinceIso);
 
   const map: Record<string, TodoState> = {};
   for (const r of data || []) {
