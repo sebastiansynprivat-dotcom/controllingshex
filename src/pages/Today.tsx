@@ -574,7 +574,7 @@ export default function Today() {
       </AnimatePresence>
 
       {/* Bottom-Nav: Kategorie-Filter — via Portal an Body, garantiert viewport-fixed (premium mobile feel) */}
-      {!loading && (availableKinds.length > 0 || kindTab !== "all" || boardCounts.talents > 0 || boardCounts.orphans > 0) && createPortal(
+      {!loading && (availableKinds.length > 0 || kindTab !== "all" || onboardingCount > 0 || labels.length > 0) && createPortal(
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
