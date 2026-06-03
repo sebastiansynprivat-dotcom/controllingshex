@@ -298,15 +298,24 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // Verzug — harter Fakt aus aktuellem Report, gilt auch ab Tag 2 Onboarding.
     const delay = todayMaxDelay;
     if (todayEntry && delay >= 3) {
-      todos.push({
-        key: `verzug:${name}:${today}`,
-        category: "verzug",
-        score: Math.round((90 + delay * 5) * importance),
-        title: `${name} dringend — ${delay} Tage Verzug${tag}`,
-        why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${modelSuffix}. Sofort entlasten oder Ursache klären.`,
-        chatterName: name,
-        meta: { delayDays: delay, todayOpenChats },
-      });
+      const live = liveFor(name);
+      // Live-Gegencheck: wenn live KEIN alter Chat mehr offen ist UND fast nix ungelesen
+      // → Verzug ist faktisch abgearbeitet, Signal droppen.
+      const resolved = live && live.oldest < 1 && live.unread < 5;
+      if (!resolved) {
+        const livePart = live
+          ? ` · Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${Math.round(live.oldest)}T · ${live.unread} ungelesen`
+          : "";
+        todos.push({
+          key: `verzug:${name}:${today}`,
+          category: "verzug",
+          score: Math.round((90 + delay * 5) * importance),
+          title: `${name} dringend — ${delay} Tage Verzug${tag}`,
+          why: `Antwortverzug ${delay} Tage · ${todayOpenChats} offene Chats${livePart}${modelSuffix}. Sofort entlasten oder Ursache klären.`,
+          chatterName: name,
+          meta: { delayDays: delay, todayOpenChats },
+        });
+      }
     }
 
     if (!todayEntry || historical.length < 2) continue;
