@@ -126,10 +126,14 @@ function reorderBySaved<T extends { id: string }>(items: T[], savedOrder: string
   return result;
 }
 
-export default function MatchBoard({ platform, onChatterClick }: Props) {
+export default function MatchBoard({ platform, onChatterClick, view = "full", onCountsChange, hideHeader = false }: Props) {
   const [talents, setTalents] = useState<TalentCard[]>([]);
   const [mismatches, setMismatches] = useState<MismatchCard[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    onCountsChange?.({ talents: talents.length, orphans: mismatches.length });
+  }, [talents.length, mismatches.length, onCountsChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
