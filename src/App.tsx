@@ -49,7 +49,7 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <Layout>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/live" element={<LiveTracking />} />
               <Route path="/today" element={<Today />} />
               <Route path="/forecast" element={<Forecast />} />
