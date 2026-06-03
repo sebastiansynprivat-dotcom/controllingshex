@@ -12,6 +12,7 @@ import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   buildTodayActions,
   type UnifiedAction,
@@ -85,6 +86,12 @@ function fmtEur(v: number): string {
 
 export default function Today() {
   const { platform } = usePlatform();
+  const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
+  const sidebarOffset = sidebarIsMobile ? "0px" : sidebarState === "collapsed" ? "5rem" : "16rem";
+  useEffect(() => {
+    document.documentElement.style.setProperty("--today-sidebar-offset", sidebarOffset);
+    return () => { document.documentElement.style.removeProperty("--today-sidebar-offset"); };
+  }, [sidebarOffset]);
   const [data, setData] = useState<TodayEngineResult | null>(null);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
@@ -624,8 +631,8 @@ export default function Today() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none overflow-visible bg-background/92 backdrop-blur-2xl sm:bg-transparent sm:backdrop-blur-0"
-          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+          className="fixed bottom-0 right-0 z-40 pointer-events-none overflow-visible bg-background/92 backdrop-blur-2xl sm:bg-transparent sm:backdrop-blur-0"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)", left: `var(--today-sidebar-offset, 0px)` }}
         >
           <div
             aria-hidden
