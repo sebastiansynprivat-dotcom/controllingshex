@@ -133,6 +133,7 @@ interface ChatterAgg {
   chatWorkDays: number;        // Tage mit Bewegung in open_chats (Arbeit am Inbox)
   revenueDays: number;         // Tage mit Umsatz > 0
   avgRevenue: number;          // Ø € pro aktivem Tag
+  recentAvgRevenue2d: number;  // Ø € der letzten 2 Tage (mit Umsatz)
   // Live-Werte heute — für Underuser-Score
   liveOpenChats: number;
   liveOldestChatDays: number;
