@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sprout, ChevronRight, Tag } from "lucide-react";
+import { Sprout, ChevronRight, Tag, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -102,22 +102,47 @@ export default function OnboardingList({
                   className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.035] to-white/[0.015] backdrop-blur-xl hover:border-white/[0.14] hover:from-white/[0.05] transition-all"
                 >
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onChatterClick(c.chatterName)}
-                    className="w-full text-left px-4 py-3.5 flex items-center gap-3"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onChatterClick(c.chatterName);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-3.5 flex items-center gap-3 cursor-pointer"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
-                          {c.chatterName}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await navigator.clipboard.writeText(c.chatterName);
+                              toast.success(`${c.chatterName} kopiert`);
+                            } catch {
+                              toast.error("Kopieren fehlgeschlagen");
+                            }
+                          }}
+                          className="group/copy inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 rounded-md hover:bg-white/[0.06] active:scale-[0.98] transition-all"
+                          aria-label={`${c.chatterName} kopieren`}
+                          title="Klicken zum Kopieren"
+                        >
+                          <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
+                            {c.chatterName}
+                          </span>
+                          <Copy className="h-3 w-3 text-white/25 group-hover/copy:text-white/70 transition-colors" />
+                        </button>
                       </div>
                       <p className="text-[11px] text-white/35 font-light mt-1 truncate">
                         {c.account ? `Account · ${c.account}` : "Kein Account zugewiesen"}
                       </p>
                     </div>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -129,7 +154,7 @@ export default function OnboardingList({
                       <Tag className="h-3.5 w-3.5" />
                     </button>
                     <ChevronRight className="h-4 w-4 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                  </div>
                 </motion.div>
               ))}
             </div>
