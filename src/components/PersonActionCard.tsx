@@ -216,14 +216,87 @@ export default function PersonActionCard({
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, x: 80, transition: { duration: 0.18 } }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
+      animate={
+        celebrating
+          ? { opacity: 1, scale: [1, 1.025, 0.985], filter: ["brightness(1)", "brightness(1.35)", "brightness(1.05)"] }
+          : { opacity: 1, scale: 1 }
+      }
+      exit={
+        celebrating
+          ? { opacity: 0, y: -28, scale: 0.94, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } }
+          : { opacity: 0, x: 80, transition: { duration: 0.18 } }
+      }
+      transition={{ duration: celebrating ? 0.6 : 0.15, ease: "easeOut" }}
       className={cn(
         "group relative w-full transition-all duration-300",
         readonly && "opacity-60",
       )}
     >
+      {/* Celebration Overlay — Premium Glücksgefühl beim Abschließen */}
+      <AnimatePresence>
+        {celebrating && (
+          <motion.div
+            key="celebrate"
+            className="pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-2xl"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* Sanfter Erfolg-Glow */}
+            <motion.div
+              className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-emerald-400/40 via-emerald-300/15 to-transparent blur-2xl"
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: [0, 0.9, 0], scale: [0.7, 1.1, 1.25] }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
+            />
+            {/* Sheen sweep */}
+            <motion.div
+              className="absolute inset-y-0 -left-1/3 w-1/2 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12"
+              initial={{ x: "-40%", opacity: 0 }}
+              animate={{ x: "260%", opacity: [0, 1, 0] }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            />
+            {/* Großer Check-Ring mittig */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center"
+              initial={{ scale: 0.4, opacity: 0 }}
+              animate={{ scale: [0.4, 1.15, 1], opacity: [0, 1, 1] }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="relative h-14 w-14 rounded-full bg-emerald-400/95 shadow-[0_0_40px_-4px_rgba(52,211,153,0.9)] flex items-center justify-center">
+                <Check className="h-7 w-7 text-emerald-950" strokeWidth={3.5} />
+                <motion.span
+                  className="absolute inset-0 rounded-full border-2 border-emerald-300/80"
+                  initial={{ scale: 1, opacity: 0.8 }}
+                  animate={{ scale: 1.9, opacity: 0 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                />
+              </div>
+            </motion.div>
+            {/* Sparkle Partikel */}
+            {[...Array(10)].map((_, i) => {
+              const angle = (i / 10) * Math.PI * 2;
+              const dist = 70 + (i % 3) * 14;
+              return (
+                <motion.span
+                  key={i}
+                  className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-emerald-300"
+                  initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
+                  animate={{
+                    x: Math.cos(angle) * dist,
+                    y: Math.sin(angle) * dist,
+                    opacity: [0, 1, 0],
+                    scale: [0.4, 1, 0.6],
+                  }}
+                  transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
+                />
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hintergrund-Glow (Tone) */}
       <div
         className={cn(
