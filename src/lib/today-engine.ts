@@ -733,6 +733,9 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     if (meta?.todayOpenChats != null && live.unread !== Number(meta.todayOpenChats)) {
       parts.push(`${live.unread} offen`);
     }
+    if ((kind === "verzug" || meta?.delayDays != null) && Math.abs(live.oldest - Number(meta?.delayDays ?? 0)) >= 1) {
+      parts.push(`ältester ${Math.round(live.oldest)}T`);
+    }
     if (kind === "revenue" && meta?.todayRevenue != null && Math.abs(live.rev - Number(meta.todayRevenue)) >= 5) {
       parts.push(`${Math.round(live.rev)}€`);
     }
@@ -743,16 +746,26 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     return `${why} (live jetzt: ${parts.join(" · ")})`;
   }
 
-  /** Ersetzt veraltete Snapshot-Zahlen im Title (z.B. "X offene Chats") durch Live-Werte. */
+  /** Ersetzt veraltete Snapshot-Zahlen im Title (z.B. "X offene Chats", "X Tage Verzug") durch Live-Werte. */
   function refreshTitle(chatterKey: string | null, title: string, meta?: Record<string, any>): string {
     if (!chatterKey) return title;
     const live = liveSnap.get(chatterKey);
     if (!live || !live.fresh) return title;
-    const snap = meta?.todayOpenChats != null ? Number(meta.todayOpenChats) : null;
-    if (snap != null && live.unread !== snap) {
-      return title.replace(/\b\d+\s+offene Chats\b/, `${live.unread} offene Chats`);
+    let out = title;
+    // "X offene Chats"
+    if (/\b\d+\s+offene Chats\b/.test(out)) {
+      out = out.replace(/\b\d+\s+offene Chats\b/, `${live.unread} offene Chats`);
     }
-    return title;
+    // "X Tage Verzug" — nur ersetzen, wenn signifikant abweichend (≥1 Tag).
+    const verzugMatch = out.match(/\b(\d+)\s+Tage?\s+Verzug\b/);
+    if (verzugMatch) {
+      const snapDelay = Number(verzugMatch[1]);
+      const liveDelay = Math.round(live.oldest);
+      if (Math.abs(snapDelay - liveDelay) >= 1) {
+        out = out.replace(/\b\d+\s+Tage?\s+Verzug\b/, `${liveDelay} Tage Verzug`);
+      }
+    }
+    return out;
   }
 
   // followers-Map für Potential-Detector
