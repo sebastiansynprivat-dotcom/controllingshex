@@ -126,6 +126,8 @@ export default function Today() {
     setLoading(true);
     // Backfill alte Outcomes vorab — füllt 24/48/72h-Snapshots
     backfillOutcomes(platform).catch(() => {});
+    // System-Labels seeden (idempotent)
+    ensureSystemLabels(platform).catch(() => {});
     Promise.all([
       buildTodayActions(platform),
       loadTodoStates(platform),
@@ -143,6 +145,41 @@ export default function Today() {
       .finally(() => !cancel && setLoading(false));
     return () => { cancel = true; };
   }, [platform, isSunday]);
+
+  // Labels + Onboarding + Label-Karten — separat & reagiert auf labelDataNonce
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const [lbls, asgs] = await Promise.all([
+          loadChatterLabels(platform),
+          loadLabelAssignments(platform),
+        ]);
+        if (cancel) return;
+        setLabels(lbls);
+        setAssignments(asgs);
+
+        const [onboarding, lblCards] = await Promise.all([
+          (await import("@/lib/onboarding-filter")).loadOnboardingChatters(platform, lbls, asgs),
+          (await import("@/lib/label-tasks")).loadLabelCards(platform, lbls, asgs),
+        ]);
+        if (cancel) return;
+        setOnboardingGroups(onboarding);
+        setLabelCards(lblCards);
+      } catch (e) {
+        console.error("[Today/labels]", e);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [platform, labelDataNonce]);
+
+  // localStorage sync für selectedLabelIds
+  useEffect(() => {
+    try {
+      localStorage.setItem("today.activeLabelFilters", JSON.stringify([...selectedLabelIds]));
+    } catch {}
+  }, [selectedLabelIds]);
+
 
   const visibility = (action: UnifiedAction): "open" | "done" | "hidden" | "snoozed-active" => {
     const now = new Date();
