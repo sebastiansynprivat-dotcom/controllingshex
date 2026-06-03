@@ -129,6 +129,7 @@ function lookupFollowers(
 interface ChatterAgg {
   name: string;
   account: string;
+  numAccounts: number;         // Anzahl Accounts, die dieser Chatter parallel betreut (für per-Account-Split)
   followers: number;
   tier: AccountTier | null;
   daysOnboarded: number | null;
@@ -148,6 +149,7 @@ interface ChatterAgg {
   liveOpenChats: number;
   liveOldestChatDays: number;
 }
+
 
 /**
  * Talent-Score (Stufen):
@@ -270,6 +272,7 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
   const sorted = [...histPast].sort((a, b) => b.analysis_date.localeCompare(a.analysis_date));
   const byChatter = new Map<string, HistoryRow[]>();
   const accountByChatter = new Map<string, string>();
+  const accountSetByChatter = new Map<string, Set<string>>();
   for (const r of sorted) {
     if (!r.chatter_name) continue;
     if (!isActive(r.chatter_name)) continue;
@@ -277,11 +280,18 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     const arr = byChatter.get(k) ?? [];
     arr.push(r);
     byChatter.set(k, arr);
-    if (!accountByChatter.has(k)) {
-      const acc = (r.account ?? "").split(",")[0]?.trim() ?? "";
-      if (acc) accountByChatter.set(k, acc);
+    const accs = (r.account ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (accs.length) {
+      if (!accountByChatter.has(k)) accountByChatter.set(k, accs[0]);
+      const set = accountSetByChatter.get(k) ?? new Set<string>();
+      for (const a of accs) set.add(a.toLowerCase());
+      accountSetByChatter.set(k, set);
     }
   }
+
 
   function computeStreak(daySet: Set<string>): number {
     if (daySet.size === 0) return 0;
@@ -348,7 +358,9 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     aggs.push({
       name,
       account,
+      numAccounts: Math.max(1, accountSetByChatter.get(k)?.size ?? 1),
       followers,
+
       tier,
       daysOnboarded: onboardedDays.get(k) ?? null,
       activeDays: activeSet.size,
@@ -455,13 +467,13 @@ export async function findTalentMatches(
       riserChatWorkDays: w.a.chatWorkDays,
       riserRevenueDays: w.a.revenueDays,
       riserHasRevenueBoost: hasRevenueBoost(w.a),
-      riserAvgRevenue: Math.round(w.a.avgRevenue),
+      riserAvgRevenue: Math.round(w.a.avgRevenue / w.a.numAccounts),
       underuser: candidate.a.name,
       underuserTier: candidate.a.tier!,
       underuserAccount: candidate.a.account,
       underuserFollowers: candidate.a.followers,
-      underuserAvgRevenue6d: candidate.a.avgRevenue,
-      underuserRecentAvgRevenue2d: candidate.a.recentAvgRevenue2d,
+      underuserAvgRevenue6d: candidate.a.avgRevenue / candidate.a.numAccounts,
+      underuserRecentAvgRevenue2d: candidate.a.recentAvgRevenue2d / candidate.a.numAccounts,
       underuserActiveDays: candidate.a.activeDays,
       underuserOpenChats: candidate.a.liveOpenChats,
       underuserOldestChatDays: candidate.a.liveOldestChatDays,
@@ -469,6 +481,7 @@ export async function findTalentMatches(
       matchScore: Math.min(100, Math.round(pairScore)),
       isCritical,
     });
+
   }
 
   return matches;
@@ -491,11 +504,12 @@ export async function findOrphanedAccounts(platform: string): Promise<OrphanWarn
         account: a.account,
         tier: a.tier!,
         followers: a.followers,
-        avgRevenue6d: a.avgRevenue,
-        recentAvgRevenue2d: a.recentAvgRevenue2d,
-        todayRevenue: a.todayRevenue,
-        peakRevenue: a.peakRevenue,
+        avgRevenue6d: a.avgRevenue / a.numAccounts,
+        recentAvgRevenue2d: a.recentAvgRevenue2d / a.numAccounts,
+        todayRevenue: a.todayRevenue / a.numAccounts,
+        peakRevenue: a.peakRevenue / a.numAccounts,
         activeDays: a.activeDays,
+
         delayDays: Math.round(a.avgDelay * 10) / 10,
         openChats: a.liveOpenChats,
         oldestChatDays: a.liveOldestChatDays,
