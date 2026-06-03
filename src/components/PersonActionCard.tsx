@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Check,
   Clock,
@@ -324,9 +325,31 @@ export default function PersonActionCard({
             <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <MagneticHover as="span" range={20} pull={0.55}>
-                  <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
-                    {displayName}
-                  </h3>
+                  {action.chatterName ? (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await navigator.clipboard.writeText(action.chatterName!);
+                          toast.success(`${action.chatterName} kopiert`);
+                        } catch {
+                          toast.error("Kopieren fehlgeschlagen");
+                        }
+                      }}
+                      aria-label={`${action.chatterName} kopieren`}
+                      title="Klicken zum Kopieren"
+                      className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform"
+                    >
+                      <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
+                        {displayName}
+                      </h3>
+                    </button>
+                  ) : (
+                    <h3 className="text-[17px] font-semibold tracking-tight text-white/95 truncate">
+                      {displayName}
+                    </h3>
+                  )}
                 </MagneticHover>
                 <span
                   className={cn(

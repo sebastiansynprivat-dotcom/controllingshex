@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Check, ChevronRight, Clock, MessageCircle, X as XIcon, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MagneticHover } from "@/components/MagneticHover";
 import type { LabelCard } from "@/lib/label-tasks";
 import { removeLabelFromChatter } from "@/lib/chatter-labels";
 
@@ -227,9 +228,27 @@ function LabelCardRow({
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[14.5px] font-medium text-foreground">
-                {card.chatterName}
-              </span>
+              <MagneticHover as="span" range={18} pull={0.55}>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await navigator.clipboard.writeText(card.chatterName);
+                      toast.success(`${card.chatterName} kopiert`);
+                    } catch {
+                      toast.error("Kopieren fehlgeschlagen");
+                    }
+                  }}
+                  aria-label={`${card.chatterName} kopieren`}
+                  title="Klicken zum Kopieren"
+                  className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform"
+                >
+                  <span className="text-[14.5px] font-medium text-foreground">
+                    {card.chatterName}
+                  </span>
+                </button>
+              </MagneticHover>
               <span
                 className="px-2 py-0.5 rounded-full text-[9.5px] font-medium border"
                 style={{

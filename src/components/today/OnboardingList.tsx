@@ -129,14 +129,13 @@ export default function OnboardingList({
                                 toast.error("Kopieren fehlgeschlagen");
                               }
                             }}
-                            className="group/copy inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 rounded-md hover:bg-white/[0.06] active:scale-[0.98] transition-all"
+                            className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform"
                             aria-label={`${c.chatterName} kopieren`}
                             title="Klicken zum Kopieren"
                           >
                             <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
                               {c.chatterName}
                             </span>
-                            <Copy className="h-3 w-3 text-white/25 group-hover/copy:text-white/70 transition-colors" />
                           </button>
                         </MagneticHover>
                       </div>
