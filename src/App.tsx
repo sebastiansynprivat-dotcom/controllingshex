@@ -11,7 +11,7 @@ import UploadPage from "@/pages/Upload";
 import Models from "@/pages/Models";
 import SettingsPage from "@/pages/SettingsPage";
 import AIConsultant from "@/pages/AIConsultant";
-import Videocoaching from "@/pages/Videocoaching";
+
 import Leaderboard from "@/pages/Leaderboard";
 import Notes from "@/pages/Notes";
 import TinderMode from "@/pages/TinderMode";
