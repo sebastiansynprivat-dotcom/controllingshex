@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sprout, ChevronRight, Tag } from "lucide-react";
-import { toast } from "sonner";
+
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
 import {
@@ -63,12 +63,10 @@ export default function OnboardingList({
     setSaving(true);
     try {
       await setSystemLabelExclusive(platform, picker.chatterName, label.id, allLabels);
-      toast.success(`${picker.chatterName}: ${label.label_name}`);
       setPicker(null);
       onAssigned();
     } catch (e) {
       console.error(e);
-      toast.error("Konnte Label nicht setzen");
     } finally {
       setSaving(false);
     }
@@ -124,10 +122,7 @@ export default function OnboardingList({
                               e.stopPropagation();
                               try {
                                 await navigator.clipboard.writeText(c.chatterName);
-                                toast.success(`${c.chatterName} kopiert`);
-                              } catch {
-                                toast.error("Kopieren fehlgeschlagen");
-                              }
+                              } catch {}
                             }}
                             className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform"
                             aria-label={`${c.chatterName} kopieren`}
