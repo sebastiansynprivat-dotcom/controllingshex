@@ -7,6 +7,7 @@ import {
   ChevronRight,
   RefreshCw,
   TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
@@ -454,30 +455,15 @@ export default function PersonActionCard({
                 stop(e);
                 openDetails();
               }}
-              className="flex items-center gap-3 -ml-1 pl-1 pr-2 py-1 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
+              className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
             >
-              <div className="relative shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-white/12 to-transparent text-[10px] font-bold text-white/80 border border-white/10">
-                  {initials(action.chatterName ?? action.modelName)}
-                </div>
-                <div
-                  className={cn(
-                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background",
-                    tone.dot,
-                  )}
-                />
-              </div>
-              <div className="flex flex-col leading-tight min-w-0 text-left">
-                <span className="text-[12px] font-medium text-white/80 truncate">
-                  {action.chatterName ?? action.modelName ?? "Details"}
-                </span>
-                {compareTarget && (
-                  <span className="text-[9px] font-semibold text-white/35 uppercase tracking-tight truncate">
-                    vs. {compareTarget}
-                  </span>
-                )}
-              </div>
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-300/90 shrink-0" />
+              <span className="text-[12px] font-semibold text-emerald-300/90 tabular-nums">
+                {impactPrefix}{impactStr}
+                <span className="text-[10px] font-medium text-emerald-300/55 ml-0.5">/Wo möglich</span>
+              </span>
             </button>
+
 
 
             <div className="flex items-center gap-1">
