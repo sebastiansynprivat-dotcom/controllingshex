@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { isSystemLabel, type ChatterLabel } from "@/lib/chatter-labels";
+import { isSystemLabel, isUpgradeReceivedLabel, type ChatterLabel } from "@/lib/chatter-labels";
 
 interface Props {
   open: boolean;
@@ -34,7 +34,7 @@ export default function LabelFilterSheet({
   onSelectAll,
   onClearAll,
 }: Props) {
-  const visibleLabels = labels.filter(isSystemLabel);
+  const visibleLabels = labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l));
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl border-white/[0.08] max-h-[80vh] overflow-y-auto">

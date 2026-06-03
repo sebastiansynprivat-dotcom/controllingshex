@@ -25,13 +25,22 @@ export const SYSTEM_LABELS: { name: string; color: string }[] = [
   { name: "💛 Premium Upgrade", color: "#fbbf24" }, // amber-400
   { name: "❌ Kein Upgrade",    color: "#fb7185" }, // rose-400
   { name: "⬇️ Downgrade",       color: "#94a3b8" }, // slate-400
+  { name: "✅ Upgrade bekommen", color: "#22d3ee" }, // cyan-400 — terminal: hidden in Labels-Tab
 ];
 
 const SYSTEM_NAME_SET = new Set(SYSTEM_LABELS.map((l) => l.name));
 
+export const UPGRADE_RECEIVED_LABEL_NAME = "✅ Upgrade bekommen";
+
 export function isSystemLabel(label: ChatterLabel): boolean {
   return SYSTEM_NAME_SET.has(label.label_name);
 }
+
+/** "Terminal"-Label: Chatter ist final eingestuft → verschwindet aus Onboarding & Labels-Tab. */
+export function isUpgradeReceivedLabel(label: ChatterLabel): boolean {
+  return label.label_name === UPGRADE_RECEIVED_LABEL_NAME;
+}
+
 
 /** Legt fehlende System-Labels für den aktuellen User & Platform an. Idempotent. */
 export async function ensureSystemLabels(platform: string): Promise<void> {
