@@ -41,6 +41,11 @@ export interface TalentMatch {
   riserTier: AccountTier | null;
   riserStreak: number;          // längste aktive Strecke in 7T (ohne heute)
   riserActiveDays: number;      // aktive Tage in 7T (ohne heute)
+  riserDmDays: number;          // Tage mit Mass-DMs in 7T
+  riserChatWorkDays: number;    // Tage, an denen offene Chats abgearbeitet wurden
+  riserRevenueDays: number;     // Tage mit Umsatz in 7T (Bonus-Stufe)
+  riserHasRevenueBoost: boolean; // ≥3 Tage mit Umsatz UND > 0 Mass-DM-Tage
+  riserAvgRevenue: number;      // Ø € pro aktivem Tag (Anzeige)
   underuser: string;
   underuserTier: AccountTier;
   underuserAccount: string;
