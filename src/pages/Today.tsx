@@ -106,7 +106,9 @@ export default function Today() {
     try {
       const raw = localStorage.getItem("today.activeLabelFilters");
       if (raw) return new Set(JSON.parse(raw));
-    } catch {}
+    } catch {
+      // ignore corrupted local filter cache
+    }
     return new Set();
   });
   const [labelDataNonce, setLabelDataNonce] = useState(0);
@@ -178,7 +180,9 @@ export default function Today() {
   useEffect(() => {
     try {
       localStorage.setItem("today.activeLabelFilters", JSON.stringify([...selectedLabelIds]));
-    } catch {}
+    } catch {
+      // ignore unavailable localStorage
+    }
   }, [selectedLabelIds]);
 
 
@@ -613,10 +617,15 @@ export default function Today() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none"
+          className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none overflow-visible bg-background/92 backdrop-blur-2xl"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
         >
-          <div className="pointer-events-auto mx-auto max-w-3xl px-3 pb-3 sm:px-6">
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 bg-background/92"
+            style={{ height: "max(env(safe-area-inset-bottom), 0px)", transform: "translateY(100%)" }}
+          />
+          <div className="pointer-events-auto relative mx-auto max-w-3xl px-3 pb-3 pt-2 sm:px-6">
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-background/70 backdrop-blur-2xl shadow-[0_16px_48px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.025)_inset]">
               <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
               <div

@@ -2,28 +2,29 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+const isStandaloneDisplay = () =>
+  window.matchMedia("(display-mode: fullscreen)").matches ||
+  window.matchMedia("(display-mode: standalone)").matches ||
+  Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+
 const syncAppHeight = () => {
   const viewport = window.visualViewport;
   const innerH = window.innerHeight;
   const vvH = viewport?.height ?? innerH;
-  // iOS standalone: visualViewport.height schließt den Home-Indicator-Bereich aus
-  // und erzeugt sonst einen schwarzen Streifen unten. innerHeight nutzen,
-  // außer das Keyboard ist offen (dann ist vvH deutlich kleiner).
+  const standalone = isStandaloneDisplay();
+  const screenH = window.screen?.height ?? innerH;
+  // iOS standalone kann innerHeight ebenfalls ohne Home-Indicator-Safe-Area liefern.
+  // Dann die volle Screen-Höhe nutzen; nur beim Keyboard bewusst auf visualViewport schrumpfen.
   const keyboardOpen = innerH - vvH > 100;
-  const height = keyboardOpen ? vvH : innerH;
-  const offsetTop = viewport?.offsetTop ?? 0;
+  const height = keyboardOpen ? vvH : standalone ? Math.max(innerH, screenH) : innerH;
+  const offsetTop = keyboardOpen ? viewport?.offsetTop ?? 0 : 0;
 
   document.documentElement.style.setProperty("--app-height", `${Math.ceil(height)}px`);
   document.documentElement.style.setProperty("--app-viewport-offset-top", `${Math.floor(offsetTop)}px`);
 };
 
 const syncDisplayMode = () => {
-  const isStandalone =
-    window.matchMedia("(display-mode: fullscreen)").matches ||
-    window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
-
-  document.documentElement.classList.toggle("app-standalone", isStandalone);
+  document.documentElement.classList.toggle("app-standalone", isStandaloneDisplay());
 };
 
 syncAppHeight();
