@@ -760,7 +760,7 @@ export default function Today() {
           else next.add(id);
           setSelectedLabelIds(next);
         }}
-        onSelectAll={() => setSelectedLabelIds(new Set(labels.map((l) => l.id)))}
+        onSelectAll={() => setSelectedLabelIds(new Set(labels.filter(isSystemLabel).map((l) => l.id)))}
         onClearAll={() => setSelectedLabelIds(new Set())}
       />
     </>
