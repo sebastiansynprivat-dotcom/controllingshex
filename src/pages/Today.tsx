@@ -314,19 +314,24 @@ export default function Today() {
     () => new Set(labels.filter(isSystemLabel).map((l) => l.id)),
     [labels],
   );
+  // Im Labels-Tab sichtbare Labels = System-Labels OHNE "✅ Upgrade bekommen" (terminal)
+  const visibleLabelIdSet = useMemo(
+    () => new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)),
+    [labels],
+  );
   const labelCountsByLabel = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of labelCards) {
-      if (!systemLabelIdSet.has(c.label.id)) continue;
+      if (!visibleLabelIdSet.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
       m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
     }
     return m;
-  }, [labelCards, states, systemLabelIdSet]);
+  }, [labelCards, states, visibleLabelIdSet]);
 
   const visibleLabelCards = useMemo(
-    () => labelCards.filter((c) => systemLabelIdSet.has(c.label.id) && selectedLabelIds.has(c.label.id)),
-    [labelCards, selectedLabelIds, systemLabelIdSet],
+    () => labelCards.filter((c) => visibleLabelIdSet.has(c.label.id) && selectedLabelIds.has(c.label.id)),
+    [labelCards, selectedLabelIds, visibleLabelIdSet],
   );
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
@@ -337,13 +342,14 @@ export default function Today() {
   const totalLabelOpenCount = useMemo(() => {
     let n = 0;
     for (const c of labelCards) {
-      if (!systemLabelIdSet.has(c.label.id)) continue;
+      if (!visibleLabelIdSet.has(c.label.id)) continue;
       if (!selectedLabelIds.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
       n += 1;
     }
     return n;
-  }, [labelCards, selectedLabelIds, states, systemLabelIdSet]);
+  }, [labelCards, selectedLabelIds, states, visibleLabelIdSet]);
+
 
   const onboardingCount = useMemo(
     () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
