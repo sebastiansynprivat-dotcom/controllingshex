@@ -592,13 +592,15 @@ export default function Today() {
           {/* Soft fade above the bar so scrolling cards melt out instead of clipping */}
           <div
             aria-hidden
-            className="pointer-events-none absolute left-0 right-0 bottom-full h-32 bg-gradient-to-t from-background via-background/60 to-transparent"
+            className="pointer-events-none absolute left-0 right-0 bottom-full h-20 bg-gradient-to-t from-background via-background/70 to-transparent"
           />
           <div className="pointer-events-auto mx-auto max-w-3xl px-3 pb-3 sm:px-6">
-            <div className="relative rounded-[20px] bg-background/40 backdrop-blur-xl overflow-hidden">
+            <div className="relative rounded-[20px] border border-white/[0.07] bg-background/80 backdrop-blur-2xl shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.02)_inset] overflow-hidden">
+              {/* Top hairline highlight */}
+              <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
               {/* Edge fade masks */}
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-background/60 to-transparent z-10" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/60 to-transparent z-10" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-background/80 to-transparent z-10" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/80 to-transparent z-10" />
               <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 scrollbar-none">
                 {statusOptions.map((o) => {
                   const active = status === o.id;
