@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -9,7 +9,9 @@ import PersonActionCard from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
-import MatchBoard from "@/components/today/MatchBoard";
+import OnboardingList from "@/components/today/OnboardingList";
+import LabelCardList from "@/components/today/LabelCardList";
+import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import {
   buildTodayActions,
   type UnifiedAction,
@@ -30,9 +32,17 @@ import {
   type ActionOutcomeRow,
   type WeekRecap,
 } from "@/lib/action-outcomes";
+import {
+  ensureSystemLabels,
+  loadChatterLabels,
+  loadLabelAssignments,
+  type ChatterLabel,
+  type LabelAssignment,
+} from "@/lib/chatter-labels";
 
 type StatusMode = "open" | "wins" | "done";
-type KindTab = "all" | ActionSourceKind | "board";
+type ExtraFilter = "none" | "onboarding" | "labels";
+type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
 
@@ -42,7 +52,6 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  // talent + mismatch absichtlich entfernt — werden visuell im MatchBoard (Talent / Account ungenutzt) abgebildet
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "activity", label: "Aktivität",      icon: Activity,       accent: "text-teal-300",     dot: "bg-teal-400/80" },
@@ -50,6 +59,7 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "slot",     label: "Slot / Schicht", icon: CalendarClock,  accent: "text-indigo-300",   dot: "bg-indigo-400/80" },
   { id: "positive", label: "Wins-Signal",    icon: ThumbsUp,       accent: "text-lime-300",     dot: "bg-lime-400/80" },
 ];
+
 
 function groupByKind(actions: UnifiedAction[]) {
   const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
