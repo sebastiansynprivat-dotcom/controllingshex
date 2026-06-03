@@ -428,6 +428,9 @@ function SortableTalentCard({ card, onClick }: { card: TalentCard; onClick: () =
           )}
         </div>
         <p className="text-[10.5px] text-white/45 font-light mt-0.5 tabular-nums">
+          {fmtFollowers(card.accountFollowers)} Follower · Ø {Math.round(card.accountAvgRevenue)} €/Tag
+        </p>
+        <p className="text-[10.5px] text-white/40 font-light mt-0.5 tabular-nums">
           {card.chatWorkDays}/6T Chats · {card.dmDays}/6T DMs
           {card.hasRevenueBoost && (
             <span className="text-amber-300/80"> · {card.revenueDays}/6T Umsatz Ø {card.avgRevenue} €</span>
