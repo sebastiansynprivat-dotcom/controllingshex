@@ -60,6 +60,9 @@ export interface OrphanWarning {
   chatter: string;
   account: string;
   tier: AccountTier;
+  followers: number;
+  avgRevenue6d: number;
+  recentAvgRevenue2d: number;
   activeDays: number;
   delayDays: number;
   openChats: number;             // LIVE
