@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sprout, ChevronRight, Tag, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MagneticHover } from "@/components/MagneticHover";
 import {
   Sheet,
   SheetContent,
