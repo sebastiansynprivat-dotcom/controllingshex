@@ -279,9 +279,8 @@ export default function Today() {
     setPendingFeedback((prev) => prev.filter((p) => p.id !== id));
     try {
       await setOutcomeFeedback(id, helped);
-      toast.success(helped ? "Danke 🏻" : "Notiert");
     } catch {
-      toast.error("Konnte nicht speichern");
+      // silent
     }
   };
 
