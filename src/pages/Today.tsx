@@ -707,7 +707,7 @@ export default function Today() {
                         setKindTab("all");
                         // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
                         if (selectedLabelIds.size === 0) {
-                          setSelectedLabelIds(new Set(labels.filter(isSystemLabel).map((l) => l.id)));
+                          setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)));
                         }
                       }
                     }}
