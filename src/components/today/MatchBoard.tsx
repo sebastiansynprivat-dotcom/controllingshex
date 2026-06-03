@@ -54,6 +54,8 @@ type MismatchCard = {
   tierLabel: string;
   followers: number;
   avgRevenue: number;
+  todayRevenue: number;
+  peakRevenue: number;
   openChats: number;
   oldestChatDays: number;
   activeDays: number;
