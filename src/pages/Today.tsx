@@ -454,45 +454,8 @@ export default function Today() {
                 );
               })}
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
-              <button
-                onClick={() => setKindTab("all")}
-                className={cn(
-                  "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                  kindTab === "all"
-                    ? "bg-white/10 border-white/20 text-foreground"
-                    : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
-                )}
-              >
-                Alle
-                <span className={cn("tabular-nums text-[10.5px]", kindTab === "all" ? "text-white/70" : "text-white/30")}>
-                  {statusList.length}
-                </span>
-              </button>
-              {availableKinds.map((g) => {
-                const Icon = g.icon;
-                const active = kindTab === g.id;
-                return (
-                  <button
-                    key={g.id}
-                    onClick={() => setKindTab(g.id)}
-                    className={cn(
-                      "shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all border flex items-center gap-1.5",
-                      active
-                        ? "bg-white/10 border-white/20 text-foreground"
-                        : "bg-white/[0.02] border-white/[0.08] text-white/45 hover:text-white/75",
-                    )}
-                  >
-                    <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
-                    {g.label}
-                    <span className={cn("tabular-nums text-[10.5px]", active ? "text-white/70" : "text-white/30")}>
-                      {g.items.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
+
 
           {/* Content */}
           {loading ? (
