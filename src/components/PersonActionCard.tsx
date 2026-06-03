@@ -526,7 +526,7 @@ export default function PersonActionCard({
                       stop(e);
                       handleComplete();
                     }}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.98] transition-all disabled:opacity-80"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-white text-black text-[11px] font-bold rounded-lg hover:bg-neutral-200 active:scale-[0.97] transition-all disabled:opacity-80 shadow-[0_0_24px_-6px_rgba(255,255,255,0.18)]"
                   >
                     Abschließen
                     <Check className="h-3 w-3" strokeWidth={3} />
