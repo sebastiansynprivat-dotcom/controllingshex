@@ -326,8 +326,8 @@ export default function Today() {
   }, [labelCards, states, systemLabelIdSet]);
 
   const visibleLabelCards = useMemo(
-    () => labelCards.filter((c) => selectedLabelIds.has(c.label.id)),
-    [labelCards, selectedLabelIds],
+    () => labelCards.filter((c) => systemLabelIdSet.has(c.label.id) && selectedLabelIds.has(c.label.id)),
+    [labelCards, selectedLabelIds, systemLabelIdSet],
   );
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
@@ -338,12 +338,13 @@ export default function Today() {
   const totalLabelOpenCount = useMemo(() => {
     let n = 0;
     for (const c of labelCards) {
+      if (!systemLabelIdSet.has(c.label.id)) continue;
       if (!selectedLabelIds.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
       n += 1;
     }
     return n;
-  }, [labelCards, selectedLabelIds, states]);
+  }, [labelCards, selectedLabelIds, states, systemLabelIdSet]);
 
   const onboardingCount = useMemo(
     () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
