@@ -6,7 +6,7 @@
  * Reset-Knopf stellt den automatischen Rang wieder her.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Star, Sparkles, AlertTriangle, RotateCcw, GripVertical } from "lucide-react";
+import { Star, Sparkles, AlertTriangle, RotateCcw, GripVertical, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   DndContext,
