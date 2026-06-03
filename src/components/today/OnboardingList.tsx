@@ -112,19 +112,6 @@ export default function OnboardingList({
                         <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
                           {c.chatterName}
                         </span>
-                        {c.assignedLabels.slice(0, 2).map((l) => (
-                          <span
-                            key={l.id}
-                            className="px-1.5 py-[2px] rounded-full text-[9.5px] font-medium leading-none border"
-                            style={{
-                              color: l.color,
-                              borderColor: `${l.color}40`,
-                              backgroundColor: `${l.color}10`,
-                            }}
-                          >
-                            {l.label_name}
-                          </span>
-                        ))}
                       </div>
                       <p className="text-[11px] text-white/35 font-light mt-1 truncate">
                         {c.account ? `Account · ${c.account}` : "Kein Account zugewiesen"}
