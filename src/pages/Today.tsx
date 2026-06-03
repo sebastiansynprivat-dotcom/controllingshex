@@ -368,16 +368,18 @@ export default function Today() {
 
           {/* A2 — Pending Feedback */}
 
-          {/* Talent ↔ Account-Board (Drag & Drop) — eine einheitliche Übersicht oberhalb der Aktionsliste */}
-          {!loading && kindTab === "all" && (
-            <MatchBoard
-              platform={platform}
-              view="full"
-              onCountsChange={setBoardCounts}
-              onChatterClick={(name, compareWith) =>
-                setSelectedChatter({ name, compareWith: compareWith ?? null })
-              }
-            />
+          {/* MatchBoard — als Filter "Match Board" sichtbar; im Hintergrund laden wir Counts immer */}
+          {!loading && (
+            <div className={cn(isBoardTab ? "" : "hidden")}>
+              <MatchBoard
+                platform={platform}
+                view="full"
+                onCountsChange={setBoardCounts}
+                onChatterClick={(name, compareWith) =>
+                  setSelectedChatter({ name, compareWith: compareWith ?? null })
+                }
+              />
+            </div>
           )}
 
           {/* Status-Pills + Kategorie-Tabs */}
