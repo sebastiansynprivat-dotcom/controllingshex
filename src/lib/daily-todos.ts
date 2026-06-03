@@ -476,6 +476,14 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
   // Talent-Scout — verlässliche Workhorses ↔ verwaiste Accounts
   try {
+    const fmtFollowers = (n: number): string => {
+      if (!n || n <= 0) return "—";
+      if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+      if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+      return String(n);
+    };
+    const fmtEur = (n: number): string => `${Math.round(n)} €`;
+
     const rejected = await loadActiveRejections(platform);
     const matches = await findTalentMatches(platform, rejected);
     const matchedUnderusers = new Set(matches.map((m) => m.underuser.toLowerCase()));
@@ -487,12 +495,23 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         ? ` · zusätzlich ${m.riserRevenueDays}/6T Umsatz (Ø ${m.riserAvgRevenue} €/Tag)`
         : "";
       const scoreBoost = m.riserHasRevenueBoost ? 12 : 0;
+
+      const underRev: string[] = [];
+      if (m.underuserAvgRevenue6d > 0) underRev.push(`Ø 6T: ${fmtEur(m.underuserAvgRevenue6d)}`);
+      if (m.underuserRecentAvgRevenue2d > 0) {
+        underRev.push(`zuletzt (2T): ${fmtEur(m.underuserRecentAvgRevenue2d)}`);
+      } else if (m.underuserAvgRevenue6d > 0) {
+        underRev.push(`zuletzt (2T): 0 €`);
+      }
+      const underLive = `ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen`;
+      const underBlock = `Account ${m.underuserAccount} (${m.underuserTier.label}, ${fmtFollowers(m.underuserFollowers)} Follower) bei ${m.underuser}${underRev.length ? " · " + underRev.join(" · ") : ""} · ${underLive}`;
+
       todos.push({
         key: `talent:${m.riser}:${m.underuser}:${today}`,
         category: "talent",
         score: 70 + Math.round(m.matchScore / 10) + scoreBoost,
         title: `${boostIcon}${m.riser} auf ${m.underuserAccount} hochziehen`,
-        why: `${m.riser}${tierPart}: ${m.riserChatWorkDays}/6T Chats abgearbeitet · ${m.riserDmDays}/6T Mass-DMs${boostPart}${onbPart}. Account ${m.underuserAccount} (${m.underuserTier.label}) bei ${m.underuser} live: ältester Chat ${m.underuserOldestChatDays}T offen · ${m.underuserOpenChats} ungelesen.`,
+        why: `${m.riser}${tierPart}: ${m.riserChatWorkDays}/6T Chats abgearbeitet · ${m.riserDmDays}/6T Mass-DMs${boostPart}${onbPart}. ${underBlock}.`,
         chatterName: m.riser,
         compareWith: m.underuser,
         meta: {
@@ -505,13 +524,6 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse
     const orphans = await findOrphanedAccounts(platform);
     let soloCount = 0;
-    const fmtFollowers = (n: number): string => {
-      if (!n || n <= 0) return "—";
-      if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-      if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-      return String(n);
-    };
-    const fmtEur = (n: number): string => `${Math.round(n)} €`;
 
     for (const o of orphans) {
       if (soloCount >= 3) break;
