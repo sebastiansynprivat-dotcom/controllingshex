@@ -323,6 +323,8 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     const avgRevenue = revVals.length === 0
       ? 0
       : revVals.reduce((s, v) => s + v, 0) / revVals.length;
+    const totalRevenue = revVals.reduce((s, v) => s + v, 0);
+    const weeklyAvgRevenue = totalRevenue / Math.max(1, HISTORY_DAYS - 1);
 
     // Letzte 2 abgeschlossene Tage: Ø Umsatz über Tage mit Umsatz > 0
     const recentDays = [isoDaysAgo(1), isoDaysAgo(2)];
@@ -348,6 +350,7 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       chatWorkDays: chatWorkSet.size,
       revenueDays: revSet.size,
       avgRevenue,
+      weeklyAvgRevenue,
       recentAvgRevenue2d,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
