@@ -330,11 +330,11 @@ export default function PersonActionCard({
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={cn("w-1 h-8 rounded-full shrink-0", intensityCls)} />
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[11.5px] font-bold text-white/85 uppercase tracking-wide truncate">
+                    <span className="text-[11.5px] font-bold text-white/85 uppercase tracking-wide break-words">
                       {r.title}
                     </span>
                     {r.meta && (
-                      <span className="text-[10px] text-white/40 font-light truncate">
+                      <span className="text-[10px] text-white/40 font-light break-words leading-snug mt-0.5">
                         {r.meta}
                       </span>
                     )}
