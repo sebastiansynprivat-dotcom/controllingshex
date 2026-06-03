@@ -592,7 +592,10 @@ export default function Today() {
           <div className="pointer-events-auto mx-auto max-w-3xl px-3 pb-3 sm:px-6">
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-background/70 backdrop-blur-2xl shadow-[0_16px_48px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.025)_inset]">
               <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
-              <div className="relative flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 scrollbar-none">
+              <div
+                className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 scroll-smooth [-webkit-overflow-scrolling:touch] [scroll-behavior:smooth]"
+                style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)", maskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)" }}
+              >
                 {statusOptions.map((o) => {
                   const active = status === o.id;
                   return (
