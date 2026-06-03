@@ -154,8 +154,8 @@
   body {
     @apply bg-background text-foreground antialiased;
     margin: 0;
-    min-height: var(--app-height, 100dvh);
-    height: var(--app-height, 100dvh);
+    min-height: 100dvh;
+    height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
     touch-action: pan-y;
