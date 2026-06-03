@@ -88,7 +88,7 @@ export default function LabelFilterSheet({
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: l.color }}
                 />
-                <MagneticHover as="span" range={16} pull={0.5} className="flex-1">
+                <MagneticHover as="span" range={16} className="flex-1">
                   <span className="block text-[13.5px] font-medium text-foreground">
                     {l.label_name}
                   </span>
