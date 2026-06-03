@@ -31,7 +31,7 @@ import {
 } from "@/lib/action-outcomes";
 
 type StatusMode = "open" | "wins" | "done";
-type KindTab = "all" | ActionSourceKind;
+type KindTab = "all" | ActionSourceKind | "board-talent" | "board-orphan";
 type TopTab = "actions" | "tracking";
 
 
