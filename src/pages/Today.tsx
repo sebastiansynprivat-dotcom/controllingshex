@@ -13,6 +13,7 @@ import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import {
   buildTodayActions,
   type UnifiedAction,
