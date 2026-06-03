@@ -31,8 +31,8 @@ export async function loadOnboardingChatters(
   assignments: LabelAssignment[],
   opts: Options = {},
 ): Promise<OnboardingGroup[]> {
-  const minDays = opts.minDays ?? 5;
-  const maxDays = opts.maxDays ?? Number.POSITIVE_INFINITY;
+  const minDays = opts.minDays ?? 6;
+  const maxDays = opts.maxDays ?? 20;
 
   const [onboardingRes, activeNames, accountsRes] = await Promise.all([
     supabase.rpc("get_chatter_onboarding", { p_platform: platform }),
