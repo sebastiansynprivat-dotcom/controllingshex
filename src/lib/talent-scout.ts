@@ -310,6 +310,8 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
     const chatWorkSet = new Set<string>();
     const revSet = new Set<string>();
     const revVals: number[] = [];
+    let peakRevenue = 0;
+    let todayRevenue = 0;
     for (const r of rows) {
       const rev = Number(r.revenue_today ?? 0);
       const dm = Number(r.mass_dms ?? 0);
@@ -321,6 +323,8 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       // (Person hat den Inbox-Stack bearbeitet) ODER es kam Umsatz / DM dazu.
       if (chats > 0 || dm > 0 || rev > 0) chatWorkSet.add(r.analysis_date);
       if (rev > 0) { revSet.add(r.analysis_date); revVals.push(rev); }
+      if (rev > peakRevenue) peakRevenue = rev;
+      if (r.analysis_date === today) todayRevenue = Math.max(todayRevenue, rev);
     }
     const avgRevenue = revVals.length === 0
       ? 0
@@ -354,6 +358,8 @@ async function loadAggs(platform: string): Promise<ChatterAgg[]> {
       avgRevenue,
       weeklyAvgRevenue,
       recentAvgRevenue2d,
+      todayRevenue,
+      peakRevenue,
       liveOpenChats: Math.max(0, Number(liveRow?.unread_chats ?? 0)),
       liveOldestChatDays: Math.max(0, Number(liveRow?.oldest_chat ?? 0)),
     });
