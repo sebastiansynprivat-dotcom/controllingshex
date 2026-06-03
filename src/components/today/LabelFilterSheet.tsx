@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import type { ChatterLabel } from "@/lib/chatter-labels";
+import { isSystemLabel, type ChatterLabel } from "@/lib/chatter-labels";
 
 interface Props {
   open: boolean;
@@ -34,6 +34,7 @@ export default function LabelFilterSheet({
   onSelectAll,
   onClearAll,
 }: Props) {
+  const visibleLabels = labels.filter(isSystemLabel);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl border-white/[0.08] max-h-[80vh] overflow-y-auto">
@@ -60,12 +61,12 @@ export default function LabelFilterSheet({
           </button>
         </div>
         <div className="mt-3 space-y-2 pb-4">
-          {labels.length === 0 && (
+          {visibleLabels.length === 0 && (
             <p className="text-[12px] text-white/40 text-center py-6">
               Noch keine Labels angelegt.
             </p>
           )}
-          {labels.map((l) => {
+          {visibleLabels.map((l) => {
             const active = selectedIds.has(l.id);
             const count = countsByLabel.get(l.id) ?? 0;
             return (

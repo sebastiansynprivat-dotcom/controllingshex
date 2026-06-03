@@ -75,69 +75,75 @@ export default function OnboardingList({
 
   return (
     <>
-      <div className="space-y-5">
+      <div className="space-y-6">
         {groups.map((g) => (
-          <div key={g.day} className="space-y-2">
-            <div className="flex items-center gap-2 px-1 pb-1 opacity-70">
-              <Sprout className="h-3 w-3 text-emerald-300" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                Tag {g.day}
-              </span>
-              <span className="text-[10px] tabular-nums text-white/30 font-light">
-                · {g.items.length}
+          <div key={g.day} className="space-y-3">
+            <div className="flex items-center gap-3 px-0.5">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/[0.08] border border-emerald-400/15">
+                <Sprout className="h-3 w-3 text-emerald-300" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200/90">
+                  Tag {g.day}
+                </span>
+              </div>
+              <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
+              <span className="text-[10.5px] tabular-nums text-white/35 font-light">
+                {g.items.length}
               </span>
             </div>
             <div className="space-y-2">
               {g.items.map((c) => (
-                <motion.button
+                <motion.div
                   key={c.chatterKey}
                   layout
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: 80 }}
                   transition={{ duration: 0.18 }}
-                  onClick={() => onChatterClick(c.chatterName)}
-                  className="w-full text-left premium-card rounded-2xl px-4 py-3 border border-white/[0.05] hover:border-white/[0.12] transition-all flex items-center gap-3 group"
+                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.035] to-white/[0.015] backdrop-blur-xl hover:border-white/[0.14] hover:from-white/[0.05] transition-all"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13.5px] font-medium text-foreground truncate">
-                        {c.chatterName}
-                      </span>
-                      {c.assignedLabels.length > 0 && (
-                        <span className="flex items-center gap-1">
-                          {c.assignedLabels.slice(0, 2).map((l) => (
-                            <span
-                              key={l.id}
-                              className="px-1.5 py-0.5 rounded-full text-[9px] font-medium border"
-                              style={{
-                                color: l.color,
-                                borderColor: `${l.color}55`,
-                                backgroundColor: `${l.color}14`,
-                              }}
-                            >
-                              {l.label_name}
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-white/40 font-light mt-0.5 truncate">
-                      {c.account ? `Account: ${c.account}` : "Kein Account zugewiesen"}
-                    </p>
-                  </div>
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPicker(c);
-                    }}
-                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10.5px] font-medium text-white/70 hover:bg-white/[0.1] hover:text-white transition-all"
+                    type="button"
+                    onClick={() => onChatterClick(c.chatterName)}
+                    className="w-full text-left px-4 py-3.5 flex items-center gap-3"
                   >
-                    <Tag className="h-3 w-3" />
-                    Label
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[14px] font-medium text-foreground truncate tracking-[-0.005em]">
+                          {c.chatterName}
+                        </span>
+                        {c.assignedLabels.slice(0, 2).map((l) => (
+                          <span
+                            key={l.id}
+                            className="px-1.5 py-[2px] rounded-full text-[9.5px] font-medium leading-none border"
+                            style={{
+                              color: l.color,
+                              borderColor: `${l.color}40`,
+                              backgroundColor: `${l.color}10`,
+                            }}
+                          >
+                            {l.label_name}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-white/35 font-light mt-1 truncate">
+                        {c.account ? `Account · ${c.account}` : "Kein Account zugewiesen"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setPicker(c);
+                      }}
+                      className="shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/60 hover:bg-white/[0.1] hover:text-white active:scale-95 transition-all"
+                      aria-label="Label setzen"
+                    >
+                      <Tag className="h-3.5 w-3.5" />
+                    </button>
+                    <ChevronRight className="h-4 w-4 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all" />
                   </button>
-                  <ChevronRight className="h-4 w-4 text-white/20 group-hover:text-white/40 transition-colors" />
-                </motion.button>
+                </motion.div>
               ))}
             </div>
           </div>

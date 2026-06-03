@@ -34,6 +34,7 @@ import {
 } from "@/lib/action-outcomes";
 import {
   ensureSystemLabels,
+  isSystemLabel,
   loadChatterLabels,
   loadLabelAssignments,
   type ChatterLabel,
@@ -310,18 +311,23 @@ export default function Today() {
   }
 
   // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
+  const systemLabelIdSet = useMemo(
+    () => new Set(labels.filter(isSystemLabel).map((l) => l.id)),
+    [labels],
+  );
   const labelCountsByLabel = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of labelCards) {
+      if (!systemLabelIdSet.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
       m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
     }
     return m;
-  }, [labelCards, states]);
+  }, [labelCards, states, systemLabelIdSet]);
 
   const visibleLabelCards = useMemo(
-    () => labelCards.filter((c) => selectedLabelIds.has(c.label.id)),
-    [labelCards, selectedLabelIds],
+    () => labelCards.filter((c) => systemLabelIdSet.has(c.label.id) && selectedLabelIds.has(c.label.id)),
+    [labelCards, selectedLabelIds, systemLabelIdSet],
   );
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
@@ -332,12 +338,13 @@ export default function Today() {
   const totalLabelOpenCount = useMemo(() => {
     let n = 0;
     for (const c of labelCards) {
+      if (!systemLabelIdSet.has(c.label.id)) continue;
       if (!selectedLabelIds.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
       n += 1;
     }
     return n;
-  }, [labelCards, selectedLabelIds, states]);
+  }, [labelCards, selectedLabelIds, states, systemLabelIdSet]);
 
   const onboardingCount = useMemo(
     () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
@@ -657,7 +664,7 @@ export default function Today() {
                         setKindTab("all");
                         // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
                         if (selectedLabelIds.size === 0) {
-                          setSelectedLabelIds(new Set(labels.map((l) => l.id)));
+                          setSelectedLabelIds(new Set(labels.filter(isSystemLabel).map((l) => l.id)));
                         }
                       }
                     }}
@@ -753,7 +760,7 @@ export default function Today() {
           else next.add(id);
           setSelectedLabelIds(next);
         }}
-        onSelectAll={() => setSelectedLabelIds(new Set(labels.map((l) => l.id)))}
+        onSelectAll={() => setSelectedLabelIds(new Set(labels.filter(isSystemLabel).map((l) => l.id)))}
         onClearAll={() => setSelectedLabelIds(new Set())}
       />
     </>
