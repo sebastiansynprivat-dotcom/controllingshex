@@ -86,6 +86,8 @@ function fmtEur(v: number): string {
 
 export default function Today() {
   const { platform } = usePlatform();
+  const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
+  const sidebarOffset = sidebarIsMobile ? "0px" : sidebarState === "collapsed" ? "5rem" : "16rem";
   const [data, setData] = useState<TodayEngineResult | null>(null);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
