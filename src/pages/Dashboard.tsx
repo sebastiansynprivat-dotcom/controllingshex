@@ -191,9 +191,12 @@ export default function Dashboard() {
             className="max-w-5xl mx-auto reveal-stagger space-y-8 sm:space-y-12 p-2 sm:p-8 lg:p-12"
           >
             {/* Header + Date Selector */}
-            <div className="space-y-3">
-              <div className="kpi-label">Übersicht</div>
-              <h1 className="text-3xl sm:text-4xl font-extralight tracking-tight text-foreground leading-none">{platform}</h1>
+            <div className="space-y-4">
+              <div className="eyebrow">Übersicht</div>
+              <h1 className="display-serif text-5xl sm:text-6xl font-light leading-[0.95] foil-text">
+                {platform}
+              </h1>
+              <hr className="hairline-gold" />
 
               {reports.length > 1 ? (
                 <Select value={selectedId || ""} onValueChange={setSelectedId}>

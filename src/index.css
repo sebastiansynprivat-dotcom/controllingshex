@@ -2,75 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
   :root {
-    --background: 240 6% 4%;
-    --foreground: 0 0% 93%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100% / 0.02;
-    --card-foreground: 0 0% 93%;
+    --card: 0 0% 100% / 0.025;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 240 6% 5%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 40 45% 55%;
-    --primary-foreground: 240 6% 4%;
+    --primary: 40 58% 60%;
+    --primary-foreground: 0 0% 4%;
 
     --secondary: 0 0% 100% / 0.04;
-    --secondary-foreground: 0 0% 70%;
+    --secondary-foreground: 0 0% 72%;
 
     --muted: 0 0% 100% / 0.04;
-    --muted-foreground: 0 0% 40%;
+    --muted-foreground: 0 0% 44%;
 
-    --accent: 40 45% 55%;
-    --accent-foreground: 240 6% 4%;
+    --accent: 40 58% 60%;
+    --accent-foreground: 0 0% 4%;
 
     --destructive: 0 55% 48%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 100% / 0.05;
-    --input: 0 0% 100% / 0.05;
-    --ring: 40 45% 55%;
+    --border: 0 0% 100% / 0.06;
+    --input: 0 0% 100% / 0.06;
+    --ring: 40 58% 60%;
 
     --radius: 0.75rem;
 
-    --gold: 40 45% 55%;
-    --gold-light: 40 50% 65%;
-    --gold-dark: 40 40% 42%;
+    /* Gold scale — editorial */
+    --gold: 40 58% 60%;
+    --gold-light: 42 72% 74%;
+    --gold-dark: 38 48% 40%;
+    --gold-deep: 38 50% 26%;
 
-    --surface-1: 240 6% 5%;
-    --surface-2: 0 0% 100% / 0.02;
-    --surface-3: 0 0% 100% / 0.04;
+    /* Surface stack — 4 distinct tiers */
+    --surface-0: 0 0% 2%;
+    --surface-1: 0 0% 5%;
+    --surface-2: 0 0% 100% / 0.025;
+    --surface-3: 0 0% 100% / 0.05;
 
-    --sidebar-background: 240 6% 4%;
-    --sidebar-foreground: 0 0% 50%;
-    --sidebar-primary: 40 45% 55%;
-    --sidebar-primary-foreground: 240 6% 4%;
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 0 0% 52%;
+    --sidebar-primary: 40 58% 60%;
+    --sidebar-primary-foreground: 0 0% 4%;
     --sidebar-accent: 0 0% 100% / 0.04;
-    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 100% / 0.04;
-    --sidebar-ring: 40 45% 55%;
+    --sidebar-ring: 40 58% 60%;
 
     /* Text hierarchy tokens (Apple-Pro readability) */
-    --text-strong: 0 0% 96%;
-    --text: 0 0% 84%;
-    --text-muted: 0 0% 64%;
-    --text-subtle: 0 0% 46%;
+    --text-strong: 0 0% 97%;
+    --text: 0 0% 86%;
+    --text-muted: 0 0% 66%;
+    --text-subtle: 0 0% 48%;
 
     /* Layered card shadows */
     --shadow-card:
-      0 1px 0 0 hsl(0 0% 100% / 0.06) inset,
-      0 0 0 1px hsl(0 0% 0% / 0.25),
-      0 12px 32px -16px hsl(0 0% 0% / 0.55),
-      0 2px 6px -2px hsl(0 0% 0% / 0.35);
+      0 1px 0 0 hsl(0 0% 100% / 0.07) inset,
+      0 0 0 1px hsl(0 0% 0% / 0.3),
+      0 14px 36px -16px hsl(0 0% 0% / 0.6),
+      0 2px 6px -2px hsl(0 0% 0% / 0.4);
     --shadow-card-hover:
-      0 1px 0 0 hsl(0 0% 100% / 0.09) inset,
-      0 0 0 1px hsl(0 0% 0% / 0.25),
-      0 22px 44px -18px hsl(0 0% 0% / 0.65),
-      0 4px 10px -2px hsl(0 0% 0% / 0.4),
-      0 0 32px -10px hsl(40 50% 60% / 0.06);
+      0 1px 0 0 hsl(0 0% 100% / 0.11) inset,
+      0 0 0 1px hsl(40 50% 50% / 0.16),
+      0 26px 50px -18px hsl(0 0% 0% / 0.7),
+      0 4px 12px -2px hsl(0 0% 0% / 0.45),
+      0 0 42px -10px hsl(40 60% 60% / 0.1);
 
     /* Desktop content frame */
     --content-max: 1400px;
@@ -169,6 +173,19 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     letter-spacing: -0.02em;
   }
+
+  /* Editorial display headlines */
+  .font-display-serif,
+  .display-serif {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-feature-settings: 'ss01';
+    font-optical-sizing: auto;
+    letter-spacing: -0.025em;
+  }
+
+  .font-mono-ui {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
 }
 
 @layer utilities {
@@ -201,10 +218,31 @@
   }
 
   .gold-text {
-    background: linear-gradient(135deg, hsl(40 50% 65%), hsl(40 40% 50%));
+    background: linear-gradient(135deg, hsl(42 75% 78%) 0%, hsl(40 60% 60%) 50%, hsl(38 55% 48%) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Foil-text — richer multi-stop gold sweep for display headlines */
+  .foil-text {
+    background: linear-gradient(
+      100deg,
+      hsl(42 78% 82%) 0%,
+      hsl(40 65% 62%) 28%,
+      hsl(38 45% 38%) 50%,
+      hsl(40 65% 62%) 72%,
+      hsl(42 78% 82%) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-sweep 9s ease-in-out infinite;
+  }
+  @keyframes foil-sweep {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
   }
 
   .gold-text-subtle {
@@ -212,6 +250,81 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Editorial eyebrow — small caps mono gold label above headlines */
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: hsl(40 50% 62%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px; height: 1px;
+    background: linear-gradient(90deg, hsl(40 55% 55% / 0.75), transparent);
+  }
+
+  /* Hairline gold divider */
+  .hairline-gold {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(90deg, transparent 0%, hsl(40 50% 55% / 0.32) 18%, hsl(40 50% 55% / 0.32) 82%, transparent 100%);
+    margin: 0;
+  }
+
+  /* Editorial card — black matte with gold left hairline */
+  .editorial-card {
+    position: relative;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.025) 0%, hsl(0 0% 0% / 0.35) 100%);
+    border: 1px solid hsl(0 0% 100% / 0.055);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: border-color 320ms cubic-bezier(0.16,1,0.3,1), box-shadow 320ms cubic-bezier(0.16,1,0.3,1), transform 320ms cubic-bezier(0.16,1,0.3,1);
+  }
+  .editorial-card::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 14%; bottom: 14%;
+    width: 1.5px;
+    background: linear-gradient(180deg, transparent, hsl(40 60% 60% / 0.85) 28%, hsl(40 60% 60% / 0.85) 72%, transparent);
+    box-shadow: 0 0 12px hsl(40 60% 60% / 0.35);
+  }
+  .editorial-card:hover {
+    border-color: hsl(40 50% 55% / 0.2);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Foil shimmer button */
+  .btn-foil {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(40 60% 60%) 0%, hsl(38 50% 46%) 100%);
+    color: hsl(0 0% 4%);
+    border: 1px solid hsl(40 60% 55% / 0.5);
+    box-shadow: 0 1px 0 hsl(40 80% 85% / 0.35) inset, 0 8px 24px -8px hsl(40 60% 50% / 0.45);
+    transition: transform 200ms cubic-bezier(0.16,1,0.3,1), box-shadow 200ms;
+  }
+  .btn-foil::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, hsl(0 0% 100% / 0.4) 50%, transparent 70%);
+    transform: translateX(-130%);
+    transition: transform 750ms cubic-bezier(0.22,1,0.36,1);
+    pointer-events: none;
+  }
+  .btn-foil:hover::after { transform: translateX(130%); }
+  .btn-foil:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 hsl(40 80% 88% / 0.45) inset, 0 14px 32px -10px hsl(40 60% 50% / 0.6);
   }
 
   .gold-glow {
@@ -247,8 +360,10 @@
   }
 
   .bg-depth {
-    background: radial-gradient(ellipse 80% 60% at 50% 0%, hsl(40 30% 20% / 0.04) 0%, transparent 70%),
-                hsl(240 6% 4%);
+    background:
+      radial-gradient(ellipse 90% 55% at 50% -10%, hsl(40 55% 50% / 0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(40 40% 40% / 0.04) 0%, transparent 70%),
+      hsl(0 0% 3%);
   }
 
   .animate-fade-in {
