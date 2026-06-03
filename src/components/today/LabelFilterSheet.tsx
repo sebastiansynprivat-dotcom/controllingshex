@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { isSystemLabel, type ChatterLabel } from "@/lib/chatter-labels";
+import { isSystemLabel, isUpgradeReceivedLabel, type ChatterLabel } from "@/lib/chatter-labels";
 
 interface Props {
   open: boolean;
