@@ -46,7 +46,7 @@ import {
 } from "@/lib/chatter-labels";
 
 type StatusMode = "open" | "wins" | "done";
-type ExtraFilter = "none" | "onboarding" | "labels";
+type ExtraFilter = "none" | "onboarding" | "labels" | "push";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
