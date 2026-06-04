@@ -62,7 +62,6 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
-      // Nur linke Maustaste
       if (e.button !== 0) return;
       cancelAnimationFrame(raf);
       active = true;
@@ -73,31 +72,39 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       lastT = performance.now();
       startScroll = el.scrollLeft;
       pointerId = e.pointerId;
+      // Snap während des Drags deaktivieren — sonst kämpft scroll-snap gegen scrollLeft-Setting
+      el.style.scrollSnapType = "none";
+      el.style.scrollBehavior = "auto";
       el.style.cursor = "grabbing";
       el.style.userSelect = "none";
+      try { el.setPointerCapture(e.pointerId); } catch {}
       setIsDragging(true);
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (!active) return;
       const dx = e.clientX - startX;
+      if (Math.abs(dx) > 2) e.preventDefault?.();
       moved = Math.max(moved, Math.abs(dx));
       el.scrollLeft = startScroll - dx;
       const now = performance.now();
       const dt = Math.max(1, now - lastT);
-      velocity = ((e.clientX - lastX) / dt) * 16; // px/frame @60fps
+      velocity = ((e.clientX - lastX) / dt) * 16;
       lastX = e.clientX;
       lastT = now;
     };
+
 
     const endDrag = () => {
       if (!active) return;
       active = false;
       el.style.cursor = "";
       el.style.userSelect = "";
+      // Snap wieder aktivieren (von Tailwind-Klasse übernommen)
+      el.style.scrollSnapType = "";
+      el.style.scrollBehavior = "";
       setIsDragging(false);
       if (moved > 4) {
-        // Click direkt nach Drag unterdrücken
         const block = (ev: MouseEvent) => {
           ev.stopPropagation();
           ev.preventDefault();
@@ -111,20 +118,23 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
 
     const onPointerUp = (e: PointerEvent) => {
       if (e.pointerId !== pointerId) return;
+      try { el.releasePointerCapture(e.pointerId); } catch {}
       endDrag();
     };
 
     el.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("pointerup", onPointerUp);
-    window.addEventListener("pointercancel", onPointerUp);
+    // Listener auf Element (mit pointer capture) statt window, damit Drags zuverlässig laufen
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
+
 
     return () => {
       cancelAnimationFrame(raf);
       el.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
     };
   }, [snapSelector]);
 
