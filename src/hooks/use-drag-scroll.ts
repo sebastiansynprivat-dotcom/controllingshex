@@ -100,9 +100,11 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       active = false;
       el.style.cursor = "";
       el.style.userSelect = "";
+      // Snap wieder aktivieren (von Tailwind-Klasse übernommen)
+      el.style.scrollSnapType = "";
+      el.style.scrollBehavior = "";
       setIsDragging(false);
       if (moved > 4) {
-        // Click direkt nach Drag unterdrücken
         const block = (ev: MouseEvent) => {
           ev.stopPropagation();
           ev.preventDefault();
@@ -116,13 +118,16 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
 
     const onPointerUp = (e: PointerEvent) => {
       if (e.pointerId !== pointerId) return;
+      try { el.releasePointerCapture(e.pointerId); } catch {}
       endDrag();
     };
 
     el.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("pointerup", onPointerUp);
-    window.addEventListener("pointercancel", onPointerUp);
+    // Listener auf Element (mit pointer capture) statt window, damit Drags zuverlässig laufen
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
+
 
     return () => {
       cancelAnimationFrame(raf);
