@@ -548,6 +548,11 @@ export default function Today() {
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
               onAssigned={reloadLabelData}
             />
+          ) : extraFilter === "push" ? (
+            <PushSection
+              platform={platform}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+            />
           ) : extraFilter === "labels" ? (
             <LabelCardList
               cards={visibleLabelCards}
