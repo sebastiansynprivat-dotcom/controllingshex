@@ -132,9 +132,9 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
     return () => {
       cancelAnimationFrame(raf);
       el.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
     };
   }, [snapSelector]);
 
