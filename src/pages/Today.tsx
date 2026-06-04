@@ -12,6 +12,7 @@ import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
+import PushSection from "@/components/today/PushSection";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import {
@@ -486,7 +487,15 @@ export default function Today() {
           ) : (
             <>
 
+          {/* Push — Live-Aktivierung + Performance-Push */}
+          <PushSection
+            platform={platform}
+            onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+          />
+
           {/* A3 — Wochen-Recap (nur Sonntag) */}
+
+
 
           {!loading && recap && recap.count > 0 && (
             <motion.div
