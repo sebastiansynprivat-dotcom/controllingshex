@@ -379,6 +379,7 @@ export default function Today() {
   const activeTint = (() => {
     if (status === "wins")  return { key: "wins",    color: "163,230,53",  intensity: 0.14 }; // Lime → Dopamin
     if (status === "done")  return { key: "done",    color: "148,163,184", intensity: 0.05 }; // Slate → ruhig
+    if (extraFilter === "push")       return { key: "push", color: "236,72,153",  intensity: 0.12 };
     if (extraFilter === "onboarding") return { key: "onb", color: "52,211,153", intensity: 0.11 };
     if (extraFilter === "labels")     return { key: "lbl", color: "251,191,36", intensity: 0.10 };
     if (kindTab !== "all") {
