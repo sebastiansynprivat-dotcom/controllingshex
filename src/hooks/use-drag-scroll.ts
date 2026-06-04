@@ -62,7 +62,6 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
-      // Nur linke Maustaste
       if (e.button !== 0) return;
       cancelAnimationFrame(raf);
       active = true;
@@ -73,22 +72,28 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       lastT = performance.now();
       startScroll = el.scrollLeft;
       pointerId = e.pointerId;
+      // Snap während des Drags deaktivieren — sonst kämpft scroll-snap gegen scrollLeft-Setting
+      el.style.scrollSnapType = "none";
+      el.style.scrollBehavior = "auto";
       el.style.cursor = "grabbing";
       el.style.userSelect = "none";
+      try { el.setPointerCapture(e.pointerId); } catch {}
       setIsDragging(true);
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (!active) return;
       const dx = e.clientX - startX;
+      if (Math.abs(dx) > 2) e.preventDefault?.();
       moved = Math.max(moved, Math.abs(dx));
       el.scrollLeft = startScroll - dx;
       const now = performance.now();
       const dt = Math.max(1, now - lastT);
-      velocity = ((e.clientX - lastX) / dt) * 16; // px/frame @60fps
+      velocity = ((e.clientX - lastX) / dt) * 16;
       lastX = e.clientX;
       lastT = now;
     };
+
 
     const endDrag = () => {
       if (!active) return;
