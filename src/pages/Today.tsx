@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -46,7 +46,7 @@ import {
 } from "@/lib/chatter-labels";
 
 type StatusMode = "open" | "wins" | "done";
-type ExtraFilter = "none" | "onboarding" | "labels";
+type ExtraFilter = "none" | "onboarding" | "labels" | "push";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
@@ -379,6 +379,7 @@ export default function Today() {
   const activeTint = (() => {
     if (status === "wins")  return { key: "wins",    color: "163,230,53",  intensity: 0.14 }; // Lime → Dopamin
     if (status === "done")  return { key: "done",    color: "148,163,184", intensity: 0.05 }; // Slate → ruhig
+    if (extraFilter === "push")       return { key: "push", color: "236,72,153",  intensity: 0.12 };
     if (extraFilter === "onboarding") return { key: "onb", color: "52,211,153", intensity: 0.11 };
     if (extraFilter === "labels")     return { key: "lbl", color: "251,191,36", intensity: 0.10 };
     if (kindTab !== "all") {
@@ -487,11 +488,8 @@ export default function Today() {
           ) : (
             <>
 
-          {/* Push — Live-Aktivierung + Performance-Push */}
-          <PushSection
-            platform={platform}
-            onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
-          />
+
+
 
           {/* A3 — Wochen-Recap (nur Sonntag) */}
 
@@ -550,6 +548,11 @@ export default function Today() {
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
               onAssigned={reloadLabelData}
+            />
+          ) : extraFilter === "push" ? (
+            <PushSection
+              platform={platform}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
             />
           ) : extraFilter === "labels" ? (
             <LabelCardList
@@ -697,6 +700,18 @@ export default function Today() {
                   <span className={cn("tabular-nums text-[10px]", kindTab === "all" && extraFilter === "none" ? "text-white/70" : "text-white/30")}>
                     {statusList.length}
                   </span>
+                </button>
+                <button
+                  onClick={() => { setExtraFilter("push"); setKindTab("all"); }}
+                  className={cn(
+                    "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                    extraFilter === "push"
+                      ? "bg-pink-500/[0.12] border-pink-400/30 text-pink-100 shadow-[0_0_18px_-6px_rgba(236,72,153,0.4)]"
+                      : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                  )}
+                >
+                  <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
+                  Push
                 </button>
                 {onboardingCount > 0 && (
                   <button
