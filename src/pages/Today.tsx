@@ -487,11 +487,8 @@ export default function Today() {
           ) : (
             <>
 
-          {/* Push — Live-Aktivierung + Performance-Push */}
-          <PushSection
-            platform={platform}
-            onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
-          />
+
+
 
           {/* A3 — Wochen-Recap (nur Sonntag) */}
 
