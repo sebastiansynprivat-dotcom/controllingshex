@@ -42,29 +42,23 @@ export function isUpgradeReceivedLabel(label: ChatterLabel): boolean {
 }
 
 
-/** Legt fehlende System-Labels für den aktuellen User & Platform an. Idempotent. */
+/** Legt fehlende System-Labels für den aktuellen User & Platform an. Idempotent via Upsert auf (user_id, platform, label_name). */
 export async function ensureSystemLabels(platform: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  const { data: existing } = await supabase
+  // Upsert verhindert Duplikate auch bei parallelen Mounts (React Strict Mode, schneller Platform-Switch).
+  await supabase
     .from("chatter_labels")
-    .select("label_name")
-    .eq("user_id", user.id)
-    .eq("platform", platform);
-
-  const have = new Set((existing ?? []).map((r) => r.label_name));
-  const missing = SYSTEM_LABELS.filter((l) => !have.has(l.name));
-  if (missing.length === 0) return;
-
-  await supabase.from("chatter_labels").insert(
-    missing.map((l) => ({
-      user_id: user.id,
-      platform,
-      label_name: l.name,
-      color: l.color,
-    })),
-  );
+    .upsert(
+      SYSTEM_LABELS.map((l) => ({
+        user_id: user.id,
+        platform,
+        label_name: l.name,
+        color: l.color,
+      })),
+      { onConflict: "user_id,platform,label_name", ignoreDuplicates: true },
+    );
 }
 
 export async function loadChatterLabels(platform: string): Promise<ChatterLabel[]> {
