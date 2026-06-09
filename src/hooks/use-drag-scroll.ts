@@ -1,20 +1,26 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Drag-to-Scroll für horizontale Container (Desktop / Maus).
  * - Touch wird ignoriert (natives Scrollen bleibt).
  * - Momentum nach Loslassen + magnetisches Snap auf nächstes Kind mit
  *   Selektor `snapSelector` (default: `.snap-start`).
+ * - Mausrad-Scroll: vertikales Rad wird in horizontal umgelenkt.
  */
 export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
   snapSelector?: string;
+  wheel?: boolean;
 }) {
-  const ref = useRef<T | null>(null);
+  const [el, setEl] = useState<T | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const snapSelector = opts?.snapSelector ?? ".snap-start";
+  const enableWheel = opts?.wheel ?? true;
+
+  const ref = useCallback((node: T | null) => {
+    setEl(node);
+  }, []);
 
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
 
     let active = false;
@@ -94,7 +100,6 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       lastT = now;
     };
 
-
     const endDrag = () => {
       if (!active) return;
       active = false;
@@ -122,6 +127,12 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       endDrag();
     };
 
+    const onPointerLeave = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      try { el.releasePointerCapture(e.pointerId); } catch {}
+      endDrag();
+    };
+
     const onWheel = (e: WheelEvent) => {
       // Vertikales Scrollrad → horizontal scrollen, wenn der Container scrollbar ist.
       const canScrollX = el.scrollWidth > el.clientWidth + 1;
@@ -139,8 +150,10 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("pointercancel", onPointerUp);
-    el.addEventListener("wheel", onWheel, { passive: false });
-
+    el.addEventListener("pointerleave", onPointerLeave);
+    if (enableWheel) {
+      el.addEventListener("wheel", onWheel, { passive: false });
+    }
 
     return () => {
       cancelAnimationFrame(raf);
@@ -148,9 +161,12 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
-      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("pointerleave", onPointerLeave);
+      if (enableWheel) {
+        el.removeEventListener("wheel", onWheel);
+      }
     };
-  }, [snapSelector]);
+  }, [el, snapSelector, enableWheel]);
 
   return { ref, isDragging };
 }

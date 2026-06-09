@@ -105,7 +105,7 @@ export default function Today() {
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
-  const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>();
+  const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>({ wheel: false });
 
   // Labels + Onboarding
   const [labels, setLabels] = useState<ChatterLabel[]>([]);
@@ -652,13 +652,21 @@ export default function Today() {
             className="absolute inset-x-0 bottom-0 bg-background/92 sm:hidden"
             style={{ height: "max(env(safe-area-inset-bottom), 0px)", transform: "translateY(100%)" }}
           />
-          <div className="pointer-events-auto relative mx-auto w-fit max-w-3xl px-3 pb-3 pt-2 sm:px-0 sm:pb-6">
+          <div className="pointer-events-auto relative mx-auto w-full max-w-3xl px-3 pb-3 pt-2 sm:px-0 sm:pb-6">
 
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-background/70 backdrop-blur-2xl shadow-[0_16px_48px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.025)_inset]">
               <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
               <div
                 ref={filterScrollRef}
-                className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 scroll-smooth cursor-grab [-webkit-overflow-scrolling:touch] [scroll-behavior:smooth]"
+                onWheel={(e) => {
+                  const el = e.currentTarget;
+                  if (el.scrollWidth <= el.clientWidth + 1) return;
+                  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                    e.preventDefault();
+                    el.scrollLeft += e.deltaY;
+                  }
+                }}
+                className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 cursor-grab [-webkit-overflow-scrolling:touch]"
                 style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)", maskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)" }}
               >
                 {statusOptions.map((o) => {
