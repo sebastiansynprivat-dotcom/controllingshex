@@ -8,6 +8,7 @@ import { Sprout, ChevronRight, Tag } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import {
   Sheet,
   SheetContent,
@@ -40,6 +41,7 @@ export default function OnboardingList({
   const [picker, setPicker] = useState<OnboardingChatter | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeDay, setActiveDay] = useState<number | null>(null);
+  const { ref: chipScrollRef } = useDragScroll<HTMLDivElement>();
 
   const systemLabels = allLabels.filter(isSystemLabel);
 
@@ -80,7 +82,10 @@ export default function OnboardingList({
   return (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-none">
+        <div
+          ref={chipScrollRef}
+          className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-none cursor-grab"
+        >
           <button
             onClick={() => setActiveDay(null)}
             className={cn(

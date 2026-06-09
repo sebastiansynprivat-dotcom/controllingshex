@@ -10,6 +10,7 @@ import { Check, Clock, Zap, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadPushCards, PUSH_BUCKETS, type PushCard, type PushBucketId } from "@/lib/push-buckets";
 import { loadTodoStates, setTodoStatus, type TodoState } from "@/lib/daily-todos";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 
 interface Props {
   platform: string;
@@ -22,6 +23,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [activeBucket, setActiveBucket] = useState<PushBucketId | "all">("all");
   const [refreshTick, setRefreshTick] = useState(0);
+  const { ref: chipScrollRef } = useDragScroll<HTMLDivElement>();
 
   useEffect(() => {
     let cancel = false;
@@ -153,11 +155,15 @@ export default function PushSection({ platform, onChatterClick }: Props) {
             <div className="space-y-3 pt-1">
               {/* Bucket-Filter-Chips */}
               {availableBuckets.length > 1 && (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div
+                  ref={chipScrollRef}
+                  className="flex flex-nowrap items-center gap-1.5 overflow-x-auto scrollbar-none -mx-0.5 px-0.5 cursor-grab"
+                >
+
                   <button
                     onClick={() => setActiveBucket("all")}
                     className={cn(
-                      "px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border",
+                      "shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border",
                       activeBucket === "all"
                         ? "bg-white/[0.09] border-white/20 text-foreground"
                         : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80",
@@ -172,7 +178,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
                         key={b.id}
                         onClick={() => setActiveBucket(b.id)}
                         className={cn(
-                          "px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1",
+                          "shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1",
                           active
                             ? cn("bg-white/[0.09] border-white/20 text-foreground")
                             : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80",

@@ -122,11 +122,24 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       endDrag();
     };
 
+    const onWheel = (e: WheelEvent) => {
+      // Vertikales Scrollrad → horizontal scrollen, wenn der Container scrollbar ist.
+      const canScrollX = el.scrollWidth > el.clientWidth + 1;
+      if (!canScrollX) return;
+      const dy = e.deltaY;
+      const dx = e.deltaX;
+      // Wenn der User vertikal scrollt (typische Maus), in horizontal umlenken.
+      if (Math.abs(dy) > Math.abs(dx)) {
+        e.preventDefault();
+        el.scrollLeft += dy;
+      }
+    };
+
     el.addEventListener("pointerdown", onPointerDown);
-    // Listener auf Element (mit pointer capture) statt window, damit Drags zuverlässig laufen
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("pointercancel", onPointerUp);
+    el.addEventListener("wheel", onWheel, { passive: false });
 
 
     return () => {
@@ -135,6 +148,7 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("wheel", onWheel);
     };
   }, [snapSelector]);
 
