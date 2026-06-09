@@ -345,26 +345,62 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
   const [modelPerformances, setModelPerformances] = useState<Record<string, ModelPerformance>>({});
   const [followerMap, setFollowerMap] = useState<Map<string, number>>(new Map());
+  const [onboardingDayByChatter, setOnboardingDayByChatter] = useState<Map<string, number>>(new Map());
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  // Post-process categories: whitelist mapping, onboarding date lock, dedup
+  // Onboarding-Tag pro Chatter laden (Single Source: get_chatter_onboarding RPC)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc("get_chatter_onboarding", { p_platform: platform });
+      if (cancelled || !data) return;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const map = new Map<string, number>();
+      for (const r of data as { chatter_name: string; onboarded_on: string }[]) {
+        const d = new Date(r.onboarded_on);
+        d.setHours(0, 0, 0, 0);
+        const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
+        map.set(normalizeChatterName(r.chatter_name), days);
+      }
+      setOnboardingDayByChatter(map);
+    })();
+    return () => { cancelled = true; };
+  }, [platform]);
+
+  // Post-process categories: whitelist mapping, onboarding day lock, dedup
   const categories = useMemo(() => {
     const raw = data?.categories ?? [];
     if (raw.length === 0) return raw;
 
     // Map all AI categories to whitelisted names and merge into a single map
     const catMap = new Map<string, Category>();
+    const seenInOnboarding = new Set<string>(); // Tag 1–5 nur 1× pro Chatter
 
     for (const cat of raw) {
       for (const ch of cat.chatters) {
-        const mapped = mapToAllowed(cat.categoryName);
+        const normName = normalizeChatterName(ch.name);
+        const onbDay = onboardingDayByChatter.get(normName);
 
-        const key = mapped.name;
-        if (!catMap.has(key)) {
-          catMap.set(key, { emoji: mapped.emoji, categoryName: key, chatters: [] });
+        // Day-Lock: Tag 1–5 IMMER in ONBOARDING TAG X, nie in andere Karten
+        let targetName: string;
+        let targetEmoji: string;
+        if (onbDay != null && onbDay >= 1 && onbDay <= 5) {
+          targetName = `ONBOARDING TAG ${onbDay}`;
+          targetEmoji = "🔵";
+          if (seenInOnboarding.has(normName)) continue;
+          seenInOnboarding.add(normName);
+        } else {
+          const mapped = mapToAllowed(cat.categoryName);
+          targetName = mapped.name;
+          targetEmoji = mapped.emoji;
         }
-        catMap.get(key)!.chatters.push(ch);
+
+        if (!catMap.has(targetName)) {
+          catMap.set(targetName, { emoji: targetEmoji, categoryName: targetName, chatters: [] });
+        }
+        catMap.get(targetName)!.chatters.push(ch);
       }
     }
 
@@ -388,7 +424,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       ordered.push(entry || { emoji: ac.emoji, categoryName: ac.name, chatters: [] });
     }
     return ordered;
-  }, [data]);
+  }, [data, onboardingDayByChatter]);
+
 
   useEffect(() => {
     if (categories.length === 0) return;
