@@ -111,7 +111,8 @@ export async function loadOnboardingChatters(
       chatterRevenueOnAccount: 0,
       chatterSinceOnAccount: null,
       avgMassDms: 0,
-      responseMedianMin: null,
+      liveOpenChats: null,
+      liveOldestChatHours: null,
     });
   }
 
