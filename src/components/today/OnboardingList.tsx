@@ -268,7 +268,8 @@ function fmtSince(iso: string | null): string | null {
 }
 
 function fmtOldestChat(days: number | null): string | null {
-  if (days == null || days <= 0) return null;
+  if (days == null) return null;
+  if (days === 0) return "0 Tagen";
   if (days < 1) {
     const h = Math.round(days * 24);
     return h <= 0 ? "<1 h" : `${h} h`;
