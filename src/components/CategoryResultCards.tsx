@@ -328,10 +328,11 @@ function RevenueHoverPopup({ history, children }: { history: HistoryEntry[]; chi
 
 interface CategoryResultCardsProps {
   data: AnalysisResult | null;
+  analysisDate?: string;
   onChatterSelect: (name: string) => void;
 }
 
-export default function CategoryResultCards({ data, onChatterSelect }: CategoryResultCardsProps) {
+export default function CategoryResultCards({ data, analysisDate, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
   
    const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
@@ -385,11 +386,13 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     }
     if (!d || isNaN(d.getTime())) return null;
     d.setHours(0, 0, 0, 0);
-    const today = new Date();
+    const today = analysisDate && /^\d{4}-\d{2}-\d{2}/.test(analysisDate)
+      ? new Date(`${analysisDate.slice(0, 10)}T00:00:00`)
+      : new Date();
     today.setHours(0, 0, 0, 0);
     const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
     return days >= 0 ? days + 1 : null;
-  }, []);
+  }, [analysisDate]);
 
   // Post-process categories: whitelist mapping, onboarding day lock, dedup
   const categories = useMemo(() => {

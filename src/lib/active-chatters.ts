@@ -40,6 +40,7 @@ export async function loadActiveChatterNames(platform: string): Promise<Set<stri
     .eq("platform", platform)
     .not("result_json", "is", null)
     .order("analysis_date", { ascending: false })
+      .order("created_at", { ascending: false })
     .limit(1);
 
   const result = data?.[0]?.result_json as
