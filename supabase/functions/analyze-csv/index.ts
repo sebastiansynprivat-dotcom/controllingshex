@@ -475,13 +475,13 @@ Das JSON muss exakt dieses Schema haben:
 
 KATEGORIE-ZUORDNUNG — STRIKTE ENTSCHEIDUNGSLOGIK (prüfe von oben nach unten, ERSTE zutreffende Kategorie gewinnt!):
 
-SCHRITT 1 — ONBOARDING prüfen (nur Startdatum 1-5 Tage her, heute = Tag 0 zählt NICHT):
-→ 🔵 ONBOARDING TAG N — N = exakte Anzahl Tage seit Startdatum (1, 2, 3, 4, 5)
+SCHRITT 1 — ONBOARDING prüfen (Startdatum aus CSV, Startdatum selbst = Tag 1):
+→ 🔵 ONBOARDING TAG N — N = Tag seit Startdatum (1, 2, 3, 4, 5)
    categoryName MUSS EXAKT so lauten: "ONBOARDING TAG 1", "ONBOARDING TAG 2", "ONBOARDING TAG 3", "ONBOARDING TAG 4" oder "ONBOARDING TAG 5"
-   Beispiele: Start vor 3 Tagen → "ONBOARDING TAG 3". Start vor 5 Tagen → "ONBOARDING TAG 5".
+   Beispiele: Startdatum = Reportdatum → "ONBOARDING TAG 1". Startdatum 2 Tage vor Reportdatum → "ONBOARDING TAG 3".
    Fokus Tag 1-5: erster Aufbau / 0€-Toleranz.
 WENN Onboarding (Startdatum 1-5 Tage her) zutrifft → STOPP, diese Kategorie verwenden. Nicht weiter prüfen!
-Startdatum = heute (0 Tage) oder > 5 Tage → KEIN Onboarding in der Report-Kategorie, weiter mit Schritt 2. Tag 6-20 wird nur im separaten Onboarding-Filter angezeigt.
+Tag > 5 → KEIN Onboarding in der Report-Kategorie, weiter mit Schritt 2. Tag 6-20 wird nur im separaten Onboarding-Filter angezeigt.
 
 SCHRITT 2 — WARNUNG prüfen (Antwortzeit):
 → 🟠 WARNUNG — NUR wenn "Offene Chats seit X Tagen" und X > 2. Prüfe den Verzug-Wert aus den CSV-Daten.
