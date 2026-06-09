@@ -123,6 +123,12 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       endDrag();
     };
 
+    const onPointerLeave = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      try { el.releasePointerCapture(e.pointerId); } catch {}
+      endDrag();
+    };
+
     const onWheel = (e: WheelEvent) => {
       // Vertikales Scrollrad → horizontal scrollen, wenn der Container scrollbar ist.
       const canScrollX = el.scrollWidth > el.clientWidth + 1;
