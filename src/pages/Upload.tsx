@@ -333,7 +333,7 @@ function parseStartDate(value: string): Date | null {
   return null;
 }
 
-function getDaysSinceStart(startDate: string, referenceDateIso?: string): number | null {
+function getOnboardingDay(startDate: string, referenceDateIso?: string): number | null {
   const parsed = parseStartDate(startDate);
   if (!parsed) return null;
 
@@ -341,7 +341,7 @@ function getDaysSinceStart(startDate: string, referenceDateIso?: string): number
   const now = new Date();
   const todayUtc = reference?.getTime() ?? Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const diff = Math.floor((todayUtc - parsed.getTime()) / 86400000);
-  return diff >= 0 ? diff : null;
+  return diff >= 0 ? diff + 1 : null;
 }
 
 function getRelevantHistory(entries?: HistoryEntry[]): HistoryEntry[] {
@@ -476,7 +476,7 @@ function buildResultFromCsv(
     const baseName = compositeKey.split("::")[0].split("#")[0];
     const ai = aiLookup.get(baseName) || aiLookup.get(compositeKey);
     const history = getRelevantHistory(historyMap?.get(baseName) || historyMap?.get(compositeKey));
-    const daysSinceStart = getDaysSinceStart(metrics.startDate, analysisDate);
+    const onboardingDay = getOnboardingDay(metrics.startDate, analysisDate);
     const avgPastRevenue = history.length > 0
       ? history.reduce((sum, entry) => sum + entry.revenueToday, 0) / history.length
       : 0;
@@ -486,8 +486,8 @@ function buildResultFromCsv(
     let category = ai?.category || "";
     let emoji = ai?.emoji || "";
 
-    if (daysSinceStart !== null && daysSinceStart >= 1 && daysSinceStart <= 5) {
-      category = `ONBOARDING TAG ${daysSinceStart}`;
+    if (onboardingDay !== null && onboardingDay >= 1 && onboardingDay <= 5) {
+      category = `ONBOARDING TAG ${onboardingDay}`;
       emoji = "🔵";
     } else if (metrics.responseDelayDays > 2) {
       category = "WARNUNG";
@@ -517,7 +517,7 @@ function buildResultFromCsv(
         /ACCOUNT-EINBRUCH/i.test(category) ||
         isZeroRevenueOnlyCategory(category) ||
         (/COMEBACK/i.test(category) && previousZeroRevenueStreak < 3) ||
-        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 5)) ||
+        (/ONBOARDING/i.test(category) && (onboardingDay === null || onboardingDay < 1 || onboardingDay > 5)) ||
         (/WARNUNG/i.test(category) && metrics.responseDelayDays <= 2);
 
       if (invalidAiCategory) {
@@ -529,7 +529,7 @@ function buildResultFromCsv(
 
     // SAFETY: Only Tag 1–5 may be report categories. Tag 6+ is handled by the
     // onboarding filter, but must still receive a normal action category here.
-    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 5)) {
+    if (/ONBOARDING/i.test(category) && (onboardingDay === null || onboardingDay < 1 || onboardingDay > 5)) {
       const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
       category = fallback.category;
       emoji = fallback.emoji;
@@ -545,7 +545,7 @@ function buildResultFromCsv(
     }
 
     const recommendation = shouldReplaceRecommendation(ai?.recommendation, metrics, category, ai?.category)
-      ? buildFallbackRecommendation(category, metrics, { daysSinceStart, zeroRevenueStreak, avgPastRevenue })
+      ? buildFallbackRecommendation(category, metrics, { daysSinceStart: onboardingDay, zeroRevenueStreak, avgPastRevenue })
       : ai?.recommendation || "Keine Empfehlung verfügbar.";
 
     categoryMap.get(category)!.chatters.push({
