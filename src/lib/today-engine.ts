@@ -147,6 +147,31 @@ function isoDaysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function parseReportStartDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const dmy = trimmed.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    const year = Number(dmy[3]) < 100 ? 2000 + Number(dmy[3]) : Number(dmy[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  }
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!iso) return null;
+  const parsed = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+function onboardingDayFromStart(startDate: string | undefined | null, analysisDate: string): number | null {
+  const start = parseReportStartDate(startDate);
+  const ref = parseReportStartDate(analysisDate);
+  if (!start || !ref) return null;
+  const diff = Math.floor((ref.getTime() - start.getTime()) / 86400000);
+  return diff >= 0 ? diff + 1 : null;
+}
+
 function median(arr: number[]): number {
   if (arr.length === 0) return 0;
   const s = [...arr].sort((a, b) => a - b);
@@ -610,7 +635,7 @@ async function detectWakeups(
 }
 
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
-  const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
+  const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes, latestReportRes] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
     loadChatterStats(platform),
@@ -625,8 +650,33 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
             .ilike("platform", platform)
         : { data: [] as { model_name: string; follower_count: number }[] }
     ),
+    supabase
+      .from("analysis_reports")
+      .select("analysis_date, result_json")
+      .ilike("platform", platform)
+      .not("result_json", "is", null)
+      .order("analysis_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const { stats, importanceFor } = statsBundle;
+
+  const lockedOnboardingKeys = new Set<string>();
+  const latestReport = latestReportRes.data as
+    | { analysis_date?: string; result_json?: { categories?: { chatters?: { name?: string; startDate?: string }[] }[] } }
+    | null;
+  if (latestReport?.analysis_date && latestReport.result_json?.categories) {
+    for (const cat of latestReport.result_json.categories) {
+      for (const ch of cat.chatters ?? []) {
+        if (!ch?.name) continue;
+        const day = onboardingDayFromStart(ch.startDate, latestReport.analysis_date);
+        if (day !== null && day >= 1 && day <= 5) {
+          lockedOnboardingKeys.add(normalizeChatterName(ch.name));
+        }
+      }
+    }
+  }
 
   // === Live-Snapshot (chatter_history_live) für Suppress- und Refresh-Layer ===
   // Lädt heute + gestern und nimmt pro Chatter den neuesten Eintrag (date desc, updated_at desc).
@@ -938,6 +988,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }>();
 
   for (const s of signals) {
+    if (s.chatterKey && lockedOnboardingKeys.has(s.chatterKey)) continue;
     const isSolo = SOLO_KINDS.has(s.signal.kind);
     let bundleKey: string;
     if (isSolo || !s.chatterKey) {
