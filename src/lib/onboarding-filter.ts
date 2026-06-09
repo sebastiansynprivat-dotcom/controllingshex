@@ -134,7 +134,8 @@ export async function loadOnboardingChatters(
             .from("chatter_history")
             .select("account, revenue_today")
             .ilike("platform", platform)
-            .in("account", accounts)
+            .not("account", "is", null)
+            .limit(50000)
         : Promise.resolve({ data: [] as { account: string; revenue_today: number | null }[] }),
       accounts.length
         ? supabase
