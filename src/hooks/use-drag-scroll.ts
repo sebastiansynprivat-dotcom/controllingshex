@@ -62,7 +62,6 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      console.log("[useDragScroll] pointerdown", e.pointerType, e.button, el.scrollWidth, el.clientWidth);
       if (e.pointerType !== "mouse") return;
       if (e.button !== 0) return;
       cancelAnimationFrame(raf);
