@@ -20,7 +20,7 @@ export interface OnboardingChatter {
   chatterSinceOnAccount: string | null; // ISO date
   avgMassDms: number; // Ø Mass-DMs pro aktivem Tag dieses Chatters (aus chatter_history)
   liveOpenChats: number | null; // aktuelle unread_chats aus chatter_history_live
-  liveOldestChatHours: number | null; // oldest_chat aus chatter_history_live (in Stunden)
+  liveOldestChatDays: number | null; // oldest_chat aus chatter_history_live (in Tagen)
 }
 
 export interface OnboardingGroup {
