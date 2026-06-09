@@ -25,6 +25,12 @@ export type ActionCategoryName =
   | "ONBOARDING TAG 12"
   | "ONBOARDING TAG 13"
   | "ONBOARDING TAG 14"
+  | "ONBOARDING TAG 15"
+  | "ONBOARDING TAG 16"
+  | "ONBOARDING TAG 17"
+  | "ONBOARDING TAG 18"
+  | "ONBOARDING TAG 19"
+  | "ONBOARDING TAG 20"
   | "SOFORT EINGREIFEN"
   | "COACHING NÖTIG"
   | "PUSHEN"
@@ -41,7 +47,8 @@ export interface ActionCategory {
   description: string;
 }
 
-const ONBOARDING_DAYS = Array.from({ length: 14 }, (_, i) => i + 1);
+const ONBOARDING_DAYS = Array.from({ length: 20 }, (_, i) => i + 1);
+
 
 export const ACTION_CATEGORIES: readonly ActionCategory[] = [
   ...ONBOARDING_DAYS.map((d) => ({
