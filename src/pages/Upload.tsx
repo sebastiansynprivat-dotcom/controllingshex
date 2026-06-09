@@ -486,7 +486,7 @@ function buildResultFromCsv(
     let category = ai?.category || "";
     let emoji = ai?.emoji || "";
 
-    if (daysSinceStart !== null && daysSinceStart > 0 && daysSinceStart <= 14) {
+    if (daysSinceStart !== null && daysSinceStart >= 1 && daysSinceStart <= 5) {
       category = `ONBOARDING TAG ${daysSinceStart}`;
       emoji = "🔵";
     } else if (metrics.responseDelayDays > 2) {
@@ -517,7 +517,7 @@ function buildResultFromCsv(
         /ACCOUNT-EINBRUCH/i.test(category) ||
         isZeroRevenueOnlyCategory(category) ||
         (/COMEBACK/i.test(category) && previousZeroRevenueStreak < 3) ||
-        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 14)) ||
+        (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 5)) ||
         (/WARNUNG/i.test(category) && metrics.responseDelayDays <= 2);
 
       if (invalidAiCategory) {
@@ -527,9 +527,9 @@ function buildResultFromCsv(
       }
     }
 
-    // SAFETY: If AI returned ONBOARDING but the start date says otherwise, override.
-    // Important: Tag 6-14 must remain Onboarding too.
-    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 14)) {
+    // SAFETY: Only Tag 1–5 may be report categories. Tag 6+ is handled by the
+    // onboarding filter, but must still receive a normal action category here.
+    if (/ONBOARDING/i.test(category) && (daysSinceStart === null || daysSinceStart < 1 || daysSinceStart > 5)) {
       const fallback = getFallbackPositiveCategory(metrics, batchAverageRevenue);
       category = fallback.category;
       emoji = fallback.emoji;
