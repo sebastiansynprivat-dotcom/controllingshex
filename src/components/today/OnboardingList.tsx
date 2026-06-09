@@ -8,6 +8,7 @@ import { Sprout, ChevronRight, Tag } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import {
   Sheet,
   SheetContent,
