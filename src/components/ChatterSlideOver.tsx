@@ -1632,10 +1632,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                               <button
                                 key={label.id}
                                 onClick={() => toggleLabel(label.id)}
-                                onContextMenu={(e) => {
-                                  e.preventDefault();
-                                  deleteLabel(label.id);
-                                }}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${
                                   isAssigned
                                     ? "border-white/20 text-white shadow-sm"
@@ -1646,7 +1642,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                                     ? { backgroundColor: label.color + "25", borderColor: label.color + "50" }
                                     : {}
                                 }
-                                title="Rechtsklick zum Löschen"
                               >
                                 <span
                                   className="w-2 h-2 rounded-full shrink-0"
