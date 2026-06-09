@@ -18,8 +18,9 @@ export interface OnboardingChatter {
   accountTotalRevenue: number; // alle Chatter zusammen auf diesem Account
   chatterRevenueOnAccount: number; // dieser Chatter auf diesem Account
   chatterSinceOnAccount: string | null; // ISO date
-  avgMassDms: number; // Ø Mass-DMs pro aktivem Tag dieses Chatters
-  responseMedianMin: number | null; // p50 first_response_min aus Activity Sessions
+  avgMassDms: number; // Ø Mass-DMs pro aktivem Tag dieses Chatters (aus chatter_history)
+  liveOpenChats: number | null; // aktuelle unread_chats aus chatter_history_live
+  liveOldestChatHours: number | null; // oldest_chat aus chatter_history_live (in Stunden)
 }
 
 export interface OnboardingGroup {
