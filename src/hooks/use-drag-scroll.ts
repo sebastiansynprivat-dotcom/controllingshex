@@ -149,8 +149,9 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("pointercancel", onPointerUp);
     el.addEventListener("pointerleave", onPointerLeave);
-    el.addEventListener("wheel", onWheel, { passive: false });
-
+    if (enableWheel) {
+      el.addEventListener("wheel", onWheel, { passive: false });
+    }
 
     return () => {
       cancelAnimationFrame(raf);
@@ -159,9 +160,11 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
       el.removeEventListener("pointerleave", onPointerLeave);
-      el.removeEventListener("wheel", onWheel);
+      if (enableWheel) {
+        el.removeEventListener("wheel", onWheel);
+      }
     };
-  }, [snapSelector]);
+  }, [snapSelector, enableWheel]);
 
   return { ref, isDragging };
 }
