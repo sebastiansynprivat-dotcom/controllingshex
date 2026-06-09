@@ -658,7 +658,7 @@ export default function Today() {
               <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
               <div
                 ref={filterScrollRef}
-                className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 scroll-smooth cursor-grab [-webkit-overflow-scrolling:touch] [scroll-behavior:smooth]"
+                className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 cursor-grab [-webkit-overflow-scrolling:touch]"
                 style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)", maskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)" }}
               >
                 {statusOptions.map((o) => {
