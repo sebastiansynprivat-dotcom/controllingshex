@@ -316,16 +316,12 @@ function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
             seit {since}
           </span>
         )}
-        {c.liveOpenChats != null && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/25 text-amber-200/90">
-            {fmtNum(c.liveOpenChats)} offene Chats
-          </span>
-        )}
-        {c.liveOldestChatDays != null && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-400/25 text-orange-200/90">
-            offen seit {fmtOldestChat(c.liveOldestChatDays)}
-          </span>
-        )}
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/25 text-amber-200/90">
+          {c.liveOpenChats != null ? `${fmtNum(c.liveOpenChats)} offene Chats` : "— offene Chats"}
+        </span>
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-400/25 text-orange-200/90">
+          offen seit {c.liveOldestChatDays != null ? fmtOldestChat(c.liveOldestChatDays) : "—"}
+        </span>
         {c.avgMassDms >= 0 && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-fuchsia-500/10 border border-fuchsia-400/20 text-fuchsia-200/85">
             ⌀ {Math.round(c.avgMassDms)} Mass-DMs
