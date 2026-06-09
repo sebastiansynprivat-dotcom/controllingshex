@@ -367,6 +367,30 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     return () => { cancelled = true; };
   }, [platform]);
 
+  // Parse "DD.MM.YYYY" / "DD.MM.YY" / ISO → days since startDate (today = 0, gestern = 1, ...).
+  // Onboarding-Tag-Konvention (CSV-Prompt): Tag N = N Tage seit Start, heute zählt NICHT.
+  const parseStartDays = useCallback((s: string | undefined): number | null => {
+    if (!s) return null;
+    const trimmed = s.trim();
+    let d: Date | null = null;
+    const dm = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+    if (dm) {
+      const day = parseInt(dm[1], 10);
+      const mon = parseInt(dm[2], 10) - 1;
+      let yr = parseInt(dm[3], 10);
+      if (yr < 100) yr += 2000;
+      d = new Date(yr, mon, day);
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      d = new Date(trimmed);
+    }
+    if (!d || isNaN(d.getTime())) return null;
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
+    return days >= 0 ? days : null;
+  }, []);
+
   // Post-process categories: whitelist mapping, onboarding day lock, dedup
   const categories = useMemo(() => {
     const raw = data?.categories ?? [];
@@ -379,7 +403,8 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     for (const cat of raw) {
       for (const ch of cat.chatters) {
         const normName = normalizeChatterName(ch.name);
-        const onbDay = onboardingDayByChatter.get(normName);
+        // PRIMÄR: startDate aus dem Report (CSV-Spalte). Fallback: RPC-Map.
+        const onbDay = parseStartDays(ch.startDate) ?? onboardingDayByChatter.get(normName);
 
         // Day-Lock: Tag 1–5 IMMER in ONBOARDING TAG X, nie in andere Karten
         let targetName: string;
