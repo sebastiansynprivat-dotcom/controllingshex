@@ -626,6 +626,7 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string>("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [resultAnalysisDate, setResultAnalysisDate] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
@@ -665,6 +666,7 @@ export default function UploadPage() {
   useEffect(() => {
     fetchReports();
     setResult(null);
+    setResultAnalysisDate(undefined);
     setFile(null);
     setCsvData("");
     setStatusLog([]);
@@ -929,6 +931,7 @@ export default function UploadPage() {
 
       setAnimationsReady(false);
       setResult(merged);
+      setResultAnalysisDate(analysisDate);
       if (failedBatches.length === 0) {
         toast.success(`Analyse abgeschlossen: ${totalReturned} Chatter.`);
       }
@@ -1010,6 +1013,7 @@ export default function UploadPage() {
   const viewReport = (report: ReportRow) => {
     if (report.result_json && isAnalysisResult(report.result_json)) {
       setResult(report.result_json);
+      setResultAnalysisDate(report.analysis_date);
     }
   };
 
@@ -1131,7 +1135,7 @@ export default function UploadPage() {
             {result && (
               <ErrorBoundary>
                 <div className={animationsReady ? "" : "!transition-none !animate-none"}>
-                  <CategoryResultCards data={result} onChatterSelect={setSelectedChatter} />
+                  <CategoryResultCards data={result} analysisDate={resultAnalysisDate} onChatterSelect={setSelectedChatter} />
                 </div>
               </ErrorBoundary>
             )}
