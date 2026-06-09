@@ -23,6 +23,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [activeBucket, setActiveBucket] = useState<PushBucketId | "all">("all");
   const [refreshTick, setRefreshTick] = useState(0);
+  const { ref: chipScrollRef } = useDragScroll<HTMLDivElement>();
 
   useEffect(() => {
     let cancel = false;
