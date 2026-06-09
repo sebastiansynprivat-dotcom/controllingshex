@@ -107,7 +107,7 @@ export async function loadLabelCards(
     if (!label) continue;
     const live = liveByChatter.get(a.chatter_key);
     cards.push({
-      todoKey: labelTodoKey(a.label_id, a.chatter_name),
+      todoKey: labelTodoKey(a.label_id, a.chatter_name, today),
       chatterName: a.chatter_name,
       chatterKey: a.chatter_key,
       account: accountByChatter.get(a.chatter_key) ?? null,
