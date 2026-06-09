@@ -147,6 +147,31 @@ function isoDaysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function parseReportStartDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const dmy = trimmed.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    const year = Number(dmy[3]) < 100 ? 2000 + Number(dmy[3]) : Number(dmy[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  }
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!iso) return null;
+  const parsed = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+function onboardingDayFromStart(startDate: string | undefined | null, analysisDate: string): number | null {
+  const start = parseReportStartDate(startDate);
+  const ref = parseReportStartDate(analysisDate);
+  if (!start || !ref) return null;
+  const diff = Math.floor((ref.getTime() - start.getTime()) / 86400000);
+  return diff >= 0 ? diff + 1 : null;
+}
+
 function median(arr: number[]): number {
   if (arr.length === 0) return 0;
   const s = [...arr].sort((a, b) => a - b);
