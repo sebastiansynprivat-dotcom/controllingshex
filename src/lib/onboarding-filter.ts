@@ -82,9 +82,14 @@ export async function loadOnboardingChatters(
   for (const row of onboarding) {
     const k = normalizeChatterName(row.chatter_name);
     if (activeNames !== null && !activeNames.has(k)) continue;
-    const onboardedDate = new Date(row.onboarded_on);
-    onboardedDate.setHours(0, 0, 0, 0);
-    const days = Math.floor((today.getTime() - onboardedDate.getTime()) / (1000 * 60 * 60 * 24));
+    // report_day = Anzahl der Reports, in denen der Chatter aufgetaucht ist.
+    // Fallback auf Kalendertage, falls report_day fehlt.
+    let days = Number(row.report_day ?? 0);
+    if (!days) {
+      const onboardedDate = new Date(row.onboarded_on);
+      onboardedDate.setHours(0, 0, 0, 0);
+      days = Math.floor((today.getTime() - onboardedDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
     if (days < minDays || days > maxDays) continue;
 
     // Chatter mit System-Label bereits eingestuft → raus aus Onboarding-Queue
