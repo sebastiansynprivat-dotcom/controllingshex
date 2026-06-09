@@ -178,7 +178,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
                         key={b.id}
                         onClick={() => setActiveBucket(b.id)}
                         className={cn(
-                          "px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1",
+                          "shrink-0 px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1",
                           active
                             ? cn("bg-white/[0.09] border-white/20 text-foreground")
                             : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80",
