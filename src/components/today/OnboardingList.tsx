@@ -176,9 +176,7 @@ export default function OnboardingList({
                           </button>
                         </MagneticHover>
                       </div>
-                      <p className="text-[11px] text-white/35 font-light mt-1 truncate">
-                        {c.account ? `Account · ${c.account}` : "Kein Account zugewiesen"}
-                      </p>
+                      <ChatterKpiRow c={c} />
                     </div>
                     <button
                       type="button"
