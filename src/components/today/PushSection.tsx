@@ -155,7 +155,11 @@ export default function PushSection({ platform, onChatterClick }: Props) {
             <div className="space-y-3 pt-1">
               {/* Bucket-Filter-Chips */}
               {availableBuckets.length > 1 && (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div
+                  ref={chipScrollRef}
+                  className="flex flex-nowrap items-center gap-1.5 overflow-x-auto scrollbar-none -mx-0.5 px-0.5 cursor-grab"
+                >
+
                   <button
                     onClick={() => setActiveBucket("all")}
                     className={cn(
