@@ -134,7 +134,8 @@ export async function loadOnboardingChatters(
             .from("chatter_history")
             .select("account, revenue_today")
             .ilike("platform", platform)
-            .in("account", accounts)
+            .not("account", "is", null)
+            .limit(50000)
         : Promise.resolve({ data: [] as { account: string; revenue_today: number | null }[] }),
       accounts.length
         ? supabase
@@ -157,10 +158,15 @@ export async function loadOnboardingChatters(
       followersByAccount.set(m.model_name, m.follower_count ?? 0);
     }
 
-    // Account → Gesamtrevenue (alle Chatter)
+    // Account → Gesamtrevenue (alle Chatter) — account-Feld kann komma-separiert sein
     const totalRevByAccount = new Map<string, number>();
-    for (const r of (accHistRes.data ?? []) as { account: string; revenue_today: number | null }[]) {
-      totalRevByAccount.set(r.account, (totalRevByAccount.get(r.account) ?? 0) + Number(r.revenue_today ?? 0));
+    for (const r of (accHistRes.data ?? []) as { account: string | null; revenue_today: number | null }[]) {
+      const rev = Number(r.revenue_today ?? 0);
+      if (!rev) continue;
+      const accs = (r.account ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      for (const a of accs) {
+        totalRevByAccount.set(a, (totalRevByAccount.get(a) ?? 0) + rev);
+      }
     }
 
     // (chatter, account) → { revenue, since }
