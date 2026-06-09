@@ -127,7 +127,7 @@ export async function loadOnboardingChatters(
   const onboardingFull = [...onboarding];
   for (const [k, sd] of startDateByChatter) {
     if (!seenInOnboarding.has(k)) {
-      onboardingFull.push({ chatter_name: k, onboarded_on: "", report_day: null } as any);
+      onboardingFull.push({ chatter_name: displayNameByChatter.get(k) ?? k, onboarded_on: "", report_day: null } as any);
     }
   }
 
