@@ -657,6 +657,7 @@ export default function Today() {
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-background/70 backdrop-blur-2xl shadow-[0_16px_48px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.025)_inset]">
               <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
               <div
+                ref={filterScrollRef}
                 onWheel={(e) => {
                   const el = e.currentTarget;
                   if (el.scrollWidth <= el.clientWidth + 1) return;
