@@ -53,7 +53,7 @@ export async function loadOnboardingChatters(
       .limit(2000),
   ]);
 
-  const onboarding = (onboardingRes.data ?? []) as { chatter_name: string; onboarded_on: string }[];
+  const onboarding = (onboardingRes.data ?? []) as { chatter_name: string; onboarded_on: string; report_day: number | null }[];
 
   // Account je Chatter — neuester Eintrag
   const accountByChatter = new Map<string, string>();
