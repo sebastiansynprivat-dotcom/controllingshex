@@ -176,9 +176,7 @@ export default function OnboardingList({
                           </button>
                         </MagneticHover>
                       </div>
-                      <p className="text-[11px] text-white/35 font-light mt-1 truncate">
-                        {c.account ? `Account · ${c.account}` : "Kein Account zugewiesen"}
-                      </p>
+                      <ChatterKpiRow c={c} />
                     </div>
                     <button
                       type="button"
@@ -241,5 +239,93 @@ export default function OnboardingList({
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+function fmtEur(v: number): string {
+  if (!v || v < 1) return "0 €";
+  if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(".", ",")}k €`;
+  return `${Math.round(v).toLocaleString("de-DE")} €`;
+}
+
+function fmtNum(v: number): string {
+  if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(".", ",")}k`;
+  return Math.round(v).toLocaleString("de-DE");
+}
+
+function fmtSince(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
+  if (days <= 0) return "heute";
+  if (days === 1) return "1 Tag";
+  if (days < 14) return `${days} Tagen`;
+  if (days < 60) return `${Math.round(days / 7)} Wochen`;
+  return `${Math.round(days / 30)} Monaten`;
+}
+
+function fmtResponse(min: number | null): string | null {
+  if (min == null) return null;
+  if (min < 1) return "<1 min";
+  if (min < 60) return `${Math.round(min)} min`;
+  const h = min / 60;
+  return `${h.toFixed(h >= 10 ? 0 : 1).replace(".", ",")} h`;
+}
+
+function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
+  const since = fmtSince(c.chatterSinceOnAccount);
+  const resp = fmtResponse(c.responseMedianMin);
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-white/55 font-light">
+        <span className="truncate max-w-[180px]">
+          {c.account ? (
+            <>
+              <span className="text-white/30">Account · </span>
+              <span className="text-white/75">{c.account}</span>
+            </>
+          ) : (
+            <span className="text-white/30">Kein Account zugewiesen</span>
+          )}
+        </span>
+        {c.accountFollowers != null && c.accountFollowers > 0 && (
+          <>
+            <span className="text-white/15">·</span>
+            <span className="tabular-nums">{fmtNum(c.accountFollowers)} Follower</span>
+          </>
+        )}
+        {c.accountTotalRevenue > 0 && (
+          <>
+            <span className="text-white/15">·</span>
+            <span className="tabular-nums text-white/65">{fmtEur(c.accountTotalRevenue)} Account-Total</span>
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap text-[10.5px] tabular-nums">
+        {c.chatterRevenueOnAccount > 0 && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-400/20 text-emerald-200/90">
+            {fmtEur(c.chatterRevenueOnAccount)}
+          </span>
+        )}
+        {since && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-white/60">
+            seit {since}
+          </span>
+        )}
+        {resp && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-sky-500/10 border border-sky-400/20 text-sky-200/85">
+            ⌀ Antwort {resp}
+          </span>
+        )}
+        {c.avgMassDms > 0 && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-fuchsia-500/10 border border-fuchsia-400/20 text-fuchsia-200/85">
+            ⌀ {Math.round(c.avgMassDms)} Mass-DMs
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
