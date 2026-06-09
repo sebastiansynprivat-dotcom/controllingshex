@@ -105,6 +105,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       .eq("platform", platform)
       .not("result_json", "is", null)
       .order("analysis_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1);
     const cats = (latestReport?.[0]?.result_json as
       | { categories?: { categoryName?: string; chatters?: { name?: string }[] }[] }
