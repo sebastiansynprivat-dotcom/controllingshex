@@ -658,6 +658,7 @@ export default function UploadPage() {
       .eq("platform", platform)
       .not("result_json", "is", null)
       .order("analysis_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(50);
     setReports((data as unknown as ReportRow[] | null) ?? []);
     setLoadingReports(false);
