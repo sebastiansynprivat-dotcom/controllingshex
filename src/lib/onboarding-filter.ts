@@ -123,20 +123,33 @@ export async function loadOnboardingChatters(
   );
 
   if (chatterNames.length) {
-    const [chHistRes, accHistRes, modelsRes, liveRes] = await Promise.all([
+    // Account-Total: paginiert laden — PostgREST cappt sonst bei 1000 Zeilen
+    const fetchAllAccountRevenue = async () => {
+      if (!accounts.length) return [] as { account: string | null; revenue_today: number | null }[];
+      const all: { account: string | null; revenue_today: number | null }[] = [];
+      const pageSize = 1000;
+      for (let from = 0; from < 200000; from += pageSize) {
+        const { data, error } = await supabase
+          .from("chatter_history")
+          .select("account, revenue_today")
+          .ilike("platform", platform)
+          .not("account", "is", null)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as { account: string | null; revenue_today: number | null }[];
+        all.push(...rows);
+        if (rows.length < pageSize) break;
+      }
+      return all;
+    };
+
+    const [chHistRes, accHistData, modelsRes, liveRes] = await Promise.all([
       supabase
         .from("chatter_history")
         .select("chatter_name, account, revenue_today, mass_dms, analysis_date")
         .ilike("platform", platform)
         .in("chatter_name", chatterNames),
-      accounts.length
-        ? supabase
-            .from("chatter_history")
-            .select("account, revenue_today")
-            .ilike("platform", platform)
-            .not("account", "is", null)
-            .limit(50000)
-        : Promise.resolve({ data: [] as { account: string; revenue_today: number | null }[] }),
+      fetchAllAccountRevenue(),
       accounts.length
         ? supabase
             .from("models")
@@ -151,6 +164,8 @@ export async function loadOnboardingChatters(
         .in("chatter_name", chatterNames)
         .order("updated_at", { ascending: false }),
     ]);
+    const accHistRes = { data: accHistData };
+
 
     // Account → Follower
     const followersByAccount = new Map<string, number>();
