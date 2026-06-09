@@ -13,6 +13,13 @@ export interface OnboardingChatter {
   daysOnboarded: number;
   account: string | null;
   assignedLabels: ChatterLabel[];
+  // KPIs
+  accountFollowers: number | null;
+  accountTotalRevenue: number; // alle Chatter zusammen auf diesem Account
+  chatterRevenueOnAccount: number; // dieser Chatter auf diesem Account
+  chatterSinceOnAccount: string | null; // ISO date
+  avgMassDms: number; // Ø Mass-DMs pro aktivem Tag dieses Chatters
+  responseMedianMin: number | null; // p50 first_response_min aus Activity Sessions
 }
 
 export interface OnboardingGroup {
