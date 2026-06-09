@@ -80,7 +80,39 @@ export default function OnboardingList({
   return (
     <>
       <div className="space-y-6">
-        {groups.map((g) => (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-none">
+          <button
+            onClick={() => setActiveDay(null)}
+            className={cn(
+              "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-all",
+              activeDay === null
+                ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-100"
+                : "bg-white/[0.03] border-white/[0.08] text-white/55 hover:bg-white/[0.06] hover:text-white/80",
+            )}
+          >
+            Alle
+            <span className="tabular-nums opacity-60">{totalAll}</span>
+          </button>
+          {groups.map((g) => {
+            const active = activeDay === g.day;
+            return (
+              <button
+                key={g.day}
+                onClick={() => setActiveDay(active ? null : g.day)}
+                className={cn(
+                  "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-all",
+                  active
+                    ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-100"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/55 hover:bg-white/[0.06] hover:text-white/80",
+                )}
+              >
+                Tag {g.day}
+                <span className="tabular-nums opacity-60">{g.items.length}</span>
+              </button>
+            );
+          })}
+        </div>
+        {visibleGroups.map((g) => (
           <div key={g.day} className="space-y-3">
             <div className="flex items-center gap-3 px-0.5">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/[0.08] border border-emerald-400/15">
