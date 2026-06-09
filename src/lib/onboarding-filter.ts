@@ -55,6 +55,7 @@ export async function loadOnboardingChatters(
       .from("analysis_reports")
       .select("result_json, created_at")
       .ilike("platform", platform)
+      .order("analysis_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -79,7 +80,7 @@ export async function loadOnboardingChatters(
     }
   }
 
-  const parseStartDays = (s: string | undefined, refToday: Date): number | null => {
+  const parseOnboardingDay = (s: string | undefined, refToday: Date): number | null => {
     if (!s) return null;
     const trimmed = s.trim();
     let d: Date | null = null;
@@ -96,7 +97,7 @@ export async function loadOnboardingChatters(
     if (!d || isNaN(d.getTime())) return null;
     d.setHours(0, 0, 0, 0);
     const days = Math.floor((refToday.getTime() - d.getTime()) / 86400000);
-    return days >= 0 ? days : null;
+    return days >= 0 ? days + 1 : null;
   };
 
   // Account je Chatter — neuester Eintrag
@@ -137,7 +138,7 @@ export async function loadOnboardingChatters(
     if (activeNames !== null && !activeNames.has(k)) continue;
 
     // PRIMÄR: startDate aus Report. Fallback: report_day. Fallback: Kalendertage.
-    const sdDays = parseStartDays(startDateByChatter.get(k), today);
+    const sdDays = parseOnboardingDay(startDateByChatter.get(k), today);
     let days = sdDays ?? Number(row.report_day ?? 0);
     if (!days && row.onboarded_on) {
       const onboardedDate = new Date(row.onboarded_on);
