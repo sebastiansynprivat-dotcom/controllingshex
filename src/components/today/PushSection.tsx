@@ -10,6 +10,7 @@ import { Check, Clock, Zap, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadPushCards, PUSH_BUCKETS, type PushCard, type PushBucketId } from "@/lib/push-buckets";
 import { loadTodoStates, setTodoStatus, type TodoState } from "@/lib/daily-todos";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 
 interface Props {
   platform: string;
