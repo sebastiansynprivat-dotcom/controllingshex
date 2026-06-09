@@ -447,7 +447,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       ordered.push(entry || { emoji: ac.emoji, categoryName: ac.name, chatters: [] });
     }
     return ordered;
-  }, [data, onboardingDayByChatter]);
+  }, [data, onboardingDayByChatter, parseStartDays]);
 
 
   useEffect(() => {
