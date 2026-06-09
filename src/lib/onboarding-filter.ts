@@ -112,7 +112,7 @@ export async function loadOnboardingChatters(
       chatterSinceOnAccount: null,
       avgMassDms: 0,
       liveOpenChats: null,
-      liveOldestChatHours: null,
+      liveOldestChatDays: null,
     });
   }
 
@@ -220,7 +220,7 @@ export async function loadOnboardingChatters(
       const live = liveByChatter.get(it.chatterKey);
       if (live) {
         it.liveOpenChats = live.unread;
-        it.liveOldestChatHours = live.oldest;
+        it.liveOldestChatDays = live.oldest;
       }
     }
   }
