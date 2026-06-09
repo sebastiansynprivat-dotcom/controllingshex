@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const [liveOnboarding, setLiveOnboarding] = useState<import("@/lib/onboarding-filter").OnboardingGroup[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -84,11 +85,53 @@ export default function Dashboard() {
     return onChatterDataUpdated(load);
   }, [platform]);
 
+  // Live-Onboarding-Chatter (Tag 1–20) — synchron mit Today-Tab
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [{ loadChatterLabels, loadLabelAssignments }, { loadOnboardingChatters }] = await Promise.all([
+        import("@/lib/chatter-labels"),
+        import("@/lib/onboarding-filter"),
+      ]);
+      const [lbls, asgs] = await Promise.all([
+        loadChatterLabels(platform),
+        loadLabelAssignments(platform),
+      ]);
+      const groups = await loadOnboardingChatters(platform, lbls, asgs);
+      if (!cancelled) setLiveOnboarding(groups);
+    })();
+    return () => { cancelled = true; };
+  }, [platform]);
+
   const selectedIndex = reports.findIndex((r) => r.id === selectedId);
   const selectedReport = selectedIndex >= 0 ? reports[selectedIndex] : null;
-  const result = selectedReport && isAnalysisResult(selectedReport.result_json)
+  const baseResult = selectedReport && isAnalysisResult(selectedReport.result_json)
     ? (selectedReport.result_json as unknown as AnalysisResult)
     : null;
+
+  // Onboarding-Buckets durch Live-Daten ersetzen → Dashboard zeigt alle Onboarding-Leute
+  const result = useMemo<AnalysisResult | null>(() => {
+    if (!baseResult) return baseResult;
+    const liveByDay = new Map<number, import("@/lib/onboarding-filter").OnboardingChatter[]>();
+    for (const g of liveOnboarding) liveByDay.set(g.day, g.items);
+
+    const nonOnboarding = baseResult.categories.filter(
+      (c) => !/^ONBOARDING\s*TAG\s*\d+/i.test(c.categoryName ?? ""),
+    );
+    const onboardingCats = [...liveByDay.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([day, items]) => ({
+        emoji: "🔵",
+        categoryName: `ONBOARDING TAG ${day}`,
+        chatters: items.map((it) => ({
+          name: it.chatterName,
+          account: it.account ?? undefined,
+          kpis: {} as Record<string, string>,
+        })),
+      }));
+
+    return { categories: [...onboardingCats, ...nonOnboarding] };
+  }, [baseResult, liveOnboarding]);
 
   const allChatters = useMemo(() => {
     if (!result) return [];
@@ -96,6 +139,8 @@ export default function Dashboard() {
       cat.chatters.map((c) => ({ name: c.name, category: cat.categoryName, emoji: cat.emoji }))
     );
   }, [result]);
+
+
 
   // ── Alert computation ──
   const alerts = useMemo(() => {
