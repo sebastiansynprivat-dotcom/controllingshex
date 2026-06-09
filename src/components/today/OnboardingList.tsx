@@ -267,17 +267,19 @@ function fmtSince(iso: string | null): string | null {
   return `${Math.round(days / 30)} Monaten`;
 }
 
-function fmtResponse(min: number | null): string | null {
-  if (min == null) return null;
-  if (min < 1) return "<1 min";
-  if (min < 60) return `${Math.round(min)} min`;
-  const h = min / 60;
-  return `${h.toFixed(h >= 10 ? 0 : 1).replace(".", ",")} h`;
+function fmtOldestChat(days: number | null): string | null {
+  if (days == null || days <= 0) return null;
+  if (days < 1) {
+    const h = Math.round(days * 24);
+    return h <= 0 ? "<1 h" : `${h} h`;
+  }
+  if (days < 2) return `${days.toFixed(1).replace(".", ",")} Tagen`;
+  return `${Math.round(days)} Tagen`;
 }
 
 function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
   const since = fmtSince(c.chatterSinceOnAccount);
-  const resp = fmtResponse(c.responseMedianMin);
+  const oldest = fmtOldestChat(c.liveOldestChatDays);
   return (
     <div className="mt-1.5 space-y-1.5">
       <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-white/55 font-light">
@@ -315,9 +317,14 @@ function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
             seit {since}
           </span>
         )}
-        {resp && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-sky-500/10 border border-sky-400/20 text-sky-200/85">
-            ⌀ Antwort {resp}
+        {c.liveOpenChats != null && c.liveOpenChats > 0 && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/25 text-amber-200/90">
+            {fmtNum(c.liveOpenChats)} offene Chats
+          </span>
+        )}
+        {oldest && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-400/25 text-orange-200/90">
+            offen seit {oldest}
           </span>
         )}
         {c.avgMassDms > 0 && (
