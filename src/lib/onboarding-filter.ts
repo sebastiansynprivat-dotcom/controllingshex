@@ -163,10 +163,16 @@ export async function loadOnboardingChatters(
       totalRevByAccount.set(r.account, (totalRevByAccount.get(r.account) ?? 0) + Number(r.revenue_today ?? 0));
     }
 
-    // (chatter, account) → { revenue, since, massDmsDays }
-    type Agg = { revenue: number; since: string | null; massDmsByDay: Map<string, number> };
+    // (chatter, account) → { revenue, since }
+    type Agg = { revenue: number; since: string | null };
     const pairAgg = new Map<string, Agg>();
     const pairKey = (c: string, a: string) => `${normalizeChatterName(c)}::${a}`;
+
+    // Chatter-weite Mass-DM-Stats: Σ mass_dms ÷ Anzahl history-Rows (inkl. 0-Tage)
+    // → matched exakt den Wert im Chatter-Profil (ChatterSlideOver: avgDMs)
+    type DmAgg = { sum: number; count: number };
+    const dmByChatter = new Map<string, DmAgg>();
+
     for (const r of (chHistRes.data ?? []) as {
       chatter_name: string;
       account: string;
@@ -174,16 +180,18 @@ export async function loadOnboardingChatters(
       mass_dms: number | null;
       analysis_date: string;
     }[]) {
+      const ck = normalizeChatterName(r.chatter_name);
+      const dmAgg = dmByChatter.get(ck) ?? { sum: 0, count: 0 };
+      dmAgg.sum += Number(r.mass_dms ?? 0);
+      dmAgg.count += 1;
+      dmByChatter.set(ck, dmAgg);
+
       const accs = (r.account ?? "").split(",").map((s) => s.trim()).filter(Boolean);
       for (const a of accs) {
         const k = pairKey(r.chatter_name, a);
-        const agg = pairAgg.get(k) ?? { revenue: 0, since: null, massDmsByDay: new Map() };
+        const agg = pairAgg.get(k) ?? { revenue: 0, since: null };
         agg.revenue += Number(r.revenue_today ?? 0);
         if (!agg.since || r.analysis_date < agg.since) agg.since = r.analysis_date;
-        const dms = Number(r.mass_dms ?? 0);
-        if (dms > 0) {
-          agg.massDmsByDay.set(r.analysis_date, (agg.massDmsByDay.get(r.analysis_date) ?? 0) + dms);
-        }
         pairAgg.set(k, agg);
       }
     }
@@ -211,11 +219,11 @@ export async function loadOnboardingChatters(
         if (agg) {
           it.chatterRevenueOnAccount = agg.revenue;
           it.chatterSinceOnAccount = agg.since;
-          if (agg.massDmsByDay.size > 0) {
-            const total = [...agg.massDmsByDay.values()].reduce((a, b) => a + b, 0);
-            it.avgMassDms = total / agg.massDmsByDay.size;
-          }
         }
+      }
+      const dmAgg = dmByChatter.get(it.chatterKey);
+      if (dmAgg && dmAgg.count > 0) {
+        it.avgMassDms = Math.round(dmAgg.sum / dmAgg.count);
       }
       const live = liveByChatter.get(it.chatterKey);
       if (live) {
