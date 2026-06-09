@@ -85,6 +85,12 @@ const ALLOWED_CATEGORIES = [
   { emoji: "🔵", name: "ONBOARDING TAG 12" },
   { emoji: "🔵", name: "ONBOARDING TAG 13" },
   { emoji: "🔵", name: "ONBOARDING TAG 14" },
+  { emoji: "🔵", name: "ONBOARDING TAG 15" },
+  { emoji: "🔵", name: "ONBOARDING TAG 16" },
+  { emoji: "🔵", name: "ONBOARDING TAG 17" },
+  { emoji: "🔵", name: "ONBOARDING TAG 18" },
+  { emoji: "🔵", name: "ONBOARDING TAG 19" },
+  { emoji: "🔵", name: "ONBOARDING TAG 20" },
   { emoji: "🆘", name: "SOFORT EINGREIFEN" },
   { emoji: "💬", name: "COACHING NÖTIG" },
   { emoji: "🚀", name: "PUSHEN" },
@@ -92,6 +98,7 @@ const ALLOWED_CATEGORIES = [
   { emoji: "📊", name: "RE-ASSIGNEN" },
   { emoji: "👀", name: "BEOBACHTEN" },
 ] as const;
+
 
 const ALLOWED_NAMES = new Set(ALLOWED_CATEGORIES.map((c) => c.name));
 const MITTELFELD = "BEOBACHTEN";
