@@ -105,7 +105,7 @@ export default function Today() {
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
-  const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>();
+  const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>({ wheel: false });
 
   // Labels + Onboarding
   const [labels, setLabels] = useState<ChatterLabel[]>([]);
