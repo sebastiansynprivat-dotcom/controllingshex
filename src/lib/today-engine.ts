@@ -635,7 +635,7 @@ async function detectWakeups(
 }
 
 export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
-  const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
+  const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes, latestReportRes] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
     loadChatterStats(platform),
@@ -650,8 +650,33 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
             .ilike("platform", platform)
         : { data: [] as { model_name: string; follower_count: number }[] }
     ),
+    supabase
+      .from("analysis_reports")
+      .select("analysis_date, result_json")
+      .ilike("platform", platform)
+      .not("result_json", "is", null)
+      .order("analysis_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const { stats, importanceFor } = statsBundle;
+
+  const lockedOnboardingKeys = new Set<string>();
+  const latestReport = latestReportRes.data as
+    | { analysis_date?: string; result_json?: { categories?: { chatters?: { name?: string; startDate?: string }[] }[] } }
+    | null;
+  if (latestReport?.analysis_date && latestReport.result_json?.categories) {
+    for (const cat of latestReport.result_json.categories) {
+      for (const ch of cat.chatters ?? []) {
+        if (!ch?.name) continue;
+        const day = onboardingDayFromStart(ch.startDate, latestReport.analysis_date);
+        if (day !== null && day >= 1 && day <= 5) {
+          lockedOnboardingKeys.add(normalizeChatterName(ch.name));
+        }
+      }
+    }
+  }
 
   // === Live-Snapshot (chatter_history_live) für Suppress- und Refresh-Layer ===
   // Lädt heute + gestern und nimmt pro Chatter den neuesten Eintrag (date desc, updated_at desc).
