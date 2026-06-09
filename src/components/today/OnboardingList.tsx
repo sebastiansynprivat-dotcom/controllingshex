@@ -39,6 +39,7 @@ export default function OnboardingList({
 }: Props) {
   const [picker, setPicker] = useState<OnboardingChatter | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeDay, setActiveDay] = useState<number | null>(null);
 
   const systemLabels = allLabels.filter(isSystemLabel);
 
@@ -52,11 +53,15 @@ export default function OnboardingList({
           Alle Onboarding-Chatter durchgearbeitet
         </p>
         <p className="text-[11px] text-white/30 font-light mt-1">
-          Neue tauchen ab Tag 5 wieder hier auf.
+          Neue tauchen ab Tag 1 wieder hier auf.
         </p>
       </div>
     );
   }
+
+  const totalAll = groups.reduce((sum, g) => sum + g.items.length, 0);
+  const visibleGroups =
+    activeDay === null ? groups : groups.filter((g) => g.day === activeDay);
 
   const handlePick = async (label: ChatterLabel) => {
     if (!picker || saving) return;
