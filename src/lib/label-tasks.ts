@@ -41,8 +41,8 @@ function todayStr(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-export function labelTodoKey(labelId: string, chatterName: string): string {
-  return `label:${labelId}:${chatterName}`;
+export function labelTodoKey(labelId: string, chatterName: string, dateStr: string = todayStr()): string {
+  return `label:${labelId}:${chatterName}:${dateStr}`;
 }
 
 export async function loadLabelCards(
