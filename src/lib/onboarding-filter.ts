@@ -159,10 +159,12 @@ export async function loadOnboardingChatters(
         : Promise.resolve({ data: [] as { model_name: string; follower_count: number | null }[] }),
       supabase
         .from("chatter_history_live")
-        .select("chatter_name, unread_chats, oldest_chat, updated_at")
+        .select("chatter_name, unread_chats, oldest_chat, date, updated_at")
         .ilike("platform", platform)
         .in("chatter_name", chatterNames)
+        .order("date", { ascending: false })
         .order("updated_at", { ascending: false }),
+
     ]);
     const accHistRes = { data: accHistData };
 
