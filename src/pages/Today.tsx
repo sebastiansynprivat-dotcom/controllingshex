@@ -652,7 +652,7 @@ export default function Today() {
             className="absolute inset-x-0 bottom-0 bg-background/92 sm:hidden"
             style={{ height: "max(env(safe-area-inset-bottom), 0px)", transform: "translateY(100%)" }}
           />
-          <div className="pointer-events-auto relative mx-auto w-fit max-w-3xl px-3 pb-3 pt-2 sm:px-0 sm:pb-6">
+          <div className="pointer-events-auto relative mx-auto w-full max-w-3xl px-3 pb-3 pt-2 sm:px-0 sm:pb-6">
 
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-background/70 backdrop-blur-2xl shadow-[0_16px_48px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.025)_inset]">
               <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] bg-card/20" />
