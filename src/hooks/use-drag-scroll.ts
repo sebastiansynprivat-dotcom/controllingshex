@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Drag-to-Scroll für horizontale Container (Desktop / Maus).
@@ -11,13 +11,16 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
   snapSelector?: string;
   wheel?: boolean;
 }) {
-  const ref = useRef<T | null>(null);
+  const [el, setEl] = useState<T | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const snapSelector = opts?.snapSelector ?? ".snap-start";
   const enableWheel = opts?.wheel ?? true;
 
+  const ref = useCallback((node: T | null) => {
+    setEl(node);
+  }, []);
+
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
 
     let active = false;
@@ -97,7 +100,6 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       lastT = now;
     };
 
-
     const endDrag = () => {
       if (!active) return;
       active = false;
@@ -164,7 +166,7 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
         el.removeEventListener("wheel", onWheel);
       }
     };
-  }, [snapSelector, enableWheel]);
+  }, [el, snapSelector, enableWheel]);
 
   return { ref, isDragging };
 }
