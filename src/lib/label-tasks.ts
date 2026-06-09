@@ -41,8 +41,8 @@ function todayStr(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-export function labelTodoKey(labelId: string, chatterName: string): string {
-  return `label:${labelId}:${chatterName}`;
+export function labelTodoKey(labelId: string, chatterName: string, dateStr: string = todayStr()): string {
+  return `label:${labelId}:${chatterName}:${dateStr}`;
 }
 
 export async function loadLabelCards(
@@ -107,7 +107,7 @@ export async function loadLabelCards(
     if (!label) continue;
     const live = liveByChatter.get(a.chatter_key);
     cards.push({
-      todoKey: labelTodoKey(a.label_id, a.chatter_name),
+      todoKey: labelTodoKey(a.label_id, a.chatter_name, today),
       chatterName: a.chatter_name,
       chatterKey: a.chatter_key,
       account: accountByChatter.get(a.chatter_key) ?? null,
