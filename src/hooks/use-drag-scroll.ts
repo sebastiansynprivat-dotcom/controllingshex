@@ -78,20 +78,27 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       lastT = performance.now();
       startScroll = el.scrollLeft;
       pointerId = e.pointerId;
-      // Snap während des Drags deaktivieren — sonst kämpft scroll-snap gegen scrollLeft-Setting
-      el.style.scrollSnapType = "none";
-      el.style.scrollBehavior = "auto";
-      el.style.cursor = "grabbing";
-      el.style.userSelect = "none";
-      try { el.setPointerCapture(e.pointerId); } catch {}
-      setIsDragging(true);
+      // Wichtig: KEIN pointer-capture und keine Style-Änderungen hier —
+      // sonst frisst der Container den click auf seinen Kindern (Buttons).
+      // Drag wird erst aktiviert, wenn der Cursor sich wirklich bewegt.
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (!active) return;
       const dx = e.clientX - startX;
-      if (Math.abs(dx) > 2) e.preventDefault?.();
-      moved = Math.max(moved, Math.abs(dx));
+      const adx = Math.abs(dx);
+      if (adx <= 4 && moved <= 4) return;
+      if (moved <= 4) {
+        // Drag startet jetzt
+        el.style.scrollSnapType = "none";
+        el.style.scrollBehavior = "auto";
+        el.style.cursor = "grabbing";
+        el.style.userSelect = "none";
+        try { el.setPointerCapture(e.pointerId); } catch {}
+        setIsDragging(true);
+      }
+      e.preventDefault?.();
+      moved = Math.max(moved, adx);
       el.scrollLeft = startScroll - dx;
       const now = performance.now();
       const dt = Math.max(1, now - lastT);
@@ -103,13 +110,13 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
     const endDrag = () => {
       if (!active) return;
       active = false;
+      const wasDrag = moved > 4;
       el.style.cursor = "";
       el.style.userSelect = "";
-      // Snap wieder aktivieren (von Tailwind-Klasse übernommen)
       el.style.scrollSnapType = "";
       el.style.scrollBehavior = "";
       setIsDragging(false);
-      if (moved > 4) {
+      if (wasDrag) {
         const block = (ev: MouseEvent) => {
           ev.stopPropagation();
           ev.preventDefault();
@@ -117,8 +124,8 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
         };
         window.addEventListener("click", block, true);
         setTimeout(() => window.removeEventListener("click", block, true), 0);
+        raf = requestAnimationFrame(momentum);
       }
-      raf = requestAnimationFrame(momentum);
     };
 
     const onPointerUp = (e: PointerEvent) => {
