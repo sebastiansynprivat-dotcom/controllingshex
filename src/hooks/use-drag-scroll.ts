@@ -156,6 +156,7 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("pointerleave", onPointerLeave);
       el.removeEventListener("wheel", onWheel);
     };
   }, [snapSelector]);
