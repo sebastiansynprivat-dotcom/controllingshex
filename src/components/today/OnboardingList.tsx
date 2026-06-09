@@ -82,7 +82,10 @@ export default function OnboardingList({
   return (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-none">
+        <div
+          ref={chipScrollRef}
+          className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-none cursor-grab"
+        >
           <button
             onClick={() => setActiveDay(null)}
             className={cn(
