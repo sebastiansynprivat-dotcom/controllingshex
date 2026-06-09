@@ -320,7 +320,11 @@ function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
         {c.liveOpenChats != null && c.liveOpenChats > 0 && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/25 text-amber-200/90">
             {fmtNum(c.liveOpenChats)} offene Chats
-
+          </span>
+        )}
+        {oldest && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-400/25 text-orange-200/90">
+            offen seit {oldest}
           </span>
         )}
         {c.avgMassDms > 0 && (
