@@ -307,11 +307,9 @@ function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
         )}
       </div>
       <div className="flex items-center gap-1.5 flex-wrap text-[10.5px] tabular-nums">
-        {c.chatterRevenueOnAccount > 0 && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-400/20 text-emerald-200/90">
-            {fmtEur(c.chatterRevenueOnAccount)}
-          </span>
-        )}
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-400/20 text-emerald-200/90">
+          {fmtEur(c.chatterRevenueOnAccount)}
+        </span>
         {since && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-white/60">
             seit {since}
