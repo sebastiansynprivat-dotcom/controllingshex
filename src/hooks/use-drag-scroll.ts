@@ -9,10 +9,12 @@ import { useEffect, useRef, useState } from "react";
  */
 export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
   snapSelector?: string;
+  wheel?: boolean;
 }) {
   const ref = useRef<T | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const snapSelector = opts?.snapSelector ?? ".snap-start";
+  const enableWheel = opts?.wheel ?? true;
 
   useEffect(() => {
     const el = ref.current;
