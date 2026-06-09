@@ -68,8 +68,7 @@ export default function Dashboard() {
         .select("id, analysis_date, chatter_count, result_json")
         .eq("platform", platform)
         .not("result_json", "is", null)
-        .order("analysis_date", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("analysis_date", { ascending: false });
 
       if (data && data.length > 0) {
         const rows = data as unknown as ReportRow[];
@@ -358,7 +357,7 @@ export default function Dashboard() {
               </div>
             ) : result ? (
               <ErrorBoundary>
-                <CategoryResultCards data={{ categories: result.categories }} analysisDate={selectedReport?.analysis_date} onChatterSelect={setSelectedChatter} />
+                <CategoryResultCards data={{ categories: result.categories }} onChatterSelect={setSelectedChatter} />
               </ErrorBoundary>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 space-y-6">

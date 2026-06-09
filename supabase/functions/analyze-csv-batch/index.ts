@@ -483,13 +483,12 @@ Zusätzlich vergibst du einen "subTag" (kurzer beschreibender Text) und einen "t
 ──────────────────────────────────────────────
 🔵 ONBOARDING TAG 1-5  (HÖCHSTE PRIORITÄT — überschreibt ALLES)
 ──────────────────────────────────────────────
-Berechne aus CSV-Startdatum und Reportdatum: Startdatum selbst = Tag 1, Folgetag = Tag 2 usw.
-Wenn der berechnete Tag 1 bis 5 ist, MUSS der Chatter in eine eigene Onboarding-Kategorie:
-- categoryName: EXAKT "ONBOARDING TAG N" wobei N = Tag seit Startdatum (1, 2, 3, 4, 5)
-  Beispiele: Startdatum = Reportdatum → "ONBOARDING TAG 1". Startdatum 2 Tage vor Reportdatum → "ONBOARDING TAG 3".
+Wenn Startdatum 1 bis 5 Tage her ist (heute = Tag 0 zählt NICHT), MUSS der Chatter in eine eigene Onboarding-Kategorie:
+- categoryName: EXAKT "ONBOARDING TAG N" wobei N = Anzahl Tage seit Start (1, 2, 3, 4, 5)
+  Beispiele: "ONBOARDING TAG 1", "ONBOARDING TAG 3", "ONBOARDING TAG 5"
 - emoji: "🔵"
 - Diese Chatter dürfen NIEMALS in einer anderen Kategorie (PUSHEN, BELOHNEN, BEOBACHTEN etc.) auftauchen — auch nicht bei Top-Performance, auch nicht bei 0€.
-- Tag > 5 → NICHT Onboarding in der Report-Kategorie (normale Kategorisierung unten). Tag 6-20 wird nur im separaten Onboarding-Filter angezeigt.
+- Startdatum = heute (Tag 0) oder > 5 Tage → NICHT Onboarding in der Report-Kategorie (normale Kategorisierung unten). Tag 6-20 wird nur im separaten Onboarding-Filter angezeigt.
 subTag-Beispiele: "Tag 3 — 0€", "Tag 7 — solide", "Tag 12 — Endspurt"
 
 ──────────────────────────────────────────────

@@ -328,11 +328,10 @@ function RevenueHoverPopup({ history, children }: { history: HistoryEntry[]; chi
 
 interface CategoryResultCardsProps {
   data: AnalysisResult | null;
-  analysisDate?: string;
   onChatterSelect: (name: string) => void;
 }
 
-export default function CategoryResultCards({ data, analysisDate, onChatterSelect }: CategoryResultCardsProps) {
+export default function CategoryResultCards({ data, onChatterSelect }: CategoryResultCardsProps) {
   const { platform } = usePlatform();
   
    const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
@@ -368,9 +367,9 @@ export default function CategoryResultCards({ data, analysisDate, onChatterSelec
     return () => { cancelled = true; };
   }, [platform]);
 
-  // Parse "DD.MM.YYYY" / "DD.MM.YY" / ISO → Onboarding-Tag.
-  // Report-Logik: Startdatum selbst ist Tag 1, Folgetag ist Tag 2 usw.
-  const parseOnboardingDay = useCallback((s: string | undefined): number | null => {
+  // Parse "DD.MM.YYYY" / "DD.MM.YY" / ISO → days since startDate (today = 0, gestern = 1, ...).
+  // Onboarding-Tag-Konvention (CSV-Prompt): Tag N = N Tage seit Start, heute zählt NICHT.
+  const parseStartDays = useCallback((s: string | undefined): number | null => {
     if (!s) return null;
     const trimmed = s.trim();
     let d: Date | null = null;
@@ -386,13 +385,11 @@ export default function CategoryResultCards({ data, analysisDate, onChatterSelec
     }
     if (!d || isNaN(d.getTime())) return null;
     d.setHours(0, 0, 0, 0);
-    const today = analysisDate && /^\d{4}-\d{2}-\d{2}/.test(analysisDate)
-      ? new Date(`${analysisDate.slice(0, 10)}T00:00:00`)
-      : new Date();
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
-    return days >= 0 ? days + 1 : null;
-  }, [analysisDate]);
+    return days >= 0 ? days : null;
+  }, []);
 
   // Post-process categories: whitelist mapping, onboarding day lock, dedup
   const categories = useMemo(() => {
@@ -407,7 +404,7 @@ export default function CategoryResultCards({ data, analysisDate, onChatterSelec
       for (const ch of cat.chatters) {
         const normName = normalizeChatterName(ch.name);
         // PRIMÄR: startDate aus dem Report (CSV-Spalte). Fallback: RPC-Map.
-        const onbDay = parseOnboardingDay(ch.startDate) ?? onboardingDayByChatter.get(normName);
+        const onbDay = parseStartDays(ch.startDate) ?? onboardingDayByChatter.get(normName);
 
         // Day-Lock: Tag 1–5 IMMER in ONBOARDING TAG X, nie in andere Karten
         let targetName: string;
@@ -450,7 +447,7 @@ export default function CategoryResultCards({ data, analysisDate, onChatterSelec
       ordered.push(entry || { emoji: ac.emoji, categoryName: ac.name, chatters: [] });
     }
     return ordered;
-  }, [data, onboardingDayByChatter, parseOnboardingDay]);
+  }, [data, onboardingDayByChatter, parseStartDays]);
 
 
   useEffect(() => {
