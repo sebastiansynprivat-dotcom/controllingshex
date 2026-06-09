@@ -268,7 +268,8 @@ function fmtSince(iso: string | null): string | null {
 }
 
 function fmtOldestChat(days: number | null): string | null {
-  if (days == null || days <= 0) return null;
+  if (days == null) return null;
+  if (days === 0) return "0 Tagen";
   if (days < 1) {
     const h = Math.round(days * 24);
     return h <= 0 ? "<1 h" : `${h} h`;
@@ -315,17 +316,17 @@ function ChatterKpiRow({ c }: { c: OnboardingChatter }) {
             seit {since}
           </span>
         )}
-        {c.liveOpenChats != null && c.liveOpenChats > 0 && (
+        {c.liveOpenChats != null && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/25 text-amber-200/90">
             {fmtNum(c.liveOpenChats)} offene Chats
           </span>
         )}
-        {oldest && (
+        {c.liveOldestChatDays != null && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-400/25 text-orange-200/90">
-            offen seit {oldest}
+            offen seit {fmtOldestChat(c.liveOldestChatDays)}
           </span>
         )}
-        {c.avgMassDms > 0 && (
+        {c.avgMassDms >= 0 && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-fuchsia-500/10 border border-fuchsia-400/20 text-fuchsia-200/85">
             ⌀ {Math.round(c.avgMassDms)} Mass-DMs
           </span>
