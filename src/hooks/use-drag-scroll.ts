@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
  * - Touch wird ignoriert (natives Scrollen bleibt).
  * - Momentum nach Loslassen + magnetisches Snap auf nächstes Kind mit
  *   Selektor `snapSelector` (default: `.snap-start`).
+ * - Mausrad-Scroll: vertikales Rad wird in horizontal umgelenkt.
  */
 export function useDragScroll<T extends HTMLElement = HTMLDivElement>(opts?: {
   snapSelector?: string;
