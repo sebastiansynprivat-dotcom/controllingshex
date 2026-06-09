@@ -65,12 +65,15 @@ export async function loadOnboardingChatters(
   // startDate aus dem aktuellsten Report (CSV-Spalte) → primäre Quelle für Onboarding-Tag.
   // Format aus CSV: "DD.MM.YYYY" (manchmal "DD.MM.YY" oder ISO).
   const startDateByChatter = new Map<string, string>();
+  const displayNameByChatter = new Map<string, string>();
   const result = (latestReportRes.data?.result_json ?? null) as { categories?: { chatters?: { name?: string; startDate?: string }[] }[] } | null;
   if (result?.categories) {
     for (const cat of result.categories) {
       for (const ch of cat.chatters ?? []) {
-        if (ch?.name && ch.startDate) {
-          startDateByChatter.set(normalizeChatterName(ch.name), ch.startDate);
+        if (ch?.name) {
+          const nk = normalizeChatterName(ch.name);
+          if (!displayNameByChatter.has(nk)) displayNameByChatter.set(nk, ch.name);
+          if (ch.startDate) startDateByChatter.set(nk, ch.startDate);
         }
       }
     }
