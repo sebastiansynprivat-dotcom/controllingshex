@@ -116,14 +116,14 @@ export async function loadOnboardingChatters(
     });
   }
 
-  // ---- KPIs anreichern (Account-Follower, Revenue, Response-Time, Mass-DMs) ----
+  // ---- KPIs anreichern (Account-Follower, Revenue, Mass-DMs, Live-Tracking) ----
   const chatterNames = Array.from(new Set(items.map((i) => i.chatterName)));
   const accounts = Array.from(
     new Set(items.map((i) => i.account).filter((a): a is string => !!a)),
   );
 
   if (chatterNames.length) {
-    const [chHistRes, accHistRes, modelsRes, sessionsRes] = await Promise.all([
+    const [chHistRes, accHistRes, modelsRes, liveRes] = await Promise.all([
       supabase
         .from("chatter_history")
         .select("chatter_name, account, revenue_today, mass_dms, analysis_date")
@@ -144,10 +144,11 @@ export async function loadOnboardingChatters(
             .in("model_name", accounts)
         : Promise.resolve({ data: [] as { model_name: string; follower_count: number | null }[] }),
       supabase
-        .from("chatter_activity_sessions")
-        .select("chatter_name, first_response_min, mass_dms_in_session, date")
+        .from("chatter_history_live")
+        .select("chatter_name, unread_chats, oldest_chat, updated_at")
         .ilike("platform", platform)
-        .in("chatter_name", chatterNames),
+        .in("chatter_name", chatterNames)
+        .order("updated_at", { ascending: false }),
     ]);
 
     // Account → Follower
@@ -173,7 +174,6 @@ export async function loadOnboardingChatters(
       mass_dms: number | null;
       analysis_date: string;
     }[]) {
-      // account-Feld kann komma-separiert sein → splitten
       const accs = (r.account ?? "").split(",").map((s) => s.trim()).filter(Boolean);
       for (const a of accs) {
         const k = pairKey(r.chatter_name, a);
@@ -188,35 +188,20 @@ export async function loadOnboardingChatters(
       }
     }
 
-    // Chatter → Response p50 + Avg Mass-DMs aus Sessions
-    const respByChatter = new Map<string, number[]>();
-    const dmsSessByChatter = new Map<string, { byDay: Map<string, number> }>();
-    for (const s of (sessionsRes.data ?? []) as {
+    // Live-Tracking: neuester Eintrag je Chatter (Query ist bereits desc sortiert)
+    const liveByChatter = new Map<string, { unread: number | null; oldest: number | null }>();
+    for (const r of (liveRes.data ?? []) as {
       chatter_name: string;
-      first_response_min: number | null;
-      mass_dms_in_session: number | null;
-      date: string;
+      unread_chats: number | null;
+      oldest_chat: number | null;
     }[]) {
-      const k = normalizeChatterName(s.chatter_name);
-      if (s.first_response_min != null) {
-        const arr = respByChatter.get(k) ?? [];
-        arr.push(s.first_response_min);
-        respByChatter.set(k, arr);
-      }
-      const dms = Number(s.mass_dms_in_session ?? 0);
-      if (dms > 0) {
-        const entry = dmsSessByChatter.get(k) ?? { byDay: new Map() };
-        entry.byDay.set(s.date, (entry.byDay.get(s.date) ?? 0) + dms);
-        dmsSessByChatter.set(k, entry);
-      }
+      const k = normalizeChatterName(r.chatter_name);
+      if (liveByChatter.has(k)) continue;
+      liveByChatter.set(k, {
+        unread: r.unread_chats != null ? Number(r.unread_chats) : null,
+        oldest: r.oldest_chat != null ? Number(r.oldest_chat) : null,
+      });
     }
-
-    const median = (arr: number[]): number | null => {
-      if (!arr.length) return null;
-      const s = [...arr].sort((a, b) => a - b);
-      const mid = Math.floor(s.length / 2);
-      return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-    };
 
     for (const it of items) {
       if (it.account) {
@@ -226,22 +211,20 @@ export async function loadOnboardingChatters(
         if (agg) {
           it.chatterRevenueOnAccount = agg.revenue;
           it.chatterSinceOnAccount = agg.since;
-          // Fallback Ø Mass-DMs aus Reports
           if (agg.massDmsByDay.size > 0) {
             const total = [...agg.massDmsByDay.values()].reduce((a, b) => a + b, 0);
             it.avgMassDms = total / agg.massDmsByDay.size;
           }
         }
       }
-      // Sessions bevorzugen, falls vorhanden
-      const dmsSess = dmsSessByChatter.get(it.chatterKey);
-      if (dmsSess && dmsSess.byDay.size > 0) {
-        const total = [...dmsSess.byDay.values()].reduce((a, b) => a + b, 0);
-        it.avgMassDms = total / dmsSess.byDay.size;
+      const live = liveByChatter.get(it.chatterKey);
+      if (live) {
+        it.liveOpenChats = live.unread;
+        it.liveOldestChatHours = live.oldest;
       }
-      it.responseMedianMin = median(respByChatter.get(it.chatterKey) ?? []);
     }
   }
+
 
 
   // Gruppieren nach Tag (absteigend → ältester zuerst)
