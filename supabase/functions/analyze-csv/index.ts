@@ -480,7 +480,7 @@ SCHRITT 1 — ONBOARDING prüfen (Startdatum aus CSV, Startdatum selbst = Tag 1)
    categoryName MUSS EXAKT so lauten: "ONBOARDING TAG 1", "ONBOARDING TAG 2", "ONBOARDING TAG 3", "ONBOARDING TAG 4" oder "ONBOARDING TAG 5"
    Beispiele: Startdatum = Reportdatum → "ONBOARDING TAG 1". Startdatum 2 Tage vor Reportdatum → "ONBOARDING TAG 3".
    Fokus Tag 1-5: erster Aufbau / 0€-Toleranz.
-WENN Onboarding (Startdatum 1-5 Tage her) zutrifft → STOPP, diese Kategorie verwenden. Nicht weiter prüfen!
+WENN Onboarding Tag 1-5 laut Startdatum zutrifft → STOPP, diese Kategorie verwenden. Nicht weiter prüfen!
 Tag > 5 → KEIN Onboarding in der Report-Kategorie, weiter mit Schritt 2. Tag 6-20 wird nur im separaten Onboarding-Filter angezeigt.
 
 SCHRITT 2 — WARNUNG prüfen (Antwortzeit):
