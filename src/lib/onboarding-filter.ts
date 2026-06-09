@@ -31,7 +31,7 @@ export async function loadOnboardingChatters(
   assignments: LabelAssignment[],
   opts: Options = {},
 ): Promise<OnboardingGroup[]> {
-  const minDays = opts.minDays ?? 6;
+  const minDays = opts.minDays ?? 1;
   const maxDays = opts.maxDays ?? 20;
 
   const [onboardingRes, activeNames, accountsRes] = await Promise.all([
