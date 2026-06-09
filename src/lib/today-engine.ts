@@ -988,6 +988,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }>();
 
   for (const s of signals) {
+    if (s.chatterKey && lockedOnboardingKeys.has(s.chatterKey)) continue;
     const isSolo = SOLO_KINDS.has(s.signal.kind);
     let bundleKey: string;
     if (isSolo || !s.chatterKey) {
