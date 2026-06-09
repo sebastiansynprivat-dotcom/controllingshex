@@ -345,85 +345,26 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
   const [labelAssignments, setLabelAssignments] = useState<LabelAssignment[]>([]);
   const [modelPerformances, setModelPerformances] = useState<Record<string, ModelPerformance>>({});
   const [followerMap, setFollowerMap] = useState<Map<string, number>>(new Map());
-  const [onboardingDayByChatter, setOnboardingDayByChatter] = useState<Map<string, number>>(new Map());
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  // Onboarding-Tag pro Chatter laden (Single Source: get_chatter_onboarding RPC)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.rpc("get_chatter_onboarding", { p_platform: platform });
-      if (cancelled || !data) return;
-      const map = new Map<string, number>();
-      for (const r of data as { chatter_name: string; onboarded_on: string; report_day: number | null }[]) {
-        // report_day = Anzahl der Reports, in denen der Chatter aufgetaucht ist
-        // (lückenlos, unabhängig von Kalenderlücken zwischen Reports)
-        const day = Number(r.report_day ?? 0);
-        if (day > 0) map.set(normalizeChatterName(r.chatter_name), day);
-      }
-      setOnboardingDayByChatter(map);
-    })();
-    return () => { cancelled = true; };
-  }, [platform]);
-
-  // Parse "DD.MM.YYYY" / "DD.MM.YY" / ISO → days since startDate (today = 0, gestern = 1, ...).
-  // Onboarding-Tag-Konvention (CSV-Prompt): Tag N = N Tage seit Start, heute zählt NICHT.
-  const parseStartDays = useCallback((s: string | undefined): number | null => {
-    if (!s) return null;
-    const trimmed = s.trim();
-    let d: Date | null = null;
-    const dm = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-    if (dm) {
-      const day = parseInt(dm[1], 10);
-      const mon = parseInt(dm[2], 10) - 1;
-      let yr = parseInt(dm[3], 10);
-      if (yr < 100) yr += 2000;
-      d = new Date(yr, mon, day);
-    } else if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      d = new Date(trimmed);
-    }
-    if (!d || isNaN(d.getTime())) return null;
-    d.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
-    return days >= 0 ? days : null;
-  }, []);
-
-  // Post-process categories: whitelist mapping, onboarding day lock, dedup
+  // Post-process categories: whitelist mapping, onboarding date lock, dedup
   const categories = useMemo(() => {
     const raw = data?.categories ?? [];
     if (raw.length === 0) return raw;
 
     // Map all AI categories to whitelisted names and merge into a single map
     const catMap = new Map<string, Category>();
-    const seenInOnboarding = new Set<string>(); // Tag 1–5 nur 1× pro Chatter
 
     for (const cat of raw) {
       for (const ch of cat.chatters) {
-        const normName = normalizeChatterName(ch.name);
-        // PRIMÄR: startDate aus dem Report (CSV-Spalte). Fallback: RPC-Map.
-        const onbDay = parseStartDays(ch.startDate) ?? onboardingDayByChatter.get(normName);
+        const mapped = mapToAllowed(cat.categoryName);
 
-        // Day-Lock: Tag 1–5 IMMER in ONBOARDING TAG X, nie in andere Karten
-        let targetName: string;
-        let targetEmoji: string;
-        if (onbDay != null && onbDay >= 1 && onbDay <= 5) {
-          targetName = `ONBOARDING TAG ${onbDay}`;
-          targetEmoji = "🔵";
-          if (seenInOnboarding.has(normName)) continue;
-          seenInOnboarding.add(normName);
-        } else {
-          const mapped = mapToAllowed(cat.categoryName);
-          targetName = mapped.name;
-          targetEmoji = mapped.emoji;
+        const key = mapped.name;
+        if (!catMap.has(key)) {
+          catMap.set(key, { emoji: mapped.emoji, categoryName: key, chatters: [] });
         }
-
-        if (!catMap.has(targetName)) {
-          catMap.set(targetName, { emoji: targetEmoji, categoryName: targetName, chatters: [] });
-        }
-        catMap.get(targetName)!.chatters.push(ch);
+        catMap.get(key)!.chatters.push(ch);
       }
     }
 
@@ -447,8 +388,7 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
       ordered.push(entry || { emoji: ac.emoji, categoryName: ac.name, chatters: [] });
     }
     return ordered;
-  }, [data, onboardingDayByChatter, parseStartDays]);
-
+  }, [data]);
 
   useEffect(() => {
     if (categories.length === 0) return;

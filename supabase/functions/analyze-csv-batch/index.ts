@@ -481,20 +481,20 @@ Prüfe von oben nach unten — die ERSTE zutreffende gewinnt, dann STOPP.
 Zusätzlich vergibst du einen "subTag" (kurzer beschreibender Text) und einen "trend" ("rising" | "declining" | "stable" | "volatile" | "unknown").
 
 ──────────────────────────────────────────────
-🔵 ONBOARDING TAG 1-5  (HÖCHSTE PRIORITÄT — überschreibt ALLES)
+🔵 ONBOARDING TAG 1-14  (HÖCHSTE PRIORITÄT — überschreibt ALLES)
 ──────────────────────────────────────────────
-Wenn Startdatum 1 bis 5 Tage her ist (heute = Tag 0 zählt NICHT), MUSS der Chatter in eine eigene Onboarding-Kategorie:
-- categoryName: EXAKT "ONBOARDING TAG N" wobei N = Anzahl Tage seit Start (1, 2, 3, 4, 5)
-  Beispiele: "ONBOARDING TAG 1", "ONBOARDING TAG 3", "ONBOARDING TAG 5"
+Wenn Startdatum 1 bis 14 Tage her ist (heute = Tag 0 zählt NICHT), MUSS der Chatter in eine eigene Onboarding-Kategorie:
+- categoryName: EXAKT "ONBOARDING TAG N" wobei N = Anzahl Tage seit Start (1, 2, 3, ..., 14)
+  Beispiele: "ONBOARDING TAG 1", "ONBOARDING TAG 6", "ONBOARDING TAG 12", "ONBOARDING TAG 14"
 - emoji: "🔵"
 - Diese Chatter dürfen NIEMALS in einer anderen Kategorie (PUSHEN, BELOHNEN, BEOBACHTEN etc.) auftauchen — auch nicht bei Top-Performance, auch nicht bei 0€.
-- Startdatum = heute (Tag 0) oder > 5 Tage → NICHT Onboarding in der Report-Kategorie (normale Kategorisierung unten). Tag 6-20 wird nur im separaten Onboarding-Filter angezeigt.
+- Startdatum = heute (Tag 0) oder > 14 Tage → NICHT Onboarding (normale Kategorisierung unten).
 subTag-Beispiele: "Tag 3 — 0€", "Tag 7 — solide", "Tag 12 — Endspurt"
 
 ──────────────────────────────────────────────
 🆘 SOFORT EINGREIFEN  (categoryName: "SOFORT EINGREIFEN", emoji: "🆘")
 ──────────────────────────────────────────────
-NUR wenn KEIN Onboarding (Tag 1-5). Trifft zu wenn EINE dieser Bedingungen erfüllt ist:
+NUR wenn KEIN Onboarding (Tag 1-14). Trifft zu wenn EINE dieser Bedingungen erfüllt ist:
 - Antwortverzug ≥ 7 Tage ("Offene Chats seit X Tagen", X ≥ 7)
 - 5 oder mehr Tage in Folge 0€ Tagesumsatz (laut Historie)
 - Account-Einbruch: aktueller Tagesumsatz ≥ 70% niedriger als historischer Schnitt UND mind. 3 Tage sichtbar
@@ -503,7 +503,7 @@ subTag-Beispiele: "Verzug 8 Tage", "0€ seit 6 Tagen", "Einbruch -85%"
 ──────────────────────────────────────────────
 💬 COACHING NÖTIG  (categoryName: "COACHING NÖTIG", emoji: "💬")
 ──────────────────────────────────────────────
-NUR wenn KEIN Onboarding (Tag 1-5). Trifft zu wenn EINE dieser Bedingungen erfüllt ist (und SOFORT EINGREIFEN NICHT zutrifft):
+NUR wenn KEIN Onboarding (Tag 1-14). Trifft zu wenn EINE dieser Bedingungen erfüllt ist (und SOFORT EINGREIFEN NICHT zutrifft):
 - Antwortverzug 4-6 Tage
 - 2-4 Tage in Folge 0€ Tagesumsatz
 - Trend abwärts: 7-Tage-Schnitt mind. 30% niedriger als 14-Tage-Schnitt (war-Top-jetzt-Mid)
@@ -514,7 +514,7 @@ subTag-Beispiele: "Trend ↓ 35%", "0€ seit 3 Tagen", "Verzug 5 Tage", "Traffi
 ──────────────────────────────────────────────
 🚀 PUSHEN  (categoryName: "PUSHEN", emoji: "🚀")
 ──────────────────────────────────────────────
-NUR wenn KEIN Onboarding (Tag 1-5). Trifft zu wenn EINE dieser Bedingungen erfüllt ist:
+NUR wenn KEIN Onboarding (Tag 1-14). Trifft zu wenn EINE dieser Bedingungen erfüllt ist:
 - Kurz vor Upgrade: exakt 4 Tage in Folge ≥ 30€ laut Historie
 - Comeback: hatte 3+ Tage in Folge 0€, hat HEUTE wieder Umsatz > 0€
 subTag-Beispiele: "Kurz vor Upgrade", "Comeback nach 4 Tagen"
@@ -522,7 +522,7 @@ subTag-Beispiele: "Kurz vor Upgrade", "Comeback nach 4 Tagen"
 ──────────────────────────────────────────────
 🎉 BELOHNEN  (categoryName: "BELOHNEN", emoji: "🎉")
 ──────────────────────────────────────────────
-NUR wenn KEIN Onboarding (Tag 1-5). Trifft zu für Top-Performer (KEIN Verzug > 2 Tage). Differenziere im subTag:
+NUR wenn KEIN Onboarding (Tag 1-14). Trifft zu für Top-Performer (KEIN Verzug > 2 Tage). Differenziere im subTag:
 - 👑 WHALE: Tagesumsatz heute ≥ 300€ ODER 7-Tage-Summe ≥ 2000€
 - 💎 STAR: Tagesumsatz heute ≥ 100€ ODER 7-Tage-Summe ≥ 700€
 - 🟢 SOLID: Tagesumsatz heute ≥ 30€ UND mindestens 5 aktive Tage (>0€) in letzten 7 Tagen
@@ -533,7 +533,7 @@ subTag MUSS exakt einer der obigen Tags sein (z.B. "💎 Star — 850€ heute",
 ──────────────────────────────────────────────
 📊 RE-ASSIGNEN  (categoryName: "RE-ASSIGNEN", emoji: "📊")
 ──────────────────────────────────────────────
-NUR wenn KEIN Onboarding (Tag 1-5). Trifft zu wenn der Chatter offensichtlich auf dem falschen Account sitzt:
+NUR wenn KEIN Onboarding (Tag 1-14). Trifft zu wenn der Chatter offensichtlich auf dem falschen Account sitzt:
 - Großer Account (Follower > 20k) UND Chatter macht konstant < 50€/Tag über mind. 5 Tage
 - Kleiner Account (Follower < 5k) UND Chatter generiert > 200€/Tag konstant (zu groß für den Account)
 - Klarer Follower vs. Performance Mismatch
@@ -542,7 +542,7 @@ subTag-Beispiele: "Account zu groß (50k Follower, Ø 35€)", "Account zu klein
 ──────────────────────────────────────────────
 👀 BEOBACHTEN  (categoryName: "BEOBACHTEN", emoji: "👀")
 ──────────────────────────────────────────────
-NUR wenn KEIN Onboarding (Tag 1-5). Auffangkorb für ALLE die in keine der obigen passen — stabil, kein Eingriff nötig.
+NUR wenn KEIN Onboarding (Tag 1-14). Auffangkorb für ALLE die in keine der obigen passen — stabil, kein Eingriff nötig.
 - Solide Mittelfeld-Performance (5-30€/Tag)
 - Heute 0€ aber gestern Umsatz (nur 1 Tag pause, kein Streak)
 - Noch zu wenig Daten für Trend-Aussage
@@ -562,8 +562,8 @@ ZUSÄTZLICHE FELDER (PFLICHT pro Chatter)
 ==============================================================
 WICHTIGE REGELN
 ==============================================================
-- Erlaubte categoryName-Werte EXAKT: "ONBOARDING TAG 1", "ONBOARDING TAG 2", "ONBOARDING TAG 3", "ONBOARDING TAG 4", "ONBOARDING TAG 5", "SOFORT EINGREIFEN", "COACHING NÖTIG", "PUSHEN", "BELOHNEN", "RE-ASSIGNEN", "BEOBACHTEN"
-- Jeder Chatter gehört in GENAU EINE Kategorie. Onboarding (Tag 1-5) hat IMMER Vorrang.
+- Erlaubte categoryName-Werte EXAKT: "ONBOARDING TAG 1", "ONBOARDING TAG 2", "ONBOARDING TAG 3", "ONBOARDING TAG 4", "ONBOARDING TAG 5", "ONBOARDING TAG 6", "ONBOARDING TAG 7", "ONBOARDING TAG 8", "ONBOARDING TAG 9", "ONBOARDING TAG 10", "ONBOARDING TAG 11", "ONBOARDING TAG 12", "ONBOARDING TAG 13", "ONBOARDING TAG 14", "SOFORT EINGREIFEN", "COACHING NÖTIG", "PUSHEN", "BELOHNEN", "RE-ASSIGNEN", "BEOBACHTEN"
+- Jeder Chatter gehört in GENAU EINE Kategorie. Onboarding (Tag 1-14) hat IMMER Vorrang.
 - Ein Onboarding-Chatter darf unter KEINEN Umständen zusätzlich oder stattdessen in einer anderen Kategorie auftauchen.
 - "kpis" enthält alle relevanten Kennzahlen als Key-Value-Paare. Geldbeträge mit € formatieren.
 - Das Feld "Offene Chats" MUSS im Format "X Chats seit Y Tagen" sein.

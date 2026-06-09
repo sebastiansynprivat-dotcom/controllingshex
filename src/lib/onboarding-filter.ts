@@ -42,7 +42,7 @@ export async function loadOnboardingChatters(
   const minDays = opts.minDays ?? 1;
   const maxDays = opts.maxDays ?? 20;
 
-  const [onboardingRes, activeNames, accountsRes, latestReportRes] = await Promise.all([
+  const [onboardingRes, activeNames, accountsRes] = await Promise.all([
     supabase.rpc("get_chatter_onboarding", { p_platform: platform }),
     loadActiveChatterNames(platform),
     supabase
@@ -51,53 +51,9 @@ export async function loadOnboardingChatters(
       .ilike("platform", platform)
       .order("analysis_date", { ascending: false })
       .limit(2000),
-    supabase
-      .from("analysis_reports")
-      .select("result_json, created_at")
-      .ilike("platform", platform)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
   ]);
 
-  const onboarding = (onboardingRes.data ?? []) as { chatter_name: string; onboarded_on: string; report_day: number | null }[];
-
-  // startDate aus dem aktuellsten Report (CSV-Spalte) → primäre Quelle für Onboarding-Tag.
-  // Format aus CSV: "DD.MM.YYYY" (manchmal "DD.MM.YY" oder ISO).
-  const startDateByChatter = new Map<string, string>();
-  const displayNameByChatter = new Map<string, string>();
-  const result = (latestReportRes.data?.result_json ?? null) as { categories?: { chatters?: { name?: string; startDate?: string }[] }[] } | null;
-  if (result?.categories) {
-    for (const cat of result.categories) {
-      for (const ch of cat.chatters ?? []) {
-        if (ch?.name) {
-          const nk = normalizeChatterName(ch.name);
-          if (!displayNameByChatter.has(nk)) displayNameByChatter.set(nk, ch.name);
-          if (ch.startDate) startDateByChatter.set(nk, ch.startDate);
-        }
-      }
-    }
-  }
-
-  const parseStartDays = (s: string | undefined, refToday: Date): number | null => {
-    if (!s) return null;
-    const trimmed = s.trim();
-    let d: Date | null = null;
-    const dm = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-    if (dm) {
-      const day = parseInt(dm[1], 10);
-      const mon = parseInt(dm[2], 10) - 1;
-      let yr = parseInt(dm[3], 10);
-      if (yr < 100) yr += 2000;
-      d = new Date(yr, mon, day);
-    } else if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      d = new Date(trimmed);
-    }
-    if (!d || isNaN(d.getTime())) return null;
-    d.setHours(0, 0, 0, 0);
-    const days = Math.floor((refToday.getTime() - d.getTime()) / 86400000);
-    return days >= 0 ? days : null;
-  };
+  const onboarding = (onboardingRes.data ?? []) as { chatter_name: string; onboarded_on: string }[];
 
   // Account je Chatter — neuester Eintrag
   const accountByChatter = new Map<string, string>();
@@ -122,28 +78,13 @@ export async function loadOnboardingChatters(
   }
   const labelById = new Map(allLabels.map((l) => [l.id, l]));
 
-  // Chatter aus dem letzten Report, die nicht im RPC-Output sind, ergänzen
-  const seenInOnboarding = new Set(onboarding.map((r) => normalizeChatterName(r.chatter_name)));
-  const onboardingFull = [...onboarding];
-  for (const [k, sd] of startDateByChatter) {
-    if (!seenInOnboarding.has(k)) {
-      onboardingFull.push({ chatter_name: displayNameByChatter.get(k) ?? k, onboarded_on: "", report_day: null } as any);
-    }
-  }
-
   const items: OnboardingChatter[] = [];
-  for (const row of onboardingFull) {
+  for (const row of onboarding) {
     const k = normalizeChatterName(row.chatter_name);
     if (activeNames !== null && !activeNames.has(k)) continue;
-
-    // PRIMÄR: startDate aus Report. Fallback: report_day. Fallback: Kalendertage.
-    const sdDays = parseStartDays(startDateByChatter.get(k), today);
-    let days = sdDays ?? Number(row.report_day ?? 0);
-    if (!days && row.onboarded_on) {
-      const onboardedDate = new Date(row.onboarded_on);
-      onboardedDate.setHours(0, 0, 0, 0);
-      days = Math.floor((today.getTime() - onboardedDate.getTime()) / (1000 * 60 * 60 * 24));
-    }
+    const onboardedDate = new Date(row.onboarded_on);
+    onboardedDate.setHours(0, 0, 0, 0);
+    const days = Math.floor((today.getTime() - onboardedDate.getTime()) / (1000 * 60 * 60 * 24));
     if (days < minDays || days > maxDays) continue;
 
     // Chatter mit System-Label bereits eingestuft → raus aus Onboarding-Queue
