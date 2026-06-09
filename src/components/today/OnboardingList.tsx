@@ -41,6 +41,7 @@ export default function OnboardingList({
   const [picker, setPicker] = useState<OnboardingChatter | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeDay, setActiveDay] = useState<number | null>(null);
+  const { ref: chipScrollRef } = useDragScroll<HTMLDivElement>();
 
   const systemLabels = allLabels.filter(isSystemLabel);
 
