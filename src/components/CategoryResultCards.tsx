@@ -355,14 +355,12 @@ export default function CategoryResultCards({ data, onChatterSelect }: CategoryR
     (async () => {
       const { data } = await supabase.rpc("get_chatter_onboarding", { p_platform: platform });
       if (cancelled || !data) return;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       const map = new Map<string, number>();
-      for (const r of data as { chatter_name: string; onboarded_on: string }[]) {
-        const d = new Date(r.onboarded_on);
-        d.setHours(0, 0, 0, 0);
-        const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
-        map.set(normalizeChatterName(r.chatter_name), days);
+      for (const r of data as { chatter_name: string; onboarded_on: string; report_day: number | null }[]) {
+        // report_day = Anzahl der Reports, in denen der Chatter aufgetaucht ist
+        // (lückenlos, unabhängig von Kalenderlücken zwischen Reports)
+        const day = Number(r.report_day ?? 0);
+        if (day > 0) map.set(normalizeChatterName(r.chatter_name), day);
       }
       setOnboardingDayByChatter(map);
     })();
