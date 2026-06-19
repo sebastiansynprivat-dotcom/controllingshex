@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -22,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   config: PushFakeConfig;
   onChange: (cfg: PushFakeConfig) => void;
-  onReroll: (which: "chatters" | "users") => void;
+  onReroll: (which: "chatters" | "users" | "hotLeads") => void;
 }
 
 function CounterEditor({
@@ -142,14 +143,23 @@ export function PushSimulationSheet({ open, onOpenChange, config, onChange, onRe
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label="Schließen"
+          className="absolute top-3 right-3 z-50 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/70"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <SheetHeader className="pr-12">
           <SheetTitle>Simulation</SheetTitle>
           <SheetDescription className="text-[11px] text-white/40">
             Nur Demo / Simulation – keine echten Daten.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-4 pb-4">
           <CounterEditor
             title="Chatter online"
             value={local.chatters}
@@ -164,6 +174,13 @@ export function PushSimulationSheet({ open, onOpenChange, config, onChange, onRe
             onReroll={() => onReroll("users")}
             onReset={() => apply({ ...local, users: DEFAULT_PUSH_CONFIG.users })}
           />
+          <CounterEditor
+            title="Hot Leads idle"
+            value={local.hotLeads}
+            onChange={(c) => apply({ ...local, hotLeads: c })}
+            onReroll={() => onReroll("hotLeads")}
+            onReset={() => apply({ ...local, hotLeads: DEFAULT_PUSH_CONFIG.hotLeads })}
+          />
 
           <Button
             variant="outline"
@@ -171,6 +188,13 @@ export function PushSimulationSheet({ open, onOpenChange, config, onChange, onRe
             onClick={() => apply(DEFAULT_PUSH_CONFIG)}
           >
             Alles auf Default
+          </Button>
+
+          <Button
+            className="w-full"
+            onClick={() => onOpenChange(false)}
+          >
+            Fertig
           </Button>
         </div>
       </SheetContent>

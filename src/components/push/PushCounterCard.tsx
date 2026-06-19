@@ -5,7 +5,7 @@ interface Props {
   sub: string;
   value: number;
   history: number[];
-  accent: "emerald" | "pink";
+  accent: "emerald" | "pink" | "amber";
 }
 
 const ACCENT = {
@@ -22,6 +22,13 @@ const ACCENT = {
     stroke: "stroke-pink-400/80",
     fill: "fill-pink-400/10",
     text: "text-pink-300",
+  },
+  amber: {
+    dot: "bg-amber-400",
+    ring: "shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]",
+    stroke: "stroke-amber-400/80",
+    fill: "fill-amber-400/10",
+    text: "text-amber-300",
   },
 };
 

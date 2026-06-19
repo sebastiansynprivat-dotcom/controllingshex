@@ -18,6 +18,7 @@ export interface FakeCounterConfig {
 export interface PushFakeConfig {
   chatters: FakeCounterConfig;
   users: FakeCounterConfig;
+  hotLeads: FakeCounterConfig;
 }
 
 export const DEFAULT_PUSH_CONFIG: PushFakeConfig = {
@@ -45,6 +46,18 @@ export const DEFAULT_PUSH_CONFIG: PushFakeConfig = {
     volatility: 0.15,
     paused: false,
   },
+  hotLeads: {
+    startValue: 12,
+    min: 3,
+    max: 35,
+    tickMinMs: 2000,
+    tickMaxMs: 6000,
+    stepMin: 1,
+    stepMax: 4,
+    trend: 0,
+    volatility: 0.08,
+    paused: false,
+  },
 };
 
 const STORAGE_KEY = "push.fake.config.v1";
@@ -56,8 +69,9 @@ export function loadPushConfig(): PushFakeConfig {
     if (!raw) return DEFAULT_PUSH_CONFIG;
     const parsed = JSON.parse(raw);
     return {
-      chatters: { ...DEFAULT_PUSH_CONFIG.chatters, ...parsed.chatters },
-      users: { ...DEFAULT_PUSH_CONFIG.users, ...parsed.users },
+      chatters: { ...DEFAULT_PUSH_CONFIG.chatters, ...(parsed.chatters ?? {}) },
+      users: { ...DEFAULT_PUSH_CONFIG.users, ...(parsed.users ?? {}) },
+      hotLeads: { ...DEFAULT_PUSH_CONFIG.hotLeads, ...(parsed.hotLeads ?? {}) },
     };
   } catch {
     return DEFAULT_PUSH_CONFIG;

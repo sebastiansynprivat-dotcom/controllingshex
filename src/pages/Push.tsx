@@ -13,12 +13,28 @@ export default function Push() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const tapsRef = useRef<number[]>([]);
 
-  // Re-mount counters when config identity changes
+  const handleHiddenTap = () => {
+    const now = Date.now();
+    tapsRef.current = [...tapsRef.current.filter((t) => now - t < 600), now];
+    if (tapsRef.current.length >= 3) {
+      tapsRef.current = [];
+      setSettingsOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    document.title = "Push – Live";
+  }, []);
+
   return (
-    <div className="min-h-screen px-4 pt-6 pb-12 max-w-xl mx-auto">
-      <PushHeader
-        onTripleTap={() => setSettingsOpen(true)}
-        tapsRef={tapsRef}
+    <div className="relative min-h-screen px-4 pt-4 pb-12 max-w-xl mx-auto">
+      {/* Hidden triple-tap trigger */}
+      <button
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={handleHiddenTap}
+        className="absolute top-2 right-2 h-6 w-6 opacity-0"
       />
 
       <PushBody
@@ -34,36 +50,6 @@ export default function Push() {
   );
 }
 
-function PushHeader({
-  onTripleTap,
-  tapsRef,
-}: {
-  onTripleTap: () => void;
-  tapsRef: React.MutableRefObject<number[]>;
-}) {
-  const handleTap = () => {
-    const now = Date.now();
-    tapsRef.current = [...tapsRef.current.filter((t) => now - t < 600), now];
-    if (tapsRef.current.length >= 3) {
-      tapsRef.current = [];
-      onTripleTap();
-    }
-  };
-  return (
-    <header className="mb-6">
-      <h1
-        onClick={handleTap}
-        className="text-2xl font-light tracking-[0.18em] uppercase text-white/90 select-none cursor-default"
-      >
-        Push
-      </h1>
-      <p className="text-xs text-white/40 font-light mt-1">
-        Live Aktivität in Echtzeit
-      </p>
-    </header>
-  );
-}
-
 function PushBody({
   config,
   onUpdateConfig,
@@ -75,15 +61,9 @@ function PushBody({
   settingsOpen: boolean;
   setSettingsOpen: (o: boolean) => void;
 }) {
-  // Key forces remount when bounds/timing change drastically — but we want smooth updates.
-  // Instead pass the config; hook updates trend/min/max live without remount.
   const chatters = useFakeCounter(config.chatters);
   const users = useFakeCounter(config.users);
-
-  // Re-clamp + update happens in hook via ref. We just render.
-  useEffect(() => {
-    document.title = "Push – Live";
-  }, []);
+  const hotLeads = useFakeCounter(config.hotLeads);
 
   return (
     <>
@@ -102,6 +82,13 @@ function PushBody({
           history={users.history}
           accent="pink"
         />
+        <PushCounterCard
+          label="Hot Leads idle"
+          sub="Gute Kunden online, ohne aktiven Chat"
+          value={hotLeads.value}
+          history={hotLeads.history}
+          accent="amber"
+        />
       </div>
 
       <PushSimulationSheet
@@ -111,7 +98,8 @@ function PushBody({
         onChange={onUpdateConfig}
         onReroll={(which) => {
           if (which === "chatters") chatters.reroll();
-          else users.reroll();
+          else if (which === "users") users.reroll();
+          else hotLeads.reroll();
         }}
       />
     </>
