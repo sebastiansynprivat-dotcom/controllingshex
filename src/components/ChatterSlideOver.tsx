@@ -579,6 +579,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         .from("chatter_label_assignments")
         .insert({ user_id: user.id, chatter_name: chatterName, platform, label_id: labelId });
     }
+    emitChatterLabelsUpdated({ chatterName });
   };
 
   const deleteLabel = async (labelId: string) => {
