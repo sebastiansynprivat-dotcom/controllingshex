@@ -907,7 +907,100 @@ export default function Today() {
       />
     </>
   );
+
+
+function VerzugDayFilterCard({
+  days,
+  selected,
+  onSelect,
+  totalCount,
+}: {
+  days: { days: number; count: number }[];
+  selected: number | null;
+  onSelect: (v: number | null) => void;
+  totalCount: number;
+}) {
+  const label = selected == null
+    ? `Alle Tage · ${totalCount}`
+    : `${selected} ${selected === 1 ? "Tag" : "Tage"} im Verzug · ${days.find((d) => d.days === selected)?.count ?? 0}`;
+
+  return (
+    <div className="premium-card rounded-2xl border border-red-500/15 bg-red-500/[0.025] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-red-500/10 border border-red-500/20 shrink-0">
+            <CalendarDays className="h-3.5 w-3.5 text-red-300" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-red-300/80 font-semibold">
+              Filter nach Verzugs-Tagen
+            </p>
+            <p className="text-[11px] text-white/45 font-light truncate">
+              {selected == null ? "Alle Tage anzeigen" : "Nur dieser Verzugs-Tag"}
+            </p>
+          </div>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-red-400/25 bg-red-500/[0.06] text-[11px] font-light text-red-100/90 hover:bg-red-500/[0.10] hover:border-red-400/40 transition-colors"
+              aria-label="Verzugs-Tage filtern"
+            >
+              <span className="tabular-nums">{label}</span>
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08]"
+          >
+            <DropdownMenuLabel className="text-[10px] tracking-[0.24em] uppercase text-white/40 font-light">
+              Verzugs-Tage
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-white/[0.05]" />
+            <DropdownMenuItem
+              onClick={() => onSelect(null)}
+              className={cn(
+                "flex items-center justify-between gap-3 py-2 cursor-pointer",
+                selected == null ? "bg-white/[0.04]" : "",
+              )}
+            >
+              <span className="text-[12px] font-light text-white/90">Alle Tage</span>
+              <span className="text-[10px] tabular-nums text-white/40">{totalCount}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/[0.05]" />
+            {days.map((d) => {
+              const active = selected === d.days;
+              return (
+                <DropdownMenuItem
+                  key={d.days}
+                  onClick={() => onSelect(d.days)}
+                  className={cn(
+                    "flex items-center justify-between gap-3 py-2 cursor-pointer",
+                    active ? "bg-red-500/[0.08]" : "",
+                  )}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-[12px] font-light text-white/90">
+                      {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
+                    </span>
+                    <span className="text-[10px] text-white/40 font-light">
+                      Ältester offener Chat seit {d.days}T
+                    </span>
+                  </div>
+                  <span className={cn("text-[10px] tabular-nums", active ? "text-red-200" : "text-white/40")}>
+                    {d.count}
+                  </span>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
 }
+
 
 
 function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: boolean }) {
