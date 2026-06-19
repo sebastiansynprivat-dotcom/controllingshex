@@ -772,6 +772,7 @@ export default function AnomalyPanel({
                 : null;
               const zeroAlert = group.items.find((a) => a.alert_type === "persistent_zero");
               const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
+              const chatterLabelsForGroup = labelsByChatter.get(normalizeChatterName(group.name)) ?? [];
 
               return (
                 <motion.div
