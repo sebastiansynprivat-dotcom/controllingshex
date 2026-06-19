@@ -111,7 +111,7 @@ function initials(name: string | null | undefined): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "··";
 }
 
-const MAX_SIGNAL_ROWS = 4;
+const MAX_SIGNAL_ROWS = 3;
 
 export default function PersonActionCard({
   action,
@@ -189,6 +189,7 @@ export default function PersonActionCard({
     meta: string | null;
     intensity: "strong" | "medium" | "soft";
     compareWith: string | null;
+    kindLabel: string | null;
   };
 
   const rows: Row[] = bundled
@@ -198,6 +199,7 @@ export default function PersonActionCard({
         meta: s.why,
         intensity: i === 0 ? "strong" : i === 1 ? "medium" : "soft",
         compareWith: s.compareWith ?? s.secondaryChatter ?? null,
+        kindLabel: KIND_LABEL[s.kind] ?? null,
       }))
     : (() => {
         const r: Row[] = [
@@ -208,6 +210,7 @@ export default function PersonActionCard({
             intensity: "strong",
             compareWith:
               headlineSignal.compareWith ?? headlineSignal.secondaryChatter ?? null,
+            kindLabel: KIND_LABEL[headlineSignal.kind] ?? null,
           },
         ];
         const ev = headlineSignal.evidence ?? [];
@@ -218,6 +221,7 @@ export default function PersonActionCard({
             meta: null,
             intensity: "soft",
             compareWith: null,
+            kindLabel: null,
           });
         });
         return r;
@@ -423,10 +427,13 @@ export default function PersonActionCard({
         </div>
 
         {/* Signal-Liste */}
-        <div className="px-5 pb-4 flex flex-col gap-2">
+        <div className="px-5 pb-4 flex flex-col gap-2.5">
           {rows.map((r, i) => {
             const clickable =
               !!r.compareWith && !!action.chatterName && !readonly;
+            const isStrong = r.intensity === "strong";
+            const isMedium = r.intensity === "medium";
+            const isSoft = r.intensity === "soft";
             return (
               <button
                 key={r.key}
@@ -437,28 +444,60 @@ export default function PersonActionCard({
                   else openDetails();
                 }}
                 className={cn(
-                  "group/item relative w-full text-left rounded-xl bg-black/30 border border-white/[0.04] p-4 pr-10 transition-colors overflow-hidden",
-                  "hover:bg-black/40 hover:border-white/[0.08]",
-                  i > 0 && "bg-black/20",
+                  "group/item relative w-full text-left rounded-xl p-4 pr-10 transition-colors overflow-hidden",
+                  isStrong &&
+                    "bg-black/35 border border-white/[0.06] hover:bg-black/45 hover:border-white/[0.10]",
+                  isMedium &&
+                    "bg-black/20 border border-white/[0.04] hover:bg-black/30 hover:border-white/[0.08]",
+                  isSoft &&
+                    "bg-transparent border-t border-white/[0.05] rounded-none px-4 py-3 hover:bg-white/[0.02]",
                 )}
               >
                 <div
                   className={cn(
-                    "absolute left-0 top-0 bottom-0 w-1",
-                    i === 0 ? tone.insertBar : tone.barDim,
+                    "absolute left-0 top-0 bottom-0",
+                    isStrong && `w-1.5 ${tone.insertBar}`,
+                    isMedium && `w-1 ${tone.barDim}`,
+                    isSoft && `w-px ${tone.barDim} opacity-60`,
                   )}
                 />
-                <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider break-words">
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  {r.kindLabel && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em]",
+                        tone.accent,
+                        !isStrong && "opacity-70",
+                      )}
+                    >
+                      <span className={cn("h-1 w-1 rounded-full", tone.dot)} />
+                      {r.kindLabel}
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      "font-medium break-words leading-[1.25]",
+                      isStrong && "text-[14px] text-white/95",
+                      isMedium && "text-[13.5px] text-white/85",
+                      isSoft && "text-[13px] text-white/70",
+                    )}
+                  >
                     {r.title}
                   </span>
                   {r.meta && (
-                    <span className="text-[11.5px] text-white/55 font-light break-words leading-relaxed">
+                    <span
+                      className={cn(
+                        "font-normal break-words leading-[1.45] line-clamp-2",
+                        isStrong && "text-[12.5px] text-white/65",
+                        isMedium && "text-[12px] text-white/50",
+                        isSoft && "text-[12px] text-white/45",
+                      )}
+                    >
                       {r.meta}
                     </span>
                   )}
                 </div>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 group-hover/item:text-white/55 transition-colors shrink-0" />
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20 group-hover/item:text-white/45 transition-colors shrink-0" />
               </button>
             );
           })}
