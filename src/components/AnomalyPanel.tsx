@@ -1041,6 +1041,7 @@ export default function AnomalyPanel({
                       )}
                     </div>
                   )}
+                  </div>
                 </motion.div>
               );
             })}
