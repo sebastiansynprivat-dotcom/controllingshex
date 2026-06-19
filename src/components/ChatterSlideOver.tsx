@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import WeekTrendCard from "@/components/WeekTrendCard";
 import ChatterActivityHoursCard from "@/components/ChatterActivityHoursCard";
-import { onChatterDataUpdated } from "@/lib/data-events";
+import { onChatterDataUpdated, emitChatterLabelsUpdated } from "@/lib/data-events";
 
 interface HistoryRow {
   analysis_date: string;
