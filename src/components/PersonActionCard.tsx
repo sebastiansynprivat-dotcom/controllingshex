@@ -113,6 +113,31 @@ function initials(name: string | null | undefined): string {
 
 const MAX_SIGNAL_ROWS = 3;
 
+type MetaChip = { kind: "live" | "model" | "plain"; text: string };
+
+function parseMetaChips(meta: string): MetaChip[] {
+  const parts = meta.split(" · ");
+  const chips: MetaChip[] = [];
+  for (const raw of parts) {
+    const p = raw.trim();
+    if (!p) continue;
+    const liveMatch = p.match(/^Live\s*\(([^)]+)\):\s*(.*)$/i);
+    if (liveMatch) {
+      chips.push({ kind: "live", text: `Live · ${liveMatch[1]}` });
+      if (liveMatch[2]) chips.push({ kind: "plain", text: liveMatch[2] });
+      continue;
+    }
+    const modelMatch = p.match(/^Models?:\s*(.*)$/i);
+    if (modelMatch) {
+      const models = modelMatch[1].split(/,\s*/).map((m) => m.trim()).filter(Boolean);
+      for (const m of models) chips.push({ kind: "model", text: m });
+      continue;
+    }
+    chips.push({ kind: "plain", text: p });
+  }
+  return chips;
+}
+
 export default function PersonActionCard({
   action,
   onChatterClick,
@@ -484,18 +509,49 @@ export default function PersonActionCard({
                   >
                     {r.title}
                   </span>
-                  {r.meta && (
-                    <span
-                      className={cn(
-                        "font-normal break-words leading-[1.45] line-clamp-2",
-                        isStrong && "text-[12.5px] text-white/65",
-                        isMedium && "text-[12px] text-white/50",
-                        isSoft && "text-[12px] text-white/45",
-                      )}
-                    >
+                  {r.meta && (isSoft ? (
+                    <span className="text-[12px] text-white/45 font-normal break-words leading-[1.45] line-clamp-2">
                       {r.meta}
                     </span>
-                  )}
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {parseMetaChips(r.meta).map((chip, idx) => {
+                        const baseText = isStrong ? "text-white/75" : "text-white/55";
+                        if (chip.kind === "live") {
+                          return (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-medium text-emerald-300/90 tabular-nums"
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              {chip.text}
+                            </span>
+                          );
+                        }
+                        if (chip.kind === "model") {
+                          return (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/70"
+                            >
+                              {chip.text}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            key={idx}
+                            className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.025] text-[11.5px] font-normal tabular-nums",
+                              baseText,
+                            )}
+                          >
+                            {chip.text}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20 group-hover/item:text-white/45 transition-colors shrink-0" />
               </button>
