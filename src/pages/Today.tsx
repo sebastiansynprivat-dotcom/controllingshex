@@ -87,6 +87,16 @@ function fmtEur(v: number): string {
   return Math.round(v).toLocaleString("de-DE") + " €";
 }
 
+/** Liest die "ältester Chat XT"-Tage aus einem Verzug-Signal. */
+function getVerzugDays(a: UnifiedAction): number | null {
+  for (const s of a.signals) {
+    if (s.kind !== "verzug") continue;
+    const m = s.title.match(/(\d+)\s*T/i) || s.why.match(/ältester Chat\s+(\d+)\s*T/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
+
 export default function Today() {
   const { platform } = usePlatform();
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
