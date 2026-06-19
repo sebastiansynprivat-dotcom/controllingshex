@@ -31,7 +31,9 @@ import {
 import {
   estimateDailyImpactEur,
 } from "@/lib/anomaly-actions";
-import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated } from "@/lib/data-events";
+import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated, onChatterLabelsUpdated } from "@/lib/data-events";
+import { loadChatterLabels, loadLabelAssignments, type ChatterLabel } from "@/lib/chatter-labels";
+import { normalizeChatterName } from "@/lib/active-chatters";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
 const SNAPSHOT_VERSION = 2;
@@ -168,6 +170,40 @@ export default function AnomalyPanel({
   const [allTimeAvg, setAllTimeAvg] = useState<Map<string, number>>(
     () => new Map(initialSnap?.allTimeAvg ?? []),
   );
+
+  // Chatter-Labels (live-synchronisiert mit SlideOver)
+  const [chatterLabels, setChatterLabels] = useState<ChatterLabel[]>([]);
+  const [labelAssignmentRows, setLabelAssignmentRows] = useState<{ label_id: string; chatter_key: string }[]>([]);
+
+  useEffect(() => {
+    let cancel = false;
+    const load = async () => {
+      const [lbls, asgs] = await Promise.all([
+        loadChatterLabels(platform),
+        loadLabelAssignments(platform),
+      ]);
+      if (cancel) return;
+      setChatterLabels(lbls);
+      setLabelAssignmentRows(asgs.map((a) => ({ label_id: a.label_id, chatter_key: a.chatter_key })));
+    };
+    load();
+    const off = onChatterLabelsUpdated(() => { load(); });
+    return () => { cancel = true; off(); };
+  }, [platform]);
+
+  const labelsByChatter = useMemo(() => {
+    const labelById = new Map(chatterLabels.map((l) => [l.id, l]));
+    const m = new Map<string, ChatterLabel[]>();
+    for (const a of labelAssignmentRows) {
+      const lbl = labelById.get(a.label_id);
+      if (!lbl) continue;
+      const arr = m.get(a.chatter_key) ?? [];
+      arr.push(lbl);
+      m.set(a.chatter_key, arr);
+    }
+    return m;
+  }, [chatterLabels, labelAssignmentRows]);
+
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -736,6 +772,7 @@ export default function AnomalyPanel({
                 : null;
               const zeroAlert = group.items.find((a) => a.alert_type === "persistent_zero");
               const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
+              const chatterLabelsForGroup = labelsByChatter.get(normalizeChatterName(group.name)) ?? [];
 
               return (
                 <motion.div
@@ -764,16 +801,15 @@ export default function AnomalyPanel({
                       </span>
                     </div>
 
-                    {/* Name + Headline + Stats — Klick = kopieren, Doppelklick = Profil */}
+                    {/* Name + Headline + Stats — Klick öffnet Performance-Profil */}
                     <button
                       type="button"
-                      onClick={() => copyName(group.name)}
-                      onDoubleClick={(e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         onChatterSelect?.(group.name);
                       }}
-                      title="Klick: Name kopieren · Doppelklick: Profil öffnen"
-                      className="flex-1 min-w-0 text-left group/name cursor-copy"
+                      title="Performance-Profil öffnen"
+                      className="flex-1 min-w-0 text-left group/name cursor-pointer"
                     >
                       {/* Top row: Name + Impact + Status-Pill */}
                       <div className="flex items-baseline gap-2 flex-wrap">
@@ -833,6 +869,31 @@ export default function AnomalyPanel({
                           )}
                         </div>
                       )}
+
+                      {/* Chatter-Labels */}
+                      {chatterLabelsForGroup.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {chatterLabelsForGroup.slice(0, 3).map((lbl) => (
+                            <span
+                              key={lbl.id}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-white/[0.06] bg-white/[0.02] text-[10px] font-light text-white/70"
+                              title={lbl.label_name}
+                            >
+                              <span
+                                className="inline-block h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: lbl.color }}
+                              />
+                              <span className="truncate max-w-[140px]">{lbl.label_name}</span>
+                            </span>
+                          ))}
+                          {chatterLabelsForGroup.length > 3 && (
+                            <span className="text-[10px] text-white/35 font-light">
+                              +{chatterLabelsForGroup.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
 
                       {/* Weitere Signale Hint */}
                       {group.items.length > 1 && (

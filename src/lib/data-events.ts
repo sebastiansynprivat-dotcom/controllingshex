@@ -51,3 +51,27 @@ export function onAnomalyDismissed(
   window.addEventListener(ANOMALY_DISMISSED, wrapped);
   return () => window.removeEventListener(ANOMALY_DISMISSED, wrapped);
 }
+
+/** Chatter-Labels Sync (SlideOver ↔ AnomalyPanel ↔ Today). */
+export const CHATTER_LABELS_UPDATED = "chatter-labels-updated";
+
+export interface ChatterLabelsUpdatedPayload {
+  chatterName?: string;
+}
+
+export function emitChatterLabelsUpdated(payload: ChatterLabelsUpdatedPayload = {}) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(CHATTER_LABELS_UPDATED, { detail: payload }));
+}
+
+export function onChatterLabelsUpdated(
+  handler: (payload: ChatterLabelsUpdatedPayload) => void,
+): () => void {
+  if (typeof window === "undefined") return () => {};
+  const wrapped = (e: Event) => {
+    const detail = (e as CustomEvent<ChatterLabelsUpdatedPayload>).detail ?? {};
+    handler(detail);
+  };
+  window.addEventListener(CHATTER_LABELS_UPDATED, wrapped);
+  return () => window.removeEventListener(CHATTER_LABELS_UPDATED, wrapped);
+}
