@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -22,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   config: PushFakeConfig;
   onChange: (cfg: PushFakeConfig) => void;
-  onReroll: (which: "chatters" | "users") => void;
+  onReroll: (which: "chatters" | "users" | "hotLeads") => void;
 }
 
 function CounterEditor({
