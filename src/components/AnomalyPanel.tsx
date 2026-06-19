@@ -683,7 +683,7 @@ export default function AnomalyPanel({
   );
 
   const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
-  const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
+  const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
   const visibleGroups = variant === "compact" && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
