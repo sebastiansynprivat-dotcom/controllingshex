@@ -841,7 +841,7 @@ export default function AnomalyPanel({
                         {group.topSeverity === "critical" && (
                           <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
                         )}
-                        <span className={`relative inline-flex h-2 w-2 rounded-full ${topSev.dot}`} />
+                        <span className={cn("relative inline-flex h-2 w-2 rounded-full", topSev.dot, sevGlow.dotShadow)} />
                       </span>
                     </div>
 
