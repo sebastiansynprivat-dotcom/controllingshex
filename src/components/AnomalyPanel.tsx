@@ -785,6 +785,7 @@ export default function AnomalyPanel({
           <AnimatePresence initial={false}>
             {visibleGroups.map((group, idx) => {
               const topSev = SEVERITY_STYLE[group.topSeverity];
+              const sevGlow = SEVERITY_GLOW[group.topSeverity] ?? SEVERITY_GLOW.info;
               const chatterKey = `chatter|${group.name}`;
               const isPending = pendingDismiss.has(chatterKey);
               const accs = chatterAccounts.get(group.name) ?? [];
