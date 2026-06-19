@@ -24,6 +24,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 import Today from "@/pages/Today";
 import LiveTracking from "@/pages/LiveTracking";
+import Push from "@/pages/Push";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const AppRoutes = () => (
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/live" element={<LiveTracking />} />
+              <Route path="/push" element={<Push />} />
               <Route path="/today" element={<Today />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
               <Route path="/monatsziele" element={<MonthlyGoals />} />

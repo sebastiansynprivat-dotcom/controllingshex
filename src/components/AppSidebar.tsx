@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,7 @@ const items = [
   { title: "Heute", url: "/today", icon: ListChecks },
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Live-Tracking", url: "/live", icon: Radio },
+  { title: "Push", url: "/push", icon: Megaphone },
   { title: "Auffälligkeiten", url: "/auffaelligkeiten", icon: AlertOctagon },
   { title: "Monatsziele", url: "/monatsziele", icon: Target },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
