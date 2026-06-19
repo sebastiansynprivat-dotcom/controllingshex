@@ -616,7 +616,7 @@ export default function Today() {
               }}
               onLabelRemoved={reloadLabelData}
             />
-          ) : visibleList.length === 0 ? (
+          ) : baseVisibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
 
@@ -627,7 +627,17 @@ export default function Today() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.12, ease: "easeOut" }}
+                className="space-y-3"
               >
+                {kindTab === "verzug" && verzugDayCounts.length > 0 && (
+                  <VerzugDayFilterCard
+                    days={verzugDayCounts}
+                    selected={verzugDayFilter}
+                    onSelect={setVerzugDayFilter}
+                    totalCount={baseVisibleList.length}
+                  />
+                )}
+
                 {kindTab === "all" ? (
                   <div className="space-y-5">
                     {groupByKind(visibleList).map((g) => (
@@ -655,6 +665,10 @@ export default function Today() {
                       </div>
                     ))}
                   </div>
+                ) : visibleList.length === 0 ? (
+                  <div className="premium-card rounded-2xl p-6 text-center text-[12px] text-white/45 font-light">
+                    Keine Einträge für diesen Verzugs-Tag.
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {visibleList.map((a) => (
@@ -672,6 +686,7 @@ export default function Today() {
               </motion.div>
             </AnimatePresence>
           )}
+
 
             </>
           )}
