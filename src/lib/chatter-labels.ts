@@ -26,6 +26,7 @@ export const SYSTEM_LABELS: { name: string; color: string }[] = [
   { name: "❌ Kein Upgrade",    color: "#fb7185" }, // rose-400
   { name: "⬇️ Downgrade",       color: "#94a3b8" }, // slate-400
   { name: "✅ Upgrade bekommen", color: "#22d3ee" }, // cyan-400 — terminal: hidden in Labels-Tab
+  { name: "🗣️ Gespräch",         color: "#a78bfa" }, // violet-400
 ];
 
 const SYSTEM_NAME_SET = new Set(SYSTEM_LABELS.map((l) => l.name));
