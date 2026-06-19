@@ -171,6 +171,40 @@ export default function AnomalyPanel({
     () => new Map(initialSnap?.allTimeAvg ?? []),
   );
 
+  // Chatter-Labels (live-synchronisiert mit SlideOver)
+  const [chatterLabels, setChatterLabels] = useState<ChatterLabel[]>([]);
+  const [labelAssignmentRows, setLabelAssignmentRows] = useState<{ label_id: string; chatter_key: string }[]>([]);
+
+  useEffect(() => {
+    let cancel = false;
+    const load = async () => {
+      const [lbls, asgs] = await Promise.all([
+        loadChatterLabels(platform),
+        loadLabelAssignments(platform),
+      ]);
+      if (cancel) return;
+      setChatterLabels(lbls);
+      setLabelAssignmentRows(asgs.map((a) => ({ label_id: a.label_id, chatter_key: a.chatter_key })));
+    };
+    load();
+    const off = onChatterLabelsUpdated(() => { load(); });
+    return () => { cancel = true; off(); };
+  }, [platform]);
+
+  const labelsByChatter = useMemo(() => {
+    const labelById = new Map(chatterLabels.map((l) => [l.id, l]));
+    const m = new Map<string, ChatterLabel[]>();
+    for (const a of labelAssignmentRows) {
+      const lbl = labelById.get(a.label_id);
+      if (!lbl) continue;
+      const arr = m.get(a.chatter_key) ?? [];
+      arr.push(lbl);
+      m.set(a.chatter_key, arr);
+    }
+    return m;
+  }, [chatterLabels, labelAssignmentRows]);
+
+
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
