@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone, CalendarDays, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -86,6 +87,16 @@ function fmtEur(v: number): string {
   return Math.round(v).toLocaleString("de-DE") + " €";
 }
 
+/** Liest die "ältester Chat XT"-Tage aus einem Verzug-Signal. */
+function getVerzugDays(a: UnifiedAction): number | null {
+  for (const s of a.signals) {
+    if (s.kind !== "verzug") continue;
+    const m = s.title.match(/(\d+)\s*T/i) || s.why.match(/ältester Chat\s+(\d+)\s*T/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
+
 export default function Today() {
   const { platform } = usePlatform();
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
@@ -101,6 +112,7 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
+  const [verzugDayFilter, setVerzugDayFilter] = useState<number | null>(null);
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
@@ -309,15 +321,46 @@ export default function Today() {
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
-  const visibleList =
+  const baseVisibleList =
     kindTab === "all"
       ? statusList
       : statusList.filter((a) => a.primaryKind === kindTab);
+
+  // Verzug-Tage-Filter: alle vorkommenden Tage mit Counts (sortiert: höchster Verzug zuerst)
+  const verzugDayCounts = useMemo(() => {
+    if (kindTab !== "verzug") return [] as { days: number; count: number }[];
+    const m = new Map<number, number>();
+    for (const a of baseVisibleList) {
+      const d = getVerzugDays(a);
+      if (d == null) continue;
+      m.set(d, (m.get(d) ?? 0) + 1);
+    }
+    return [...m.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([days, count]) => ({ days, count }));
+  }, [baseVisibleList, kindTab]);
+
+  // Reset Tage-Filter wenn Tab wechselt oder gewählter Tag nicht mehr existiert
+  useEffect(() => {
+    if (kindTab !== "verzug") {
+      if (verzugDayFilter !== null) setVerzugDayFilter(null);
+      return;
+    }
+    if (verzugDayFilter !== null && !verzugDayCounts.some((d) => d.days === verzugDayFilter)) {
+      setVerzugDayFilter(null);
+    }
+  }, [kindTab, verzugDayCounts, verzugDayFilter]);
+
+  const visibleList =
+    kindTab === "verzug" && verzugDayFilter !== null
+      ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
+      : baseVisibleList;
 
   // Falls aktiver Kind-Tab leer wird, auf "all" zurück
   if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
     queueMicrotask(() => setKindTab("all"));
   }
+
 
   // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
   const systemLabelIdSet = useMemo(
@@ -573,7 +616,7 @@ export default function Today() {
               }}
               onLabelRemoved={reloadLabelData}
             />
-          ) : visibleList.length === 0 ? (
+          ) : baseVisibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
 
@@ -584,7 +627,17 @@ export default function Today() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.12, ease: "easeOut" }}
+                className="space-y-3"
               >
+                {kindTab === "verzug" && verzugDayCounts.length > 0 && (
+                  <VerzugDayFilterCard
+                    days={verzugDayCounts}
+                    selected={verzugDayFilter}
+                    onSelect={setVerzugDayFilter}
+                    totalCount={baseVisibleList.length}
+                  />
+                )}
+
                 {kindTab === "all" ? (
                   <div className="space-y-5">
                     {groupByKind(visibleList).map((g) => (
@@ -612,6 +665,10 @@ export default function Today() {
                       </div>
                     ))}
                   </div>
+                ) : visibleList.length === 0 ? (
+                  <div className="premium-card rounded-2xl p-6 text-center text-[12px] text-white/45 font-light">
+                    Keine Einträge für diesen Verzugs-Tag.
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {visibleList.map((a) => (
@@ -629,6 +686,7 @@ export default function Today() {
               </motion.div>
             </AnimatePresence>
           )}
+
 
             </>
           )}
@@ -850,6 +908,103 @@ export default function Today() {
     </>
   );
 }
+
+
+
+
+
+function VerzugDayFilterCard({
+  days,
+  selected,
+  onSelect,
+  totalCount,
+}: {
+  days: { days: number; count: number }[];
+  selected: number | null;
+  onSelect: (v: number | null) => void;
+  totalCount: number;
+}) {
+  const label = selected == null
+    ? `Alle Tage · ${totalCount}`
+    : `${selected} ${selected === 1 ? "Tag" : "Tage"} im Verzug · ${days.find((d) => d.days === selected)?.count ?? 0}`;
+
+  return (
+    <div className="premium-card rounded-2xl border border-red-500/15 bg-red-500/[0.025] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-red-500/10 border border-red-500/20 shrink-0">
+            <CalendarDays className="h-3.5 w-3.5 text-red-300" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-red-300/80 font-semibold">
+              Filter nach Verzugs-Tagen
+            </p>
+            <p className="text-[11px] text-white/45 font-light truncate">
+              {selected == null ? "Alle Tage anzeigen" : "Nur dieser Verzugs-Tag"}
+            </p>
+          </div>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-red-400/25 bg-red-500/[0.06] text-[11px] font-light text-red-100/90 hover:bg-red-500/[0.10] hover:border-red-400/40 transition-colors"
+              aria-label="Verzugs-Tage filtern"
+            >
+              <span className="tabular-nums">{label}</span>
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08]"
+          >
+            <DropdownMenuLabel className="text-[10px] tracking-[0.24em] uppercase text-white/40 font-light">
+              Verzugs-Tage
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-white/[0.05]" />
+            <DropdownMenuItem
+              onClick={() => onSelect(null)}
+              className={cn(
+                "flex items-center justify-between gap-3 py-2 cursor-pointer",
+                selected == null ? "bg-white/[0.04]" : "",
+              )}
+            >
+              <span className="text-[12px] font-light text-white/90">Alle Tage</span>
+              <span className="text-[10px] tabular-nums text-white/40">{totalCount}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/[0.05]" />
+            {days.map((d) => {
+              const active = selected === d.days;
+              return (
+                <DropdownMenuItem
+                  key={d.days}
+                  onClick={() => onSelect(d.days)}
+                  className={cn(
+                    "flex items-center justify-between gap-3 py-2 cursor-pointer",
+                    active ? "bg-red-500/[0.08]" : "",
+                  )}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-[12px] font-light text-white/90">
+                      {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
+                    </span>
+                    <span className="text-[10px] text-white/40 font-light">
+                      Ältester offener Chat seit {d.days}T
+                    </span>
+                  </div>
+                  <span className={cn("text-[10px] tabular-nums", active ? "text-red-200" : "text-white/40")}>
+                    {d.count}
+                  </span>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+
 
 
 function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: boolean }) {
