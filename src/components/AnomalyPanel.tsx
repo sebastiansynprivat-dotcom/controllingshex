@@ -817,17 +817,24 @@ export default function AnomalyPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.22, delay: idx * 0.02 }}
-                  onDoubleClick={() => onChatterSelect?.(group.name)}
-                  className={`relative rounded-xl border border-white/[0.06] ${topSev.border.split(" ").slice(1).join(" ")} overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.4)] hover:border-white/[0.12] transition-colors`}
+                  className="group relative"
                 >
-                  {/* Severity Akzent-Streifen links */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
+                  {/* Hintergrund-Glow (Severity) — Heute-Style */}
+                  <div
+                    className={cn(
+                      "absolute -inset-px rounded-2xl bg-gradient-to-b to-transparent opacity-80 pointer-events-none",
+                      sevGlow.glow,
+                    )}
+                  />
+
+                  <div className="relative flex flex-col overflow-hidden rounded-2xl bg-white/[0.025] backdrop-blur-xl border border-white/[0.06] shadow-2xl transition-all duration-300 group-hover:border-white/[0.12] group-hover:bg-white/[0.04] group-hover:-translate-y-px group-hover:shadow-[0_18px_50px_-22px_rgba(0,0,0,0.7)]">
 
                   {/* Chatter-Header */}
-                  <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-3 sm:py-3.5"}`}>
+                  <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-4 sm:px-5 py-3" : "px-4 sm:px-5 py-4 sm:py-4.5"}`}>
                     {/* Rank */}
                     <div className="shrink-0 flex flex-col items-center pt-0.5">
-                      <span className="text-[9px] uppercase tracking-wider text-white/25 font-light leading-none">#{rank}</span>
+                      <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-light leading-none">#{rank}</span>
+
                       <span className="relative flex h-2 w-2 mt-1.5">
                         {group.topSeverity === "critical" && (
                           <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
