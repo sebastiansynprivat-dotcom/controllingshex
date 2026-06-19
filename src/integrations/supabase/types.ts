@@ -1435,6 +1435,7 @@ export type Database = {
         Returns: {
           chatter_name: string
           onboarded_on: string
+          report_day: number
         }[]
       }
       get_live_efficiency: {
