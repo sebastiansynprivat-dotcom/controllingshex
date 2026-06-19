@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import {
