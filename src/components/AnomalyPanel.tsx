@@ -39,6 +39,41 @@ import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 const SNAPSHOT_VERSION = 2;
 const PAGE_SIZE = 1000;
 
+/** Heute-Style Glow + Pill pro Severity — verleiht Karten Premium-Tiefe. */
+const SEVERITY_GLOW: Record<string, { glow: string; pill: string; accent: string; dotShadow: string }> = {
+  critical: {
+    glow: "from-red-500/12 via-red-500/[0.035]",
+    pill: "border-red-400/30 bg-red-500/[0.08] text-red-200",
+    accent: "text-red-300",
+    dotShadow: "shadow-[0_0_8px_rgba(239,68,68,0.5)]",
+  },
+  high: {
+    glow: "from-orange-500/11 via-orange-500/[0.03]",
+    pill: "border-orange-400/30 bg-orange-500/[0.07] text-orange-200",
+    accent: "text-orange-300",
+    dotShadow: "shadow-[0_0_8px_rgba(251,146,60,0.45)]",
+  },
+  medium: {
+    glow: "from-amber-500/10 via-amber-500/[0.03]",
+    pill: "border-amber-400/25 bg-amber-500/[0.06] text-amber-200",
+    accent: "text-amber-300",
+    dotShadow: "shadow-[0_0_8px_rgba(245,158,11,0.4)]",
+  },
+  info: {
+    glow: "from-sky-500/9 via-sky-500/[0.025]",
+    pill: "border-sky-400/25 bg-sky-500/[0.06] text-sky-200",
+    accent: "text-sky-300",
+    dotShadow: "shadow-[0_0_8px_rgba(56,189,248,0.35)]",
+  },
+  positive: {
+    glow: "from-emerald-500/10 via-emerald-500/[0.03]",
+    pill: "border-emerald-400/25 bg-emerald-500/[0.06] text-emerald-200",
+    accent: "text-emerald-300",
+    dotShadow: "shadow-[0_0_8px_rgba(16,185,129,0.4)]",
+  },
+};
+
+
 async function loadAllTimeRevenueRows(userId: string, platform: string) {
   const rows: { chatter_name: string; revenue_today: number | null }[] = [];
   let from = 0;
