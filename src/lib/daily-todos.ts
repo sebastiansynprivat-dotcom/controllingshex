@@ -325,7 +325,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     if (live) {
       const oldestDays = Math.round(live.oldest);
       // Trigger nur bei echtem Live-Rückstand
-      const isBacklog = oldestDays >= 3 || live.unread >= 20;
+      const isBacklog = oldestDays >= 2;
       if (isBacklog) {
         todos.push({
           key: `verzug:${name}:${today}`,
