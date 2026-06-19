@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import {
@@ -38,6 +39,41 @@ import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
 const SNAPSHOT_VERSION = 2;
 const PAGE_SIZE = 1000;
+
+/** Heute-Style Glow + Pill pro Severity — verleiht Karten Premium-Tiefe. */
+const SEVERITY_GLOW: Record<string, { glow: string; pill: string; accent: string; dotShadow: string }> = {
+  critical: {
+    glow: "from-red-500/12 via-red-500/[0.035]",
+    pill: "border-red-400/30 bg-red-500/[0.08] text-red-200",
+    accent: "text-red-300",
+    dotShadow: "shadow-[0_0_8px_rgba(239,68,68,0.5)]",
+  },
+  high: {
+    glow: "from-orange-500/11 via-orange-500/[0.03]",
+    pill: "border-orange-400/30 bg-orange-500/[0.07] text-orange-200",
+    accent: "text-orange-300",
+    dotShadow: "shadow-[0_0_8px_rgba(251,146,60,0.45)]",
+  },
+  medium: {
+    glow: "from-amber-500/10 via-amber-500/[0.03]",
+    pill: "border-amber-400/25 bg-amber-500/[0.06] text-amber-200",
+    accent: "text-amber-300",
+    dotShadow: "shadow-[0_0_8px_rgba(245,158,11,0.4)]",
+  },
+  info: {
+    glow: "from-sky-500/9 via-sky-500/[0.025]",
+    pill: "border-sky-400/25 bg-sky-500/[0.06] text-sky-200",
+    accent: "text-sky-300",
+    dotShadow: "shadow-[0_0_8px_rgba(56,189,248,0.35)]",
+  },
+  positive: {
+    glow: "from-emerald-500/10 via-emerald-500/[0.03]",
+    pill: "border-emerald-400/25 bg-emerald-500/[0.06] text-emerald-200",
+    accent: "text-emerald-300",
+    dotShadow: "shadow-[0_0_8px_rgba(16,185,129,0.4)]",
+  },
+};
+
 
 async function loadAllTimeRevenueRows(userId: string, platform: string) {
   const rows: { chatter_name: string; revenue_today: number | null }[] = [];
@@ -647,7 +683,7 @@ export default function AnomalyPanel({
   );
 
   const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
-  const textSize = variant === "compact" ? "text-sm" : "text-[15px]";
+  const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
   const visibleGroups = variant === "compact" && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
@@ -750,6 +786,7 @@ export default function AnomalyPanel({
           <AnimatePresence initial={false}>
             {visibleGroups.map((group, idx) => {
               const topSev = SEVERITY_STYLE[group.topSeverity];
+              const sevGlow = SEVERITY_GLOW[group.topSeverity] ?? SEVERITY_GLOW.info;
               const chatterKey = `chatter|${group.name}`;
               const isPending = pendingDismiss.has(chatterKey);
               const accs = chatterAccounts.get(group.name) ?? [];
@@ -782,22 +819,29 @@ export default function AnomalyPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.22, delay: idx * 0.02 }}
-                  onDoubleClick={() => onChatterSelect?.(group.name)}
-                  className={`relative rounded-xl border border-white/[0.06] ${topSev.border.split(" ").slice(1).join(" ")} overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.4)] hover:border-white/[0.12] transition-colors`}
+                  className="group relative"
                 >
-                  {/* Severity Akzent-Streifen links */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${topSev.dot}`} />
+                  {/* Hintergrund-Glow (Severity) — Heute-Style */}
+                  <div
+                    className={cn(
+                      "absolute -inset-px rounded-2xl bg-gradient-to-b to-transparent opacity-80 pointer-events-none",
+                      sevGlow.glow,
+                    )}
+                  />
+
+                  <div className="relative flex flex-col overflow-hidden rounded-2xl bg-white/[0.025] backdrop-blur-xl border border-white/[0.06] shadow-2xl transition-all duration-300 group-hover:border-white/[0.12] group-hover:bg-white/[0.04] group-hover:-translate-y-px group-hover:shadow-[0_18px_50px_-22px_rgba(0,0,0,0.7)]">
 
                   {/* Chatter-Header */}
-                  <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-3 sm:px-4 py-2.5" : "px-3.5 sm:px-5 py-3 sm:py-3.5"}`}>
+                  <div className={`flex items-start gap-2.5 sm:gap-3 ${variant === "compact" ? "px-4 sm:px-5 py-3" : "px-4 sm:px-5 py-4 sm:py-4.5"}`}>
                     {/* Rank */}
                     <div className="shrink-0 flex flex-col items-center pt-0.5">
-                      <span className="text-[9px] uppercase tracking-wider text-white/25 font-light leading-none">#{rank}</span>
+                      <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-light leading-none">#{rank}</span>
+
                       <span className="relative flex h-2 w-2 mt-1.5">
                         {group.topSeverity === "critical" && (
                           <span className={`absolute inline-flex h-full w-full rounded-full ${topSev.dot} opacity-60 animate-ping`} />
                         )}
-                        <span className={`relative inline-flex h-2 w-2 rounded-full ${topSev.dot}`} />
+                        <span className={cn("relative inline-flex h-2 w-2 rounded-full", topSev.dot, sevGlow.dotShadow)} />
                       </span>
                     </div>
 
@@ -813,13 +857,21 @@ export default function AnomalyPanel({
                     >
                       {/* Top row: Name + Impact + Status-Pill */}
                       <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
+                        <span className={cn(textSize, "text-white/95 font-semibold tracking-tight truncate group-hover/name:text-white transition-colors")}>
                           {group.name}
                         </span>
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0",
+                            sevGlow.pill,
+                          )}
+                        >
+                          {topSev.label}
+                        </span>
                         {group.impactPerDay > 0 && (
-                          <span className="inline-flex items-baseline gap-0.5 text-[11px] tabular-nums text-red-300/90 font-medium">
+                          <span className={cn("inline-flex items-baseline gap-0.5 text-[12px] tabular-nums font-medium", sevGlow.accent)}>
                             <span>−{group.impactPerDay.toLocaleString("de-DE")}€</span>
-                            <span className="text-[9px] uppercase tracking-wider text-red-300/50 font-light">/Tag</span>
+                            <span className="text-[9px] uppercase tracking-wider opacity-60 font-light">/Tag</span>
                           </span>
                         )}
                         {sinceRel && sinceRel.days >= 1 && (
@@ -998,6 +1050,7 @@ export default function AnomalyPanel({
                       )}
                     </div>
                   )}
+                  </div>
                 </motion.div>
               );
             })}
