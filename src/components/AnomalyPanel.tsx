@@ -857,13 +857,21 @@ export default function AnomalyPanel({
                     >
                       {/* Top row: Name + Impact + Status-Pill */}
                       <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className={`${textSize} text-foreground font-medium tracking-tight truncate group-hover/name:text-white transition-colors`}>
+                        <span className={cn(textSize, "text-white/95 font-semibold tracking-tight truncate group-hover/name:text-white transition-colors")}>
                           {group.name}
                         </span>
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0",
+                            sevGlow.pill,
+                          )}
+                        >
+                          {topSev.label}
+                        </span>
                         {group.impactPerDay > 0 && (
-                          <span className="inline-flex items-baseline gap-0.5 text-[11px] tabular-nums text-red-300/90 font-medium">
+                          <span className={cn("inline-flex items-baseline gap-0.5 text-[12px] tabular-nums font-medium", sevGlow.accent)}>
                             <span>−{group.impactPerDay.toLocaleString("de-DE")}€</span>
-                            <span className="text-[9px] uppercase tracking-wider text-red-300/50 font-light">/Tag</span>
+                            <span className="text-[9px] uppercase tracking-wider opacity-60 font-light">/Tag</span>
                           </span>
                         )}
                         {sinceRel && sinceRel.days >= 1 && (
