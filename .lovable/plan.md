@@ -1,34 +1,38 @@
-## Änderungen an den Onboarding-Karten (Heute-Tab)
+## Push-Seite mit Fake Live-Countern
 
-### 1. Neue Live-Tracking-KPIs aus `chatter_history_live`
-Pro Chatter den neuesten Eintrag aus `chatter_history_live` ziehen (gefiltert auf Platform, `chatter_name`):
-- **Offene Chats** → `unread_chats` (aktueller Live-Wert)
-- **Chats offen seit** → `oldest_chat` (ältester unbeantworteter Chat; Anzeige z. B. „seit 3,2 h" / „seit 1,5 Tagen")
+### Neue Route
+- Neue Seite `src/pages/Push.tsx`, eingehängt in `src/App.tsx` unter `/push`.
+- Eintrag im `AppSidebar` (Icon: `Radio` oder `Megaphone`) damit der Tab erreichbar ist.
 
-Beide werden in der zweiten Badge-Zeile als eigene Badges gerendert (Farbton: Amber/Orange, weil es Rückstand signalisiert).
+### Layout (mobile-first, passt zum bestehenden Dark-Look)
+- Header mit Titel „Push". Der Titel-Text ist der versteckte Settings-Trigger (Triple-Tap innerhalb 600ms öffnet ein Sheet). Keinerlei sichtbarer Hinweis.
+- Zwei große Counter-Cards untereinander:
+  1. **Chatter online** – grüner Akzent, Pulse-Dot
+  2. **User auf der Plattform online** – pinker Akzent, Pulse-Dot
+- Jede Card: große Zahl (animiert via vorhandener `CountUp`-Komponente), Sublabel, kleiner Sparkline-Verlauf der letzten ~60 Ticks (inline SVG, kein neues Package).
 
-### 2. Response-Time-Badge entfernen
-Das Badge „⌀ Antwort X min" fällt komplett weg. Zugehöriges Feld `responseMedianMin` und die Sessions-Abfrage `first_response_min` werden aus `onboarding-filter.ts` entfernt (Datenquelle bleibt, wird nur nicht mehr für Onboarding geladen).
+### Fake-Counter-Logik (lebhaft)
+- Eigener Hook `usePushFakeCounter(config)` in `src/lib/push-fake-counter.ts`.
+- Pro Counter eigene Config: `min`, `max`, `startValue`, `tickMinMs`, `tickMaxMs`, `stepMin`, `stepMax`, `trend` (-1..1, leichter Drift), `volatility` (0..1, Wahrscheinlichkeit für größere Sprünge).
+- Defaults „lebhaft": Tick alle 1–4s, Schrittweite ±2–8, ~10% Chance auf Sprung ±10–20.
+- Werte werden hart auf `[min, max]` geklemmt, Trend sorgt für sanftes Pendeln Richtung Mittelwert.
+- Hält die letzten 60 Werte für Sparkline.
 
-### 3. Mass-DMs-Quelle korrigieren
-Aktuell überschreibt die Sessions-Aggregation den Report-Wert → erklärt die Abweichung zur Chat-Report-Anzeige.
+### Versteckte Settings
+- Triple-Tap auf den Titel öffnet ein `Sheet` (shadcn) „Simulation".
+- Felder pro Counter (Chatter / User): Start, Min, Max, Tick Min (ms), Tick Max (ms), Step Min, Step Max, Volatility (Slider 0–1), Trend (Slider −1..1), Pause-Toggle, „Reset auf Default", „Jetzt neu würfeln".
+- Persistenz in `localStorage` unter `push.fake.config.v1`. Beim Mount Config laden, beim Speichern direkt anwenden (Hook neu initialisieren).
+- Sheet enthält oben einen dezenten Warnhinweis „Nur Demo / Simulation – keine echten Daten".
 
-**Fix:** Nur noch `chatter_history.mass_dms` verwenden. Berechnung:
-- Summe `mass_dms` aller Tage des Chatters auf diesem Account ÷ Anzahl Tage mit `mass_dms > 0`
-- Sessions-Override für Mass-DMs wird gelöscht
+### Technische Details
+- Keine Backend-Änderungen, keine neuen Tabellen, keine neuen Packages.
+- Tick via `setTimeout`-Rekursion (nicht `setInterval`), damit Tick-Intervalle pro Schritt zufällig sein können. Cleanup beim Unmount.
+- Reduzierte Bewegung respektieren: bei `prefers-reduced-motion` längere Ticks (4–8s) und kleinere Steps.
+- Sparkline: einfache `<svg>` mit `<polyline>`, normalisiert auf Card-Höhe.
 
-Damit stimmt der Ø-Wert mit dem überein, was im Chat-Report steht.
-
-## Technische Details
-
-**`src/lib/onboarding-filter.ts`**
-- Interface `OnboardingChatter`: `responseMedianMin` entfernen, neu hinzufügen `liveOpenChats: number | null` und `liveOldestChatHours: number | null`
-- KPI-Anreicherung: Sessions-Query entfernen, dafür Batch-Query auf `chatter_history_live` mit `.in("chatter_name", chatterNames).ilike("platform", platform)` → neuestes Update je Chatter (nach `updated_at`)
-- Mass-DM-Aggregation: nur noch aus `chatter_history`, Sessions-Override löschen
-
-**`src/components/today/OnboardingList.tsx`**
-- `ChatterKpiRow`: Response-Badge raus, zwei neue Badges für „X offene Chats" und „seit Yh/Yd offen"
-- Neue Formatter `fmtOldestChat(hours)` → `<1 h` / `3,2 h` / `1,5 Tage`
-
-## Was bleibt unverändert
-Account-Name, Follower, Account-Total-Revenue, Chatter-Revenue, „seit"-Badge, Filter-Chips, Swipe-Verhalten.
+### Dateien
+- neu: `src/pages/Push.tsx`
+- neu: `src/lib/push-fake-counter.ts` (Hook + Defaults + Types + Storage)
+- neu: `src/components/push/PushCounterCard.tsx`
+- neu: `src/components/push/PushSimulationSheet.tsx`
+- bearbeitet: `src/App.tsx` (Route), `src/components/AppSidebar.tsx` (Nav-Eintrag)
