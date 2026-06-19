@@ -801,16 +801,15 @@ export default function AnomalyPanel({
                       </span>
                     </div>
 
-                    {/* Name + Headline + Stats — Klick = kopieren, Doppelklick = Profil */}
+                    {/* Name + Headline + Stats — Klick öffnet Performance-Profil */}
                     <button
                       type="button"
-                      onClick={() => copyName(group.name)}
-                      onDoubleClick={(e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         onChatterSelect?.(group.name);
                       }}
-                      title="Klick: Name kopieren · Doppelklick: Profil öffnen"
-                      className="flex-1 min-w-0 text-left group/name cursor-copy"
+                      title="Performance-Profil öffnen"
+                      className="flex-1 min-w-0 text-left group/name cursor-pointer"
                     >
                       {/* Top row: Name + Impact + Status-Pill */}
                       <div className="flex items-baseline gap-2 flex-wrap">
