@@ -590,6 +590,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       next.delete(labelId);
       return next;
     });
+    emitChatterLabelsUpdated({ chatterName });
     toast.success("Label gelöscht");
   };
 
