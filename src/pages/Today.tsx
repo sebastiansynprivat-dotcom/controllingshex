@@ -321,15 +321,46 @@ export default function Today() {
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
-  const visibleList =
+  const baseVisibleList =
     kindTab === "all"
       ? statusList
       : statusList.filter((a) => a.primaryKind === kindTab);
+
+  // Verzug-Tage-Filter: alle vorkommenden Tage mit Counts (sortiert: höchster Verzug zuerst)
+  const verzugDayCounts = useMemo(() => {
+    if (kindTab !== "verzug") return [] as { days: number; count: number }[];
+    const m = new Map<number, number>();
+    for (const a of baseVisibleList) {
+      const d = getVerzugDays(a);
+      if (d == null) continue;
+      m.set(d, (m.get(d) ?? 0) + 1);
+    }
+    return [...m.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([days, count]) => ({ days, count }));
+  }, [baseVisibleList, kindTab]);
+
+  // Reset Tage-Filter wenn Tab wechselt oder gewählter Tag nicht mehr existiert
+  useEffect(() => {
+    if (kindTab !== "verzug") {
+      if (verzugDayFilter !== null) setVerzugDayFilter(null);
+      return;
+    }
+    if (verzugDayFilter !== null && !verzugDayCounts.some((d) => d.days === verzugDayFilter)) {
+      setVerzugDayFilter(null);
+    }
+  }, [kindTab, verzugDayCounts, verzugDayFilter]);
+
+  const visibleList =
+    kindTab === "verzug" && verzugDayFilter !== null
+      ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
+      : baseVisibleList;
 
   // Falls aktiver Kind-Tab leer wird, auf "all" zurück
   if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
     queueMicrotask(() => setKindTab("all"));
   }
+
 
   // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
   const systemLabelIdSet = useMemo(
