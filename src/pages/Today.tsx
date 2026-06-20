@@ -53,6 +53,7 @@ type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
 const LABEL_FILTER_STORAGE_KEY = "today.activeLabelFilters";
+const SWAP_RENDER_BATCH = 8;
 
 
 
@@ -120,6 +121,7 @@ export default function Today() {
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
+  const [swapRenderCount, setSwapRenderCount] = useState(SWAP_RENDER_BATCH);
   const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>({ wheel: false });
 
   // Labels + Onboarding
@@ -358,6 +360,22 @@ export default function Today() {
     kindTab === "verzug" && verzugDayFilter !== null
       ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
       : baseVisibleList;
+
+  const isSwapTab = kindTab === "swap" && extraFilter === "none";
+  const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
+  const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
+
+  useEffect(() => {
+    if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
+  }, [isSwapTab, status, platform]);
+
+  useEffect(() => {
+    if (!isSwapTab || swapRenderCount >= visibleList.length) return;
+    const id = window.setTimeout(() => {
+      setSwapRenderCount((count) => Math.min(count + SWAP_RENDER_BATCH, visibleList.length));
+    }, 90);
+    return () => window.clearTimeout(id);
+  }, [isSwapTab, swapRenderCount, visibleList.length]);
 
   // Falls aktiver Kind-Tab leer wird, auf "all" zurück (in Effect, nicht in Render)
   useEffect(() => {
@@ -643,7 +661,7 @@ export default function Today() {
           ) : (
 
             <ErrorBoundary>
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="sync" initial={false}>
               <motion.div
                 key={kindTab}
                 initial={{ opacity: 0 }}
@@ -694,7 +712,7 @@ export default function Today() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {visibleList.map((a) => (
+                    {renderedVisibleList.map((a) => (
                       <PersonActionCard
                         key={a.bundleKey}
                         action={a}
@@ -704,6 +722,11 @@ export default function Today() {
                         readonly={isReadonly}
                       />
                     ))}
+                    {remainingSwapCount > 0 && (
+                      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-light text-white/35">
+                        Lade weitere {remainingSwapCount} Account-Tausch-Vorschläge …
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -855,7 +878,11 @@ export default function Today() {
                   return (
                     <button
                       key={g.id}
-                      onClick={() => { setExtraFilter("none"); setKindTab(g.id); }}
+                      onClick={() => {
+                        setExtraFilter("none");
+                        if (g.id === "swap") setSwapRenderCount(SWAP_RENDER_BATCH);
+                        setKindTab(g.id);
+                      }}
                       className={cn(
                         "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                         active
