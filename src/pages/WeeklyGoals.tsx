@@ -380,6 +380,89 @@ export default function WeeklyGoals() {
   const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
+  // Einstellbare Schwellen für Wochenziel-Vorschläge
+  const [stretchPct, setStretchPct] = useState<number>(110);
+  const [smoothingDays, setSmoothingDays] = useState<number>(14);
+  const [thresholdsLoaded, setThresholdsLoaded] = useState(false);
+  const [thresholdsOpen, setThresholdsOpen] = useState(false);
+  const [stretchDraft, setStretchDraft] = useState<string>("110");
+  const [smoothingDraft, setSmoothingDraft] = useState<string>("14");
+  const [savingThresholds, setSavingThresholds] = useState(false);
+
+  // Schwellen aus settings laden (einmalig)
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        const uid = u?.user?.id;
+        if (!uid) { setThresholdsLoaded(true); return; }
+        const { data } = await supabase
+          .from("settings")
+          .select("key, value")
+          .in("key", ["weekly_goal_stretch_pct", "weekly_goal_smoothing_days"])
+          .eq("user_id", uid);
+        for (const row of (data ?? []) as Array<{ key: string; value: string }>) {
+          const n = Number(row.value);
+          if (!Number.isFinite(n)) continue;
+          if (row.key === "weekly_goal_stretch_pct" && n >= 80 && n <= 200) {
+            setStretchPct(n);
+            setStretchDraft(String(n));
+          }
+          if (row.key === "weekly_goal_smoothing_days" && n >= 3 && n <= 60) {
+            setSmoothingDays(n);
+            setSmoothingDraft(String(n));
+          }
+        }
+      } finally {
+        setThresholdsLoaded(true);
+      }
+    })();
+  }, []);
+
+  async function saveThresholds() {
+    const s = Number(stretchDraft);
+    const d = Number(smoothingDraft);
+    if (!Number.isFinite(s) || s < 80 || s > 200) {
+      toast.error("Stretch muss zwischen 80 und 200 % liegen");
+      return;
+    }
+    if (!Number.isFinite(d) || d < 3 || d > 60) {
+      toast.error("Smoothing-Fenster muss zwischen 3 und 60 Tagen liegen");
+      return;
+    }
+    setSavingThresholds(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u?.user?.id;
+      if (!uid) throw new Error("Nicht angemeldet");
+      for (const [key, val] of [
+        ["weekly_goal_stretch_pct", String(Math.round(s))],
+        ["weekly_goal_smoothing_days", String(Math.round(d))],
+      ] as const) {
+        const { data: existing } = await supabase
+          .from("settings").select("id").eq("key", key).eq("user_id", uid).maybeSingle();
+        if (existing) {
+          await supabase.from("settings")
+            .update({ value: val, updated_at: new Date().toISOString() })
+            .eq("id", (existing as any).id);
+        } else {
+          await supabase.from("settings").insert({ key, value: val, user_id: uid });
+        }
+      }
+      setStretchPct(Math.round(s));
+      setSmoothingDays(Math.round(d));
+      setThresholdsOpen(false);
+      setSuggestionsGenerated(false);
+      setReloadKey((k) => k + 1);
+      toast.success("Schwellen gespeichert – Vorschläge werden neu berechnet");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Speichern fehlgeschlagen");
+    } finally {
+      setSavingThresholds(false);
+    }
+  }
+
+
 
 
   useEffect(() => {
