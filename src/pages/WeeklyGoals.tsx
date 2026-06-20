@@ -1118,10 +1118,18 @@ export default function WeeklyGoals() {
     return { goalSum, avgSum, count: considered.length, withGoal, withCurrent };
   }, [suggestions, skipped]);
 
-  const filteredRows = useMemo(
-    () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
-    [rows, statusFilter],
-  );
+  const filteredRows = useMemo(() => {
+    let arr = rows;
+    if (impactFilter === "important") arr = arr.filter((r) => r.progress.goal >= IMPACT_THRESHOLD);
+    else if (impactFilter === "small") arr = arr.filter((r) => r.progress.goal < IMPACT_THRESHOLD);
+    if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
+    return arr;
+  }, [rows, statusFilter, impactFilter]);
+
+  const impactCounts = useMemo(() => ({
+    important: rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD).length,
+    small: rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD).length,
+  }), [rows]);
 
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
