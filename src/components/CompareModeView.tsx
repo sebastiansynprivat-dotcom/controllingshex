@@ -183,21 +183,33 @@ export default function CompareModeView({
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const { data, error } = await supabase
-        .from("chatter_history")
-        .select("chatter_name, revenue_today, mass_dms")
-        .eq("platform", platform);
-      if (cancelled || error || !data) return;
       const acc = new Map<string, { sumRev: number; sumDM: number; n: number }>();
-      for (const r of data as Array<{ chatter_name: string | null; revenue_today: number | null; mass_dms: number | null }>) {
-        if (!r.chatter_name) continue;
-        const key = normalizeName(r.chatter_name);
-        const cur = acc.get(key) ?? { sumRev: 0, sumDM: 0, n: 0 };
-        cur.sumRev += Number(r.revenue_today) || 0;
-        cur.sumDM += Number(r.mass_dms) || 0;
-        cur.n += 1;
-        acc.set(key, cur);
+      const PAGE = 1000;
+      let from = 0;
+      // Paginate — Supabase default limit ist 1000 Zeilen, große Plattformen
+      // (z.B. Maloum mit >12k history-rows) würden sonst abgeschnitten.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("chatter_history")
+          .select("chatter_name, revenue_today, mass_dms")
+          .eq("platform", platform)
+          .range(from, from + PAGE - 1);
+        if (cancelled) return;
+        if (error || !data) break;
+        for (const r of data as Array<{ chatter_name: string | null; revenue_today: number | null; mass_dms: number | null }>) {
+          if (!r.chatter_name) continue;
+          const key = normalizeName(r.chatter_name);
+          const cur = acc.get(key) ?? { sumRev: 0, sumDM: 0, n: 0 };
+          cur.sumRev += Number(r.revenue_today) || 0;
+          cur.sumDM += Number(r.mass_dms) || 0;
+          cur.n += 1;
+          acc.set(key, cur);
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
       }
+      if (cancelled) return;
       const out = new Map<string, { avgRev: number; avgDMs: number }>();
       for (const [k, v] of acc) {
         out.set(k, { avgRev: v.n > 0 ? v.sumRev / v.n : 0, avgDMs: v.n > 0 ? Math.round(v.sumDM / v.n) : 0 });
