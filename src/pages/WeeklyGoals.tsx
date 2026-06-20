@@ -1536,6 +1536,7 @@ export default function WeeklyGoals() {
           platform={platform}
           proposedGoal={messageFor.proposedGoal}
           currentGoal={messageFor.currentGoal}
+          goalType="weekly"
         />
       )}
 
@@ -1547,6 +1548,7 @@ export default function WeeklyGoals() {
           }}
           platform={platform}
           targets={bulkTargets}
+          goalType="weekly"
           onAccept={async (chatter, goal) => {
             await acceptSuggestion(chatter, goal, { silentReload: true, silentToast: true });
             const monthRev = suggestions.find((s) => s.chatter === chatter)?.monthRevenue ?? 0;
@@ -1562,6 +1564,7 @@ export default function WeeklyGoals() {
       <GoalMessageTemplatesDialog
         open={templatesOpen}
         onClose={() => setTemplatesOpen(false)}
+        initialTab="weekly"
       />
 
 
