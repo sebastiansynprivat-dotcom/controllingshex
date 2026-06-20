@@ -492,6 +492,7 @@ function CompareSlot({
   accent,
   item,
   enrichedMap,
+  profileStats,
   stackLength,
   idx,
   dismissedCount,
@@ -505,6 +506,7 @@ function CompareSlot({
   accent: "emerald" | "sky";
   item: FilteredChatter | undefined;
   enrichedMap: Map<string, SwapChatter>;
+  profileStats: Map<string, { avgRev: number; avgDMs: number }>;
   stackLength: number;
   idx: number;
   dismissedCount: number;
