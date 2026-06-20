@@ -1165,6 +1165,11 @@ export default function WeeklyGoals() {
     };
   }, [rows, impactFilter]);
 
+  const filteredTotalGoal = useMemo(
+    () => filteredRows.reduce((s, r) => s + r.progress.goal, 0),
+    [filteredRows],
+  );
+
   const today = new Date();
   const trackedThrough = new Date(today);
   trackedThrough.setDate(today.getDate() - 1);
