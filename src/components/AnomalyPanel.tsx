@@ -76,13 +76,13 @@ const SEVERITY_GLOW: Record<string, { glow: string; pill: string; accent: string
 
 
 async function loadAllTimeRevenueRows(userId: string, platform: string) {
-  const rows: { chatter_name: string; revenue_today: number | null }[] = [];
+  const rows: { chatter_name: string; revenue_today: number | null; analysis_date: string }[] = [];
   let from = 0;
 
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, revenue_today")
+      .select("chatter_name, revenue_today, analysis_date")
       .eq("user_id", userId)
       .eq("platform", platform)
       .order("analysis_date", { ascending: true })
