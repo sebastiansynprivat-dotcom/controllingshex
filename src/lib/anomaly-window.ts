@@ -588,9 +588,9 @@ export async function computeAnomaliesForWindow(
     }
 
     // ── 5b. POSITIV: Hidden Gem ──────────────────────────────
-    // Kleiner Account (Followers unter erweitertem Median ODER absolut ≤ 400)
+    // Kleiner Account (Followers unter erweitertem Median ODER absolut ≤ 3.000)
     // + konstant aktiv (≥50% Tage) + ≥1.1× Erwartung.
-    const smallAccountCap = Math.max(followerMedian * 1.5, 400);
+    const smallAccountCap = Math.max(followerMedian * 6, 3000);
     const isSmallAccount =
       a.totalFollowers > 0 && a.totalFollowers <= smallAccountCap;
     if (
@@ -616,10 +616,11 @@ export async function computeAnomaliesForWindow(
       });
     } else if (
       // Fallback: Follower-Daten fehlen (Account nicht in models-Tabelle gepflegt).
-      // Wenn Chatter konstant (≥70% Tage) und solide (≥25€/Tag) ist, trotzdem als Gem zeigen.
+      // Wenn Chatter gemäß Wunsch konstant (≥50% Tage) und solide (≥25€/Tag) ist,
+      // trotzdem als Gem zeigen.
       a.totalFollowers === 0 &&
-      consistency >= 0.7 &&
-      a.daysActive >= Math.min(4, days) &&
+      consistency >= 0.5 &&
+      a.daysActive >= Math.min(3, days) &&
       a.avgRevenuePerDay >= 25
     ) {
       anomalies.push({
