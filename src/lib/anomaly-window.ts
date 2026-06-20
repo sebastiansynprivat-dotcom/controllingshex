@@ -410,13 +410,16 @@ export async function computeAnomaliesForWindow(
   const peerAvg =
     peerValues.length > 0 ? peerValues.reduce((s, v) => s + v, 0) / peerValues.length : 0;
 
-  // Workspace-Median der Follower-Summe pro Chatter — definiert "kleiner Account".
-  const followerSums = [...agg.values()]
-    .map((a) => a.totalFollowers)
-    .filter((f) => f > 0)
-    .sort((a, b) => a - b);
-  const followerMedian = followerSums.length > 0
-    ? followerSums[Math.floor(followerSums.length / 2)]
+  const SMALL_ACCOUNT_FOLLOWERS_CAP = 500;
+  const smallPeerValues = [...agg.values()]
+    .filter((a) =>
+      a.totalFollowers > 0 &&
+      a.totalFollowers < SMALL_ACCOUNT_FOLLOWERS_CAP &&
+      a.daysActive >= Math.min(2, days)
+    )
+    .map((a) => a.avgRevenuePerDay);
+  const smallPeerAvg = smallPeerValues.length > 0
+    ? smallPeerValues.reduce((s, v) => s + v, 0) / smallPeerValues.length
     : 0;
 
   // MassDM-Ziel skaliert mit Fensterlänge (6/Tag)
