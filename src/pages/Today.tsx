@@ -53,6 +53,7 @@ type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
 const LABEL_FILTER_STORAGE_KEY = "today.activeLabelFilters";
+const SWAP_RENDER_BATCH = 8;
 
 
 
@@ -120,6 +121,7 @@ export default function Today() {
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
+  const [swapRenderCount, setSwapRenderCount] = useState(SWAP_RENDER_BATCH);
   const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>({ wheel: false });
 
   // Labels + Onboarding
@@ -358,6 +360,22 @@ export default function Today() {
     kindTab === "verzug" && verzugDayFilter !== null
       ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
       : baseVisibleList;
+
+  const isSwapTab = kindTab === "swap" && extraFilter === "none";
+  const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
+  const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
+
+  useEffect(() => {
+    if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
+  }, [isSwapTab, status, platform]);
+
+  useEffect(() => {
+    if (!isSwapTab || swapRenderCount >= visibleList.length) return;
+    const id = window.setTimeout(() => {
+      setSwapRenderCount((count) => Math.min(count + SWAP_RENDER_BATCH, visibleList.length));
+    }, 90);
+    return () => window.clearTimeout(id);
+  }, [isSwapTab, swapRenderCount, visibleList.length]);
 
   // Falls aktiver Kind-Tab leer wird, auf "all" zurück (in Effect, nicht in Render)
   useEffect(() => {
