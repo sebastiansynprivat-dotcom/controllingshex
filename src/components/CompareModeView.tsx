@@ -559,6 +559,7 @@ function CompareSlot({
   item,
   enrichedMap,
   profileStats,
+  liveByName,
   stackLength,
   idx,
   dismissedCount,
@@ -573,6 +574,7 @@ function CompareSlot({
   item: FilteredChatter | undefined;
   enrichedMap: Map<string, SwapChatter>;
   profileStats: Map<string, { avgRev: number; avgDMs: number }>;
+  liveByName: Map<string, { revenue: number; mass_dms: number; unread_chats: number; oldest_chat: number }>;
   stackLength: number;
   idx: number;
   dismissedCount: number;
