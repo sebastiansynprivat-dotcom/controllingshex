@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence, type PanInfo } from "framer-motion";
-import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2, UserPlus, Search, CalendarDays } from "lucide-react";
+import { ArrowLeftRight, Check, X, ChevronUp, Users, TrendingUp, Sparkles, Zap, MessageSquare, Clock, Inbox, Undo2, UserPlus, Search, CalendarDays, Repeat, AlertCircle } from "lucide-react";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,7 @@ import {
   computeSwapCandidates,
   computeManualSwapCandidates,
   computeSwapExpectedGain,
+  computeChallengersForSlot,
   listAllSwapChatters,
   formatEur,
   formatSkill,
@@ -21,6 +22,7 @@ import {
   type SwapInput,
   type SwapModelInfo,
 } from "@/lib/swap-suggestions";
+
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { fetchLiveEfficiency, type LiveEfficiencyRow } from "@/lib/live-efficiency";
@@ -53,9 +55,12 @@ interface MiniCardProps {
   onSwipeUp: () => void;
   onSingleClick?: () => void;
   onDoubleClick?: () => void;
+  onReplaceClick?: () => void;
+  isDeclining?: boolean;
 }
 
-function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onSingleClick, onDoubleClick }: MiniCardProps) {
+
+function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onSingleClick, onDoubleClick, onReplaceClick, isDeclining }: MiniCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 0, 200], [-8, 0, 8]);
@@ -128,7 +133,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           boxShadow: `0 24px 60px -24px hsl(240 10% 0% / 0.7), inset 0 1px 0 hsl(0 0% 100% / 0.04)`,
         }}
       >
-        <div className="flex items-center justify-between mb-2 lg:mb-3">
+        <div className="flex items-center justify-between mb-2 lg:mb-3 gap-2">
           <span
             className="text-[8px] lg:text-[9px] uppercase tracking-[0.18em] font-semibold px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full border"
             style={{
@@ -139,17 +144,52 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           >
             {tag}
           </span>
-          <span
-            className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
-            style={{
-              color: `hsl(${tierColor(chatter.tier)})`,
-              borderColor: `hsl(${tierColor(chatter.tier)} / 0.35)`,
-              background: `hsl(${tierColor(chatter.tier)} / 0.08)`,
-            }}
-          >
-            {chatter.tier}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {isDeclining && (
+              <span
+                className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
+                style={{
+                  color: "hsl(38 90% 65%)",
+                  borderColor: "hsl(38 80% 50% / 0.35)",
+                  background: "hsl(38 80% 50% / 0.08)",
+                }}
+                title="Aktivität/Umsatz dieses Chatters ist in den letzten 7 Tagen deutlich unter seinem historischen Schnitt"
+              >
+                Im Rückgang
+              </span>
+            )}
+            <span
+              className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
+              style={{
+                color: `hsl(${tierColor(chatter.tier)})`,
+                borderColor: `hsl(${tierColor(chatter.tier)} / 0.35)`,
+                background: `hsl(${tierColor(chatter.tier)} / 0.08)`,
+              }}
+            >
+              {chatter.tier}
+            </span>
+            {onReplaceClick && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReplaceClick();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="h-7 w-7 lg:h-8 lg:w-8 rounded-full inline-flex items-center justify-center border transition-colors active:scale-95"
+                style={{
+                  color: `hsl(${accentHsl})`,
+                  borderColor: `hsl(${accentHsl} / 0.35)`,
+                  background: `hsl(${accentHsl} / 0.06)`,
+                }}
+                title="Diesen Chatter durch einen anderen ersetzen"
+                aria-label="Chatter ersetzen"
+              >
+                <Repeat className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
+
 
         <h3 className="text-base lg:text-2xl font-semibold text-foreground capitalize truncate mb-0.5 leading-tight">
           {chatter.name.replace(/_/g, " ")}
@@ -472,6 +512,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
   const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  /** Challenger-Picker: welche Seite soll ersetzt werden? */
+  const [challengerPickerSide, setChallengerPickerSide] = useState<Side | null>(null);
+  /** Confirm-Sheet vor Genehmigung */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  /** Per-Slot-Override: ersetzt visibleLeft/visibleRight für das aktuelle Pair (nur in-memory) */
+  const [slotOverrideLeft, setSlotOverrideLeft] = useState<SwapChatter | null>(null);
+  const [slotOverrideRight, setSlotOverrideRight] = useState<SwapChatter | null>(null);
+
   /** Stack der letzten Aktionen für Undo (max 20) */
   type HistoryEntry = {
     /** DB-ID falls eine Decision persistiert wurde (sonst null bei Alt-Cycle) */
@@ -538,6 +586,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
   useEffect(() => {
     setLeftAltIdx(0);
     setRightAltIdx(0);
+    setSlotOverrideLeft(null);
+    setSlotOverrideRight(null);
   }, [pairIdx]);
 
   // Reset pair index + history when manual mode toggles (persistierte Dismissals bleiben)
@@ -545,7 +595,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
     setPairIdx(0);
     setLeftAltIdx(0);
     setRightAltIdx(0);
+    setSlotOverrideLeft(null);
+    setSlotOverrideRight(null);
   }, [manualChatterName]);
+
 
   const currentPair: SwapPair | undefined = useMemo(() => {
     // Erst Pairs die nicht "für später" geskippt wurden, dann am Ende die geskippten.
@@ -618,6 +671,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
 
   /** Erster nicht-dismisster Kandidat ab leftAltIdx (zirkulär) */
   const visibleLeft: SwapChatter | undefined = useMemo(() => {
+    if (slotOverrideLeft) return slotOverrideLeft;
     if (leftCandidates.length === 0) return undefined;
     const n = leftCandidates.length;
     for (let off = 0; off < n; off++) {
@@ -627,9 +681,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
       return c;
     }
     return undefined;
-  }, [leftCandidates, leftAltIdx, dismissedLeftKeys, dailyDismissed]);
+  }, [leftCandidates, leftAltIdx, dismissedLeftKeys, dailyDismissed, slotOverrideLeft]);
 
   const visibleRight: SwapChatter | undefined = useMemo(() => {
+    if (slotOverrideRight) return slotOverrideRight;
     if (rightCandidates.length === 0) return undefined;
     const n = rightCandidates.length;
     for (let off = 0; off < n; off++) {
@@ -639,12 +694,42 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
       return c;
     }
     return undefined;
-  }, [rightCandidates, rightAltIdx, dismissedRightKeys, dailyDismissed]);
+  }, [rightCandidates, rightAltIdx, dismissedRightKeys, dailyDismissed, slotOverrideRight]);
+
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
     return Math.max(0, computeSwapExpectedGain(visibleLeft, visibleRight, benchmarks ?? null));
   }, [visibleLeft, visibleRight, benchmarks]);
+
+  /** "Im Rückgang": 7T-Schnitt liegt deutlich unter currentRevenue-Historie.
+   *  Heuristik ohne Extra-Datenladen: avgRevenue ist im gewählten Fenster (default 7T).
+   *  Wenn der Chatter historisch >0 verdient hat aber avg<30% des Peer-Tier-Medians
+   *  ODER currentRevenue=0 bei avgRevenue>0 → flag. */
+  const isInDecline = useCallback((c: SwapChatter): boolean => {
+    if (c.avgRevenue > 0 && c.currentRevenue === 0) return true;
+    // sehr niedrige Disziplin trotz vorhandener Daten
+    if (c.skillSource === "live" && c.live && c.live.session_consistency < 0.25 && c.live.active_days < c.live.range_days * 0.4) {
+      return true;
+    }
+    return false;
+  }, []);
+
+  /** Alle Chatter (enriched) — Basis für Challenger-Picker */
+  const allEnrichedChatters = useMemo(
+    () => listAllSwapChatters(chatters, models, swapWindow, liveEfficiency),
+    [chatters, models, swapWindow, liveEfficiency]
+  );
+
+  /** Liste der Challenger für die gerade gewählte Seite */
+  const challengerOptions = useMemo(() => {
+    if (!challengerPickerSide || !visibleLeft || !visibleRight) return [];
+    const fixed = challengerPickerSide === "left" ? visibleRight : visibleLeft;
+    const current = challengerPickerSide === "left" ? visibleLeft : visibleRight;
+    return computeChallengersForSlot(fixed, challengerPickerSide, current, allEnrichedChatters, benchmarks ?? null, 8);
+  }, [challengerPickerSide, visibleLeft, visibleRight, allEnrichedChatters, benchmarks]);
+
+
 
   const advancePair = useCallback(() => {
     setPairIdx((i) => i + 1);
@@ -1213,7 +1298,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
                 onSwipeUp={cycleLeftAlt}
                 onSingleClick={() => copyChatterName(visibleLeft.name)}
                 onDoubleClick={() => setProfileOpen(true)}
+                onReplaceClick={() => setChallengerPickerSide("left")}
+                isDeclining={isInDecline(visibleLeft)}
               />
+
             </motion.div>
           </AnimatePresence>
 
@@ -1259,7 +1347,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
                 onSwipeUp={cycleRightAlt}
                 onSingleClick={() => copyChatterName(visibleRight.name)}
                 onDoubleClick={() => setProfileOpen(true)}
+                onReplaceClick={() => setChallengerPickerSide("right")}
+                isDeclining={isInDecline(visibleRight)}
               />
+
             </motion.div>
           </AnimatePresence>
         </div>
@@ -1304,7 +1395,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
           <Button
             variant="outline"
             size="icon"
-            onClick={approveSwap}
+            onClick={() => setConfirmOpen(true)}
             className="h-12 w-12 lg:h-14 lg:w-14 rounded-full border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
             title="Tausch genehmigen"
           >
@@ -1461,6 +1552,205 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
       </AnimatePresence>
 
       {renderManualPicker()}
+
+      {/* Challenger-Picker — Chatter für eine Slot ersetzen */}
+      <AnimatePresence>
+        {challengerPickerSide && visibleLeft && visibleRight && (
+          <motion.div
+            key="challenger-picker"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setChallengerPickerSide(null)}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-white/[0.08] bg-zinc-950 p-5 shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Repeat className="h-4 w-4 text-gold" />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {challengerPickerSide === "left" ? "Underplaced ersetzen" : "Overplaced ersetzen"}
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-white/55">
+                    Tausch-Partner für{" "}
+                    <span className="text-foreground font-medium capitalize">
+                      {(challengerPickerSide === "left" ? visibleRight : visibleLeft).name.replace(/_/g, " ")}
+                    </span>{" "}
+                    <span className="text-white/35">@ {(challengerPickerSide === "left" ? visibleRight : visibleLeft).account}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => setChallengerPickerSide(null)}
+                  className="h-8 w-8 rounded-full inline-flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 shrink-0"
+                  aria-label="Schließen"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 mt-3">
+                {challengerOptions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                    <AlertCircle className="h-6 w-6 text-white/30" />
+                    <p className="text-xs text-white/55">Keine passenden Alternativen im aktuellen Zeitfenster.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {challengerOptions.map(({ chatter: c, expectedGain }) => {
+                      const positive = expectedGain > 0;
+                      return (
+                        <button
+                          key={c.key}
+                          onClick={() => {
+                            if (challengerPickerSide === "left") setSlotOverrideLeft(c);
+                            else setSlotOverrideRight(c);
+                            setChallengerPickerSide(null);
+                            toast.success(`${c.name.replace(/_/g, " ")} eingesetzt`);
+                          }}
+                          className="w-full flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors px-3 py-2.5 text-left active:scale-[0.99]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-sm font-semibold text-foreground capitalize truncate">
+                                {c.name.replace(/_/g, " ")}
+                              </span>
+                              <span
+                                className="text-[8px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border shrink-0"
+                                style={{
+                                  color: `hsl(${tierColor(c.tier)})`,
+                                  borderColor: `hsl(${tierColor(c.tier)} / 0.35)`,
+                                  background: `hsl(${tierColor(c.tier)} / 0.08)`,
+                                }}
+                              >
+                                {c.tier}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-white/45 truncate">
+                              @ {c.account} · Skill {formatSkill(c.skillScore)} · 7T-Ø {formatEur(c.avgRevenue)}
+                            </p>
+                          </div>
+                          <span
+                            className="text-[11px] font-bold tabular-nums px-2 py-1 rounded-full border shrink-0"
+                            style={{
+                              color: positive ? "hsl(152 70% 60%)" : "hsl(0 0% 55%)",
+                              borderColor: positive ? "hsl(152 70% 45% / 0.4)" : "hsl(0 0% 100% / 0.1)",
+                              background: positive ? "hsl(152 70% 45% / 0.08)" : "transparent",
+                            }}
+                          >
+                            {positive ? "+" : ""}{formatEur(expectedGain)}/T
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm-Sheet — Bestätigung vor Genehmigung */}
+      <AnimatePresence>
+        {confirmOpen && visibleLeft && visibleRight && (
+          <motion.div
+            key="confirm-sheet"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setConfirmOpen(false)}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <motion.div
+              initial={{ y: 30, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-gold/30 bg-zinc-950 p-5 shadow-2xl gold-glow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Check className="h-4 w-4 text-green-400" />
+                <h3 className="text-sm font-semibold text-foreground">Tausch bestätigen</h3>
+              </div>
+              <p className="text-[11px] text-white/55 mb-4">
+                Diese beiden Chatter werden in deinem System als getauscht markiert.
+              </p>
+
+              <div className="space-y-2 mb-4">
+                <div className="rounded-xl border border-green-500/20 bg-green-500/[0.04] p-3">
+                  <div className="text-[9px] uppercase tracking-wider text-green-400/80 font-semibold mb-1">
+                    Underplaced → übernimmt
+                  </div>
+                  <div className="text-sm font-semibold text-foreground capitalize">
+                    {visibleLeft.name.replace(/_/g, " ")}
+                  </div>
+                  <div className="text-[10px] text-white/45">@ {visibleLeft.account} · {visibleLeft.tier}</div>
+                </div>
+                <div className="flex justify-center">
+                  <ArrowLeftRight className="h-4 w-4 text-gold rotate-90" />
+                </div>
+                <div className="rounded-xl border border-red-500/20 bg-red-500/[0.04] p-3">
+                  <div className="text-[9px] uppercase tracking-wider text-red-400/80 font-semibold mb-1">
+                    Overplaced → wechselt von
+                  </div>
+                  <div className="text-sm font-semibold text-foreground capitalize">
+                    {visibleRight.name.replace(/_/g, " ")}
+                  </div>
+                  <div className="text-[10px] text-white/45">@ {visibleRight.account} · {visibleRight.tier}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-4 px-1">
+                <span className="text-[10px] uppercase tracking-wider text-white/45">Erwarteter Mehrumsatz</span>
+                <span
+                  className="text-sm font-bold tabular-nums"
+                  style={{ color: visibleGain > 0 ? "hsl(152 70% 60%)" : "hsl(0 0% 60%)" }}
+                >
+                  +{formatEur(visibleGain)} / Tag
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    setChallengerPickerSide("right");
+                  }}
+                  className="h-11 text-xs border-white/10 text-white/70 hover:text-white hover:bg-white/5"
+                >
+                  Doch ändern
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setConfirmOpen(false);
+                    await approveSwap();
+                  }}
+                  className="h-11 text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-zinc-950 hover:opacity-95"
+                >
+                  <Check className="h-4 w-4 mr-1.5" />
+                  Bestätigen
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
