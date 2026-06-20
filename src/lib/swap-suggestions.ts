@@ -836,6 +836,53 @@ export function computeManualSwapCandidates(
 }
 
 /* ------------------------------------------------------------------ */
+/*  CHALLENGER-PICKER — Alternativen für einen Slot in einem Pair      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Liefert die besten Alternativen für eine Pair-Slot.
+ *
+ * @param fixed   Der NICHT zu ersetzende Chatter (Counterpart)
+ * @param side    Welche Seite ersetzt werden soll
+ *                  "left"  → ersetze Underplaced; fixed = right
+ *                  "right" → ersetze Overplaced;  fixed = left
+ * @param current Der aktuell auf der Slot sitzende Chatter (wird ausgeblendet)
+ * @param all     Alle verfügbaren Chatter (aus listAllSwapChatters)
+ */
+export function computeChallengersForSlot(
+  fixed: SwapChatter,
+  side: "left" | "right",
+  current: SwapChatter,
+  all: SwapChatter[],
+  bundle: BenchmarkBundle | null = null,
+  limit = 8
+): Array<{ chatter: SwapChatter; expectedGain: number }> {
+  const out: Array<{ chatter: SwapChatter; expectedGain: number }> = [];
+  for (const c of all) {
+    if (c.key === current.key) continue;
+    if (c.name === fixed.name) continue;
+    if (c.followers <= 0) continue;
+    let left: SwapChatter, right: SwapChatter;
+    if (side === "left") {
+      // c soll Underplaced sein → muss kleineren Account haben als fixed (right)
+      if (c.followers >= fixed.followers) continue;
+      left = c;
+      right = fixed;
+    } else {
+      // c soll Overplaced sein → muss größeren Account haben als fixed (left)
+      if (c.followers <= fixed.followers) continue;
+      left = fixed;
+      right = c;
+    }
+    const gain = computeSwapExpectedGain(left, right, bundle);
+    out.push({ chatter: c, expectedGain: gain });
+  }
+  out.sort((a, b) => b.expectedGain - a.expectedGain);
+  return out.slice(0, limit);
+}
+
+
+/* ------------------------------------------------------------------ */
 /*  FORMAT HELFER                                                       */
 /* ------------------------------------------------------------------ */
 
