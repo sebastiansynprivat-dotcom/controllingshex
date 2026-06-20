@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame } from "lucide-react";
+import { Check, ChevronDown, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -76,13 +76,13 @@ const SEVERITY_GLOW: Record<string, { glow: string; pill: string; accent: string
 
 
 async function loadAllTimeRevenueRows(userId: string, platform: string) {
-  const rows: { chatter_name: string; revenue_today: number | null }[] = [];
+  const rows: { chatter_name: string; revenue_today: number | null; analysis_date: string }[] = [];
   let from = 0;
 
   while (true) {
     const { data, error } = await supabase
       .from("chatter_history")
-      .select("chatter_name, revenue_today")
+      .select("chatter_name, revenue_today, analysis_date")
       .eq("user_id", userId)
       .eq("platform", platform)
       .order("analysis_date", { ascending: true })
@@ -155,6 +155,7 @@ export default function AnomalyPanel({
     categorySince: [string, { since: string; category: string }][];
     prevWindowAvg: [string, number][];     // chatter -> avg eur/day in previous window
     allTimeAvg: [string, number][];        // chatter -> avg eur/day across full history
+    firstSeen?: [string, string][];        // chatter -> earliest analysis_date (ISO)
     savedAt: number;
   };
 
@@ -205,6 +206,9 @@ export default function AnomalyPanel({
   );
   const [allTimeAvg, setAllTimeAvg] = useState<Map<string, number>>(
     () => new Map(initialSnap?.allTimeAvg ?? []),
+  );
+  const [firstSeen, setFirstSeen] = useState<Map<string, string>>(
+    () => new Map(initialSnap?.firstSeen ?? []),
   );
 
   // Chatter-Labels (live-synchronisiert mit SlideOver)
@@ -395,18 +399,24 @@ export default function AnomalyPanel({
     setPrevWindowAvg(pmap);
 
     // All-Time Ø pro Chatter (Summe aller Reports / Tage_mit_Eintrag)
+    // + erstes Auftauchen (frühestes analysis_date) — Rows kommen ASC sortiert.
     const allAgg = new Map<string, { sum: number; days: number }>();
+    const fsmap = new Map<string, string>();
     for (const row of allTimeRows) {
       const cur = allAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
       cur.sum += Number(row.revenue_today ?? 0);
       cur.days += 1;
       allAgg.set(row.chatter_name, cur);
+      if (row.analysis_date && !fsmap.has(row.chatter_name)) {
+        fsmap.set(row.chatter_name, String(row.analysis_date).slice(0, 10));
+      }
     }
     const atmap = new Map<string, number>();
     for (const [name, { sum, days }] of allAgg) {
       atmap.set(name, days > 0 ? sum / days : 0);
     }
     setAllTimeAvg(atmap);
+    setFirstSeen(fsmap);
 
     // Persist snapshot
     try {
@@ -424,6 +434,7 @@ export default function AnomalyPanel({
         categorySince: [...smap.entries()],
         prevWindowAvg: [...pmap.entries()],
         allTimeAvg: [...atmap.entries()],
+        firstSeen: [...fsmap.entries()],
         savedAt: Date.now(),
       };
       sessionStorage.setItem(cacheKey, JSON.stringify(snap));
@@ -449,6 +460,7 @@ export default function AnomalyPanel({
       setCategorySince(new Map(snap.categorySince ?? []));
       setPrevWindowAvg(new Map(snap.prevWindowAvg ?? []));
       setAllTimeAvg(new Map(snap.allTimeAvg ?? []));
+      setFirstSeen(new Map(snap.firstSeen ?? []));
       setLoading(false);
       return;
     }
@@ -827,6 +839,13 @@ export default function AnomalyPanel({
               const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
               const chatterLabelsForGroup = labelsByChatter.get(normalizeChatterName(group.name)) ?? [];
 
+              // "Neu am Start" — wenn Chatter weniger Historie hat als das gewählte Zeitfenster
+              const firstSeenIso = firstSeen.get(group.name);
+              const firstSeenRel = relDays(firstSeenIso);
+              const isNewerThanWindow =
+                firstSeenRel != null && windowDays > 1 && firstSeenRel.days + 1 < windowDays;
+              const firstSeenDays = firstSeenRel ? Math.max(1, firstSeenRel.days + 1) : 0;
+
               return (
                 <motion.div
                   key={group.name}
@@ -915,6 +934,15 @@ export default function AnomalyPanel({
                           >
                             <Flame className="h-2.5 w-2.5" />
                             auffällig seit {sinceRel.days} {sinceRel.days === 1 ? "Tag" : "Tagen"}
+                          </span>
+                        )}
+                        {isNewerThanWindow && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-500/[0.08] border border-sky-400/20 text-[9px] uppercase tracking-wider text-sky-200/90 font-medium"
+                            title={`Dieser Chatter ist erst seit ${firstSeenDays} ${firstSeenDays === 1 ? "Tag" : "Tagen"} am Start. Das gewählte Zeitfenster (${windowDays} Tage) ist länger als die verfügbare Historie — die Auswertung basiert nur auf den vorhandenen Tagen.`}
+                          >
+                            <Sparkles className="h-2.5 w-2.5" />
+                            erst seit {firstSeenDays} {firstSeenDays === 1 ? "Tag" : "Tagen"} am Start
                           </span>
                         )}
                       </div>
