@@ -776,11 +776,6 @@ function CompareSwipeCard({
           </div>
         </div>
 
-        {firstSeen && (
-          <p className="hidden md:inline-flex items-center gap-1 text-[10px] text-white/35 mt-2">
-            <CalendarDays className="h-3 w-3" /> seit {formatStartDate(firstSeen)}
-          </p>
-        )}
       </div>
     </motion.div>
   );
