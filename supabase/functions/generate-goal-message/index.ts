@@ -93,7 +93,14 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     const today = new Date();
     const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const firstName = chatterName.split(/\s+/)[0] || chatterName;
+    // Strip invisible/variation-selector chars and emoji-modifiers from the start,
+    // then take the first whitespace-separated token as the first name.
+    const cleanedName = chatterName
+      .replace(/[\u200B-\u200D\uFE00-\uFE0F\u2640-\u2642\u2600-\u27BF]/gu, "")
+      .replace(/\p{Extended_Pictographic}/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const firstName = (cleanedName.split(/\s+/)[0] || cleanedName || chatterName).trim();
 
     // ===== WEEKLY =====
     if (goalType === "weekly") {
