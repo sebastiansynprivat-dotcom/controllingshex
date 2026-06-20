@@ -20,17 +20,16 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import {
   parseGoalFromNote,
-  computeGoalProgress,
+  computeWeekProgress as computeGoalProgress,
   formatEUR,
-  suggestMonthlyGoal,
+  suggestWeeklyGoal,
   splitAccounts,
   computeModelBaselines,
-  suggestFromModels,
-  type GoalProgress,
+  type WeekProgress as GoalProgress,
   type GoalStatus,
-} from "@/lib/monthly-goals";
+} from "@/lib/weekly-goals";
 
-const LABEL_NAME = "Monatsziel";
+const LABEL_NAME = "Wochenziel";
 
 function toIsoDateLocal(date: Date): string {
   const year = date.getFullYear();
@@ -39,34 +38,7 @@ function toIsoDateLocal(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Label für nächsten Monat, z.B. "Juni 2026" */
-function nextMonthLabel(today: Date): string {
-  const next = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  return next.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
-}
-
-/** Erster Tag des nächsten Monats (für Progress-Berechnung künftiger Ziele) */
-function firstOfNextMonth(today: Date): Date {
-  return new Date(today.getFullYear(), today.getMonth() + 1, 1);
-}
-
-/**
- * Liest aus "Monatsziel <Month> <Year>: ..." den Stichtag (1. des Zielmonats).
- * Gibt null zurück, wenn kein Monat geparst werden kann.
- */
-const DE_MONTHS: Record<string, number> = {
-  januar: 0, februar: 1, märz: 2, maerz: 2, april: 3, mai: 4, juni: 5,
-  juli: 6, august: 7, september: 8, oktober: 9, november: 10, dezember: 11,
-};
-function parseTargetMonth(noteText: string | null | undefined): Date | null {
-  if (!noteText) return null;
-  const m = noteText.match(/Monatsziel\s+([A-Za-zäöüÄÖÜ]+)\s+(\d{4})/i);
-  if (!m) return null;
-  const month = DE_MONTHS[m[1].toLowerCase()];
-  const year = parseInt(m[2], 10);
-  if (month === undefined || !Number.isFinite(year)) return null;
-  return new Date(year, month, 1);
-}
+import { nextWeekLabel, firstOfNextWeek, parseTargetWeek, weekStart, isoWeekNumber } from "@/lib/weekly-goals";
 
 
 interface ChatterGoalRow {
@@ -323,7 +295,7 @@ function SuggestionCard({
 
       <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/[0.06] px-4 py-3 mb-3">
         <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-light mb-1">
-          Vorgeschlagenes Monatsziel
+          Vorgeschlagenes Wochenziel
         </div>
         {editing ? (
           <div className="flex items-center gap-2">
@@ -388,7 +360,7 @@ function SuggestionCard({
   );
 }
 
-export default function MonthlyGoals() {
+export default function WeeklyGoals() {
   const { platform } = usePlatform();
   const [rows, setRows] = useState<ChatterGoalRow[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
@@ -432,7 +404,7 @@ export default function MonthlyGoals() {
         if (!user) throw new Error("Nicht angemeldet");
 
         const today = new Date();
-        const reportStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const reportStart = weekStart(today);
         const reportStartIso = toIsoDateLocal(reportStart);
         const todayIso = toIsoDateLocal(today);
         // (kein 30-Tage-Fenster mehr — Vorschlag = All-Time-Durchschnitt)
@@ -525,7 +497,7 @@ export default function MonthlyGoals() {
 
 
 
-        // === Aktuelle Monatsziele ===
+        // === Aktuelle Wochenziele ===
         const goalByChatter = new Map<string, { goal: number; text: string; date: string }>();
         for (const n of notesRes.data ?? []) {
           if (goalByChatter.has(n.chatter_name)) continue;
@@ -555,14 +527,13 @@ export default function MonthlyGoals() {
           monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + v);
         }
         const built: ChatterGoalRow[] = [];
-        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const currentWeekStart = weekStart(today);
         for (const c of labelChatters) {
           const g = goalByChatter.get(c);
           if (!g) continue;
-          // Wenn die Note auf einen zukünftigen Monat zeigt (z.B. heute = Mai,
-          // Note = "Monatsziel Juni 2026"), Progress gegen Zielmonat-Start mit 0 €.
-          const target = parseTargetMonth(g.text);
-          const isFuture = !!target && target > currentMonthStart;
+          // Wenn die Note auf eine zukünftige Woche zeigt, Progress gegen Zielwoche-Mo mit 0 €.
+          const target = parseTargetWeek(g.text);
+          const isFuture = !!target && target > currentWeekStart;
           const rev = isFuture ? 0 : (monthRevByChatter.get(c) ?? 0);
           const refDate = isFuture ? target! : today;
           built.push({
@@ -573,7 +544,7 @@ export default function MonthlyGoals() {
           });
         }
 
-        // === Zukünftige Monatsziele (Vorschläge — basiert auf Model-Performance) ===
+        // === Zukünftige Wochenziele (Vorschläge — basiert auf Model-Performance) ===
         // 3a) Model-Baselines aus allen Rows der letzten 60 Tage
         const modelBaselines = computeModelBaselines(histAllRows);
 
@@ -649,10 +620,10 @@ export default function MonthlyGoals() {
             const share = Math.max(1, chattersByModel.get(m)?.size ?? 1);
             perChatterDailyBaseline += modelDaily / share;
           }
-          const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-          const rawModelGoal = perChatterDailyBaseline * daysInMonth * 1.10;
+          const daysInWeek = 7;
+          const rawModelGoal = perChatterDailyBaseline * daysInWeek * 1.10;
           const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
-            ? Math.max(50, Math.round(rawModelGoal / 50) * 50)
+            ? Math.max(10, Math.round(rawModelGoal / 10) * 10)
             : 0;
 
           // Smoothing für neue Chatter: wenn jemand erst wenige Tage dabei ist,
@@ -670,7 +641,7 @@ export default function MonthlyGoals() {
           // → eigenes Ergebnis + 10 % nehmen statt Model-Schnitt zu deckeln.
           // ABER: nur wenn er genug Datenbasis hat (≥10 Tage).
           const chatterGoal = avg > 1
-            ? Math.max(50, Math.round((smoothedAvg * daysInMonth * 1.10) / 50) * 50)
+            ? Math.max(10, Math.round((smoothedAvg * daysInWeek * 1.10) / 10) * 10)
             : 0;
 
           let basis: "model" | "chatter" | "fallback";
@@ -690,7 +661,7 @@ export default function MonthlyGoals() {
             // Fallback: Chatter-Schnitt 60d (nur wenn sinnvoll)
             if (avg <= 1) continue;
             basis = "fallback";
-            suggested = suggestMonthlyGoal(avg, today);
+            suggested = suggestWeeklyGoal(avg);
           }
 
 
@@ -711,10 +682,10 @@ export default function MonthlyGoals() {
 
         // Persisted Skips laden
         const { data: skipRows, error: skipErr } = await supabase
-          .from("monthly_goal_skips")
+          .from("weekly_goal_skips")
           .select("chatter_name")
           .eq("platform", platform);
-        if (skipErr) console.warn("[MonthlyGoals] skip load failed", skipErr);
+        if (skipErr) console.warn("[WeeklyGoals] skip load failed", skipErr);
 
         if (!cancelled) {
           setRows(built);
@@ -722,7 +693,7 @@ export default function MonthlyGoals() {
           setSkipped(new Set((skipRows ?? []).map((r) => r.chatter_name)));
         }
       } catch (e: any) {
-        console.error("[MonthlyGoals] load failed", e);
+        console.error("[WeeklyGoals] load failed", e);
         if (!cancelled) setError(e?.message ?? "Fehler beim Laden");
       } finally {
         if (!cancelled) setLoading(false);
@@ -735,7 +706,7 @@ export default function MonthlyGoals() {
   // Auto-Refresh, sobald ein neuer Report hochgeladen wird (neue chatter_history Rows)
   useEffect(() => {
     const channel = supabase
-      .channel(`monthly-goals-history-${platform}`)
+      .channel(`weekly-goals-history-${platform}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chatter_history", filter: `platform=eq.${platform}` },
@@ -788,8 +759,8 @@ export default function MonthlyGoals() {
       // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
       // Ziel gilt IMMER für den nächsten Monat (Vorschläge sind zukunftsorientiert).
-      const monthLabel = nextMonthLabel(today);
-      const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
+      const weekLbl = nextWeekLabel(today);
+      const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
 
       const { data: existingAssign, error: aSelErr } = await supabase
         .from("chatter_label_assignments")
@@ -821,10 +792,10 @@ export default function MonthlyGoals() {
       const results = await Promise.all(tasks);
       for (const r of results) if (r.error) throw r.error;
 
-      if (!opts?.silentToast) toast.success(`Monatsziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
+      if (!opts?.silentToast) toast.success(`Wochenziel für ${chatter} gesetzt: ${formatEUR(goal)}`);
       // Kein reloadKey-Bump mehr — Caller macht optimistisches UI-Update.
     } catch (e: any) {
-      console.error("[MonthlyGoals] accept failed", e);
+      console.error("[WeeklyGoals] accept failed", e);
       if (!opts?.silentToast) toast.error(e?.message ?? "Fehler beim Setzen des Ziels");
       throw e;
     } finally {
@@ -834,15 +805,15 @@ export default function MonthlyGoals() {
 
   /**
    * Optimistisches UI-Update nach erfolgreichem Accept:
-   * - Row in "Aktuelle Monatsziele" anlegen oder updaten
+   * - Row in "Aktuelle Wochenziele" anlegen oder updaten
    * - Chatter aus Future ausblenden
    * - currentGoal in Suggestions reflektieren
    */
   function applyAcceptedGoal(chatter: string, goal: number, _monthRevenue: number) {
     const today = new Date();
     // Ziel gilt für den nächsten Monat → Label & Progress entsprechend.
-    const monthLabel = nextMonthLabel(today);
-    const noteText = `Monatsziel ${monthLabel}: ${formatEUR(goal)}`;
+    const weekLbl = nextWeekLabel(today);
+    const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
     const noteDate = today.toISOString();
     // Künftiger Monat → noch kein Umsatz, Progress relativ zum 1. des Zielmonats.
     const progress = computeGoalProgress(goal, 0, firstOfNextMonth(today));
@@ -881,14 +852,14 @@ export default function MonthlyGoals() {
       const user = session?.user;
       if (!user) throw new Error("Nicht angemeldet");
       const { error } = await supabase
-        .from("monthly_goal_skips")
+        .from("weekly_goal_skips")
         .upsert(
           { user_id: user.id, platform, chatter_name: chatter },
           { onConflict: "user_id,platform,chatter_name" },
         );
       if (error) throw error;
     } catch (e: any) {
-      console.error("[MonthlyGoals] persistSkip failed", e);
+      console.error("[WeeklyGoals] persistSkip failed", e);
       toast.error(`Skip konnte nicht gespeichert werden: ${e?.message ?? "Fehler"}`);
       setSkipped((prev) => {
         if (!prev.has(chatter)) return prev;
@@ -908,13 +879,13 @@ export default function MonthlyGoals() {
     });
     try {
       const { error } = await supabase
-        .from("monthly_goal_skips")
+        .from("weekly_goal_skips")
         .delete()
         .eq("platform", platform)
         .eq("chatter_name", chatter);
       if (error) throw error;
     } catch (e: any) {
-      console.error("[MonthlyGoals] persistUnskip failed", e);
+      console.error("[WeeklyGoals] persistUnskip failed", e);
     }
   }
 
@@ -922,7 +893,7 @@ export default function MonthlyGoals() {
   async function clearAllCurrentGoals() {
     if (rows.length === 0) return;
     const ok = window.confirm(
-      `Wirklich alle ${rows.length} aktuellen Monatsziele für ${platform} löschen?\n\nDie Chatter bleiben in den Vorschlägen sichtbar und können neu vergeben werden.`,
+      `Wirklich alle ${rows.length} aktuellen Wochenziele für ${platform} löschen?\n\nDie Chatter bleiben in den Vorschlägen sichtbar und können neu vergeben werden.`,
     );
     if (!ok) return;
     setClearingAll(true);
@@ -960,7 +931,7 @@ export default function MonthlyGoals() {
           .delete()
           .eq("platform", platform)
           .in("chatter_name", chatterNames)
-          .ilike("note_text", "Monatsziel%");
+          .ilike("note_text", "Wochenziel%");
         if (nErr) throw nErr;
       }
 
@@ -968,9 +939,9 @@ export default function MonthlyGoals() {
       setRows([]);
       setSuggestions((prev) => prev.map((s) => ({ ...s, currentGoal: null })));
       setSkipped(new Set());
-      toast.success(`${chatterNames.length} Monatsziele gelöscht`);
+      toast.success(`${chatterNames.length} Wochenziele gelöscht`);
     } catch (e: any) {
-      console.error("[MonthlyGoals] clearAll failed", e);
+      console.error("[WeeklyGoals] clearAll failed", e);
       toast.error(e?.message ?? "Fehler beim Löschen");
     } finally {
       setClearingAll(false);
@@ -1002,7 +973,7 @@ export default function MonthlyGoals() {
         .delete()
         .eq("platform", platform)
         .eq("chatter_name", chatter)
-        .ilike("note_text", "Monatsziel%");
+        .ilike("note_text", "Wochenziel%");
       if (nErr) throw nErr;
 
       setRows((prev) => prev.filter((r) => r.chatter !== chatter));
@@ -1015,9 +986,9 @@ export default function MonthlyGoals() {
         next.delete(chatter);
         return next;
       });
-      toast.success(`Monatsziel für ${chatter} entfernt`);
+      toast.success(`Wochenziel für ${chatter} entfernt`);
     } catch (e: any) {
-      console.error("[MonthlyGoals] revert failed", e);
+      console.error("[WeeklyGoals] revert failed", e);
       toast.error(e?.message ?? "Fehler beim Zurücksetzen");
       throw e;
     }
@@ -1061,7 +1032,8 @@ export default function MonthlyGoals() {
   const today = new Date();
   const trackedThrough = new Date(today);
   trackedThrough.setDate(today.getDate() - 1);
-  const monthName = today.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  const { week: _wk, year: _yr } = isoWeekNumber(today);
+  const weekName = `KW ${_wk} ${_yr}`;
   const totalGoal = rows.reduce((s, r) => s + r.progress.goal, 0);
   const totalRev = rows.reduce((s, r) => s + r.progress.currentRevenue, 0);
   const onTrackCount = rows.filter((r) => r.progress.status === "on_track").length;
@@ -1080,14 +1052,14 @@ export default function MonthlyGoals() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 font-light">
                 <Sparkles className="h-3 w-3" />
-                Dashboard · {monthName}
+                Dashboard · {weekName}
               </div>
               <h1 className="text-xl sm:text-3xl font-semibold tracking-tight gold-text mt-0.5 sm:mt-1">
-                Monatsziele
+                Wochenziele
               </h1>
               <p className="text-[12px] sm:text-sm text-white/55 font-light mt-1 sm:mt-1.5 max-w-2xl leading-relaxed">
                 {rows.length === 0
-                  ? 'Noch keine Chatter mit dem Label „Monatsziel" und einer Zahl in den Notizen.'
+                  ? 'Noch keine Chatter mit dem Label „Wochenziel" und einer Zahl in den Notizen.'
                   : `${rows.length} Chatter im Tracking · ${onTrackCount} on track · ${formatEUR(totalRev)} von ${formatEUR(totalGoal)} erreicht.`}
               </p>
               <p className="text-[10px] sm:text-[11px] text-white/35 font-light mt-1">
@@ -1100,8 +1072,8 @@ export default function MonthlyGoals() {
         {/* Tabs */}
         <div className="flex gap-1.5 border-b border-white/[0.06] pb-0">
           {([
-            ["current", "Aktuelle Monatsziele", rows.length],
-            ["future", "Zukünftige Monatsziele", suggestionsGenerated ? visibleSuggestions.length : 0],
+            ["current", "Aktuelle Wochenziele", rows.length],
+            ["future", "Zukünftige Wochenziele", suggestionsGenerated ? visibleSuggestions.length : 0],
           ] as ["current" | "future", string, number][]).map(([k, label, count]) => (
             <button
               key={k}
@@ -1151,7 +1123,7 @@ export default function MonthlyGoals() {
                   onClick={clearAllCurrentGoals}
                   disabled={clearingAll}
                   className="ml-auto text-[11px] px-3 py-1.5 rounded-full border border-red-400/20 bg-red-500/[0.06] text-red-200/85 hover:bg-red-500/[0.12] hover:text-red-100 transition-colors font-light flex items-center gap-1.5 disabled:opacity-50"
-                  title="Alle aktuellen Monatsziele für diese Plattform löschen"
+                  title="Alle aktuellen Wochenziele für diese Plattform löschen"
                 >
                   {clearingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                   Alle löschen
@@ -1186,7 +1158,7 @@ export default function MonthlyGoals() {
             {loading ? (
               <div className="flex items-center justify-center py-20 text-white/40">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                <span className="text-sm font-light">Lade Monatsziele…</span>
+                <span className="text-sm font-light">Lade Wochenziele…</span>
               </div>
             ) : error ? (
               <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-6 text-sm text-red-200">
@@ -1196,7 +1168,7 @@ export default function MonthlyGoals() {
               <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-8 text-center">
                 <Target className="h-8 w-8 mx-auto text-white/20 mb-3" />
                 <p className="text-sm text-white/55 font-light">
-                  Vergib im Swipe-Mode oder Slide-Over das Label <span className="text-white/80">„Monatsziel"</span>{" "}
+                  Vergib im Swipe-Mode oder Slide-Over das Label <span className="text-white/80">„Wochenziel"</span>{" "}
                   und schreibe eine Zahl in die Coaching-Notizen — oder nutze den Tab{" "}
                   <span className="text-white/80">„Zukünftige Monatsziele"</span>.
                 </p>
@@ -1256,7 +1228,7 @@ export default function MonthlyGoals() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-sm font-light hover:bg-emerald-400/25 transition-colors"
                 >
                   <Sparkles className="h-4 w-4" />
-                  Zukünftige Monatsziele generieren
+                  Zukünftige Wochenziele generieren
                 </button>
               </div>
             ) : visibleSuggestions.length === 0 ? (
@@ -1270,7 +1242,7 @@ export default function MonthlyGoals() {
               <>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
-                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × Tage im Monat × 110 % (auf 50 € gerundet, mit Smoothing für neue Chatter). Karten mit „Update"-Badge überschreiben das bestehende Monatsziel.
+                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × 7 Tage × 110 % (auf 10 € gerundet, mit Smoothing für neue Chatter). Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
                   </p>
                   <div className="flex gap-2 shrink-0">
                     <button
