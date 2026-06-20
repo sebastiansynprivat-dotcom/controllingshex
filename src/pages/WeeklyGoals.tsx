@@ -1170,6 +1170,26 @@ export default function WeeklyGoals() {
     [filteredRows],
   );
 
+  const filteredTotalRevenue = useMemo(
+    () => filteredRows.reduce((s, r) => s + r.progress.currentRevenue, 0),
+    [filteredRows],
+  );
+
+  const filteredOverallPct = useMemo(
+    () => (filteredTotalGoal > 0 ? (filteredTotalRevenue / filteredTotalGoal) * 100 : 0),
+    [filteredTotalGoal, filteredTotalRevenue],
+  );
+
+  const filteredRemaining = useMemo(
+    () => Math.max(0, filteredTotalGoal - filteredTotalRevenue),
+    [filteredTotalGoal, filteredTotalRevenue],
+  );
+
+  const overallStatus: GoalStatus =
+    filteredOverallPct >= 90 ? "on_track"
+    : filteredOverallPct >= 75 ? "close"
+    : "off_track";
+
   const today = new Date();
   const trackedThrough = new Date(today);
   trackedThrough.setDate(today.getDate() - 1);
