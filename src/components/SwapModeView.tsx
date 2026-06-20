@@ -131,7 +131,7 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           boxShadow: `0 24px 60px -24px hsl(240 10% 0% / 0.7), inset 0 1px 0 hsl(0 0% 100% / 0.04)`,
         }}
       >
-        <div className="flex items-center justify-between mb-2 lg:mb-3">
+        <div className="flex items-center justify-between mb-2 lg:mb-3 gap-2">
           <span
             className="text-[8px] lg:text-[9px] uppercase tracking-[0.18em] font-semibold px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full border"
             style={{
@@ -142,17 +142,52 @@ function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onS
           >
             {tag}
           </span>
-          <span
-            className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
-            style={{
-              color: `hsl(${tierColor(chatter.tier)})`,
-              borderColor: `hsl(${tierColor(chatter.tier)} / 0.35)`,
-              background: `hsl(${tierColor(chatter.tier)} / 0.08)`,
-            }}
-          >
-            {chatter.tier}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {isDeclining && (
+              <span
+                className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
+                style={{
+                  color: "hsl(38 90% 65%)",
+                  borderColor: "hsl(38 80% 50% / 0.35)",
+                  background: "hsl(38 80% 50% / 0.08)",
+                }}
+                title="Aktivität/Umsatz dieses Chatters ist in den letzten 7 Tagen deutlich unter seinem historischen Schnitt"
+              >
+                Im Rückgang
+              </span>
+            )}
+            <span
+              className="text-[8px] lg:text-[9px] uppercase tracking-wider font-semibold px-1.5 lg:px-2 py-0.5 rounded-md border"
+              style={{
+                color: `hsl(${tierColor(chatter.tier)})`,
+                borderColor: `hsl(${tierColor(chatter.tier)} / 0.35)`,
+                background: `hsl(${tierColor(chatter.tier)} / 0.08)`,
+              }}
+            >
+              {chatter.tier}
+            </span>
+            {onReplaceClick && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReplaceClick();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="h-7 w-7 lg:h-8 lg:w-8 rounded-full inline-flex items-center justify-center border transition-colors active:scale-95"
+                style={{
+                  color: `hsl(${accentHsl})`,
+                  borderColor: `hsl(${accentHsl} / 0.35)`,
+                  background: `hsl(${accentHsl} / 0.06)`,
+                }}
+                title="Diesen Chatter durch einen anderen ersetzen"
+                aria-label="Chatter ersetzen"
+              >
+                <Repeat className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
+
 
         <h3 className="text-base lg:text-2xl font-semibold text-foreground capitalize truncate mb-0.5 leading-tight">
           {chatter.name.replace(/_/g, " ")}
