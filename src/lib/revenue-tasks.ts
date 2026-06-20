@@ -506,7 +506,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     recentSwaps.add(`${b}|${a}`);
   }
 
-  for (const pair of swapPairs.slice(0, 12)) {
+  for (const pair of swapPairs) {
     if (pair.expectedGain < 50 / 7) continue;
     const a = pair.left.name.toLowerCase();
     const b = pair.right.name.toLowerCase();
