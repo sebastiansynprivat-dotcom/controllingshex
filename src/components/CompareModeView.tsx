@@ -229,6 +229,58 @@ export default function CompareModeView({
     };
   }, [platform]);
 
+  // Live-Profile (Echtzeit · Heute) pro Chatter aus chatter_history_live.
+  // Identische Quelle wie das Chatter-Profil (Slideover).
+  type LiveProfile = { revenue: number; mass_dms: number; unread_chats: number; oldest_chat: number };
+  const [liveByName, setLiveByName] = useState<Map<string, LiveProfile>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const out = new Map<string, LiveProfile>();
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("chatter_history_live")
+          .select("chatter_name, revenue, mass_dms, unread_chats, oldest_chat, date")
+          .ilike("platform", platform)
+          .order("date", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (cancelled) return;
+        if (error || !data) break;
+        for (const r of data as Array<{ chatter_name: string | null; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null }>) {
+          if (!r.chatter_name) continue;
+          const key = normalizeName(r.chatter_name);
+          // order desc → erster Eintrag pro Chatter ist der neueste
+          if (out.has(key)) continue;
+          out.set(key, {
+            revenue: Number(r.revenue) || 0,
+            mass_dms: Number(r.mass_dms) || 0,
+            unread_chats: Number(r.unread_chats) || 0,
+            oldest_chat: Number(r.oldest_chat) || 0,
+          });
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      if (cancelled) return;
+      setLiveByName(out);
+    };
+    load();
+    const channel = supabase
+      .channel(`compare-live-${platform}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chatter_history_live" }, () => {
+        load();
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
   // Reset wenn sich Filter/Stack ändert
   useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
   useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
@@ -300,6 +352,7 @@ export default function CompareModeView({
           item={currentA}
           enrichedMap={enrichedByName}
           profileStats={profileStats}
+          liveByName={liveByName}
           stackLength={orderedA.length}
           idx={idxA}
           dismissedCount={dismissedA.size}
@@ -331,6 +384,7 @@ export default function CompareModeView({
           item={currentB}
           enrichedMap={enrichedByName}
           profileStats={profileStats}
+          liveByName={liveByName}
           stackLength={orderedB.length}
           idx={idxB}
           dismissedCount={dismissedB.size}
@@ -505,6 +559,7 @@ function CompareSlot({
   item,
   enrichedMap,
   profileStats,
+  liveByName,
   stackLength,
   idx,
   dismissedCount,
@@ -519,6 +574,7 @@ function CompareSlot({
   item: FilteredChatter | undefined;
   enrichedMap: Map<string, SwapChatter>;
   profileStats: Map<string, { avgRev: number; avgDMs: number }>;
+  liveByName: Map<string, { revenue: number; mass_dms: number; unread_chats: number; oldest_chat: number }>;
   stackLength: number;
   idx: number;
   dismissedCount: number;
@@ -581,6 +637,7 @@ function CompareSlot({
 
   const enriched = enrichedMap.get(normalizeName(item.name));
   const stats = profileStats.get(normalizeName(item.name));
+  const live = liveByName.get(normalizeName(item.name));
 
   return (
     <div className="space-y-1.5">
@@ -591,6 +648,7 @@ function CompareSlot({
           item={item}
           enriched={enriched}
           profileStats={stats}
+          live={live}
             metricLabel={metricLabel}
           onSwipeLR={onSwipeDismiss}
           onSwipeDown={onSwipeSkip}
@@ -623,6 +681,7 @@ function CompareSwipeCard({
   item,
   enriched,
   profileStats,
+  live,
   metricLabel,
   onSwipeLR,
   onSwipeDown,
@@ -633,6 +692,7 @@ function CompareSwipeCard({
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
   profileStats: { avgRev: number; avgDMs: number } | undefined;
+  live: { revenue: number; mass_dms: number; unread_chats: number; oldest_chat: number } | undefined;
   metricLabel: string;
   onSwipeLR: () => void;
   onSwipeDown: () => void;
@@ -785,6 +845,35 @@ function CompareSwipeCard({
               <MessageSquare className="h-2.5 w-2.5 md:h-3 md:w-3" /> Ø MassDMs/Tag
             </p>
             <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{avgDailyDMs}</p>
+          </div>
+        </div>
+
+        {/* Echtzeit · Heute — Live-Daten aus chatter_history_live */}
+        <div className="mt-2 md:mt-3">
+          <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1 mb-1">
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: `hsl(${accentHsl})`, boxShadow: `0 0 6px hsl(${accentHsl})` }}
+            />
+            Echtzeit · Heute
+          </p>
+          <div className="grid grid-cols-4 gap-1 md:gap-1.5">
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">Umsatz</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{formatEur(live?.revenue ?? 0)}</p>
+            </div>
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">MassDMs</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{live?.mass_dms ?? 0}</p>
+            </div>
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">Offen</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{live?.unread_chats ?? 0}</p>
+            </div>
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">Ältester</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{live?.oldest_chat ?? 0}d</p>
+            </div>
           </div>
         </div>
 
