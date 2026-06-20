@@ -1228,11 +1228,35 @@ export default function WeeklyGoals() {
 
         {tab === "current" && (
           <>
+            {/* Impact-Filter: wichtige (≥ 100 €) vs. Mini-Wochenziele */}
+            {rows.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {([
+                  ["important", `Wichtige (ab ${IMPACT_THRESHOLD} €)`, impactCounts.important, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+                  ["small", `Klein (< ${IMPACT_THRESHOLD} €)`, impactCounts.small, "border-white/15 bg-white/[0.04] text-white/70"],
+                  ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
+                ] as ["important" | "small" | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
+                  <button
+                    key={k}
+                    onClick={() => setImpactFilter(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                      impactFilter === k
+                        ? activeCls
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Status filter */}
             {rows.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
                 {([
-                  ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
+                  ["all", "Alle", statusCounts.total, "border-white/20 bg-white/[0.06] text-white/90"],
                   ["on_track", "On Track", statusCounts.on_track, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
                   ["close", "Knapp", statusCounts.close, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
                   ["off_track", "Off Track", statusCounts.off_track, "border-red-300/30 bg-red-400/10 text-red-200"],
