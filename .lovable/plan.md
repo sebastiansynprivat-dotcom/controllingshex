@@ -1,109 +1,91 @@
-## Was du bekommst
+## Warum die jetzigen Vorschläge sich „statisch" anfühlen
 
-Im **Wechsel-Mode** zwei neue Stufen, wenn dir ein vorgeschlagenes Tauschpaar nicht zusagt — plus ein durchgängig hochwertiges Premium-Design (Navy/Charcoal + Gold-Akzent), das auch als installierte Web-App auf dem Homescreen smooth läuft.
+Die aktuelle Engine vergleicht **abstrakten Chatter-Skill** (Mass-DMs, Response-Zeit, €/Follower) gegen **Account-Größe (Follower)**. Das ist eine Korrelation, kein Beweis. Sie ignoriert die zwei stärksten Signale, die wir bereits in der DB liegen haben:
 
----
+1. **`account-fit.ts`** rechnet pro `(Chatter × Account)` aus 90 Tagen `chatter_history` einen `fitScore` mit `confidence` aus — wie gut hat dieser Chatter **auf diesem konkreten Account** historisch geliefert, vs. seine eigene Baseline und vs. andere Chatter, die je drauf saßen. **Wird in der Swap-Engine aktuell gar nicht benutzt.**
+2. **`swap-tracking.ts`** misst pro vergangenem Swap (`swap_decisions`) das Δ% 3 Tage davor vs. 3 Tage danach. Wir haben also echte Outcome-Daten unserer eigenen Empfehlungen — die fließen nicht zurück ins Ranking.
 
-## 1. Zwei-Stufen-Ablehnung (Logik)
+Dazu kommt: Die aktuelle Engine sucht nur **paarweise A↔B-Tausche**. In der Realität ist die beste Empfehlung oft „setz X auf Account Y, Bench Z" — also 1:N, nicht 1:1.
 
-Wenn ein Tauschpaar erscheint (`Underplaced ↔ Overplaced`):
+## Was die neue Engine anders macht
 
-**Stufe 1 — Pair komplett verwerfen** (Swipe links auf der ganzen Karte)
-- Das ganze Paar fliegt raus.
-- Nächster Auto-Vorschlag wird gezeigt.
-- Bleibt für den aktuellen Report ausgeblendet (an `analysis_date` gebunden — neuer Report = neuer Vorschlag möglich).
+Statt „Skill-Rang vs. Follower-Rang" arbeiten wir mit **konkreten, account-spezifischen Beweisen** und ranken nach **Confidence × erwartetem €-Gain**.
 
-**Stufe 2 — Nur einen Chatter ersetzen** (Pfeil-Icon "Chatter tauschen" auf der jeweiligen Mini-Karte)
-- Öffnet ein **Challenger-Picker-Sheet** mit den 5–8 besten Alternativen:
-  - **Links (Underplaced) ersetzen** → Pool: andere Underplaced-Chatter, sortiert nach `expectedGain` für genau diesen Account rechts.
-  - **Rechts (Overplaced) ersetzen** → Pool: andere Overplaced-Chatter, sortiert nach Fit für genau diesen Account links.
-- Jeder Challenger zeigt: Name, Account, Tier, Skill-Score, 7T-Ø Umsatz, **erwarteter Gain (€/Tag)** für genau dieses neu kombinierte Paar.
-- Bestätigen → das gewählte Paar ersetzt das vorherige in der Stack-Position.
-- "Schließen" → ursprüngliches Paar bleibt.
+### 1. Signal-Stack pro Account (statt pro Chatter-Skill)
+Für jeden aktiven Account werden 4 Signale berechnet:
 
-**Zusätzlich: Bestätigung-Stufe**
-- Beim Swipe nach rechts (= "Tausch durchführen") kommt ein kurzer Confirm-Sheet mit beiden Chattern, Accounts und erwartetem Gain → "Bestätigen" oder "Doch ändern" (zurück zum Challenger-Picker).
+| Signal | Datenquelle | Was es aussagt |
+|---|---|---|
+| **Account-Decline** | `chatter_history` letzte 7d vs. Tag -30…-8 | Account verdient gerade weniger als sein eigenes 30d-Niveau |
+| **Chatter-Underperformance auf diesem Account** | `account-fit` `vsPeerOnAccount` | Der aktuelle Chatter liegt unter dem Median anderer Chatter, die je drauf waren |
+| **Phase-Change-Bruch** | `chatter_history` Phasen-Detection | Wechsel der Hauptbetreuung in den letzten 14 Tagen ging mit Revenue-Drop einher |
+| **Verschwendetes Top-Profil** | `account-fit.byChatter` | Ein nachweislich starker Chatter (high `fitScore` auf ≥1 großem Account historisch) sitzt aktuell auf einem schwächeren Account |
 
-### Inaktivitäts-Bonus (kleiner Hinweis-Chip)
-Wenn der `Overplaced`-Chatter rechts in den letzten 7 Tagen unter 30% seines historischen Durchschnitts ist, erscheint ein dezenter `Im Rückgang`-Chip auf seiner Karte (Wording laut Memory — kein "absäuft").
+Ein Account wird Swap-Kandidat, wenn **mindestens 1 Signal feuert** — nicht nur wenn er rechnerisch im Bottom-40% liegt.
 
----
+### 2. Kandidaten-Matching mit echtem Fit, nicht nur Tier
+Für jeden Kandidaten-Account suchen wir Ersatz-Chatter in dieser Priorität:
 
-## 2. Premium-Design (Dark · Navy/Charcoal · Gold-Akzent)
+1. **Direkter historischer Beweis**: Chatter, die schon mal **auf genau diesem Account** waren und nachweislich mehr verdient haben (`fitScore ≥ 65`, `confidence ≥ medium`, ≥3 Tage Stichprobe).
+2. **Nachbar-Account-Beweis**: Chatter mit hohem `fitScore` auf einem Account des **gleichen Tiers + ähnlicher Follower-Range (±50%)**.
+3. **Skill-Fallback** (heutige Logik): Wenn weder 1 noch 2 greifen, klassischer Skill-vs-Follower-Mismatch.
 
-**Farbsystem (Tokens in `index.css`):**
-- `--background`: `240 18% 4%` (tiefes Navy-Schwarz)
-- `--surface-1`: `240 14% 7%` (Karten-Basis)
-- `--surface-2`: `240 12% 10%` (gehobene Sektionen)
-- `--border`: `240 10% 14%`
-- `--foreground`: `40 30% 96%` (warmes Off-White)
-- `--muted-foreground`: `240 6% 60%`
-- `--accent-gold`: `42 55% 54%` (`#c9a84c`)
-- `--accent-gold-soft`: `42 60% 70%`
-- `--success`: `152 60% 50%` (Underplaced/Gewinn)
-- `--danger`: `0 70% 58%` (Overplaced/Verlust)
-- Gradients: `--gradient-card` (radialer Akzent oben + linearer Surface-Verlauf), `--gradient-gold` (Buttons, Confirm-CTA)
-- Shadows: `--shadow-elevated` (24px / -24px, sehr weich), `--shadow-gold-glow` (subtiler Gold-Hauch auf Confirm-Buttons)
+Stufen 1 und 2 sind die neuen, „smarten" Vorschläge — sie bekommen high confidence. Stufe 3 läuft weiter, wird aber als „spekulativ" gelabelt.
 
-**Typografie:**
-- Headlines: **Instrument Serif** (edel, magazinhaft)
-- Body / Numbers: **Inter Tight** mit `tabular-nums` für alle Geld-/Skill-Werte
-- Beide via `@fontsource` — kein Google-CDN
+### 3. Confidence-Score (0–100) pro Vorschlag
+Damit du dich auf die Liste verlassen kannst, kriegt jeder Vorschlag eine sichtbare Confidence:
 
-**Karten-Stil:**
-- `rounded-3xl`, 1px Hairline-Border `border-white/[0.06]`
-- Top-Akzentlinie 2px in Side-Farbe (Grün links / Rot rechts / Gold im Picker)
-- Inset-Highlight oben (`inset 0 1px 0 hsl(0 0% 100% / 0.04)`)
-- Skill-Bar: weicher Gradient mit Glow am rechten Ende
+```
+confidence = base_by_evidence_tier   // S1=70, S2=50, S3=25
+           + sample_bonus            // +0…+15  je nach Tagen Stichprobe
+           + recency_bonus           // +0…+10  je frischer die Evidenz
+           + swap_tracking_bonus     // +0…+10  wenn ähnliche Swaps in der Vergangenheit positiv waren
+           - risk_penalty            // -0…-15  bei großem Tier-Sprung ohne Belege
+```
 
-**Motion (framer-motion):**
-- Karten-Stack: gestaffelter Fade-In (0.06s Delay pro Karte)
-- Swipe: Spring (stiffness 300, damping 28) — wie heute, Distanz-Schwelle 120px (Memory-konform, kein Velocity-Check)
-- Challenger-Picker: Sheet von unten, `ease-out-expo`, 280ms
-- Confirm-Sheet: Scale-In 0.96 → 1 mit Gold-Glow-Pulse auf CTA
-- Subtile Hover-Lift auf Desktop (`y: -2px`), entfällt auf Touch
+Der UI-Default zeigt **nur Vorschläge mit confidence ≥ 50** an. Darunter ist ein Toggle „Auch spekulative Vorschläge zeigen" für die heutige breite Liste.
 
----
+### 4. Expected-Gain wird ehrlicher
+Aktuell: `peer_cluster_median × skill_factor − current`. Neu, je nach Evidenz-Stufe:
 
-## 3. Mobile- & PWA-Optimierung
+- **S1**: `gain = bester_historischer_avg_dieses_chatters_auf_diesem_account − aktueller_avg`. Hartes, account-spezifisches Δ.
+- **S2**: `gain = chatter_avg_auf_Nachbar_account × similarity_factor − aktueller_avg`.
+- **S3**: heutige Peer-Cluster-Formel (bleibt als Fallback).
 
-- **Touch-Targets:** alle Action-Icons min. 44×44px
-- **Safe-Area:** `env(safe-area-inset-*)` Padding für iOS Notch/Home-Indicator
-- **Viewport-Meta:** `viewport-fit=cover` (für edge-to-edge auf installierter App)
-- **Manifest (`public/manifest.webmanifest`):**
-  - `display: "standalone"`, `theme_color: "#0a0a14"`, `background_color: "#0a0a14"`
-  - Icons 192/512/maskable
-  - Apple-Touch-Icon + Status-Bar `black-translucent`
-- **Performance:**
-  - Challenger-Picker lazy-loaded
-  - Skill-Pills nur auf Desktop (`hidden lg:grid`) — Mobile zeigt nur Top-3 Kennzahlen
-  - `will-change: transform` nur während Drag aktiv
-- Kein Service-Worker / kein Offline-Mode (du hast Offline nie verlangt — Manifest-only Installation)
+Negative Gains werden ausgefiltert; sehr kleine Gains (<50 €/Woche) bekommen automatisch confidence ≤ 40.
 
----
+### 5. Lern-Loop über `swap_decisions` + `swap-tracking.ts`
+Vor dem Ranking laden wir alle `swap_decisions` mit `status='approved'` der letzten 90 Tage und ihr `deltaPct` aus `swap-tracking.ts`. Aggregiert pro Tier-Richtung („Upgrade vs Lateral vs Downgrade") ergibt das einen **Hit-Rate-Multiplier**. Wenn z.B. Upgrades historisch +18% gebracht haben, kriegen neue Upgrade-Vorschläge `+8` Confidence. Wenn Downgrades im Schnitt -5% brachten, kriegen sie `-10`. So wird die Engine über die Zeit besser, ohne dass du was tunen musst.
 
-## 4. Technische Details
+### 6. UI-Sichtbarkeit der Begründung
+Jede Karte zeigt **warum** dieser Tausch vorgeschlagen wird, in 1 Zeile menschenlesbar:
 
-**Dateien:**
-- `src/lib/swap-suggestions.ts` — neue Funktion `computeChallengersForSlot(pair, side, allChatters, ...)` die für eine konkrete Pair-Slot die besten Alternativen rankt
-- `src/components/SwapModeView.tsx`:
-  - Neue State: `challengerPickerSide: "left" | "right" | null`, `pendingConfirm: SwapPair | null`
-  - Neuer Sub-Component `ChallengerPickerSheet`
-  - Neuer Sub-Component `ConfirmSwapSheet`
-  - Mini-Karte bekommt Icon-Button `↻` (oben rechts, neben Tier-Badge) für "Diesen Chatter ersetzen"
-- `src/index.css` — Token-Refresh (Gold-Palette + neue Gradients/Shadows)
-- `tailwind.config.ts` — `fontFamily.serif: ["Instrument Serif", ...]`, `fontFamily.sans: ["Inter Tight", ...]`
-- `src/main.tsx` — Font-Imports
-- `public/manifest.webmanifest` + Icon-Set + Head-Tags in `index.html`
+> „Lara verdiente auf diesem Account zwischen 12.04. und 03.05. im Schnitt **312 €/Tag** — Mia liegt aktuell bei **184 €/Tag** (7-Tage-Schnitt). Δ = +128 €/Tag. Confidence **78/100**."
 
-**Persistenz:**
-- Verworfene Paare: weiter über `swap_report_dismissed::*` (existiert schon)
-- Per-Slot-Replacements werden NICHT persistiert — nur in-memory während der Session
+Das ist der Moment, an dem du sagst „geil, darauf kann ich mich verlassen".
 
----
+## Was unverändert bleibt
 
-## Was sich NICHT ändert
+- Brezzels-Mismatch-Branch (`buildBrezzelsPools`) bleibt wie ist — die Plattform hat zu wenig Account-History-Tiefe für S1/S2, da ist Skill-Rang ehrlicher.
+- `computeManualSwapCandidates` (manueller Modus pro Chatter) bleibt — wird nur intern auf das neue Scoring umgestellt.
+- UI-Komponenten (`SwapModeView`, `PersonActionCard`) bekommen nur zwei neue Felder: `confidence` und `evidence` (Begründungs-String).
 
-- Skill-Score-Berechnung, Mismatch-Logik, Tier-System, 7-Tage-Fenster — alles bleibt wie es ist
-- Swipe-Schwelle bleibt 120px Distanz (Memory)
-- Channel/Wochenplan und andere Bereiche werden nicht angefasst
+## Technische Architektur
+
+```
+src/lib/swap-suggestions.ts        ← Hauptfunktion, neuer Default-Branch
+  ├─ src/lib/account-fit.ts        ← bereits da, wird jetzt importiert
+  ├─ src/lib/swap-tracking.ts      ← bereits da, neu: aggregierter Hit-Rate-Multiplier
+  ├─ neu: detectAccountSignals()   ← 4-Signal-Stack pro Account
+  ├─ neu: rankReplacements()       ← S1 → S2 → S3 Kaskade
+  └─ neu: computeConfidence()      ← 0–100 Score + Begründungs-String
+```
+
+Keine DB-Migrationen nötig — alle Daten liegen schon in `chatter_history`, `swap_decisions`, `models`, `model_attributes`.
+
+## Was ich von dir wissen müsste, bevor ich starte
+
+1. **Confidence-Threshold default**: Ich plane 50 als Default-Cutoff. Lieber strenger (60, zeigt weniger, aber alle „solide") oder lockerer (40, mehr Vorschläge)?
+2. **Lern-Loop sofort scharf?** Hit-Rate-Multiplier braucht mindestens ~15 approved Swaps in den letzten 90 Tagen, um statistisch was wert zu sein. Soll er bei zu wenig Daten **auf 0 stehen** (sicher) oder optimistisch +5 für Upgrades vergeben (mein Default)?
+
+Wenn beides okay ist, baue ich direkt durch.

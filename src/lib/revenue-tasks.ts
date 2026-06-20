@@ -29,6 +29,8 @@ import {
   type SwapModelInfo,
   type SwapPair,
 } from "@/lib/swap-suggestions";
+import { loadAccountFitMatrix } from "@/lib/account-fit";
+import { loadSwapTracking } from "@/lib/swap-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot";
@@ -299,7 +301,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames] = await Promise.all([
+  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, fitMatrix, swapTracking] = await Promise.all([
     supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
@@ -322,6 +324,14 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     loadRecoveryHistory(platform),
     loadMismatchMap(platform),
     loadActiveChatterNames(platform),
+    loadAccountFitMatrix(platform).catch((e) => {
+      console.warn("[revenue-tasks] fitMatrix failed", e);
+      return undefined;
+    }),
+    loadSwapTracking(platform).catch((e) => {
+      console.warn("[revenue-tasks] swapTracking failed", e);
+      return new Map();
+    }),
   ]);
 
   const historyAll = (historyRes.data ?? []) as HistoryRow[];
@@ -485,6 +495,9 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     swapPairs = computeSwapCandidates(swapChatters, swapModels, null, {
       platform,
       window: { windowDays: 7 },
+      fitMatrix: fitMatrix ?? undefined,
+      swapTracking: swapTracking ?? undefined,
+      minConfidence: 45,
     });
   } catch (e) {
     console.warn("[revenue-tasks] swap engine failed", e);
@@ -515,14 +528,19 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     if (impact < MIN_IMPACT_EUR_PER_WEEK) continue;
     const tierMult = tierMultiplierFromFollowers(pair.right.followers);
     const imp = importanceFor(totals30, pair.left.name);
-    const score = impact * 0.65 * tierMult * imp;
+    // Confidence-Faktor (0..1) — höhere Confidence = höherer Score
+    const confFactor = pair.confidence != null ? Math.max(0.4, pair.confidence / 100) : 0.65;
+    const score = impact * confFactor * tierMult * imp;
+    const whyText = pair.evidence
+      ? `${pair.evidence} Erwartet +${fmtEur(pair.expectedGain)}/Tag${pair.confidence != null ? ` · Confidence ${pair.confidence}/100` : ""}.`
+      : `Skill-Score ${(pair.left.skillScore * 100).toFixed(0)} vs. ${(pair.right.skillScore * 100).toFixed(0)}, Follower ${Math.round(pair.followerRatio * 10) / 10}× größer. Erwartet +${fmtEur(pair.expectedGain)}/Tag.`;
     tasks.push({
       key: `rev:swap:${a}:${b}:${today}`,
       kind: "swap",
       title: `Swap ${pair.left.name} (${pair.left.account}) ↔ ${pair.right.name} (${pair.right.account})`,
-      why: `Skill-Score ${(pair.left.skillScore * 100).toFixed(0)} vs. ${(pair.right.skillScore * 100).toFixed(0)}, Follower ${Math.round(pair.followerRatio * 10) / 10}× größer. Erwartet +${fmtEur(pair.expectedGain)}/Tag.`,
+      why: whyText,
       impactEurPerWeek: impact,
-      confidence: 0.65,
+      confidence: pair.confidence != null ? pair.confidence / 100 : 0.65,
       score,
       chatterName: pair.left.name,
       secondaryChatter: pair.right.name,

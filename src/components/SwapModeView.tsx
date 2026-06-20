@@ -26,6 +26,8 @@ import {
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { fetchLiveEfficiency, type LiveEfficiencyRow } from "@/lib/live-efficiency";
+import { loadAccountFitMatrix, type AccountFitMatrix } from "@/lib/account-fit";
+import { loadSwapTracking, type SwapTrackingEntry } from "@/lib/swap-tracking";
 
 interface Props {
   platform: string;
@@ -381,9 +383,29 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
     return () => { cancelled = true; };
   }, [platform, timeRange.from, timeRange.to]);
 
+  /** Account-Fit-Matrix (90T historische Performance pro Chatter×Account) — speist die
+   *  Smart-Cascade in computeSwapCandidates (S1 direkter Beweis, S2 Nachbar-Beweis). */
+  const [fitMatrix, setFitMatrix] = useState<AccountFitMatrix | undefined>(undefined);
+  const [swapTracking, setSwapTracking] = useState<Map<string, SwapTrackingEntry>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      loadAccountFitMatrix(platform).catch(() => undefined),
+      loadSwapTracking(platform).catch(() => new Map()),
+    ]).then(([fm, st]) => {
+      if (cancelled) return;
+      setFitMatrix(fm ?? undefined);
+      setSwapTracking(st ?? new Map());
+    });
+    return () => { cancelled = true; };
+  }, [platform]);
+
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow, liveEfficiency }),
-    [chatters, models, benchmarks, platform, swapWindow, liveEfficiency]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, {
+      platform, window: swapWindow, liveEfficiency,
+      fitMatrix, swapTracking, minConfidence: 40,
+    }),
+    [chatters, models, benchmarks, platform, swapWindow, liveEfficiency, fitMatrix, swapTracking]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
@@ -1266,6 +1288,23 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
             >
               {currentPair.followerRatio.toFixed(1)}× Follower
             </span>
+            {currentPair.confidence != null && (
+              <span
+                className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2 lg:px-3 py-1 lg:py-1.5 rounded-full border tabular-nums"
+                style={{
+                  color: currentPair.confidence >= 65 ? "hsl(152 70% 60%)" : currentPair.confidence >= 45 ? "hsl(40 90% 60%)" : "hsl(0 0% 60%)",
+                  borderColor: currentPair.confidence >= 65 ? "hsl(152 70% 45% / 0.45)" : currentPair.confidence >= 45 ? "hsl(40 90% 55% / 0.4)" : "hsl(0 0% 100% / 0.15)",
+                  background: currentPair.confidence >= 65 ? "hsl(152 70% 45% / 0.08)" : currentPair.confidence >= 45 ? "hsl(40 90% 55% / 0.06)" : "transparent",
+                }}
+                title={
+                  currentPair.evidenceTier === 1 ? "Direkter Beweis: dieser Chatter war schon auf diesem Account"
+                  : currentPair.evidenceTier === 2 ? "Nachbar-Beweis: dieser Chatter performt auf einem ähnlich großen Account"
+                  : "Spekulativ: nur Skill-Score-Vergleich, kein direkter Account-Beweis"
+                }
+              >
+                {currentPair.confidence}/100 · S{currentPair.evidenceTier ?? "?"}
+              </span>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -1277,6 +1316,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
               <span className="hidden sm:inline">{isManualMode ? "Anderen wählen" : "Manuell wählen"}</span>
             </Button>
           </div>
+
+          {currentPair.evidence && (
+            <p className="text-[10px] lg:text-xs text-white/65 leading-snug px-1 pt-0.5">
+              {currentPair.evidence}
+            </p>
+          )}
         </div>
 
         {/* Cards stage */}

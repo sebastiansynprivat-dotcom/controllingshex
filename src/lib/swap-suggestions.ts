@@ -23,6 +23,9 @@ import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { findCluster } from "@/lib/peer-benchmarks";
 import type { LiveEfficiencyRow } from "@/lib/live-efficiency";
 import { hasUsableLiveData } from "@/lib/live-efficiency";
+import type { AccountFitMatrix } from "@/lib/account-fit";
+import type { SwapTrackingEntry, TierDirection } from "@/lib/swap-tracking";
+import { normalizeChatterName } from "@/lib/active-chatters";
 
 export type Tier = "Micro" | "Small" | "Medium" | "Large" | "Huge";
 
@@ -109,6 +112,12 @@ export interface SwapPair {
   tierJump: number;
   leftAlternatives: SwapChatter[];
   rightAlternatives: SwapChatter[];
+  /** 0..100 — wie verlässlich der Vorschlag ist (Account-Fit + Sample + Recency + Lern-Loop). */
+  confidence?: number;
+  /** Menschenlesbare Begründung mit Zahlen — wird auf der Card angezeigt. */
+  evidence?: string;
+  /** 1 = direkter historischer Beweis auf diesem Account, 2 = Nachbar-Account-Beweis, 3 = Skill-Fallback. */
+  evidenceTier?: 1 | 2 | 3;
 }
 
 /* ------------------------------------------------------------------ */
@@ -458,6 +467,14 @@ export interface ComputeOptions {
   window?: WindowSpec;
   /** Optional: Live-Effizienz pro Chatter (key = chatter_name lowercase). Wenn gesetzt und ausreichend Daten, ersetzt sie den Legacy-Skill-Score. */
   liveEfficiency?: Map<string, LiveEfficiencyRow>;
+  /** Optional: Account-Fit-Matrix (aus loadAccountFitMatrix). Aktiviert den account-spezifischen Smart-Branch. */
+  fitMatrix?: AccountFitMatrix;
+  /** Optional: Outcome-Daten vergangener Swaps (aus loadSwapTracking). Speist Confidence-Bonus pro Tier-Richtung. */
+  swapTracking?: Map<string, SwapTrackingEntry>;
+  /** Minimal-Confidence (0..100). Pairs darunter werden gefiltert. Default 50. -1 = alles zeigen. */
+  minConfidence?: number;
+  /** Wenn true UND zu wenig confident pairs (<5), wird der Legacy-Skill-Mismatch als Spekulations-Backfill aufgenommen. Default true. */
+  allowSpeculativeBackfill?: boolean;
 }
 
 /**
@@ -620,10 +637,15 @@ export function computeSwapCandidates(
     return [];
   }
 
-  // ----- Default (Maloum & Co.): Skill-Pool nach Top/Bottom poolFraction -----
+  // ----- Default (Maloum, myLoop & Co.) -----
+  // Wenn fitMatrix übergeben → Smart-Cascade (S1 → S2 → S3 Spec-Backfill).
+  // Sonst → klassischer Skill-Mismatch (Legacy-Verhalten, Backwards-Compat).
+  if (opts.fitMatrix) {
+    return computeSmartDefault(enriched, chatters, bundle, opts);
+  }
+
   const sortedBySkill = [...enriched].sort((a, b) => b.skillScore - a.skillScore);
   const n = sortedBySkill.length;
-
   const topCount = Math.max(1, Math.ceil(n * poolFraction));
   const bottomCount = Math.max(1, Math.ceil(n * poolFraction));
   const underplacedPool = sortedBySkill.slice(0, topCount);
@@ -634,6 +656,341 @@ export function computeSwapCandidates(
     maxFollowerRatio,
     minSkillDiff,
   });
+}
+
+/* ------------------------------------------------------------------ */
+/*  SMART-DEFAULT — Account-Fit-getriebene Cascade (S1 → S2 → S3)     */
+/* ------------------------------------------------------------------ */
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysSinceIso(iso: string | null): number | null {
+  if (!iso) return null;
+  const then = Date.parse(iso + "T00:00:00Z");
+  const now = Date.parse(isoToday() + "T00:00:00Z");
+  if (isNaN(then) || isNaN(now)) return null;
+  return Math.max(0, Math.round((now - then) / 86400000));
+}
+
+function fmtEurShort(n: number): string {
+  return Math.round(n).toLocaleString("de-DE") + " €";
+}
+
+function fmtDateShort(iso: string | null): string {
+  if (!iso) return "?";
+  const d = new Date(iso + "T00:00:00Z");
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
+}
+
+function detectDecliningChatters(chatters: SwapInput[]): Set<string> {
+  const declining = new Set<string>();
+  for (const c of chatters) {
+    const hist = c.history || [];
+    if (hist.length < 14) continue;
+    const sorted = [...hist].sort((a, b) =>
+      String(a.analysis_date).localeCompare(String(b.analysis_date))
+    );
+    const last7 = sorted.slice(-7);
+    const prev = sorted.slice(-30, -7);
+    if (prev.length < 7) continue;
+    const avg7 = last7.reduce((s, r) => s + (Number(r.revenue_today) || 0), 0) / last7.length;
+    const avgPrev = prev.reduce((s, r) => s + (Number(r.revenue_today) || 0), 0) / prev.length;
+    if (avgPrev >= 20 && avg7 / avgPrev <= 0.75) {
+      declining.add(normalizeChatterName(c.name));
+    }
+  }
+  return declining;
+}
+
+type AccountSignal = "decline" | "underperform";
+
+interface AccountSignals {
+  flags: AccountSignal[];
+  vsPeer?: number;
+  peerGap?: number;
+}
+
+function detectAccountSignals(
+  current: SwapChatter,
+  declining: Set<string>,
+  fitMatrix?: AccountFitMatrix
+): AccountSignals {
+  const flags: AccountSignal[] = [];
+  let vsPeer: number | undefined;
+  let peerGap: number | undefined;
+
+  if (declining.has(normalizeChatterName(current.name))) flags.push("decline");
+
+  if (fitMatrix) {
+    const accKey = current.account.toLowerCase().trim();
+    const peerMed = fitMatrix.peerMedianByAccount.get(accKey) ?? 0;
+    const currentEntry = fitMatrix.byPair.get(`${normalizeChatterName(current.name)}|${accKey}`);
+    if (currentEntry && peerMed > 0) {
+      vsPeer = currentEntry.vsPeerOnAccount;
+      peerGap = peerMed - currentEntry.avgPerDay;
+      if (vsPeer < 0.85 && currentEntry.days >= 3 && peerGap > 30) {
+        flags.push("underperform");
+      }
+    }
+  }
+
+  return { flags, vsPeer, peerGap };
+}
+
+interface ReplacementCandidate {
+  replacement: SwapChatter;
+  gain: number;
+  evidenceTier: 1 | 2 | 3;
+  evidence: string;
+  sampleDays: number;
+  recencyDays: number | null;
+}
+
+function findReplacements(
+  current: SwapChatter,
+  enriched: SwapChatter[],
+  fitMatrix: AccountFitMatrix
+): ReplacementCandidate[] {
+  const accKey = current.account.toLowerCase().trim();
+  const currentChatterKey = normalizeChatterName(current.name);
+  const currentAvg = current.avgRevenue || current.currentRevenue || 0;
+
+  const enrichedByChatter = new Map<string, SwapChatter[]>();
+  for (const e of enriched) {
+    const k = normalizeChatterName(e.name);
+    if (!enrichedByChatter.has(k)) enrichedByChatter.set(k, []);
+    enrichedByChatter.get(k)!.push(e);
+  }
+
+  const out: ReplacementCandidate[] = [];
+
+  /* S1 — DIREKTER BEWEIS auf genau diesem Account */
+  const accountFits = fitMatrix.byAccount.get(accKey) ?? [];
+  for (const fit of accountFits) {
+    if (fit.chatterKey === currentChatterKey) continue;
+    if (fit.days < 3) continue;
+    if (fit.confidence === "low") continue;
+    if (fit.fitScore < 60) continue;
+    if (fit.avgPerDay < currentAvg * 1.1 && fit.avgPerDay - currentAvg < 40) continue;
+    const replList = enrichedByChatter.get(fit.chatterKey) ?? [];
+    const repl = [...replList].sort((a, b) => a.followers - b.followers)[0];
+    if (!repl) continue;
+    if (repl.account.toLowerCase().trim() === accKey) continue;
+
+    out.push({
+      replacement: repl,
+      gain: fit.avgPerDay - currentAvg,
+      evidenceTier: 1,
+      evidence:
+        `${repl.name} hatte @${current.account} schon (${fmtDateShort(fit.lastPhaseFrom)}–${fmtDateShort(fit.lastPhaseTo)}, ${fit.days} Tage) und brachte Ø ${fmtEurShort(fit.avgPerDay)}/Tag. ` +
+        `${current.name} liegt aktuell bei Ø ${fmtEurShort(currentAvg)}/Tag.`,
+      sampleDays: fit.days,
+      recencyDays: daysSinceIso(fit.lastPhaseTo),
+    });
+  }
+
+  /* S2 — NACHBAR-BEWEIS auf ähnlich großem Account */
+  if (out.length < 3) {
+    const fLow = current.followers * 0.5;
+    const fHigh = current.followers * 1.5;
+    const followersByAccount = new Map<string, number>();
+    for (const e of enriched) followersByAccount.set(e.account.toLowerCase().trim(), e.followers);
+    const seenChatters = new Set(out.map((o) => normalizeChatterName(o.replacement.name)));
+    seenChatters.add(currentChatterKey);
+
+    for (const [otherAccKey, fits] of fitMatrix.byAccount) {
+      if (otherAccKey === accKey) continue;
+      const f = followersByAccount.get(otherAccKey) ?? 0;
+      if (f <= 0 || f < fLow || f > fHigh) continue;
+      for (const fit of fits) {
+        if (seenChatters.has(fit.chatterKey)) continue;
+        if (fit.days < 5) continue;
+        if (fit.confidence === "low") continue;
+        if (fit.fitScore < 70) continue;
+        if (fit.avgPerDay < currentAvg * 1.15) continue;
+        const replList = enrichedByChatter.get(fit.chatterKey) ?? [];
+        const repl = [...replList].sort((a, b) => a.followers - b.followers)[0];
+        if (!repl) continue;
+        if (repl.account.toLowerCase().trim() === accKey) continue;
+        seenChatters.add(fit.chatterKey);
+        const ratio = f >= current.followers ? current.followers / f : f / current.followers;
+        const gain = fit.avgPerDay * ratio - currentAvg;
+        if (gain <= 0) continue;
+        out.push({
+          replacement: repl,
+          gain,
+          evidenceTier: 2,
+          evidence:
+            `${repl.name} performt stark auf @${fit.accountName} (ähnliche Größe, Ø ${fmtEurShort(fit.avgPerDay)}/Tag, ${fit.days} Tage). ` +
+            `${current.name} liegt @${current.account} bei Ø ${fmtEurShort(currentAvg)}/Tag.`,
+          sampleDays: fit.days,
+          recencyDays: daysSinceIso(fit.lastPhaseTo),
+        });
+        if (out.length >= 5) break;
+      }
+      if (out.length >= 5) break;
+    }
+  }
+
+  out.sort((a, b) =>
+    a.evidenceTier === b.evidenceTier ? b.gain - a.gain : a.evidenceTier - b.evidenceTier
+  );
+  return out;
+}
+
+function computeTrackingBonuses(
+  tracking?: Map<string, SwapTrackingEntry>
+): Record<TierDirection, number> {
+  const buckets: Record<TierDirection, number[]> = {
+    upgrade: [], lateral: [], downgrade: [], unknown: [],
+  };
+  if (tracking) {
+    for (const e of tracking.values()) {
+      if (e.deltaPct === null) continue;
+      buckets[e.tierDirection].push(e.deltaPct);
+    }
+  }
+  const bonuses: Record<TierDirection, number> = { upgrade: 0, lateral: 0, downgrade: 0, unknown: 0 };
+  for (const dir of ["upgrade", "lateral", "downgrade"] as TierDirection[]) {
+    const vals = buckets[dir];
+    if (vals.length < 5) continue;
+    const a = vals.reduce((s, v) => s + v, 0) / vals.length;
+    bonuses[dir] = Math.max(-10, Math.min(10, Math.round(a / 2)));
+  }
+  return bonuses;
+}
+
+function computeConfidence(
+  candidate: ReplacementCandidate,
+  signals: AccountSignals,
+  trackingBonuses: Record<TierDirection, number>,
+  tierDirection: TierDirection
+): { score: number; note: string } {
+  const base = candidate.evidenceTier === 1 ? 70 : candidate.evidenceTier === 2 ? 50 : 25;
+  const sampleBonus = Math.min(15, Math.round(candidate.sampleDays * 1.5));
+  const recencyBonus =
+    candidate.recencyDays === null
+      ? 0
+      : candidate.recencyDays <= 14
+      ? 10
+      : candidate.recencyDays <= 45
+      ? 6
+      : candidate.recencyDays <= 90
+      ? 2
+      : 0;
+  const trackingBonus = trackingBonuses[tierDirection] ?? 0;
+  const signalBonus = Math.min(8, signals.flags.length * 4);
+  const score = Math.max(0, Math.min(100, base + sampleBonus + recencyBonus + trackingBonus + signalBonus));
+
+  const noteParts: string[] = [];
+  if (trackingBonus > 2) noteParts.push(`ähnliche Tausche bisher: Ø +${trackingBonus * 2}%`);
+  if (signals.flags.includes("decline")) noteParts.push("Account im Rückgang");
+  if (signals.flags.includes("underperform") && signals.peerGap)
+    noteParts.push(`unter Peer-Median (-${fmtEurShort(signals.peerGap)}/Tag)`);
+
+  return { score, note: noteParts.length ? `(${noteParts.join(", ")})` : "" };
+}
+
+function tierDirectionBetween(left: SwapChatter, right: SwapChatter): TierDirection {
+  const a = tierIndex(left.tier);
+  const b = tierIndex(right.tier);
+  if (b > a) return "upgrade";
+  if (b < a) return "downgrade";
+  return "lateral";
+}
+
+function computeSmartDefault(
+  enriched: SwapChatter[],
+  chatters: SwapInput[],
+  bundle: BenchmarkBundle | null,
+  opts: ComputeOptions
+): SwapPair[] {
+  const fitMatrix = opts.fitMatrix!;
+  const minConfidence = opts.minConfidence ?? 50;
+  const allowBackfill = opts.allowSpeculativeBackfill ?? true;
+
+  const declining = detectDecliningChatters(chatters);
+  const trackingBonuses = computeTrackingBonuses(opts.swapTracking);
+
+  const smart: SwapPair[] = [];
+  const usedRight = new Map<string, number>();
+  const usedLeft = new Map<string, number>();
+
+  for (const current of enriched) {
+    if (current.followers <= 0) continue;
+    const signals = detectAccountSignals(current, declining, fitMatrix);
+    const candidates = findReplacements(current, enriched, fitMatrix);
+    for (const cand of candidates) {
+      if (cand.gain <= 0) continue;
+      if ((usedLeft.get(cand.replacement.key) ?? 0) >= 2) continue;
+      if ((usedRight.get(current.key) ?? 0) >= 1) continue;
+      const dir = tierDirectionBetween(cand.replacement, current);
+      const conf = computeConfidence(cand, signals, trackingBonuses, dir);
+      if (conf.score < minConfidence) continue;
+
+      usedLeft.set(cand.replacement.key, (usedLeft.get(cand.replacement.key) ?? 0) + 1);
+      usedRight.set(current.key, (usedRight.get(current.key) ?? 0) + 1);
+
+      smart.push({
+        left: cand.replacement,
+        right: current,
+        expectedGain: cand.gain,
+        followerRatio: current.followers / Math.max(cand.replacement.followers, 1),
+        tierJump: Math.max(0, tierIndex(current.tier) - tierIndex(cand.replacement.tier)),
+        leftAlternatives: candidates
+          .filter((c) => c.replacement.key !== cand.replacement.key)
+          .slice(0, 3)
+          .map((c) => c.replacement),
+        rightAlternatives: [],
+        confidence: conf.score,
+        evidence: `${cand.evidence}${conf.note ? " " + conf.note : ""}`.trim(),
+        evidenceTier: cand.evidenceTier,
+      });
+      break;
+    }
+  }
+
+  smart.sort((a, b) => (b.confidence! - a.confidence!) || (b.expectedGain - a.expectedGain));
+
+  console.log(
+    `[Smart swap] platform=${opts.platform ?? "?"} enriched=${enriched.length} declining=${declining.size} smartPairs=${smart.length} (minConf=${minConfidence})`
+  );
+
+  if (allowBackfill && smart.length < 5) {
+    const sortedBySkill = [...enriched].sort((a, b) => b.skillScore - a.skillScore);
+    const n = sortedBySkill.length;
+    const poolFraction = opts.poolFraction ?? 0.5;
+    const topCount = Math.max(1, Math.ceil(n * poolFraction));
+    const bottomCount = Math.max(1, Math.ceil(n * poolFraction));
+    const underplacedPool = sortedBySkill.slice(0, topCount);
+    const overplacedPool = sortedBySkill.slice(-bottomCount).reverse();
+    const legacy = pairUp(underplacedPool, overplacedPool, bundle, {
+      minFollowerRatio: opts.minFollowerRatio ?? 1.5,
+      maxFollowerRatio: opts.maxFollowerRatio ?? 50,
+      minSkillDiff: opts.minSkillDiff ?? 0.08,
+      maxRightUses: 2,
+    });
+    const usedLeftKeys = new Set(smart.map((p) => p.left.key));
+    const usedRightKeys = new Set(smart.map((p) => p.right.key));
+    let added = 0;
+    for (const p of legacy) {
+      if (usedLeftKeys.has(p.left.key) || usedRightKeys.has(p.right.key)) continue;
+      smart.push({
+        ...p,
+        confidence: 30,
+        evidenceTier: 3,
+        evidence: `Spekulativ: ${p.left.name} hat höheren Skill-Score (${Math.round(p.left.skillScore * 100)}) als ${p.right.name} (${Math.round(p.right.skillScore * 100)}) bei ${p.followerRatio.toFixed(1)}× mehr Followern. Kein direkter Account-Beweis.`,
+      });
+      added++;
+      if (smart.length >= 12) break;
+    }
+    console.log(`[Smart swap] +${added} speculative backfill pairs (total=${smart.length})`);
+  }
+
+  return smart;
 }
 
 /**
