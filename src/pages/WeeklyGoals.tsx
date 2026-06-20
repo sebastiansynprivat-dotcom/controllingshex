@@ -1121,28 +1121,45 @@ export default function WeeklyGoals() {
     return { goalSum, avgSum, count: considered.length, withGoal, withCurrent };
   }, [suggestions, skipped]);
 
+  // Hilfs-Prädikate für den Focus-Filter
+  const isTop = (r: ChatterGoalRow) => r.progress.goal >= TOP_THRESHOLD;
+  const isRisk = (r: ChatterGoalRow) => r.progress.pacePct < 70 && r.progress.daysRemaining >= 2 && r.progress.progressPct < 100;
+  const isAchieved = (r: ChatterGoalRow) => r.progress.progressPct >= 100;
+
   const filteredRows = useMemo(() => {
     let arr = rows;
     if (impactFilter === "important") arr = arr.filter((r) => r.progress.goal >= IMPACT_THRESHOLD);
     else if (impactFilter === "small") arr = arr.filter((r) => r.progress.goal < IMPACT_THRESHOLD);
     if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
+    if (focusFilter === "top") arr = arr.filter(isTop);
+    else if (focusFilter === "risk") arr = arr.filter(isRisk);
+    else if (focusFilter === "achieved") arr = arr.filter(isAchieved);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) arr = arr.filter((r) => r.chatter.toLowerCase().includes(q));
     return arr;
-  }, [rows, statusFilter, impactFilter]);
+  }, [rows, statusFilter, impactFilter, focusFilter, searchQuery]);
 
   const impactCounts = useMemo(() => ({
     important: rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD).length,
     small: rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD).length,
   }), [rows]);
 
+  const focusCounts = useMemo(() => ({
+    top: rows.filter(isTop).length,
+    risk: rows.filter(isRisk).length,
+    achieved: rows.filter(isAchieved).length,
+  }), [rows]);
+
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
     arr.sort((a, b) => {
       switch (sortKey) {
-        case "progress": return b.progress.progressPct - a.progress.progressPct;
-        case "goal":     return b.progress.goal - a.progress.goal;
-        case "name":     return a.chatter.localeCompare(b.chatter, "de");
+        case "progress":    return b.progress.progressPct - a.progress.progressPct;
+        case "goal":        return b.progress.goal - a.progress.goal;
+        case "name":        return a.chatter.localeCompare(b.chatter, "de");
+        case "deficit_eur": return (b.progress.goal - b.progress.currentRevenue) - (a.progress.goal - a.progress.currentRevenue);
         case "deficit":
-        default:         return b.progress.deficit - a.progress.deficit;
+        default:            return b.progress.deficit - a.progress.deficit;
       }
     });
     return arr;
