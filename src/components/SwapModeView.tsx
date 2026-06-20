@@ -26,6 +26,8 @@ import {
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { fetchLiveEfficiency, type LiveEfficiencyRow } from "@/lib/live-efficiency";
+import { loadAccountFitMatrix, type AccountFitMatrix } from "@/lib/account-fit";
+import { loadSwapTracking, type SwapTrackingEntry } from "@/lib/swap-tracking";
 
 interface Props {
   platform: string;
