@@ -512,6 +512,14 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
   const [persistedBlocked, setPersistedBlocked] = useState<Set<string>>(new Set());
   const [profileOpen, setProfileOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  /** Challenger-Picker: welche Seite soll ersetzt werden? */
+  const [challengerPickerSide, setChallengerPickerSide] = useState<Side | null>(null);
+  /** Confirm-Sheet vor Genehmigung */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  /** Per-Slot-Override: ersetzt visibleLeft/visibleRight für das aktuelle Pair (nur in-memory) */
+  const [slotOverrideLeft, setSlotOverrideLeft] = useState<SwapChatter | null>(null);
+  const [slotOverrideRight, setSlotOverrideRight] = useState<SwapChatter | null>(null);
+
   /** Stack der letzten Aktionen für Undo (max 20) */
   type HistoryEntry = {
     /** DB-ID falls eine Decision persistiert wurde (sonst null bei Alt-Cycle) */
