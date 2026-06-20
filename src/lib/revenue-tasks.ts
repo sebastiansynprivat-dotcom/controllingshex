@@ -528,7 +528,6 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
       secondaryChatter: pair.right.name,
       modelName: pair.right.account,
     });
-    if (tasks.filter((t) => t.kind === "swap").length >= 6) break;
   }
 
   /* 5. HOCHFREQUENZ-LÜCKE */
