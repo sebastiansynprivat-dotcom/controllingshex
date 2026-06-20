@@ -206,6 +206,9 @@ export default function AnomalyPanel({
   const [allTimeAvg, setAllTimeAvg] = useState<Map<string, number>>(
     () => new Map(initialSnap?.allTimeAvg ?? []),
   );
+  const [firstSeen, setFirstSeen] = useState<Map<string, string>>(
+    () => new Map(initialSnap?.firstSeen ?? []),
+  );
 
   // Chatter-Labels (live-synchronisiert mit SlideOver)
   const [chatterLabels, setChatterLabels] = useState<ChatterLabel[]>([]);
