@@ -155,6 +155,7 @@ export default function AnomalyPanel({
     categorySince: [string, { since: string; category: string }][];
     prevWindowAvg: [string, number][];     // chatter -> avg eur/day in previous window
     allTimeAvg: [string, number][];        // chatter -> avg eur/day across full history
+    firstSeen?: [string, string][];        // chatter -> earliest analysis_date (ISO)
     savedAt: number;
   };
 
