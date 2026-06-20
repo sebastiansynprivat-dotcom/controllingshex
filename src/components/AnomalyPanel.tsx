@@ -38,7 +38,7 @@ import { loadChatterLabels, loadLabelAssignments, type ChatterLabel } from "@/li
 import { normalizeChatterName, loadActiveChatterNames } from "@/lib/active-chatters";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
-const SNAPSHOT_VERSION = 4;
+const SNAPSHOT_VERSION = 5;
 const PAGE_SIZE = 1000;
 
 /** Heute-Style Glow + Pill pro Severity — verleiht Karten Premium-Tiefe. */
