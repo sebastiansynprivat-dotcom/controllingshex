@@ -640,7 +640,7 @@ export default function AnomalyPanel({
       if (b.totalFollowers !== a.totalFollowers) return b.totalFollowers - a.totalFollowers;
       return b.topScore - a.topScore;
     });
-  }, [anomalies, chatterAccounts, modelFollowers, windowDays]);
+  }, [anomalies, chatterAccounts, modelFollowers, windowDays, activeChatterNames]);
 
   const copyName = useCallback(async (name: string) => {
     try {
