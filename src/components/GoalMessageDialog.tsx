@@ -20,7 +20,11 @@ interface Props {
   platform: string;
   proposedGoal: number;
   currentGoal?: number | null;
+  /** "monthly" (default) oder "weekly". Steuert Szenario-Keys + Edge-Funktion. */
+  goalType?: "monthly" | "weekly";
 }
+
+type ScenarioKey = "auto" | "growth" | "flat" | "decline";
 
 export default function GoalMessageDialog({
   open,
@@ -29,13 +33,14 @@ export default function GoalMessageDialog({
   platform,
   proposedGoal,
   currentGoal,
+  goalType = "monthly",
 }: Props) {
   const [goal, setGoal] = useState<number>(proposedGoal);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [context, setContext] = useState<any>(null);
-  const [scenario, setScenario] = useState<"auto" | "growth" | "flat" | "decline">("auto");
+  const [scenario, setScenario] = useState<ScenarioKey>("auto");
 
   useEffect(() => {
     if (open) {
