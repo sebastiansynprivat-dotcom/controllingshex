@@ -371,7 +371,7 @@ export default function WeeklyGoals() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
-  const [tab, setTab] = useState<"current" | "future">("current");
+  const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
