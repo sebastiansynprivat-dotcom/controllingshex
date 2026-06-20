@@ -708,7 +708,8 @@ export default function WeeklyGoals() {
             perChatterDailyBaseline += modelDaily / share;
           }
           const daysInWeek = 7;
-          const rawModelGoal = perChatterDailyBaseline * daysInWeek * 1.10;
+          const stretchFactor = stretchPct / 100;
+          const rawModelGoal = perChatterDailyBaseline * daysInWeek * stretchFactor;
           const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
             ? Math.max(10, Math.round(rawModelGoal / 10) * 10)
             : 0;
@@ -716,19 +717,19 @@ export default function WeeklyGoals() {
           // Smoothing für neue Chatter: wenn jemand erst wenige Tage dabei ist,
           // dürfen 2 gute Tage das Ziel nicht hochreißen.
           // Wir blenden den Chatter-Schnitt linear mit dem Model-Baseline,
-          // bis er 14 aktive Tage hat (volles Vertrauen).
-          const MIN_DAYS_FULL_TRUST = 14;
-          const MIN_DAYS_CHATTER_OVERRIDE = 10; // erst ab so vielen Tagen darf Chatter Model schlagen
+          // bis er smoothingDays aktive Tage hat (volles Vertrauen).
+          const MIN_DAYS_FULL_TRUST = Math.max(3, smoothingDays);
+          const MIN_DAYS_CHATTER_OVERRIDE = Math.max(3, Math.round(MIN_DAYS_FULL_TRUST * 0.7));
           const trustWeight = Math.min(1, days / MIN_DAYS_FULL_TRUST);
           const smoothedAvg = perChatterDailyBaseline > 0
             ? trustWeight * avg + (1 - trustWeight) * perChatterDailyBaseline
             : avg;
 
-          // Wenn Chatter deutlich BESSER als Model-Schnitt performt (>10% drüber),
-          // → eigenes Ergebnis + 10 % nehmen statt Model-Schnitt zu deckeln.
-          // ABER: nur wenn er genug Datenbasis hat (≥10 Tage).
+          // Wenn Chatter deutlich BESSER als Model-Schnitt performt (> stretch drüber),
+          // → eigenes Ergebnis × stretch nehmen statt Model-Schnitt zu deckeln.
+          // ABER: nur wenn er genug Datenbasis hat.
           const chatterGoal = avg > 1
-            ? Math.max(10, Math.round((smoothedAvg * daysInWeek * 1.10) / 10) * 10)
+            ? Math.max(10, Math.round((smoothedAvg * daysInWeek * stretchFactor) / 10) * 10)
             : 0;
 
           let basis: "model" | "chatter" | "fallback";
@@ -737,10 +738,11 @@ export default function WeeklyGoals() {
             modelGoal > 0 &&
             chatterGoal > 0 &&
             days >= MIN_DAYS_CHATTER_OVERRIDE &&
-            avg > perChatterDailyBaseline * 1.10
+            avg > perChatterDailyBaseline * stretchFactor
           ) {
             basis = "chatter";
             suggested = chatterGoal;
+
           } else if (modelGoal > 0) {
             basis = "model";
             suggested = modelGoal;
