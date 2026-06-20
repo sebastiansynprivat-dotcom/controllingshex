@@ -29,6 +29,8 @@ import {
   type SwapModelInfo,
   type SwapPair,
 } from "@/lib/swap-suggestions";
+import { loadAccountFitMatrix } from "@/lib/account-fit";
+import { loadSwapTracking } from "@/lib/swap-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot";
