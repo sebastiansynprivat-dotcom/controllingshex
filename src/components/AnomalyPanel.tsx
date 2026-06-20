@@ -603,6 +603,8 @@ export default function AnomalyPanel({
     >();
     for (const a of anomalies) {
       if (a.severity !== "critical") continue;
+      if (activeChatterNames && !activeChatterNames.has(normalizeChatterName(a.chatter_name))) continue;
+
       const key = a.chatter_name;
       const entry = map.get(key);
       if (entry) {
