@@ -25,6 +25,11 @@ import {
   suggestWeeklyGoal,
   splitAccounts,
   computeModelBaselines,
+  nextWeekLabel,
+  firstOfNextWeek,
+  parseTargetWeek,
+  weekStart,
+  isoWeekNumber,
   type WeekProgress as GoalProgress,
   type GoalStatus,
 } from "@/lib/weekly-goals";
@@ -37,8 +42,6 @@ function toIsoDateLocal(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-
-import { nextWeekLabel, firstOfNextWeek, parseTargetWeek, weekStart, isoWeekNumber } from "@/lib/weekly-goals";
 
 
 interface ChatterGoalRow {
