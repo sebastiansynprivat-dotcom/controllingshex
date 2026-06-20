@@ -878,7 +878,11 @@ export default function Today() {
                   return (
                     <button
                       key={g.id}
-                      onClick={() => { setExtraFilter("none"); setKindTab(g.id); }}
+                      onClick={() => {
+                        setExtraFilter("none");
+                        if (g.id === "swap") setSwapRenderCount(SWAP_RENDER_BATCH);
+                        setKindTab(g.id);
+                      }}
                       className={cn(
                         "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
                         active
