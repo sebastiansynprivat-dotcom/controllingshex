@@ -616,10 +616,11 @@ export async function computeAnomaliesForWindow(
       });
     } else if (
       // Fallback: Follower-Daten fehlen (Account nicht in models-Tabelle gepflegt).
-      // Wenn Chatter konstant (≥70% Tage) und solide (≥25€/Tag) ist, trotzdem als Gem zeigen.
+      // Wenn Chatter gemäß Wunsch konstant (≥50% Tage) und solide (≥25€/Tag) ist,
+      // trotzdem als Gem zeigen.
       a.totalFollowers === 0 &&
-      consistency >= 0.7 &&
-      a.daysActive >= Math.min(4, days) &&
+      consistency >= 0.5 &&
+      a.daysActive >= Math.min(3, days) &&
       a.avgRevenuePerDay >= 25
     ) {
       anomalies.push({
