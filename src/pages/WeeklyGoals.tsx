@@ -380,6 +380,89 @@ export default function WeeklyGoals() {
   const setBulkOpen = (targets: BulkTarget[]) => setBulkTargets(targets.length > 0 ? targets : null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
+  // Einstellbare Schwellen für Wochenziel-Vorschläge
+  const [stretchPct, setStretchPct] = useState<number>(110);
+  const [smoothingDays, setSmoothingDays] = useState<number>(14);
+  const [thresholdsLoaded, setThresholdsLoaded] = useState(false);
+  const [thresholdsOpen, setThresholdsOpen] = useState(false);
+  const [stretchDraft, setStretchDraft] = useState<string>("110");
+  const [smoothingDraft, setSmoothingDraft] = useState<string>("14");
+  const [savingThresholds, setSavingThresholds] = useState(false);
+
+  // Schwellen aus settings laden (einmalig)
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        const uid = u?.user?.id;
+        if (!uid) { setThresholdsLoaded(true); return; }
+        const { data } = await supabase
+          .from("settings")
+          .select("key, value")
+          .in("key", ["weekly_goal_stretch_pct", "weekly_goal_smoothing_days"])
+          .eq("user_id", uid);
+        for (const row of (data ?? []) as Array<{ key: string; value: string }>) {
+          const n = Number(row.value);
+          if (!Number.isFinite(n)) continue;
+          if (row.key === "weekly_goal_stretch_pct" && n >= 80 && n <= 200) {
+            setStretchPct(n);
+            setStretchDraft(String(n));
+          }
+          if (row.key === "weekly_goal_smoothing_days" && n >= 3 && n <= 60) {
+            setSmoothingDays(n);
+            setSmoothingDraft(String(n));
+          }
+        }
+      } finally {
+        setThresholdsLoaded(true);
+      }
+    })();
+  }, []);
+
+  async function saveThresholds() {
+    const s = Number(stretchDraft);
+    const d = Number(smoothingDraft);
+    if (!Number.isFinite(s) || s < 80 || s > 200) {
+      toast.error("Stretch muss zwischen 80 und 200 % liegen");
+      return;
+    }
+    if (!Number.isFinite(d) || d < 3 || d > 60) {
+      toast.error("Smoothing-Fenster muss zwischen 3 und 60 Tagen liegen");
+      return;
+    }
+    setSavingThresholds(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u?.user?.id;
+      if (!uid) throw new Error("Nicht angemeldet");
+      for (const [key, val] of [
+        ["weekly_goal_stretch_pct", String(Math.round(s))],
+        ["weekly_goal_smoothing_days", String(Math.round(d))],
+      ] as const) {
+        const { data: existing } = await supabase
+          .from("settings").select("id").eq("key", key).eq("user_id", uid).maybeSingle();
+        if (existing) {
+          await supabase.from("settings")
+            .update({ value: val, updated_at: new Date().toISOString() })
+            .eq("id", (existing as any).id);
+        } else {
+          await supabase.from("settings").insert({ key, value: val, user_id: uid });
+        }
+      }
+      setStretchPct(Math.round(s));
+      setSmoothingDays(Math.round(d));
+      setThresholdsOpen(false);
+      setSuggestionsGenerated(false);
+      setReloadKey((k) => k + 1);
+      toast.success("Schwellen gespeichert – Vorschläge werden neu berechnet");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Speichern fehlgeschlagen");
+    } finally {
+      setSavingThresholds(false);
+    }
+  }
+
+
 
 
   useEffect(() => {
@@ -625,7 +708,8 @@ export default function WeeklyGoals() {
             perChatterDailyBaseline += modelDaily / share;
           }
           const daysInWeek = 7;
-          const rawModelGoal = perChatterDailyBaseline * daysInWeek * 1.10;
+          const stretchFactor = stretchPct / 100;
+          const rawModelGoal = perChatterDailyBaseline * daysInWeek * stretchFactor;
           const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
             ? Math.max(10, Math.round(rawModelGoal / 10) * 10)
             : 0;
@@ -633,19 +717,19 @@ export default function WeeklyGoals() {
           // Smoothing für neue Chatter: wenn jemand erst wenige Tage dabei ist,
           // dürfen 2 gute Tage das Ziel nicht hochreißen.
           // Wir blenden den Chatter-Schnitt linear mit dem Model-Baseline,
-          // bis er 14 aktive Tage hat (volles Vertrauen).
-          const MIN_DAYS_FULL_TRUST = 14;
-          const MIN_DAYS_CHATTER_OVERRIDE = 10; // erst ab so vielen Tagen darf Chatter Model schlagen
+          // bis er smoothingDays aktive Tage hat (volles Vertrauen).
+          const MIN_DAYS_FULL_TRUST = Math.max(3, smoothingDays);
+          const MIN_DAYS_CHATTER_OVERRIDE = Math.max(3, Math.round(MIN_DAYS_FULL_TRUST * 0.7));
           const trustWeight = Math.min(1, days / MIN_DAYS_FULL_TRUST);
           const smoothedAvg = perChatterDailyBaseline > 0
             ? trustWeight * avg + (1 - trustWeight) * perChatterDailyBaseline
             : avg;
 
-          // Wenn Chatter deutlich BESSER als Model-Schnitt performt (>10% drüber),
-          // → eigenes Ergebnis + 10 % nehmen statt Model-Schnitt zu deckeln.
-          // ABER: nur wenn er genug Datenbasis hat (≥10 Tage).
+          // Wenn Chatter deutlich BESSER als Model-Schnitt performt (> stretch drüber),
+          // → eigenes Ergebnis × stretch nehmen statt Model-Schnitt zu deckeln.
+          // ABER: nur wenn er genug Datenbasis hat.
           const chatterGoal = avg > 1
-            ? Math.max(10, Math.round((smoothedAvg * daysInWeek * 1.10) / 10) * 10)
+            ? Math.max(10, Math.round((smoothedAvg * daysInWeek * stretchFactor) / 10) * 10)
             : 0;
 
           let basis: "model" | "chatter" | "fallback";
@@ -654,10 +738,11 @@ export default function WeeklyGoals() {
             modelGoal > 0 &&
             chatterGoal > 0 &&
             days >= MIN_DAYS_CHATTER_OVERRIDE &&
-            avg > perChatterDailyBaseline * 1.10
+            avg > perChatterDailyBaseline * stretchFactor
           ) {
             basis = "chatter";
             suggested = chatterGoal;
+
           } else if (modelGoal > 0) {
             basis = "model";
             suggested = modelGoal;
@@ -703,9 +788,10 @@ export default function WeeklyGoals() {
         if (!cancelled) setLoading(false);
       }
     }
-    load();
+    if (thresholdsLoaded) load();
     return () => { cancelled = true; };
-  }, [platform, reloadKey]);
+  }, [platform, reloadKey, thresholdsLoaded, stretchPct, smoothingDays]);
+
 
   // Auto-Refresh, sobald ein neuer Report hochgeladen wird (neue chatter_history Rows)
   useEffect(() => {
@@ -1246,9 +1332,20 @@ export default function WeeklyGoals() {
               <>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
-                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × 7 Tage × 110 % (auf 10 € gerundet, mit Smoothing für neue Chatter). Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
+                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø der zugeordneten Models × 7 Tage × {stretchPct} % (auf 10 € gerundet, Smoothing über {smoothingDays} Tage für neue Chatter). Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
                   </p>
                   <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setStretchDraft(String(stretchPct));
+                        setSmoothingDraft(String(smoothingDays));
+                        setThresholdsOpen((v) => !v);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Schwellen
+                    </button>
                     <button
                       onClick={() => {
                         setSkipped(new Set());
@@ -1279,6 +1376,79 @@ export default function WeeklyGoals() {
                     </button>
                   </div>
                 </div>
+
+                {thresholdsOpen && (
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-white/85">Schwellen für Wochenziele</h4>
+                        <p className="text-[11px] text-white/40 font-light mt-0.5">
+                          Wirkt nur auf die Vorschläge oben – bestehende Wochenziele bleiben unverändert.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setThresholdsOpen(false)}
+                        className="text-white/40 hover:text-white/80"
+                        aria-label="Schließen"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-light block mb-1.5">
+                          Stretch-Faktor (%)
+                        </label>
+                        <input
+                          type="number"
+                          min={80}
+                          max={200}
+                          step={5}
+                          value={stretchDraft}
+                          onChange={(e) => setStretchDraft(e.target.value)}
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
+                        />
+                        <p className="text-[10px] text-white/35 font-light mt-1">
+                          100 % = exakter Schnitt · 110 % = Standard · 120 % = ambitioniert
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-light block mb-1.5">
+                          Smoothing-Fenster (Tage)
+                        </label>
+                        <input
+                          type="number"
+                          min={3}
+                          max={60}
+                          step={1}
+                          value={smoothingDraft}
+                          onChange={(e) => setSmoothingDraft(e.target.value)}
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
+                        />
+                        <p className="text-[10px] text-white/35 font-light mt-1">
+                          Bis zu so vielen aktiven Tagen wird der Chatter-Schnitt mit dem Model-Schnitt gemischt.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => setThresholdsOpen(false)}
+                        className="px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.02] text-white/70 text-xs font-light hover:bg-white/[0.06] hover:text-white/95 transition-colors"
+                      >
+                        Abbrechen
+                      </button>
+                      <button
+                        onClick={saveThresholds}
+                        disabled={savingThresholds}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-100 text-xs font-light hover:bg-emerald-400/25 transition-colors disabled:opacity-50"
+                      >
+                        {savingThresholds ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                        Speichern & neu berechnen
+                      </button>
+                    </div>
+                  </div>
+                )}
+
 
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
