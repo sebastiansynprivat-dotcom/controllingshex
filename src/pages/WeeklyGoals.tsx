@@ -1119,15 +1119,21 @@ export default function WeeklyGoals() {
 
   const filteredRows = useMemo(() => {
     let arr = rows;
-    if (impactFilter === "important") arr = arr.filter((r) => r.progress.goal >= IMPACT_THRESHOLD);
-    else if (impactFilter === "small") arr = arr.filter((r) => r.progress.goal < IMPACT_THRESHOLD);
+    if (impactFilter === "lt100") arr = arr.filter((r) => r.progress.goal < 100);
+    else if (impactFilter === "lt300") arr = arr.filter((r) => r.progress.goal >= 100 && r.progress.goal < 300);
+    else if (impactFilter === "lt500") arr = arr.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500);
+    else if (impactFilter === "lt1000") arr = arr.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000);
+    else if (impactFilter === "gte1000") arr = arr.filter((r) => r.progress.goal >= 1000);
     if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
     return arr;
   }, [rows, statusFilter, impactFilter]);
 
   const impactCounts = useMemo(() => ({
-    important: rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD).length,
-    small: rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD).length,
+    lt100: rows.filter((r) => r.progress.goal < 100).length,
+    lt300: rows.filter((r) => r.progress.goal >= 100 && r.progress.goal < 300).length,
+    lt500: rows.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500).length,
+    lt1000: rows.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000).length,
+    gte1000: rows.filter((r) => r.progress.goal >= 1000).length,
   }), [rows]);
 
   const sortedRows = useMemo(() => {
