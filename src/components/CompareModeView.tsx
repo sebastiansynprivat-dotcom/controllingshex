@@ -384,6 +384,7 @@ export default function CompareModeView({
           item={currentB}
           enrichedMap={enrichedByName}
           profileStats={profileStats}
+          liveByName={liveByName}
           stackLength={orderedB.length}
           idx={idxB}
           dismissedCount={dismissedB.size}
