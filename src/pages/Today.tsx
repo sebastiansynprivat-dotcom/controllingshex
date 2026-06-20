@@ -384,7 +384,8 @@ export default function Today() {
     }
 
     const selectedVisible = labels.filter((l) => visibleLabelIdSet.has(l.id) && selectedLabelIds.has(l.id));
-    const onlyUpgradeSelected = selectedVisible.length === 1 && selectedVisible[0].label_name === "🟢 Upgrade";
+    const onlyUpgradeSelected = selectedVisible.length > 0
+      && selectedVisible.every((l) => l.label_name === "🟢 Upgrade" || l.label_name === "💛 Premium Upgrade");
     if (selectedLabelIds.size === 0 || onlyUpgradeSelected) {
       setSelectedLabelIds(new Set(visibleLabelIdSet));
     }
