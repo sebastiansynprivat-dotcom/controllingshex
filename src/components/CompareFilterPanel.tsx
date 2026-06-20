@@ -477,16 +477,22 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
           </div>
           {activePills.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {activePills.slice(0, 3).map((p, i) => (
+              {activePills.slice(0, 6).map((p) => (
                 <span
-                  key={i}
-                  className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20"
+                  key={p.key}
+                  className="px-1.5 py-0.5 rounded text-[10px] border"
+                  style={
+                    p.color
+                      ? { background: `${p.color}22`, color: p.color, borderColor: `${p.color}55` }
+                      : undefined
+                  }
+                  {...(p.color ? {} : { "data-default": true })}
                 >
-                  {p}
+                  <span className={p.color ? "" : "text-primary"}>{p.text}</span>
                 </span>
               ))}
-              {activePills.length > 3 && (
-                <span className="text-[10px] text-muted-foreground">+{activePills.length - 3}</span>
+              {activePills.length > 6 && (
+                <span className="text-[10px] text-muted-foreground">+{activePills.length - 6}</span>
               )}
             </div>
           ) : (
