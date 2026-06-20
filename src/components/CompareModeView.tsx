@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { motion, useMotionValue, useTransform, useAnimation, type PanInfo } from "framer-motion";
-import { Users, Zap, CalendarDays, RotateCcw, X } from "lucide-react";
+import { Users, Coins, MessageSquare, CalendarDays, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { usePlatform } from "@/contexts/PlatformContext";
+import { supabase } from "@/integrations/supabase/client";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import CompareFilterPanel from "@/components/CompareFilterPanel";
 import {
@@ -175,6 +176,47 @@ export default function CompareModeView({
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const { platform } = usePlatform();
 
+  // Profil-Stats pro Chatter (Ø Tagesumsatz, Ø MassDMs/Tag) — identische Berechnung
+  // wie im Chatter-Profil (Slideover). Live via Realtime auf chatter_history.
+  const [profileStats, setProfileStats] = useState<Map<string, { avgRev: number; avgDMs: number }>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today, mass_dms")
+        .eq("platform", platform);
+      if (cancelled || error || !data) return;
+      const acc = new Map<string, { sumRev: number; sumDM: number; n: number }>();
+      for (const r of data as Array<{ chatter_name: string | null; revenue_today: number | null; mass_dms: number | null }>) {
+        if (!r.chatter_name) continue;
+        const key = normalizeName(r.chatter_name);
+        const cur = acc.get(key) ?? { sumRev: 0, sumDM: 0, n: 0 };
+        cur.sumRev += Number(r.revenue_today) || 0;
+        cur.sumDM += Number(r.mass_dms) || 0;
+        cur.n += 1;
+        acc.set(key, cur);
+      }
+      const out = new Map<string, { avgRev: number; avgDMs: number }>();
+      for (const [k, v] of acc) {
+        out.set(k, { avgRev: v.n > 0 ? v.sumRev / v.n : 0, avgDMs: v.n > 0 ? Math.round(v.sumDM / v.n) : 0 });
+      }
+      setProfileStats(out);
+    };
+    load();
+    const channel = supabase
+      .channel(`compare-history-${platform}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chatter_history" }, () => {
+        load();
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
   // Reset wenn sich Filter/Stack ändert
   useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
   useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
@@ -245,6 +287,7 @@ export default function CompareModeView({
           accent="emerald"
           item={currentA}
           enrichedMap={enrichedByName}
+          profileStats={profileStats}
           stackLength={orderedA.length}
           idx={idxA}
           dismissedCount={dismissedA.size}
@@ -275,6 +318,7 @@ export default function CompareModeView({
           accent="sky"
           item={currentB}
           enrichedMap={enrichedByName}
+          profileStats={profileStats}
           stackLength={orderedB.length}
           idx={idxB}
           dismissedCount={dismissedB.size}
@@ -448,6 +492,7 @@ function CompareSlot({
   accent,
   item,
   enrichedMap,
+  profileStats,
   stackLength,
   idx,
   dismissedCount,
@@ -461,6 +506,7 @@ function CompareSlot({
   accent: "emerald" | "sky";
   item: FilteredChatter | undefined;
   enrichedMap: Map<string, SwapChatter>;
+  profileStats: Map<string, { avgRev: number; avgDMs: number }>;
   stackLength: number;
   idx: number;
   dismissedCount: number;
@@ -522,6 +568,7 @@ function CompareSlot({
   }
 
   const enriched = enrichedMap.get(normalizeName(item.name));
+  const stats = profileStats.get(normalizeName(item.name));
 
   return (
     <div className="space-y-1.5">
@@ -531,6 +578,7 @@ function CompareSlot({
           accentHsl={accentHsl}
           item={item}
           enriched={enriched}
+          profileStats={stats}
             metricLabel={metricLabel}
           onSwipeLR={onSwipeDismiss}
           onSwipeDown={onSwipeSkip}
@@ -562,6 +610,7 @@ function CompareSwipeCard({
   accentHsl,
   item,
   enriched,
+  profileStats,
   metricLabel,
   onSwipeLR,
   onSwipeDown,
@@ -571,6 +620,7 @@ function CompareSwipeCard({
   accentHsl: string;
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
+  profileStats: { avgRev: number; avgDMs: number } | undefined;
   metricLabel: string;
   onSwipeLR: () => void;
   onSwipeDown: () => void;
@@ -640,9 +690,8 @@ function CompareSwipeCard({
   // Daten-Quellen: enriched (Swap) bevorzugt, sonst Fallback aus FilteredChatter
   const tier = enriched?.tier ?? "—";
   const followers = enriched?.followers ?? 0;
-  const skill = enriched?.skillScore ?? 0;
-  const avgRev = item.avgRevWindow;
-  const today = enriched?.currentRevenue ?? item.currentRevenue ?? 0;
+  const avgDailyRev = profileStats?.avgRev ?? 0;
+  const avgDailyDMs = profileStats?.avgDMs ?? 0;
   const firstSeen = enriched?.firstSeen ?? null;
   const account = enriched?.account ?? item.account ?? "";
 
@@ -694,36 +743,19 @@ function CompareSwipeCard({
           </p>
         </div>
 
-        {/* Skill Bar */}
-        <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-3 mb-2 md:mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
-              <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> Skill
-            </span>
-            <span className="text-[11px] md:text-base font-bold tabular-nums" style={{ color: `hsl(${accentHsl})` }}>
-              {formatSkill(skill)}
-            </span>
-          </div>
-          <div className="h-1 md:h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.round(skill * 100)}%`,
-                background: `linear-gradient(90deg, hsl(${accentHsl} / 0.6), hsl(${accentHsl}))`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Stats */}
+        {/* Stats — identisch zum Chatter-Profil (Ø über gesamte Historie) */}
         <div className="grid grid-cols-2 gap-1.5 md:gap-2 mt-auto">
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
-            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">{metricLabel}</p>
-            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgRev)}</p>
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40 inline-flex items-center gap-1">
+              <Coins className="h-2.5 w-2.5 md:h-3 md:w-3" /> Ø Tagesumsatz
+            </p>
+            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgDailyRev)}</p>
           </div>
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
-            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">Heute</p>
-            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(today)}</p>
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40 inline-flex items-center gap-1">
+              <MessageSquare className="h-2.5 w-2.5 md:h-3 md:w-3" /> Ø MassDMs/Tag
+            </p>
+            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{avgDailyDMs}</p>
           </div>
         </div>
 
