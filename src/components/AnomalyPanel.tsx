@@ -34,7 +34,7 @@ import {
 } from "@/lib/anomaly-actions";
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated, onChatterLabelsUpdated } from "@/lib/data-events";
 import { loadChatterLabels, loadLabelAssignments, type ChatterLabel } from "@/lib/chatter-labels";
-import { normalizeChatterName } from "@/lib/active-chatters";
+import { normalizeChatterName, loadActiveChatterNames } from "@/lib/active-chatters";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
 const SNAPSHOT_VERSION = 2;
