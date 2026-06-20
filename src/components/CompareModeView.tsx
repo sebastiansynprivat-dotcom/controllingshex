@@ -848,6 +848,35 @@ function CompareSwipeCard({
           </div>
         </div>
 
+        {/* Echtzeit · Heute — Live-Daten aus chatter_history_live */}
+        <div className="mt-2 md:mt-3">
+          <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1 mb-1">
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: `hsl(${accentHsl})`, boxShadow: `0 0 6px hsl(${accentHsl})` }}
+            />
+            Echtzeit · Heute
+          </p>
+          <div className="grid grid-cols-4 gap-1 md:gap-1.5">
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">Umsatz</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{formatEur(live?.revenue ?? 0)}</p>
+            </div>
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">MassDMs</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{live?.mass_dms ?? 0}</p>
+            </div>
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">Offen</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{live?.unread_chats ?? 0}</p>
+            </div>
+            <div className="rounded-md bg-white/[0.02] border border-white/[0.05] p-1 md:p-1.5">
+              <p className="text-[7px] md:text-[9px] uppercase tracking-wider text-white/40 truncate">Ältester</p>
+              <p className="text-[10px] md:text-xs font-semibold text-foreground tabular-nums truncate">{live?.oldest_chat ?? 0}d</p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </motion.div>
   );
