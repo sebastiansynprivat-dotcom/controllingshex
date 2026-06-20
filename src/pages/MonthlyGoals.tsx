@@ -149,7 +149,11 @@ function GoalCard({ row, onOpen, onMessage }: { row: ChatterGoalRow; onOpen: () 
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-white/90 truncate group-hover:text-white">
+          <h3
+            onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            title="Profil öffnen"
+            className="text-base sm:text-lg font-semibold text-white/90 truncate group-hover:text-white cursor-pointer hover:underline decoration-white/30 underline-offset-4"
+          >
             {row.chatter}
           </h3>
           <p className="text-[11px] text-white/35 font-light mt-0.5">
@@ -241,12 +245,14 @@ function SuggestionCard({
   onAccept,
   onSkip,
   onMessage,
+  onOpen,
   busy,
 }: {
   row: SuggestionRow;
   onAccept: (goal: number) => void;
   onSkip: () => void;
   onMessage: (goal: number) => void;
+  onOpen: () => void;
   busy: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -259,16 +265,9 @@ function SuggestionCard({
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           <h3
-            className="text-base sm:text-lg font-semibold text-white/90 truncate cursor-pointer hover:text-white transition-colors"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(row.chatter);
-                toast.success(`"${row.chatter}" kopiert`);
-              } catch {
-                toast.error("Kopieren fehlgeschlagen");
-              }
-            }}
-            title="Klicken zum Kopieren"
+            className="text-base sm:text-lg font-semibold text-white/90 truncate cursor-pointer hover:text-white transition-colors hover:underline decoration-white/30 underline-offset-4"
+            onClick={onOpen}
+            title="Profil öffnen"
           >
             {row.chatter}
           </h3>
@@ -1313,6 +1312,7 @@ export default function MonthlyGoals() {
                       key={s.chatter}
                       row={s}
                       busy={acceptingChatter === s.chatter}
+                      onOpen={() => setSelected(s.chatter)}
                       onAccept={async (goal) => {
                         await acceptSuggestion(s.chatter, goal);
                         applyAcceptedGoal(s.chatter, goal, s.monthRevenue);
