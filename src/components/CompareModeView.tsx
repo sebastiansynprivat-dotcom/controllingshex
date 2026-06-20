@@ -184,6 +184,20 @@ export default function CompareModeView({
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const { platform } = usePlatform();
 
+  // History für die letzten 90 Tage laden (für Compare-Filter wie Verzug, Ø €, etc.)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await loadHistoryForRange(platform, ownRange.from, ownRange.to);
+        if (!cancelled) setOwnHistory(rows);
+      } catch {
+        if (!cancelled) setOwnHistory([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [platform, ownRange.from, ownRange.to]);
+
   // Profil-Stats pro Chatter (Ø Tagesumsatz, Ø MassDMs/Tag) — identische Berechnung
   // wie im Chatter-Profil (Slideover). Live via Realtime auf chatter_history.
   const [profileStats, setProfileStats] = useState<Map<string, { avgRev: number; avgDMs: number }>>(new Map());
