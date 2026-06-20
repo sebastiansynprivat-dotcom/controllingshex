@@ -27,6 +27,7 @@ import {
   dismissChatter,
   ANOMALY_LABELS,
   SEVERITY_STYLE,
+  isPositiveAnomaly,
   type ChatterAnomaly,
 } from "@/lib/anomaly-window";
 import {
