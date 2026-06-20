@@ -174,7 +174,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
     return () => {
       cancelRef.current = true;
     };
-  }, [open, platform, targets]);
+  }, [open, platform, targets, goalType]);
 
   async function acceptGoal(chatter: string, goal: number): Promise<boolean> {
     if (!onAccept) return false;
