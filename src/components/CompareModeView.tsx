@@ -743,36 +743,19 @@ function CompareSwipeCard({
           </p>
         </div>
 
-        {/* Skill Bar */}
-        <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-3 mb-2 md:mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/45 inline-flex items-center gap-1">
-              <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> Skill
-            </span>
-            <span className="text-[11px] md:text-base font-bold tabular-nums" style={{ color: `hsl(${accentHsl})` }}>
-              {formatSkill(skill)}
-            </span>
-          </div>
-          <div className="h-1 md:h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.round(skill * 100)}%`,
-                background: `linear-gradient(90deg, hsl(${accentHsl} / 0.6), hsl(${accentHsl}))`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Stats */}
+        {/* Stats — identisch zum Chatter-Profil (Ø über gesamte Historie) */}
         <div className="grid grid-cols-2 gap-1.5 md:gap-2 mt-auto">
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
-            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">{metricLabel}</p>
-            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgRev)}</p>
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40 inline-flex items-center gap-1">
+              <Coins className="h-2.5 w-2.5 md:h-3 md:w-3" /> Ø Tagesumsatz
+            </p>
+            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(avgDailyRev)}</p>
           </div>
           <div className="rounded-md bg-white/[0.03] border border-white/[0.06] p-1.5 md:p-2.5">
-            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40">Heute</p>
-            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{formatEur(today)}</p>
+            <p className="text-[8px] md:text-[10px] uppercase tracking-wider text-white/40 inline-flex items-center gap-1">
+              <MessageSquare className="h-2.5 w-2.5 md:h-3 md:w-3" /> Ø MassDMs/Tag
+            </p>
+            <p className="text-sm sm:text-[11px] md:text-sm font-semibold text-foreground tabular-nums truncate">{avgDailyDMs}</p>
           </div>
         </div>
 
