@@ -18,7 +18,7 @@ import Notes from "@/pages/Notes";
 import TinderMode from "@/pages/TinderMode";
 
 import Anomalies from "@/pages/Anomalies";
-import MonthlyGoals from "@/pages/MonthlyGoals";
+import Goals from "@/pages/Goals";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
@@ -56,7 +56,8 @@ const AppRoutes = () => (
               <Route path="/push" element={<Push />} />
               <Route path="/today" element={<Today />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
-              <Route path="/monatsziele" element={<MonthlyGoals />} />
+              <Route path="/ziele" element={<Goals />} />
+              <Route path="/monatsziele" element={<Navigate to="/ziele" replace />} />
               <Route path="/upload" element={<UploadPage />} />
 
               <Route path="/leaderboard" element={<Leaderboard />} />
