@@ -715,6 +715,21 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
     return false;
   }, []);
 
+  /** Alle Chatter (enriched) — Basis für Challenger-Picker */
+  const allEnrichedChatters = useMemo(
+    () => listAllSwapChatters(chatters, models, swapWindow, liveEfficiency),
+    [chatters, models, swapWindow, liveEfficiency]
+  );
+
+  /** Liste der Challenger für die gerade gewählte Seite */
+  const challengerOptions = useMemo(() => {
+    if (!challengerPickerSide || !visibleLeft || !visibleRight) return [];
+    const fixed = challengerPickerSide === "left" ? visibleRight : visibleLeft;
+    const current = challengerPickerSide === "left" ? visibleLeft : visibleRight;
+    return computeChallengersForSlot(fixed, challengerPickerSide, current, allEnrichedChatters, benchmarks ?? null, 8);
+  }, [challengerPickerSide, visibleLeft, visibleRight, allEnrichedChatters, benchmarks]);
+
+
 
   const advancePair = useCallback(() => {
     setPairIdx((i) => i + 1);
