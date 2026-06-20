@@ -811,12 +811,12 @@ export default function WeeklyGoals() {
    */
   function applyAcceptedGoal(chatter: string, goal: number, _monthRevenue: number) {
     const today = new Date();
-    // Ziel gilt für den nächsten Monat → Label & Progress entsprechend.
+    // Ziel gilt für die nächste Woche → Label & Progress entsprechend.
     const weekLbl = nextWeekLabel(today);
     const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
     const noteDate = today.toISOString();
-    // Künftiger Monat → noch kein Umsatz, Progress relativ zum 1. des Zielmonats.
-    const progress = computeGoalProgress(goal, 0, firstOfNextMonth(today));
+    // Künftige Woche → noch kein Umsatz, Progress relativ zum Mo der Zielwoche.
+    const progress = computeGoalProgress(goal, 0, firstOfNextWeek(today));
 
     setRows((prev) => {
       const idx = prev.findIndex((r) => r.chatter === chatter);
