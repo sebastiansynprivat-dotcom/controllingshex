@@ -1165,6 +1165,11 @@ export default function WeeklyGoals() {
     };
   }, [rows, impactFilter]);
 
+  const filteredTotalGoal = useMemo(
+    () => filteredRows.reduce((s, r) => s + r.progress.goal, 0),
+    [filteredRows],
+  );
+
   const today = new Date();
   const trackedThrough = new Date(today);
   trackedThrough.setDate(today.getDate() - 1);
@@ -1318,6 +1323,18 @@ export default function WeeklyGoals() {
                     {label}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Summe der Ziele im aktuellen Filter */}
+            {filteredRows.length > 0 && (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-300/15 bg-emerald-500/[0.04] px-4 py-3">
+                <span className="text-[11px] text-emerald-200/70 font-light">
+                  Wenn alle {filteredRows.length} Chatter ihr Ziel erreichen
+                </span>
+                <span className="text-lg font-semibold tabular-nums text-emerald-200">
+                  {formatEUR(filteredTotalGoal)} / Woche
+                </span>
               </div>
             )}
 
