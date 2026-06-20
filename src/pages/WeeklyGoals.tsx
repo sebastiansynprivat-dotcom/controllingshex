@@ -1170,7 +1170,7 @@ export default function WeeklyGoals() {
                 <p className="text-sm text-white/55 font-light">
                   Vergib im Swipe-Mode oder Slide-Over das Label <span className="text-white/80">„Wochenziel"</span>{" "}
                   und schreibe eine Zahl in die Coaching-Notizen — oder nutze den Tab{" "}
-                  <span className="text-white/80">„Zukünftige Monatsziele"</span>.
+                  <span className="text-white/80">„Zukünftige Wochenziele"</span>.
                 </p>
               </div>
             ) : sortedRows.length === 0 ? (
