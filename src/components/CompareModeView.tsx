@@ -176,6 +176,47 @@ export default function CompareModeView({
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const { platform } = usePlatform();
 
+  // Profil-Stats pro Chatter (Ø Tagesumsatz, Ø MassDMs/Tag) — identische Berechnung
+  // wie im Chatter-Profil (Slideover). Live via Realtime auf chatter_history.
+  const [profileStats, setProfileStats] = useState<Map<string, { avgRev: number; avgDMs: number }>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today, mass_dms")
+        .eq("platform", platform);
+      if (cancelled || error || !data) return;
+      const acc = new Map<string, { sumRev: number; sumDM: number; n: number }>();
+      for (const r of data as Array<{ chatter_name: string | null; revenue_today: number | null; mass_dms: number | null }>) {
+        if (!r.chatter_name) continue;
+        const key = normalizeName(r.chatter_name);
+        const cur = acc.get(key) ?? { sumRev: 0, sumDM: 0, n: 0 };
+        cur.sumRev += Number(r.revenue_today) || 0;
+        cur.sumDM += Number(r.mass_dms) || 0;
+        cur.n += 1;
+        acc.set(key, cur);
+      }
+      const out = new Map<string, { avgRev: number; avgDMs: number }>();
+      for (const [k, v] of acc) {
+        out.set(k, { avgRev: v.n > 0 ? v.sumRev / v.n : 0, avgDMs: v.n > 0 ? Math.round(v.sumDM / v.n) : 0 });
+      }
+      setProfileStats(out);
+    };
+    load();
+    const channel = supabase
+      .channel(`compare-history-${platform}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chatter_history" }, () => {
+        load();
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
   // Reset wenn sich Filter/Stack ändert
   useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
   useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
