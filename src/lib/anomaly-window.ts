@@ -774,6 +774,7 @@ export const ANOMALY_LABELS: Record<AnomalyType, { label: string; emoji: string 
   peer_overperform:     { label: "Über Erwartung",            emoji: "🚀" },
   self_revenue_spike:   { label: "Eigener Schnitt übertroffen", emoji: "📈" },
   comeback:             { label: "Comeback — Turnaround",     emoji: "✨" },
+  hidden_gem:           { label: "Hidden Gem",                 emoji: "💎" },
 };
 
 export const SEVERITY_STYLE: Record<AnomalySeverity, { dot: string; border: string; label: string; text: string }> = {
