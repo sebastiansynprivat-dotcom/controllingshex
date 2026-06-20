@@ -1145,11 +1145,17 @@ export default function WeeklyGoals() {
     return arr;
   }, [filteredRows, sortKey]);
 
-  const statusCounts = useMemo(() => ({
-    on_track: rows.filter((r) => r.progress.status === "on_track").length,
-    close: rows.filter((r) => r.progress.status === "close").length,
-    off_track: rows.filter((r) => r.progress.status === "off_track").length,
-  }), [rows]);
+  const statusCounts = useMemo(() => {
+    const base = impactFilter === "important" ? rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD)
+      : impactFilter === "small" ? rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD)
+      : rows;
+    return {
+      total: base.length,
+      on_track: base.filter((r) => r.progress.status === "on_track").length,
+      close: base.filter((r) => r.progress.status === "close").length,
+      off_track: base.filter((r) => r.progress.status === "off_track").length,
+    };
+  }, [rows, impactFilter]);
 
   const today = new Date();
   const trackedThrough = new Date(today);
