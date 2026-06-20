@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import PastWeeklyGoalsTab from "@/components/PastWeeklyGoalsTab";
 import {
   parseGoalFromNote,
   computeWeekProgress as computeGoalProgress,
