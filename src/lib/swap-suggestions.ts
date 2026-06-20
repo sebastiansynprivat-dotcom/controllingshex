@@ -112,6 +112,12 @@ export interface SwapPair {
   tierJump: number;
   leftAlternatives: SwapChatter[];
   rightAlternatives: SwapChatter[];
+  /** 0..100 — wie verlässlich der Vorschlag ist (Account-Fit + Sample + Recency + Lern-Loop). */
+  confidence?: number;
+  /** Menschenlesbare Begründung mit Zahlen — wird auf der Card angezeigt. */
+  evidence?: string;
+  /** 1 = direkter historischer Beweis auf diesem Account, 2 = Nachbar-Account-Beweis, 3 = Skill-Fallback. */
+  evidenceTier?: 1 | 2 | 3;
 }
 
 /* ------------------------------------------------------------------ */
