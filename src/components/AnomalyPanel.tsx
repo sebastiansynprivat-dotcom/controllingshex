@@ -434,6 +434,7 @@ export default function AnomalyPanel({
         categorySince: [...smap.entries()],
         prevWindowAvg: [...pmap.entries()],
         allTimeAvg: [...atmap.entries()],
+        firstSeen: [...fsmap.entries()],
         savedAt: Date.now(),
       };
       sessionStorage.setItem(cacheKey, JSON.stringify(snap));
