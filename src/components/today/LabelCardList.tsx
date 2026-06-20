@@ -11,6 +11,12 @@ import { MagneticHover } from "@/components/MagneticHover";
 import type { LabelCard } from "@/lib/label-tasks";
 import { removeLabelFromChatter } from "@/lib/chatter-labels";
 
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
 interface Props {
   cards: LabelCard[];
   doneKeys: Set<string>;
