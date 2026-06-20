@@ -1236,14 +1236,17 @@ export default function WeeklyGoals() {
 
         {tab === "current" && (
           <>
-            {/* Impact-Filter: wichtige (≥ 100 €) vs. Mini-Wochenziele */}
+            {/* Impact-Filter: granular nach Wochenziel-Höhe */}
             {rows.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
                 {([
-                  ["important", `Wichtige (ab ${IMPACT_THRESHOLD} €)`, impactCounts.important, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
-                  ["small", `Klein (< ${IMPACT_THRESHOLD} €)`, impactCounts.small, "border-white/15 bg-white/[0.04] text-white/70"],
+                  ["lt100", "< 100 €", impactCounts.lt100, "border-white/15 bg-white/[0.04] text-white/70"],
+                  ["lt300", "< 300 €", impactCounts.lt300, "border-sky-300/30 bg-sky-400/10 text-sky-200"],
+                  ["lt500", "< 500 €", impactCounts.lt500, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
+                  ["lt1000", "< 1.000 €", impactCounts.lt1000, "border-rose-300/30 bg-rose-400/10 text-rose-200"],
+                  ["gte1000", "≥ 1.000 €", impactCounts.gte1000, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
                   ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
-                ] as ["important" | "small" | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
+                ] as ["lt100" | "lt300" | "lt500" | "lt1000" | "gte1000" | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
                   <button
                     key={k}
                     onClick={() => setImpactFilter(k)}
