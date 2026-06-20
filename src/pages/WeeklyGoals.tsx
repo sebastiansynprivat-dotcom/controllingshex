@@ -1530,6 +1530,13 @@ export default function WeeklyGoals() {
             )}
           </>
         )}
+
+        {tab === "past" && (
+          <PastWeeklyGoalsTab
+            platform={platform}
+            onOpenChatter={(c) => setSelected(c)}
+          />
+        )}
       </div>
 
       {messageFor && (
