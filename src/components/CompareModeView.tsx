@@ -610,6 +610,7 @@ function CompareSwipeCard({
   accentHsl,
   item,
   enriched,
+  profileStats,
   metricLabel,
   onSwipeLR,
   onSwipeDown,
@@ -619,6 +620,7 @@ function CompareSwipeCard({
   accentHsl: string;
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
+  profileStats: { avgRev: number; avgDMs: number } | undefined;
   metricLabel: string;
   onSwipeLR: () => void;
   onSwipeDown: () => void;
