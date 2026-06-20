@@ -371,9 +371,8 @@ export default function WeeklyGoals() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
-  // Impact-Filter: trennt "wichtige" Wochenziele (≥ Schwelle) von Mini-Zielen.
-  const IMPACT_THRESHOLD = 100;
-  const [impactFilter, setImpactFilter] = useState<"all" | "important" | "small">("important");
+  // Impact-Filter: granular nach Wochenziel-Höhe
+  const [impactFilter, setImpactFilter] = useState<"all" | "lt100" | "lt300" | "lt500" | "lt1000" | "gte1000">("all");
   const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
@@ -1120,15 +1119,21 @@ export default function WeeklyGoals() {
 
   const filteredRows = useMemo(() => {
     let arr = rows;
-    if (impactFilter === "important") arr = arr.filter((r) => r.progress.goal >= IMPACT_THRESHOLD);
-    else if (impactFilter === "small") arr = arr.filter((r) => r.progress.goal < IMPACT_THRESHOLD);
+    if (impactFilter === "lt100") arr = arr.filter((r) => r.progress.goal < 100);
+    else if (impactFilter === "lt300") arr = arr.filter((r) => r.progress.goal >= 100 && r.progress.goal < 300);
+    else if (impactFilter === "lt500") arr = arr.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500);
+    else if (impactFilter === "lt1000") arr = arr.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000);
+    else if (impactFilter === "gte1000") arr = arr.filter((r) => r.progress.goal >= 1000);
     if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
     return arr;
   }, [rows, statusFilter, impactFilter]);
 
   const impactCounts = useMemo(() => ({
-    important: rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD).length,
-    small: rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD).length,
+    lt100: rows.filter((r) => r.progress.goal < 100).length,
+    lt300: rows.filter((r) => r.progress.goal >= 100 && r.progress.goal < 300).length,
+    lt500: rows.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500).length,
+    lt1000: rows.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000).length,
+    gte1000: rows.filter((r) => r.progress.goal >= 1000).length,
   }), [rows]);
 
   const sortedRows = useMemo(() => {
@@ -1146,8 +1151,11 @@ export default function WeeklyGoals() {
   }, [filteredRows, sortKey]);
 
   const statusCounts = useMemo(() => {
-    const base = impactFilter === "important" ? rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD)
-      : impactFilter === "small" ? rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD)
+    const base = impactFilter === "lt100" ? rows.filter((r) => r.progress.goal < 100)
+      : impactFilter === "lt300" ? rows.filter((r) => r.progress.goal >= 100 && r.progress.goal < 300)
+      : impactFilter === "lt500" ? rows.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500)
+      : impactFilter === "lt1000" ? rows.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000)
+      : impactFilter === "gte1000" ? rows.filter((r) => r.progress.goal >= 1000)
       : rows;
     return {
       total: base.length,
@@ -1228,14 +1236,17 @@ export default function WeeklyGoals() {
 
         {tab === "current" && (
           <>
-            {/* Impact-Filter: wichtige (≥ 100 €) vs. Mini-Wochenziele */}
+            {/* Impact-Filter: granular nach Wochenziel-Höhe */}
             {rows.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
                 {([
-                  ["important", `Wichtige (ab ${IMPACT_THRESHOLD} €)`, impactCounts.important, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
-                  ["small", `Klein (< ${IMPACT_THRESHOLD} €)`, impactCounts.small, "border-white/15 bg-white/[0.04] text-white/70"],
+                  ["lt100", "< 100 €", impactCounts.lt100, "border-white/15 bg-white/[0.04] text-white/70"],
+                  ["lt300", "< 300 €", impactCounts.lt300, "border-sky-300/30 bg-sky-400/10 text-sky-200"],
+                  ["lt500", "< 500 €", impactCounts.lt500, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
+                  ["lt1000", "< 1.000 €", impactCounts.lt1000, "border-rose-300/30 bg-rose-400/10 text-rose-200"],
+                  ["gte1000", "≥ 1.000 €", impactCounts.gte1000, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
                   ["all", "Alle", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
-                ] as ["important" | "small" | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
+                ] as ["lt100" | "lt300" | "lt500" | "lt1000" | "gte1000" | "all", string, number, string][]).map(([k, label, count, activeCls]) => (
                   <button
                     key={k}
                     onClick={() => setImpactFilter(k)}
