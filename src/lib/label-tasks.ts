@@ -19,6 +19,9 @@ export interface LabelCard {
   liveOldestChatDays: number;
   todayRevenue: number;
   liveUpdatedAt: string | null;
+  accountFollowers: number | null;
+  accountTodayRevenue: number | null;
+  accountAvgDailyRevenue: number | null;
 }
 
 interface LiveRow {
