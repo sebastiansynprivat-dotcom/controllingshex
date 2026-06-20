@@ -677,11 +677,15 @@ export default function AnomalyPanel({
       entry.impactWindow = entry.impactPerDay * Math.max(1, windowDays);
     }
     return [...map.values()].sort((a, b) => {
+      if (mode === "highlights") {
+        if (b.topScore !== a.topScore) return b.topScore - a.topScore;
+        return b.totalFollowers - a.totalFollowers;
+      }
       if (b.impactPerDay !== a.impactPerDay) return b.impactPerDay - a.impactPerDay;
       if (b.totalFollowers !== a.totalFollowers) return b.totalFollowers - a.totalFollowers;
       return b.topScore - a.topScore;
     });
-  }, [anomalies, chatterAccounts, modelFollowers, windowDays, activeChatterNames]);
+  }, [anomalies, chatterAccounts, modelFollowers, windowDays, activeChatterNames, mode]);
 
   const copyName = useCallback(async (name: string) => {
     try {
