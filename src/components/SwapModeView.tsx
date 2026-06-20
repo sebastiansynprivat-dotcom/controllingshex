@@ -383,9 +383,29 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
     return () => { cancelled = true; };
   }, [platform, timeRange.from, timeRange.to]);
 
+  /** Account-Fit-Matrix (90T historische Performance pro Chatter×Account) — speist die
+   *  Smart-Cascade in computeSwapCandidates (S1 direkter Beweis, S2 Nachbar-Beweis). */
+  const [fitMatrix, setFitMatrix] = useState<AccountFitMatrix | undefined>(undefined);
+  const [swapTracking, setSwapTracking] = useState<Map<string, SwapTrackingEntry>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      loadAccountFitMatrix(platform).catch(() => undefined),
+      loadSwapTracking(platform).catch(() => new Map()),
+    ]).then(([fm, st]) => {
+      if (cancelled) return;
+      setFitMatrix(fm ?? undefined);
+      setSwapTracking(st ?? new Map());
+    });
+    return () => { cancelled = true; };
+  }, [platform]);
+
   const autoPairs = useMemo(
-    () => computeSwapCandidates(chatters, models, benchmarks ?? null, { platform, window: swapWindow, liveEfficiency }),
-    [chatters, models, benchmarks, platform, swapWindow, liveEfficiency]
+    () => computeSwapCandidates(chatters, models, benchmarks ?? null, {
+      platform, window: swapWindow, liveEfficiency,
+      fitMatrix, swapTracking, minConfidence: 40,
+    }),
+    [chatters, models, benchmarks, platform, swapWindow, liveEfficiency, fitMatrix, swapTracking]
   );
 
   /** Manueller Modus: Wenn ein Chatter gewählt wurde, ersetzen seine Vorschläge die Auto-Pairs. */
