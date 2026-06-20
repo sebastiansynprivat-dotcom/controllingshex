@@ -690,9 +690,8 @@ function CompareSwipeCard({
   // Daten-Quellen: enriched (Swap) bevorzugt, sonst Fallback aus FilteredChatter
   const tier = enriched?.tier ?? "—";
   const followers = enriched?.followers ?? 0;
-  const skill = enriched?.skillScore ?? 0;
-  const avgRev = item.avgRevWindow;
-  const today = enriched?.currentRevenue ?? item.currentRevenue ?? 0;
+  const avgDailyRev = profileStats?.avgRev ?? 0;
+  const avgDailyDMs = profileStats?.avgDMs ?? 0;
   const firstSeen = enriched?.firstSeen ?? null;
   const account = enriched?.account ?? item.account ?? "";
 
