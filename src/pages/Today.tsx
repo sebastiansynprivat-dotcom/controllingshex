@@ -52,7 +52,6 @@ type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
 const LABEL_FILTER_STORAGE_KEY = "today.activeLabelFilters";
-const LABEL_FILTER_DEFAULTS_MIGRATION_KEY = "today.activeLabelFilters.defaultAll.v2";
 
 
 
@@ -377,25 +376,21 @@ export default function Today() {
   );
   useEffect(() => {
     if (labels.length === 0 || visibleLabelIdSet.size === 0) return;
-    try {
-      if (localStorage.getItem(LABEL_FILTER_DEFAULTS_MIGRATION_KEY)) return;
-    } catch {
-      // continue without migration marker
-    }
 
     const selectedVisible = labels.filter((l) => visibleLabelIdSet.has(l.id) && selectedLabelIds.has(l.id));
-    const onlyUpgradeSelected = selectedVisible.length > 0
-      && selectedVisible.every((l) => l.label_name === "🟢 Upgrade" || l.label_name === "💛 Premium Upgrade");
-    if (selectedLabelIds.size === 0 || onlyUpgradeSelected) {
+    const visibleWithOpenCards = new Set(
+      labelCards
+        .filter((c) => visibleLabelIdSet.has(c.label.id) && states[c.todoKey]?.status !== "done")
+        .map((c) => c.label.id),
+    );
+    const selectedHasOnlyUpgradeCards = selectedVisible.length > 0
+      && selectedVisible.every((l) => l.label_name === "🟢 Upgrade" || l.label_name === "💛 Premium Upgrade")
+      && [...visibleWithOpenCards].some((id) => !selectedLabelIds.has(id));
+
+    if (selectedLabelIds.size === 0 || selectedHasOnlyUpgradeCards) {
       setSelectedLabelIds(new Set(visibleLabelIdSet));
     }
-
-    try {
-      localStorage.setItem(LABEL_FILTER_DEFAULTS_MIGRATION_KEY, "1");
-    } catch {
-      // ignore unavailable localStorage
-    }
-  }, [labels, selectedLabelIds, visibleLabelIdSet]);
+  }, [labelCards, labels, selectedLabelIds, states, visibleLabelIdSet]);
   const labelCountsByLabel = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of labelCards) {
