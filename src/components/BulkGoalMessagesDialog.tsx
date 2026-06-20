@@ -68,7 +68,7 @@ function classifyName(name: string): "whatsapp" | "platform" {
   return "platform";
 }
 
-export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip, onUnskip, onUnaccept }: Props) {
+export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip, onUnskip, onUnaccept, goalType = "monthly" }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
