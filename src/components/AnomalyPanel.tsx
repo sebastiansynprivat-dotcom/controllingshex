@@ -1005,13 +1005,13 @@ export default function AnomalyPanel({
                             +{chatterLabelsForGroup.length - 3}
                           </span>
                         )}
-                        {group.impactPerDay > 0 && (
+                        {mode === "problems" && group.impactPerDay > 0 && (
                           <span className={cn("inline-flex items-baseline gap-0.5 text-[12px] tabular-nums font-medium", sevGlow.accent)}>
                             <span>−{group.impactPerDay.toLocaleString("de-DE")}€</span>
                             <span className="text-[9px] uppercase tracking-wider opacity-60 font-light">/Tag</span>
                           </span>
                         )}
-                        {sinceRel && sinceRel.days >= 1 && (
+                        {mode === "problems" && sinceRel && sinceRel.days >= 1 && (
                           <span
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/[0.08] border border-red-500/15 text-[9px] uppercase tracking-wider text-red-200/85 font-medium"
                             title={`Dauer der Auffälligkeit: ${sinceRel.days} ${sinceRel.days === 1 ? "Tag" : "Tage"} in Folge auffällig (z. B. 0€-Umsatz, unter Peer-Schnitt oder keine MassDMs). Je länger, desto dringender.`}
