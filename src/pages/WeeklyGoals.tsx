@@ -1335,7 +1335,55 @@ export default function WeeklyGoals() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+              <>
+                {(() => {
+                  const goalSum = sortedRows.reduce((s, r) => s + r.progress.goal, 0);
+                  const revSum  = sortedRows.reduce((s, r) => s + r.progress.currentRevenue, 0);
+                  const remaining = Math.max(0, goalSum - revSum);
+                  const pct = goalSum > 0 ? Math.round((revSum / goalSum) * 100) : 0;
+                  return (
+                    <div className="rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/[0.08] via-emerald-400/[0.03] to-transparent p-4 sm:p-5">
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-light mb-1">
+                            Hochrechnung · aktiver Filter
+                          </div>
+                          <h4 className="text-sm text-white/80 font-light">
+                            {sortedRows.length} {sortedRows.length === 1 ? "Chatter" : "Chatter"} · wenn alle ihr Wochenziel erreichen.
+                          </h4>
+                        </div>
+                        <div className="flex gap-6 sm:gap-8">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light mb-1">
+                              Σ Wochenziele
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-emerald-200">
+                              {formatEUR(goalSum)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light mb-1">
+                              Bereits erreicht
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-white/85">
+                              {formatEUR(revSum)} <span className="text-sm text-white/45 font-light">· {pct}%</span>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light mb-1">
+                              Noch offen
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-white/85">
+                              {formatEUR(remaining)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                 {sortedRows.map((row) => (
                   <GoalCard
                     key={row.chatter}
@@ -1351,6 +1399,7 @@ export default function WeeklyGoals() {
                   />
                 ))}
               </div>
+              </>
             )}
           </>
         )}
