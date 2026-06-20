@@ -549,8 +549,69 @@ export async function computeAnomaliesForWindow(
           message: `Ø ${a.avgMassDmsPerDay.toFixed(1)} MassDMs/Tag — zieht voll durch, Umsatz folgt erfahrungsgemäß`,
           score: 0.5, // ganz unten in der Liste
         });
+    }
+
+    // ── 5. POSITIV: Peer-Overperform ─────────────────────────
+    // Deutlich über erwartetem €/Tag bei seiner Follower-Summe.
+    if (
+      useExpected &&
+      expected > 5 &&
+      a.daysActive >= Math.min(4, days) &&
+      a.avgRevenuePerDay >= expected * 1.5
+    ) {
+      const overPct = ((a.avgRevenuePerDay - expected) / expected) * 100;
+      anomalies.push({
+        chatter_name: a.name,
+        alert_type: "peer_overperform",
+        severity: "positive",
+        metric_value: a.avgRevenuePerDay,
+        baseline_value: expected,
+        delta_pct: Math.round(overPct),
+        message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(overPct)}% über Erwartung (erwartet ${expected.toFixed(0)}€ bei ${a.totalFollowers.toLocaleString("de-DE")} Followern)`,
+        score: 50 + Math.min(overPct, 300) / 5,
+      });
+    }
+
+    // ── 6. POSITIV: Self Revenue Spike ───────────────────────
+    if (haveOwnHistory && baseHere!.avgRevenue >= 30) {
+      const upPct = ((a.avgRevenuePerDay - baseHere!.avgRevenue) / baseHere!.avgRevenue) * 100;
+      if (upPct >= 50 && a.daysActive >= Math.min(3, days)) {
+        anomalies.push({
+          chatter_name: a.name,
+          alert_type: "self_revenue_spike",
+          severity: "positive",
+          metric_value: a.avgRevenuePerDay,
+          baseline_value: baseHere!.avgRevenue,
+          delta_pct: Math.round(upPct),
+          message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€ — +${Math.round(upPct)}% über eigenem Schnitt (${baseHere!.avgRevenue.toFixed(0)}€)`,
+          score: 55 + Math.min(upPct, 300) / 5,
+        });
       }
     }
+
+    // ── 7. POSITIV: Comeback ─────────────────────────────────
+    // Vorher schwach (<30€/Tag bei ≥5 Baselinetagen), jetzt deutlich stark (≥60€/Tag).
+    if (
+      baseHere &&
+      baseHere.days >= 5 &&
+      baseHere.avgRevenue < 30 &&
+      a.avgRevenuePerDay >= 60 &&
+      a.daysActive >= Math.min(3, days)
+    ) {
+      anomalies.push({
+        chatter_name: a.name,
+        alert_type: "comeback",
+        severity: "positive",
+        metric_value: a.avgRevenuePerDay,
+        baseline_value: baseHere.avgRevenue,
+        delta_pct: baseHere.avgRevenue > 0
+          ? Math.round(((a.avgRevenuePerDay - baseHere.avgRevenue) / baseHere.avgRevenue) * 100)
+          : 0,
+        message: `Comeback: Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag (vorher nur ${baseHere.avgRevenue.toFixed(0)}€) — Turnaround läuft`,
+        score: 70 + Math.min(a.avgRevenuePerDay, 500) / 10,
+      });
+    }
+  }
   }
 
   // Dismissals nur anwenden wenn report bekannt
