@@ -743,7 +743,12 @@ export default function AnomalyPanel({
               .map((a) => a.chatter_name),
           );
           const flagged = criticalChatters.size;
-          const total = Math.max(totalChattersInRange, groupedByChatter.length);
+          // Nenner = Chatter im neuesten Report (konsistent zum Filter oben).
+          // Fallback: Zeitraum-Total, falls (noch) keine aktiven Namen geladen sind.
+          const activeCount = activeChatterNames?.size ?? 0;
+          const total = activeCount > 0
+            ? Math.max(activeCount, groupedByChatter.length)
+            : Math.max(totalChattersInRange, groupedByChatter.length);
           const pct = total > 0 ? Math.min(100, (flagged / total) * 100) : 0;
           const tone = "from-red-500/80 via-red-400/70 to-orange-400/70";
           const glow = "shadow-[0_0_18px_-2px_rgba(248,113,113,0.45)]";
