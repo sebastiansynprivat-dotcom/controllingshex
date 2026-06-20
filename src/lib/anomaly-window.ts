@@ -25,7 +25,8 @@ export type AnomalyType =
   | "high_effort_no_rev"  // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
   | "peer_overperform"    // Positiv: deutlich über Follower-Erwartung
   | "self_revenue_spike"  // Positiv: eigener Schnitt deutlich übertroffen
-  | "comeback";           // Positiv: vorher schwach, jetzt stark
+  | "comeback"            // Positiv: vorher schwach, jetzt stark
+  | "hidden_gem";         // Positiv: kleiner Account + konstant + über Erwartung
 
 /** Liefert true für „positive" Auffälligkeiten (Highlights-Tab). */
 export function isPositiveAnomaly(type: AnomalyType): boolean {
@@ -33,7 +34,8 @@ export function isPositiveAnomaly(type: AnomalyType): boolean {
     type === "high_effort_no_rev" ||
     type === "peer_overperform" ||
     type === "self_revenue_spike" ||
-    type === "comeback"
+    type === "comeback" ||
+    type === "hidden_gem"
   );
 }
 
@@ -408,6 +410,15 @@ export async function computeAnomaliesForWindow(
   const peerAvg =
     peerValues.length > 0 ? peerValues.reduce((s, v) => s + v, 0) / peerValues.length : 0;
 
+  // Workspace-Median der Follower-Summe pro Chatter — definiert "kleiner Account".
+  const followerSums = [...agg.values()]
+    .map((a) => a.totalFollowers)
+    .filter((f) => f > 0)
+    .sort((a, b) => a - b);
+  const followerMedian = followerSums.length > 0
+    ? followerSums[Math.floor(followerSums.length / 2)]
+    : 0;
+
   // MassDM-Ziel skaliert mit Fensterlänge (6/Tag)
   const massDmTargetPerDay = 6;
 
@@ -551,13 +562,17 @@ export async function computeAnomaliesForWindow(
         });
     }
 
+    // Konstanz-Faktor: 0..1, wie viele Fenstertage der Chatter aktiv war.
+    const consistency = days > 0 ? Math.min(1, a.daysActive / days) : 0;
+    const consistencyBoost = Math.round(consistency * 25); // bis +25 Score
+
     // ── 5. POSITIV: Peer-Overperform ─────────────────────────
-    // Deutlich über erwartetem €/Tag bei seiner Follower-Summe.
+    // Schwelle 1.3× Erwartung — sortiert nach Über-% × Konstanz.
     if (
       useExpected &&
       expected > 5 &&
-      a.daysActive >= Math.min(4, days) &&
-      a.avgRevenuePerDay >= expected * 1.5
+      a.daysActive >= Math.min(3, days) &&
+      a.avgRevenuePerDay >= expected * 1.3
     ) {
       const overPct = ((a.avgRevenuePerDay - expected) / expected) * 100;
       anomalies.push({
@@ -568,7 +583,35 @@ export async function computeAnomaliesForWindow(
         baseline_value: expected,
         delta_pct: Math.round(overPct),
         message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(overPct)}% über Erwartung (erwartet ${expected.toFixed(0)}€ bei ${a.totalFollowers.toLocaleString("de-DE")} Followern)`,
-        score: 50 + Math.min(overPct, 300) / 5,
+        score: 50 + Math.min(overPct, 300) / 5 + consistencyBoost,
+      });
+    }
+
+    // ── 5b. POSITIV: Hidden Gem ──────────────────────────────
+    // Kleiner Account (Follower unter Workspace-Median) + konstant aktiv (≥50% Tage)
+    // + spürbar über Erwartung (≥1.2×). Diese Leute findest du sonst nicht.
+    if (
+      useExpected &&
+      expected > 0 &&
+      followerMedian > 0 &&
+      a.totalFollowers > 0 &&
+      a.totalFollowers <= followerMedian &&
+      consistency >= 0.5 &&
+      a.daysActive >= Math.min(3, days) &&
+      a.avgRevenuePerDay >= expected * 1.2
+    ) {
+      const overPct = ((a.avgRevenuePerDay - expected) / expected) * 100;
+      const overEur = a.avgRevenuePerDay - expected;
+      anomalies.push({
+        chatter_name: a.name,
+        alert_type: "hidden_gem",
+        severity: "positive",
+        metric_value: a.avgRevenuePerDay,
+        baseline_value: expected,
+        delta_pct: Math.round(overPct),
+        message: `Kleiner Account, konstant da — Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag bei nur ${a.totalFollowers.toLocaleString("de-DE")} Followern (${Math.round(overPct)}% über Erwartung, ${a.daysActive}/${days} Tage aktiv)`,
+        // Score: höher als peer_overperform — diese Leute sollen ganz oben stehen.
+        score: 80 + Math.min(overPct, 300) / 4 + consistencyBoost + Math.min(overEur, 100) / 5,
       });
     }
 
@@ -584,13 +627,12 @@ export async function computeAnomaliesForWindow(
           baseline_value: baseHere!.avgRevenue,
           delta_pct: Math.round(upPct),
           message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€ — +${Math.round(upPct)}% über eigenem Schnitt (${baseHere!.avgRevenue.toFixed(0)}€)`,
-          score: 55 + Math.min(upPct, 300) / 5,
+          score: 55 + Math.min(upPct, 300) / 5 + consistencyBoost,
         });
       }
     }
 
     // ── 7. POSITIV: Comeback ─────────────────────────────────
-    // Vorher schwach (<30€/Tag bei ≥5 Baselinetagen), jetzt deutlich stark (≥60€/Tag).
     if (
       baseHere &&
       baseHere.days >= 5 &&
@@ -732,6 +774,7 @@ export const ANOMALY_LABELS: Record<AnomalyType, { label: string; emoji: string 
   peer_overperform:     { label: "Über Erwartung",            emoji: "🚀" },
   self_revenue_spike:   { label: "Eigener Schnitt übertroffen", emoji: "📈" },
   comeback:             { label: "Comeback — Turnaround",     emoji: "✨" },
+  hidden_gem:           { label: "Hidden Gem",                 emoji: "💎" },
 };
 
 export const SEVERITY_STYLE: Record<AnomalySeverity, { dot: string; border: string; label: string; text: string }> = {
