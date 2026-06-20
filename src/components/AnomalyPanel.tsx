@@ -855,7 +855,7 @@ export default function AnomalyPanel({
                       title="Performance-Profil öffnen"
                       className="flex-1 min-w-0 text-left group/name cursor-pointer"
                     >
-                      {/* Top row: Name + Impact + Status-Pill */}
+                      {/* Top row: Name + Impact + Status-Pill + Labels */}
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className={cn(textSize, "text-white/95 font-semibold tracking-tight truncate group-hover/name:text-white transition-colors")}>
                           {group.name}
@@ -868,6 +868,24 @@ export default function AnomalyPanel({
                         >
                           {topSev.label}
                         </span>
+                        {chatterLabelsForGroup.slice(0, 3).map((lbl) => (
+                          <span
+                            key={lbl.id}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-white/[0.08] bg-white/[0.04] text-[10px] font-medium text-white/80 shrink-0"
+                            title={lbl.label_name}
+                          >
+                            <span
+                              className="inline-block h-1.5 w-1.5 rounded-full"
+                              style={{ backgroundColor: lbl.color, boxShadow: `0 0 6px ${lbl.color}66` }}
+                            />
+                            <span className="truncate max-w-[140px]">{lbl.label_name}</span>
+                          </span>
+                        ))}
+                        {chatterLabelsForGroup.length > 3 && (
+                          <span className="text-[10px] text-white/45 font-light shrink-0">
+                            +{chatterLabelsForGroup.length - 3}
+                          </span>
+                        )}
                         {group.impactPerDay > 0 && (
                           <span className={cn("inline-flex items-baseline gap-0.5 text-[12px] tabular-nums font-medium", sevGlow.accent)}>
                             <span>−{group.impactPerDay.toLocaleString("de-DE")}€</span>
@@ -884,6 +902,7 @@ export default function AnomalyPanel({
                           </span>
                         )}
                       </div>
+
 
                       {/* Headline-Message */}
                       <div className="text-[12px] sm:text-[13px] text-white/70 font-light mt-1 leading-snug">
