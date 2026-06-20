@@ -53,7 +53,10 @@ interface MiniCardProps {
   onSwipeUp: () => void;
   onSingleClick?: () => void;
   onDoubleClick?: () => void;
+  onReplaceClick?: () => void;
+  isDeclining?: boolean;
 }
+
 
 function SwapMiniCard({ chatter, side, onSwipeLeft, onSwipeRight, onSwipeUp, onSingleClick, onDoubleClick }: MiniCardProps) {
   const x = useMotionValue(0);
