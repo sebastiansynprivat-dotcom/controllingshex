@@ -23,6 +23,9 @@ import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { findCluster } from "@/lib/peer-benchmarks";
 import type { LiveEfficiencyRow } from "@/lib/live-efficiency";
 import { hasUsableLiveData } from "@/lib/live-efficiency";
+import type { AccountFitMatrix, FitEntry } from "@/lib/account-fit";
+import type { SwapTrackingEntry, TierDirection } from "@/lib/swap-tracking";
+import { normalizeChatterName } from "@/lib/active-chatters";
 
 export type Tier = "Micro" | "Small" | "Medium" | "Large" | "Huge";
 
