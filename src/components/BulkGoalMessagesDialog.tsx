@@ -27,6 +27,8 @@ interface Props {
   onSkip?: (chatter: string) => void | Promise<void>;
   onUnskip?: (chatter: string) => void | Promise<void>;
   onUnaccept?: (chatter: string) => Promise<void>;
+  /** "monthly" (default) oder "weekly". */
+  goalType?: "monthly" | "weekly";
 }
 
 
