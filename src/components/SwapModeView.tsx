@@ -671,6 +671,7 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
 
   /** Erster nicht-dismisster Kandidat ab leftAltIdx (zirkulär) */
   const visibleLeft: SwapChatter | undefined = useMemo(() => {
+    if (slotOverrideLeft) return slotOverrideLeft;
     if (leftCandidates.length === 0) return undefined;
     const n = leftCandidates.length;
     for (let off = 0; off < n; off++) {
@@ -680,9 +681,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
       return c;
     }
     return undefined;
-  }, [leftCandidates, leftAltIdx, dismissedLeftKeys, dailyDismissed]);
+  }, [leftCandidates, leftAltIdx, dismissedLeftKeys, dailyDismissed, slotOverrideLeft]);
 
   const visibleRight: SwapChatter | undefined = useMemo(() => {
+    if (slotOverrideRight) return slotOverrideRight;
     if (rightCandidates.length === 0) return undefined;
     const n = rightCandidates.length;
     for (let off = 0; off < n; off++) {
@@ -692,7 +694,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
       return c;
     }
     return undefined;
-  }, [rightCandidates, rightAltIdx, dismissedRightKeys, dailyDismissed]);
+  }, [rightCandidates, rightAltIdx, dismissedRightKeys, dailyDismissed, slotOverrideRight]);
+
 
   const visibleGain = useMemo(() => {
     if (!visibleLeft || !visibleRight) return 0;
