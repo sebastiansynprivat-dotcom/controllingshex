@@ -55,17 +55,21 @@ export default function GoalMessageDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, chatter]);
 
-  async function generate(useGoal: number, useScenario: "auto" | "growth" | "flat" | "decline") {
+  async function generate(useGoal: number, useScenario: ScenarioKey) {
     setLoading(true);
     setMessage("");
     try {
+      // Map UI-Szenario auf das Edge-Function-Format. Bei "weekly" passt die Edge
+      // Function "growth"/"flat"/"decline" automatisch auf weekly_* an.
+      const scenarioOverride = useScenario === "auto" ? null : useScenario;
       const { data, error } = await supabase.functions.invoke("generate-goal-message", {
         body: {
           chatter_name: chatter,
           platform,
           proposed_goal: useGoal,
           current_goal: currentGoal ?? null,
-          scenario_override: useScenario === "auto" ? null : useScenario,
+          goal_type: goalType,
+          scenario_override: scenarioOverride,
         },
       });
       if (error) throw error;
