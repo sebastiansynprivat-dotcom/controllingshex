@@ -702,6 +702,20 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
     return Math.max(0, computeSwapExpectedGain(visibleLeft, visibleRight, benchmarks ?? null));
   }, [visibleLeft, visibleRight, benchmarks]);
 
+  /** "Im Rückgang": 7T-Schnitt liegt deutlich unter currentRevenue-Historie.
+   *  Heuristik ohne Extra-Datenladen: avgRevenue ist im gewählten Fenster (default 7T).
+   *  Wenn der Chatter historisch >0 verdient hat aber avg<30% des Peer-Tier-Medians
+   *  ODER currentRevenue=0 bei avgRevenue>0 → flag. */
+  const isInDecline = useCallback((c: SwapChatter): boolean => {
+    if (c.avgRevenue > 0 && c.currentRevenue === 0) return true;
+    // sehr niedrige Disziplin trotz vorhandener Daten
+    if (c.skillSource === "live" && c.live && c.live.session_consistency < 0.25 && c.live.active_days < c.live.range_days * 0.4) {
+      return true;
+    }
+    return false;
+  }, []);
+
+
   const advancePair = useCallback(() => {
     setPairIdx((i) => i + 1);
   }, []);
