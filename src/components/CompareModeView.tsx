@@ -229,6 +229,58 @@ export default function CompareModeView({
     };
   }, [platform]);
 
+  // Live-Profile (Echtzeit · Heute) pro Chatter aus chatter_history_live.
+  // Identische Quelle wie das Chatter-Profil (Slideover).
+  type LiveProfile = { revenue: number; mass_dms: number; unread_chats: number; oldest_chat: number };
+  const [liveByName, setLiveByName] = useState<Map<string, LiveProfile>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const out = new Map<string, LiveProfile>();
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("chatter_history_live")
+          .select("chatter_name, revenue, mass_dms, unread_chats, oldest_chat, date")
+          .ilike("platform", platform)
+          .order("date", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (cancelled) return;
+        if (error || !data) break;
+        for (const r of data as Array<{ chatter_name: string | null; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null }>) {
+          if (!r.chatter_name) continue;
+          const key = normalizeName(r.chatter_name);
+          // order desc → erster Eintrag pro Chatter ist der neueste
+          if (out.has(key)) continue;
+          out.set(key, {
+            revenue: Number(r.revenue) || 0,
+            mass_dms: Number(r.mass_dms) || 0,
+            unread_chats: Number(r.unread_chats) || 0,
+            oldest_chat: Number(r.oldest_chat) || 0,
+          });
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      if (cancelled) return;
+      setLiveByName(out);
+    };
+    load();
+    const channel = supabase
+      .channel(`compare-live-${platform}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chatter_history_live" }, () => {
+        load();
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [platform]);
+
   // Reset wenn sich Filter/Stack ändert
   useEffect(() => { setIdxA(0); setSkippedA([]); }, [state.setA]);
   useEffect(() => { setIdxB(0); setSkippedB([]); }, [state.setB]);
