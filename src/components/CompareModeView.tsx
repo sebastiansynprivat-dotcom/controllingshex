@@ -681,6 +681,7 @@ function CompareSwipeCard({
   item,
   enriched,
   profileStats,
+  live,
   metricLabel,
   onSwipeLR,
   onSwipeDown,
@@ -691,6 +692,7 @@ function CompareSwipeCard({
   item: FilteredChatter;
   enriched: SwapChatter | undefined;
   profileStats: { avgRev: number; avgDMs: number } | undefined;
+  live: { revenue: number; mass_dms: number; unread_chats: number; oldest_chat: number } | undefined;
   metricLabel: string;
   onSwipeLR: () => void;
   onSwipeDown: () => void;
