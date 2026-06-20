@@ -467,6 +467,14 @@ export interface ComputeOptions {
   window?: WindowSpec;
   /** Optional: Live-Effizienz pro Chatter (key = chatter_name lowercase). Wenn gesetzt und ausreichend Daten, ersetzt sie den Legacy-Skill-Score. */
   liveEfficiency?: Map<string, LiveEfficiencyRow>;
+  /** Optional: Account-Fit-Matrix (aus loadAccountFitMatrix). Aktiviert den account-spezifischen Smart-Branch. */
+  fitMatrix?: AccountFitMatrix;
+  /** Optional: Outcome-Daten vergangener Swaps (aus loadSwapTracking). Speist Confidence-Bonus pro Tier-Richtung. */
+  swapTracking?: Map<string, SwapTrackingEntry>;
+  /** Minimal-Confidence (0..100). Pairs darunter werden gefiltert. Default 50. -1 = alles zeigen. */
+  minConfidence?: number;
+  /** Wenn true UND zu wenig confident pairs (<5), wird der Legacy-Skill-Mismatch als Spekulations-Backfill aufgenommen. Default true. */
+  allowSpeculativeBackfill?: boolean;
 }
 
 /**
