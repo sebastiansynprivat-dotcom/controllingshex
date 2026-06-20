@@ -359,10 +359,12 @@ export default function Today() {
       ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
       : baseVisibleList;
 
-  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
-  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
-    queueMicrotask(() => setKindTab("all"));
-  }
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück (in Effect, nicht in Render)
+  useEffect(() => {
+    if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
+      setKindTab("all");
+    }
+  }, [kindTab, availableKinds]);
 
 
   // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
