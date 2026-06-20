@@ -20,7 +20,11 @@ interface Props {
   platform: string;
   proposedGoal: number;
   currentGoal?: number | null;
+  /** "monthly" (default) oder "weekly". Steuert Szenario-Keys + Edge-Funktion. */
+  goalType?: "monthly" | "weekly";
 }
+
+type ScenarioKey = "auto" | "growth" | "flat" | "decline";
 
 export default function GoalMessageDialog({
   open,
@@ -29,13 +33,14 @@ export default function GoalMessageDialog({
   platform,
   proposedGoal,
   currentGoal,
+  goalType = "monthly",
 }: Props) {
   const [goal, setGoal] = useState<number>(proposedGoal);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [context, setContext] = useState<any>(null);
-  const [scenario, setScenario] = useState<"auto" | "growth" | "flat" | "decline">("auto");
+  const [scenario, setScenario] = useState<ScenarioKey>("auto");
 
   useEffect(() => {
     if (open) {
@@ -50,17 +55,21 @@ export default function GoalMessageDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, chatter]);
 
-  async function generate(useGoal: number, useScenario: "auto" | "growth" | "flat" | "decline") {
+  async function generate(useGoal: number, useScenario: ScenarioKey) {
     setLoading(true);
     setMessage("");
     try {
+      // Map UI-Szenario auf das Edge-Function-Format. Bei "weekly" passt die Edge
+      // Function "growth"/"flat"/"decline" automatisch auf weekly_* an.
+      const scenarioOverride = useScenario === "auto" ? null : useScenario;
       const { data, error } = await supabase.functions.invoke("generate-goal-message", {
         body: {
           chatter_name: chatter,
           platform,
           proposed_goal: useGoal,
           current_goal: currentGoal ?? null,
-          scenario_override: useScenario === "auto" ? null : useScenario,
+          goal_type: goalType,
+          scenario_override: scenarioOverride,
         },
       });
       if (error) throw error;
@@ -95,7 +104,9 @@ export default function GoalMessageDialog({
             Nachricht an {chatter}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Monats-Recap + neues Ziel. Kopieren und direkt rüberschicken.
+            {goalType === "weekly"
+              ? "Wochen-Recap + neues Wochenziel. Kopieren und direkt rüberschicken."
+              : "Monats-Recap + neues Monatsziel. Kopieren und direkt rüberschicken."}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,7 +114,7 @@ export default function GoalMessageDialog({
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <label className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light">
-                Neues Monatsziel (EUR)
+                {goalType === "weekly" ? "Neues Wochenziel (EUR)" : "Neues Monatsziel (EUR)"}
               </label>
               <input
                 type="number"

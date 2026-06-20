@@ -1540,7 +1540,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      goal_message_scenario: "growth" | "flat" | "decline"
+      goal_message_scenario:
+        | "growth"
+        | "flat"
+        | "decline"
+        | "weekly_growth"
+        | "weekly_flat"
+        | "weekly_decline"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1669,7 +1675,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      goal_message_scenario: ["growth", "flat", "decline"],
+      goal_message_scenario: [
+        "growth",
+        "flat",
+        "decline",
+        "weekly_growth",
+        "weekly_flat",
+        "weekly_decline",
+      ],
     },
   },
 } as const
