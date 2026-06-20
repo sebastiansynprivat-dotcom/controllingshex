@@ -1425,6 +1425,51 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_goal_results: {
+        Row: {
+          achieved: boolean
+          actual_eur: number
+          chatter_name: string
+          goal_eur: number
+          id: string
+          platform: string
+          recorded_at: string
+          source: string
+          user_id: string
+          week_end: string
+          week_key: string
+          week_start: string
+        }
+        Insert: {
+          achieved: boolean
+          actual_eur?: number
+          chatter_name: string
+          goal_eur: number
+          id?: string
+          platform: string
+          recorded_at?: string
+          source?: string
+          user_id: string
+          week_end: string
+          week_key: string
+          week_start: string
+        }
+        Update: {
+          achieved?: boolean
+          actual_eur?: number
+          chatter_name?: string
+          goal_eur?: number
+          id?: string
+          platform?: string
+          recorded_at?: string
+          source?: string
+          user_id?: string
+          week_end?: string
+          week_key?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       weekly_goal_skips: {
         Row: {
           chatter_name: string
