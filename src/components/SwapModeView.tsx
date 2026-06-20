@@ -1288,6 +1288,23 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
             >
               {currentPair.followerRatio.toFixed(1)}× Follower
             </span>
+            {currentPair.confidence != null && (
+              <span
+                className="text-[9px] lg:text-[10px] uppercase tracking-wider font-semibold px-2 lg:px-3 py-1 lg:py-1.5 rounded-full border tabular-nums"
+                style={{
+                  color: currentPair.confidence >= 65 ? "hsl(152 70% 60%)" : currentPair.confidence >= 45 ? "hsl(40 90% 60%)" : "hsl(0 0% 60%)",
+                  borderColor: currentPair.confidence >= 65 ? "hsl(152 70% 45% / 0.45)" : currentPair.confidence >= 45 ? "hsl(40 90% 55% / 0.4)" : "hsl(0 0% 100% / 0.15)",
+                  background: currentPair.confidence >= 65 ? "hsl(152 70% 45% / 0.08)" : currentPair.confidence >= 45 ? "hsl(40 90% 55% / 0.06)" : "transparent",
+                }}
+                title={
+                  currentPair.evidenceTier === 1 ? "Direkter Beweis: dieser Chatter war schon auf diesem Account"
+                  : currentPair.evidenceTier === 2 ? "Nachbar-Beweis: dieser Chatter performt auf einem ähnlich großen Account"
+                  : "Spekulativ: nur Skill-Score-Vergleich, kein direkter Account-Beweis"
+                }
+              >
+                {currentPair.confidence}/100 · S{currentPair.evidenceTier ?? "?"}
+              </span>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -1299,6 +1316,12 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
               <span className="hidden sm:inline">{isManualMode ? "Anderen wählen" : "Manuell wählen"}</span>
             </Button>
           </div>
+
+          {currentPair.evidence && (
+            <p className="text-[10px] lg:text-xs text-white/65 leading-snug px-1 pt-0.5">
+              {currentPair.evidence}
+            </p>
+          )}
         </div>
 
         {/* Cards stage */}
