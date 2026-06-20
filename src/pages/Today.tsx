@@ -640,6 +640,7 @@ export default function Today() {
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
 
+            <ErrorBoundary>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={kindTab}
@@ -705,6 +706,7 @@ export default function Today() {
                 )}
               </motion.div>
             </AnimatePresence>
+            </ErrorBoundary>
           )}
 
 
