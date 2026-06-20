@@ -637,6 +637,7 @@ function CompareSlot({
 
   const enriched = enrichedMap.get(normalizeName(item.name));
   const stats = profileStats.get(normalizeName(item.name));
+  const live = liveByName.get(normalizeName(item.name));
 
   return (
     <div className="space-y-1.5">
@@ -647,6 +648,7 @@ function CompareSlot({
           item={item}
           enriched={enriched}
           profileStats={stats}
+          live={live}
             metricLabel={metricLabel}
           onSwipeLR={onSwipeDismiss}
           onSwipeDown={onSwipeSkip}
