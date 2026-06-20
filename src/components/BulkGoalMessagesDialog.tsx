@@ -149,6 +149,7 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
             platform,
             proposed_goal: effectiveTargets[i].goal,
             current_goal: null,
+            goal_type: goalType,
           },
         });
         if (error) throw error;
