@@ -51,37 +51,52 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     return n;
   }, [filter]);
 
-  // Active pills summary for mobile chip header
-  const activePills = useMemo(() => {
-    const pills: string[] = [];
+  // Active pills summary — strukturiert mit Labels (Name + Farbe) und Kriterien
+  type Pill = { key: string; text: string; color?: string };
+  const activePills = useMemo<Pill[]>(() => {
+    const pills: Pill[] = [];
     filter.tiers.forEach((t) => {
       const tier = ACCOUNT_TIERS.find((x) => x.id === t);
-      if (tier) pills.push(`${tier.emoji}`);
+      if (tier) pills.push({ key: `tier-${t}`, text: `${tier.emoji} ${tier.label}` });
     });
     filter.categories.forEach((c) => {
       const cat = ACTION_CATEGORIES.find((x) => x.name === c);
-      if (cat) pills.push(`${cat.emoji}`);
+      if (cat) pills.push({ key: `cat-${c}`, text: `${cat.emoji} ${cat.name}` });
     });
-    if (filter.status !== "any") pills.push(filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onb.");
-    if (filter.alerts !== "any") pills.push(filter.alerts === "with" ? "🔔" : "🔕");
+    if (filter.status !== "any") {
+      const text = filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onboarding";
+      pills.push({ key: "status", text });
+    }
+    if (filter.alerts !== "any") {
+      pills.push({ key: "alerts", text: filter.alerts === "with" ? "🔔 Mit Alert" : "🔕 Ohne Alert" });
+    }
     if (filter.delayRange) {
       const [lo, hi] = filter.delayRange;
-      pills.push(`⏱${lo}–${hi}d`);
+      pills.push({ key: "delay", text: `⏱ ${lo}–${hi}d Verzug` });
     }
     if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
-      pills.push(`📅${lo}–${hi}d`);
+      pills.push({ key: "tenure", text: `📅 ${lo}–${hi}d dabei` });
     }
     if (filter.followerRange) {
       const [lo, hi] = filter.followerRange;
       const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `${n}`);
-      pills.push(`👥${fmt(lo)}–${fmt(hi)}`);
+      pills.push({ key: "followers", text: `👥 ${fmt(lo)}–${fmt(hi)}` });
     }
-    if (filter.revToday) pills.push("€h");
-    if (filter.revAvg) pills.push("Ø€");
-    if (filter.labelIds.length) pills.push(`${filter.labelIds.length}🏷`);
+    if (filter.revToday) {
+      const [lo, hi] = filter.revToday;
+      pills.push({ key: "revToday", text: `€ heute ${lo}–${hi}` });
+    }
+    if (filter.revAvg) {
+      const [lo, hi] = filter.revAvg;
+      pills.push({ key: "revAvg", text: `Ø € ${lo}–${hi}` });
+    }
+    filter.labelIds.forEach((id) => {
+      const l = allLabels.find((x) => x.id === id);
+      if (l) pills.push({ key: `lbl-${id}`, text: `🏷 ${l.label_name}`, color: l.color });
+    });
     return pills;
-  }, [filter]);
+  }, [filter, allLabels]);
 
   // The full filter UI body (reused inline on desktop / inside sheet on mobile)
   const FilterBody = (
@@ -462,16 +477,22 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
           </div>
           {activePills.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {activePills.slice(0, 3).map((p, i) => (
+              {activePills.slice(0, 6).map((p) => (
                 <span
-                  key={i}
-                  className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20"
+                  key={p.key}
+                  className="px-1.5 py-0.5 rounded text-[10px] border"
+                  style={
+                    p.color
+                      ? { background: `${p.color}22`, color: p.color, borderColor: `${p.color}55` }
+                      : undefined
+                  }
+                  {...(p.color ? {} : { "data-default": true })}
                 >
-                  {p}
+                  <span className={p.color ? "" : "text-primary"}>{p.text}</span>
                 </span>
               ))}
-              {activePills.length > 3 && (
-                <span className="text-[10px] text-muted-foreground">+{activePills.length - 3}</span>
+              {activePills.length > 6 && (
+                <span className="text-[10px] text-muted-foreground">+{activePills.length - 6}</span>
               )}
             </div>
           ) : (
@@ -521,25 +542,30 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
           sheetOpen && "bg-white/[0.05]"
         )}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={cn("inline-block h-2 w-2 rounded-full shrink-0", accentDot)} />
-          <span className="text-xs font-semibold tracking-wide text-foreground/90 shrink-0">{label}</span>
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <span className={cn("inline-block h-2 w-2 rounded-full shrink-0 mt-1.5", accentDot)} />
+          <span className="text-xs font-semibold tracking-wide text-foreground/90 shrink-0 mt-0.5">{label}</span>
           {activePills.length > 0 ? (
-            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-              {activePills.slice(0, 5).map((p, i) => (
+            <div className="flex flex-wrap items-center gap-1 min-w-0">
+              {activePills.map((p) => (
                 <span
-                  key={i}
-                  className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 shrink-0"
+                  key={p.key}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] border shrink-0",
+                    !p.color && "bg-primary/10 text-primary border-primary/20"
+                  )}
+                  style={
+                    p.color
+                      ? { background: `${p.color}22`, color: p.color, borderColor: `${p.color}55` }
+                      : undefined
+                  }
                 >
-                  {p}
+                  {p.text}
                 </span>
               ))}
-              {activePills.length > 5 && (
-                <span className="text-[10px] text-muted-foreground shrink-0">+{activePills.length - 5}</span>
-              )}
             </div>
           ) : (
-            <span className="text-[11px] text-muted-foreground truncate">Filter setzen…</span>
+            <span className="text-[11px] text-muted-foreground truncate mt-0.5">Filter setzen…</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
