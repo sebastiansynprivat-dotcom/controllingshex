@@ -1552,6 +1552,205 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
       </AnimatePresence>
 
       {renderManualPicker()}
+
+      {/* Challenger-Picker — Chatter für eine Slot ersetzen */}
+      <AnimatePresence>
+        {challengerPickerSide && visibleLeft && visibleRight && (
+          <motion.div
+            key="challenger-picker"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setChallengerPickerSide(null)}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-white/[0.08] bg-zinc-950 p-5 shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Repeat className="h-4 w-4 text-gold" />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {challengerPickerSide === "left" ? "Underplaced ersetzen" : "Overplaced ersetzen"}
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-white/55">
+                    Tausch-Partner für{" "}
+                    <span className="text-foreground font-medium capitalize">
+                      {(challengerPickerSide === "left" ? visibleRight : visibleLeft).name.replace(/_/g, " ")}
+                    </span>{" "}
+                    <span className="text-white/35">@ {(challengerPickerSide === "left" ? visibleRight : visibleLeft).account}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => setChallengerPickerSide(null)}
+                  className="h-8 w-8 rounded-full inline-flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 shrink-0"
+                  aria-label="Schließen"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 mt-3">
+                {challengerOptions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                    <AlertCircle className="h-6 w-6 text-white/30" />
+                    <p className="text-xs text-white/55">Keine passenden Alternativen im aktuellen Zeitfenster.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {challengerOptions.map(({ chatter: c, expectedGain }) => {
+                      const positive = expectedGain > 0;
+                      return (
+                        <button
+                          key={c.key}
+                          onClick={() => {
+                            if (challengerPickerSide === "left") setSlotOverrideLeft(c);
+                            else setSlotOverrideRight(c);
+                            setChallengerPickerSide(null);
+                            toast.success(`${c.name.replace(/_/g, " ")} eingesetzt`);
+                          }}
+                          className="w-full flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors px-3 py-2.5 text-left active:scale-[0.99]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-sm font-semibold text-foreground capitalize truncate">
+                                {c.name.replace(/_/g, " ")}
+                              </span>
+                              <span
+                                className="text-[8px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border shrink-0"
+                                style={{
+                                  color: `hsl(${tierColor(c.tier)})`,
+                                  borderColor: `hsl(${tierColor(c.tier)} / 0.35)`,
+                                  background: `hsl(${tierColor(c.tier)} / 0.08)`,
+                                }}
+                              >
+                                {c.tier}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-white/45 truncate">
+                              @ {c.account} · Skill {formatSkill(c.skillScore)} · 7T-Ø {formatEur(c.avgRevenue)}
+                            </p>
+                          </div>
+                          <span
+                            className="text-[11px] font-bold tabular-nums px-2 py-1 rounded-full border shrink-0"
+                            style={{
+                              color: positive ? "hsl(152 70% 60%)" : "hsl(0 0% 55%)",
+                              borderColor: positive ? "hsl(152 70% 45% / 0.4)" : "hsl(0 0% 100% / 0.1)",
+                              background: positive ? "hsl(152 70% 45% / 0.08)" : "transparent",
+                            }}
+                          >
+                            {positive ? "+" : ""}{formatEur(expectedGain)}/T
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm-Sheet — Bestätigung vor Genehmigung */}
+      <AnimatePresence>
+        {confirmOpen && visibleLeft && visibleRight && (
+          <motion.div
+            key="confirm-sheet"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setConfirmOpen(false)}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <motion.div
+              initial={{ y: 30, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-gold/30 bg-zinc-950 p-5 shadow-2xl gold-glow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Check className="h-4 w-4 text-green-400" />
+                <h3 className="text-sm font-semibold text-foreground">Tausch bestätigen</h3>
+              </div>
+              <p className="text-[11px] text-white/55 mb-4">
+                Diese beiden Chatter werden in deinem System als getauscht markiert.
+              </p>
+
+              <div className="space-y-2 mb-4">
+                <div className="rounded-xl border border-green-500/20 bg-green-500/[0.04] p-3">
+                  <div className="text-[9px] uppercase tracking-wider text-green-400/80 font-semibold mb-1">
+                    Underplaced → übernimmt
+                  </div>
+                  <div className="text-sm font-semibold text-foreground capitalize">
+                    {visibleLeft.name.replace(/_/g, " ")}
+                  </div>
+                  <div className="text-[10px] text-white/45">@ {visibleLeft.account} · {visibleLeft.tier}</div>
+                </div>
+                <div className="flex justify-center">
+                  <ArrowLeftRight className="h-4 w-4 text-gold rotate-90" />
+                </div>
+                <div className="rounded-xl border border-red-500/20 bg-red-500/[0.04] p-3">
+                  <div className="text-[9px] uppercase tracking-wider text-red-400/80 font-semibold mb-1">
+                    Overplaced → wechselt von
+                  </div>
+                  <div className="text-sm font-semibold text-foreground capitalize">
+                    {visibleRight.name.replace(/_/g, " ")}
+                  </div>
+                  <div className="text-[10px] text-white/45">@ {visibleRight.account} · {visibleRight.tier}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-4 px-1">
+                <span className="text-[10px] uppercase tracking-wider text-white/45">Erwarteter Mehrumsatz</span>
+                <span
+                  className="text-sm font-bold tabular-nums"
+                  style={{ color: visibleGain > 0 ? "hsl(152 70% 60%)" : "hsl(0 0% 60%)" }}
+                >
+                  +{formatEur(visibleGain)} / Tag
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    setChallengerPickerSide("right");
+                  }}
+                  className="h-11 text-xs border-white/10 text-white/70 hover:text-white hover:bg-white/5"
+                >
+                  Doch ändern
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setConfirmOpen(false);
+                    await approveSwap();
+                  }}
+                  className="h-11 text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-zinc-950 hover:opacity-95"
+                >
+                  <Check className="h-4 w-4 mr-1.5" />
+                  Bestätigen
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
