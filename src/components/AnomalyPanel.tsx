@@ -936,6 +936,15 @@ export default function AnomalyPanel({
                             auffällig seit {sinceRel.days} {sinceRel.days === 1 ? "Tag" : "Tagen"}
                           </span>
                         )}
+                        {isNewerThanWindow && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-500/[0.08] border border-sky-400/20 text-[9px] uppercase tracking-wider text-sky-200/90 font-medium"
+                            title={`Dieser Chatter ist erst seit ${firstSeenDays} ${firstSeenDays === 1 ? "Tag" : "Tagen"} am Start. Das gewählte Zeitfenster (${windowDays} Tage) ist länger als die verfügbare Historie — die Auswertung basiert nur auf den vorhandenen Tagen.`}
+                          >
+                            <Sparkles className="h-2.5 w-2.5" />
+                            erst seit {firstSeenDays} {firstSeenDays === 1 ? "Tag" : "Tagen"} am Start
+                          </span>
+                        )}
                       </div>
 
 
