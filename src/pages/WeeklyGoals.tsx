@@ -371,9 +371,8 @@ export default function WeeklyGoals() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
-  // Impact-Filter: trennt "wichtige" Wochenziele (≥ Schwelle) von Mini-Zielen.
-  const IMPACT_THRESHOLD = 100;
-  const [impactFilter, setImpactFilter] = useState<"all" | "important" | "small">("important");
+  // Impact-Filter: granular nach Wochenziel-Höhe
+  const [impactFilter, setImpactFilter] = useState<"all" | "lt100" | "lt300" | "lt500" | "lt1000" | "gte1000">("all");
   const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
