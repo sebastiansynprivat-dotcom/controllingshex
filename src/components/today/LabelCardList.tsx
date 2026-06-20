@@ -4,7 +4,7 @@
  */
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useState } from "react";
-import { Check, ChevronRight, Clock, MessageCircle, X as XIcon, Tag } from "lucide-react";
+import { Check, ChevronRight, Clock, MessageCircle, X as XIcon, Tag, Users, TrendingUp, BarChart3 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
