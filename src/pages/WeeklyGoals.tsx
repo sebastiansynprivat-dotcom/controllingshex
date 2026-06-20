@@ -1399,6 +1399,7 @@ export default function WeeklyGoals() {
                   />
                 ))}
               </div>
+              </>
             )}
           </>
         )}
