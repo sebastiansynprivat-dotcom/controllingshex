@@ -1306,11 +1306,54 @@ export default function WeeklyGoals() {
               </div>
             )}
 
-            {/* Sort */}
+            {/* Focus filter */}
             {rows.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {([
-                  ["deficit", "Größter Rückstand"],
+                  ["none", "Alle Chatter", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
+                  ["top", `Top-Verdiener (ab ${TOP_THRESHOLD} €)`, focusCounts.top, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
+                  ["risk", "Braucht Boost", focusCounts.risk, "border-red-300/30 bg-red-400/10 text-red-200"],
+                  ["achieved", "Schon im Ziel", focusCounts.achieved, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+                ] as [FocusFilter, string, number, string][]).map(([k, label, count, activeCls]) => (
+                  <button
+                    key={k}
+                    onClick={() => setFocusFilter(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                      focusFilter === k
+                        ? activeCls
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search + Sort */}
+            {rows.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Chatter suchen…"
+                  className="text-[12px] px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.025] text-white/85 placeholder:text-white/30 font-light focus:outline-none focus:border-white/20 min-w-[180px]"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-[11px] px-2 py-1.5 rounded-full text-white/45 hover:text-white/85"
+                    title="Suche leeren"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+                <span className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light ml-2 mr-1">Sort</span>
+                {([
+                  ["deficit", "Rückstand (Pace)"],
+                  ["deficit_eur", "€ offen"],
                   ["progress", "Fortschritt"],
                   ["goal", "Höchstes Ziel"],
                   ["name", "Name"],
