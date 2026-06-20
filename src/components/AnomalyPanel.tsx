@@ -34,7 +34,7 @@ import {
 } from "@/lib/anomaly-actions";
 import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated, onChatterLabelsUpdated } from "@/lib/data-events";
 import { loadChatterLabels, loadLabelAssignments, type ChatterLabel } from "@/lib/chatter-labels";
-import { normalizeChatterName } from "@/lib/active-chatters";
+import { normalizeChatterName, loadActiveChatterNames } from "@/lib/active-chatters";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
 
 const SNAPSHOT_VERSION = 2;
@@ -226,6 +226,20 @@ export default function AnomalyPanel({
     const off = onChatterLabelsUpdated(() => { load(); });
     return () => { cancel = true; off(); };
   }, [platform]);
+
+  // Aktive Chatter (im neuesten Report) — Auffälligkeiten von "rausgeflogenen" Chattern ausblenden
+  const [activeChatterNames, setActiveChatterNames] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let cancel = false;
+    const load = async () => {
+      const names = await loadActiveChatterNames(platform);
+      if (!cancel) setActiveChatterNames(names);
+    };
+    load();
+    const off = onChatterDataUpdated(() => { load(); });
+    return () => { cancel = true; off(); };
+  }, [platform]);
+
 
   const labelsByChatter = useMemo(() => {
     const labelById = new Map(chatterLabels.map((l) => [l.id, l]));
@@ -603,6 +617,8 @@ export default function AnomalyPanel({
     >();
     for (const a of anomalies) {
       if (a.severity !== "critical") continue;
+      if (activeChatterNames && !activeChatterNames.has(normalizeChatterName(a.chatter_name))) continue;
+
       const key = a.chatter_name;
       const entry = map.get(key);
       if (entry) {
@@ -638,7 +654,7 @@ export default function AnomalyPanel({
       if (b.totalFollowers !== a.totalFollowers) return b.totalFollowers - a.totalFollowers;
       return b.topScore - a.topScore;
     });
-  }, [anomalies, chatterAccounts, modelFollowers, windowDays]);
+  }, [anomalies, chatterAccounts, modelFollowers, windowDays, activeChatterNames]);
 
   const copyName = useCallback(async (name: string) => {
     try {
