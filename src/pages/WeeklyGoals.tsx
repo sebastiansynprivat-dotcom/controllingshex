@@ -1151,8 +1151,11 @@ export default function WeeklyGoals() {
   }, [filteredRows, sortKey]);
 
   const statusCounts = useMemo(() => {
-    const base = impactFilter === "important" ? rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD)
-      : impactFilter === "small" ? rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD)
+    const base = impactFilter === "lt100" ? rows.filter((r) => r.progress.goal < 100)
+      : impactFilter === "lt300" ? rows.filter((r) => r.progress.goal >= 100 && r.progress.goal < 300)
+      : impactFilter === "lt500" ? rows.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500)
+      : impactFilter === "lt1000" ? rows.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000)
+      : impactFilter === "gte1000" ? rows.filter((r) => r.progress.goal >= 1000)
       : rows;
     return {
       total: base.length,
