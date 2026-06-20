@@ -26,7 +26,7 @@ import {
   type SwapModelInfo,
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
-import { rangeLabel } from "@/lib/timerange-categorize";
+import { rangeLabel, loadHistoryForRange, buildTimeRange } from "@/lib/timerange-categorize";
 import type { TimeRange, HistoryRow as RangeHistoryRow } from "@/lib/timerange-categorize";
 import type { ActionCategoryName } from "@/lib/action-categories";
 import type { AccountTierId } from "@/lib/account-tiers";
