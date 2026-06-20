@@ -661,7 +661,7 @@ export default function Today() {
           ) : (
 
             <ErrorBoundary>
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="sync" initial={false}>
               <motion.div
                 key={kindTab}
                 initial={{ opacity: 0 }}
@@ -712,7 +712,7 @@ export default function Today() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {visibleList.map((a) => (
+                    {renderedVisibleList.map((a) => (
                       <PersonActionCard
                         key={a.bundleKey}
                         action={a}
@@ -722,6 +722,11 @@ export default function Today() {
                         readonly={isReadonly}
                       />
                     ))}
+                    {remainingSwapCount > 0 && (
+                      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-light text-white/35">
+                        Lade weitere {remainingSwapCount} Account-Tausch-Vorschläge …
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
