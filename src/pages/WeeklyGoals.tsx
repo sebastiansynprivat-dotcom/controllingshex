@@ -52,7 +52,9 @@ interface ChatterGoalRow {
   progress: GoalProgress;
 }
 
-type SortKey = "deficit" | "progress" | "goal" | "name";
+type SortKey = "deficit" | "deficit_eur" | "progress" | "goal" | "name";
+type FocusFilter = "none" | "top" | "risk" | "achieved";
+const TOP_THRESHOLD = 500;
 
 function StatusBadge({ status }: { status: GoalProgress["status"] }) {
   const map = {
