@@ -451,9 +451,11 @@ export default function WeeklyGoals() {
       }
       setStretchPct(Math.round(s));
       setSmoothingDays(Math.round(d));
+      setStretchDraft(String(Math.round(s)));
+      setSmoothingDraft(String(Math.round(d)));
       setThresholdsOpen(false);
-      setSuggestionsGenerated(false);
-      setReloadKey((k) => k + 1);
+      // suggestionsGenerated bewusst nicht zurücksetzen — die Liste rechnet
+      // sich durch den Deps-Change (stretchPct / smoothingDays) automatisch neu.
       toast.success("Schwellen gespeichert – Vorschläge werden neu berechnet");
     } catch (e: any) {
       toast.error(e?.message ?? "Speichern fehlgeschlagen");
