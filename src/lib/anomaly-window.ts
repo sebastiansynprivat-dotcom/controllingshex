@@ -22,7 +22,20 @@ export type AnomalyType =
   | "persistent_zero"     // Mehrere Tage in Folge unter Ziel
   | "massdm_low"          // < 4/Tag UND Umsatz schwach
   | "massdm_zero_no_rev"  // Keine MassDMs UND kein Umsatz im Zeitraum
-  | "high_effort_no_rev"; // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
+  | "high_effort_no_rev"  // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
+  | "peer_overperform"    // Positiv: deutlich über Follower-Erwartung
+  | "self_revenue_spike"  // Positiv: eigener Schnitt deutlich übertroffen
+  | "comeback";           // Positiv: vorher schwach, jetzt stark
+
+/** Liefert true für „positive" Auffälligkeiten (Highlights-Tab). */
+export function isPositiveAnomaly(type: AnomalyType): boolean {
+  return (
+    type === "high_effort_no_rev" ||
+    type === "peer_overperform" ||
+    type === "self_revenue_spike" ||
+    type === "comeback"
+  );
+}
 
 export interface ChatterAnomaly {
   chatter_name: string;
