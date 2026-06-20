@@ -506,7 +506,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     recentSwaps.add(`${b}|${a}`);
   }
 
-  for (const pair of swapPairs.slice(0, 5)) {
+  for (const pair of swapPairs.slice(0, 12)) {
     if (pair.expectedGain < 50 / 7) continue;
     const a = pair.left.name.toLowerCase();
     const b = pair.right.name.toLowerCase();
@@ -528,7 +528,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
       secondaryChatter: pair.right.name,
       modelName: pair.right.account,
     });
-    if (tasks.filter((t) => t.kind === "swap").length >= 2) break;
+    if (tasks.filter((t) => t.kind === "swap").length >= 6) break;
   }
 
   /* 5. HOCHFREQUENZ-LÜCKE */
