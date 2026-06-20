@@ -1094,6 +1094,24 @@ export default function WeeklyGoals() {
     [suggestions, skipped],
   );
 
+  // Hochrechnung: Wochenumsatz, wenn alle Chatter ihr (vorgeschlagenes oder bereits gesetztes) Wochenziel erreichen.
+  const projectedWeekTotal = useMemo(() => {
+    const considered = suggestions.filter((s) => !skipped.has(s.chatter));
+    let goalSum = 0;
+    let avgSum = 0;
+    let withGoal = 0;
+    let withCurrent = 0;
+    for (const s of considered) {
+      const goal = s.currentGoal ?? s.suggested;
+      goalSum += goal;
+      // "Wochen-Schnitt" = Chatter-Ø/Tag × 7
+      avgSum += (s.avg30 || 0) * 7;
+      if (s.suggested > 0) withGoal += 1;
+      if (s.currentGoal != null) withCurrent += 1;
+    }
+    return { goalSum, avgSum, count: considered.length, withGoal, withCurrent };
+  }, [suggestions, skipped]);
+
   const filteredRows = useMemo(
     () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
     [rows, statusFilter],
@@ -1450,6 +1468,39 @@ export default function WeeklyGoals() {
                 )}
 
 
+
+                {projectedWeekTotal.count > 0 && (
+                  <div className="rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/[0.08] via-emerald-400/[0.03] to-transparent p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-light mb-1">
+                          Wochen-Hochrechnung
+                        </div>
+                        <h4 className="text-sm text-white/80 font-light">
+                          Wenn alle {projectedWeekTotal.count} Chatter ihr Wochenziel bzw. ihren Wochen-Schnitt erreichen.
+                        </h4>
+                      </div>
+                      <div className="flex gap-6 sm:gap-8">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light mb-1">
+                            Σ Wochenziele
+                          </div>
+                          <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-emerald-200">
+                            {formatEUR(projectedWeekTotal.goalSum)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light mb-1">
+                            Σ Wochen-Ø
+                          </div>
+                          <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-white/80">
+                            {formatEUR(projectedWeekTotal.avgSum)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {visibleSuggestions.map((s) => (
