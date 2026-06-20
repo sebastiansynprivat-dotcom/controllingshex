@@ -12,6 +12,7 @@ import {
   computeSwapCandidates,
   computeManualSwapCandidates,
   computeSwapExpectedGain,
+  computeChallengersForSlot,
   listAllSwapChatters,
   formatEur,
   formatSkill,
@@ -21,6 +22,7 @@ import {
   type SwapInput,
   type SwapModelInfo,
 } from "@/lib/swap-suggestions";
+
 import { formatFollowers } from "@/lib/model-performance";
 import type { BenchmarkBundle } from "@/lib/peer-benchmarks";
 import { fetchLiveEfficiency, type LiveEfficiencyRow } from "@/lib/live-efficiency";
