@@ -104,7 +104,9 @@ export default function GoalMessageDialog({
             Nachricht an {chatter}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Monats-Recap + neues Ziel. Kopieren und direkt rüberschicken.
+            {goalType === "weekly"
+              ? "Wochen-Recap + neues Wochenziel. Kopieren und direkt rüberschicken."
+              : "Monats-Recap + neues Monatsziel. Kopieren und direkt rüberschicken."}
           </DialogDescription>
         </DialogHeader>
 
@@ -112,7 +114,7 @@ export default function GoalMessageDialog({
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <label className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-light">
-                Neues Monatsziel (EUR)
+                {goalType === "weekly" ? "Neues Wochenziel (EUR)" : "Neues Monatsziel (EUR)"}
               </label>
               <input
                 type="number"
