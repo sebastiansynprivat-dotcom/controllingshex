@@ -1170,6 +1170,26 @@ export default function WeeklyGoals() {
     [filteredRows],
   );
 
+  const filteredTotalRevenue = useMemo(
+    () => filteredRows.reduce((s, r) => s + r.progress.currentRevenue, 0),
+    [filteredRows],
+  );
+
+  const filteredOverallPct = useMemo(
+    () => (filteredTotalGoal > 0 ? (filteredTotalRevenue / filteredTotalGoal) * 100 : 0),
+    [filteredTotalGoal, filteredTotalRevenue],
+  );
+
+  const filteredRemaining = useMemo(
+    () => Math.max(0, filteredTotalGoal - filteredTotalRevenue),
+    [filteredTotalGoal, filteredTotalRevenue],
+  );
+
+  const overallStatus: GoalStatus =
+    filteredOverallPct >= 90 ? "on_track"
+    : filteredOverallPct >= 75 ? "close"
+    : "off_track";
+
   const today = new Date();
   const trackedThrough = new Date(today);
   trackedThrough.setDate(today.getDate() - 1);
@@ -1326,15 +1346,65 @@ export default function WeeklyGoals() {
               </div>
             )}
 
-            {/* Summe der Ziele im aktuellen Filter */}
+            {/* Gesamtfortschritt für den aktuellen Filter */}
             {filteredRows.length > 0 && (
-              <div className="flex items-center justify-between rounded-xl border border-emerald-300/15 bg-emerald-500/[0.04] px-4 py-3">
-                <span className="text-[11px] text-emerald-200/70 font-light">
-                  Wenn alle {filteredRows.length} Chatter ihr Ziel erreichen
-                </span>
-                <span className="text-lg font-semibold tabular-nums text-emerald-200">
-                  {formatEUR(filteredTotalGoal)} / Woche
-                </span>
+              <div className="rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-light">
+                      Gesamtfortschritt · {filteredRows.length} Chatter
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-2xl sm:text-3xl font-semibold tabular-nums text-white/90">
+                        {Math.round(filteredOverallPct)}%
+                      </span>
+                      <span className="text-sm text-white/50 font-light">
+                        des Ziels erreicht
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-light">
+                      Noch fehlend
+                    </div>
+                    <div className={`text-lg font-semibold tabular-nums mt-0.5 ${
+                      overallStatus === "on_track" ? "text-emerald-300"
+                      : overallStatus === "close" ? "text-amber-300"
+                      : "text-red-300"
+                    }`}>
+                      {formatEUR(filteredRemaining)}
+                    </div>
+                  </div>
+                </div>
+
+                <ProgressBar pct={filteredOverallPct} status={overallStatus} />
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-white/[0.025] border border-white/[0.04] px-2.5 py-2">
+                    <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light mb-1">
+                      Aktuell
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums text-white/85">
+                      {formatEUR(filteredTotalRevenue)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-white/[0.025] border border-white/[0.04] px-2.5 py-2">
+                    <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light mb-1">
+                      Ziel / Woche
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums text-emerald-200/80">
+                      {formatEUR(filteredTotalGoal)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-white/[0.025] border border-white/[0.04] px-2.5 py-2">
+                    <div className="text-[9px] uppercase tracking-[0.16em] text-white/35 font-light mb-1">
+                      Wenn alle erreichen
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums text-emerald-200/80">
+                      {formatEUR(filteredTotalGoal)} / Woche
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
