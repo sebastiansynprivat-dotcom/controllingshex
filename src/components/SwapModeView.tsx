@@ -1318,7 +1318,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
                 onSwipeUp={cycleRightAlt}
                 onSingleClick={() => copyChatterName(visibleRight.name)}
                 onDoubleClick={() => setProfileOpen(true)}
+                onReplaceClick={() => setChallengerPickerSide("right")}
+                isDeclining={isInDecline(visibleRight)}
               />
+
             </motion.div>
           </AnimatePresence>
         </div>
