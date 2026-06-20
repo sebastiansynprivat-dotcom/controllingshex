@@ -1094,6 +1094,24 @@ export default function WeeklyGoals() {
     [suggestions, skipped],
   );
 
+  // Hochrechnung: Wochenumsatz, wenn alle Chatter ihr (vorgeschlagenes oder bereits gesetztes) Wochenziel erreichen.
+  const projectedWeekTotal = useMemo(() => {
+    const considered = suggestions.filter((s) => !skipped.has(s.chatter));
+    let goalSum = 0;
+    let avgSum = 0;
+    let withGoal = 0;
+    let withCurrent = 0;
+    for (const s of considered) {
+      const goal = s.currentGoal ?? s.suggested;
+      goalSum += goal;
+      // "Wochen-Schnitt" = Chatter-Ø/Tag × 7
+      avgSum += (s.avg30 || 0) * 7;
+      if (s.suggested > 0) withGoal += 1;
+      if (s.currentGoal != null) withCurrent += 1;
+    }
+    return { goalSum, avgSum, count: considered.length, withGoal, withCurrent };
+  }, [suggestions, skipped]);
+
   const filteredRows = useMemo(
     () => statusFilter === "all" ? rows : rows.filter((r) => r.progress.status === statusFilter),
     [rows, statusFilter],
