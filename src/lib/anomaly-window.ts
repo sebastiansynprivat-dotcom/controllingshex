@@ -410,13 +410,16 @@ export async function computeAnomaliesForWindow(
   const peerAvg =
     peerValues.length > 0 ? peerValues.reduce((s, v) => s + v, 0) / peerValues.length : 0;
 
-  // Workspace-Median der Follower-Summe pro Chatter — definiert "kleiner Account".
-  const followerSums = [...agg.values()]
-    .map((a) => a.totalFollowers)
-    .filter((f) => f > 0)
-    .sort((a, b) => a - b);
-  const followerMedian = followerSums.length > 0
-    ? followerSums[Math.floor(followerSums.length / 2)]
+  const SMALL_ACCOUNT_FOLLOWERS_CAP = 500;
+  const smallPeerValues = [...agg.values()]
+    .filter((a) =>
+      a.totalFollowers > 0 &&
+      a.totalFollowers < SMALL_ACCOUNT_FOLLOWERS_CAP &&
+      a.daysActive >= Math.min(2, days)
+    )
+    .map((a) => a.avgRevenuePerDay);
+  const smallPeerAvg = smallPeerValues.length > 0
+    ? smallPeerValues.reduce((s, v) => s + v, 0) / smallPeerValues.length
     : 0;
 
   // MassDM-Ziel skaliert mit Fensterlänge (6/Tag)
@@ -588,31 +591,30 @@ export async function computeAnomaliesForWindow(
     }
 
     // ── 5b. POSITIV: Hidden Gem ──────────────────────────────
-    // Kleiner Account (Followers unter erweitertem Median ODER absolut ≤ 3.000)
-    // + konstant aktiv (≥50% Tage) + ≥1.1× Erwartung.
-    const smallAccountCap = Math.max(followerMedian * 6, 500);
+    // Kleiner Account = hart unter 500 Follower.
+    // + konstant aktiv (≥50% Tage) + klar über kleinem Peer-Schnitt.
     const isSmallAccount =
-      a.totalFollowers > 0 && a.totalFollowers <= smallAccountCap;
+      a.totalFollowers > 0 && a.totalFollowers < SMALL_ACCOUNT_FOLLOWERS_CAP;
+    const smallExpected = smallPeerAvg > 0 ? smallPeerAvg : expected;
     if (
-      useExpected &&
-      expected > 0 &&
+      smallExpected > 0 &&
       isSmallAccount &&
       consistency >= 0.5 &&
       a.daysActive >= Math.min(3, days) &&
-      a.avgRevenuePerDay >= expected * 1.1
+      a.avgRevenuePerDay >= Math.max(5, smallExpected * 1.3)
     ) {
-      const overPct = ((a.avgRevenuePerDay - expected) / expected) * 100;
-      const overEur = a.avgRevenuePerDay - expected;
+      const overPct = ((a.avgRevenuePerDay - smallExpected) / smallExpected) * 100;
+      const overEur = a.avgRevenuePerDay - smallExpected;
       anomalies.push({
         chatter_name: a.name,
         alert_type: "hidden_gem",
         severity: "positive",
         metric_value: a.avgRevenuePerDay,
-        baseline_value: expected,
+        baseline_value: smallExpected,
         delta_pct: Math.round(overPct),
-        message: `Kleiner Account, konstant da — Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag bei nur ${a.totalFollowers.toLocaleString("de-DE")} Followern (${Math.round(overPct)}% über Erwartung, ${a.daysActive}/${days} Tage aktiv)`,
+        message: `Kleiner Account, konstant da — Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag bei nur ${a.totalFollowers.toLocaleString("de-DE")} Followern (${Math.round(overPct)}% über <500-Peer, ${a.daysActive}/${days} Tage aktiv)`,
         // Score: höher als peer_overperform — diese Leute sollen ganz oben stehen.
-        score: 80 + Math.min(overPct, 300) / 4 + consistencyBoost + Math.min(overEur, 100) / 5,
+        score: 140 + Math.min(overPct, 300) / 4 + consistencyBoost + Math.min(overEur, 100) / 5,
       });
     } else if (
       // Fallback: Follower-Daten fehlen (Account nicht in models-Tabelle gepflegt).
