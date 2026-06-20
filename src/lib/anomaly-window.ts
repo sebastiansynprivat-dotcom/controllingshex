@@ -588,17 +588,18 @@ export async function computeAnomaliesForWindow(
     }
 
     // ── 5b. POSITIV: Hidden Gem ──────────────────────────────
-    // Kleiner Account (Follower unter Workspace-Median) + konstant aktiv (≥50% Tage)
-    // + spürbar über Erwartung (≥1.2×). Diese Leute findest du sonst nicht.
+    // Kleiner Account (Followers unter erweitertem Median ODER absolut ≤ 400)
+    // + konstant aktiv (≥50% Tage) + ≥1.1× Erwartung.
+    const smallAccountCap = Math.max(followerMedian * 1.5, 400);
+    const isSmallAccount =
+      a.totalFollowers > 0 && a.totalFollowers <= smallAccountCap;
     if (
       useExpected &&
       expected > 0 &&
-      followerMedian > 0 &&
-      a.totalFollowers > 0 &&
-      a.totalFollowers <= followerMedian &&
+      isSmallAccount &&
       consistency >= 0.5 &&
       a.daysActive >= Math.min(3, days) &&
-      a.avgRevenuePerDay >= expected * 1.2
+      a.avgRevenuePerDay >= expected * 1.1
     ) {
       const overPct = ((a.avgRevenuePerDay - expected) / expected) * 100;
       const overEur = a.avgRevenuePerDay - expected;
@@ -612,6 +613,24 @@ export async function computeAnomaliesForWindow(
         message: `Kleiner Account, konstant da — Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag bei nur ${a.totalFollowers.toLocaleString("de-DE")} Followern (${Math.round(overPct)}% über Erwartung, ${a.daysActive}/${days} Tage aktiv)`,
         // Score: höher als peer_overperform — diese Leute sollen ganz oben stehen.
         score: 80 + Math.min(overPct, 300) / 4 + consistencyBoost + Math.min(overEur, 100) / 5,
+      });
+    } else if (
+      // Fallback: Follower-Daten fehlen (Account nicht in models-Tabelle gepflegt).
+      // Wenn Chatter konstant (≥70% Tage) und solide (≥25€/Tag) ist, trotzdem als Gem zeigen.
+      a.totalFollowers === 0 &&
+      consistency >= 0.7 &&
+      a.daysActive >= Math.min(4, days) &&
+      a.avgRevenuePerDay >= 25
+    ) {
+      anomalies.push({
+        chatter_name: a.name,
+        alert_type: "hidden_gem",
+        severity: "positive",
+        metric_value: a.avgRevenuePerDay,
+        baseline_value: 0,
+        delta_pct: 0,
+        message: `Konstant am Start — Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag, ${a.daysActive}/${days} Tage aktiv (Account-Größe unbekannt — Follower in Models pflegen für genauere Einordnung)`,
+        score: 75 + consistencyBoost + Math.min(a.avgRevenuePerDay, 100) / 4,
       });
     }
 
