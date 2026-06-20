@@ -941,29 +941,8 @@ export default function AnomalyPanel({
                         </div>
                       )}
 
-                      {/* Chatter-Labels */}
-                      {chatterLabelsForGroup.length > 0 && (
-                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                          {chatterLabelsForGroup.slice(0, 3).map((lbl) => (
-                            <span
-                              key={lbl.id}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-white/[0.06] bg-white/[0.02] text-[10px] font-light text-white/70"
-                              title={lbl.label_name}
-                            >
-                              <span
-                                className="inline-block h-1.5 w-1.5 rounded-full"
-                                style={{ backgroundColor: lbl.color }}
-                              />
-                              <span className="truncate max-w-[140px]">{lbl.label_name}</span>
-                            </span>
-                          ))}
-                          {chatterLabelsForGroup.length > 3 && (
-                            <span className="text-[10px] text-white/35 font-light">
-                              +{chatterLabelsForGroup.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
+
+
 
 
                       {/* Weitere Signale Hint */}
