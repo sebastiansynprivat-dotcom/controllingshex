@@ -52,7 +52,9 @@ interface ChatterGoalRow {
   progress: GoalProgress;
 }
 
-type SortKey = "deficit" | "progress" | "goal" | "name";
+type SortKey = "deficit" | "deficit_eur" | "progress" | "goal" | "name";
+type FocusFilter = "none" | "top" | "risk" | "achieved";
+const TOP_THRESHOLD = 500;
 
 function StatusBadge({ status }: { status: GoalProgress["status"] }) {
   const map = {
@@ -371,9 +373,10 @@ export default function WeeklyGoals() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
-  // Impact-Filter: trennt "wichtige" Wochenziele (≥ Schwelle) von Mini-Zielen.
   const IMPACT_THRESHOLD = 100;
   const [impactFilter, setImpactFilter] = useState<"all" | "important" | "small">("important");
+  const [focusFilter, setFocusFilter] = useState<FocusFilter>("none");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
@@ -1118,28 +1121,45 @@ export default function WeeklyGoals() {
     return { goalSum, avgSum, count: considered.length, withGoal, withCurrent };
   }, [suggestions, skipped]);
 
+  // Hilfs-Prädikate für den Focus-Filter
+  const isTop = (r: ChatterGoalRow) => r.progress.goal >= TOP_THRESHOLD;
+  const isRisk = (r: ChatterGoalRow) => r.progress.pacePct < 70 && r.progress.daysRemaining >= 2 && r.progress.progressPct < 100;
+  const isAchieved = (r: ChatterGoalRow) => r.progress.progressPct >= 100;
+
   const filteredRows = useMemo(() => {
     let arr = rows;
     if (impactFilter === "important") arr = arr.filter((r) => r.progress.goal >= IMPACT_THRESHOLD);
     else if (impactFilter === "small") arr = arr.filter((r) => r.progress.goal < IMPACT_THRESHOLD);
     if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
+    if (focusFilter === "top") arr = arr.filter(isTop);
+    else if (focusFilter === "risk") arr = arr.filter(isRisk);
+    else if (focusFilter === "achieved") arr = arr.filter(isAchieved);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) arr = arr.filter((r) => r.chatter.toLowerCase().includes(q));
     return arr;
-  }, [rows, statusFilter, impactFilter]);
+  }, [rows, statusFilter, impactFilter, focusFilter, searchQuery]);
 
   const impactCounts = useMemo(() => ({
     important: rows.filter((r) => r.progress.goal >= IMPACT_THRESHOLD).length,
     small: rows.filter((r) => r.progress.goal < IMPACT_THRESHOLD).length,
   }), [rows]);
 
+  const focusCounts = useMemo(() => ({
+    top: rows.filter(isTop).length,
+    risk: rows.filter(isRisk).length,
+    achieved: rows.filter(isAchieved).length,
+  }), [rows]);
+
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
     arr.sort((a, b) => {
       switch (sortKey) {
-        case "progress": return b.progress.progressPct - a.progress.progressPct;
-        case "goal":     return b.progress.goal - a.progress.goal;
-        case "name":     return a.chatter.localeCompare(b.chatter, "de");
+        case "progress":    return b.progress.progressPct - a.progress.progressPct;
+        case "goal":        return b.progress.goal - a.progress.goal;
+        case "name":        return a.chatter.localeCompare(b.chatter, "de");
+        case "deficit_eur": return (b.progress.goal - b.progress.currentRevenue) - (a.progress.goal - a.progress.currentRevenue);
         case "deficit":
-        default:         return b.progress.deficit - a.progress.deficit;
+        default:            return b.progress.deficit - a.progress.deficit;
       }
     });
     return arr;
@@ -1286,11 +1306,54 @@ export default function WeeklyGoals() {
               </div>
             )}
 
-            {/* Sort */}
+            {/* Focus filter */}
             {rows.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {([
-                  ["deficit", "Größter Rückstand"],
+                  ["none", "Alle Chatter", rows.length, "border-white/20 bg-white/[0.06] text-white/90"],
+                  ["top", `Top-Verdiener (ab ${TOP_THRESHOLD} €)`, focusCounts.top, "border-amber-300/30 bg-amber-400/10 text-amber-200"],
+                  ["risk", "Braucht Boost", focusCounts.risk, "border-red-300/30 bg-red-400/10 text-red-200"],
+                  ["achieved", "Schon im Ziel", focusCounts.achieved, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+                ] as [FocusFilter, string, number, string][]).map(([k, label, count, activeCls]) => (
+                  <button
+                    key={k}
+                    onClick={() => setFocusFilter(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                      focusFilter === k
+                        ? activeCls
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search + Sort */}
+            {rows.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Chatter suchen…"
+                  className="text-[12px] px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.025] text-white/85 placeholder:text-white/30 font-light focus:outline-none focus:border-white/20 min-w-[180px]"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-[11px] px-2 py-1.5 rounded-full text-white/45 hover:text-white/85"
+                    title="Suche leeren"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+                <span className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-light ml-2 mr-1">Sort</span>
+                {([
+                  ["deficit", "Rückstand (Pace)"],
+                  ["deficit_eur", "€ offen"],
                   ["progress", "Fortschritt"],
                   ["goal", "Höchstes Ziel"],
                   ["name", "Name"],
