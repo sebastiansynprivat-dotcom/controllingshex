@@ -82,11 +82,19 @@ export default function CompareModeView({
     saveCompareState(state);
   }, [state]);
 
+  // Compare nutzt IMMER Lifetime/90d Daten — unabhängig vom globalen TimeRange.
+  // Daher History eigenständig laden, sonst sind delay/avg-Filter leer wenn
+  // der globale Range "today" ist.
+  const [ownHistory, setOwnHistory] = useState<RangeHistoryRow[]>([]);
+  const ownRange = useMemo(() => buildTimeRange("90d"), []);
+  // platform wird unten gezogen; hier nur ein Trigger über range.from
+  const effectiveHistory = ownHistory.length > 0 ? ownHistory : rangeHistory;
+
   const ctx: ApplyFilterContext = useMemo(
     () => ({
       chatters,
-      rangeHistory,
-      range,
+      rangeHistory: effectiveHistory,
+      range: ownRange,
       recategorizedMap,
       labelsByChatter,
       tierIdsByChatter,
@@ -94,7 +102,7 @@ export default function CompareModeView({
       firstSeenByChatter,
       followersByChatter,
     }),
-    [chatters, rangeHistory, range, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter, followersByChatter]
+    [chatters, effectiveHistory, ownRange, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter, followersByChatter]
   );
 
   const filteredA = useMemo(() => applyCompareFilter(state.setA, ctx), [state.setA, ctx]);
