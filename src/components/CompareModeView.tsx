@@ -26,7 +26,7 @@ import {
   type SwapModelInfo,
 } from "@/lib/swap-suggestions";
 import { formatFollowers } from "@/lib/model-performance";
-import { rangeLabel } from "@/lib/timerange-categorize";
+import { rangeLabel, loadHistoryForRange, buildTimeRange } from "@/lib/timerange-categorize";
 import type { TimeRange, HistoryRow as RangeHistoryRow } from "@/lib/timerange-categorize";
 import type { ActionCategoryName } from "@/lib/action-categories";
 import type { AccountTierId } from "@/lib/account-tiers";
@@ -82,11 +82,19 @@ export default function CompareModeView({
     saveCompareState(state);
   }, [state]);
 
+  // Compare nutzt IMMER Lifetime/90d Daten — unabhängig vom globalen TimeRange.
+  // Daher History eigenständig laden, sonst sind delay/avg-Filter leer wenn
+  // der globale Range "today" ist.
+  const [ownHistory, setOwnHistory] = useState<RangeHistoryRow[]>([]);
+  const ownRange = useMemo(() => buildTimeRange("90d"), []);
+  // platform wird unten gezogen; hier nur ein Trigger über range.from
+  const effectiveHistory = ownHistory.length > 0 ? ownHistory : rangeHistory;
+
   const ctx: ApplyFilterContext = useMemo(
     () => ({
       chatters,
-      rangeHistory,
-      range,
+      rangeHistory: effectiveHistory,
+      range: ownRange,
       recategorizedMap,
       labelsByChatter,
       tierIdsByChatter,
@@ -94,7 +102,7 @@ export default function CompareModeView({
       firstSeenByChatter,
       followersByChatter,
     }),
-    [chatters, rangeHistory, range, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter, followersByChatter]
+    [chatters, effectiveHistory, ownRange, recategorizedMap, labelsByChatter, tierIdsByChatter, alertChatterNames, firstSeenByChatter, followersByChatter]
   );
 
   const filteredA = useMemo(() => applyCompareFilter(state.setA, ctx), [state.setA, ctx]);
@@ -175,6 +183,20 @@ export default function CompareModeView({
 
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const { platform } = usePlatform();
+
+  // History für die letzten 90 Tage laden (für Compare-Filter wie Verzug, Ø €, etc.)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await loadHistoryForRange(platform, ownRange.from, ownRange.to);
+        if (!cancelled) setOwnHistory(rows);
+      } catch {
+        if (!cancelled) setOwnHistory([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [platform, ownRange.from, ownRange.to]);
 
   // Profil-Stats pro Chatter (Ø Tagesumsatz, Ø MassDMs/Tag) — identische Berechnung
   // wie im Chatter-Profil (Slideover). Live via Realtime auf chatter_history.
