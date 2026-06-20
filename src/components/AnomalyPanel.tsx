@@ -227,6 +227,20 @@ export default function AnomalyPanel({
     return () => { cancel = true; off(); };
   }, [platform]);
 
+  // Aktive Chatter (im neuesten Report) — Auffälligkeiten von "rausgeflogenen" Chattern ausblenden
+  const [activeChatterNames, setActiveChatterNames] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let cancel = false;
+    const load = async () => {
+      const names = await loadActiveChatterNames(platform);
+      if (!cancel) setActiveChatterNames(names);
+    };
+    load();
+    const off = onChatterDataUpdated(() => { load(); });
+    return () => { cancel = true; off(); };
+  }, [platform]);
+
+
   const labelsByChatter = useMemo(() => {
     const labelById = new Map(chatterLabels.map((l) => [l.id, l]));
     const m = new Map<string, ChatterLabel[]>();
