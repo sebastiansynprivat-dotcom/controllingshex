@@ -176,6 +176,16 @@ export default function AnomalyPanel({
   const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>(initialSnap?.anomalies ?? []);
   const [reportId, setReportId] = useState<string | null>(initialSnap?.reportId ?? null);
   const [expanded, setExpanded] = useState(false);
+  const [mode, setMode] = useState<"problems" | "highlights">(() => {
+    if (typeof sessionStorage === "undefined") return "problems";
+    try {
+      const stored = sessionStorage.getItem("anomalies.mode");
+      return stored === "highlights" ? "highlights" : "problems";
+    } catch { return "problems"; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem("anomalies.mode", mode); } catch { /* noop */ }
+  }, [mode]);
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
   const [peerAvg, setPeerAvg] = useState(initialSnap?.peerAvg ?? 0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
