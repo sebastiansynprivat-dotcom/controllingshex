@@ -19,7 +19,7 @@ const items = [
   { title: "Live-Tracking", url: "/live", icon: Radio },
   { title: "Push", url: "/push", icon: Megaphone },
   { title: "Auffälligkeiten", url: "/auffaelligkeiten", icon: AlertOctagon },
-  { title: "Monatsziele", url: "/monatsziele", icon: Target },
+  { title: "Ziele", url: "/ziele", icon: Target },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
   { title: "Upload", url: "/upload", icon: Upload },
   { title: "AI Consultant", url: "/ai-consultant", icon: MessageSquareText },
