@@ -51,37 +51,52 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
     return n;
   }, [filter]);
 
-  // Active pills summary for mobile chip header
-  const activePills = useMemo(() => {
-    const pills: string[] = [];
+  // Active pills summary — strukturiert mit Labels (Name + Farbe) und Kriterien
+  type Pill = { key: string; text: string; color?: string };
+  const activePills = useMemo<Pill[]>(() => {
+    const pills: Pill[] = [];
     filter.tiers.forEach((t) => {
       const tier = ACCOUNT_TIERS.find((x) => x.id === t);
-      if (tier) pills.push(`${tier.emoji}`);
+      if (tier) pills.push({ key: `tier-${t}`, text: `${tier.emoji} ${tier.label}` });
     });
     filter.categories.forEach((c) => {
       const cat = ACTION_CATEGORIES.find((x) => x.name === c);
-      if (cat) pills.push(`${cat.emoji}`);
+      if (cat) pills.push({ key: `cat-${c}`, text: `${cat.emoji} ${cat.name}` });
     });
-    if (filter.status !== "any") pills.push(filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onb.");
-    if (filter.alerts !== "any") pills.push(filter.alerts === "with" ? "🔔" : "🔕");
+    if (filter.status !== "any") {
+      const text = filter.status === "active" ? "Aktiv" : filter.status === "inactive" ? "Inaktiv" : "Onboarding";
+      pills.push({ key: "status", text });
+    }
+    if (filter.alerts !== "any") {
+      pills.push({ key: "alerts", text: filter.alerts === "with" ? "🔔 Mit Alert" : "🔕 Ohne Alert" });
+    }
     if (filter.delayRange) {
       const [lo, hi] = filter.delayRange;
-      pills.push(`⏱${lo}–${hi}d`);
+      pills.push({ key: "delay", text: `⏱ ${lo}–${hi}d Verzug` });
     }
     if (filter.tenureDays) {
       const [lo, hi] = filter.tenureDays;
-      pills.push(`📅${lo}–${hi}d`);
+      pills.push({ key: "tenure", text: `📅 ${lo}–${hi}d dabei` });
     }
     if (filter.followerRange) {
       const [lo, hi] = filter.followerRange;
       const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `${n}`);
-      pills.push(`👥${fmt(lo)}–${fmt(hi)}`);
+      pills.push({ key: "followers", text: `👥 ${fmt(lo)}–${fmt(hi)}` });
     }
-    if (filter.revToday) pills.push("€h");
-    if (filter.revAvg) pills.push("Ø€");
-    if (filter.labelIds.length) pills.push(`${filter.labelIds.length}🏷`);
+    if (filter.revToday) {
+      const [lo, hi] = filter.revToday;
+      pills.push({ key: "revToday", text: `€ heute ${lo}–${hi}` });
+    }
+    if (filter.revAvg) {
+      const [lo, hi] = filter.revAvg;
+      pills.push({ key: "revAvg", text: `Ø € ${lo}–${hi}` });
+    }
+    filter.labelIds.forEach((id) => {
+      const l = allLabels.find((x) => x.id === id);
+      if (l) pills.push({ key: `lbl-${id}`, text: `🏷 ${l.label_name}`, color: l.color });
+    });
     return pills;
-  }, [filter]);
+  }, [filter, allLabels]);
 
   // The full filter UI body (reused inline on desktop / inside sheet on mobile)
   const FilterBody = (
