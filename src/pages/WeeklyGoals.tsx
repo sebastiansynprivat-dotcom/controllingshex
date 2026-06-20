@@ -1326,6 +1326,18 @@ export default function WeeklyGoals() {
               </div>
             )}
 
+            {/* Summe der Ziele im aktuellen Filter */}
+            {filteredRows.length > 0 && (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-300/15 bg-emerald-500/[0.04] px-4 py-3">
+                <span className="text-[11px] text-emerald-200/70 font-light">
+                  Wenn alle {filteredRows.length} Chatter ihr Ziel erreichen
+                </span>
+                <span className="text-lg font-semibold tabular-nums text-emerald-200">
+                  {formatEUR(filteredTotalGoal)} / Woche
+                </span>
+              </div>
+            )}
+
             {loading ? (
               <div className="flex items-center justify-center py-20 text-white/40">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
