@@ -590,7 +590,7 @@ export async function computeAnomaliesForWindow(
     // ── 5b. POSITIV: Hidden Gem ──────────────────────────────
     // Kleiner Account (Followers unter erweitertem Median ODER absolut ≤ 3.000)
     // + konstant aktiv (≥50% Tage) + ≥1.1× Erwartung.
-    const smallAccountCap = Math.max(followerMedian * 6, 3000);
+    const smallAccountCap = Math.max(followerMedian * 6, 500);
     const isSmallAccount =
       a.totalFollowers > 0 && a.totalFollowers <= smallAccountCap;
     if (
