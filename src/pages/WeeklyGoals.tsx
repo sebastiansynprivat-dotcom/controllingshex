@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import PastWeeklyGoalsTab from "@/components/PastWeeklyGoalsTab";
 import {
   parseGoalFromNote,
   computeWeekProgress as computeGoalProgress,
@@ -370,7 +371,7 @@ export default function WeeklyGoals() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("deficit");
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
-  const [tab, setTab] = useState<"current" | "future">("current");
+  const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [acceptingChatter, setAcceptingChatter] = useState<string | null>(null);
@@ -1184,7 +1185,8 @@ export default function WeeklyGoals() {
           {([
             ["current", "Aktuelle Wochenziele", rows.length],
             ["future", "Zukünftige Wochenziele", suggestionsGenerated ? visibleSuggestions.length : 0],
-          ] as ["current" | "future", string, number][]).map(([k, label, count]) => (
+            ["past", "Vergangene Wochenziele", null],
+          ] as ["current" | "future" | "past", string, number | null][]).map(([k, label, count]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -1195,9 +1197,11 @@ export default function WeeklyGoals() {
               }`}
             >
               {label}
-              <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full ${
-                tab === k ? "bg-white/[0.08] text-white/80" : "bg-white/[0.03] text-white/40"
-              }`}>{count}</span>
+              {count != null && (
+                <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full ${
+                  tab === k ? "bg-white/[0.08] text-white/80" : "bg-white/[0.03] text-white/40"
+                }`}>{count}</span>
+              )}
               {tab === k && (
                 <span className="absolute -bottom-px left-0 right-0 h-px bg-emerald-300/60" />
               )}
@@ -1525,6 +1529,13 @@ export default function WeeklyGoals() {
               </>
             )}
           </>
+        )}
+
+        {tab === "past" && (
+          <PastWeeklyGoalsTab
+            platform={platform}
+            onOpenChatter={(c) => setSelected(c)}
+          />
         )}
       </div>
 
