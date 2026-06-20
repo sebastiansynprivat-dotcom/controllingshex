@@ -754,16 +754,57 @@ export default function AnomalyPanel({
           )}
         </div>
 
-        {/* Premium Progress Bar: X von Y Chattern auffällig (nur kritisch+hoch zählen) */}
+        {/* Mode-Toggle: Probleme vs. Highlights */}
         {(() => {
+          const activeSet = activeChatterNames;
+          const problemChatters = new Set<string>();
+          const highlightChatters = new Set<string>();
+          for (const a of anomalies) {
+            if (activeSet && !activeSet.has(normalizeChatterName(a.chatter_name))) continue;
+            if (isPositiveAnomaly(a.alert_type)) highlightChatters.add(a.chatter_name);
+            else if (a.severity === "critical") problemChatters.add(a.chatter_name);
+          }
+          const Btn = ({ k, label, count, tone }: { k: "problems" | "highlights"; label: string; count: number; tone: "red" | "emerald" }) => {
+            const active = mode === k;
+            const activeCls = tone === "red"
+              ? "bg-red-500/[0.12] border-red-400/30 text-red-100"
+              : "bg-emerald-500/[0.12] border-emerald-400/30 text-emerald-100";
+            return (
+              <button
+                type="button"
+                onClick={() => setMode(k)}
+                className={cn(
+                  "flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium uppercase tracking-wider transition-all",
+                  active
+                    ? activeCls
+                    : "border-white/[0.06] bg-white/[0.02] text-white/55 hover:text-white/80 hover:bg-white/[0.04]",
+                )}
+              >
+                <span className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  tone === "red" ? "bg-red-400" : "bg-emerald-400",
+                )} />
+                {label}
+                <span className="tabular-nums opacity-70">· {count}</span>
+              </button>
+            );
+          };
+          return (
+            <div className="flex items-center gap-2">
+              <Btn k="problems" label="Probleme" count={problemChatters.size} tone="red" />
+              <Btn k="highlights" label="Highlights" count={highlightChatters.size} tone="emerald" />
+            </div>
+          );
+        })()}
+
+        {/* Premium Progress Bar: nur im Probleme-Mode */}
+        {mode === "problems" && (() => {
           const criticalChatters = new Set(
             anomalies
               .filter((a) => a.severity === "critical")
               .map((a) => a.chatter_name),
           );
           const flagged = criticalChatters.size;
-          // Nenner = Chatter im neuesten Report (konsistent zum Filter oben).
-          // Fallback: Zeitraum-Total, falls (noch) keine aktiven Namen geladen sind.
           const activeCount = activeChatterNames?.size ?? 0;
           const total = activeCount > 0
             ? Math.max(activeCount, groupedByChatter.length)
@@ -816,6 +857,23 @@ export default function AnomalyPanel({
             </div>
           );
         })()}
+
+        {/* Highlights-Header: Anzahl Aufwärtssignale */}
+        {mode === "highlights" && (
+          <div className="flex items-end justify-between gap-3 flex-wrap">
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="text-2xl sm:text-3xl font-light tabular-nums text-emerald-200 tracking-tight">
+                {groupedByChatter.length}
+              </span>
+              <span className="text-xs text-white/40 font-light">
+                {groupedByChatter.length === 1 ? "Chatter im Aufwind" : "Chatter im Aufwind"}
+              </span>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-emerald-300/60 font-light">
+              Sortiert nach Stärke
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Body */}
