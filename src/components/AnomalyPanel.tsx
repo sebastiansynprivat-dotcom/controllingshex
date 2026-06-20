@@ -839,6 +839,13 @@ export default function AnomalyPanel({
               const zeroDays = zeroAlert ? Math.round(zeroAlert.metric_value) : null;
               const chatterLabelsForGroup = labelsByChatter.get(normalizeChatterName(group.name)) ?? [];
 
+              // "Neu am Start" — wenn Chatter weniger Historie hat als das gewählte Zeitfenster
+              const firstSeenIso = firstSeen.get(group.name);
+              const firstSeenRel = relDays(firstSeenIso);
+              const isNewerThanWindow =
+                firstSeenRel != null && windowDays > 1 && firstSeenRel.days + 1 < windowDays;
+              const firstSeenDays = firstSeenRel ? Math.max(1, firstSeenRel.days + 1) : 0;
+
               return (
                 <motion.div
                   key={group.name}
