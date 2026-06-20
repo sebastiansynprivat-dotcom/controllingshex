@@ -736,11 +736,28 @@ function CompareSwipeCard({
           {item.name.replace(/_/g, " ")}
         </h3>
         <p className="text-[9px] md:text-xs text-white/45 truncate">@ {account || "—"}</p>
-        <div className="flex items-center gap-2 mt-1 mb-2 md:mb-3 flex-wrap">
+        <div className="flex items-center gap-1.5 mt-1 mb-2 md:mb-3 flex-wrap">
           <p className="text-[9px] md:text-xs text-white/40 inline-flex items-center gap-1">
             <Users className="h-2.5 w-2.5 md:h-3 md:w-3" />
             {formatFollowers(followers)}
           </p>
+          {firstSeen && (() => {
+            const days = Math.max(0, Math.floor((Date.now() - new Date(firstSeen).getTime()) / 86400000));
+            return (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] md:text-xs font-medium px-1.5 py-0.5 rounded-md border tabular-nums"
+                style={{
+                  color: `hsl(${accentHsl})`,
+                  borderColor: `hsl(${accentHsl} / 0.35)`,
+                  background: `hsl(${accentHsl} / 0.08)`,
+                }}
+                title={`Seit ${formatStartDate(firstSeen)}`}
+              >
+                <CalendarDays className="h-3 w-3" />
+                {days}{days === 1 ? " Tag" : " Tage"} dabei
+              </span>
+            );
+          })()}
         </div>
 
         {/* Stats — identisch zum Chatter-Profil (Ø über gesamte Historie) */}
@@ -759,11 +776,6 @@ function CompareSwipeCard({
           </div>
         </div>
 
-        {firstSeen && (
-          <p className="hidden md:inline-flex items-center gap-1 text-[10px] text-white/35 mt-2">
-            <CalendarDays className="h-3 w-3" /> seit {formatStartDate(firstSeen)}
-          </p>
-        )}
       </div>
     </motion.div>
   );

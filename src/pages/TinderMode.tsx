@@ -1366,16 +1366,7 @@ export default function TinderMode() {
         <SwapModeView platform={platform} chatters={swapInputs} models={modelsList} benchmarks={benchmarkBundle} initialManualChatter={initialSwapChatter} />
       ) : mode === "compare" ? (
         <>
-          {/* Time-Range Selector bleibt sichtbar im Compare-Mode */}
-          <div className="mb-3 flex flex-col gap-1">
-            <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
-            {timeRange.preset !== "today" && (
-              <span className="text-[10px] text-muted-foreground/70 px-0.5">
-                Vergleich basiert auf {rangeDays(timeRange)} {rangeDays(timeRange) === 1 ? "Tag" : "Tagen"}
-                {rangeLoading && <span className="ml-1 opacity-60">· lädt…</span>}
-              </span>
-            )}
-          </div>
+          {/* Compare nutzt immer Lifetime-Daten — kein Time-Range-Filter */}
           <CompareModeView
             chatters={chatters.map((c) => ({
               name: c.name,
@@ -1388,7 +1379,7 @@ export default function TinderMode() {
             swapInputs={swapInputs}
             models={modelsList}
             rangeHistory={rangeHistory}
-            range={timeRange}
+            range={buildTimeRange("90d")}
             recategorizedMap={new Map(Array.from(recategorizedMap, ([k, v]) => [k, v.name as ActionCategoryName]))}
             labelsByChatter={labelsByChatter}
             tierIdsByChatter={tierIdsByChatter}
