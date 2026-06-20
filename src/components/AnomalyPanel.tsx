@@ -399,18 +399,24 @@ export default function AnomalyPanel({
     setPrevWindowAvg(pmap);
 
     // All-Time Ø pro Chatter (Summe aller Reports / Tage_mit_Eintrag)
+    // + erstes Auftauchen (frühestes analysis_date) — Rows kommen ASC sortiert.
     const allAgg = new Map<string, { sum: number; days: number }>();
+    const fsmap = new Map<string, string>();
     for (const row of allTimeRows) {
       const cur = allAgg.get(row.chatter_name) ?? { sum: 0, days: 0 };
       cur.sum += Number(row.revenue_today ?? 0);
       cur.days += 1;
       allAgg.set(row.chatter_name, cur);
+      if (row.analysis_date && !fsmap.has(row.chatter_name)) {
+        fsmap.set(row.chatter_name, String(row.analysis_date).slice(0, 10));
+      }
     }
     const atmap = new Map<string, number>();
     for (const [name, { sum, days }] of allAgg) {
       atmap.set(name, days > 0 ? sum / days : 0);
     }
     setAllTimeAvg(atmap);
+    setFirstSeen(fsmap);
 
     // Persist snapshot
     try {
