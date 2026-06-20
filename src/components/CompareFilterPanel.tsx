@@ -542,25 +542,30 @@ export default function CompareFilterPanel({ label, accent, filter, onChange, al
           sheetOpen && "bg-white/[0.05]"
         )}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={cn("inline-block h-2 w-2 rounded-full shrink-0", accentDot)} />
-          <span className="text-xs font-semibold tracking-wide text-foreground/90 shrink-0">{label}</span>
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <span className={cn("inline-block h-2 w-2 rounded-full shrink-0 mt-1.5", accentDot)} />
+          <span className="text-xs font-semibold tracking-wide text-foreground/90 shrink-0 mt-0.5">{label}</span>
           {activePills.length > 0 ? (
-            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-              {activePills.slice(0, 5).map((p, i) => (
+            <div className="flex flex-wrap items-center gap-1 min-w-0">
+              {activePills.map((p) => (
                 <span
-                  key={i}
-                  className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 shrink-0"
+                  key={p.key}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] border shrink-0",
+                    !p.color && "bg-primary/10 text-primary border-primary/20"
+                  )}
+                  style={
+                    p.color
+                      ? { background: `${p.color}22`, color: p.color, borderColor: `${p.color}55` }
+                      : undefined
+                  }
                 >
-                  {p}
+                  {p.text}
                 </span>
               ))}
-              {activePills.length > 5 && (
-                <span className="text-[10px] text-muted-foreground shrink-0">+{activePills.length - 5}</span>
-              )}
             </div>
           ) : (
-            <span className="text-[11px] text-muted-foreground truncate">Filter setzen…</span>
+            <span className="text-[11px] text-muted-foreground truncate mt-0.5">Filter setzen…</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
