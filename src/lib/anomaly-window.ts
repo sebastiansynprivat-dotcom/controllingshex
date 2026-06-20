@@ -729,6 +729,9 @@ export const ANOMALY_LABELS: Record<AnomalyType, { label: string; emoji: string 
   massdm_low:           { label: "MassDMs < 4/Tag + schwacher Umsatz", emoji: "📨" },
   massdm_zero_no_rev:   { label: "Keine MassDMs & kein Umsatz", emoji: "🚨" },
   high_effort_no_rev:   { label: "Zieht durch — Umsatz folgt", emoji: "💪" },
+  peer_overperform:     { label: "Über Erwartung",            emoji: "🚀" },
+  self_revenue_spike:   { label: "Eigener Schnitt übertroffen", emoji: "📈" },
+  comeback:             { label: "Comeback — Turnaround",     emoji: "✨" },
 };
 
 export const SEVERITY_STYLE: Record<AnomalySeverity, { dot: string; border: string; label: string; text: string }> = {
