@@ -27,6 +27,7 @@ import {
   dismissChatter,
   ANOMALY_LABELS,
   SEVERITY_STYLE,
+  isPositiveAnomaly,
   type ChatterAnomaly,
 } from "@/lib/anomaly-window";
 import {
@@ -175,6 +176,16 @@ export default function AnomalyPanel({
   const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>(initialSnap?.anomalies ?? []);
   const [reportId, setReportId] = useState<string | null>(initialSnap?.reportId ?? null);
   const [expanded, setExpanded] = useState(false);
+  const [mode, setMode] = useState<"problems" | "highlights">(() => {
+    if (typeof sessionStorage === "undefined") return "problems";
+    try {
+      const stored = sessionStorage.getItem("anomalies.mode");
+      return stored === "highlights" ? "highlights" : "problems";
+    } catch { return "problems"; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem("anomalies.mode", mode); } catch { /* noop */ }
+  }, [mode]);
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
   const [peerAvg, setPeerAvg] = useState(initialSnap?.peerAvg ?? 0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
@@ -628,7 +639,11 @@ export default function AnomalyPanel({
       }
     >();
     for (const a of anomalies) {
-      if (a.severity !== "critical") continue;
+      if (mode === "highlights") {
+        if (!isPositiveAnomaly(a.alert_type)) continue;
+      } else {
+        if (a.severity !== "critical") continue;
+      }
       if (activeChatterNames && !activeChatterNames.has(normalizeChatterName(a.chatter_name))) continue;
 
       const key = a.chatter_name;
@@ -662,11 +677,15 @@ export default function AnomalyPanel({
       entry.impactWindow = entry.impactPerDay * Math.max(1, windowDays);
     }
     return [...map.values()].sort((a, b) => {
+      if (mode === "highlights") {
+        if (b.topScore !== a.topScore) return b.topScore - a.topScore;
+        return b.totalFollowers - a.totalFollowers;
+      }
       if (b.impactPerDay !== a.impactPerDay) return b.impactPerDay - a.impactPerDay;
       if (b.totalFollowers !== a.totalFollowers) return b.totalFollowers - a.totalFollowers;
       return b.topScore - a.topScore;
     });
-  }, [anomalies, chatterAccounts, modelFollowers, windowDays, activeChatterNames]);
+  }, [anomalies, chatterAccounts, modelFollowers, windowDays, activeChatterNames, mode]);
 
   const copyName = useCallback(async (name: string) => {
     try {
@@ -735,16 +754,57 @@ export default function AnomalyPanel({
           )}
         </div>
 
-        {/* Premium Progress Bar: X von Y Chattern auffällig (nur kritisch+hoch zählen) */}
+        {/* Mode-Toggle: Probleme vs. Highlights */}
         {(() => {
+          const activeSet = activeChatterNames;
+          const problemChatters = new Set<string>();
+          const highlightChatters = new Set<string>();
+          for (const a of anomalies) {
+            if (activeSet && !activeSet.has(normalizeChatterName(a.chatter_name))) continue;
+            if (isPositiveAnomaly(a.alert_type)) highlightChatters.add(a.chatter_name);
+            else if (a.severity === "critical") problemChatters.add(a.chatter_name);
+          }
+          const Btn = ({ k, label, count, tone }: { k: "problems" | "highlights"; label: string; count: number; tone: "red" | "emerald" }) => {
+            const active = mode === k;
+            const activeCls = tone === "red"
+              ? "bg-red-500/[0.12] border-red-400/30 text-red-100"
+              : "bg-emerald-500/[0.12] border-emerald-400/30 text-emerald-100";
+            return (
+              <button
+                type="button"
+                onClick={() => setMode(k)}
+                className={cn(
+                  "flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium uppercase tracking-wider transition-all",
+                  active
+                    ? activeCls
+                    : "border-white/[0.06] bg-white/[0.02] text-white/55 hover:text-white/80 hover:bg-white/[0.04]",
+                )}
+              >
+                <span className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  tone === "red" ? "bg-red-400" : "bg-emerald-400",
+                )} />
+                {label}
+                <span className="tabular-nums opacity-70">· {count}</span>
+              </button>
+            );
+          };
+          return (
+            <div className="flex items-center gap-2">
+              <Btn k="problems" label="Probleme" count={problemChatters.size} tone="red" />
+              <Btn k="highlights" label="Highlights" count={highlightChatters.size} tone="emerald" />
+            </div>
+          );
+        })()}
+
+        {/* Premium Progress Bar: nur im Probleme-Mode */}
+        {mode === "problems" && (() => {
           const criticalChatters = new Set(
             anomalies
               .filter((a) => a.severity === "critical")
               .map((a) => a.chatter_name),
           );
           const flagged = criticalChatters.size;
-          // Nenner = Chatter im neuesten Report (konsistent zum Filter oben).
-          // Fallback: Zeitraum-Total, falls (noch) keine aktiven Namen geladen sind.
           const activeCount = activeChatterNames?.size ?? 0;
           const total = activeCount > 0
             ? Math.max(activeCount, groupedByChatter.length)
@@ -797,6 +857,23 @@ export default function AnomalyPanel({
             </div>
           );
         })()}
+
+        {/* Highlights-Header: Anzahl Aufwärtssignale */}
+        {mode === "highlights" && (
+          <div className="flex items-end justify-between gap-3 flex-wrap">
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="text-2xl sm:text-3xl font-light tabular-nums text-emerald-200 tracking-tight">
+                {groupedByChatter.length}
+              </span>
+              <span className="text-xs text-white/40 font-light">
+                {groupedByChatter.length === 1 ? "Chatter im Aufwind" : "Chatter im Aufwind"}
+              </span>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-emerald-300/60 font-light">
+              Sortiert nach Stärke
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -808,10 +885,12 @@ export default function AnomalyPanel({
       ) : groupedByChatter.length === 0 ? (
         <div className="px-5 py-8 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-white/40 font-light">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
-            {(activeChatterNames?.size ?? totalChattersInRange) > 0
-              ? `Alle ${activeChatterNames?.size ?? totalChattersInRange} Chatter clean.`
-              : "Keine Auffälligkeiten im Zeitraum."}
+            <span className={cn("h-1.5 w-1.5 rounded-full", mode === "highlights" ? "bg-sky-400/70" : "bg-emerald-400/70")} />
+            {mode === "highlights"
+              ? "Noch keine Highlights im Zeitraum — schau auch in 30 Tage."
+              : (activeChatterNames?.size ?? totalChattersInRange) > 0
+                ? `Alle ${activeChatterNames?.size ?? totalChattersInRange} Chatter clean.`
+                : "Keine Auffälligkeiten im Zeitraum."}
           </div>
         </div>
       ) : (
@@ -926,13 +1005,13 @@ export default function AnomalyPanel({
                             +{chatterLabelsForGroup.length - 3}
                           </span>
                         )}
-                        {group.impactPerDay > 0 && (
+                        {mode === "problems" && group.impactPerDay > 0 && (
                           <span className={cn("inline-flex items-baseline gap-0.5 text-[12px] tabular-nums font-medium", sevGlow.accent)}>
                             <span>−{group.impactPerDay.toLocaleString("de-DE")}€</span>
                             <span className="text-[9px] uppercase tracking-wider opacity-60 font-light">/Tag</span>
                           </span>
                         )}
-                        {sinceRel && sinceRel.days >= 1 && (
+                        {mode === "problems" && sinceRel && sinceRel.days >= 1 && (
                           <span
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/[0.08] border border-red-500/15 text-[9px] uppercase tracking-wider text-red-200/85 font-medium"
                             title={`Dauer der Auffälligkeit: ${sinceRel.days} ${sinceRel.days === 1 ? "Tag" : "Tage"} in Folge auffällig (z. B. 0€-Umsatz, unter Peer-Schnitt oder keine MassDMs). Je länger, desto dringender.`}

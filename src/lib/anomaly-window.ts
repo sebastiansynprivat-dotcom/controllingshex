@@ -22,7 +22,20 @@ export type AnomalyType =
   | "persistent_zero"     // Mehrere Tage in Folge unter Ziel
   | "massdm_low"          // < 4/Tag UND Umsatz schwach
   | "massdm_zero_no_rev"  // Keine MassDMs UND kein Umsatz im Zeitraum
-  | "high_effort_no_rev"; // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
+  | "high_effort_no_rev"  // Positiv: hohe MassDM-Performance trotz fehlendem Umsatz
+  | "peer_overperform"    // Positiv: deutlich über Follower-Erwartung
+  | "self_revenue_spike"  // Positiv: eigener Schnitt deutlich übertroffen
+  | "comeback";           // Positiv: vorher schwach, jetzt stark
+
+/** Liefert true für „positive" Auffälligkeiten (Highlights-Tab). */
+export function isPositiveAnomaly(type: AnomalyType): boolean {
+  return (
+    type === "high_effort_no_rev" ||
+    type === "peer_overperform" ||
+    type === "self_revenue_spike" ||
+    type === "comeback"
+  );
+}
 
 export interface ChatterAnomaly {
   chatter_name: string;
@@ -536,8 +549,69 @@ export async function computeAnomaliesForWindow(
           message: `Ø ${a.avgMassDmsPerDay.toFixed(1)} MassDMs/Tag — zieht voll durch, Umsatz folgt erfahrungsgemäß`,
           score: 0.5, // ganz unten in der Liste
         });
+    }
+
+    // ── 5. POSITIV: Peer-Overperform ─────────────────────────
+    // Deutlich über erwartetem €/Tag bei seiner Follower-Summe.
+    if (
+      useExpected &&
+      expected > 5 &&
+      a.daysActive >= Math.min(4, days) &&
+      a.avgRevenuePerDay >= expected * 1.5
+    ) {
+      const overPct = ((a.avgRevenuePerDay - expected) / expected) * 100;
+      anomalies.push({
+        chatter_name: a.name,
+        alert_type: "peer_overperform",
+        severity: "positive",
+        metric_value: a.avgRevenuePerDay,
+        baseline_value: expected,
+        delta_pct: Math.round(overPct),
+        message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag — ${Math.round(overPct)}% über Erwartung (erwartet ${expected.toFixed(0)}€ bei ${a.totalFollowers.toLocaleString("de-DE")} Followern)`,
+        score: 50 + Math.min(overPct, 300) / 5,
+      });
+    }
+
+    // ── 6. POSITIV: Self Revenue Spike ───────────────────────
+    if (haveOwnHistory && baseHere!.avgRevenue >= 30) {
+      const upPct = ((a.avgRevenuePerDay - baseHere!.avgRevenue) / baseHere!.avgRevenue) * 100;
+      if (upPct >= 50 && a.daysActive >= Math.min(3, days)) {
+        anomalies.push({
+          chatter_name: a.name,
+          alert_type: "self_revenue_spike",
+          severity: "positive",
+          metric_value: a.avgRevenuePerDay,
+          baseline_value: baseHere!.avgRevenue,
+          delta_pct: Math.round(upPct),
+          message: `Ø ${a.avgRevenuePerDay.toFixed(0)}€ — +${Math.round(upPct)}% über eigenem Schnitt (${baseHere!.avgRevenue.toFixed(0)}€)`,
+          score: 55 + Math.min(upPct, 300) / 5,
+        });
       }
     }
+
+    // ── 7. POSITIV: Comeback ─────────────────────────────────
+    // Vorher schwach (<30€/Tag bei ≥5 Baselinetagen), jetzt deutlich stark (≥60€/Tag).
+    if (
+      baseHere &&
+      baseHere.days >= 5 &&
+      baseHere.avgRevenue < 30 &&
+      a.avgRevenuePerDay >= 60 &&
+      a.daysActive >= Math.min(3, days)
+    ) {
+      anomalies.push({
+        chatter_name: a.name,
+        alert_type: "comeback",
+        severity: "positive",
+        metric_value: a.avgRevenuePerDay,
+        baseline_value: baseHere.avgRevenue,
+        delta_pct: baseHere.avgRevenue > 0
+          ? Math.round(((a.avgRevenuePerDay - baseHere.avgRevenue) / baseHere.avgRevenue) * 100)
+          : 0,
+        message: `Comeback: Ø ${a.avgRevenuePerDay.toFixed(0)}€/Tag (vorher nur ${baseHere.avgRevenue.toFixed(0)}€) — Turnaround läuft`,
+        score: 70 + Math.min(a.avgRevenuePerDay, 500) / 10,
+      });
+    }
+  }
   }
 
   // Dismissals nur anwenden wenn report bekannt
@@ -655,6 +729,9 @@ export const ANOMALY_LABELS: Record<AnomalyType, { label: string; emoji: string 
   massdm_low:           { label: "MassDMs < 4/Tag + schwacher Umsatz", emoji: "📨" },
   massdm_zero_no_rev:   { label: "Keine MassDMs & kein Umsatz", emoji: "🚨" },
   high_effort_no_rev:   { label: "Zieht durch — Umsatz folgt", emoji: "💪" },
+  peer_overperform:     { label: "Über Erwartung",            emoji: "🚀" },
+  self_revenue_spike:   { label: "Eigener Schnitt übertroffen", emoji: "📈" },
+  comeback:             { label: "Comeback — Turnaround",     emoji: "✨" },
 };
 
 export const SEVERITY_STYLE: Record<AnomalySeverity, { dot: string; border: string; label: string; text: string }> = {

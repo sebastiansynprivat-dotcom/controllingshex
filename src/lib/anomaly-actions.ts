@@ -46,6 +46,9 @@ export function actionLabelFor(type: AnomalyType): string {
     case "massdm_low":          return "MassDMs hochfahren";
     case "massdm_zero_no_rev":  return "Hardes Coaching nötig";
     case "high_effort_no_rev":  return "Bestätigen & dranbleiben";
+    case "peer_overperform":    return "Anerkennen & Konstanz halten";
+    case "self_revenue_spike":  return "Erfolg verstärken";
+    case "comeback":            return "Turnaround feiern";
   }
 }
 
@@ -103,6 +106,20 @@ export function buildChatterMessage(ctx: MessageContext): string {
 
     case "high_effort_no_rev": {
       return `Hey ${name}, wollte dir nur kurz sagen: ich seh wie du gerade Gas gibst mit den MassDMs — stark! Der Umsatz folgt da meist mit ein paar Tagen Verzögerung, also bleib genau so dran. 🙌`;
+    }
+
+    case "peer_overperform": {
+      const pct = Math.round(top.delta_pct);
+      return `Hey ${name}, kurzer Shout: du liegst gerade ${pct}% über dem, was bei deinen Accounts „normal" wäre. Richtig stark — mach genau so weiter. 🚀`;
+    }
+
+    case "self_revenue_spike": {
+      const pct = Math.round(top.delta_pct);
+      return `Hey ${name}, dein Schnitt ist in den letzten ${windowLabel} um +${pct}% nach oben — was machst du gerade anders? Lass uns das festhalten, damit du das Niveau hältst. 📈`;
+    }
+
+    case "comeback": {
+      return `Hey ${name}, sauberer Turnaround in den letzten ${windowLabel} — top, dass du wieder reinkommst! Bleib bitte genau so dran, ich seh's. ✨`;
     }
   }
 }
