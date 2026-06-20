@@ -529,6 +529,8 @@ export default function MonthlyGoals() {
         const goalByChatter = new Map<string, { goal: number; text: string; date: string }>();
         for (const n of notesRes.data ?? []) {
           if (goalByChatter.has(n.chatter_name)) continue;
+          // Wochenziel-Notes hier ignorieren (eigener Tab).
+          if (/^\s*Wochenziel/i.test(n.note_text ?? "")) continue;
           const goal = parseGoalFromNote(n.note_text);
           if (goal != null) {
             goalByChatter.set(n.chatter_name, {
