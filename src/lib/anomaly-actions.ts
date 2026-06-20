@@ -46,6 +46,9 @@ export function actionLabelFor(type: AnomalyType): string {
     case "massdm_low":          return "MassDMs hochfahren";
     case "massdm_zero_no_rev":  return "Hardes Coaching nötig";
     case "high_effort_no_rev":  return "Bestätigen & dranbleiben";
+    case "peer_overperform":    return "Anerkennen & Konstanz halten";
+    case "self_revenue_spike":  return "Erfolg verstärken";
+    case "comeback":            return "Turnaround feiern";
   }
 }
 
