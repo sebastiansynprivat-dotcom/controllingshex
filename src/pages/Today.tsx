@@ -15,6 +15,7 @@ import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
 import { useSidebar } from "@/components/ui/sidebar";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import {
   buildTodayActions,
@@ -358,10 +359,12 @@ export default function Today() {
       ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
       : baseVisibleList;
 
-  // Falls aktiver Kind-Tab leer wird, auf "all" zurück
-  if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
-    queueMicrotask(() => setKindTab("all"));
-  }
+  // Falls aktiver Kind-Tab leer wird, auf "all" zurück (in Effect, nicht in Render)
+  useEffect(() => {
+    if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
+      setKindTab("all");
+    }
+  }, [kindTab, availableKinds]);
 
 
   // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
@@ -639,6 +642,7 @@ export default function Today() {
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
 
+            <ErrorBoundary>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={kindTab}
@@ -704,6 +708,7 @@ export default function Today() {
                 )}
               </motion.div>
             </AnimatePresence>
+            </ErrorBoundary>
           )}
 
 
