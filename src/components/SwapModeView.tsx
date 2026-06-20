@@ -586,6 +586,8 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
   useEffect(() => {
     setLeftAltIdx(0);
     setRightAltIdx(0);
+    setSlotOverrideLeft(null);
+    setSlotOverrideRight(null);
   }, [pairIdx]);
 
   // Reset pair index + history when manual mode toggles (persistierte Dismissals bleiben)
@@ -593,7 +595,10 @@ export default function SwapModeView({ platform, chatters, models, benchmarks, i
     setPairIdx(0);
     setLeftAltIdx(0);
     setRightAltIdx(0);
+    setSlotOverrideLeft(null);
+    setSlotOverrideRight(null);
   }, [manualChatterName]);
+
 
   const currentPair: SwapPair | undefined = useMemo(() => {
     // Erst Pairs die nicht "für später" geskippt wurden, dann am Ende die geskippten.
