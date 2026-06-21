@@ -471,11 +471,18 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     });
   }
 
-  /* DEDUPE pro Chatter (außer Slot — Account-bezogen) */
+  /* DEDUPE pro Chatter (außer Slot — Account-bezogen; außer Swap — eigene Logik
+     in der Engine, darf nicht mit Recovery/Phase/Mismatch um die MAX_TASKS-Slots
+     konkurrieren). */
   const seenChatter = new Set<string>();
   const sorted = [...tasks].sort((a, b) => b.score - a.score);
   const final: RevenueTask[] = [];
+  const swapsOnly: RevenueTask[] = [];
   for (const t of sorted) {
+    if (t.kind === "swap") {
+      swapsOnly.push(t);
+      continue;
+    }
     if (t.kind !== "slot" && t.chatterName) {
       const k = normalizeChatterName(t.chatterName);
       if (seenChatter.has(k)) continue;
@@ -484,5 +491,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     final.push(t);
     if (final.length >= MAX_TASKS) break;
   }
+  // Swap-Tasks immer komplett mitliefern — Heute-Tab paginiert selbst.
+  final.push(...swapsOnly);
   return final;
 }
