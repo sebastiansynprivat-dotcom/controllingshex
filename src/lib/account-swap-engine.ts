@@ -33,7 +33,6 @@ const PROMOTION_ACCOUNT_RATIO = 1.2;
 const MIN_LIFETIME_DAYS = 14;
 const RECENT_WINDOW_DAYS = 14;
 const ZERO_STREAK_DAYS = 7;
-const HISTORY_LOOKBACK_DAYS = 120; // genug für Lifetime + Streak
 
 // ---------- Typen ----------
 interface HistoryRow {
@@ -586,22 +585,15 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const fromIso = isoDaysAgo(HISTORY_LOOKBACK_DAYS);
-
-  // History paginiert laden — chatter_history kann pro Plattform deutlich mehr
-  // als 10k Zeilen im Lookback-Fenster haben. Wenn wir nur die ersten 10k holen
-  // (egal ob ASC oder DESC), fehlen entweder die jüngsten Reports (→
-  // lastAssignments leer) oder das Lifetime-Fenster.
+  // History vollständig paginiert laden — keine künstliche Zeilen- oder Datumsgrenze.
   const PAGE = 1000;
-  const MAX_PAGES = 50; // hard ceiling: 50 000 Zeilen
   const historyAll: HistoryRow[] = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
+  for (let page = 0; ; page++) {
     const { data, error } = await supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, response_delay_days")
       .eq("user_id", user.id)
       .ilike("platform", platform)
-      .gte("analysis_date", fromIso)
       .order("analysis_date", { ascending: false })
       .range(page * PAGE, page * PAGE + PAGE - 1);
     if (error) {
