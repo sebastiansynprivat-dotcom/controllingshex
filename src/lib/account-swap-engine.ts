@@ -283,21 +283,18 @@ function detectDowngrades(
     const streak = getZeroEuroStreak(entries);
     const delay = delayedByChatter.get(ck) ?? 0;
 
-    // Wenn der Account insgesamt gerade mindestens auf Lifetime-Niveau läuft,
-    // ist er kein sinnvoller freier Slot — einzelne Verzüge/Schwächen erzeugen
-    // dann keinen Account-Tausch auf einen ohnehin starken Account.
     const accountRecent = accountRecentByAcc.get(ak);
-    if (
+    const accountIsHealthy =
       lifetime != null &&
       lifetime > 0 &&
-      accountRecent &&
+      !!accountRecent &&
       accountRecent.days >= 3 &&
-      accountRecent.avg >= lifetime * HEALTHY_ACCOUNT_RATIO
-    ) {
-      continue;
-    }
+      accountRecent.avg >= lifetime * HEALTHY_ACCOUNT_RATIO;
 
-    // Trigger C — Null-Euro-Serie (höchste Priorität)
+    // Trigger C — Null-Euro-Serie (höchste Priorität).
+    // Chatter-spezifisches Signal: 7+ Tage 0 € auf einem Account, den er aktuell
+    // betreut. Greift auch wenn der Account insgesamt läuft — andere Chatter
+    // tragen den Account, dieser hier produziert nicht.
     if (streak > ZERO_STREAK_DAYS) {
       out.push({
         chatter: originalChatterName.get(ck) ?? ck,
@@ -314,7 +311,8 @@ function detectDowngrades(
       continue;
     }
 
-    // Trigger A — Chats im Verzug
+    // Trigger A — Chats im Verzug. Personenproblem, kein Accountproblem —
+    // immer einen Slot erzeugen, unabhängig von der Accountgesundheit.
     if (delay > 0) {
       out.push({
         chatter: originalChatterName.get(ck) ?? ck,
@@ -331,8 +329,16 @@ function detectDowngrades(
       continue;
     }
 
-    // Trigger B — Unterperformance vs. Lifetime
-    if (lifetime != null && lifetime > 0 && recent14d < lifetime * UNDERPERFORM_RATIO) {
+    // Trigger B — Unterperformance vs. Lifetime.
+    // Nur hier den Healthy-Guard anwenden: wenn der Account insgesamt auf
+    // Lifetime-Niveau läuft, ist „14d-Schnitt eines Paars unter 60 %" kein
+    // valides Signal — andere Chatter kompensieren ja.
+    if (
+      lifetime != null &&
+      lifetime > 0 &&
+      recent14d < lifetime * UNDERPERFORM_RATIO &&
+      !accountIsHealthy
+    ) {
       out.push({
         chatter: originalChatterName.get(ck) ?? ck,
         accountKey: ak,
