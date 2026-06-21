@@ -693,6 +693,28 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     lifetimeByAcc,
   );
 
+  console.info("[account-swap-engine]", {
+    platform,
+    historyRows: history.length,
+    activeChatters: activeNames?.size ?? "(no filter)",
+    accountsKnown: followersByAcc.size,
+    pairs: pairMap.size,
+    lastAssignments: lastAssignments.size,
+    delayedChatters: delayedByChatter.size,
+    downgrades: downgrades.length,
+    downgradesByReason: {
+      zero_streak: downgrades.filter((d) => d.reason === "zero_streak").length,
+      delay: downgrades.filter((d) => d.reason === "delay").length,
+      underperformance: downgrades.filter((d) => d.reason === "underperformance").length,
+    },
+    upgradesY: upgradesY.length,
+    upgradesZ: upgradesZ.length,
+    upgradesX1: upgradesX1.length,
+    upgradesX2: upgradesX2.length,
+    matches: matches.length,
+    unusedY: unusedY.length,
+  });
+
   const today = todayStr();
   const tasks: RevenueTask[] = [];
 
