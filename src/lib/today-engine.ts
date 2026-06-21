@@ -96,6 +96,7 @@ const SOLO_KINDS = new Set<ActionSourceKind>([
   // Multi-Person — eigene Karten
   "talent",
   "swap",
+  "upgrade",
   "phase",
   // Account-only
   "slot",
@@ -113,6 +114,7 @@ const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "
   phase: "warning",
   mismatch: "warning",
   swap: "info",
+  upgrade: "info",
   slot: "warning",
   model: "info",
   talent: "info",
@@ -132,6 +134,7 @@ const KIND_PRIORITY: ActionSourceKind[] = [
   "activity",
   "slot",
   "swap",
+  "upgrade",
   "model",
   "talent",
   "positive",

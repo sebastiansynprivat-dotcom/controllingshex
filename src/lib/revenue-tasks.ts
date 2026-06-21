@@ -26,7 +26,7 @@ import { tierForFollowers } from "@/lib/account-tiers";
 import { buildAccountSwapTasks } from "@/lib/account-swap-engine";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
-export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot";
+export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot" | "upgrade";
 
 export interface RevenueTask {
   key: string;
@@ -479,7 +479,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const final: RevenueTask[] = [];
   const swapsOnly: RevenueTask[] = [];
   for (const t of sorted) {
-    if (t.kind === "swap") {
+    if (t.kind === "swap" || t.kind === "upgrade") {
       swapsOnly.push(t);
       continue;
     }
@@ -491,7 +491,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     final.push(t);
     if (final.length >= MAX_TASKS) break;
   }
-  // Swap-Tasks immer komplett mitliefern — Heute-Tab paginiert selbst.
+  // Swap- + Upgrade-Tasks immer komplett mitliefern — Heute-Tab paginiert selbst.
   final.push(...swapsOnly);
   return final;
 }
