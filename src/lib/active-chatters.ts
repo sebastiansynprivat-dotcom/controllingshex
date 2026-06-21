@@ -9,8 +9,23 @@
 import { supabase } from "@/integrations/supabase/client";
 import { onChatterDataUpdated } from "@/lib/data-events";
 
+/**
+ * Entfernt unsichtbare Zeichen, die in Reports oft als "Garnierung" eingefügt
+ * werden (Variation Selectors U+FE0E/U+FE0F, Zero-Width-Joiner/Space, BOM,
+ * Bidi-Marks, NBSP, Soft-Hyphen). Sonst sieht die Engine "Jeanette" und
+ * "️️️ Jeanette" als zwei verschiedene Chatter.
+ */
+function stripInvisible(s: string): string {
+  return s
+    .normalize("NFKC")
+    // Variation Selectors (FE00–FE0F) + Zero-Width-Bereich + BOM + Bidi-Marks
+    .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
+    // NBSP & ähnliche Spaces → normales Space
+    .replace(/[\u00A0\u2007\u202F]/g, " ");
+}
+
 export function normalizeChatterName(name: string): string {
-  return name.toLowerCase().replace(/[_ ]+/g, "_").trim();
+  return stripInvisible(name).toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
 interface CacheEntry {
