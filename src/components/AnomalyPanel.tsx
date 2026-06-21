@@ -126,6 +126,7 @@ export default function AnomalyPanel({
   hideTimeControls = false,
   range: rangeProp,
   onRangeChange,
+  forcedMode,
 }: Props) {
   const { user } = useAuth();
   const [internalRange, setInternalRange] = useState<TimeRange>(
