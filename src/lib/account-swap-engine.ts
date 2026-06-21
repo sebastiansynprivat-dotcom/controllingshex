@@ -587,15 +587,33 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
   if (!user) return [];
 
   const fromIso = isoDaysAgo(HISTORY_LOOKBACK_DAYS);
-  const [historyRes, modelsRes, activeNames] = await Promise.all([
-    supabase
+
+  // History paginiert laden — chatter_history kann pro Plattform deutlich mehr
+  // als 10k Zeilen im Lookback-Fenster haben. Wenn wir nur die ersten 10k holen
+  // (egal ob ASC oder DESC), fehlen entweder die jüngsten Reports (→
+  // lastAssignments leer) oder das Lifetime-Fenster.
+  const PAGE = 1000;
+  const MAX_PAGES = 50; // hard ceiling: 50 000 Zeilen
+  const historyAll: HistoryRow[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, response_delay_days")
       .eq("user_id", user.id)
       .ilike("platform", platform)
       .gte("analysis_date", fromIso)
-      .order("analysis_date", { ascending: true })
-      .range(0, 9999),
+      .order("analysis_date", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) {
+      console.warn("[account-swap-engine] history page failed", page, error);
+      break;
+    }
+    const rows = (data ?? []) as HistoryRow[];
+    historyAll.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+
+  const [modelsRes, activeNames] = await Promise.all([
     supabase
       .from("models")
       .select("model_name, follower_count")
@@ -604,7 +622,7 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     loadActiveChatterNames(platform),
   ]);
 
-  const historyRaw = (historyRes.data ?? []) as HistoryRow[];
+  const historyRaw = historyAll;
   const models = (modelsRes.data ?? []) as ModelRow[];
 
   // Aktive-Chatter-Filter
@@ -692,6 +710,28 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     upgradesX2,
     lifetimeByAcc,
   );
+
+  console.info("[account-swap-engine]", {
+    platform,
+    historyRows: history.length,
+    activeChatters: activeNames?.size ?? "(no filter)",
+    accountsKnown: followersByAcc.size,
+    pairs: pairMap.size,
+    lastAssignments: lastAssignments.size,
+    delayedChatters: delayedByChatter.size,
+    downgrades: downgrades.length,
+    downgradesByReason: {
+      zero_streak: downgrades.filter((d) => d.reason === "zero_streak").length,
+      delay: downgrades.filter((d) => d.reason === "delay").length,
+      underperformance: downgrades.filter((d) => d.reason === "underperformance").length,
+    },
+    upgradesY: upgradesY.length,
+    upgradesZ: upgradesZ.length,
+    upgradesX1: upgradesX1.length,
+    upgradesX2: upgradesX2.length,
+    matches: matches.length,
+    unusedY: unusedY.length,
+  });
 
   const today = todayStr();
   const tasks: RevenueTask[] = [];
