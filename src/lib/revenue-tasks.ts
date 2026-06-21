@@ -23,14 +23,7 @@ import {
 } from "@/lib/recovery-queue";
 import { loadMismatchMap, type MismatchEntry } from "@/lib/effort-potential";
 import { tierForFollowers } from "@/lib/account-tiers";
-import {
-  computeSwapCandidates,
-  type SwapInput,
-  type SwapModelInfo,
-  type SwapPair,
-} from "@/lib/swap-suggestions";
-import { loadAccountFitMatrix } from "@/lib/account-fit";
-import { loadSwapTracking } from "@/lib/swap-tracking";
+import { buildAccountSwapTasks } from "@/lib/account-swap-engine";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot";
