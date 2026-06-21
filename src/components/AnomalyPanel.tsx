@@ -760,8 +760,8 @@ export default function AnomalyPanel({
           )}
         </div>
 
-        {/* Mode-Toggle: Probleme vs. Highlights */}
-        {(() => {
+        {/* Mode-Toggle: Probleme vs. Highlights (im Vergleich-Modus ausgeblendet) */}
+        {!forcedMode && (() => {
           const activeSet = activeChatterNames;
           const problemChatters = new Set<string>();
           const highlightChatters = new Set<string>();
