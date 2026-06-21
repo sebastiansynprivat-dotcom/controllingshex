@@ -15,6 +15,7 @@ import { AlertOctagon, Sparkles, Columns2, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AnomalyPanel from "@/components/AnomalyPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
+import TimeRangeToggle from "@/components/TimeRangeToggle";
 import { buildTimeRange, rangeLabel, type TimeRange } from "@/lib/timerange-categorize";
 
 const RANGE_STORAGE_KEY = "anomalies-page-range-v1";
