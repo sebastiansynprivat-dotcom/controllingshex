@@ -89,6 +89,7 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
   phase: "Phase",
   mismatch: "Mismatch",
   swap: "Account-Tausch",
+  upgrade: "Upgrade-Kandidat",
   slot: "Slot",
   potential: "Potenzial",
   wakeup: "Wieder aktiv",
