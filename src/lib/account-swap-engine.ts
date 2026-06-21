@@ -404,10 +404,11 @@ function detectUpgradesTypeX(
     const entries = pairMap.get(`${ck}|${bestAcc}`) ?? [];
     const { avg: recent14d } = getChatter14dAverage(entries);
     const todayRev = entries.length ? entries[entries.length - 1].rev : 0;
+    const hasMeaningfulRevenue = recent14d >= MIN_SEED_RECENT_AVG || todayRev >= MIN_SEED_RECENT_AVG;
 
     const cand: UpgradeCandidate = {
       chatter: originalChatterName.get(ck) ?? ck,
-      type: recent14d > 0 || todayRev > 0 ? "seed_p1" : "seed_p2",
+      type: hasMeaningfulRevenue ? "seed_p1" : "seed_p2",
       currentAccountKey: bestAcc,
       currentAccountLabel: originalAccountLabel.get(bestAcc) ?? bestAcc,
       currentFollowers: bestFollowers,
@@ -417,7 +418,6 @@ function detectUpgradesTypeX(
       todayRevenue: todayRev,
     };
     if (cand.type === "seed_p1") prio1.push(cand);
-    else prio2.push(cand);
   }
   prio1.sort((a, b) => b.todayRevenue - a.todayRevenue || b.recent14d - a.recent14d);
   prio2.sort((a, b) => b.currentFollowers - a.currentFollowers);
