@@ -26,6 +26,7 @@ const KIND_META: Record<RevenueTaskKind, { label: string; icon: typeof Gem; tone
   mismatch:  { label: "Tier-Mismatch",  icon: Users,           tone: "text-amber-300 bg-amber-500/10 border-amber-500/25" },
   swap:      { label: "Swap",           icon: ArrowLeftRight,  tone: "text-cyan-300 bg-cyan-500/10 border-cyan-500/25" },
   slot:      { label: "Peak-Slot leer", icon: Activity,        tone: "text-rose-300 bg-rose-500/10 border-rose-500/25" },
+  upgrade:   { label: "Upgrade-Kandidat", icon: Rocket,        tone: "text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/25" },
 };
 
 function fmtEur(v: number) {
