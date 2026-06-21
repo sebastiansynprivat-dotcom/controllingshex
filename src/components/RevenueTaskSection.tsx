@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Clock, X as XIcon, Gem, ArrowLeftRight, Activity, TrendingDown, Users, Calendar } from "lucide-react";
+import { Check, Clock, X as XIcon, Gem, ArrowLeftRight, Activity, TrendingDown, Users, Calendar, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
