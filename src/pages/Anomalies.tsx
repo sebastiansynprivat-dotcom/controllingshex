@@ -216,6 +216,7 @@ export default function Anomalies() {
               />
             </div>
           </div>
+          </div>
         )}
 
         {/* Erläuterung */}
