@@ -167,7 +167,17 @@ export default function Anomalies() {
             onChatterSelect={setSelectedChatter}
           />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5 items-start">
+          <div className="space-y-3 sm:space-y-4">
+            {/* Geteilter Zeitraum-Filter für beide Seiten */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 sm:px-4 sm:py-3">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-white/45 font-medium hidden sm:inline">
+                Zeitraum
+              </span>
+              <div className="flex-1 sm:flex-none overflow-x-auto">
+                <TimeRangeToggle value={range} onChange={setRange} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5 items-start">
             {/* Probleme — rote Seite */}
             <div className="relative rounded-2xl sm:rounded-3xl border border-red-400/15 bg-gradient-to-b from-red-500/[0.04] to-transparent p-2 sm:p-3 min-w-0">
               <div className="flex items-center gap-2 px-2 pt-1 pb-2">
