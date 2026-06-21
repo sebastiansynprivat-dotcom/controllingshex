@@ -30,6 +30,7 @@ const TYPE_Y_FOLLOWER_MIN = 300;
 const UNDERPERFORM_RATIO = 0.6;
 const OVERPERFORM_RATIO = 1.1;
 const PROMOTION_ACCOUNT_RATIO = 1.2;
+const HEALTHY_ACCOUNT_RATIO = 1.0;
 const MIN_LIFETIME_DAYS = 14;
 const RECENT_WINDOW_DAYS = 14;
 const ZERO_STREAK_DAYS = 7;
@@ -169,6 +170,33 @@ function getAccountLifetimeAverages(rows: HistoryRow[]): Map<string, number | nu
   return out;
 }
 
+/** 14d-Schnitt (gepoolt, alle Chatter) pro Account. */
+function getAccountRecentAverages(
+  pairMap: Map<string, { date: string; rev: number; delay: number }[]>,
+): Map<string, { avg: number; days: number }> {
+  const cutoff = isoDaysAgo(RECENT_WINDOW_DAYS - 1);
+  const byAcc = new Map<string, Map<string, number>>();
+  for (const [key, entries] of pairMap) {
+    const [, ak] = key.split("|");
+    if (!byAcc.has(ak)) byAcc.set(ak, new Map());
+    const dm = byAcc.get(ak)!;
+    for (const e of entries) {
+      if (e.date < cutoff) continue;
+      dm.set(e.date, (dm.get(e.date) ?? 0) + e.rev);
+    }
+  }
+
+  const out = new Map<string, { avg: number; days: number }>();
+  for (const [ak, dm] of byAcc) {
+    const days = dm.size;
+    if (days === 0) continue;
+    let sum = 0;
+    for (const rev of dm.values()) sum += rev;
+    out.set(ak, { avg: sum / days, days });
+  }
+  return out;
+}
+
 /** 14d-Schnitt eines (Chatter, Account)-Paars über aktive Tage. */
 function getChatter14dAverage(entries: { date: string; rev: number }[]): { avg: number; days: number } {
   const cutoff = isoDaysAgo(RECENT_WINDOW_DAYS - 1);
@@ -239,6 +267,7 @@ function detectDowngrades(
   lastAssignments: Map<string, Set<string>>,
 ): DowngradeCandidate[] {
   const out: DowngradeCandidate[] = [];
+  const accountRecentByAcc = getAccountRecentAverages(pairMap);
 
   for (const [key, entries] of pairMap) {
     const [ck, ak] = key.split("|");
@@ -253,6 +282,20 @@ function detectDowngrades(
     const { avg: recent14d } = getChatter14dAverage(entries);
     const streak = getZeroEuroStreak(entries);
     const delay = delayedByChatter.get(ck) ?? 0;
+
+    // Wenn der Account insgesamt gerade mindestens auf Lifetime-Niveau läuft,
+    // ist er kein sinnvoller freier Slot — einzelne Verzüge/Schwächen erzeugen
+    // dann keinen Account-Tausch auf einen ohnehin starken Account.
+    const accountRecent = accountRecentByAcc.get(ak);
+    if (
+      lifetime != null &&
+      lifetime > 0 &&
+      accountRecent &&
+      accountRecent.days >= 3 &&
+      accountRecent.avg >= lifetime * HEALTHY_ACCOUNT_RATIO
+    ) {
+      continue;
+    }
 
     // Trigger C — Null-Euro-Serie (höchste Priorität)
     if (streak > ZERO_STREAK_DAYS) {
