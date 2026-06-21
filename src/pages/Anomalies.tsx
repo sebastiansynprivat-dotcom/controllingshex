@@ -3,15 +3,24 @@
  *
  * Premium Layout mit Hero-Header, Zeitraumfilter und voller Anomaly-Liste.
  * Synchron mit Dashboard und Swipe Mode (gleiche Lib + Dismissal-Sync).
+ *
+ * Zwei Ansichten:
+ *  - "Einzeln" — klassischer Modus (Toggle Probleme/Highlights)
+ *  - "Vergleich" — Split-Screen: rote Probleme links, grüne Highlights rechts,
+ *    jede Seite unabhängig scrollbar.
  */
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/contexts/PlatformContext";
-import { AlertOctagon, Sparkles } from "lucide-react";
+import { AlertOctagon, Sparkles, Columns2, Square } from "lucide-react";
+import { cn } from "@/lib/utils";
 import AnomalyPanel from "@/components/AnomalyPanel";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { buildTimeRange, rangeLabel, type TimeRange } from "@/lib/timerange-categorize";
 
 const RANGE_STORAGE_KEY = "anomalies-page-range-v1";
+const VIEW_STORAGE_KEY = "anomalies-page-view-v1";
+
+type ViewMode = "single" | "compare";
 
 function loadPersistedRange(): TimeRange {
   if (typeof sessionStorage === "undefined") return buildTimeRange("7d");
@@ -27,6 +36,14 @@ function loadPersistedRange(): TimeRange {
   return buildTimeRange("7d");
 }
 
+function loadPersistedView(): ViewMode {
+  if (typeof sessionStorage === "undefined") return "single";
+  try {
+    const raw = sessionStorage.getItem(VIEW_STORAGE_KEY);
+    return raw === "compare" ? "compare" : "single";
+  } catch { return "single"; }
+}
+
 export default function Anomalies() {
   const { platform } = usePlatform();
   const [range, setRangeRaw] = useState<TimeRange>(() => loadPersistedRange());
@@ -39,6 +56,11 @@ export default function Anomalies() {
       );
     } catch { /* noop */ }
   };
+  const [view, setViewRaw] = useState<ViewMode>(() => loadPersistedView());
+  const setView = (v: ViewMode) => {
+    setViewRaw(v);
+    try { sessionStorage.setItem(VIEW_STORAGE_KEY, v); } catch { /* noop */ }
+  };
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
 
   const subtitle = useMemo(
@@ -49,7 +71,12 @@ export default function Anomalies() {
 
   return (
     <div className="min-h-full bg-background -m-3 sm:m-0">
-      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-10 space-y-3 sm:space-y-6">
+      <div
+        className={cn(
+          "mx-auto px-3 sm:px-6 py-3 sm:py-10 space-y-3 sm:space-y-6",
+          view === "compare" ? "max-w-[1600px]" : "max-w-5xl",
+        )}
+      >
         {/* Hero */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-4 sm:p-8">
           <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
@@ -70,17 +97,115 @@ export default function Anomalies() {
                 {subtitle}
               </p>
             </div>
+
+            {/* View-Toggle: Einzeln vs. Vergleich */}
+            <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl border border-white/[0.06] bg-white/[0.02] shrink-0">
+              <button
+                type="button"
+                onClick={() => setView("single")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all",
+                  view === "single"
+                    ? "bg-white/[0.08] text-white/90"
+                    : "text-white/45 hover:text-white/70",
+                )}
+              >
+                <Square className="h-3 w-3" />
+                Einzeln
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("compare")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all",
+                  view === "compare"
+                    ? "bg-gradient-to-br from-red-500/[0.12] to-emerald-500/[0.12] border border-white/[0.08] text-white/90"
+                    : "text-white/45 hover:text-white/70",
+                )}
+              >
+                <Columns2 className="h-3 w-3" />
+                Vergleich
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile View-Toggle */}
+          <div className="sm:hidden mt-3 flex items-center gap-1 p-1 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+            <button
+              type="button"
+              onClick={() => setView("single")}
+              className={cn(
+                "flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all",
+                view === "single" ? "bg-white/[0.08] text-white/90" : "text-white/45",
+              )}
+            >
+              <Square className="h-3 w-3" /> Einzeln
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("compare")}
+              className={cn(
+                "flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all",
+                view === "compare"
+                  ? "bg-gradient-to-br from-red-500/[0.12] to-emerald-500/[0.12] border border-white/[0.08] text-white/90"
+                  : "text-white/45",
+              )}
+            >
+              <Columns2 className="h-3 w-3" /> Vergleich
+            </button>
           </div>
         </div>
 
-        {/* Panel */}
-        <AnomalyPanel
-          platform={platform}
-          range={range}
-          onRangeChange={setRange}
-          variant="default"
-          onChatterSelect={setSelectedChatter}
-        />
+        {/* Panel(s) */}
+        {view === "single" ? (
+          <AnomalyPanel
+            platform={platform}
+            range={range}
+            onRangeChange={setRange}
+            variant="default"
+            onChatterSelect={setSelectedChatter}
+          />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5 items-start">
+            {/* Probleme — rote Seite */}
+            <div className="relative rounded-2xl sm:rounded-3xl border border-red-400/15 bg-gradient-to-b from-red-500/[0.04] to-transparent p-2 sm:p-3 min-w-0">
+              <div className="flex items-center gap-2 px-2 pt-1 pb-2">
+                <span className="h-2 w-2 rounded-full bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                <span className="text-[11px] uppercase tracking-[0.25em] text-red-200/80 font-medium">
+                  Probleme
+                </span>
+              </div>
+              <AnomalyPanel
+                platform={platform}
+                range={range}
+                onRangeChange={setRange}
+                variant="default"
+                onChatterSelect={setSelectedChatter}
+                hideTimeControls
+                forcedMode="problems"
+              />
+            </div>
+
+            {/* Highlights — grüne Seite */}
+            <div className="relative rounded-2xl sm:rounded-3xl border border-emerald-400/15 bg-gradient-to-b from-emerald-500/[0.04] to-transparent p-2 sm:p-3 min-w-0">
+              <div className="flex items-center gap-2 px-2 pt-1 pb-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                <span className="text-[11px] uppercase tracking-[0.25em] text-emerald-200/80 font-medium">
+                  Highlights
+                </span>
+              </div>
+              <AnomalyPanel
+                platform={platform}
+                range={range}
+                onRangeChange={setRange}
+                variant="default"
+                onChatterSelect={setSelectedChatter}
+                hideTimeControls
+                forcedMode="highlights"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Erläuterung */}
         <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-4 sm:p-5 text-xs text-white/45 font-light leading-relaxed">

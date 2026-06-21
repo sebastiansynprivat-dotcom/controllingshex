@@ -113,6 +113,8 @@ interface Props {
   /** Externally controlled range (overrides internal state when set). */
   range?: TimeRange;
   onRangeChange?: (range: TimeRange) => void;
+  /** Force a specific mode and hide the internal mode toggle (Vergleich-Modus). */
+  forcedMode?: "problems" | "highlights";
 }
 
 export default function AnomalyPanel({
@@ -124,6 +126,7 @@ export default function AnomalyPanel({
   hideTimeControls = false,
   range: rangeProp,
   onRangeChange,
+  forcedMode,
 }: Props) {
   const { user } = useAuth();
   const [internalRange, setInternalRange] = useState<TimeRange>(
@@ -176,16 +179,19 @@ export default function AnomalyPanel({
   const [anomalies, setAnomalies] = useState<ChatterAnomaly[]>(initialSnap?.anomalies ?? []);
   const [reportId, setReportId] = useState<string | null>(initialSnap?.reportId ?? null);
   const [expanded, setExpanded] = useState(false);
-  const [mode, setMode] = useState<"problems" | "highlights">(() => {
+  const [internalMode, setInternalMode] = useState<"problems" | "highlights">(() => {
     if (typeof sessionStorage === "undefined") return "problems";
     try {
       const stored = sessionStorage.getItem("anomalies.mode");
       return stored === "highlights" ? "highlights" : "problems";
     } catch { return "problems"; }
   });
+  const mode: "problems" | "highlights" = forcedMode ?? internalMode;
+  const setMode = setInternalMode;
   useEffect(() => {
-    try { sessionStorage.setItem("anomalies.mode", mode); } catch { /* noop */ }
-  }, [mode]);
+    if (forcedMode) return;
+    try { sessionStorage.setItem("anomalies.mode", internalMode); } catch { /* noop */ }
+  }, [internalMode, forcedMode]);
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
   const [peerAvg, setPeerAvg] = useState(initialSnap?.peerAvg ?? 0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
@@ -754,8 +760,8 @@ export default function AnomalyPanel({
           )}
         </div>
 
-        {/* Mode-Toggle: Probleme vs. Highlights */}
-        {(() => {
+        {/* Mode-Toggle: Probleme vs. Highlights (im Vergleich-Modus ausgeblendet) */}
+        {!forcedMode && (() => {
           const activeSet = activeChatterNames;
           const problemChatters = new Set<string>();
           const highlightChatters = new Set<string>();
