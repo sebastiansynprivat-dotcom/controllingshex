@@ -31,6 +31,10 @@ const UNDERPERFORM_RATIO = 0.6;
 const OVERPERFORM_RATIO = 1.1;
 const PROMOTION_ACCOUNT_RATIO = 1.2;
 const HEALTHY_ACCOUNT_RATIO = 1.0;
+const PRODUCTIVE_PAIR_RATIO = 0.8;
+const PRODUCTIVE_PAIR_MIN_EUR = 30;
+const MIN_DELAY_DAYS_FOR_SWAP = 2;
+const MIN_SEED_RECENT_AVG = 10;
 const MIN_LIFETIME_DAYS = 14;
 const RECENT_WINDOW_DAYS = 14;
 const ZERO_STREAK_DAYS = 7;
@@ -290,6 +294,9 @@ function detectDowngrades(
       !!accountRecent &&
       accountRecent.days >= 3 &&
       accountRecent.avg >= lifetime * HEALTHY_ACCOUNT_RATIO;
+    const chatterLooksProductive =
+      recent14d >= PRODUCTIVE_PAIR_MIN_EUR ||
+      (lifetime != null && lifetime > 0 && recent14d >= lifetime * PRODUCTIVE_PAIR_RATIO);
 
     // Trigger C — Null-Euro-Serie (höchste Priorität).
     // Chatter-spezifisches Signal: 7+ Tage 0 € auf einem Account, den er aktuell
@@ -311,9 +318,9 @@ function detectDowngrades(
       continue;
     }
 
-    // Trigger A — Chats im Verzug. Personenproblem, kein Accountproblem —
-    // immer einen Slot erzeugen, unabhängig von der Accountgesundheit.
-    if (delay > 0) {
+    // Trigger A — Chats im Verzug. Aber: kein guter Performer wird nur wegen
+    // 1–2 Tagen Delay von einem laufenden Account gezogen.
+    if (delay >= MIN_DELAY_DAYS_FOR_SWAP && !chatterLooksProductive) {
       out.push({
         chatter: originalChatterName.get(ck) ?? ck,
         accountKey: ak,
@@ -397,10 +404,11 @@ function detectUpgradesTypeX(
     const entries = pairMap.get(`${ck}|${bestAcc}`) ?? [];
     const { avg: recent14d } = getChatter14dAverage(entries);
     const todayRev = entries.length ? entries[entries.length - 1].rev : 0;
+    const hasMeaningfulRevenue = recent14d >= MIN_SEED_RECENT_AVG || todayRev >= MIN_SEED_RECENT_AVG;
 
     const cand: UpgradeCandidate = {
       chatter: originalChatterName.get(ck) ?? ck,
-      type: recent14d > 0 || todayRev > 0 ? "seed_p1" : "seed_p2",
+      type: hasMeaningfulRevenue ? "seed_p1" : "seed_p2",
       currentAccountKey: bestAcc,
       currentAccountLabel: originalAccountLabel.get(bestAcc) ?? bestAcc,
       currentFollowers: bestFollowers,
@@ -410,7 +418,6 @@ function detectUpgradesTypeX(
       todayRevenue: todayRev,
     };
     if (cand.type === "seed_p1") prio1.push(cand);
-    else prio2.push(cand);
   }
   prio1.sort((a, b) => b.todayRevenue - a.todayRevenue || b.recent14d - a.recent14d);
   prio2.sort((a, b) => b.currentFollowers - a.currentFollowers);
