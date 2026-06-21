@@ -113,6 +113,8 @@ interface Props {
   /** Externally controlled range (overrides internal state when set). */
   range?: TimeRange;
   onRangeChange?: (range: TimeRange) => void;
+  /** Force a specific mode and hide the internal mode toggle (Vergleich-Modus). */
+  forcedMode?: "problems" | "highlights";
 }
 
 export default function AnomalyPanel({
