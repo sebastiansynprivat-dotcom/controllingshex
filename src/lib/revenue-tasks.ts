@@ -294,7 +294,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, fitMatrix, swapTracking] = await Promise.all([
+  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, swapTasks] = await Promise.all([
     supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
@@ -317,13 +317,9 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     loadRecoveryHistory(platform),
     loadMismatchMap(platform),
     loadActiveChatterNames(platform),
-    loadAccountFitMatrix(platform).catch((e) => {
-      console.warn("[revenue-tasks] fitMatrix failed", e);
-      return undefined;
-    }),
-    loadSwapTracking(platform).catch((e) => {
-      console.warn("[revenue-tasks] swapTracking failed", e);
-      return new Map();
+    buildAccountSwapTasks(platform).catch((e) => {
+      console.warn("[revenue-tasks] account-swap-engine failed", e);
+      return [] as RevenueTask[];
     }),
   ]);
 
