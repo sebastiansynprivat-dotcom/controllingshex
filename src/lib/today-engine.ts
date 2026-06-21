@@ -833,24 +833,8 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     let why = r.why;
     let evidence: EvidenceRow[] | undefined;
 
-    // v3 — Swap-Engine Fit-Check: vor Push gegen Account-Fit-Matrix gegenchecken
-    if (r.kind === "swap" && r.chatterName && r.modelName) {
-      const fit = fitMatrix.byPair.get(`${normalizeChatterName(r.chatterName)}|${r.modelName.toLowerCase()}`);
-      if (fit && fit.days >= 3 && fit.fitScore < 40) {
-        // Self-fit-check: dieser Empfänger floppte historisch auf diesem Account → verwerfen
-        continue;
-      }
-      if (fit && fit.fitScore >= 70 && fit.days >= 5) {
-        // Cross-fit-boost
-        if (impact != null) impact = Math.round(impact * 1.4);
-        const fmtD = (iso: string | null) => iso ? `${new Date(iso).getDate()}.${new Date(iso).getMonth() + 1}.` : "?";
-        evidence = [
-          { text: `${r.chatterName} auf ${r.modelName}: Ø ${Math.round(fit.avgPerDay).toLocaleString("de-DE")} €/Tag (${fmtD(fit.lastPhaseFrom)}–${fmtD(fit.lastPhaseTo)}, ${fit.lastPhaseDays}T)` },
-          { text: `Fit-Score ${fit.fitScore}/100 — historisch bestätigt` },
-        ];
-        why = `${why} ✓ Fit bestätigt (Score ${fit.fitScore}).`;
-      }
-    }
+    // Account-Tausch: keine Fit-Matrix-Gegenprüfung mehr (Engine entscheidet selbst)
+
 
     signals.push({
       chatterName: r.chatterName ?? null,
