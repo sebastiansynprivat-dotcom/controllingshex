@@ -23,14 +23,7 @@ import {
 } from "@/lib/recovery-queue";
 import { loadMismatchMap, type MismatchEntry } from "@/lib/effort-potential";
 import { tierForFollowers } from "@/lib/account-tiers";
-import {
-  computeSwapCandidates,
-  type SwapInput,
-  type SwapModelInfo,
-  type SwapPair,
-} from "@/lib/swap-suggestions";
-import { loadAccountFitMatrix } from "@/lib/account-fit";
-import { loadSwapTracking } from "@/lib/swap-tracking";
+import { buildAccountSwapTasks } from "@/lib/account-swap-engine";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot";
@@ -301,7 +294,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, fitMatrix, swapTracking] = await Promise.all([
+  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, swapTasks] = await Promise.all([
     supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
@@ -324,13 +317,9 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     loadRecoveryHistory(platform),
     loadMismatchMap(platform),
     loadActiveChatterNames(platform),
-    loadAccountFitMatrix(platform).catch((e) => {
-      console.warn("[revenue-tasks] fitMatrix failed", e);
-      return undefined;
-    }),
-    loadSwapTracking(platform).catch((e) => {
-      console.warn("[revenue-tasks] swapTracking failed", e);
-      return new Map();
+    buildAccountSwapTasks(platform).catch((e) => {
+      console.warn("[revenue-tasks] account-swap-engine failed", e);
+      return [] as RevenueTask[];
     }),
   ]);
 
@@ -458,95 +447,9 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     });
   }
 
-  /* 4. SWAP-ENGINE TOP-PICK */
-  // Build SwapInput aus history der letzten 30T
-  const swapHistByChatter = new Map<string, HistoryRow[]>();
-  for (const r of history) {
-    if (r.analysis_date < fromIso30) continue;
-    if (!swapHistByChatter.has(r.chatter_name)) swapHistByChatter.set(r.chatter_name, []);
-    swapHistByChatter.get(r.chatter_name)!.push(r);
-  }
-  const swapChatters: SwapInput[] = [];
-  for (const [name, rows] of swapHistByChatter) {
-    rows.sort((a, b) => b.analysis_date.localeCompare(a.analysis_date));
-    const latest = rows[0];
-    const acc = (latest.account || "").trim();
-    if (!acc) continue;
-    const todayRev = latest.analysis_date >= isoDaysAgo(1) ? Number(latest.revenue_today) || 0 : 0;
-    swapChatters.push({
-      name,
-      account: acc,
-      currentRevenue: todayRev,
-      history: rows.map((r) => ({
-        analysis_date: r.analysis_date,
-        revenue_today: Number(r.revenue_today) || 0,
-        mass_dms: Number(r.mass_dms) || 0,
-        open_chats: Number(r.open_chats) || 0,
-        response_delay_days: Number(r.response_delay_days) || 0,
-      })),
-    });
-  }
-  const swapModels: SwapModelInfo[] = models.map((m) => ({
-    model_name: m.model_name,
-    follower_count: m.follower_count,
-  }));
-  let swapPairs: SwapPair[] = [];
-  try {
-    swapPairs = computeSwapCandidates(swapChatters, swapModels, null, {
-      platform,
-      window: { windowDays: 7 },
-      fitMatrix: fitMatrix ?? undefined,
-      swapTracking: swapTracking ?? undefined,
-      minConfidence: 45,
-    });
-  } catch (e) {
-    console.warn("[revenue-tasks] swap engine failed", e);
-  }
+  /* 4. ACCOUNT-TAUSCH (neue Engine) */
+  tasks.push(...swapTasks);
 
-  // Lade Swap-Decisions (letzte 7 Tage) für Novelty
-  const sevenAgoIso = isoDaysAgo(7) + "T00:00:00Z";
-  const { data: swapDecData } = await supabase
-    .from("swap_decisions")
-    .select("chatter_a, chatter_b, created_at")
-    .eq("user_id", user.id)
-    .ilike("platform", platform)
-    .gte("created_at", sevenAgoIso);
-  const recentSwaps = new Set<string>();
-  for (const d of swapDecData ?? []) {
-    const a = (d.chatter_a || "").toLowerCase();
-    const b = (d.chatter_b || "").toLowerCase();
-    recentSwaps.add(`${a}|${b}`);
-    recentSwaps.add(`${b}|${a}`);
-  }
-
-  for (const pair of swapPairs) {
-    if (pair.expectedGain < 50 / 7) continue;
-    const a = pair.left.name.toLowerCase();
-    const b = pair.right.name.toLowerCase();
-    if (recentSwaps.has(`${a}|${b}`)) continue;
-    const impact = pair.expectedGain * 7;
-    if (impact < MIN_IMPACT_EUR_PER_WEEK) continue;
-    const tierMult = tierMultiplierFromFollowers(pair.right.followers);
-    const imp = importanceFor(totals30, pair.left.name);
-    // Confidence-Faktor (0..1) — höhere Confidence = höherer Score
-    const confFactor = pair.confidence != null ? Math.max(0.4, pair.confidence / 100) : 0.65;
-    const score = impact * confFactor * tierMult * imp;
-    const whyText = pair.evidence
-      ? `${pair.evidence} Erwartet +${fmtEur(pair.expectedGain)}/Tag${pair.confidence != null ? ` · Confidence ${pair.confidence}/100` : ""}.`
-      : `Skill-Score ${(pair.left.skillScore * 100).toFixed(0)} vs. ${(pair.right.skillScore * 100).toFixed(0)}, Follower ${Math.round(pair.followerRatio * 10) / 10}× größer. Erwartet +${fmtEur(pair.expectedGain)}/Tag.`;
-    tasks.push({
-      key: `rev:swap:${a}:${b}:${today}`,
-      kind: "swap",
-      title: `Swap ${pair.left.name} (${pair.left.account}) ↔ ${pair.right.name} (${pair.right.account})`,
-      why: whyText,
-      impactEurPerWeek: impact,
-      confidence: pair.confidence != null ? pair.confidence / 100 : 0.65,
-      score,
-      chatterName: pair.left.name,
-      secondaryChatter: pair.right.name,
-      modelName: pair.right.account,
-    });
-  }
 
   /* 5. HOCHFREQUENZ-LÜCKE */
   const slotGaps = detectSlotGaps(hourly, chatterCurrentAccount, followersByAcc);

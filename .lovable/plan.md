@@ -1,91 +1,176 @@
-## Warum die jetzigen Vorschläge sich „statisch" anfühlen
+# Account-Tausch im Heute-Tab — vollständige Neulogik
 
-Die aktuelle Engine vergleicht **abstrakten Chatter-Skill** (Mass-DMs, Response-Zeit, €/Follower) gegen **Account-Größe (Follower)**. Das ist eine Korrelation, kein Beweis. Sie ignoriert die zwei stärksten Signale, die wir bereits in der DB liegen haben:
+Die bisherige Swap-Engine wird **im Heute-Tab vollständig entfernt**. Im Filter "Account-Tausch" zählt nur noch die unten beschriebene Downgrade/Upgrade-Logik. `SwapModeView` (Tinder-Mode) bleibt unverändert.
 
-1. **`account-fit.ts`** rechnet pro `(Chatter × Account)` aus 90 Tagen `chatter_history` einen `fitScore` mit `confidence` aus — wie gut hat dieser Chatter **auf diesem konkreten Account** historisch geliefert, vs. seine eigene Baseline und vs. andere Chatter, die je drauf saßen. **Wird in der Swap-Engine aktuell gar nicht benutzt.**
-2. **`swap-tracking.ts`** misst pro vergangenem Swap (`swap_decisions`) das Δ% 3 Tage davor vs. 3 Tage danach. Wir haben also echte Outcome-Daten unserer eigenen Empfehlungen — die fließen nicht zurück ins Ranking.
+**Globale Regel:** Tier-Median ist aus der gesamten Account-Tausch-/Swap-Engine **komplett raus** (keine Trigger, keine Thresholds, kein Ranking). Anzeige & `computeTierStatus` in `account-tiers.ts` bleiben unverändert.
 
-Dazu kommt: Die aktuelle Engine sucht nur **paarweise A↔B-Tausche**. In der Realität ist die beste Empfehlung oft „setz X auf Account Y, Bench Z" — also 1:N, nicht 1:1.
+---
 
-## Was die neue Engine anders macht
+## 1. Downgrade-Kandidaten (drei unabhängige Trigger)
 
-Statt „Skill-Rang vs. Follower-Rang" arbeiten wir mit **konkreten, account-spezifischen Beweisen** und ranken nach **Confidence × erwartetem €-Gain**.
+Ein Chatter wird Downgrade-Kandidat, sobald **mindestens einer** der Trigger feuert.
 
-### 1. Signal-Stack pro Account (statt pro Chatter-Skill)
-Für jeden aktiven Account werden 4 Signale berechnet:
+### Trigger A — Chats im Verzug
+- Account > 500 Follower
+- Chatter hat Chats im Verzug laut bestehendem Signal aus `recovery-queue.ts` (keine neue Schwelle)
+- → `reason: 'delay'`
 
-| Signal | Datenquelle | Was es aussagt |
-|---|---|---|
-| **Account-Decline** | `chatter_history` letzte 7d vs. Tag -30…-8 | Account verdient gerade weniger als sein eigenes 30d-Niveau |
-| **Chatter-Underperformance auf diesem Account** | `account-fit` `vsPeerOnAccount` | Der aktuelle Chatter liegt unter dem Median anderer Chatter, die je drauf waren |
-| **Phase-Change-Bruch** | `chatter_history` Phasen-Detection | Wechsel der Hauptbetreuung in den letzten 14 Tagen ging mit Revenue-Drop einher |
-| **Verschwendetes Top-Profil** | `account-fit.byChatter` | Ein nachweislich starker Chatter (high `fitScore` auf ≥1 großem Account historisch) sitzt aktuell auf einem schwächeren Account |
+### Trigger B — Unterperformance vs. Account-Historie
+- Account > 500 Follower
+- Lifetime-Schnitt (Tages-Umsatz, alle Chatter gepoolt) nur valide bei ≥ 14 Tagen Historie — sonst Trigger aus
+- 14-Tage-Schnitt des Chatters auf diesem Account < **60 %** des Lifetime-Schnitts
+- → `reason: 'underperformance'`
 
-Ein Account wird Swap-Kandidat, wenn **mindestens 1 Signal feuert** — nicht nur wenn er rechnerisch im Bottom-40% liegt.
+### Trigger C — Null-Euro-Serie
+- Account > 500 Follower
+- Chatter hat auf diesem Account > **7 aufeinanderfolgende Tage 0 €**
+- Tage ohne Report werden übersprungen (zählen nicht als 0 €, unterbrechen die Serie nicht)
+- Abwesenheit/Krankheit (auch via `absence-forecast.ts`) → Trigger feuert trotzdem
+- → `reason: 'zero_streak'`
 
-### 2. Kandidaten-Matching mit echtem Fit, nicht nur Tier
-Für jeden Kandidaten-Account suchen wir Ersatz-Chatter in dieser Priorität:
+---
 
-1. **Direkter historischer Beweis**: Chatter, die schon mal **auf genau diesem Account** waren und nachweislich mehr verdient haben (`fitScore ≥ 65`, `confidence ≥ medium`, ≥3 Tage Stichprobe).
-2. **Nachbar-Account-Beweis**: Chatter mit hohem `fitScore` auf einem Account des **gleichen Tiers + ähnlicher Follower-Range (±50%)**.
-3. **Skill-Fallback** (heutige Logik): Wenn weder 1 noch 2 greifen, klassischer Skill-vs-Follower-Mismatch.
+## 2. Upgrade-Kandidaten (drei Typen)
 
-Stufen 1 und 2 sind die neuen, „smarten" Vorschläge — sie bekommen high confidence. Stufe 3 läuft weiter, wird aber als „spekulativ" gelabelt.
+### Typ X — Seed-Chatter (aktiver auf kleinem Account)
+- Aktueller Account < 300 Follower und Chatter ist aktiv
+- **Priorität 1:** aktive Chatter **mit Revenue** auf ihrem Seed-Account
+- **Priorität 2 (Fallback):** aktive Chatter **ohne Revenue**, wenn nicht genug Prio-1-Kandidaten verfügbar
+- Match-Modus: **wechselt** auf den freiwerdenden Downgrade-Account
+- → `reason: 'seed_upgrade'`
 
-### 3. Confidence-Score (0–100) pro Vorschlag
-Damit du dich auf die Liste verlassen kannst, kriegt jeder Vorschlag eine sichtbare Confidence:
+### Typ Y — Zweiter Account dazu (überdurchschnittlicher Solo-Performer)
+- Chatter hat im letzten Report **genau 1 Account** (Mehrfach-Inhaber ausgeschlossen)
+- Sein Account > 300 Follower
+- 14-Tage-Schnitt ≥ **110 %** des Lifetime-Schnitts seines Accounts (alle Chatter gepoolt, ≥ 14 d)
+- Match-Modus: **dazu** (er behält den bisherigen Account, kriegt den freien zusätzlich)
+- → `reason: 'second_account'`
+
+### Typ Z — Hochstufung auf stärkeren Account (NEU)
+- Chatter performt auf **einem seiner Accounts** überdurchschnittlich: 14-Tage-Schnitt ≥ **110 %** vom Lifetime-Schnitt dieses Accounts (alle Chatter gepoolt, ≥ 14 d)
+- **Auch Chatter mit 2 Accounts qualifizieren sich** — einer davon (der starke) wird als Bezugspunkt genommen
+- Es gibt einen freien Downgrade-Slot, dessen **Lifetime-Tages-Schnitt ≥ 120 %** vom Lifetime-Schnitt des Chatter-Ist-Accounts ist (≥ 20 % höher, damit Wechsel sich lohnt)
+- Match-Modus: **wechselt** vom schwächeren Ist-Account auf den stärkeren freien Account
+- → `reason: 'promotion'`
+
+---
+
+## 3. Matching Downgrade ↔ Upgrade
+
+### Sortierung Downgrade-Slots
+- Schwere: `zero_streak` > `delay` > `underperformance`
+- Innerhalb gleicher Schwere: **Followers absteigend** (größte Accounts zuerst → bekommen die stärksten Upgrades)
+
+### Sortierung Upgrade-Pool pro Slot
+Regel: **"Je größer der freie Account, desto stärker der Upgrade-Kandidat."**
+
+1. **Typ Y** — Solo-Performer, sortiert nach Performance-Ratio absteigend (14d / Lifetime)
+2. **Typ Z** — Hochstufung, sortiert nach Account-Differenz absteigend (Lifetime-Schnitt Ziel-Account / Lifetime-Schnitt Ist-Account)
+3. **Typ X Prio 1** — Seed mit Revenue, sortiert nach aktuellem Tages-Revenue absteigend
+4. **Typ X Prio 2** — Seed ohne Revenue, sortiert nach Aktivitäts-Score absteigend
+
+Pro Slot wird der erste verfügbare Kandidat in dieser Reihenfolge gezogen — auch Prio-2-Seed wird vorgeschlagen, wenn nichts Stärkeres mehr da ist.
+
+### Zuweisung
+- 1:1, keine Mehrfachbelegung pro Run
+- Überschuss Downgrades → "Slot frei, kein Upgrade-Kandidat verfügbar"
+- Überschuss Typ-Y-Kandidaten → "Zweiter Account empfohlen, aktuell kein freier Slot"
+- Match-Task `reason`: `seed_match` | `second_account_match` | `promotion_match`
+
+---
+
+## 4. Was im Heute-Tab erscheint
+
+Im Filter "Account-Tausch" gibt es **nur noch**:
+1. **Tausch-Paar** — Downgrade-Slot ↔ Upgrade-Kandidat gematcht (Typ Y = "dazu", Typ X/Z = "wechselt")
+2. **Freier Downgrade-Slot** — kein passender Upgrade
+3. **Upgrade-Markierung ohne Slot** (nur Typ Y) — "zweiter Account empfohlen"
+
+Keine Skill-Tier-Mismatch-, Phase-Change-, Wasted-Top-Profile-, Account-Decline-, Brezzels-, Fit-Matrix-, Lern-Loop- oder Tier-Median-Vorschläge mehr.
+
+---
+
+## Technische Umsetzung
+
+### Neue Datei: `src/lib/account-swap-engine.ts`
+Einzige öffentliche Funktion: `buildAccountSwapTasks(platform)`.
 
 ```
-confidence = base_by_evidence_tier   // S1=70, S2=50, S3=25
-           + sample_bonus            // +0…+15  je nach Tagen Stichprobe
-           + recency_bonus           // +0…+10  je frischer die Evidenz
-           + swap_tracking_bonus     // +0…+10  wenn ähnliche Swaps in der Vergangenheit positiv waren
-           - risk_penalty            // -0…-15  bei großem Tier-Sprung ohne Belege
+- getAccountLifetimeAverage(accountId, history)        // gepoolt, null bei <14d
+- getChatter14dAverage(chatterName, accountId, history)
+- getZeroEuroStreak(chatterName, accountId, history)   // Lücken überspringen
+- getLastReportAssignments(history, platform)          // Map<chatter, accountId[]>
+- getDelayedChatters(platform)                         // Wrapper um recovery-queue.ts
+- isActiveChatter(chatterName, platform)               // bestehende Aktivitäts-Signale
+- detectDowngrades(history, accounts, delayed) → DowngradeCandidate[]
+- detectUpgradesTypeX(history, lastAssignments) → UpgradeCandidate[]
+- detectUpgradesTypeY(history, accounts, lastAssignments) → UpgradeCandidate[]
+- detectUpgradesTypeZ(history, accounts, lastAssignments, downgradeSlots) → UpgradeCandidate[]
+    // benötigt Downgrade-Slots als Input, da Account-Differenz pro Paar geprüft wird
+- matchSwaps(downgrades, upgradesY, upgradesZ, upgradesXPrio1, upgradesXPrio2) → SwapMatch[]
+- buildAccountSwapTasks(platform) → RevenueTask[]
 ```
 
-Der UI-Default zeigt **nur Vorschläge mit confidence ≥ 50** an. Darunter ist ein Toggle „Auch spekulative Vorschläge zeigen" für die heutige breite Liste.
+### Geänderte Datei: `src/lib/revenue-tasks.ts`
+- Sektion "4. SWAP-ENGINE TOP-PICK" (Z. 461–548) komplett ersetzt durch `tasks.push(...await buildAccountSwapTasks(platform))`
+- Entfernte Imports: `computeSwapCandidates`, `computeSwapExpectedGain`, `loadAccountFitMatrix`, `loadSwapTracking`
+- Entfernt: `swap_decisions`-Query der letzten 7 Tage
+- Tier-Median-Nutzung (falls in dieser Sektion vorhanden) entfernt
 
-### 4. Expected-Gain wird ehrlicher
-Aktuell: `peer_cluster_median × skill_factor − current`. Neu, je nach Evidenz-Stufe:
+### Geänderte Datei: `src/lib/today-engine.ts`
+- Z. 837–853: Fit-Matrix-Check für `kind === "swap"` entfernt
+- `loadAccountFitMatrix`-Import entfernt, falls nirgends sonst gebraucht
 
-- **S1**: `gain = bester_historischer_avg_dieses_chatters_auf_diesem_account − aktueller_avg`. Hartes, account-spezifisches Δ.
-- **S2**: `gain = chatter_avg_auf_Nachbar_account × similarity_factor − aktueller_avg`.
-- **S3**: heutige Peer-Cluster-Formel (bleibt als Fallback).
+### Unverändert
+- `src/lib/swap-suggestions.ts`, `src/components/SwapModeView.tsx`, `src/pages/TinderMode.tsx`
+- `src/lib/account-fit.ts`, `src/lib/swap-tracking.ts`
+- `src/lib/recovery-queue.ts`, `src/lib/absence-forecast.ts`, `src/lib/account-tiers.ts`
+- `src/components/today/MatchBoard.tsx`, `src/components/PersonActionCard.tsx`
 
-Negative Gains werden ausgefiltert; sehr kleine Gains (<50 €/Woche) bekommen automatisch confidence ≤ 40.
+### Task-Shape (UI-kompatibel)
 
-### 5. Lern-Loop über `swap_decisions` + `swap-tracking.ts`
-Vor dem Ranking laden wir alle `swap_decisions` mit `status='approved'` der letzten 90 Tage und ihr `deltaPct` aus `swap-tracking.ts`. Aggregiert pro Tier-Richtung („Upgrade vs Lateral vs Downgrade") ergibt das einen **Hit-Rate-Multiplier**. Wenn z.B. Upgrades historisch +18% gebracht haben, kriegen neue Upgrade-Vorschläge `+8` Confidence. Wenn Downgrades im Schnitt -5% brachten, kriegen sie `-10`. So wird die Engine über die Zeit besser, ohne dass du was tunen musst.
-
-### 6. UI-Sichtbarkeit der Begründung
-Jede Karte zeigt **warum** dieser Tausch vorgeschlagen wird, in 1 Zeile menschenlesbar:
-
-> „Lara verdiente auf diesem Account zwischen 12.04. und 03.05. im Schnitt **312 €/Tag** — Mia liegt aktuell bei **184 €/Tag** (7-Tage-Schnitt). Δ = +128 €/Tag. Confidence **78/100**."
-
-Das ist der Moment, an dem du sagst „geil, darauf kann ich mich verlassen".
-
-## Was unverändert bleibt
-
-- Brezzels-Mismatch-Branch (`buildBrezzelsPools`) bleibt wie ist — die Plattform hat zu wenig Account-History-Tiefe für S1/S2, da ist Skill-Rang ehrlicher.
-- `computeManualSwapCandidates` (manueller Modus pro Chatter) bleibt — wird nur intern auf das neue Scoring umgestellt.
-- UI-Komponenten (`SwapModeView`, `PersonActionCard`) bekommen nur zwei neue Felder: `confidence` und `evidence` (Begründungs-String).
-
-## Technische Architektur
-
+```ts
+{
+  kind: "swap",
+  title: "Account-Tausch: <Downgrade> → <Upgrade>"
+       | "Hochstufung: <Upgrade> → <Ziel-Account>"
+       | "Zweiter Account: <Upgrade>"
+       | "Account frei: <Downgrade>",
+  chatter: <Downgrade-Chatter | Upgrade-Chatter>,
+  secondaryChatter: <Upgrade-Chatter | null>,
+  reason: 'delay' | 'underperformance' | 'zero_streak'
+        | 'seed_upgrade' | 'second_account' | 'promotion'
+        | 'seed_match' | 'second_account_match' | 'promotion_match',
+  evidence: {
+    lifetimeAvg, current14d, ratio,
+    streakDays, delayedChats,
+    accountFollowers, accountId,
+    sourceAccountLifetimeAvg, targetAccountLifetimeAvg, accountDiffRatio,
+    upgradeType: 'seed_p1' | 'seed_p2' | 'second_account' | 'promotion'
+  },
+  swapMode: 'replace' | 'add'   // 'add' nur bei Typ Y
+}
 ```
-src/lib/swap-suggestions.ts        ← Hauptfunktion, neuer Default-Branch
-  ├─ src/lib/account-fit.ts        ← bereits da, wird jetzt importiert
-  ├─ src/lib/swap-tracking.ts      ← bereits da, neu: aggregierter Hit-Rate-Multiplier
-  ├─ neu: detectAccountSignals()   ← 4-Signal-Stack pro Account
-  ├─ neu: rankReplacements()       ← S1 → S2 → S3 Kaskade
-  └─ neu: computeConfidence()      ← 0–100 Score + Begründungs-String
-```
 
-Keine DB-Migrationen nötig — alle Daten liegen schon in `chatter_history`, `swap_decisions`, `models`, `model_attributes`.
+`PersonActionCard` rendert `kind: "swap"` generisch — keine Anpassung nötig.
 
-## Was ich von dir wissen müsste, bevor ich starte
+### Daten-Quellen
+- `chatter_history` (Tages-Umsatz pro Chatter pro Account, Account-Followers, analysis_date)
+- `recovery-queue.ts` für "Chats im Verzug"
+- Bestehende Aktivitäts-Signale (Sessions, Response-Zeit, Active-Days)
+- **Kein** `swap_decisions`, **keine** Fit-Matrix, **kein** Swap-Tracking, **kein** Tier-Median
+- Keine DB-Migration
 
-1. **Confidence-Threshold default**: Ich plane 50 als Default-Cutoff. Lieber strenger (60, zeigt weniger, aber alle „solide") oder lockerer (40, mehr Vorschläge)?
-2. **Lern-Loop sofort scharf?** Hit-Rate-Multiplier braucht mindestens ~15 approved Swaps in den letzten 90 Tagen, um statistisch was wert zu sein. Soll er bei zu wenig Daten **auf 0 stehen** (sicher) oder optimistisch +5 für Upgrades vergeben (mein Default)?
+---
 
-Wenn beides okay ist, baue ich direkt durch.
+## Abdeckung aller Prompts
+
+- Tier-Median raus aus Swap-Logik, Anzeige bleibt ✅
+- Downgrade A: Verzug + > 500 via `recovery-queue.ts` ✅
+- Downgrade B: > 500, < 60 % vom Lifetime (gepoolt, ≥ 14 d), 14-d-Fenster ✅
+- Downgrade C: > 500, > 7 d 0 €, Lücken übersprungen, Abwesenheit feuert ✅
+- Upgrade X: < 300 Follower aktiv, Prio 1 mit Revenue, Prio 2 ohne Revenue als Fallback ✅
+- Upgrade Y: 1 Account, > 300, ≥ 110 % → zweiter Account dazu (nicht statt) ✅
+- Upgrade Z (NEU): ≥ 110 % auf Ist-Account (auch 2-Account-Inhaber), Ziel-Account-Lifetime ≥ 120 % vom Ist-Account-Lifetime, Wechsel ✅
+- Matching: je größer der freie Account, desto stärker der Kandidat; Seed als Fallback ✅
+- Komplett-Ersatz im Heute-Tab ✅
