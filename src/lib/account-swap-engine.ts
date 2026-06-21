@@ -31,6 +31,10 @@ const UNDERPERFORM_RATIO = 0.6;
 const OVERPERFORM_RATIO = 1.1;
 const PROMOTION_ACCOUNT_RATIO = 1.2;
 const HEALTHY_ACCOUNT_RATIO = 1.0;
+const PRODUCTIVE_PAIR_RATIO = 0.8;
+const PRODUCTIVE_PAIR_MIN_EUR = 30;
+const MIN_DELAY_DAYS_FOR_SWAP = 2;
+const MIN_SEED_RECENT_AVG = 10;
 const MIN_LIFETIME_DAYS = 14;
 const RECENT_WINDOW_DAYS = 14;
 const ZERO_STREAK_DAYS = 7;
@@ -290,6 +294,9 @@ function detectDowngrades(
       !!accountRecent &&
       accountRecent.days >= 3 &&
       accountRecent.avg >= lifetime * HEALTHY_ACCOUNT_RATIO;
+    const chatterLooksProductive =
+      recent14d >= PRODUCTIVE_PAIR_MIN_EUR ||
+      (lifetime != null && lifetime > 0 && recent14d >= lifetime * PRODUCTIVE_PAIR_RATIO);
 
     // Trigger C — Null-Euro-Serie (höchste Priorität).
     // Chatter-spezifisches Signal: 7+ Tage 0 € auf einem Account, den er aktuell
@@ -311,9 +318,9 @@ function detectDowngrades(
       continue;
     }
 
-    // Trigger A — Chats im Verzug. Personenproblem, kein Accountproblem —
-    // immer einen Slot erzeugen, unabhängig von der Accountgesundheit.
-    if (delay > 0) {
+    // Trigger A — Chats im Verzug. Aber: kein guter Performer wird nur wegen
+    // 1–2 Tagen Delay von einem laufenden Account gezogen.
+    if (delay >= MIN_DELAY_DAYS_FOR_SWAP && !chatterLooksProductive) {
       out.push({
         chatter: originalChatterName.get(ck) ?? ck,
         accountKey: ak,
