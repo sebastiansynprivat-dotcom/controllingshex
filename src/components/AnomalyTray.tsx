@@ -184,6 +184,7 @@ export default function AnomalyTray() {
           )}
         </AnimatePresence>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 }
