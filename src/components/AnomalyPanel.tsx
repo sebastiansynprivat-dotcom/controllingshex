@@ -194,7 +194,46 @@ export default function AnomalyPanel({
     if (forcedMode) return;
     try { sessionStorage.setItem("anomalies.mode", internalMode); } catch { /* noop */ }
   }, [internalMode, forcedMode]);
-  const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
+
+  // Range-Filter pro Panel (Follower & Ø Lifetime-Tagesumsatz)
+  type RangeFilters = { followerMin: number | null; followerMax: number | null; revMin: number | null; revMax: number | null };
+  const FILTERS_KEY = `anomalies.filters.${forcedMode ?? "single"}`;
+  const loadFilters = (): RangeFilters => {
+    if (typeof sessionStorage === "undefined") return { followerMin: null, followerMax: null, revMin: null, revMax: null };
+    try {
+      const raw = sessionStorage.getItem(FILTERS_KEY);
+      if (!raw) return { followerMin: null, followerMax: null, revMin: null, revMax: null };
+      const p = JSON.parse(raw);
+      return {
+        followerMin: typeof p.followerMin === "number" ? p.followerMin : null,
+        followerMax: typeof p.followerMax === "number" ? p.followerMax : null,
+        revMin: typeof p.revMin === "number" ? p.revMin : null,
+        revMax: typeof p.revMax === "number" ? p.revMax : null,
+      };
+    } catch { return { followerMin: null, followerMax: null, revMin: null, revMax: null }; }
+  };
+  const [filters, setFiltersRaw] = useState<RangeFilters>(() => loadFilters());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const setFilters = (f: RangeFilters) => {
+    setFiltersRaw(f);
+    try { sessionStorage.setItem(FILTERS_KEY, JSON.stringify(f)); } catch { /* noop */ }
+  };
+  const activeFilterCount =
+    (filters.followerMin != null && filters.followerMin > 0 ? 1 : 0) +
+    (filters.followerMax != null && filters.followerMax > 0 ? 1 : 0) +
+    (filters.revMin != null && filters.revMin > 0 ? 1 : 0) +
+    (filters.revMax != null && filters.revMax > 0 ? 1 : 0);
+  const resetFilters = () => setFilters({ followerMin: null, followerMax: null, revMin: null, revMax: null });
+  const getChatterFollowers = useCallback((name: string) => {
+    const accs = chatterAccounts.get(name) ?? [];
+    let max = 0;
+    for (const acc of accs) {
+      const f = modelFollowers.get(acc.toLowerCase().trim()) ?? 0;
+      if (f > max) max = f;
+    }
+    return max;
+  }, [chatterAccounts, modelFollowers]);
+
   const [peerAvg, setPeerAvg] = useState(initialSnap?.peerAvg ?? 0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
   const [modelFollowers, setModelFollowers] = useState<Map<string, number>>(
