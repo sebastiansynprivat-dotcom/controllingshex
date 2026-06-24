@@ -224,15 +224,9 @@ export default function AnomalyPanel({
     (filters.revMin != null && filters.revMin > 0 ? 1 : 0) +
     (filters.revMax != null && filters.revMax > 0 ? 1 : 0);
   const resetFilters = () => setFilters({ followerMin: null, followerMax: null, revMin: null, revMax: null });
-  const getChatterFollowers = useCallback((name: string) => {
-    const accs = chatterAccounts.get(name) ?? [];
-    let max = 0;
-    for (const acc of accs) {
-      const f = modelFollowers.get(acc.toLowerCase().trim()) ?? 0;
-      if (f > max) max = f;
-    }
-    return max;
-  }, [chatterAccounts, modelFollowers]);
+
+  const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set());
+
 
   const [peerAvg, setPeerAvg] = useState(initialSnap?.peerAvg ?? 0);
   const [detailAnomaly, setDetailAnomaly] = useState<ChatterAnomaly | null>(null);
