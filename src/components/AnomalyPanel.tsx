@@ -773,10 +773,31 @@ export default function AnomalyPanel({
   const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
   const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
+  const getChatterFollowers = (name: string) => {
+    const accs = chatterAccounts.get(name) ?? [];
+    let max = 0;
+    for (const acc of accs) {
+      const f = modelFollowers.get(acc.toLowerCase().trim()) ?? 0;
+      if (f > max) max = f;
+    }
+    return max;
+  };
+  const fMin = filters.followerMin ?? 0;
+  const fMax = filters.followerMax && filters.followerMax > 0 ? filters.followerMax : Infinity;
+  const rMin = filters.revMin ?? 0;
+  const rMax = filters.revMax && filters.revMax > 0 ? filters.revMax : Infinity;
   const visibleGroups = (variant === "compact" && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
     : groupedByChatter
-  ).filter((g) => !tray.has(g.name));
+  ).filter((g) => {
+    if (tray.has(g.name)) return false;
+    const fol = getChatterFollowers(g.name);
+    if (fol < fMin || fol > fMax) return false;
+    const avg = allTimeAvg.get(g.name) ?? 0;
+    if (avg < rMin || avg > rMax) return false;
+    return true;
+  });
+
 
   // Drop-Handler: Karte aus der Ablage zurück in die Übersicht ziehen.
   const handlePanelDrop = (e: React.DragEvent) => {
