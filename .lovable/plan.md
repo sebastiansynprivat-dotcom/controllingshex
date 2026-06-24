@@ -1,38 +1,56 @@
-## Ablage (Drop-Zone) für Auffälligkeiten
+## Ziel
 
-Neue Drag-&-Drop-Ablage auf der Anomalies-Seite. Karten (rote Probleme oder grüne Highlights) können per Drag in eine floating Bottom-Bar gezogen werden und verschwinden dadurch dauerhaft aus der Übersicht — sowohl im Einzel- als auch im Vergleichs-Modus.
+In den Auffälligkeiten (Probleme + Highlights) zwei separate Range-Filter ergänzen:
 
-### Verhalten
-- **Persistenz:** `localStorage` (überlebt Reload & Browser-Restart), Key z.B. `anomaly-tray-v1`.
-- **Position:** Fixed Floating Bottom-Bar, mittig unten, einklappbar (Chevron). Zeigt Counter-Badge wenn eingeklappt.
-- **Filterung:** Karten mit ID in der Ablage werden in `AnomalyPanel` aus problems/highlights herausgefiltert.
-- **Zurücklegen:** Karte aus der Ablage zurück auf ein Panel ziehen ODER per "↺ Zurück"-Button pro Karte. Zusätzlich "Alle zurücklegen" und "Ablage leeren" im Header der Bar.
+1. **Follower-Range** des Models, dem der Chatter zugeordnet ist (min–max).
+2. **Ø Lifetime-Tagesumsatz** des Chatters (min–max), berechnet aus der vollständigen `chatter_history`.
 
-### Komponenten
+Beide Filter wirken **pro Panel getrennt** — im Vergleichs-Modus hat die rote (Probleme) und die grüne Seite (Highlights) je ein eigenes Filter-Set.
 
-**Neu:** `src/components/AnomalyTray.tsx`
-- Floating Bar (fixed bottom, z-50), Glassmorphism-Style passend zum Dark-Theme.
-- Header: Titel "Ablage", Counter, Collapse/Expand-Toggle, "Alle zurücklegen"-Button.
-- Body: Horizontal scrollbare Mini-Karten (Name, Kind-Badge, Severity-Dot, ↺-Button). Drop-Target via `onDragOver`/`onDrop`.
-- Empty State: gestrichelter Rahmen "Karten hierher ziehen" (nur sichtbar wenn Drag aktiv oder beim ersten Mal).
+## UI
 
-**Neu:** `src/hooks/use-anomaly-tray.ts`
-- Hook mit `items`, `add(item)`, `remove(id)`, `clear()`, `has(id)`.
-- Item-Shape: `{ id, chatterName, kind, severity, snapshot }` (snapshot = minimal nötige Felder zur Wiederanzeige in der Mini-Karte).
-- Sync über `storage`-Event damit mehrere Tabs/Panels konsistent bleiben.
+Neuer kleiner Filter-Block direkt unter dem Modus/Zeitraum-Header in `AnomalyPanel`:
 
-**Edit:** `src/components/AnomalyPanel.tsx`
-- Akzeptiert neuen Prop `tray` (vom Hook) oder nutzt Hook intern.
-- Karten bekommen `draggable={true}` + `onDragStart` (setzt `dataTransfer` mit Item-JSON).
-- Filtert `problems`/`highlights` Listen: `.filter(p => !tray.has(p.id))`.
-- Panel-Container wird Drop-Target für Rückgabe aus Ablage (entfernt Item aus Tray).
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ Filter                                              [Reset]   │
+│ ── Follower (Model) ──────────────────────────────────────────│
+│  Min [ 0       ]   Max [ ∞       ]   Range: 0 – ∞             │
+│ ── Ø Tagesumsatz (Lifetime) ──────────────────────────────────│
+│  Min [ 0 €     ]   Max [ ∞ €     ]   Range: 0 € – ∞           │
+└────────────────────────────────────────────────────────────────┘
+```
 
-**Edit:** `src/pages/Anomalies.tsx`
-- Rendert `<AnomalyTray />` einmal am Seitenende (außerhalb der Panels, damit beide Modi sie teilen).
-- Body bekommt `padding-bottom`, damit Bar Inhalte nicht überdeckt.
+- Zwei Zahlen-Inputs (Min/Max) pro Metrik — kein dualer Slider-Bar (passt nicht zu offenen Ranges wie „≥200k Follower").
+- Leeres Min = `0`, leeres Max = unbegrenzt.
+- Klein, dezent, einklappbar (Default eingeklappt; Badge zeigt „2 aktiv" wenn Filter gesetzt).
+- Reset-Button leert beide Ranges.
+- Stil: bestehende `border-white/[0.06] bg-white/[0.02]`-Card-Optik, monospace-Zahlen.
 
-### Technische Details
-- Drag via native HTML5 DnD (kein neues Package nötig).
-- IDs: bestehende Anomaly-IDs aus `AnomalyPanel` wiederverwenden.
-- Tray-Items sind Workspace-übergreifend (kein Platform-Filter, analog Channel-Tab-Regel) — Frage falls anders gewünscht.
-- Mobile: Bar bleibt sichtbar, Drag funktioniert auch via Touch (HTML5 DnD via PointerEvents-Fallback falls nötig).
+## Verhalten
+
+- Filter werden auf `visibleGroups` (gruppierte Chatter-Anomalien) angewendet **nach** der Tray-Filterung.
+- **Follower** pro Chatter:
+  - Nutze `chatterAccounts.get(chatterName)` → Liste Account-Namen → `modelFollowers.get(name.toLowerCase().trim())` → **maximaler** Follower-Wert über alle zugeordneten Accounts (großzügig, damit Multi-Account-Chatter nicht rausfallen).
+  - Chatter ohne Follower-Daten: Treffer nur bei Default-Filter (0–∞), bei aktivem Min > 0 ausgeblendet.
+- **Ø Lifetime-Tagesumsatz**: bereits in `allTimeAvg: Map<string, number>` vorhanden — direkt verwenden.
+- Persistenz: pro Panel-Instanz separat in `sessionStorage`, Key abhängig von `forcedMode` (`anomalies.filters.problems`, `anomalies.filters.highlights`, `anomalies.filters.single`).
+
+## Technische Details
+
+**Geänderte Dateien:**
+
+- `src/components/AnomalyPanel.tsx`
+  - Neuer State: `filters: { followerMin, followerMax, revMin, revMax }`, geladen aus sessionStorage mit Key abhängig von `forcedMode ?? "single"`.
+  - Neue UI-Komponente (inline) zwischen Mode-Header und Liste.
+  - Filter-Logik im `visibleGroups`-Memo: pro Gruppe `getChatterFollowers(name)` und `allTimeAvg.get(name) ?? 0` prüfen.
+  - Helper `getChatterFollowers(name)`: iteriert über `chatterAccounts.get(name) ?? []`, summiert max via `modelFollowers`.
+  - Active-Count Badge.
+
+**Keine** Änderungen an Datenmodellen, Edge Functions oder anderen Komponenten. Reine Frontend-Filter über bereits geladene Daten.
+
+## Edge Cases
+
+- `Max = 0` interpretieren wir als „unbegrenzt" (leeres Feld), damit das nicht versehentlich alles ausblendet.
+- Filter werden im Snapshot **nicht** persistiert (nur in sessionStorage als UI-State) — damit der Cache projektübergreifend gleich bleibt.
+- Reset-Action emittiert nichts an die Tray — Tray bleibt unabhängig.
