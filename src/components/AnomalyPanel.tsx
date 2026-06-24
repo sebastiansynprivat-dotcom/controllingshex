@@ -955,7 +955,103 @@ export default function AnomalyPanel({
             </span>
           </div>
         )}
+
+        {/* Range-Filter: Follower & Ø Lifetime-Tagesumsatz */}
+        <div className="rounded-xl border border-white/[0.05] bg-white/[0.015]">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-white/55 hover:text-white/80 transition-colors"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <SlidersHorizontal className="h-3 w-3" />
+              <span className="uppercase tracking-[0.2em] font-medium">Filter</span>
+              {activeFilterCount > 0 && (
+                <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/[0.08] text-white/80 text-[10px] tabular-nums">
+                  {activeFilterCount} aktiv
+                </span>
+              )}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              {activeFilterCount > 0 && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); resetFilters(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); resetFilters(); } }}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                >
+                  <X className="h-3 w-3" /> Reset
+                </span>
+              )}
+              {filtersOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </span>
+          </button>
+          {filtersOpen && (
+            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-white/[0.04]">
+              {/* Follower */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider text-white/45 font-medium">Follower (Model)</span>
+                  <span className="text-[10px] text-white/35 tabular-nums">
+                    {(filters.followerMin ?? 0).toLocaleString("de-DE")} – {filters.followerMax && filters.followerMax > 0 ? filters.followerMax.toLocaleString("de-DE") : "∞"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="Min"
+                    value={filters.followerMin ?? ""}
+                    onChange={(e) => setFilters({ ...filters, followerMin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[12px] tabular-nums text-white/85 placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                  />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="Max (∞)"
+                    value={filters.followerMax ?? ""}
+                    onChange={(e) => setFilters({ ...filters, followerMax: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[12px] tabular-nums text-white/85 placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                  />
+                </div>
+              </div>
+              {/* Ø Lifetime-Tagesumsatz */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider text-white/45 font-medium">Ø Tagesumsatz (Lifetime)</span>
+                  <span className="text-[10px] text-white/35 tabular-nums">
+                    {(filters.revMin ?? 0).toLocaleString("de-DE")}€ – {filters.revMax && filters.revMax > 0 ? filters.revMax.toLocaleString("de-DE") + "€" : "∞"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="Min €"
+                    value={filters.revMin ?? ""}
+                    onChange={(e) => setFilters({ ...filters, revMin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[12px] tabular-nums text-white/85 placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                  />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="Max € (∞)"
+                    value={filters.revMax ?? ""}
+                    onChange={(e) => setFilters({ ...filters, revMax: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[12px] tabular-nums text-white/85 placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
 
       {/* Body */}
       {loading ? (
