@@ -37,6 +37,7 @@ import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated, onChatt
 import { loadChatterLabels, loadLabelAssignments, type ChatterLabel } from "@/lib/chatter-labels";
 import { normalizeChatterName, loadActiveChatterNames } from "@/lib/active-chatters";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
+import { useAnomalyTray, TRAY_DRAG_MIME } from "@/hooks/use-anomaly-tray";
 
 const SNAPSHOT_VERSION = 5;
 const PAGE_SIZE = 1000;
