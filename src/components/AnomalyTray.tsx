@@ -6,6 +6,7 @@
  * auf ein Panel wieder einblenden.
  */
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Archive, ChevronDown, ChevronUp, RotateCcw, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
