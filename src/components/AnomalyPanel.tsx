@@ -130,6 +130,7 @@ export default function AnomalyPanel({
   forcedMode,
 }: Props) {
   const { user } = useAuth();
+  const tray = useAnomalyTray();
   const [internalRange, setInternalRange] = useState<TimeRange>(
     () => defaultRange ?? buildTimeRange("7d"),
   );
@@ -739,9 +740,24 @@ export default function AnomalyPanel({
   const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
   const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
-  const visibleGroups = variant === "compact" && !expanded
+  const visibleGroups = (variant === "compact" && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
-    : groupedByChatter;
+    : groupedByChatter
+  ).filter((g) => !tray.has(g.name));
+
+  // Drop-Handler: Karte aus der Ablage zurück in die Übersicht ziehen.
+  const handlePanelDrop = (e: React.DragEvent) => {
+    const raw = e.dataTransfer.getData(TRAY_DRAG_MIME);
+    if (!raw) return;
+    e.preventDefault();
+    try {
+      const item = JSON.parse(raw) as { name?: string };
+      if (item?.name) tray.remove(item.name);
+    } catch { /* noop */ }
+  };
+  const handlePanelDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(TRAY_DRAG_MIME)) e.preventDefault();
+  };
 
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
