@@ -6,6 +6,7 @@
  * auf ein Panel wieder einblenden.
  */
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Archive, ChevronDown, ChevronUp, RotateCcw, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,8 +52,11 @@ export default function AnomalyTray() {
   };
 
   // Immer sichtbar — auch leer, damit User weiß wohin er ziehen kann.
-  return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 w-[min(960px,calc(100vw-1.5rem))] pointer-events-auto">
+  // Portal an document.body, damit `position: fixed` nicht durch transform/filter
+  // an Layout-Vorfahren (z. B. motion.div mit blur-Filter) gebrochen wird.
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] w-[min(960px,calc(100vw-1.5rem))] pointer-events-auto">
       <motion.div
         layout
         onDragOver={(e) => {
@@ -180,6 +184,7 @@ export default function AnomalyTray() {
           )}
         </AnimatePresence>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 }
