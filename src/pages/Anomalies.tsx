@@ -14,6 +14,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { AlertOctagon, Sparkles, Columns2, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AnomalyPanel from "@/components/AnomalyPanel";
+import AnomalyTray from "@/components/AnomalyTray";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import TimeRangeToggle from "@/components/TimeRangeToggle";
 import { buildTimeRange, rangeLabel, type TimeRange } from "@/lib/timerange-categorize";
@@ -74,7 +75,7 @@ export default function Anomalies() {
     <div className="min-h-full bg-background -m-3 sm:m-0">
       <div
         className={cn(
-          "mx-auto px-3 sm:px-6 py-3 sm:py-10 space-y-3 sm:space-y-6",
+          "mx-auto px-3 sm:px-6 py-3 sm:py-10 space-y-3 sm:space-y-6 pb-32 sm:pb-40",
           view === "compare" ? "max-w-[1600px]" : "max-w-5xl",
         )}
       >
@@ -239,6 +240,8 @@ export default function Anomalies() {
         platform={platform}
         onClose={() => setSelectedChatter(null)}
       />
+
+      <AnomalyTray />
     </div>
   );
 }

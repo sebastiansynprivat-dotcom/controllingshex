@@ -37,6 +37,7 @@ import { emitAnomalyDismissed, onAnomalyDismissed, onChatterDataUpdated, onChatt
 import { loadChatterLabels, loadLabelAssignments, type ChatterLabel } from "@/lib/chatter-labels";
 import { normalizeChatterName, loadActiveChatterNames } from "@/lib/active-chatters";
 import AnomalyDetailModal from "@/components/AnomalyDetailModal";
+import { useAnomalyTray, TRAY_DRAG_MIME } from "@/hooks/use-anomaly-tray";
 
 const SNAPSHOT_VERSION = 5;
 const PAGE_SIZE = 1000;
@@ -129,6 +130,7 @@ export default function AnomalyPanel({
   forcedMode,
 }: Props) {
   const { user } = useAuth();
+  const tray = useAnomalyTray();
   const [internalRange, setInternalRange] = useState<TimeRange>(
     () => defaultRange ?? buildTimeRange("7d"),
   );
@@ -738,12 +740,31 @@ export default function AnomalyPanel({
   const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
   const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
-  const visibleGroups = variant === "compact" && !expanded
+  const visibleGroups = (variant === "compact" && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
-    : groupedByChatter;
+    : groupedByChatter
+  ).filter((g) => !tray.has(g.name));
+
+  // Drop-Handler: Karte aus der Ablage zurück in die Übersicht ziehen.
+  const handlePanelDrop = (e: React.DragEvent) => {
+    const raw = e.dataTransfer.getData(TRAY_DRAG_MIME);
+    if (!raw) return;
+    e.preventDefault();
+    try {
+      const item = JSON.parse(raw) as { name?: string };
+      if (item?.name) tray.remove(item.name);
+    } catch { /* noop */ }
+  };
+  const handlePanelDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(TRAY_DRAG_MIME)) e.preventDefault();
+  };
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
+    <div
+      onDragOver={handlePanelDragOver}
+      onDrop={handlePanelDrop}
+      className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm"
+    >
       {/* Header */}
       <div className={`${padding} border-b border-white/[0.04] space-y-3`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
@@ -944,7 +965,23 @@ export default function AnomalyPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.22, delay: idx * 0.02 }}
-                  className="group relative"
+                  draggable
+                  onDragStart={(e) => {
+                    const dt = (e as unknown as React.DragEvent).dataTransfer;
+                    if (!dt) return;
+                    dt.effectAllowed = "move";
+                    dt.setData(
+                      TRAY_DRAG_MIME,
+                      JSON.stringify({
+                        name: group.name,
+                        kind: mode === "highlights" ? "highlight" : "problem",
+                        severity: group.topSeverity,
+                        message: topItem.message,
+                        impactPerDay: Math.round(group.impactPerDay),
+                      }),
+                    );
+                  }}
+                  className="group relative cursor-grab active:cursor-grabbing"
                 >
                   {/* Hintergrund-Glow (Severity) — Heute-Style */}
                   <div
