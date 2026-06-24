@@ -241,7 +241,7 @@ export default function Anomalies() {
         onClose={() => setSelectedChatter(null)}
       />
 
-      <AnomalyTray />
+      <AnomalyTray onChatterSelect={setSelectedChatter} />
     </div>
   );
 }
