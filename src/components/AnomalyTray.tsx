@@ -52,8 +52,11 @@ export default function AnomalyTray() {
   };
 
   // Immer sichtbar — auch leer, damit User weiß wohin er ziehen kann.
-  return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 w-[min(960px,calc(100vw-1.5rem))] pointer-events-auto">
+  // Portal an document.body, damit `position: fixed` nicht durch transform/filter
+  // an Layout-Vorfahren (z. B. motion.div mit blur-Filter) gebrochen wird.
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] w-[min(960px,calc(100vw-1.5rem))] pointer-events-auto">
       <motion.div
         layout
         onDragOver={(e) => {
