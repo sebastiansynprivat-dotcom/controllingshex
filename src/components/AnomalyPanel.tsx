@@ -760,7 +760,11 @@ export default function AnomalyPanel({
   };
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm">
+    <div
+      onDragOver={handlePanelDragOver}
+      onDrop={handlePanelDrop}
+      className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] overflow-hidden backdrop-blur-sm"
+    >
       {/* Header */}
       <div className={`${padding} border-b border-white/[0.04] space-y-3`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
