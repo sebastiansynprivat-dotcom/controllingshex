@@ -965,7 +965,23 @@ export default function AnomalyPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.22, delay: idx * 0.02 }}
-                  className="group relative"
+                  draggable
+                  onDragStart={(e) => {
+                    const dt = (e as unknown as React.DragEvent).dataTransfer;
+                    if (!dt) return;
+                    dt.effectAllowed = "move";
+                    dt.setData(
+                      TRAY_DRAG_MIME,
+                      JSON.stringify({
+                        name: group.name,
+                        kind: mode === "highlights" ? "highlight" : "problem",
+                        severity: group.topSeverity,
+                        message: topItem.message,
+                        impactPerDay: Math.round(group.impactPerDay),
+                      }),
+                    );
+                  }}
+                  className="group relative cursor-grab active:cursor-grabbing"
                 >
                   {/* Hintergrund-Glow (Severity) — Heute-Style */}
                   <div
