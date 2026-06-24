@@ -20,10 +20,28 @@ const SEVERITY_DOT: Record<string, string> = {
   positive: "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.45)]",
 };
 
-export default function AnomalyTray() {
+interface AnomalyTrayProps {
+  onChatterSelect?: (name: string) => void;
+}
+
+export default function AnomalyTray({ onChatterSelect }: AnomalyTrayProps = {}) {
   const { items, add, remove, clear } = useAnomalyTray();
   const [collapsed, setCollapsed] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [copiedName, setCopiedName] = useState<string | null>(null);
+
+  const handleCardClick = async (name: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(name);
+        setCopiedName(name);
+        window.setTimeout(() => setCopiedName((v) => (v === name ? null : v)), 1400);
+      }
+    } catch {
+      /* clipboard kann blockiert sein — Profil trotzdem öffnen */
+    }
+    onChatterSelect?.(name);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -142,8 +160,18 @@ export default function AnomalyTray() {
                       key={item.name}
                       draggable
                       onDragStart={(e) => handleDragStartItem(e, item)}
+                      onClick={() => handleCardClick(item.name)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleCardClick(item.name);
+                        }
+                      }}
+                      title="Profil öffnen · Name in Zwischenablage"
                       className={cn(
-                        "group/tray-item shrink-0 max-w-[240px] rounded-xl border bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-grab active:cursor-grabbing",
+                        "group/tray-item shrink-0 max-w-[240px] rounded-xl border bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-pointer active:cursor-grabbing focus:outline-none focus:ring-1 focus:ring-white/30",
                         item.kind === "highlight"
                           ? "border-emerald-400/20"
                           : "border-red-400/20",
@@ -161,15 +189,24 @@ export default function AnomalyTray() {
                             {item.name}
                           </div>
                           <div className="text-[10px] text-white/45 font-light truncate">
-                            {item.kind === "highlight" ? "Highlight" : "Problem"}
-                            {item.impactPerDay > 0 && (
-                              <span className="text-white/55"> · {item.kind === "highlight" ? "+" : "−"}{item.impactPerDay.toLocaleString("de-DE")}€/Tag</span>
+                            {copiedName === item.name ? (
+                              <span className="text-emerald-300/90">Name kopiert</span>
+                            ) : (
+                              <>
+                                {item.kind === "highlight" ? "Highlight" : "Problem"}
+                                {item.impactPerDay > 0 && (
+                                  <span className="text-white/55"> · {item.kind === "highlight" ? "+" : "−"}{item.impactPerDay.toLocaleString("de-DE")}€/Tag</span>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => remove(item.name)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            remove(item.name);
+                          }}
                           title="Zurück in die Übersicht"
                           className="opacity-50 group-hover/tray-item:opacity-100 inline-flex items-center justify-center h-5 w-5 rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
                         >
