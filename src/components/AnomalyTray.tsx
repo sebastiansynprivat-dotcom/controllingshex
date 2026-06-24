@@ -20,10 +20,28 @@ const SEVERITY_DOT: Record<string, string> = {
   positive: "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.45)]",
 };
 
-export default function AnomalyTray() {
+interface AnomalyTrayProps {
+  onChatterSelect?: (name: string) => void;
+}
+
+export default function AnomalyTray({ onChatterSelect }: AnomalyTrayProps = {}) {
   const { items, add, remove, clear } = useAnomalyTray();
   const [collapsed, setCollapsed] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [copiedName, setCopiedName] = useState<string | null>(null);
+
+  const handleCardClick = async (name: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(name);
+        setCopiedName(name);
+        window.setTimeout(() => setCopiedName((v) => (v === name ? null : v)), 1400);
+      }
+    } catch {
+      /* clipboard kann blockiert sein — Profil trotzdem öffnen */
+    }
+    onChatterSelect?.(name);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
