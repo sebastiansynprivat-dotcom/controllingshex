@@ -90,8 +90,7 @@ export async function loadLabelCards(
     supabase
       .from("chatter_history")
       .select("chatter_name, revenue_today, analysis_date")
-      .ilike("platform", platform)
-      .not("revenue_today", "is", null),
+      .ilike("platform", platform),
     supabase
       .from("models")
       .select("model_name, follower_count")
