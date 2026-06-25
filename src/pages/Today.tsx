@@ -346,20 +346,24 @@ export default function Today() {
       .map(([days, count]) => ({ days, count }));
   }, [baseVisibleList, kindTab]);
 
-  // Reset Tage-Filter wenn Tab wechselt oder gewählter Tag nicht mehr existiert
+  // Reset Tage-Filter wenn Tab wechselt oder gewählte Tage nicht mehr existieren
   useEffect(() => {
     if (kindTab !== "verzug") {
-      if (verzugDayFilter !== null) setVerzugDayFilter(null);
+      if (verzugDayFilter.size > 0) setVerzugDayFilter(new Set());
       return;
     }
-    if (verzugDayFilter !== null && !verzugDayCounts.some((d) => d.days === verzugDayFilter)) {
-      setVerzugDayFilter(null);
+    const validDays = new Set(verzugDayCounts.map((d) => d.days));
+    if (verzugDayFilter.size > 0 && ![...verzugDayFilter].every((d) => validDays.has(d))) {
+      setVerzugDayFilter(new Set([...verzugDayFilter].filter((d) => validDays.has(d))));
     }
   }, [kindTab, verzugDayCounts, verzugDayFilter]);
 
   const visibleList =
-    kindTab === "verzug" && verzugDayFilter !== null
-      ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
+    kindTab === "verzug" && verzugDayFilter.size > 0
+      ? baseVisibleList.filter((a) => {
+          const d = getVerzugDays(a);
+          return d != null && verzugDayFilter.has(d);
+        })
       : baseVisibleList;
 
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
