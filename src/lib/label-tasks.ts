@@ -150,6 +150,21 @@ export async function loadLabelCards(
     accAvgMap.set(k, sum / days.length);
   }
 
+  // Chatter-Level: Ø Tagesumsatz über alle vorhandenen History-Tage (wie Profilkarte)
+  const chatterRevsByKey = new Map<string, number[]>();
+  for (const r of (allChatterHistRes.data ?? []) as { chatter_name: string; revenue_today: number | null; analysis_date: string }[]) {
+    const k = normalizeChatterName(r.chatter_name);
+    const rev = Number(r.revenue_today ?? 0);
+    let arr = chatterRevsByKey.get(k);
+    if (!arr) { arr = []; chatterRevsByKey.set(k, arr); }
+    arr.push(rev);
+  }
+  const chatterAvgMap = new Map<string, number>();
+  for (const [k, revs] of chatterRevsByKey.entries()) {
+    if (revs.length === 0) continue;
+    chatterAvgMap.set(k, revs.reduce((s, v) => s + v, 0) / revs.length);
+  }
+
   // Models: Followerzahl
   const followersByModel = new Map<string, number>();
   for (const m of (modelsRes.data ?? []) as { model_name: string | null; follower_count: number | null }[]) {
