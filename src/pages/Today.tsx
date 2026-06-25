@@ -725,7 +725,7 @@ export default function Today() {
                   </div>
                 ) : visibleList.length === 0 ? (
                   <div className="premium-card rounded-2xl p-6 text-center text-[12px] text-white/45 font-light">
-                    Keine Einträge für diesen Verzugs-Tag.
+                    Keine Einträge für die gewählten Verzugs-Tage.
                   </div>
                 ) : (
                   <div className="space-y-3">
