@@ -69,7 +69,7 @@ export async function loadLabelCards(
     return d.toISOString().split("T")[0];
   })();
 
-  const [liveRes, histRes, accountHistRes, modelsRes] = await Promise.all([
+  const [liveRes, histRes, accountHistRes, allChatterHistRes, modelsRes] = await Promise.all([
     supabase
       .from("chatter_history_live")
       .select("chatter_name, unread_chats, oldest_chat, revenue, updated_at, date")
@@ -87,6 +87,11 @@ export async function loadLabelCards(
       .ilike("platform", platform)
       .gte("analysis_date", avgFrom)
       .not("account", "is", null),
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, revenue_today, analysis_date")
+      .ilike("platform", platform)
+      .not("revenue_today", "is", null),
     supabase
       .from("models")
       .select("model_name, follower_count")
