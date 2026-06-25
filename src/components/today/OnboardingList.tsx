@@ -44,6 +44,35 @@ export default function OnboardingList({
   const [activeDay, setActiveDay] = useState<number | null>(null);
   const { ref: chipScrollRef } = useDragScroll<HTMLDivElement>();
 
+  const doneKey = `onboarding-done:${platform}`;
+  const [doneSet, setDoneSet] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(`onboarding-done:${platform}`);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw) as Array<[string, number]>;
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      return new Set(parsed.filter(([, ts]) => ts > cutoff).map(([k]) => k));
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const entries = Array.from(doneSet).map((k) => [k, Date.now()] as [string, number]);
+      localStorage.setItem(doneKey, JSON.stringify(entries));
+    } catch {}
+  }, [doneSet, doneKey]);
+
+  const toggleDone = (key: string) => {
+    setDoneSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const systemLabels = allLabels.filter(isSystemLabel);
 
   if (groups.length === 0) {
