@@ -111,6 +111,15 @@ export default function LabelCardList({
                   >
                     {label.label_name}
                   </span>
+                  <span
+                    className="text-[10px] tabular-nums font-medium px-1.5 py-0.5 rounded-full"
+                    style={{
+                      color: label.color,
+                      backgroundColor: `${label.color}22`,
+                    }}
+                  >
+                    {items.length}
+                  </span>
                 </div>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
                 <div className="flex items-center gap-1.5">
