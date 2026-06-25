@@ -79,14 +79,6 @@ export default function LabelCardList({
         {[...byLabel.entries()].map(([labelId, items]) => {
           const label = items[0].label;
           const isCollapsed = collapsedIds.has(labelId);
-          const totalOpen = items.reduce((s, c) => s + (c.liveOpenChats || 0), 0);
-          const oldestDays = Math.max(0, ...items.map((c) => Math.round(c.liveOldestChatDays || 0)));
-          const avgVals = items
-            .map((c) => c.accountAvgDailyRevenue)
-            .filter((v): v is number => v != null && v > 0);
-          const avgDaily = avgVals.length
-            ? Math.round(avgVals.reduce((s, v) => s + v, 0) / avgVals.length)
-            : 0;
           return (
             <motion.div
               key={labelId}
@@ -128,24 +120,6 @@ export default function LabelCardList({
                   >
                     {items.length}
                   </span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] text-white/65 tabular-nums">
-                    <MessageCircle className="h-2.5 w-2.5 text-white/40" />
-                    {totalOpen} offen
-                  </span>
-                  {oldestDays > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] text-white/65 tabular-nums">
-                      <Clock className="h-2.5 w-2.5 text-white/40" />
-                      ältester {oldestDays}T
-                    </span>
-                  )}
-                  {avgDaily > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/[0.08] border border-emerald-500/20 text-[10px] text-emerald-200/90 tabular-nums">
-                      <BarChart3 className="h-2.5 w-2.5 text-emerald-300/70" />
-                      Ø {avgDaily} €/Tag
-                    </span>
-                  )}
                 </div>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
                 <div className="flex items-center gap-1.5">
@@ -345,7 +319,7 @@ function LabelCardRow({
             <p className="text-[11.5px] text-white/45 font-light mt-1">
               {card.account ? `Account: ${card.account}` : "Kein Account"}
             </p>
-            {card.account && (card.accountFollowers != null || card.accountTodayRevenue != null || card.accountAvgDailyRevenue != null) && (
+            {card.account && (card.accountFollowers != null || card.accountTodayRevenue != null) && (
               <div className="mt-2 flex items-center gap-2 flex-wrap">
                 {card.accountFollowers != null && card.accountFollowers > 0 && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-white/65 tabular-nums">
@@ -359,27 +333,28 @@ function LabelCardRow({
                     Account heute {Math.round(card.accountTodayRevenue)} €
                   </span>
                 )}
-                {card.accountAvgDailyRevenue != null && card.accountAvgDailyRevenue > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-white/65 tabular-nums">
-                    <BarChart3 className="h-3 w-3 text-white/40" />
-                    Ø {Math.round(card.accountAvgDailyRevenue)} €/Tag
-                  </span>
-                )}
               </div>
             )}
-            <div className="mt-2.5 flex items-center gap-3 text-[11px] text-white/55 flex-wrap">
-              <span className="inline-flex items-center gap-1">
-                <MessageCircle className="h-3 w-3 text-white/35" />
+            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-white/65 tabular-nums">
+                <MessageCircle className="h-3 w-3 text-white/40" />
                 {card.liveOpenChats} offen
               </span>
               {oldestDays > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-white/35" />
-                  ältester {oldestDays}T
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-white/65 tabular-nums">
+                  <Clock className="h-3 w-3 text-white/40" />
+                  ältester {oldestDays} T
+                </span>
+              )}
+              {card.accountAvgDailyRevenue != null && card.accountAvgDailyRevenue > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/[0.08] border border-emerald-500/20 text-[10.5px] text-emerald-200/90 tabular-nums">
+                  <BarChart3 className="h-3 w-3 text-emerald-300/70" />
+                  Ø {Math.round(card.accountAvgDailyRevenue)} €/Tag
                 </span>
               )}
               {todayRev > 0 && (
-                <span className="tabular-nums text-emerald-300/85">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-emerald-300/85 tabular-nums">
+                  <TrendingUp className="h-3 w-3 text-emerald-300/70" />
                   Chatter heute {todayRev} €
                 </span>
               )}
