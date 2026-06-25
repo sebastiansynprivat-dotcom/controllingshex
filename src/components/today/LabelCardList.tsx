@@ -121,24 +121,6 @@ export default function LabelCardList({
                     {items.length}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] text-white/65 tabular-nums">
-                    <MessageCircle className="h-2.5 w-2.5 text-white/40" />
-                    {totalOpen} offen
-                  </span>
-                  {oldestDays > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] text-white/65 tabular-nums">
-                      <Clock className="h-2.5 w-2.5 text-white/40" />
-                      ältester {oldestDays}T
-                    </span>
-                  )}
-                  {avgDaily > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/[0.08] border border-emerald-500/20 text-[10px] text-emerald-200/90 tabular-nums">
-                      <BarChart3 className="h-2.5 w-2.5 text-emerald-300/70" />
-                      Ø {avgDaily} €/Tag
-                    </span>
-                  )}
-                </div>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
                 <div className="flex items-center gap-1.5">
                   <ChevronDown
