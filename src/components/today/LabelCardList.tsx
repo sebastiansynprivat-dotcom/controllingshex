@@ -219,10 +219,17 @@ function LabelCardRow({
         )}
       </AnimatePresence>
 
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onChatterClick(card.chatterName)}
-        className="w-full text-left premium-card rounded-2xl p-4 border border-white/[0.05] hover:border-white/[0.12] transition-all"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onChatterClick(card.chatterName);
+          }
+        }}
+        className="w-full text-left premium-card rounded-2xl p-4 border border-white/[0.05] hover:border-white/[0.12] transition-all cursor-pointer"
         style={{
           borderLeftColor: card.label.color,
           borderLeftWidth: 2,
