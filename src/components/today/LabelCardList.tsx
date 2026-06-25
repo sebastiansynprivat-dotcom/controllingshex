@@ -79,14 +79,6 @@ export default function LabelCardList({
         {[...byLabel.entries()].map(([labelId, items]) => {
           const label = items[0].label;
           const isCollapsed = collapsedIds.has(labelId);
-          const totalOpen = items.reduce((s, c) => s + (c.liveOpenChats || 0), 0);
-          const oldestDays = Math.max(0, ...items.map((c) => Math.round(c.liveOldestChatDays || 0)));
-          const avgVals = items
-            .map((c) => c.accountAvgDailyRevenue)
-            .filter((v): v is number => v != null && v > 0);
-          const avgDaily = avgVals.length
-            ? Math.round(avgVals.reduce((s, v) => s + v, 0) / avgVals.length)
-            : 0;
           return (
             <motion.div
               key={labelId}
