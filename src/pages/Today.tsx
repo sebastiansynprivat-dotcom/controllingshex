@@ -1040,6 +1040,7 @@ function VerzugDayFilterCard({
             <DropdownMenuSeparator className="bg-white/[0.05]" />
             <DropdownMenuItem
               onClick={onClear}
+              onSelect={(e) => e.preventDefault()}
               className={cn(
                 "flex items-center justify-between gap-3 py-2 cursor-pointer",
                 selected.size === 0 ? "bg-white/[0.04]" : "",
