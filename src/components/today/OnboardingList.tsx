@@ -162,15 +162,22 @@ export default function OnboardingList({
               </span>
             </div>
             <div className="space-y-2">
-              {g.items.map((c) => (
+              {g.items.map((c) => {
+                const isDone = doneSet.has(c.chatterKey);
+                return (
                 <motion.div
                   key={c.chatterKey}
                   layout
                   initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  animate={{ opacity: isDone ? 0.45 : 1, y: 0 }}
                   exit={{ opacity: 0, x: 80 }}
                   transition={{ duration: 0.18 }}
-                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.035] to-white/[0.015] backdrop-blur-xl hover:border-white/[0.14] hover:from-white/[0.05] transition-all"
+                  className={cn(
+                    "group relative overflow-hidden rounded-2xl border backdrop-blur-xl transition-all",
+                    isDone
+                      ? "border-emerald-400/20 bg-emerald-500/[0.04]"
+                      : "border-white/[0.06] bg-gradient-to-b from-white/[0.035] to-white/[0.015] hover:border-white/[0.14] hover:from-white/[0.05]",
+                  )}
                 >
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
                   <div
@@ -194,9 +201,15 @@ export default function OnboardingList({
                               e.stopPropagation();
                               try {
                                 await navigator.clipboard.writeText(c.chatterName);
-                              } catch {}
+                                toast.success(`${c.chatterName} kopiert`);
+                              } catch {
+                                toast.error("Kopieren fehlgeschlagen");
+                              }
                             }}
-                            className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform"
+                            className={cn(
+                              "text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform",
+                              isDone && "line-through decoration-emerald-400/50",
+                            )}
                             aria-label={`${c.chatterName} kopieren`}
                             title="Klicken zum Kopieren"
                           >
@@ -213,6 +226,24 @@ export default function OnboardingList({
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
+                        toggleDone(c.chatterKey);
+                      }}
+                      className={cn(
+                        "shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full border active:scale-95 transition-all",
+                        isDone
+                          ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-200"
+                          : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:bg-white/[0.1] hover:text-white",
+                      )}
+                      aria-label={isDone ? "Erledigt-Status entfernen" : "Als erledigt markieren"}
+                      title={isDone ? "Erledigt-Status entfernen" : "Als erledigt markieren"}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
                         setPicker(c);
                       }}
                       className="shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/60 hover:bg-white/[0.1] hover:text-white active:scale-95 transition-all"
@@ -223,7 +254,8 @@ export default function OnboardingList({
                     <ChevronRight className="h-4 w-4 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
