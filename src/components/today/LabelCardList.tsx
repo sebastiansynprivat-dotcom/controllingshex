@@ -128,11 +128,11 @@ export default function LabelCardList({
               <AnimatePresence initial={false}>
                 {!isCollapsed && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="space-y-3 overflow-hidden"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="space-y-3"
                   >
                     <AnimatePresence initial={false}>
                       {items.map((c) => (
