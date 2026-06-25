@@ -1055,6 +1055,7 @@ function VerzugDayFilterCard({
                 <DropdownMenuItem
                   key={d.days}
                   onClick={() => onToggle(d.days)}
+                  onSelect={(e) => e.preventDefault()}
                   className={cn(
                     "flex items-center justify-between gap-3 py-2 cursor-pointer",
                     active ? "bg-red-500/[0.08]" : "",
