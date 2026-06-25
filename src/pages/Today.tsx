@@ -683,7 +683,15 @@ export default function Today() {
                   <VerzugDayFilterCard
                     days={verzugDayCounts}
                     selected={verzugDayFilter}
-                    onSelect={setVerzugDayFilter}
+                    onToggle={(d) => {
+                      setVerzugDayFilter((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(d)) next.delete(d);
+                        else next.add(d);
+                        return next;
+                      });
+                    }}
+                    onClear={() => setVerzugDayFilter(new Set())}
                     totalCount={baseVisibleList.length}
                   />
                 )}
