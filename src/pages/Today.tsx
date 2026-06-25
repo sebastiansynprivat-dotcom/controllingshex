@@ -117,7 +117,7 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
-  const [verzugDayFilter, setVerzugDayFilter] = useState<number | null>(null);
+  const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
