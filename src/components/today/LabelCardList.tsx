@@ -1,10 +1,11 @@
 /**
  * LabelCardList — alle Chatter mit aktivem Label, gruppiert nach Label,
  * gleiches Look & Feel wie die Standard-Action-Karten. Abhakbar pro Tag.
+ * Label-Gruppen sind standardmäßig eingeklappt.
  */
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useState } from "react";
-import { Check, ChevronRight, Clock, MessageCircle, X as XIcon, Tag, Users, TrendingUp, BarChart3 } from "lucide-react";
+import { Check, ChevronRight, ChevronDown, Clock, MessageCircle, X as XIcon, Tag, Users, TrendingUp, BarChart3 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
@@ -37,6 +38,7 @@ export default function LabelCardList({
   readonly = false,
 }: Props) {
   const visible = cards.filter((c) => !doneKeys.has(c.todoKey));
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set(visible.map((c) => c.label.id)));
 
   if (visible.length === 0) {
     return (
@@ -62,11 +64,21 @@ export default function LabelCardList({
     byLabel.set(c.label.id, arr);
   }
 
+  const toggleLabel = (labelId: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(labelId)) next.delete(labelId);
+      else next.add(labelId);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-5">
       <AnimatePresence initial={false}>
         {[...byLabel.entries()].map(([labelId, items]) => {
           const label = items[0].label;
+          const isCollapsed = collapsedIds.has(labelId);
           return (
             <motion.div
               key={labelId}
@@ -76,9 +88,14 @@ export default function LabelCardList({
               exit={{ opacity: 0 }}
               className="space-y-2"
             >
-              <div className="flex items-center gap-3 px-0.5">
+              <button
+                type="button"
+                onClick={() => toggleLabel(labelId)}
+                className="group flex items-center gap-3 px-0.5 w-full text-left"
+                aria-expanded={!isCollapsed}
+              >
                 <div
-                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border"
+                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border transition-all group-hover:border-white/20"
                   style={{
                     backgroundColor: `${label.color}10`,
                     borderColor: `${label.color}33`,
@@ -96,25 +113,43 @@ export default function LabelCardList({
                   </span>
                 </div>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
-                <span className="text-[10.5px] tabular-nums text-white/35 font-light">
-                  {items.length}
-                </span>
-              </div>
-              <div className="space-y-3">
-                <AnimatePresence initial={false}>
-                  {items.map((c) => (
-                    <LabelCardRow
-                      key={c.todoKey}
-                      card={c}
-                      platform={platform}
-                      readonly={readonly}
-                      onChatterClick={onChatterClick}
-                      onComplete={onComplete}
-                      onLabelRemoved={onLabelRemoved}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10.5px] tabular-nums text-white/35 font-light">
+                    {items.length}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 text-white/40 transition-transform duration-200",
+                      isCollapsed && "-rotate-90"
+                    )}
+                  />
+                </div>
+              </button>
+              <AnimatePresence initial={false}>
+                {!isCollapsed && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="space-y-3"
+                  >
+                    <AnimatePresence initial={false}>
+                      {items.map((c) => (
+                        <LabelCardRow
+                          key={c.todoKey}
+                          card={c}
+                          platform={platform}
+                          readonly={readonly}
+                          onChatterClick={onChatterClick}
+                          onComplete={onComplete}
+                          onLabelRemoved={onLabelRemoved}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           );
         })}
