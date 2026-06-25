@@ -69,7 +69,28 @@ export async function loadLabelCards(
     return d.toISOString().split("T")[0];
   })();
 
-  const [liveRes, histRes, accountHistRes, allChatterHistRes, modelsRes] = await Promise.all([
+  // Ø Tagesumsatz pro Chatter über ALLE History-Tage — paginieren,
+  // damit der Supabase-Default-Limit von 1000 Zeilen nicht trifft.
+  async function fetchAllChatterHist(): Promise<{ chatter_name: string; revenue_today: number | null; analysis_date: string }[]> {
+    const pageSize = 1000;
+    const out: { chatter_name: string; revenue_today: number | null; analysis_date: string }[] = [];
+    let from = 0;
+    while (from < 200_000) {
+      const { data, error } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today, analysis_date")
+        .ilike("platform", platform)
+        .order("analysis_date", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      out.push(...(data as any));
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return out;
+  }
+
+  const [liveRes, histRes, accountHistRes, allChatterHistRows, modelsRes] = await Promise.all([
     supabase
       .from("chatter_history_live")
       .select("chatter_name, unread_chats, oldest_chat, revenue, updated_at, date")
@@ -87,10 +108,7 @@ export async function loadLabelCards(
       .ilike("platform", platform)
       .gte("analysis_date", avgFrom)
       .not("account", "is", null),
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, revenue_today, analysis_date")
-      .ilike("platform", platform),
+    fetchAllChatterHist(),
     supabase
       .from("models")
       .select("model_name, follower_count")
@@ -151,7 +169,7 @@ export async function loadLabelCards(
 
   // Chatter-Level: Ø Tagesumsatz über alle vorhandenen History-Tage (wie Profilkarte)
   const chatterRevsByKey = new Map<string, number[]>();
-  for (const r of (allChatterHistRes.data ?? []) as { chatter_name: string; revenue_today: number | null; analysis_date: string }[]) {
+  for (const r of allChatterHistRows) {
     const k = normalizeChatterName(r.chatter_name);
     const rev = Number(r.revenue_today ?? 0);
     let arr = chatterRevsByKey.get(k);
