@@ -117,7 +117,7 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
-  const [verzugDayFilter, setVerzugDayFilter] = useState<number | null>(null);
+  const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
@@ -346,20 +346,24 @@ export default function Today() {
       .map(([days, count]) => ({ days, count }));
   }, [baseVisibleList, kindTab]);
 
-  // Reset Tage-Filter wenn Tab wechselt oder gewählter Tag nicht mehr existiert
+  // Reset Tage-Filter wenn Tab wechselt oder gewählte Tage nicht mehr existieren
   useEffect(() => {
     if (kindTab !== "verzug") {
-      if (verzugDayFilter !== null) setVerzugDayFilter(null);
+      if (verzugDayFilter.size > 0) setVerzugDayFilter(new Set());
       return;
     }
-    if (verzugDayFilter !== null && !verzugDayCounts.some((d) => d.days === verzugDayFilter)) {
-      setVerzugDayFilter(null);
+    const validDays = new Set(verzugDayCounts.map((d) => d.days));
+    if (verzugDayFilter.size > 0 && ![...verzugDayFilter].every((d) => validDays.has(d))) {
+      setVerzugDayFilter(new Set([...verzugDayFilter].filter((d) => validDays.has(d))));
     }
   }, [kindTab, verzugDayCounts, verzugDayFilter]);
 
   const visibleList =
-    kindTab === "verzug" && verzugDayFilter !== null
-      ? baseVisibleList.filter((a) => getVerzugDays(a) === verzugDayFilter)
+    kindTab === "verzug" && verzugDayFilter.size > 0
+      ? baseVisibleList.filter((a) => {
+          const d = getVerzugDays(a);
+          return d != null && verzugDayFilter.has(d);
+        })
       : baseVisibleList;
 
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
@@ -679,7 +683,15 @@ export default function Today() {
                   <VerzugDayFilterCard
                     days={verzugDayCounts}
                     selected={verzugDayFilter}
-                    onSelect={setVerzugDayFilter}
+                    onToggle={(d) => {
+                      setVerzugDayFilter((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(d)) next.delete(d);
+                        else next.add(d);
+                        return next;
+                      });
+                    }}
+                    onClear={() => setVerzugDayFilter(new Set())}
                     totalCount={baseVisibleList.length}
                   />
                 )}
@@ -713,7 +725,7 @@ export default function Today() {
                   </div>
                 ) : visibleList.length === 0 ? (
                   <div className="premium-card rounded-2xl p-6 text-center text-[12px] text-white/45 font-light">
-                    Keine Einträge für diesen Verzugs-Tag.
+                    Keine Einträge für die gewählten Verzugs-Tage.
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -972,17 +984,25 @@ export default function Today() {
 function VerzugDayFilterCard({
   days,
   selected,
-  onSelect,
+  onToggle,
+  onClear,
   totalCount,
 }: {
   days: { days: number; count: number }[];
-  selected: number | null;
-  onSelect: (v: number | null) => void;
+  selected: Set<number>;
+  onToggle: (d: number) => void;
+  onClear: () => void;
   totalCount: number;
 }) {
-  const label = selected == null
+  const selectedCount = selected.size
+    ? days.filter((d) => selected.has(d.days)).reduce((s, d) => s + d.count, 0)
+    : totalCount;
+
+  const label = selected.size === 0
     ? `Alle Tage · ${totalCount}`
-    : `${selected} ${selected === 1 ? "Tag" : "Tage"} im Verzug · ${days.find((d) => d.days === selected)?.count ?? 0}`;
+    : selected.size === 1
+      ? `${[...selected][0]} ${[...selected][0] === 1 ? "Tag" : "Tage"} im Verzug · ${selectedCount}`
+      : `${selected.size} Tage ausgewählt · ${selectedCount}`;
 
   return (
     <div className="premium-card rounded-2xl border border-red-500/15 bg-red-500/[0.025] p-3">
@@ -996,7 +1016,7 @@ function VerzugDayFilterCard({
               Filter nach Verzugs-Tagen
             </p>
             <p className="text-[11px] text-white/45 font-light truncate">
-              {selected == null ? "Alle Tage anzeigen" : "Nur dieser Verzugs-Tag"}
+              {selected.size === 0 ? "Alle Tage anzeigen" : "Mehrere Verzugs-Tage wählbar"}
             </p>
           </div>
         </div>
@@ -1012,17 +1032,17 @@ function VerzugDayFilterCard({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08]"
+            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08] max-h-[min(24rem,60vh)] overflow-y-auto"
           >
             <DropdownMenuLabel className="text-[10px] tracking-[0.24em] uppercase text-white/40 font-light">
               Verzugs-Tage
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/[0.05]" />
             <DropdownMenuItem
-              onClick={() => onSelect(null)}
+              onClick={onClear}
               className={cn(
                 "flex items-center justify-between gap-3 py-2 cursor-pointer",
-                selected == null ? "bg-white/[0.04]" : "",
+                selected.size === 0 ? "bg-white/[0.04]" : "",
               )}
             >
               <span className="text-[12px] font-light text-white/90">Alle Tage</span>
@@ -1030,23 +1050,35 @@ function VerzugDayFilterCard({
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.05]" />
             {days.map((d) => {
-              const active = selected === d.days;
+              const active = selected.has(d.days);
               return (
                 <DropdownMenuItem
                   key={d.days}
-                  onClick={() => onSelect(d.days)}
+                  onClick={() => onToggle(d.days)}
                   className={cn(
                     "flex items-center justify-between gap-3 py-2 cursor-pointer",
                     active ? "bg-red-500/[0.08]" : "",
                   )}
                 >
-                  <div className="flex flex-col">
-                    <span className="text-[12px] font-light text-white/90">
-                      {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
-                    </span>
-                    <span className="text-[10px] text-white/40 font-light">
-                      Ältester offener Chat seit {d.days}T
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "h-4 w-4 rounded border flex items-center justify-center transition-colors",
+                        active
+                          ? "bg-red-500 border-red-500"
+                          : "border-white/20 bg-transparent"
+                      )}
+                    >
+                      {active && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[12px] font-light text-white/90">
+                        {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
+                      </span>
+                      <span className="text-[10px] text-white/40 font-light">
+                        Ältester offener Chat seit {d.days}T
+                      </span>
+                    </div>
                   </div>
                   <span className={cn("text-[10px] tabular-nums", active ? "text-red-200" : "text-white/40")}>
                     {d.count}
