@@ -409,7 +409,10 @@ export default function Today() {
       && selectedVisible.every((l) => l.label_name === "🟢 Upgrade" || l.label_name === "💛 Premium Upgrade")
       && [...visibleWithOpenCards].some((id) => !selectedLabelIds.has(id));
 
-    if (selectedLabelIds.size === 0 || selectedHasOnlyUpgradeCards) {
+    // Auch zurücksetzen, wenn gespeicherte IDs nicht mehr zu aktuellen Labels gehören (stale Filter)
+    const selectedHasAnyValidVisible = selectedVisible.length > 0;
+
+    if (selectedLabelIds.size === 0 || selectedHasOnlyUpgradeCards || !selectedHasAnyValidVisible) {
       setSelectedLabelIds(new Set(visibleLabelIdSet));
     }
   }, [labelCards, labels, selectedLabelIds, states, visibleLabelIdSet]);
