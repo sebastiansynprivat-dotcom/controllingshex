@@ -232,22 +232,30 @@ function LabelCardRow({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <MagneticHover as="span" range={18}>
-                <button
-                  type="button"
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
                       await navigator.clipboard.writeText(card.chatterName);
                     } catch {}
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(card.chatterName).catch(() => {});
+                    }
+                  }}
                   aria-label={`${card.chatterName} kopieren`}
                   title="Klicken zum Kopieren"
-                  className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform"
+                  className="text-left -mx-1 px-1 rounded-md active:scale-[0.98] transition-transform cursor-pointer inline-block"
                 >
                   <span className="text-[14.5px] font-medium text-foreground">
                     {card.chatterName}
                   </span>
-                </button>
+                </span>
               </MagneticHover>
               <span
                 className="px-2 py-0.5 rounded-full text-[9.5px] font-medium border"
