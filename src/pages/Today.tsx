@@ -984,17 +984,25 @@ export default function Today() {
 function VerzugDayFilterCard({
   days,
   selected,
-  onSelect,
+  onToggle,
+  onClear,
   totalCount,
 }: {
   days: { days: number; count: number }[];
-  selected: number | null;
-  onSelect: (v: number | null) => void;
+  selected: Set<number>;
+  onToggle: (d: number) => void;
+  onClear: () => void;
   totalCount: number;
 }) {
-  const label = selected == null
+  const selectedCount = selected.size
+    ? days.filter((d) => selected.has(d.days)).reduce((s, d) => s + d.count, 0)
+    : totalCount;
+
+  const label = selected.size === 0
     ? `Alle Tage · ${totalCount}`
-    : `${selected} ${selected === 1 ? "Tag" : "Tage"} im Verzug · ${days.find((d) => d.days === selected)?.count ?? 0}`;
+    : selected.size === 1
+      ? `${[...selected][0]} ${[...selected][0] === 1 ? "Tag" : "Tage"} im Verzug · ${selectedCount}`
+      : `${selected.size} Tage ausgewählt · ${selectedCount}`;
 
   return (
     <div className="premium-card rounded-2xl border border-red-500/15 bg-red-500/[0.025] p-3">
@@ -1008,7 +1016,7 @@ function VerzugDayFilterCard({
               Filter nach Verzugs-Tagen
             </p>
             <p className="text-[11px] text-white/45 font-light truncate">
-              {selected == null ? "Alle Tage anzeigen" : "Nur dieser Verzugs-Tag"}
+              {selected.size === 0 ? "Alle Tage anzeigen" : "Mehrere Verzugs-Tage wählbar"}
             </p>
           </div>
         </div>
@@ -1024,17 +1032,17 @@ function VerzugDayFilterCard({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08]"
+            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08] max-h-[min(24rem,60vh)] overflow-y-auto"
           >
             <DropdownMenuLabel className="text-[10px] tracking-[0.24em] uppercase text-white/40 font-light">
               Verzugs-Tage
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/[0.05]" />
             <DropdownMenuItem
-              onClick={() => onSelect(null)}
+              onClick={onClear}
               className={cn(
                 "flex items-center justify-between gap-3 py-2 cursor-pointer",
-                selected == null ? "bg-white/[0.04]" : "",
+                selected.size === 0 ? "bg-white/[0.04]" : "",
               )}
             >
               <span className="text-[12px] font-light text-white/90">Alle Tage</span>
@@ -1042,23 +1050,35 @@ function VerzugDayFilterCard({
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.05]" />
             {days.map((d) => {
-              const active = selected === d.days;
+              const active = selected.has(d.days);
               return (
                 <DropdownMenuItem
                   key={d.days}
-                  onClick={() => onSelect(d.days)}
+                  onClick={() => onToggle(d.days)}
                   className={cn(
                     "flex items-center justify-between gap-3 py-2 cursor-pointer",
                     active ? "bg-red-500/[0.08]" : "",
                   )}
                 >
-                  <div className="flex flex-col">
-                    <span className="text-[12px] font-light text-white/90">
-                      {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
-                    </span>
-                    <span className="text-[10px] text-white/40 font-light">
-                      Ältester offener Chat seit {d.days}T
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "h-4 w-4 rounded border flex items-center justify-center transition-colors",
+                        active
+                          ? "bg-red-500 border-red-500"
+                          : "border-white/20 bg-transparent"
+                      )}
+                    >
+                      {active && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[12px] font-light text-white/90">
+                        {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
+                      </span>
+                      <span className="text-[10px] text-white/40 font-light">
+                        Ältester offener Chat seit {d.days}T
+                      </span>
+                    </div>
                   </div>
                   <span className={cn("text-[10px] tabular-nums", active ? "text-red-200" : "text-white/40")}>
                     {d.count}
