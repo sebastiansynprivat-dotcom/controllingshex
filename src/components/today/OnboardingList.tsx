@@ -2,9 +2,10 @@
  * OnboardingList — Chatter ab Tag 5, gruppiert nach Onboarding-Tag.
  * Quick-Action: System-Label vergeben (exklusiv) → Chatter fällt aus der Liste.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sprout, ChevronRight, Tag } from "lucide-react";
+import { Sprout, ChevronRight, Tag, Check } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
