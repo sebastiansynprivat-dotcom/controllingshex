@@ -344,7 +344,7 @@ function LabelCardRow({
             </button>
           </div>
         )}
-      </button>
+      </div>
     </motion.div>
   );
 }
