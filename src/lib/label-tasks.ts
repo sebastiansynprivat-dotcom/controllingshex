@@ -194,6 +194,7 @@ export async function loadLabelCards(
       accountFollowers: accK ? followersByModel.get(accK) ?? null : null,
       accountTodayRevenue: accK ? accTodayMap.get(accK) ?? null : null,
       accountAvgDailyRevenue: accK ? accAvgMap.get(accK) ?? null : null,
+      chatterAvgDailyRevenue: chatterAvgMap.get(a.chatter_key) ?? null,
     });
   }
 
