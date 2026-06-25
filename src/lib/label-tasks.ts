@@ -169,7 +169,7 @@ export async function loadLabelCards(
 
   // Chatter-Level: Ø Tagesumsatz über alle vorhandenen History-Tage (wie Profilkarte)
   const chatterRevsByKey = new Map<string, number[]>();
-  for (const r of (allChatterHistRes.data ?? []) as { chatter_name: string; revenue_today: number | null; analysis_date: string }[]) {
+  for (const r of allChatterHistRows) {
     const k = normalizeChatterName(r.chatter_name);
     const rev = Number(r.revenue_today ?? 0);
     let arr = chatterRevsByKey.get(k);
