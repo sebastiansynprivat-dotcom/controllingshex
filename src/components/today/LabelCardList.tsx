@@ -340,18 +340,14 @@ function LabelCardRow({
                 <MessageCircle className="h-3 w-3 text-white/40" />
                 {card.liveOpenChats} offen
               </span>
-              {oldestDays > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-white/65 tabular-nums">
-                  <Clock className="h-3 w-3 text-white/40" />
-                  ältester {oldestDays} T
-                </span>
-              )}
-              {card.accountAvgDailyRevenue != null && card.accountAvgDailyRevenue > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/[0.08] border border-emerald-500/20 text-[10.5px] text-emerald-200/90 tabular-nums">
-                  <BarChart3 className="h-3 w-3 text-emerald-300/70" />
-                  Ø {Math.round(card.accountAvgDailyRevenue)} €/Tag
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-white/65 tabular-nums">
+                <Clock className="h-3 w-3 text-white/40" />
+                ältester {oldestDays} T
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/[0.08] border border-emerald-500/20 text-[10.5px] text-emerald-200/90 tabular-nums">
+                <BarChart3 className="h-3 w-3 text-emerald-300/70" />
+                Ø {Math.round(card.accountAvgDailyRevenue || 0)} €/Tag
+              </span>
               {todayRev > 0 && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10.5px] text-emerald-300/85 tabular-nums">
                   <TrendingUp className="h-3 w-3 text-emerald-300/70" />
