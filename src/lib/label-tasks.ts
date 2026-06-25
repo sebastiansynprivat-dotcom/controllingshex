@@ -22,6 +22,8 @@ export interface LabelCard {
   accountFollowers: number | null;
   accountTodayRevenue: number | null;
   accountAvgDailyRevenue: number | null;
+  /** Ø Tagesumsatz des Chatters — gleiche Berechnung wie in der Profilkarte. */
+  chatterAvgDailyRevenue: number | null;
 }
 
 interface LiveRow {
