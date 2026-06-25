@@ -123,9 +123,6 @@ export default function LabelCardList({
                 </div>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-transparent" />
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10.5px] tabular-nums text-white/35 font-light">
-                    {items.length}
-                  </span>
                   <ChevronDown
                     className={cn(
                       "h-3.5 w-3.5 text-white/40 transition-transform duration-200",
