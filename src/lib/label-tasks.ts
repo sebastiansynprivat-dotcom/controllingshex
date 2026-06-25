@@ -22,6 +22,8 @@ export interface LabelCard {
   accountFollowers: number | null;
   accountTodayRevenue: number | null;
   accountAvgDailyRevenue: number | null;
+  /** Ø Tagesumsatz des Chatters — gleiche Berechnung wie in der Profilkarte. */
+  chatterAvgDailyRevenue: number | null;
 }
 
 interface LiveRow {
@@ -67,7 +69,7 @@ export async function loadLabelCards(
     return d.toISOString().split("T")[0];
   })();
 
-  const [liveRes, histRes, accountHistRes, modelsRes] = await Promise.all([
+  const [liveRes, histRes, accountHistRes, allChatterHistRes, modelsRes] = await Promise.all([
     supabase
       .from("chatter_history_live")
       .select("chatter_name, unread_chats, oldest_chat, revenue, updated_at, date")
@@ -85,6 +87,10 @@ export async function loadLabelCards(
       .ilike("platform", platform)
       .gte("analysis_date", avgFrom)
       .not("account", "is", null),
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, revenue_today, analysis_date")
+      .ilike("platform", platform),
     supabase
       .from("models")
       .select("model_name, follower_count")
@@ -143,6 +149,21 @@ export async function loadLabelCards(
     accAvgMap.set(k, sum / days.length);
   }
 
+  // Chatter-Level: Ø Tagesumsatz über alle vorhandenen History-Tage (wie Profilkarte)
+  const chatterRevsByKey = new Map<string, number[]>();
+  for (const r of (allChatterHistRes.data ?? []) as { chatter_name: string; revenue_today: number | null; analysis_date: string }[]) {
+    const k = normalizeChatterName(r.chatter_name);
+    const rev = Number(r.revenue_today ?? 0);
+    let arr = chatterRevsByKey.get(k);
+    if (!arr) { arr = []; chatterRevsByKey.set(k, arr); }
+    arr.push(rev);
+  }
+  const chatterAvgMap = new Map<string, number>();
+  for (const [k, revs] of chatterRevsByKey.entries()) {
+    if (revs.length === 0) continue;
+    chatterAvgMap.set(k, revs.reduce((s, v) => s + v, 0) / revs.length);
+  }
+
   // Models: Followerzahl
   const followersByModel = new Map<string, number>();
   for (const m of (modelsRes.data ?? []) as { model_name: string | null; follower_count: number | null }[]) {
@@ -172,6 +193,7 @@ export async function loadLabelCards(
       accountFollowers: accK ? followersByModel.get(accK) ?? null : null,
       accountTodayRevenue: accK ? accTodayMap.get(accK) ?? null : null,
       accountAvgDailyRevenue: accK ? accAvgMap.get(accK) ?? null : null,
+      chatterAvgDailyRevenue: chatterAvgMap.get(a.chatter_key) ?? null,
     });
   }
 
