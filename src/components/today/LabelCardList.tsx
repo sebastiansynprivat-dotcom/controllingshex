@@ -1,10 +1,11 @@
 /**
  * LabelCardList — alle Chatter mit aktivem Label, gruppiert nach Label,
  * gleiches Look & Feel wie die Standard-Action-Karten. Abhakbar pro Tag.
+ * Label-Gruppen sind standardmäßig eingeklappt.
  */
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useState } from "react";
-import { Check, ChevronRight, Clock, MessageCircle, X as XIcon, Tag, Users, TrendingUp, BarChart3 } from "lucide-react";
+import { Check, ChevronRight, ChevronDown, Clock, MessageCircle, X as XIcon, Tag, Users, TrendingUp, BarChart3 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
