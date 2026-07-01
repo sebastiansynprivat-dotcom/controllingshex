@@ -623,16 +623,18 @@ export default function WeeklyGoals() {
         for (const c of labelChatters) {
           const g = goalByChatter.get(c);
           if (!g) continue;
-          // Wenn die Note auf eine zukünftige Woche zeigt, Progress gegen Zielwoche-Mo mit 0 €.
+          // Zukünftige Wochenziele (KW liegt nach der aktuellen) gehören NICHT
+          // in das Tracking der laufenden Woche — sonst würden sie mit 0 €
+          // Fortschritt und daysPassed=0 fälschlich als „on track" gezählt.
           const target = parseTargetWeek(g.text);
           const isFuture = !!target && target > currentWeekStart;
-          const rev = isFuture ? 0 : (monthRevByChatter.get(c) ?? 0);
-          const refDate = isFuture ? target! : today;
+          if (isFuture) continue;
+          const rev = monthRevByChatter.get(c) ?? 0;
           built.push({
             chatter: c,
             noteText: g.text,
             noteDate: g.date,
-            progress: computeGoalProgress(g.goal, rev, refDate),
+            progress: computeGoalProgress(g.goal, rev, today),
           });
         }
 
