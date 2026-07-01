@@ -27,7 +27,6 @@ import {
   splitAccounts,
   computeModelBaselines,
   nextWeekLabel,
-  parseTargetWeek,
   weekStart,
   isoWeekNumber,
   type WeekProgress as GoalProgress,
