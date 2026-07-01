@@ -91,8 +91,8 @@ export interface WeekProgress {
   goal: number;
   currentRevenue: number;
   daysInWeek: number;        // immer 7
-  daysPassed: number;        // erfasste Tage (Reports laufen mit 1 Tag Versatz)
-  daysRemaining: number;     // verbleibende Tage inkl. heute (min 1)
+  daysPassed: number;        // erfasste Tage seit Montag, inkl. Referenzdatum
+  daysRemaining: number;     // verbleibende Tage nach dem letzten erfassten Tag (min 1)
   dailyTarget: number;
   expectedSoFar: number;
   requiredPerRemainingDay: number;
@@ -104,7 +104,8 @@ export interface WeekProgress {
 
 /**
  * Fortschritt für die Woche, in der `today` liegt (bzw. die durch `today` angepeilte Woche).
- * Reports kommen 1 Tag versetzt: am Di liegt erst der Mo-Report vor.
+ * `today` ist dabei der letzte tatsächlich erfasste Report-Tag. Wochenziel läuft Mo–Mo:
+ * On Track heißt, dass der bisherige Tagesdurchschnitt mindestens Ziel/7 erreicht.
  */
 export function computeWeekProgress(
   goal: number,
@@ -112,20 +113,21 @@ export function computeWeekProgress(
   today: Date = new Date(),
 ): WeekProgress {
   const daysInWeek = 7;
-  const isoDay = isoWeekday(today); // Mo=1..So=7
-  // erfasste Tage = isoDay - 1 (am Mo: 0, am So: 6)
-  const daysPassed = Math.max(0, isoDay - 1);
-  const daysRemainingIncToday = Math.max(1, daysInWeek - daysPassed);
+  const refDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = weekStart(refDate);
+  const elapsedDays = Math.floor((refDate.getTime() - start.getTime()) / 86400000) + 1;
+  const daysPassed = Math.max(0, Math.min(daysInWeek, elapsedDays));
+  const daysRemainingAfterTracked = Math.max(1, daysInWeek - daysPassed);
 
   const dailyTarget = goal / daysInWeek;
   const expectedSoFar = dailyTarget * daysPassed;
-  const requiredPerRemainingDay = Math.max(0, (goal - currentRevenue) / daysRemainingIncToday);
+  const requiredPerRemainingDay = Math.max(0, (goal - currentRevenue) / daysRemainingAfterTracked);
   const progressPct = goal > 0 ? (currentRevenue / goal) * 100 : 0;
-  const pacePct = expectedSoFar > 0 ? (currentRevenue / expectedSoFar) * 100 : 100;
+  const pacePct = expectedSoFar > 0 ? (currentRevenue / expectedSoFar) * 100 : (currentRevenue >= goal ? 100 : 0);
   const deficit = expectedSoFar - currentRevenue;
 
   let status: GoalStatus;
-  if (pacePct >= 95) status = "on_track";
+  if (pacePct >= 100) status = "on_track";
   else if (pacePct >= 80) status = "close";
   else status = "off_track";
 
@@ -134,7 +136,7 @@ export function computeWeekProgress(
     currentRevenue,
     daysInWeek,
     daysPassed,
-    daysRemaining: daysRemainingIncToday,
+    daysRemaining: daysRemainingAfterTracked,
     dailyTarget,
     expectedSoFar,
     requiredPerRemainingDay,
