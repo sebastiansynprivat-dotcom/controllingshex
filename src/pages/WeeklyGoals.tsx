@@ -27,7 +27,6 @@ import {
   splitAccounts,
   computeModelBaselines,
   nextWeekLabel,
-  firstOfNextWeek,
   parseTargetWeek,
   weekStart,
   isoWeekNumber,
@@ -42,6 +41,11 @@ function toIsoDateLocal(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function fromIsoDateLocal(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
 }
 
 
@@ -391,6 +395,7 @@ export default function WeeklyGoals() {
   const [stretchDraft, setStretchDraft] = useState<string>("110");
   const [smoothingDraft, setSmoothingDraft] = useState<string>("14");
   const [savingThresholds, setSavingThresholds] = useState(false);
+  const [trackedThroughDate, setTrackedThroughDate] = useState<Date | null>(null);
 
   // Schwellen aus settings laden (einmalig)
   useEffect(() => {
@@ -618,6 +623,17 @@ export default function WeeklyGoals() {
           const chatter = key.split("|")[0];
           monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + v);
         }
+        let latestCurrentReportIso: string | null = null;
+        for (const h of histAllRows) {
+          if (h.analysis_date >= reportStartIso && h.analysis_date <= todayIso) {
+            if (!latestCurrentReportIso || h.analysis_date > latestCurrentReportIso) {
+              latestCurrentReportIso = h.analysis_date;
+            }
+          }
+        }
+        const progressDate = latestCurrentReportIso
+          ? fromIsoDateLocal(latestCurrentReportIso)
+          : new Date(reportStart.getFullYear(), reportStart.getMonth(), reportStart.getDate() - 1);
         const built: ChatterGoalRow[] = [];
         const currentWeekStart = weekStart(today);
         for (const c of labelChatters) {
@@ -634,7 +650,7 @@ export default function WeeklyGoals() {
             chatter: c,
             noteText: g.text,
             noteDate: g.date,
-            progress: computeGoalProgress(g.goal, rev, today),
+            progress: computeGoalProgress(g.goal, rev, progressDate),
           });
         }
 
@@ -786,6 +802,7 @@ export default function WeeklyGoals() {
         if (!cancelled) {
           setRows(built);
           setSuggestions(sugg);
+          setTrackedThroughDate(progressDate);
           setSkipped(new Set((skipRows ?? []).map((r) => r.chatter_name)));
         }
       } catch (e: any) {
@@ -907,23 +924,8 @@ export default function WeeklyGoals() {
    * - currentGoal in Suggestions reflektieren
    */
   function applyAcceptedGoal(chatter: string, goal: number, _monthRevenue: number) {
-    const today = new Date();
-    // Ziel gilt für die nächste Woche → Label & Progress entsprechend.
-    const weekLbl = nextWeekLabel(today);
-    const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
-    const noteDate = today.toISOString();
-    // Künftige Woche → noch kein Umsatz, Progress relativ zum Mo der Zielwoche.
-    const progress = computeGoalProgress(goal, 0, firstOfNextWeek(today));
-
-    setRows((prev) => {
-      const idx = prev.findIndex((r) => r.chatter === chatter);
-      if (idx === -1) {
-        return [...prev, { chatter, noteText, noteDate, progress }];
-      }
-      const next = [...prev];
-      next[idx] = { ...next[idx], noteText, noteDate, progress };
-      return next;
-    });
+    // Angenommene Vorschläge gelten für die nächste Woche und gehören deshalb
+    // nicht in das Tracking der laufenden Woche.
     setSuggestions((prev) =>
       prev.map((s) => (s.chatter === chatter ? { ...s, currentGoal: goal } : s)),
     );
@@ -1193,8 +1195,7 @@ export default function WeeklyGoals() {
     : "off_track";
 
   const today = new Date();
-  const trackedThrough = new Date(today);
-  trackedThrough.setDate(today.getDate() - 1);
+  const trackedThrough = trackedThroughDate ?? new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
   const { week: _wk, year: _yr } = isoWeekNumber(today);
   const weekName = `KW ${_wk} ${_yr}`;
   const totalGoal = rows.reduce((s, r) => s + r.progress.goal, 0);
