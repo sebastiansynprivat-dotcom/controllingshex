@@ -57,14 +57,23 @@ export function weekLabel(date: Date): string {
   return `KW ${week} ${year}`;
 }
 
+function weekLabelWithRange(start: Date): string {
+  const { week, year } = isoWeekNumber(start);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  return `KW ${week} ${year} (${fmt(start)}–${fmt(end)})`;
+}
+
+/** Label der aktuellen Woche, z.B. "KW 27 2026 (29.06.–05.07.)" */
+export function currentWeekLabel(today: Date): string {
+  return weekLabelWithRange(weekStart(today));
+}
+
 /** Label der nächsten Woche, z.B. "KW 26 2026 (22.–28. Jun)" */
 export function nextWeekLabel(today: Date): string {
   const next = firstOfNextWeek(today);
-  const { week, year } = isoWeekNumber(next);
-  const end = new Date(next);
-  end.setDate(end.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-  return `KW ${week} ${year} (${fmt(next)}–${fmt(end)})`;
+  return weekLabelWithRange(next);
 }
 
 /**
