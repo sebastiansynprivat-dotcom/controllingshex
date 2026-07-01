@@ -635,16 +635,13 @@ export default function WeeklyGoals() {
           ? fromIsoDateLocal(latestCurrentReportIso)
           : new Date(reportStart.getFullYear(), reportStart.getMonth(), reportStart.getDate() - 1);
         const built: ChatterGoalRow[] = [];
-        const currentWeekStart = weekStart(today);
         for (const c of labelChatters) {
           const g = goalByChatter.get(c);
           if (!g) continue;
-          // Zukünftige Wochenziele (KW liegt nach der aktuellen) gehören NICHT
-          // in das Tracking der laufenden Woche — sonst würden sie mit 0 €
-          // Fortschritt und daysPassed=0 fälschlich als „on track" gezählt.
-          const target = parseTargetWeek(g.text);
-          const isFuture = !!target && target > currentWeekStart;
-          if (isFuture) continue;
+          // Aktuelle Wochenziele = neueste akzeptierte Wochenziel-Notiz.
+          // Die Pace wird trotzdem immer gegen die laufende Woche und den
+          // neuesten Report-Tag gerechnet, damit zukünftige KW-Labels nicht
+          // pauschal als „on track" erscheinen.
           const rev = monthRevByChatter.get(c) ?? 0;
           built.push({
             chatter: c,
