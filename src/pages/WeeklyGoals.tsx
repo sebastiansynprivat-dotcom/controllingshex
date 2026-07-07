@@ -737,6 +737,28 @@ export default function WeeklyGoals() {
         const currentGoalByChatter = new Map<string, number>();
         for (const [c, g] of goalByChatter) currentGoalByChatter.set(c, g.goal);
 
+        // === Klassifikation letzte Woche: on-track vs off-track ===
+        // Fetch letzte weekly_goal_results (letzte 6 Wochen reichen) → pro Chatter
+        // die jüngste Zeile mit ratio = actual / goal. >= 0.8 = on-track (inkl. "close").
+        const sixWeeksAgoIso = toIsoDateLocal(
+          new Date(today.getFullYear(), today.getMonth(), today.getDate() - 42),
+        );
+        const { data: wgrRows } = await supabase
+          .from("weekly_goal_results")
+          .select("chatter_name, week_start, goal_eur, actual_eur")
+          .eq("platform", platform)
+          .gte("week_start", sixWeeksAgoIso)
+          .order("week_start", { ascending: false });
+        const lastBucketByChatter = new Map<string, "on_track" | "off_track">();
+        for (const r of (wgrRows ?? []) as Array<{ chatter_name: string; week_start: string; goal_eur: number | null; actual_eur: number | null }>) {
+          if (!r.chatter_name) continue;
+          if (lastBucketByChatter.has(r.chatter_name)) continue; // erste = jüngste (desc)
+          const g = Number(r.goal_eur ?? 0);
+          const a = Number(r.actual_eur ?? 0);
+          if (g <= 0) continue;
+          lastBucketByChatter.set(r.chatter_name, a / g >= 0.8 ? "on_track" : "off_track");
+        }
+
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
           // Bewusst KEIN Skip für Chatter mit bestehendem Ziel — sie sollen erscheinen
@@ -747,6 +769,13 @@ export default function WeeklyGoals() {
           const avg = sum / days;
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
 
+          // Stretch-Bucket bestimmen: on_track / off_track / new (kein historischer Datensatz)
+          const lastBucket = lastBucketByChatter.get(chatter);
+          const stretchBucket: "on_track" | "off_track" | "new" = lastBucket ?? "new";
+          // "new" behandeln wir wie on_track (fairer Startvorschlag)
+          const stretchPctApplied = stretchBucket === "off_track" ? stretchOffPct : stretchOnPct;
+          const stretchFactor = stretchPctApplied / 100;
+
           const roster = Array.from(rosterByChatter.get(chatter) ?? []);
           // Anteiliger Modellschnitt: jedes Model wird durch Anzahl Chatter (letzte 14 Tage) geteilt
           let perChatterDailyBaseline = 0;
@@ -756,7 +785,6 @@ export default function WeeklyGoals() {
             perChatterDailyBaseline += modelDaily / share;
           }
           const daysInWeek = 7;
-          const stretchFactor = stretchPct / 100;
           const rawModelGoal = perChatterDailyBaseline * daysInWeek * stretchFactor;
           const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
             ? Math.max(10, Math.round(rawModelGoal / 10) * 10)
@@ -764,8 +792,6 @@ export default function WeeklyGoals() {
 
           // Smoothing für neue Chatter: wenn jemand erst wenige Tage dabei ist,
           // dürfen 2 gute Tage das Ziel nicht hochreißen.
-          // Wir blenden den Chatter-Schnitt linear mit dem Model-Baseline,
-          // bis er smoothingDays aktive Tage hat (volles Vertrauen).
           const MIN_DAYS_FULL_TRUST = Math.max(3, smoothingDays);
           const MIN_DAYS_CHATTER_OVERRIDE = Math.max(3, Math.round(MIN_DAYS_FULL_TRUST * 0.7));
           const trustWeight = Math.min(1, days / MIN_DAYS_FULL_TRUST);
@@ -773,9 +799,6 @@ export default function WeeklyGoals() {
             ? trustWeight * avg + (1 - trustWeight) * perChatterDailyBaseline
             : avg;
 
-          // Wenn Chatter deutlich BESSER als Model-Schnitt performt (> stretch drüber),
-          // → eigenes Ergebnis × stretch nehmen statt Model-Schnitt zu deckeln.
-          // ABER: nur wenn er genug Datenbasis hat.
           const chatterGoal = avg > 1
             ? Math.max(10, Math.round((smoothedAvg * daysInWeek * stretchFactor) / 10) * 10)
             : 0;
@@ -790,18 +813,17 @@ export default function WeeklyGoals() {
           ) {
             basis = "chatter";
             suggested = chatterGoal;
-
           } else if (modelGoal > 0) {
             basis = "model";
             suggested = modelGoal;
           } else {
-            // Fallback: Chatter-Schnitt 60d (nur wenn sinnvoll)
             if (avg <= 1) continue;
             basis = "fallback";
-            suggested = suggestWeeklyGoal(avg);
+            // Fallback-Vorschlag mit chatter-spezifischem Stretch statt Default 1.10
+            const raw = avg * daysInWeek * stretchFactor;
+            suggested = Number.isFinite(raw) && raw > 0 ? Math.max(10, Math.round(raw / 10) * 10) : 0;
+            if (suggested <= 0) continue;
           }
-
-
 
           sugg.push({
             chatter,
@@ -812,6 +834,8 @@ export default function WeeklyGoals() {
             modelBaselineEurPerDay: perChatterDailyBaseline,
             basis,
             currentGoal: currentGoalByChatter.get(chatter) ?? null,
+            stretchApplied: stretchFactor,
+            stretchBucket,
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
