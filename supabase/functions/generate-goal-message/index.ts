@@ -110,7 +110,8 @@ Deno.serve(async (req) => {
       const scenarioOverride: WeeklyScenario | null =
         body.scenario_override === "weekly_growth" ||
         body.scenario_override === "weekly_flat" ||
-        body.scenario_override === "weekly_decline"
+        body.scenario_override === "weekly_decline" ||
+        body.scenario_override === "weekly_intro"
           ? body.scenario_override
           : // Erlaube auch Monats-Keys als Bequemlichkeit (mapped auf weekly_*)
             body.scenario_override === "growth" ? "weekly_growth"
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
       const endLast = new Date(startThis); endLast.setUTCDate(endLast.getUTCDate() - 1);
       const endPrior = new Date(startLast); endPrior.setUTCDate(endPrior.getUTCDate() - 1);
 
-      const [histRes, tplRes] = await Promise.all([
+      const [histRes, tplRes, priorGoalRes] = await Promise.all([
         admin
           .from("chatter_history")
           .select("revenue_today, analysis_date")
@@ -137,7 +138,13 @@ Deno.serve(async (req) => {
           .from("goal_message_templates")
           .select("scenario, template")
           .eq("user_id", userId)
-          .in("scenario", ["weekly_growth", "weekly_flat", "weekly_decline"]),
+          .in("scenario", ["weekly_growth", "weekly_flat", "weekly_decline", "weekly_intro"]),
+        // Plattformübergreifend prüfen, ob der Chatter je ein Wochenziel-Ergebnis hatte.
+        admin
+          .from("weekly_goal_results")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("chatter_name", chatterName),
       ]);
       if (histRes.error) throw histRes.error;
 
@@ -162,8 +169,11 @@ Deno.serve(async (req) => {
       }
       const vsPrior = priorRev > 0 ? ((lastRev - priorRev) / priorRev) * 100 : null;
 
+      const hasHistory = (priorGoalRes.count ?? 0) > 0;
+
       let autoScenario: WeeklyScenario;
-      if (vsPrior == null) autoScenario = "weekly_flat";
+      if (!hasHistory) autoScenario = "weekly_intro";
+      else if (vsPrior == null) autoScenario = "weekly_flat";
       else if (vsPrior >= 5) autoScenario = "weekly_growth";
       else if (vsPrior <= -5) autoScenario = "weekly_decline";
       else autoScenario = "weekly_flat";
@@ -175,13 +185,18 @@ Deno.serve(async (req) => {
       }
       const template = userTemplates.get(scenario) ?? DEFAULT_WEEKLY[scenario];
 
-      const dailyTarget = Math.round((proposedGoal / 7) / 10) * 10;
+      // Tagesziel: für kleine Wochenziele nicht auf 10 € runden (sonst wird 10 €/Woche → 0 €/Tag).
+      const dailyRaw = proposedGoal / 7;
+      const dailyTarget = dailyRaw < 20
+        ? Math.max(1, Math.round(dailyRaw))
+        : Math.round(dailyRaw / 10) * 10;
       const message = substitute(template, {
         name: firstName,
         ziel: fmtEUR(proposedGoal),
         tagesziel: fmtEUR(dailyTarget),
         letztewoche_umsatz: fmtEUR(lastRev),
       });
+
 
       return new Response(
         JSON.stringify({
