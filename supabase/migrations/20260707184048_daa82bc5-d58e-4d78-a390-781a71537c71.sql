@@ -1,0 +1,1 @@
+ALTER TYPE public.goal_message_scenario ADD VALUE IF NOT EXISTS 'weekly_intro';

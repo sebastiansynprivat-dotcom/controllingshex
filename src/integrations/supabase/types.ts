@@ -1547,6 +1547,7 @@ export type Database = {
         | "weekly_growth"
         | "weekly_flat"
         | "weekly_decline"
+        | "weekly_intro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1682,6 +1683,7 @@ export const Constants = {
         "weekly_growth",
         "weekly_flat",
         "weekly_decline",
+        "weekly_intro",
       ],
     },
   },
