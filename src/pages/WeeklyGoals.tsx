@@ -866,10 +866,14 @@ export default function WeeklyGoals() {
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
 
           // Stretch-Bucket bestimmen: on_track / off_track / new (kein historischer Datensatz)
-          const lastBucket = lastBucketByChatter.get(chatter);
-          const stretchBucket: "on_track" | "off_track" | "new" = lastBucket ?? "new";
-          // "new" behandeln wir wie on_track (fairer Startvorschlag)
-          const stretchPctApplied = stretchBucket === "off_track" ? stretchOffPct : stretchOnPct;
+          const lastAchievementPct = lastAchievementByChatter.get(chatter) ?? null;
+          const stretchBucket: StretchBucket = bucketFor(lastAchievementPct);
+          const stretchPctApplied =
+            stretchBucket === "star"      ? stretchStarPct :
+            stretchBucket === "strong"    ? stretchStrongPct :
+            stretchBucket === "close"     ? stretchClosePct :
+            stretchBucket === "off_track" ? stretchOffPct :
+            /* on_track | new */            stretchOnPct;
           const stretchFactor = stretchPctApplied / 100;
 
           const roster = Array.from(rosterByChatter.get(chatter) ?? []);
