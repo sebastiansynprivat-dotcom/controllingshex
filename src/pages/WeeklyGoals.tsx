@@ -1720,11 +1720,11 @@ export default function WeeklyGoals() {
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {([
-                        ["Star (≥130 %)", stretchStarDraft, setStretchStarDraft, "emerald-300/40", "text-emerald-100/80", "Klar übererfüllt – stärker pushen."],
-                        ["Strong (110–130 %)", stretchStrongDraft, setStretchStrongDraft, "emerald-300/20", "text-emerald-200/70", "Solide drüber – moderat pushen."],
-                        ["On-Track (90–110 %)", stretchOnDraft, setStretchOnDraft, "white/15", "text-white/60", "Ziel getroffen – leicht drüber."],
-                        ["Close (70–90 %)", stretchCloseDraft, setStretchCloseDraft, "amber-300/25", "text-amber-200/70", "Knapp verfehlt – sanft senken."],
-                        ["Off-Track (<70 %)", stretchOffDraft, setStretchOffDraft, "rose-300/25", "text-rose-200/70", "Klar verfehlt – deutlich entlasten."],
+                        ["Star (≥130 %)", stretchStarDraft, setStretchStarDraft, "border-emerald-300/40", "text-emerald-100/80", "Klar übererfüllt – stärker pushen."],
+                        ["Strong (110–130 %)", stretchStrongDraft, setStretchStrongDraft, "border-emerald-300/20", "text-emerald-200/70", "Solide drüber – moderat pushen."],
+                        ["On-Track (90–110 %)", stretchOnDraft, setStretchOnDraft, "border-white/15", "text-white/60", "Ziel getroffen – leicht drüber."],
+                        ["Close (70–90 %)", stretchCloseDraft, setStretchCloseDraft, "border-amber-300/25", "text-amber-200/70", "Knapp verfehlt – sanft senken."],
+                        ["Off-Track (<70 %)", stretchOffDraft, setStretchOffDraft, "border-rose-300/25", "text-rose-200/70", "Klar verfehlt – deutlich entlasten."],
                       ] as const).map(([label, val, setter, borderCls, labelCls, hint]) => (
                         <div key={label}>
                           <label className={`text-[11px] uppercase tracking-[0.14em] ${labelCls} font-light block mb-1.5`}>
@@ -1737,7 +1737,7 @@ export default function WeeklyGoals() {
                             step={5}
                             value={val}
                             onChange={(e) => setter(e.target.value)}
-                            className={`w-full bg-white/[0.04] border border-${borderCls} rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-white/50`}
+                            className={`w-full bg-white/[0.04] border ${borderCls} rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-white/50`}
                           />
                           <p className="text-[10px] text-white/35 font-light mt-1">{hint}</p>
                         </div>
