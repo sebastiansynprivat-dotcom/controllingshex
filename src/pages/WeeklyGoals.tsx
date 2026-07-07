@@ -217,6 +217,8 @@ interface SuggestionRow {
   modelBaselineEurPerDay: number;
   basis: "model" | "chatter" | "fallback";
   currentGoal: number | null;
+  stretchApplied: number;              // z.B. 1.15
+  stretchBucket: "on_track" | "off_track" | "new";
 }
 
 function SuggestionCard({
