@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 type MonthlyScenario = "growth" | "flat" | "decline";
-type WeeklyScenario = "weekly_growth" | "weekly_flat" | "weekly_decline";
+type WeeklyScenario = "weekly_growth" | "weekly_flat" | "weekly_decline" | "weekly_intro";
 type Scenario = MonthlyScenario | WeeklyScenario;
 
 const MONTHLY_LABELS: Record<MonthlyScenario, { title: string; sub: string }> = {
@@ -26,6 +26,7 @@ const WEEKLY_LABELS: Record<WeeklyScenario, { title: string; sub: string }> = {
   weekly_growth: { title: "Steigerung", sub: "Letzte Woche besser als die davor (≥ +5 %)" },
   weekly_flat: { title: "Keine Steigerung", sub: "Auf Vorwochen-Niveau (−5 % bis +5 %)" },
   weekly_decline: { title: "Abfall", sub: "Deutlich unter Vorwoche (≤ −5 %)" },
+  weekly_intro: { title: "Erstes Wochenziel (neuer Chatter)", sub: "Chatter hat noch nie ein Wochenziel bekommen — Einführungs­nachricht statt „letzte Woche"-Feedback." },
 };
 
 const MONTHLY_PLACEHOLDERS = [
@@ -39,7 +40,7 @@ const WEEKLY_PLACEHOLDERS = [
   { key: "{name}", desc: "Chatter-Name" },
   { key: "{ziel}", desc: "Neues Wochenziel in EUR" },
   { key: "{tagesziel}", desc: "Soll-Tagesumsatz (Ziel ÷ 7)" },
-  { key: "{letztewoche_umsatz}", desc: "Umsatz der letzten Woche" },
+  { key: "{letztewoche_umsatz}", desc: "Umsatz der letzten Woche (nicht bei Erstziel)" },
 ];
 
 const DEFAULTS: Record<Scenario, string> = {
@@ -55,6 +56,8 @@ const DEFAULTS: Record<Scenario, string> = {
     "Hey {name}, Woche war okay – nichts Wildes. Diese Woche holen wir die kleine Steigerung sauber rein.\n\nZiel diese Woche: *{ziel}* — Ø *{tagesziel}/Tag*.\nLetzte Woche: {letztewoche_umsatz}.",
   weekly_decline:
     "Hey {name}, letzte Woche war nicht unsere – halb so wild. Diese Woche drehen wir das sauber.\n\nZiel diese Woche: *{ziel}* — Ø *{tagesziel}/Tag*.\nLetzte Woche: {letztewoche_umsatz}.",
+  weekly_intro:
+    "Hey {name}, ab jetzt arbeiten wir mit Wochenzielen 🎯🏻 Jede Woche gibt's ein klares Ziel + kurzes Feedback, damit du dich Woche für Woche steigerst.\n\nDein erstes Ziel: *{ziel}* — Ø *{tagesziel}/Tag*. Wird regelmäßig an deine Entwicklung angepasst. Los geht's 💪🏻",
 };
 
 interface Props {
@@ -66,8 +69,9 @@ interface Props {
 
 const ALL_SCENARIOS: Scenario[] = [
   "growth", "flat", "decline",
-  "weekly_growth", "weekly_flat", "weekly_decline",
+  "weekly_growth", "weekly_flat", "weekly_decline", "weekly_intro",
 ];
+
 
 export default function GoalMessageTemplatesDialog({ open, onClose, initialTab = "monthly" }: Props) {
   const [loading, setLoading] = useState(false);
