@@ -450,10 +450,15 @@ export default function WeeklyGoals() {
   }, []);
 
   async function saveThresholds() {
-    const s = Number(stretchDraft);
+    const sOn = Number(stretchOnDraft);
+    const sOff = Number(stretchOffDraft);
     const d = Number(smoothingDraft);
-    if (!Number.isFinite(s) || s < 80 || s > 200) {
-      toast.error("Stretch muss zwischen 80 und 200 % liegen");
+    if (!Number.isFinite(sOn) || sOn < 80 || sOn > 200) {
+      toast.error("On-Track-Stretch muss zwischen 80 und 200 % liegen");
+      return;
+    }
+    if (!Number.isFinite(sOff) || sOff < 80 || sOff > 200) {
+      toast.error("Off-Track-Stretch muss zwischen 80 und 200 % liegen");
       return;
     }
     if (!Number.isFinite(d) || d < 3 || d > 60) {
@@ -466,7 +471,8 @@ export default function WeeklyGoals() {
       const uid = u?.user?.id;
       if (!uid) throw new Error("Nicht angemeldet");
       for (const [key, val] of [
-        ["weekly_goal_stretch_pct", String(Math.round(s))],
+        ["weekly_goal_stretch_on_track_pct", String(Math.round(sOn))],
+        ["weekly_goal_stretch_off_track_pct", String(Math.round(sOff))],
         ["weekly_goal_smoothing_days", String(Math.round(d))],
       ] as const) {
         const { data: existing } = await supabase
@@ -479,13 +485,13 @@ export default function WeeklyGoals() {
           await supabase.from("settings").insert({ key, value: val, user_id: uid });
         }
       }
-      setStretchPct(Math.round(s));
+      setStretchOnPct(Math.round(sOn));
+      setStretchOffPct(Math.round(sOff));
       setSmoothingDays(Math.round(d));
-      setStretchDraft(String(Math.round(s)));
+      setStretchOnDraft(String(Math.round(sOn)));
+      setStretchOffDraft(String(Math.round(sOff)));
       setSmoothingDraft(String(Math.round(d)));
       setThresholdsOpen(false);
-      // suggestionsGenerated bewusst nicht zurücksetzen — die Liste rechnet
-      // sich durch den Deps-Change (stretchPct / smoothingDays) automatisch neu.
       toast.success("Schwellen gespeichert – Vorschläge werden neu berechnet");
     } catch (e: any) {
       toast.error(e?.message ?? "Speichern fehlgeschlagen");
