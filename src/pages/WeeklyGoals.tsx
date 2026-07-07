@@ -259,6 +259,26 @@ function SuggestionCard({
               ? `Basis: eigener Schnitt – über Model-Potenzial (Ø ${formatEUR(row.avg30)}/Tag vs. ${formatEUR(row.modelBaselineEurPerDay)}/Tag)`
               : "Basis: Chatter-Schnitt (kein Model erkannt)"}
           </p>
+          <div className="mt-1.5">
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-light border ${
+                row.stretchBucket === "off_track"
+                  ? "border-amber-300/25 bg-amber-400/10 text-amber-200/90"
+                  : row.stretchBucket === "on_track"
+                  ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-200/90"
+                  : "border-white/10 bg-white/[0.03] text-white/55"
+              }`}
+              title="Angewandter Stretch-Faktor, basierend auf letzter abgeschlossener Woche"
+            >
+              {row.stretchBucket === "off_track"
+                ? "Off-Track"
+                : row.stretchBucket === "on_track"
+                ? "On-Track"
+                : "Neu"}
+              {" ×"}
+              {row.stretchApplied.toFixed(2).replace(".", ",")}
+            </span>
+          </div>
           {row.currentGoal != null && (
             <p className="text-[11px] text-amber-200/80 font-light mt-1">
               Aktuell: <span className="tabular-nums">{formatEUR(row.currentGoal)}</span> → neu{" "}
