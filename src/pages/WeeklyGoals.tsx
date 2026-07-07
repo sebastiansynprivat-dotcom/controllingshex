@@ -642,11 +642,18 @@ export default function WeeklyGoals() {
 
 
         // === Aktuelle Wochenziele ===
+        // Nur Notes für die laufende oder zukünftige KW zählen als „aktuell".
+        // Ältere Notes (z.B. letzte Woche) fallen automatisch raus — der
+        // Montags-Snapshot hat sie da schon in „Vergangene" geschrieben.
+        const currentWeekStartMs = weekStart(today).getTime();
         const goalByChatter = new Map<string, { goal: number; text: string; date: string }>();
         for (const n of notesRes.data ?? []) {
           if (goalByChatter.has(n.chatter_name)) continue;
           // Nur Wochenziel-Notizen berücksichtigen (Chatter kann auch Monatsziel-Notes haben).
           if (!/^\s*Wochenziel/i.test(n.note_text ?? "")) continue;
+          // KW aus Notiz parsen — nur laufende oder zukünftige Woche behalten.
+          const targetWeek = parseTargetWeek(n.note_text);
+          if (!targetWeek || targetWeek.getTime() < currentWeekStartMs) continue;
           const goal = parseGoalFromNote(n.note_text);
           if (goal != null) {
             goalByChatter.set(n.chatter_name, {
