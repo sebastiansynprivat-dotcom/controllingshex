@@ -29,6 +29,7 @@ import {
   nextWeekLabel,
   weekStart,
   isoWeekNumber,
+  parseTargetWeek,
   type WeekProgress as GoalProgress,
   type GoalStatus,
 } from "@/lib/weekly-goals";
