@@ -1653,7 +1653,10 @@ export default function WeeklyGoals() {
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => {
+                        setStretchStarDraft(String(stretchStarPct));
+                        setStretchStrongDraft(String(stretchStrongPct));
                         setStretchOnDraft(String(stretchOnPct));
+                        setStretchCloseDraft(String(stretchClosePct));
                         setStretchOffDraft(String(stretchOffPct));
                         setSmoothingDraft(String(smoothingDays));
                         setThresholdsOpen((v) => !v);
