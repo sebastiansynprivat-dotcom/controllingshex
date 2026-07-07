@@ -936,6 +936,7 @@ export default function WeeklyGoals() {
             currentGoal: currentGoalByChatter.get(chatter) ?? null,
             stretchApplied: stretchFactor,
             stretchBucket,
+            lastAchievementPct,
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
