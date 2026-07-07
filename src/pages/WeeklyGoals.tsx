@@ -437,13 +437,20 @@ export default function WeeklyGoals() {
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
   // Einstellbare Schwellen für Wochenziel-Vorschläge
   // Zwei getrennte Stretch-Faktoren: on-track (Overperformer pushen) & off-track (Underperformer entlasten)
-  const [stretchOnPct, setStretchOnPct] = useState<number>(115);
-  const [stretchOffPct, setStretchOffPct] = useState<number>(95);
+  // 5 Stretch-Faktoren pro Performance-Bucket (basierend auf letzter Wochen-Zielerreichung)
+  const [stretchStarPct, setStretchStarPct] = useState<number>(125);
+  const [stretchStrongPct, setStretchStrongPct] = useState<number>(115);
+  const [stretchOnPct, setStretchOnPct] = useState<number>(105);
+  const [stretchClosePct, setStretchClosePct] = useState<number>(95);
+  const [stretchOffPct, setStretchOffPct] = useState<number>(85);
   const [smoothingDays, setSmoothingDays] = useState<number>(14);
   const [thresholdsLoaded, setThresholdsLoaded] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
-  const [stretchOnDraft, setStretchOnDraft] = useState<string>("115");
-  const [stretchOffDraft, setStretchOffDraft] = useState<string>("95");
+  const [stretchStarDraft, setStretchStarDraft] = useState<string>("125");
+  const [stretchStrongDraft, setStretchStrongDraft] = useState<string>("115");
+  const [stretchOnDraft, setStretchOnDraft] = useState<string>("105");
+  const [stretchCloseDraft, setStretchCloseDraft] = useState<string>("95");
+  const [stretchOffDraft, setStretchOffDraft] = useState<string>("85");
   const [smoothingDraft, setSmoothingDraft] = useState<string>("14");
   const [savingThresholds, setSavingThresholds] = useState(false);
   const [trackedThroughDate, setTrackedThroughDate] = useState<Date | null>(null);
