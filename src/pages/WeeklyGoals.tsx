@@ -209,6 +209,8 @@ function Stat({
   );
 }
 
+type StretchBucket = "star" | "strong" | "on_track" | "close" | "off_track" | "new";
+
 interface SuggestionRow {
   chatter: string;
   avg30: number;
@@ -219,7 +221,37 @@ interface SuggestionRow {
   basis: "model" | "chatter" | "fallback";
   currentGoal: number | null;
   stretchApplied: number;              // z.B. 1.15
-  stretchBucket: "on_track" | "off_track" | "new";
+  stretchBucket: StretchBucket;
+  lastAchievementPct: number | null;   // z.B. 1.18 (=118%)
+}
+
+const BUCKET_LABELS: Record<StretchBucket, string> = {
+  star: "Star",
+  strong: "Strong",
+  on_track: "On-Track",
+  close: "Close",
+  off_track: "Off-Track",
+  new: "Neu",
+};
+
+function bucketFor(pct: number | null): StretchBucket {
+  if (pct == null || !Number.isFinite(pct)) return "new";
+  if (pct >= 1.30) return "star";
+  if (pct >= 1.10) return "strong";
+  if (pct >= 0.90) return "on_track";
+  if (pct >= 0.70) return "close";
+  return "off_track";
+}
+
+function bucketClasses(b: StretchBucket): string {
+  switch (b) {
+    case "star":     return "border-emerald-300/35 bg-emerald-400/15 text-emerald-100";
+    case "strong":   return "border-emerald-300/25 bg-emerald-400/10 text-emerald-200/90";
+    case "on_track": return "border-white/10 bg-white/[0.04] text-white/70";
+    case "close":    return "border-amber-300/25 bg-amber-400/10 text-amber-200/90";
+    case "off_track":return "border-rose-300/25 bg-rose-400/10 text-rose-200/90";
+    case "new":      return "border-white/10 bg-white/[0.03] text-white/55";
+  }
 }
 
 function SuggestionCard({
