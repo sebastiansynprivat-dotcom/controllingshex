@@ -389,11 +389,14 @@ export default function WeeklyGoals() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
   // Einstellbare Schwellen für Wochenziel-Vorschläge
-  const [stretchPct, setStretchPct] = useState<number>(110);
+  // Zwei getrennte Stretch-Faktoren: on-track (Overperformer pushen) & off-track (Underperformer entlasten)
+  const [stretchOnPct, setStretchOnPct] = useState<number>(115);
+  const [stretchOffPct, setStretchOffPct] = useState<number>(95);
   const [smoothingDays, setSmoothingDays] = useState<number>(14);
   const [thresholdsLoaded, setThresholdsLoaded] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
-  const [stretchDraft, setStretchDraft] = useState<string>("110");
+  const [stretchOnDraft, setStretchOnDraft] = useState<string>("115");
+  const [stretchOffDraft, setStretchOffDraft] = useState<string>("95");
   const [smoothingDraft, setSmoothingDraft] = useState<string>("14");
   const [savingThresholds, setSavingThresholds] = useState(false);
   const [trackedThroughDate, setTrackedThroughDate] = useState<Date | null>(null);
