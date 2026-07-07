@@ -411,19 +411,37 @@ export default function WeeklyGoals() {
         const { data } = await supabase
           .from("settings")
           .select("key, value")
-          .in("key", ["weekly_goal_stretch_pct", "weekly_goal_smoothing_days"])
+          .in("key", [
+            "weekly_goal_stretch_on_track_pct",
+            "weekly_goal_stretch_off_track_pct",
+            "weekly_goal_stretch_pct", // legacy fallback
+            "weekly_goal_smoothing_days",
+          ])
           .eq("user_id", uid);
+        let legacyStretch: number | null = null;
+        let onSet = false;
+        let offSet = false;
         for (const row of (data ?? []) as Array<{ key: string; value: string }>) {
           const n = Number(row.value);
           if (!Number.isFinite(n)) continue;
+          if (row.key === "weekly_goal_stretch_on_track_pct" && n >= 80 && n <= 200) {
+            setStretchOnPct(n); setStretchOnDraft(String(n)); onSet = true;
+          }
+          if (row.key === "weekly_goal_stretch_off_track_pct" && n >= 80 && n <= 200) {
+            setStretchOffPct(n); setStretchOffDraft(String(n)); offSet = true;
+          }
           if (row.key === "weekly_goal_stretch_pct" && n >= 80 && n <= 200) {
-            setStretchPct(n);
-            setStretchDraft(String(n));
+            legacyStretch = n;
           }
           if (row.key === "weekly_goal_smoothing_days" && n >= 3 && n <= 60) {
             setSmoothingDays(n);
             setSmoothingDraft(String(n));
           }
+        }
+        // Legacy-Migration: falls neue Keys fehlen, alten Wert übernehmen
+        if (legacyStretch != null) {
+          if (!onSet) { setStretchOnPct(legacyStretch); setStretchOnDraft(String(legacyStretch)); }
+          if (!offSet) { setStretchOffPct(legacyStretch); setStretchOffDraft(String(legacyStretch)); }
         }
       } finally {
         setThresholdsLoaded(true);
