@@ -209,6 +209,8 @@ function Stat({
   );
 }
 
+type StretchBucket = "star" | "strong" | "on_track" | "close" | "off_track" | "new";
+
 interface SuggestionRow {
   chatter: string;
   avg30: number;
@@ -219,7 +221,37 @@ interface SuggestionRow {
   basis: "model" | "chatter" | "fallback";
   currentGoal: number | null;
   stretchApplied: number;              // z.B. 1.15
-  stretchBucket: "on_track" | "off_track" | "new";
+  stretchBucket: StretchBucket;
+  lastAchievementPct: number | null;   // z.B. 1.18 (=118%)
+}
+
+const BUCKET_LABELS: Record<StretchBucket, string> = {
+  star: "Star",
+  strong: "Strong",
+  on_track: "On-Track",
+  close: "Close",
+  off_track: "Off-Track",
+  new: "Neu",
+};
+
+function bucketFor(pct: number | null): StretchBucket {
+  if (pct == null || !Number.isFinite(pct)) return "new";
+  if (pct >= 1.30) return "star";
+  if (pct >= 1.10) return "strong";
+  if (pct >= 0.90) return "on_track";
+  if (pct >= 0.70) return "close";
+  return "off_track";
+}
+
+function bucketClasses(b: StretchBucket): string {
+  switch (b) {
+    case "star":     return "border-emerald-300/35 bg-emerald-400/15 text-emerald-100";
+    case "strong":   return "border-emerald-300/25 bg-emerald-400/10 text-emerald-200/90";
+    case "on_track": return "border-white/10 bg-white/[0.04] text-white/70";
+    case "close":    return "border-amber-300/25 bg-amber-400/10 text-amber-200/90";
+    case "off_track":return "border-rose-300/25 bg-rose-400/10 text-rose-200/90";
+    case "new":      return "border-white/10 bg-white/[0.03] text-white/55";
+  }
 }
 
 function SuggestionCard({
@@ -262,20 +294,14 @@ function SuggestionCard({
           </p>
           <div className="mt-1.5">
             <span
-              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-light border ${
-                row.stretchBucket === "off_track"
-                  ? "border-amber-300/25 bg-amber-400/10 text-amber-200/90"
-                  : row.stretchBucket === "on_track"
-                  ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-200/90"
-                  : "border-white/10 bg-white/[0.03] text-white/55"
-              }`}
-              title="Angewandter Stretch-Faktor, basierend auf letzter abgeschlossener Woche"
+              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-light border ${bucketClasses(row.stretchBucket)}`}
+              title={
+                row.lastAchievementPct != null
+                  ? `Letzte Woche: ${Math.round(row.lastAchievementPct * 100)} % erreicht`
+                  : "Kein historischer Wochenziel-Wert – behandelt wie On-Track"
+              }
             >
-              {row.stretchBucket === "off_track"
-                ? "Off-Track"
-                : row.stretchBucket === "on_track"
-                ? "On-Track"
-                : "Neu"}
+              {BUCKET_LABELS[row.stretchBucket]}
               {" ×"}
               {row.stretchApplied.toFixed(2).replace(".", ",")}
             </span>
@@ -411,13 +437,20 @@ export default function WeeklyGoals() {
   const [suggestionsGenerated, setSuggestionsGenerated] = useState(false);
   // Einstellbare Schwellen für Wochenziel-Vorschläge
   // Zwei getrennte Stretch-Faktoren: on-track (Overperformer pushen) & off-track (Underperformer entlasten)
-  const [stretchOnPct, setStretchOnPct] = useState<number>(115);
-  const [stretchOffPct, setStretchOffPct] = useState<number>(95);
+  // 5 Stretch-Faktoren pro Performance-Bucket (basierend auf letzter Wochen-Zielerreichung)
+  const [stretchStarPct, setStretchStarPct] = useState<number>(125);
+  const [stretchStrongPct, setStretchStrongPct] = useState<number>(115);
+  const [stretchOnPct, setStretchOnPct] = useState<number>(105);
+  const [stretchClosePct, setStretchClosePct] = useState<number>(95);
+  const [stretchOffPct, setStretchOffPct] = useState<number>(85);
   const [smoothingDays, setSmoothingDays] = useState<number>(14);
   const [thresholdsLoaded, setThresholdsLoaded] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
-  const [stretchOnDraft, setStretchOnDraft] = useState<string>("115");
-  const [stretchOffDraft, setStretchOffDraft] = useState<string>("95");
+  const [stretchStarDraft, setStretchStarDraft] = useState<string>("125");
+  const [stretchStrongDraft, setStretchStrongDraft] = useState<string>("115");
+  const [stretchOnDraft, setStretchOnDraft] = useState<string>("105");
+  const [stretchCloseDraft, setStretchCloseDraft] = useState<string>("95");
+  const [stretchOffDraft, setStretchOffDraft] = useState<string>("85");
   const [smoothingDraft, setSmoothingDraft] = useState<string>("14");
   const [savingThresholds, setSavingThresholds] = useState(false);
   const [trackedThroughDate, setTrackedThroughDate] = useState<Date | null>(null);
@@ -433,37 +466,60 @@ export default function WeeklyGoals() {
           .from("settings")
           .select("key, value")
           .in("key", [
+            "weekly_goal_stretch_star_pct",
+            "weekly_goal_stretch_strong_pct",
             "weekly_goal_stretch_on_track_pct",
+            "weekly_goal_stretch_close_pct",
             "weekly_goal_stretch_off_track_pct",
-            "weekly_goal_stretch_pct", // legacy fallback
+            "weekly_goal_stretch_pct", // legacy fallback (single)
             "weekly_goal_smoothing_days",
           ])
           .eq("user_id", uid);
         let legacyStretch: number | null = null;
-        let onSet = false;
-        let offSet = false;
+        let legacyOn: number | null = null;
+        let legacyOff: number | null = null;
+        let starSet = false, strongSet = false, onSet = false, closeSet = false, offSet = false;
         for (const row of (data ?? []) as Array<{ key: string; value: string }>) {
           const n = Number(row.value);
           if (!Number.isFinite(n)) continue;
-          if (row.key === "weekly_goal_stretch_on_track_pct" && n >= 80 && n <= 200) {
-            setStretchOnPct(n); setStretchOnDraft(String(n)); onSet = true;
+          if (n < 80 || n > 200) {
+            if (row.key === "weekly_goal_smoothing_days" && n >= 3 && n <= 60) {
+              setSmoothingDays(n); setSmoothingDraft(String(n));
+            }
+            continue;
           }
-          if (row.key === "weekly_goal_stretch_off_track_pct" && n >= 80 && n <= 200) {
-            setStretchOffPct(n); setStretchOffDraft(String(n)); offSet = true;
-          }
-          if (row.key === "weekly_goal_stretch_pct" && n >= 80 && n <= 200) {
-            legacyStretch = n;
-          }
-          if (row.key === "weekly_goal_smoothing_days" && n >= 3 && n <= 60) {
-            setSmoothingDays(n);
-            setSmoothingDraft(String(n));
+          switch (row.key) {
+            case "weekly_goal_stretch_star_pct":
+              setStretchStarPct(n); setStretchStarDraft(String(n)); starSet = true; break;
+            case "weekly_goal_stretch_strong_pct":
+              setStretchStrongPct(n); setStretchStrongDraft(String(n)); strongSet = true; break;
+            case "weekly_goal_stretch_on_track_pct":
+              // Kann alter 2-Schwellen-Wert (115) sein — als on-track übernehmen, aber merken
+              setStretchOnPct(n); setStretchOnDraft(String(n)); onSet = true;
+              legacyOn = n;
+              break;
+            case "weekly_goal_stretch_close_pct":
+              setStretchClosePct(n); setStretchCloseDraft(String(n)); closeSet = true; break;
+            case "weekly_goal_stretch_off_track_pct":
+              setStretchOffPct(n); setStretchOffDraft(String(n)); offSet = true;
+              legacyOff = n;
+              break;
+            case "weekly_goal_stretch_pct":
+              legacyStretch = n; break;
           }
         }
-        // Legacy-Migration: falls neue Keys fehlen, alten Wert übernehmen
-        if (legacyStretch != null) {
-          if (!onSet) { setStretchOnPct(legacyStretch); setStretchOnDraft(String(legacyStretch)); }
-          if (!offSet) { setStretchOffPct(legacyStretch); setStretchOffDraft(String(legacyStretch)); }
-        }
+        // Fallback-Kette: alte 2-Schwellen → Star/Strong/Close ableiten; ganz alter Single-Wert → alles
+        const base = legacyStretch;
+        if (!starSet)   setStretchStarPct(legacyOn != null ? Math.min(200, legacyOn + 10) : base ?? 125);
+        if (!strongSet) setStretchStrongPct(legacyOn ?? base ?? 115);
+        if (!onSet)     setStretchOnPct(base ?? 105);
+        if (!closeSet)  setStretchClosePct(legacyOff ?? base ?? 95);
+        if (!offSet)    setStretchOffPct(legacyOff != null ? Math.max(80, legacyOff - 10) : base ?? 85);
+        if (!starSet)   setStretchStarDraft(String(legacyOn != null ? Math.min(200, legacyOn + 10) : base ?? 125));
+        if (!strongSet) setStretchStrongDraft(String(legacyOn ?? base ?? 115));
+        if (!onSet)     setStretchOnDraft(String(base ?? 105));
+        if (!closeSet)  setStretchCloseDraft(String(legacyOff ?? base ?? 95));
+        if (!offSet)    setStretchOffDraft(String(legacyOff != null ? Math.max(80, legacyOff - 10) : base ?? 85));
       } finally {
         setThresholdsLoaded(true);
       }
@@ -471,17 +527,20 @@ export default function WeeklyGoals() {
   }, []);
 
   async function saveThresholds() {
-    const sOn = Number(stretchOnDraft);
-    const sOff = Number(stretchOffDraft);
+    const parsed: Record<string, number> = {
+      star: Number(stretchStarDraft),
+      strong: Number(stretchStrongDraft),
+      on: Number(stretchOnDraft),
+      close: Number(stretchCloseDraft),
+      off: Number(stretchOffDraft),
+    };
+    for (const [name, v] of Object.entries(parsed)) {
+      if (!Number.isFinite(v) || v < 80 || v > 200) {
+        toast.error(`Stretch ${name} muss zwischen 80 und 200 % liegen`);
+        return;
+      }
+    }
     const d = Number(smoothingDraft);
-    if (!Number.isFinite(sOn) || sOn < 80 || sOn > 200) {
-      toast.error("On-Track-Stretch muss zwischen 80 und 200 % liegen");
-      return;
-    }
-    if (!Number.isFinite(sOff) || sOff < 80 || sOff > 200) {
-      toast.error("Off-Track-Stretch muss zwischen 80 und 200 % liegen");
-      return;
-    }
     if (!Number.isFinite(d) || d < 3 || d > 60) {
       toast.error("Smoothing-Fenster muss zwischen 3 und 60 Tagen liegen");
       return;
@@ -492,8 +551,11 @@ export default function WeeklyGoals() {
       const uid = u?.user?.id;
       if (!uid) throw new Error("Nicht angemeldet");
       for (const [key, val] of [
-        ["weekly_goal_stretch_on_track_pct", String(Math.round(sOn))],
-        ["weekly_goal_stretch_off_track_pct", String(Math.round(sOff))],
+        ["weekly_goal_stretch_star_pct", String(Math.round(parsed.star))],
+        ["weekly_goal_stretch_strong_pct", String(Math.round(parsed.strong))],
+        ["weekly_goal_stretch_on_track_pct", String(Math.round(parsed.on))],
+        ["weekly_goal_stretch_close_pct", String(Math.round(parsed.close))],
+        ["weekly_goal_stretch_off_track_pct", String(Math.round(parsed.off))],
         ["weekly_goal_smoothing_days", String(Math.round(d))],
       ] as const) {
         const { data: existing } = await supabase
@@ -506,11 +568,17 @@ export default function WeeklyGoals() {
           await supabase.from("settings").insert({ key, value: val, user_id: uid });
         }
       }
-      setStretchOnPct(Math.round(sOn));
-      setStretchOffPct(Math.round(sOff));
+      setStretchStarPct(Math.round(parsed.star));
+      setStretchStrongPct(Math.round(parsed.strong));
+      setStretchOnPct(Math.round(parsed.on));
+      setStretchClosePct(Math.round(parsed.close));
+      setStretchOffPct(Math.round(parsed.off));
       setSmoothingDays(Math.round(d));
-      setStretchOnDraft(String(Math.round(sOn)));
-      setStretchOffDraft(String(Math.round(sOff)));
+      setStretchStarDraft(String(Math.round(parsed.star)));
+      setStretchStrongDraft(String(Math.round(parsed.strong)));
+      setStretchOnDraft(String(Math.round(parsed.on)));
+      setStretchCloseDraft(String(Math.round(parsed.close)));
+      setStretchOffDraft(String(Math.round(parsed.off)));
       setSmoothingDraft(String(Math.round(d)));
       setThresholdsOpen(false);
       toast.success("Schwellen gespeichert – Vorschläge werden neu berechnet");
@@ -777,14 +845,14 @@ export default function WeeklyGoals() {
           .eq("platform", platform)
           .gte("week_start", sixWeeksAgoIso)
           .order("week_start", { ascending: false });
-        const lastBucketByChatter = new Map<string, "on_track" | "off_track">();
+        const lastAchievementByChatter = new Map<string, number>();
         for (const r of (wgrRows ?? []) as Array<{ chatter_name: string; week_start: string; goal_eur: number | null; actual_eur: number | null }>) {
           if (!r.chatter_name) continue;
-          if (lastBucketByChatter.has(r.chatter_name)) continue; // erste = jüngste (desc)
+          if (lastAchievementByChatter.has(r.chatter_name)) continue; // erste = jüngste (desc)
           const g = Number(r.goal_eur ?? 0);
           const a = Number(r.actual_eur ?? 0);
           if (g <= 0) continue;
-          lastBucketByChatter.set(r.chatter_name, a / g >= 0.8 ? "on_track" : "off_track");
+          lastAchievementByChatter.set(r.chatter_name, a / g);
         }
 
         const sugg: SuggestionRow[] = [];
@@ -798,10 +866,14 @@ export default function WeeklyGoals() {
           const monthRev = monthRevByChatter.get(chatter) ?? 0;
 
           // Stretch-Bucket bestimmen: on_track / off_track / new (kein historischer Datensatz)
-          const lastBucket = lastBucketByChatter.get(chatter);
-          const stretchBucket: "on_track" | "off_track" | "new" = lastBucket ?? "new";
-          // "new" behandeln wir wie on_track (fairer Startvorschlag)
-          const stretchPctApplied = stretchBucket === "off_track" ? stretchOffPct : stretchOnPct;
+          const lastAchievementPct = lastAchievementByChatter.get(chatter) ?? null;
+          const stretchBucket: StretchBucket = bucketFor(lastAchievementPct);
+          const stretchPctApplied =
+            stretchBucket === "star"      ? stretchStarPct :
+            stretchBucket === "strong"    ? stretchStrongPct :
+            stretchBucket === "close"     ? stretchClosePct :
+            stretchBucket === "off_track" ? stretchOffPct :
+            /* on_track | new */            stretchOnPct;
           const stretchFactor = stretchPctApplied / 100;
 
           const roster = Array.from(rosterByChatter.get(chatter) ?? []);
@@ -864,6 +936,7 @@ export default function WeeklyGoals() {
             currentGoal: currentGoalByChatter.get(chatter) ?? null,
             stretchApplied: stretchFactor,
             stretchBucket,
+            lastAchievementPct,
           });
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
@@ -891,7 +964,7 @@ export default function WeeklyGoals() {
     }
     if (thresholdsLoaded) load();
     return () => { cancelled = true; };
-  }, [platform, reloadKey, thresholdsLoaded, stretchOnPct, stretchOffPct, smoothingDays]);
+  }, [platform, reloadKey, thresholdsLoaded, stretchStarPct, stretchStrongPct, stretchOnPct, stretchClosePct, stretchOffPct, smoothingDays]);
 
 
   // Auto-Refresh, sobald ein neuer Report hochgeladen wird (neue chatter_history Rows)
@@ -1575,12 +1648,15 @@ export default function WeeklyGoals() {
               <>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
-                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø × 7 Tage × Stretch – <span className="text-emerald-200/80">{stretchOnPct} %</span> für on-track, <span className="text-amber-200/80">{stretchOffPct} %</span> für off-track (letzte abgeschlossene Woche, Schwelle 80 %). Smoothing über {smoothingDays} Tage für neue Chatter. Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
+                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø × 7 Tage × Stretch – Faktor pro Chatter aus letzter abgeschlossener Woche: <span className="text-emerald-100/90">Star ≥130 %</span> · <span className="text-emerald-200/80">Strong 110–130 %</span> · <span className="text-white/60">On-Track 90–110 %</span> · <span className="text-amber-200/80">Close 70–90 %</span> · <span className="text-rose-200/80">Off-Track &lt;70 %</span>. Smoothing über {smoothingDays} Tage für neue Chatter. Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
                   </p>
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => {
+                        setStretchStarDraft(String(stretchStarPct));
+                        setStretchStrongDraft(String(stretchStrongPct));
                         setStretchOnDraft(String(stretchOnPct));
+                        setStretchCloseDraft(String(stretchClosePct));
                         setStretchOffDraft(String(stretchOffPct));
                         setSmoothingDraft(String(smoothingDays));
                         setThresholdsOpen((v) => !v);
@@ -1638,44 +1714,37 @@ export default function WeeklyGoals() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <p className="text-[11px] text-white/45 font-light">
+                      Faktor bestimmt sich pro Chatter automatisch aus der letzten abgeschlossenen Woche.
+                      Neue Chatter (keine Historie) → On-Track-Default.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {([
+                        ["Star (≥130 %)", stretchStarDraft, setStretchStarDraft, "border-emerald-300/40", "text-emerald-100/80", "Klar übererfüllt – stärker pushen."],
+                        ["Strong (110–130 %)", stretchStrongDraft, setStretchStrongDraft, "border-emerald-300/20", "text-emerald-200/70", "Solide drüber – moderat pushen."],
+                        ["On-Track (90–110 %)", stretchOnDraft, setStretchOnDraft, "border-white/15", "text-white/60", "Ziel getroffen – leicht drüber."],
+                        ["Close (70–90 %)", stretchCloseDraft, setStretchCloseDraft, "border-amber-300/25", "text-amber-200/70", "Knapp verfehlt – sanft senken."],
+                        ["Off-Track (<70 %)", stretchOffDraft, setStretchOffDraft, "border-rose-300/25", "text-rose-200/70", "Klar verfehlt – deutlich entlasten."],
+                      ] as const).map(([label, val, setter, borderCls, labelCls, hint]) => (
+                        <div key={label}>
+                          <label className={`text-[11px] uppercase tracking-[0.14em] ${labelCls} font-light block mb-1.5`}>
+                            {label}
+                          </label>
+                          <input
+                            type="number"
+                            min={80}
+                            max={200}
+                            step={5}
+                            value={val}
+                            onChange={(e) => setter(e.target.value)}
+                            className={`w-full bg-white/[0.04] border ${borderCls} rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-white/50`}
+                          />
+                          <p className="text-[10px] text-white/35 font-light mt-1">{hint}</p>
+                        </div>
+                      ))}
                       <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70 font-light block mb-1.5">
-                          Stretch On-Track (%)
-                        </label>
-                        <input
-                          type="number"
-                          min={80}
-                          max={200}
-                          step={5}
-                          value={stretchOnDraft}
-                          onChange={(e) => setStretchOnDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-emerald-300/20 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/60"
-                        />
-                        <p className="text-[10px] text-white/35 font-light mt-1">
-                          Für Chatter, die letzte Woche ≥ 80 % ihres Ziels erreicht haben. Push nach oben.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-amber-200/70 font-light block mb-1.5">
-                          Stretch Off-Track (%)
-                        </label>
-                        <input
-                          type="number"
-                          min={80}
-                          max={200}
-                          step={5}
-                          value={stretchOffDraft}
-                          onChange={(e) => setStretchOffDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-amber-300/20 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-amber-300/60"
-                        />
-                        <p className="text-[10px] text-white/35 font-light mt-1">
-                          Für Chatter, die letzte Woche &lt; 80 % erreicht haben. Sanfterer Zielwert.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-light block mb-1.5">
-                          Smoothing-Fenster (Tage)
+                        <label className="text-[11px] uppercase tracking-[0.14em] text-white/45 font-light block mb-1.5">
+                          Smoothing (Tage)
                         </label>
                         <input
                           type="number"
@@ -1684,10 +1753,10 @@ export default function WeeklyGoals() {
                           step={1}
                           value={smoothingDraft}
                           onChange={(e) => setSmoothingDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-white/40"
                         />
                         <p className="text-[10px] text-white/35 font-light mt-1">
-                          Für neue Chatter: bis dahin Chatter-Schnitt mit Model-Schnitt gemischt.
+                          Für neue Chatter: Chatter-Ø mit Model-Ø gemischt.
                         </p>
                       </div>
                     </div>
