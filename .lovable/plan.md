@@ -1,82 +1,99 @@
 ## Ziel
+Wochenziel-Prozess robuster & schneller: Kanal-Filter in der Rückblick-Ansicht, plattform­übergreifende Zusammenführung pro Chatter, korrekter Tages­durchschnitt bei kleinen Zielen, saubere Behandlung neuer Chatter inkl. eigener Einführungs­nachricht.
 
-Statt nur zwei Schwellen (on-track / off-track) gibt es **fünf Stretch-Stufen** basierend auf der prozentualen Zielerreichung der letzten abgeschlossenen Woche. Damit kannst du feiner steuern: klare Overperformer stärker pushen, knappe Fälle sanft, klare Underperformer entlasten — ohne dass ein einzelner schlechter Ausrutscher einen sonst starken Chatter direkt in den Malus wirft.
+Alle Änderungen betreffen ausschließlich das Wochenziel-System.
 
-## Die 5 Buckets
+---
 
-Berechnung: `achievementPct = actual_revenue / target_revenue` aus dem letzten `weekly_goal_results`-Eintrag pro Chatter.
+### 1) Kanal-Filter in „Vergangene Wochenziele"
+Datei: `src/components/PastWeeklyGoalsTab.tsx`
 
-| Bucket | Bereich | Default-Stretch | Bedeutung |
-|---|---|---|---|
-| **Star** | ≥ 130% | 125% | Klar übererfüllt → stärker pushen |
-| **Strong** | 110–130% | 115% | Solide drüber → moderat pushen |
-| **On-Track** | 90–110% | 105% | Ziel getroffen → leicht drüber |
-| **Close** | 70–90% | 95% | Knapp verfehlt → sanft senken |
-| **Off-Track** | < 70% | 85% | Klar verfehlt → deutlich entlasten |
+- Chip-Filter oberhalb der Liste: **Alle · WhatsApp · Plattform** (mit Counts).
+- Klassifikation via bereits vorhandenem `classifyName()`-Ansatz aus `BulkGoalMessagesDialog.tsx` (WhatsApp = abgekürzter Nachname / letzter Token ≤ 3 Zeichen oder endet auf „."). Helper in eine kleine Util `src/lib/chatter-channel.ts` extrahieren, damit Bulk-Dialog + Past-Tab dieselbe Logik nutzen.
+- Auswahl in `localStorage` merken (Key `pastWeeklyGoals.channelFilter`).
+- Optional: dezente Kanal-Chip-Anzeige pro Zeile (WA / Plattform), damit sofort erkennbar.
 
-Alle 5 Werte frei einstellbar (80–200%). Neue Chatter ohne Historie → **On-Track** als Default.
+Analog auch in der „Aktuelle Wochenziele"-Übersicht (`WeeklyGoals.tsx`, Tab `current`) denselben Chip-Filter anbieten, damit man WA-Nachrichten am Stück durcharbeiten kann.
 
-## Speicherung (`settings`-Tabelle)
+---
 
-Neue Keys:
-- `weekly_goal_stretch_star_pct`
-- `weekly_goal_stretch_strong_pct`
-- `weekly_goal_stretch_on_track_pct`
-- `weekly_goal_stretch_close_pct`
-- `weekly_goal_stretch_off_track_pct`
+### 2) Chatter über mehrere Plattformen zusammenführen
+Problem: derselbe Chatter (z. B. Maloum + Bratzzels) hat pro Plattform ein eigenes Wochenziel und eigene Zielerreichung → widersprüchliches Feedback.
 
-Fallback-Kette beim Laden: neue Keys → alte 2-Schwellen-Keys (`_on_track_pct` / `_off_track_pct`) → Legacy `weekly_goal_stretch_pct` → Defaults.
+Ansatz **Zusammenführung nur auf Feedback-Ebene** (kein Schema-Umbau):
+- In `PastWeeklyGoalsTab` und in der Feedback-/Vorschlagslogik von `WeeklyGoals.tsx` alle `weekly_goal_results` des Chatters **plattform­übergreifend** laden (nicht mehr `.eq("platform", platform)` filtern für die Aggregation).
+- Pro Chatter + Woche: `goal_eur` und `actual_eur` **über alle Plattformen summieren**, `achieved = sum(actual) ≥ sum(goal)`.
+- `lastAchievementPct` (Bucket-Zuordnung Star/Strong/On-Track/Close/Off-Track) basiert auf der zusammengeführten Vorwoche → nur **ein** Bucket, damit nur **eine** Feedback-Nachricht pro Chatter.
+- Bei der Nachrichten-Generierung im Bulk-Dialog werden Duplikate (gleicher Chatter-Name, mehrere Plattformen) zu einer Zeile gemergt; das Ziel wird als Summe angezeigt.
+- Der Platform-Switch bleibt für die *Bearbeitung* / Zielsetzung erhalten, aber „letzte-Woche"-Klassifikation ist plattform­übergreifend.
 
-## UI
+---
 
-**Einstellungs-Popover** (in `WeeklyGoals.tsx`):
-- 5 Zahlenfelder untereinander mit Label + Range-Hinweis (z.B. „Star (≥130%)").
-- Kurzer Info-Text: „Faktor bestimmt sich pro Chatter automatisch aus der letzten abgeschlossenen Woche."
+### 3) Korrekte Tagesberechnung bei kleinen Wochenzielen
+Datei: `supabase/functions/generate-goal-message/index.ts`
 
-**Chatter-Vorschlags-Karte**:
-- Kleines Badge mit Bucket-Name + Faktor, z.B. `Star ×1,25` / `Close ×0,95`.
-- Farbcode: Star/Strong = grünlich, On-Track = neutral, Close = amber, Off-Track = rot-gedämpft.
-- Neue Chatter → Badge `Neu ×1,05`.
-
-**Info-Text unter Chatter-Liste** aktualisiert:
-„Vorschlag = Σ Model-Ø × 7 Tage × Stretch (5 Stufen nach letzter Woche, anpassbar)".
-
-## Klassifikations-Logik
-
-Pro Vorschlags-Rendering ein zusätzlicher Query auf `weekly_goal_results`:
-- Alle Zeilen der laufenden User/Platform, sortiert nach `week_start DESC`.
-- Pro `chatter_name` den neuesten Eintrag nehmen (client-seitig gruppieren).
-- `achievementPct = actual / target` → Bucket bestimmen → Faktor auflösen.
-
-Bereits vorhandene Vorschlags-Formel bleibt unverändert:
-```text
-raw = perChatterDailyBaseline × 7 × stretchFactor(chatter)
-suggested = round10(raw)
+Aktuell:
 ```
+const dailyTarget = Math.round((proposedGoal / 7) / 10) * 10;
+```
+→ bei Ziel 10 € = 0.
 
-## Was gebaut wird
+Neu (sanftes Runden, nie auf 0):
+- Wenn `proposedGoal / 7 < 20` → auf **1 €** runden (`Math.max(1, Math.round(proposedGoal / 7))`).
+- Sonst wie bisher auf 10 € runden.
+- Ausgabe im Template `{tagesziel}` bleibt gleich, aber Wert ist nun sinnvoll (z. B. „Ø 1 €/Tag").
 
-**`src/pages/WeeklyGoals.tsx`**
-- State: `stretchStar/Strong/OnTrack/Close/OffTrack` (+ Draft-Varianten fürs Popover).
-- Settings-Load: 5 neue Keys mit Fallback-Kette.
-- Settings-Save: 5 neue Keys schreiben.
-- Neuer Query beim Vorschlags-Aufbau: letzter `weekly_goal_results` pro Chatter.
-- Neue Helper: `bucketFor(pct)` → `'star'|'strong'|'on_track'|'close'|'off_track'|'new'` und `stretchFactorFor(chatter)`.
-- Popover: 5 Felder statt aktuell 1.
-- Karte: Bucket-Badge mit Faktor.
+---
 
-**Keine Änderungen an**
-- `src/lib/weekly-goals.ts` (`suggestWeeklyFromModels` nimmt Stretch weiter als Parameter).
-- Monatsziel-Logik, Progress-Berechnung, DB-Schema.
+### 4) Neue Chatter erkennen (kein „letzte Woche erreicht/nicht erreicht")
+- Neuer Szenario-Typ `weekly_intro` im Edge-Function-Flow.
+- Erkennung: Für den Chatter existiert **kein** `weekly_goal_results`-Eintrag (plattform­übergreifend geprüft, siehe Punkt 2), d. h. er hatte noch nie ein abgeschlossenes Wochenziel.
+- Wenn `weekly_intro` → wird **nicht** auto-klassifiziert nach growth/flat/decline; stattdessen wird die Intro-Vorlage verwendet.
+- Sobald mindestens ein `weekly_goal_results`-Eintrag existiert, greift ab der nächsten Runde automatisch die reguläre Bucket-Logik.
 
-## Beispiel
+---
 
-Defaults: Star 125 / Strong 115 / On-Track 105 / Close 95 / Off-Track 85.
-Baseline 100 €/Tag → 700 €/Woche unstretched.
+### 5) Eigene Einführungs-Vorlage `weekly_intro`
+- Neuer Scenario-Key `weekly_intro` in:
+  - `supabase/functions/generate-goal-message/index.ts` (`DEFAULT_WEEKLY` + Auswahllogik).
+  - `src/components/GoalMessageTemplatesDialog.tsx` (`WEEKLY_LABELS`, `DEFAULTS`, `ALL_SCENARIOS`, `activeScenarios` für Wochenziele).
+- Platzhalter: `{name}`, `{ziel}`, `{tagesziel}` (kein `{letztewoche_umsatz}` da nicht vorhanden).
+- Default-Text (editierbar):
+  > „Hey {name}, ab jetzt arbeiten wir mit Wochenzielen 🎯🏻 Jede Woche gibt's ein klares Ziel + kurzes Feedback, damit du dich Woche für Woche steigerst.
+  >
+  > Dein erstes Ziel: *{ziel}* — Ø *{tagesziel}/Tag*. Ziel wird regelmäßig an deine Entwicklung angepasst. Los geht's 💪🏻"
+- Im Templates-Dialog als eigene Karte (4. Karte unter Wochenziele) mit „Erstes Wochenziel (neuer Chatter)" gekennzeichnet.
 
-- **A** letzte Woche 145% erreicht → Star → 700 × 1,25 = **875 €**
-- **B** 118% → Strong → **805 €**
-- **C** 95% → On-Track → **735 €**
-- **D** 78% → Close → **665 €**
-- **E** 55% → Off-Track → **595 €**
-- **F** neu → On-Track-Default → **735 €**
+---
+
+### Technische Details
+
+**Neue Util** `src/lib/chatter-channel.ts`
+```ts
+export type ChatterChannel = "whatsapp" | "platform";
+export function classifyChannel(name: string): ChatterChannel { /* aus BulkGoalMessagesDialog übernommen */ }
+```
+Import in `BulkGoalMessagesDialog.tsx` und `PastWeeklyGoalsTab.tsx` + `WeeklyGoals.tsx`.
+
+**Edge-Function-Flow (weekly)**
+```
+if (!hasAnyPreviousResult) scenario = "weekly_intro";
+else scenario = scenarioOverride ?? autoBucket(vsPrior);
+```
+`hasAnyPreviousResult` = COUNT `weekly_goal_results` für `chatter_name` (alle Plattformen) > 0.
+
+**Frontend (`WeeklyGoals.tsx`)**
+- Beim Vorschlags-Load zusätzlich Set `chattersWithHistory` (aus `weekly_goal_results`, plattform­übergreifend) laden.
+- Chatter ohne History → Bucket `new` (bereits vorhanden), aber Bulk-Dialog schickt `goal_type: "weekly"` — Edge-Function entscheidet dann selbst auf `weekly_intro`.
+
+**Keine Schema-Änderungen** nötig. Kein Migrations-Bedarf.
+
+---
+
+### Betroffene Dateien
+- `src/lib/chatter-channel.ts` *(neu)*
+- `src/components/PastWeeklyGoalsTab.tsx`
+- `src/components/BulkGoalMessagesDialog.tsx`
+- `src/components/GoalMessageTemplatesDialog.tsx`
+- `src/pages/WeeklyGoals.tsx`
+- `supabase/functions/generate-goal-message/index.ts`
