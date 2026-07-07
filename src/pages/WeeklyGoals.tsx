@@ -863,7 +863,7 @@ export default function WeeklyGoals() {
     }
     if (thresholdsLoaded) load();
     return () => { cancelled = true; };
-  }, [platform, reloadKey, thresholdsLoaded, stretchPct, smoothingDays]);
+  }, [platform, reloadKey, thresholdsLoaded, stretchOnPct, stretchOffPct, smoothingDays]);
 
 
   // Auto-Refresh, sobald ein neuer Report hochgeladen wird (neue chatter_history Rows)
