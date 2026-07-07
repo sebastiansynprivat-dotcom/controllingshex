@@ -26,7 +26,7 @@ import {
   suggestWeeklyGoal,
   splitAccounts,
   computeModelBaselines,
-  nextWeekLabel,
+  currentWeekLabel,
   weekStart,
   isoWeekNumber,
   parseTargetWeek,
@@ -949,8 +949,8 @@ export default function WeeklyGoals() {
 
       // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
-      // Ziel gilt IMMER für den nächsten Monat (Vorschläge sind zukunftsorientiert).
-      const weekLbl = nextWeekLabel(today);
+      // Ziel gilt für die laufende Woche (Mo–So) und wandert am nächsten Montag in „Vergangene".
+      const weekLbl = currentWeekLabel(today);
       const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
 
       const { data: existingAssign, error: aSelErr } = await supabase
