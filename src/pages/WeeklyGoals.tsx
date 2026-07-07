@@ -1648,7 +1648,7 @@ export default function WeeklyGoals() {
               <>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <p className="text-[11px] text-white/40 font-light flex-1 min-w-[200px]">
-                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø × 7 Tage × Stretch – <span className="text-emerald-200/80">{stretchOnPct} %</span> für on-track, <span className="text-amber-200/80">{stretchOffPct} %</span> für off-track (letzte abgeschlossene Woche, Schwelle 80 %). Smoothing über {smoothingDays} Tage für neue Chatter. Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
+                    Alle Chatter aus dem neuesten Report. Vorschlag = Σ Model-Ø × 7 Tage × Stretch – Faktor pro Chatter aus letzter abgeschlossener Woche: <span className="text-emerald-100/90">Star ≥130 %</span> · <span className="text-emerald-200/80">Strong 110–130 %</span> · <span className="text-white/60">On-Track 90–110 %</span> · <span className="text-amber-200/80">Close 70–90 %</span> · <span className="text-rose-200/80">Off-Track &lt;70 %</span>. Smoothing über {smoothingDays} Tage für neue Chatter. Karten mit „Update"-Badge überschreiben das bestehende Wochenziel.
                   </p>
                   <div className="flex gap-2 shrink-0">
                     <button
