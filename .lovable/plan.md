@@ -1,56 +1,69 @@
+
 ## Ziel
 
-In den Auffälligkeiten (Probleme + Highlights) zwei separate Range-Filter ergänzen:
+Statt einem globalen Stretch-Faktor (aktuell 110%) gibt es **zwei getrennt konfigurierbare Schwellen**, die pro Chatter automatisch angewendet werden — je nachdem, ob er in der letzten abgeschlossenen Woche **on track** oder **off track** war. Damit steuerst du selbst, wie hart Overperformer gepusht und wie sanft Underperformer entlastet werden.
 
-1. **Follower-Range** des Models, dem der Chatter zugeordnet ist (min–max).
-2. **Ø Lifetime-Tagesumsatz** des Chatters (min–max), berechnet aus der vollständigen `chatter_history`.
+## So funktioniert es
 
-Beide Filter wirken **pro Panel getrennt** — im Vergleichs-Modus hat die rote (Probleme) und die grüne Seite (Highlights) je ein eigenes Filter-Set.
+### Zwei Stretch-Werte statt einem
 
-## UI
+In den Wochenziel-Einstellungen (dort wo aktuell das eine „Stretch %"-Feld liegt) wird das Feld ersetzt durch:
 
-Neuer kleiner Filter-Block direkt unter dem Modus/Zeitraum-Header in `AnomalyPanel`:
+- **Stretch On-Track** (Default 115%) — wird auf Chatter angewendet, deren letzte abgeschlossene Woche `on_track` oder `close` war.
+- **Stretch Off-Track** (Default 95%) — wird auf Chatter angewendet, deren letzte abgeschlossene Woche `off_track` war.
+- **Neuer Chatter (noch keine Woche)** → nutzt Stretch On-Track als Default (konfigurierbar via kleines Toggle: "Neue behandeln wie On-Track").
+
+Beide Werte sind frei einstellbar (80–200%), werden wie bisher in `settings` gespeichert unter neuen Keys:
+- `weekly_goal_stretch_on_track_pct`
+- `weekly_goal_stretch_off_track_pct`
+
+Fallback: falls nur der alte Key `weekly_goal_stretch_pct` existiert → für beide neuen Werte übernehmen (Migration ohne DB-Änderung).
+
+### Klassifikation pro Chatter
+
+Für jeden Chatter wird beim Generieren des Vorschlags die **letzte abgeschlossene Woche** aus `weekly_goal_results` gelesen:
+
+- Letzter Eintrag mit `status = 'on_track'` oder `'close'` → nutzt On-Track-Stretch.
+- Letzter Eintrag mit `status = 'off_track'` → nutzt Off-Track-Stretch.
+- Kein Eintrag vorhanden → Default (siehe oben).
+
+### Vorschlag-Formel bleibt gleich, nur der Faktor variiert
 
 ```text
-┌────────────────────────────────────────────────────────────────┐
-│ Filter                                              [Reset]   │
-│ ── Follower (Model) ──────────────────────────────────────────│
-│  Min [ 0       ]   Max [ ∞       ]   Range: 0 – ∞             │
-│ ── Ø Tagesumsatz (Lifetime) ──────────────────────────────────│
-│  Min [ 0 €     ]   Max [ ∞ €     ]   Range: 0 € – ∞           │
-└────────────────────────────────────────────────────────────────┘
+raw = perChatterDailyBaseline × 7 × stretchFactor(chatter)
+suggested = round10(raw)
 ```
 
-- Zwei Zahlen-Inputs (Min/Max) pro Metrik — kein dualer Slider-Bar (passt nicht zu offenen Ranges wie „≥200k Follower").
-- Leeres Min = `0`, leeres Max = unbegrenzt.
-- Klein, dezent, einklappbar (Default eingeklappt; Badge zeigt „2 aktiv" wenn Filter gesetzt).
-- Reset-Button leert beide Ranges.
-- Stil: bestehende `border-white/[0.06] bg-white/[0.02]`-Card-Optik, monospace-Zahlen.
+Alle anderen Regeln (Smoothing über N Tage, „eigene Performance schlägt Model-Ø falls deutlich drüber") bleiben unverändert — dort wird `stretchFactor` einfach nach Chatter aufgelöst.
 
-## Verhalten
+### UI-Änderungen
 
-- Filter werden auf `visibleGroups` (gruppierte Chatter-Anomalien) angewendet **nach** der Tray-Filterung.
-- **Follower** pro Chatter:
-  - Nutze `chatterAccounts.get(chatterName)` → Liste Account-Namen → `modelFollowers.get(name.toLowerCase().trim())` → **maximaler** Follower-Wert über alle zugeordneten Accounts (großzügig, damit Multi-Account-Chatter nicht rausfallen).
-  - Chatter ohne Follower-Daten: Treffer nur bei Default-Filter (0–∞), bei aktivem Min > 0 ausgeblendet.
-- **Ø Lifetime-Tagesumsatz**: bereits in `allTimeAvg: Map<string, number>` vorhanden — direkt verwenden.
-- Persistenz: pro Panel-Instanz separat in `sessionStorage`, Key abhängig von `forcedMode` (`anomalies.filters.problems`, `anomalies.filters.highlights`, `anomalies.filters.single`).
+- Im Einstellungs-Popover: zwei Zahlenfelder nebeneinander mit Labels **„On-Track %"** und **„Off-Track %"**, plus kurze Erklärung.
+- Auf jeder Chatter-Vorschlag-Karte: kleines Badge **„On-Track ×1,15"** bzw. **„Off-Track ×0,95"**, damit du auf einen Blick siehst, welcher Faktor angewendet wurde und warum.
+- Info-Text unter der Chatter-Liste aktualisiert: „Vorschlag = Σ Model-Ø × 7 Tage × Stretch (115% on-track / 95% off-track, anpassbar)".
 
-## Technische Details
+## Was gebaut wird
 
-**Geänderte Dateien:**
+**`src/pages/WeeklyGoals.tsx`**
+- `stretchPct` → aufgeteilt in `stretchOnTrackPct` + `stretchOffTrackPct` (jeweils State + Draft).
+- Settings-Load erweitert um beide neuen Keys, mit Fallback auf Legacy-Key.
+- Settings-Save schreibt beide neuen Keys.
+- Beim Aufbau der Vorschlagsliste: pro Chatter letzten `weekly_goal_results.status` laden (1 zusätzlicher Query, gruppiert nach chatter_name, order by week_start desc limit 1 per group) → `stretchFactorFor(chatter)` bestimmt On/Off.
+- Popover-UI: 2 Felder statt 1.
+- Chatter-Karte: Badge mit angewandtem Faktor.
 
-- `src/components/AnomalyPanel.tsx`
-  - Neuer State: `filters: { followerMin, followerMax, revMin, revMax }`, geladen aus sessionStorage mit Key abhängig von `forcedMode ?? "single"`.
-  - Neue UI-Komponente (inline) zwischen Mode-Header und Liste.
-  - Filter-Logik im `visibleGroups`-Memo: pro Gruppe `getChatterFollowers(name)` und `allTimeAvg.get(name) ?? 0` prüfen.
-  - Helper `getChatterFollowers(name)`: iteriert über `chatterAccounts.get(name) ?? []`, summiert max via `modelFollowers`.
-  - Active-Count Badge.
+**Keine Änderungen an**
+- `src/lib/weekly-goals.ts` (`suggestWeeklyFromModels` nimmt den Stretch bereits als Parameter — der Aufrufer entscheidet).
+- Monatsziel-Logik.
+- `computeWeekProgress` / Status-Berechnung.
+- DB-Schema (nur zwei neue Rows in bestehender `settings`-Tabelle).
 
-**Keine** Änderungen an Datenmodellen, Edge Functions oder anderen Komponenten. Reine Frontend-Filter über bereits geladene Daten.
+## Beispiel
 
-## Edge Cases
+Einstellungen: On-Track 120%, Off-Track 90%.
 
-- `Max = 0` interpretieren wir als „unbegrenzt" (leeres Feld), damit das nicht versehentlich alles ausblendet.
-- Filter werden im Snapshot **nicht** persistiert (nur in sessionStorage als UI-State) — damit der Cache projektübergreifend gleich bleibt.
-- Reset-Action emittiert nichts an die Tray — Tray bleibt unabhängig.
+- **Chatter A** — Vorwoche on_track, Model-Baseline 100€/Tag → Vorschlag = 100 × 7 × 1,20 = **840€** (Badge: On-Track ×1,20).
+- **Chatter B** — Vorwoche off_track, Baseline 100€/Tag → Vorschlag = 100 × 7 × 0,90 = **630€** (Badge: Off-Track ×0,90).
+- **Chatter C** — neu, keine Historie → On-Track-Default, Vorschlag = 840€.
+
+So kannst du die zwei Schwellen frei kalibrieren, bis die Verteilung on/off/close in der Praxis sinnvoll aussieht.
