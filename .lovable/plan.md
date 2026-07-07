@@ -1,69 +1,82 @@
-
 ## Ziel
 
-Statt einem globalen Stretch-Faktor (aktuell 110%) gibt es **zwei getrennt konfigurierbare Schwellen**, die pro Chatter automatisch angewendet werden — je nachdem, ob er in der letzten abgeschlossenen Woche **on track** oder **off track** war. Damit steuerst du selbst, wie hart Overperformer gepusht und wie sanft Underperformer entlastet werden.
+Statt nur zwei Schwellen (on-track / off-track) gibt es **fünf Stretch-Stufen** basierend auf der prozentualen Zielerreichung der letzten abgeschlossenen Woche. Damit kannst du feiner steuern: klare Overperformer stärker pushen, knappe Fälle sanft, klare Underperformer entlasten — ohne dass ein einzelner schlechter Ausrutscher einen sonst starken Chatter direkt in den Malus wirft.
 
-## So funktioniert es
+## Die 5 Buckets
 
-### Zwei Stretch-Werte statt einem
+Berechnung: `achievementPct = actual_revenue / target_revenue` aus dem letzten `weekly_goal_results`-Eintrag pro Chatter.
 
-In den Wochenziel-Einstellungen (dort wo aktuell das eine „Stretch %"-Feld liegt) wird das Feld ersetzt durch:
+| Bucket | Bereich | Default-Stretch | Bedeutung |
+|---|---|---|---|
+| **Star** | ≥ 130% | 125% | Klar übererfüllt → stärker pushen |
+| **Strong** | 110–130% | 115% | Solide drüber → moderat pushen |
+| **On-Track** | 90–110% | 105% | Ziel getroffen → leicht drüber |
+| **Close** | 70–90% | 95% | Knapp verfehlt → sanft senken |
+| **Off-Track** | < 70% | 85% | Klar verfehlt → deutlich entlasten |
 
-- **Stretch On-Track** (Default 115%) — wird auf Chatter angewendet, deren letzte abgeschlossene Woche `on_track` oder `close` war.
-- **Stretch Off-Track** (Default 95%) — wird auf Chatter angewendet, deren letzte abgeschlossene Woche `off_track` war.
-- **Neuer Chatter (noch keine Woche)** → nutzt Stretch On-Track als Default (konfigurierbar via kleines Toggle: "Neue behandeln wie On-Track").
+Alle 5 Werte frei einstellbar (80–200%). Neue Chatter ohne Historie → **On-Track** als Default.
 
-Beide Werte sind frei einstellbar (80–200%), werden wie bisher in `settings` gespeichert unter neuen Keys:
+## Speicherung (`settings`-Tabelle)
+
+Neue Keys:
+- `weekly_goal_stretch_star_pct`
+- `weekly_goal_stretch_strong_pct`
 - `weekly_goal_stretch_on_track_pct`
+- `weekly_goal_stretch_close_pct`
 - `weekly_goal_stretch_off_track_pct`
 
-Fallback: falls nur der alte Key `weekly_goal_stretch_pct` existiert → für beide neuen Werte übernehmen (Migration ohne DB-Änderung).
+Fallback-Kette beim Laden: neue Keys → alte 2-Schwellen-Keys (`_on_track_pct` / `_off_track_pct`) → Legacy `weekly_goal_stretch_pct` → Defaults.
 
-### Klassifikation pro Chatter
+## UI
 
-Für jeden Chatter wird beim Generieren des Vorschlags die **letzte abgeschlossene Woche** aus `weekly_goal_results` gelesen:
+**Einstellungs-Popover** (in `WeeklyGoals.tsx`):
+- 5 Zahlenfelder untereinander mit Label + Range-Hinweis (z.B. „Star (≥130%)").
+- Kurzer Info-Text: „Faktor bestimmt sich pro Chatter automatisch aus der letzten abgeschlossenen Woche."
 
-- Letzter Eintrag mit `status = 'on_track'` oder `'close'` → nutzt On-Track-Stretch.
-- Letzter Eintrag mit `status = 'off_track'` → nutzt Off-Track-Stretch.
-- Kein Eintrag vorhanden → Default (siehe oben).
+**Chatter-Vorschlags-Karte**:
+- Kleines Badge mit Bucket-Name + Faktor, z.B. `Star ×1,25` / `Close ×0,95`.
+- Farbcode: Star/Strong = grünlich, On-Track = neutral, Close = amber, Off-Track = rot-gedämpft.
+- Neue Chatter → Badge `Neu ×1,05`.
 
-### Vorschlag-Formel bleibt gleich, nur der Faktor variiert
+**Info-Text unter Chatter-Liste** aktualisiert:
+„Vorschlag = Σ Model-Ø × 7 Tage × Stretch (5 Stufen nach letzter Woche, anpassbar)".
 
+## Klassifikations-Logik
+
+Pro Vorschlags-Rendering ein zusätzlicher Query auf `weekly_goal_results`:
+- Alle Zeilen der laufenden User/Platform, sortiert nach `week_start DESC`.
+- Pro `chatter_name` den neuesten Eintrag nehmen (client-seitig gruppieren).
+- `achievementPct = actual / target` → Bucket bestimmen → Faktor auflösen.
+
+Bereits vorhandene Vorschlags-Formel bleibt unverändert:
 ```text
 raw = perChatterDailyBaseline × 7 × stretchFactor(chatter)
 suggested = round10(raw)
 ```
 
-Alle anderen Regeln (Smoothing über N Tage, „eigene Performance schlägt Model-Ø falls deutlich drüber") bleiben unverändert — dort wird `stretchFactor` einfach nach Chatter aufgelöst.
-
-### UI-Änderungen
-
-- Im Einstellungs-Popover: zwei Zahlenfelder nebeneinander mit Labels **„On-Track %"** und **„Off-Track %"**, plus kurze Erklärung.
-- Auf jeder Chatter-Vorschlag-Karte: kleines Badge **„On-Track ×1,15"** bzw. **„Off-Track ×0,95"**, damit du auf einen Blick siehst, welcher Faktor angewendet wurde und warum.
-- Info-Text unter der Chatter-Liste aktualisiert: „Vorschlag = Σ Model-Ø × 7 Tage × Stretch (115% on-track / 95% off-track, anpassbar)".
-
 ## Was gebaut wird
 
 **`src/pages/WeeklyGoals.tsx`**
-- `stretchPct` → aufgeteilt in `stretchOnTrackPct` + `stretchOffTrackPct` (jeweils State + Draft).
-- Settings-Load erweitert um beide neuen Keys, mit Fallback auf Legacy-Key.
-- Settings-Save schreibt beide neuen Keys.
-- Beim Aufbau der Vorschlagsliste: pro Chatter letzten `weekly_goal_results.status` laden (1 zusätzlicher Query, gruppiert nach chatter_name, order by week_start desc limit 1 per group) → `stretchFactorFor(chatter)` bestimmt On/Off.
-- Popover-UI: 2 Felder statt 1.
-- Chatter-Karte: Badge mit angewandtem Faktor.
+- State: `stretchStar/Strong/OnTrack/Close/OffTrack` (+ Draft-Varianten fürs Popover).
+- Settings-Load: 5 neue Keys mit Fallback-Kette.
+- Settings-Save: 5 neue Keys schreiben.
+- Neuer Query beim Vorschlags-Aufbau: letzter `weekly_goal_results` pro Chatter.
+- Neue Helper: `bucketFor(pct)` → `'star'|'strong'|'on_track'|'close'|'off_track'|'new'` und `stretchFactorFor(chatter)`.
+- Popover: 5 Felder statt aktuell 1.
+- Karte: Bucket-Badge mit Faktor.
 
 **Keine Änderungen an**
-- `src/lib/weekly-goals.ts` (`suggestWeeklyFromModels` nimmt den Stretch bereits als Parameter — der Aufrufer entscheidet).
-- Monatsziel-Logik.
-- `computeWeekProgress` / Status-Berechnung.
-- DB-Schema (nur zwei neue Rows in bestehender `settings`-Tabelle).
+- `src/lib/weekly-goals.ts` (`suggestWeeklyFromModels` nimmt Stretch weiter als Parameter).
+- Monatsziel-Logik, Progress-Berechnung, DB-Schema.
 
 ## Beispiel
 
-Einstellungen: On-Track 120%, Off-Track 90%.
+Defaults: Star 125 / Strong 115 / On-Track 105 / Close 95 / Off-Track 85.
+Baseline 100 €/Tag → 700 €/Woche unstretched.
 
-- **Chatter A** — Vorwoche on_track, Model-Baseline 100€/Tag → Vorschlag = 100 × 7 × 1,20 = **840€** (Badge: On-Track ×1,20).
-- **Chatter B** — Vorwoche off_track, Baseline 100€/Tag → Vorschlag = 100 × 7 × 0,90 = **630€** (Badge: Off-Track ×0,90).
-- **Chatter C** — neu, keine Historie → On-Track-Default, Vorschlag = 840€.
-
-So kannst du die zwei Schwellen frei kalibrieren, bis die Verteilung on/off/close in der Praxis sinnvoll aussieht.
+- **A** letzte Woche 145% erreicht → Star → 700 × 1,25 = **875 €**
+- **B** 118% → Strong → **805 €**
+- **C** 95% → On-Track → **735 €**
+- **D** 78% → Close → **665 €**
+- **E** 55% → Off-Track → **595 €**
+- **F** neu → On-Track-Default → **735 €**
