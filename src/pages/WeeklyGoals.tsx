@@ -833,27 +833,42 @@ export default function WeeklyGoals() {
         const currentGoalByChatter = new Map<string, number>();
         for (const [c, g] of goalByChatter) currentGoalByChatter.set(c, g.goal);
 
-        // === Klassifikation letzte Woche: on-track vs off-track ===
-        // Fetch letzte weekly_goal_results (letzte 6 Wochen reichen) → pro Chatter
-        // die jüngste Zeile mit ratio = actual / goal. >= 0.8 = on-track (inkl. "close").
+        // === Klassifikation letzte Woche: plattformübergreifend pro Chatter ===
+        // Wir aggregieren goal + actual über alle Plattformen für dieselbe Woche,
+        // damit ein Chatter, der auf mehreren Plattformen arbeitet, nur EIN
+        // Feedback bekommt (kein widersprüchliches on/off pro Plattform).
         const sixWeeksAgoIso = toIsoDateLocal(
           new Date(today.getFullYear(), today.getMonth(), today.getDate() - 42),
         );
         const { data: wgrRows } = await supabase
           .from("weekly_goal_results")
-          .select("chatter_name, week_start, goal_eur, actual_eur")
-          .eq("platform", platform)
+          .select("chatter_name, week_key, week_start, goal_eur, actual_eur")
           .gte("week_start", sixWeeksAgoIso)
           .order("week_start", { ascending: false });
-        const lastAchievementByChatter = new Map<string, number>();
-        for (const r of (wgrRows ?? []) as Array<{ chatter_name: string; week_start: string; goal_eur: number | null; actual_eur: number | null }>) {
-          if (!r.chatter_name) continue;
-          if (lastAchievementByChatter.has(r.chatter_name)) continue; // erste = jüngste (desc)
+
+        // pro (chatter, week_key) summieren
+        type Agg = { week_start: string; goal: number; actual: number };
+        const perChatterWeek = new Map<string, Map<string, Agg>>();
+        const chattersWithHistory = new Set<string>();
+        for (const r of (wgrRows ?? []) as Array<{ chatter_name: string; week_key: string; week_start: string; goal_eur: number | null; actual_eur: number | null }>) {
+          if (!r.chatter_name || !r.week_key) continue;
+          chattersWithHistory.add(r.chatter_name);
+          let byWeek = perChatterWeek.get(r.chatter_name);
+          if (!byWeek) { byWeek = new Map(); perChatterWeek.set(r.chatter_name, byWeek); }
+          const prev = byWeek.get(r.week_key);
           const g = Number(r.goal_eur ?? 0);
           const a = Number(r.actual_eur ?? 0);
-          if (g <= 0) continue;
-          lastAchievementByChatter.set(r.chatter_name, a / g);
+          if (prev) { prev.goal += g; prev.actual += a; }
+          else byWeek.set(r.week_key, { week_start: r.week_start, goal: g, actual: a });
         }
+        const lastAchievementByChatter = new Map<string, number>();
+        for (const [chatter, byWeek] of perChatterWeek) {
+          // jüngste Woche zuerst
+          const sorted = Array.from(byWeek.values()).sort((a, b) => b.week_start.localeCompare(a.week_start));
+          const latest = sorted.find((w) => w.goal > 0);
+          if (latest) lastAchievementByChatter.set(chatter, latest.actual / latest.goal);
+        }
+
 
         const sugg: SuggestionRow[] = [];
         for (const [chatter, sum] of sumByChatter) {
