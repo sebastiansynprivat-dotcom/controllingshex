@@ -845,14 +845,14 @@ export default function WeeklyGoals() {
           .eq("platform", platform)
           .gte("week_start", sixWeeksAgoIso)
           .order("week_start", { ascending: false });
-        const lastBucketByChatter = new Map<string, "on_track" | "off_track">();
+        const lastAchievementByChatter = new Map<string, number>();
         for (const r of (wgrRows ?? []) as Array<{ chatter_name: string; week_start: string; goal_eur: number | null; actual_eur: number | null }>) {
           if (!r.chatter_name) continue;
-          if (lastBucketByChatter.has(r.chatter_name)) continue; // erste = jüngste (desc)
+          if (lastAchievementByChatter.has(r.chatter_name)) continue; // erste = jüngste (desc)
           const g = Number(r.goal_eur ?? 0);
           const a = Number(r.actual_eur ?? 0);
           if (g <= 0) continue;
-          lastBucketByChatter.set(r.chatter_name, a / g >= 0.8 ? "on_track" : "off_track");
+          lastAchievementByChatter.set(r.chatter_name, a / g);
         }
 
         const sugg: SuggestionRow[] = [];
