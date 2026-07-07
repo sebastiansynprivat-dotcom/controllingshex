@@ -1714,44 +1714,37 @@ export default function WeeklyGoals() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <p className="text-[11px] text-white/45 font-light">
+                      Faktor bestimmt sich pro Chatter automatisch aus der letzten abgeschlossenen Woche.
+                      Neue Chatter (keine Historie) → On-Track-Default.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {([
+                        ["Star (≥130 %)", stretchStarDraft, setStretchStarDraft, "emerald-300/40", "text-emerald-100/80", "Klar übererfüllt – stärker pushen."],
+                        ["Strong (110–130 %)", stretchStrongDraft, setStretchStrongDraft, "emerald-300/20", "text-emerald-200/70", "Solide drüber – moderat pushen."],
+                        ["On-Track (90–110 %)", stretchOnDraft, setStretchOnDraft, "white/15", "text-white/60", "Ziel getroffen – leicht drüber."],
+                        ["Close (70–90 %)", stretchCloseDraft, setStretchCloseDraft, "amber-300/25", "text-amber-200/70", "Knapp verfehlt – sanft senken."],
+                        ["Off-Track (<70 %)", stretchOffDraft, setStretchOffDraft, "rose-300/25", "text-rose-200/70", "Klar verfehlt – deutlich entlasten."],
+                      ] as const).map(([label, val, setter, borderCls, labelCls, hint]) => (
+                        <div key={label}>
+                          <label className={`text-[11px] uppercase tracking-[0.14em] ${labelCls} font-light block mb-1.5`}>
+                            {label}
+                          </label>
+                          <input
+                            type="number"
+                            min={80}
+                            max={200}
+                            step={5}
+                            value={val}
+                            onChange={(e) => setter(e.target.value)}
+                            className={`w-full bg-white/[0.04] border border-${borderCls} rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-white/50`}
+                          />
+                          <p className="text-[10px] text-white/35 font-light mt-1">{hint}</p>
+                        </div>
+                      ))}
                       <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70 font-light block mb-1.5">
-                          Stretch On-Track (%)
-                        </label>
-                        <input
-                          type="number"
-                          min={80}
-                          max={200}
-                          step={5}
-                          value={stretchOnDraft}
-                          onChange={(e) => setStretchOnDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-emerald-300/20 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/60"
-                        />
-                        <p className="text-[10px] text-white/35 font-light mt-1">
-                          Für Chatter, die letzte Woche ≥ 80 % ihres Ziels erreicht haben. Push nach oben.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-amber-200/70 font-light block mb-1.5">
-                          Stretch Off-Track (%)
-                        </label>
-                        <input
-                          type="number"
-                          min={80}
-                          max={200}
-                          step={5}
-                          value={stretchOffDraft}
-                          onChange={(e) => setStretchOffDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-amber-300/20 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-amber-300/60"
-                        />
-                        <p className="text-[10px] text-white/35 font-light mt-1">
-                          Für Chatter, die letzte Woche &lt; 80 % erreicht haben. Sanfterer Zielwert.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-light block mb-1.5">
-                          Smoothing-Fenster (Tage)
+                        <label className="text-[11px] uppercase tracking-[0.14em] text-white/45 font-light block mb-1.5">
+                          Smoothing (Tage)
                         </label>
                         <input
                           type="number"
@@ -1760,10 +1753,10 @@ export default function WeeklyGoals() {
                           step={1}
                           value={smoothingDraft}
                           onChange={(e) => setSmoothingDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-white/40"
                         />
                         <p className="text-[10px] text-white/35 font-light mt-1">
-                          Für neue Chatter: bis dahin Chatter-Schnitt mit Model-Schnitt gemischt.
+                          Für neue Chatter: Chatter-Ø mit Model-Ø gemischt.
                         </p>
                       </div>
                     </div>
