@@ -1610,22 +1610,39 @@ export default function WeeklyGoals() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-light block mb-1.5">
-                          Stretch-Faktor (%)
+                        <label className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70 font-light block mb-1.5">
+                          Stretch On-Track (%)
                         </label>
                         <input
                           type="number"
                           min={80}
                           max={200}
                           step={5}
-                          value={stretchDraft}
-                          onChange={(e) => setStretchDraft(e.target.value)}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
+                          value={stretchOnDraft}
+                          onChange={(e) => setStretchOnDraft(e.target.value)}
+                          className="w-full bg-white/[0.04] border border-emerald-300/20 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/60"
                         />
                         <p className="text-[10px] text-white/35 font-light mt-1">
-                          100 % = exakter Schnitt · 110 % = Standard · 120 % = ambitioniert
+                          Für Chatter, die letzte Woche ≥ 80 % ihres Ziels erreicht haben. Push nach oben.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-[0.18em] text-amber-200/70 font-light block mb-1.5">
+                          Stretch Off-Track (%)
+                        </label>
+                        <input
+                          type="number"
+                          min={80}
+                          max={200}
+                          step={5}
+                          value={stretchOffDraft}
+                          onChange={(e) => setStretchOffDraft(e.target.value)}
+                          className="w-full bg-white/[0.04] border border-amber-300/20 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-amber-300/60"
+                        />
+                        <p className="text-[10px] text-white/35 font-light mt-1">
+                          Für Chatter, die letzte Woche &lt; 80 % erreicht haben. Sanfterer Zielwert.
                         </p>
                       </div>
                       <div>
@@ -1642,7 +1659,7 @@ export default function WeeklyGoals() {
                           className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-base font-medium tabular-nums text-white/90 focus:outline-none focus:border-emerald-300/40"
                         />
                         <p className="text-[10px] text-white/35 font-light mt-1">
-                          Bis zu so vielen aktiven Tagen wird der Chatter-Schnitt mit dem Model-Schnitt gemischt.
+                          Für neue Chatter: bis dahin Chatter-Schnitt mit Model-Schnitt gemischt.
                         </p>
                       </div>
                     </div>
