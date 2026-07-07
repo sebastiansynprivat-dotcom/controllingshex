@@ -48,25 +48,9 @@ const LS_FILTER_KEY = "bulkGoalMessages.nameFilter";
 
 type NameFilter = "all" | "whatsapp" | "platform";
 
-/**
- * WhatsApp = Nachname abgekürzt ("Philip S." / "Philip S")
- * Plattform = Vor- + Nachname voll ausgeschrieben ("Philip Schmidt")
- * Ein-Wort-Namen fallen auf Plattform zurück.
- */
-/**
- * WhatsApp = Nachname abgekürzt ("Philip S.", "Philip Sc", "Philip Sch")
- *            → letzter Token endet auf "." ODER ist max. 3 Zeichen lang.
- * Plattform = Vor- + Nachname voll ausgeschrieben ("Philip Schmidt").
- * Ein-Wort-Namen fallen auf Plattform zurück.
- */
-function classifyName(name: string): "whatsapp" | "platform" {
-  const tokens = name.trim().split(/\s+/);
-  if (tokens.length < 2) return "platform";
-  const last = tokens[tokens.length - 1];
-  if (last.endsWith(".")) return "whatsapp";
-  if (last.replace(/\.$/, "").length <= 3) return "whatsapp";
-  return "platform";
-}
+import { classifyChannel } from "@/lib/chatter-channel";
+const classifyName = classifyChannel;
+
 
 export default function BulkGoalMessagesDialog({ open, onClose, platform, targets, onAccept, onSkip, onUnskip, onUnaccept, goalType = "monthly" }: Props) {
   const [results, setResults] = useState<Result[]>([]);

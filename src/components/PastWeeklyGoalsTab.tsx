@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Loader2, Check, X, Trophy, TrendingDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Check, X, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEUR } from "@/lib/monthly-goals";
+import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 interface Props {
+  /** Plattform bleibt zur Kompatibilität, wird aber ignoriert – Auswertung ist plattformübergreifend. */
   platform: string;
   onOpenChatter?: (chatter: string) => void;
 }
 
-interface ResultRow {
+interface RawResultRow {
   chatter_name: string;
+  platform: string;
   week_key: string;
   week_start: string;
   week_end: string;
@@ -18,13 +21,28 @@ interface ResultRow {
   achieved: boolean;
 }
 
+interface MergedResult {
+  chatter_name: string;
+  week_key: string;
+  week_start: string;
+  week_end: string;
+  goal_eur: number;
+  actual_eur: number;
+  achieved: boolean;
+  platforms: string[];
+}
+
 interface ChatterGroup {
   chatter: string;
-  results: ResultRow[];
+  channel: ChatterChannel;
+  results: MergedResult[];
   achievedCount: number;
   totalCount: number;
   lastWeekStart: string;
 }
+
+const CHANNEL_KEY = "pastWeeklyGoals.channelFilter";
+type ChannelFilter = "all" | "whatsapp" | "platform";
 
 function weekRangeLabel(startIso: string, endIso: string): string {
   const s = new Date(startIso);
@@ -34,11 +52,21 @@ function weekRangeLabel(startIso: string, endIso: string): string {
   return `${sStr} – ${eStr}`;
 }
 
-export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
-  const [rows, setRows] = useState<ResultRow[]>([]);
+export default function PastWeeklyGoalsTab({ onOpenChatter }: Props) {
+  const [rows, setRows] = useState<RawResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
+    try {
+      const v = localStorage.getItem(CHANNEL_KEY);
+      return v === "whatsapp" || v === "platform" ? v : "all";
+    } catch { return "all"; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(CHANNEL_KEY, channelFilter); } catch {}
+  }, [channelFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,13 +74,14 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
       setLoading(true);
       setError(null);
       try {
+        // Plattformübergreifend laden – ein Chatter, der auf mehreren Plattformen
+        // arbeitet, bekommt so nur EIN zusammengeführtes Feedback pro Woche.
         const { data, error } = await supabase
           .from("weekly_goal_results")
-          .select("chatter_name, week_key, week_start, week_end, goal_eur, actual_eur, achieved")
-          .eq("platform", platform)
+          .select("chatter_name, platform, week_key, week_start, week_end, goal_eur, actual_eur, achieved")
           .order("week_start", { ascending: false });
         if (error) throw error;
-        if (!cancelled) setRows((data ?? []) as ResultRow[]);
+        if (!cancelled) setRows((data ?? []) as RawResultRow[]);
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? "Fehler beim Laden");
       } finally {
@@ -60,14 +89,38 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [platform]);
+  }, []);
 
   const groups: ChatterGroup[] = useMemo(() => {
-    const map = new Map<string, ResultRow[]>();
+    // 1) pro (chatter, week_key) Summen bilden
+    const merged = new Map<string, MergedResult>();
     for (const r of rows) {
-      const arr = map.get(r.chatter_name) ?? [];
-      arr.push(r);
-      map.set(r.chatter_name, arr);
+      const key = `${r.chatter_name}|${r.week_key}`;
+      const prev = merged.get(key);
+      if (prev) {
+        prev.goal_eur += Number(r.goal_eur ?? 0);
+        prev.actual_eur += Number(r.actual_eur ?? 0);
+        if (!prev.platforms.includes(r.platform)) prev.platforms.push(r.platform);
+        prev.achieved = prev.actual_eur >= prev.goal_eur;
+      } else {
+        merged.set(key, {
+          chatter_name: r.chatter_name,
+          week_key: r.week_key,
+          week_start: r.week_start,
+          week_end: r.week_end,
+          goal_eur: Number(r.goal_eur ?? 0),
+          actual_eur: Number(r.actual_eur ?? 0),
+          achieved: Number(r.actual_eur ?? 0) >= Number(r.goal_eur ?? 0),
+          platforms: [r.platform],
+        });
+      }
+    }
+    // 2) nach Chatter gruppieren
+    const map = new Map<string, MergedResult[]>();
+    for (const m of merged.values()) {
+      const arr = map.get(m.chatter_name) ?? [];
+      arr.push(m);
+      map.set(m.chatter_name, arr);
     }
     const out: ChatterGroup[] = [];
     for (const [chatter, results] of map) {
@@ -75,6 +128,7 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
       const achievedCount = results.filter((r) => r.achieved).length;
       out.push({
         chatter,
+        channel: classifyChannel(chatter),
         results,
         achievedCount,
         totalCount: results.length,
@@ -85,6 +139,14 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
     return out;
   }, [rows]);
 
+  const filteredGroups = useMemo(() => {
+    if (channelFilter === "all") return groups;
+    return groups.filter((g) => g.channel === channelFilter);
+  }, [groups, channelFilter]);
+
+  const waCount = useMemo(() => groups.filter((g) => g.channel === "whatsapp").length, [groups]);
+  const platformCount = groups.length - waCount;
+
   function toggle(chatter: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -93,6 +155,23 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
       return next;
     });
   }
+
+  const filterBtn = (val: ChannelFilter, label: string, count: number) => {
+    const active = channelFilter === val;
+    return (
+      <button
+        type="button"
+        onClick={() => setChannelFilter(val)}
+        className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors font-light ${
+          active
+            ? "bg-white/10 border-white/20 text-white"
+            : "bg-white/[0.02] border-white/[0.06] text-white/55 hover:text-white/85 hover:bg-white/[0.05]"
+        }`}
+      >
+        {label} <span className="text-white/40">· {count}</span>
+      </button>
+    );
+  };
 
   if (loading) {
     return (
@@ -122,13 +201,29 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
 
   return (
     <div className="space-y-2">
-      {groups.map((g) => {
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {filterBtn("all", "Alle", groups.length)}
+        {filterBtn("whatsapp", "WhatsApp", waCount)}
+        {filterBtn("platform", "Plattform", platformCount)}
+        <span className="text-[10px] text-white/30 font-light ml-1">
+          plattformübergreifend zusammengeführt
+        </span>
+      </div>
+
+      {filteredGroups.length === 0 ? (
+        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.015] p-6 text-center text-[12px] text-white/45 font-light">
+          Keine Chatter im aktuellen Filter.
+        </div>
+      ) : filteredGroups.map((g) => {
         const isOpen = expanded.has(g.chatter);
         const rate = g.totalCount > 0 ? Math.round((g.achievedCount / g.totalCount) * 100) : 0;
         const rateCls =
           rate >= 75 ? "text-emerald-200 border-emerald-300/30 bg-emerald-400/10"
           : rate >= 40 ? "text-amber-200 border-amber-300/30 bg-amber-400/10"
           : "text-red-200 border-red-300/30 bg-red-400/10";
+        const channelBadge = g.channel === "whatsapp"
+          ? "text-emerald-200/85 border-emerald-500/20 bg-emerald-500/[0.08]"
+          : "text-sky-200/85 border-sky-500/20 bg-sky-500/[0.08]";
         return (
           <div
             key={g.chatter}
@@ -143,13 +238,16 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
               ) : (
                 <ChevronRight className="h-4 w-4 text-white/45 shrink-0" />
               )}
-              <div className="flex-1 min-w-0 flex items-center gap-3">
+              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                 <span
                   className="text-sm sm:text-base font-medium text-white/90 truncate cursor-pointer hover:underline decoration-white/30 underline-offset-4"
                   onClick={(e) => { e.stopPropagation(); onOpenChatter?.(g.chatter); }}
                   title="Profil öffnen"
                 >
                   {g.chatter}
+                </span>
+                <span className={`text-[9px] uppercase tracking-[0.16em] font-light px-1.5 py-0.5 rounded border ${channelBadge}`}>
+                  {g.channel === "whatsapp" ? "WhatsApp" : "Plattform"}
                 </span>
                 <span className="text-[11px] text-white/40 font-light tabular-nums">
                   {g.totalCount} {g.totalCount === 1 ? "Woche" : "Wochen"}
@@ -190,6 +288,11 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
                       <div className="flex-1 min-w-0">
                         <div className="text-[12px] sm:text-[13px] text-white/85 font-medium">
                           {weekRangeLabel(r.week_start, r.week_end)}
+                          {r.platforms.length > 1 && (
+                            <span className="ml-2 text-[10px] text-white/45 font-light">
+                              · {r.platforms.join(" + ")}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-white/45 font-light tabular-nums">
                           Ziel <span className="text-white/70">{formatEUR(Number(r.goal_eur))}</span>
