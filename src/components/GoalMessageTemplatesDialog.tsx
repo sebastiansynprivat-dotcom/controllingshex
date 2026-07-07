@@ -26,7 +26,7 @@ const WEEKLY_LABELS: Record<WeeklyScenario, { title: string; sub: string }> = {
   weekly_growth: { title: "Steigerung", sub: "Letzte Woche besser als die davor (≥ +5 %)" },
   weekly_flat: { title: "Keine Steigerung", sub: "Auf Vorwochen-Niveau (−5 % bis +5 %)" },
   weekly_decline: { title: "Abfall", sub: "Deutlich unter Vorwoche (≤ −5 %)" },
-  weekly_intro: { title: "Erstes Wochenziel (neuer Chatter)", sub: "Chatter hat noch nie ein Wochenziel bekommen — Einführungs­nachricht statt „letzte Woche"-Feedback." },
+  weekly_intro: { title: "Erstes Wochenziel (neuer Chatter)", sub: "Chatter hat noch nie ein Wochenziel bekommen — Einfuehrungs-Nachricht statt Feedback zur letzten Woche." },
 };
 
 const MONTHLY_PLACEHOLDERS = [
