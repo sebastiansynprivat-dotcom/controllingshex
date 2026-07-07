@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 type MonthlyScenario = "growth" | "flat" | "decline";
-type WeeklyScenario = "weekly_growth" | "weekly_flat" | "weekly_decline";
+type WeeklyScenario = "weekly_growth" | "weekly_flat" | "weekly_decline" | "weekly_intro";
 type Scenario = MonthlyScenario | WeeklyScenario;
 
 const DEFAULT_MONTHLY: Record<MonthlyScenario, string> = {
@@ -28,7 +28,10 @@ const DEFAULT_WEEKLY: Record<WeeklyScenario, string> = {
     "Hey {name}, Woche war okay – nichts Wildes. Diese Woche holen wir die kleine Steigerung sauber rein.\n\nZiel diese Woche: *{ziel}* — Ø *{tagesziel}/Tag*.\nLetzte Woche: {letztewoche_umsatz}.",
   weekly_decline:
     "Hey {name}, letzte Woche war nicht unsere – halb so wild. Diese Woche drehen wir das sauber.\n\nZiel diese Woche: *{ziel}* — Ø *{tagesziel}/Tag*.\nLetzte Woche: {letztewoche_umsatz}.",
+  weekly_intro:
+    "Hey {name}, ab jetzt arbeiten wir mit Wochenzielen 🎯🏻 Jede Woche gibt's ein klares Ziel + kurzes Feedback, damit du dich Woche für Woche steigerst.\n\nDein erstes Ziel: *{ziel}* — Ø *{tagesziel}/Tag*. Wird regelmäßig an deine Entwicklung angepasst. Los geht's 💪🏻",
 };
+
 
 const MONTHS_DE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 
