@@ -639,6 +639,7 @@ export default function Messages() {
           return (
             <div
               key={r.chatter_name}
+              id={`chatter-${r.chatter_name}`}
               className="group relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:border-white/[0.12] hover:from-white/[0.05] transition-all duration-300"
             >
               <button
