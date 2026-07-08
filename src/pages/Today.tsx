@@ -276,10 +276,9 @@ export default function Today() {
           supabase
             .from("chatter_history")
             .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
-            .eq("platform", platform)
-            .in("chatter_name", chatterNames)
+            .ilike("platform", platform)
             .order("analysis_date", { ascending: false })
-            .limit(2000),
+            .limit(5000),
           supabase
             .from("chatter_history_live")
             .select("chatter_name, unread_chats, oldest_chat, date, updated_at")
@@ -288,7 +287,9 @@ export default function Today() {
         ]);
         if (cancel || historyRes.error || liveRes.error) return;
 
-        const rows = (historyRes.data ?? []) as any[];
+        const rows = ((historyRes.data ?? []) as any[]).filter((r) =>
+          targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
+        );
         const liveRows = ((liveRes.data ?? []) as any[]).filter((r) =>
           targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
         );
@@ -381,6 +382,9 @@ export default function Today() {
 
           const displayName = displayNameByKey.get(nameKey) ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey) ?? nameKey;
           map.set(displayName, arr);
+          for (const originalName of chatterNames) {
+            if (normalizeBreakdownKey(originalName) === nameKey) map.set(originalName, arr);
+          }
         }
 
         // Sortieren: Live-Problem oben, danach stabile Account-Reihenfolge.
