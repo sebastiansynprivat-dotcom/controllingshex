@@ -1133,7 +1133,34 @@ export default function Today() {
         onSelectAll={() => setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)))}
         onClearAll={() => setSelectedLabelIds(new Set())}
       />
+
+      {compareActive && (
+        <CompareTray
+          items={trayItems}
+          onDropAction={(key) => {
+            const next = new Set(trayIds);
+            next.add(key);
+            persistTray(next);
+          }}
+          onReturn={(a) => {
+            const next = new Set(trayIds);
+            next.delete(a.bundleKey);
+            persistTray(next);
+          }}
+          onCheckOff={(a) => {
+            act(a, "done");
+            const next = new Set(trayIds);
+            next.delete(a.bundleKey);
+            persistTray(next);
+          }}
+          onCompare={(u, d) => {
+            if (!u.chatterName || !d.chatterName) return;
+            setSelectedChatter({ name: u.chatterName, compareWith: d.chatterName });
+          }}
+        />
+      )}
     </>
+
   );
 }
 
