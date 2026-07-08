@@ -731,6 +731,7 @@ export default function Today() {
                       return (
                         <button
                           key={opt.id}
+                          data-updown-toggle={opt.id}
                           onClick={() => setCompareUpDown(opt.id === "compare")}
                           className={cn(
                             "px-3 py-1.5 rounded-full text-[11px] font-light tracking-wide transition-all border",
