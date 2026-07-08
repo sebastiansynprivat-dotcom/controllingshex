@@ -126,10 +126,15 @@ export async function loadLabelCards(
     if (!liveByChatter.has(k)) liveByChatter.set(k, r);
   }
 
-  // History: heute bevorzugt, Account-Lookup
+  // History: heute bevorzugt, Account-Lookup — Kombis (Chatter × Account),
+  // die im aktuellsten Report nicht mehr existieren, werden verworfen.
+  const histRowsFiltered = await filterRowsToActiveCombos(
+    platform,
+    (histRes.data ?? []) as HistRow[],
+  );
   const todayRevByChatter = new Map<string, number>();
   const accountByChatter = new Map<string, string>();
-  for (const r of (histRes.data ?? []) as HistRow[]) {
+  for (const r of histRowsFiltered) {
     const k = normalizeChatterName(r.chatter_name);
     if (r.analysis_date === today) {
       const cur = todayRevByChatter.get(k) ?? 0;
