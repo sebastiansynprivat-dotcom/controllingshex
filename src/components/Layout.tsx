@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <HotStreakListener />
       <div
         className="fixed inset-0 flex w-screen bg-depth overflow-hidden max-w-[100vw]"
