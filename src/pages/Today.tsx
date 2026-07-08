@@ -916,7 +916,9 @@ export default function Today() {
                                     onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                                     onAct={act}
                                     readonly={isReadonly}
+                                    verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
                                   />
+
                                 </div>
                               ))
                             )}
