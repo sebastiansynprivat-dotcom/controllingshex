@@ -308,6 +308,9 @@ export default function Messages() {
       const name = (r.chatter_name as string) || "";
       const acc = (r.account as string) || "";
       if (!name || !acc) continue;
+      // Nur aktuelle Chatter×Model-Paare (aus letztem Report) berücksichtigen —
+      // ehemalige Zuweisungen sind für "Potenzial verschenkt" nicht mehr relevant.
+      if (!isActivePair(name, acc)) continue;
       const key = `${name}||${acc}`;
       const d = (r.analysis_date as string) || "";
       const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0, latestDate: d };
