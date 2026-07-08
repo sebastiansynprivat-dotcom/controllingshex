@@ -121,6 +121,25 @@ export default function Today() {
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
   const [compareUpDown, setCompareUpDown] = useState(false);
+  const trayStorageKey = `today.compareTray.${platform}`;
+  const [trayIds, setTrayIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(trayStorageKey);
+      setTrayIds(raw ? new Set(JSON.parse(raw)) : new Set());
+    } catch {
+      setTrayIds(new Set());
+    }
+  }, [trayStorageKey]);
+  const persistTray = (next: Set<string>) => {
+    setTrayIds(next);
+    try {
+      localStorage.setItem(trayStorageKey, JSON.stringify([...next]));
+    } catch {
+      // ignore
+    }
+  };
+
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
