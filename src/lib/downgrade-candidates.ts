@@ -376,6 +376,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
       score: 1_000_000 + cost, // Inaktiv immer oben
       chatterName: a.display,
       modelName: null,
+      meta: { downgradeSince: a.lastActivityDate ?? onboardedOnByKey.get(a.key) ?? from },
     });
   }
 
