@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { shiftDate } from "@/lib/live-activity";
+import {
+  loadActiveChatterNames,
+  loadActiveChatterModels,
+  normalizeChatterName,
+  normalizeAccountName,
+} from "@/lib/active-chatters";
 import { Button } from "@/components/ui/button";
 import {
   Select,
