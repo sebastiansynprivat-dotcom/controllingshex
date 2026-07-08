@@ -165,6 +165,7 @@ export default function Messages() {
     const agg = new Map<string, Row>();
     for (const r of (data ?? []) as any[]) {
       const key = r.chatter_name as string;
+      if (!isActiveChatter(key)) continue;
       const cur = agg.get(key);
       const readsPlusUnread =
         (Number(r.incoming_count) || 0) + Math.max(0, Number(r.last_unread) || 0);
