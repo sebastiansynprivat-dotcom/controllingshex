@@ -480,13 +480,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
         : 0;
       const followers = followersByModel.get(t.modelName.toLowerCase().trim()) ?? 0;
-      const followerChip = followers > 0 ? ` · ${formatFollowers(followers)} Follower` : "";
+      const followerPart = followers > 0 ? ` (${formatFollowers(followers)} Follower)` : "";
       todos.push({
         key: `model:${t.modelName}:${today}`,
         category: "model",
         score: t.severity === "high" ? 85 : 78,
-        title: `Model "${t.modelName}" im Rückgang`,
-        why: `${t.reason}${followerChip}`,
+        title: `Model "${t.modelName}"${followerPart} im Rückgang`,
+        why: t.reason,
         modelName: t.modelName,
         chatterName: t.currentChatter,
         meta: { modelDropPerDay: dropPerDay },
