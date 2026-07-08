@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Tag, StickyNote, Plus, X, Send, Trash2, KeyRound, Copy, Pencil, Check, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Tag, StickyNote, Plus, X, Send, Trash2, KeyRound, Copy, Pencil, Check, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -233,7 +233,7 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<LoginData>({ email: null, password: null, profile_url: null });
-  const [showPw, setShowPw] = useState(false);
+  
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -261,8 +261,8 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
   const copy = (label: string, value: string | null) => {
     if (!value) return;
     navigator.clipboard.writeText(value);
-    toast.success("Erfolgreich kopiert", {
-      description: label,
+    toast.success(`${label} kopiert`, {
+      description: "Wert befindet sich in der Zwischenablage",
       position: "bottom-right",
       duration: 2000,
     });
@@ -360,18 +360,9 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
           {data.password && (
             <LoginRow
               label="Passwort"
-              value={showPw ? data.password : "••••••••••"}
+              value={data.password}
               mono
               onCopy={() => copy("Passwort", data.password)}
-              extra={
-                <button
-                  onClick={() => setShowPw((v) => !v)}
-                  className="text-white/40 hover:text-white/80 transition-colors p-1"
-                  aria-label={showPw ? "Verbergen" : "Anzeigen"}
-                >
-                  {showPw ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                </button>
-              }
             />
           )}
           {data.profile_url && (
