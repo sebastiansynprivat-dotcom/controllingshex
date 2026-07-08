@@ -48,6 +48,10 @@ import {
   type ChatterLabel,
   type LabelAssignment,
 } from "@/lib/chatter-labels";
+import { supabase } from "@/integrations/supabase/client";
+
+export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
+
 
 type StatusMode = "open" | "wins" | "done";
 type ExtraFilter = "none" | "onboarding" | "labels" | "push";
