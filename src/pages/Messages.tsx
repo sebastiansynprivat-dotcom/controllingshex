@@ -36,9 +36,10 @@ interface LiveRow {
 interface ModelSplitRow {
   account: string;
   revenue: number;
-  open_chats: number;
+  messages: number;
   days: number;
 }
+
 
 function fmtInt(n: number) {
   return new Intl.NumberFormat("de-DE").format(Math.round(n));
@@ -99,9 +100,10 @@ export default function Messages() {
   const [backfilling, setBackfilling] = useState(false);
   const [lastPushAgo, setLastPushAgo] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [modelSplits, setModelSplits] = useState<Record<string, ModelSplitRow[]>>({});
-  const [loadingSplit, setLoadingSplit] = useState<string | null>(null);
+  const [loadingSplit, setLoadingSplit] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     document.title = "Nachrichten – Live-Tracking";
@@ -217,8 +219,42 @@ export default function Messages() {
       });
     }
     setSparkData(sparks);
+
+    // Bulk-load model split for every chatter in range (always expanded)
+    const names = Array.from(agg.keys());
+    if (names.length > 0) {
+      const { data: splitRaw } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, account, revenue_today, open_chats")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .in("chatter_name", names)
+        .gte("analysis_date", from)
+        .lte("analysis_date", to);
+      const perChatter = new Map<string, Map<string, ModelSplitRow>>();
+      for (const r of (splitRaw ?? []) as any[]) {
+        const name = r.chatter_name as string;
+        const acc = (r.account as string) || "—";
+        if (!perChatter.has(name)) perChatter.set(name, new Map());
+        const m = perChatter.get(name)!;
+        const cur = m.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
+        cur.revenue += Number(r.revenue_today) || 0;
+        cur.messages += Number(r.open_chats) || 0;
+        cur.days += 1;
+        m.set(acc, cur);
+      }
+      const splits: Record<string, ModelSplitRow[]> = {};
+      for (const [name, m] of perChatter) {
+        splits[name] = Array.from(m.values()).sort(
+          (a, b) => (b.messages - a.messages) || (b.revenue - a.revenue),
+        );
+      }
+      setModelSplits(splits);
+    }
+
     setLoading(false);
   }
+
 
   useEffect(() => {
     load();
@@ -306,15 +342,20 @@ export default function Messages() {
     return m;
   }, [rows]);
 
-  async function toggleExpand(name: string) {
-    if (expanded === name) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(name);
-    if (modelSplits[name]) return;
-    if (!user) return;
-    setLoadingSplit(name);
+  function toggleCollapse(name: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+    // ensure data loaded when opening
+    if (collapsed.has(name)) loadSplit(name);
+  }
+
+  async function loadSplit(name: string) {
+    if (modelSplits[name] || !user) return;
+    setLoadingSplit((prev) => new Set(prev).add(name));
     const { from, to } = dateRange(range);
     const { data } = await supabase
       .from("chatter_history")
@@ -327,18 +368,23 @@ export default function Messages() {
     const agg = new Map<string, ModelSplitRow>();
     for (const r of (data ?? []) as any[]) {
       const acc = (r.account as string) || "—";
-      const cur = agg.get(acc) ?? { account: acc, revenue: 0, open_chats: 0, days: 0 };
+      const cur = agg.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
       cur.revenue += Number(r.revenue_today) || 0;
-      cur.open_chats += Number(r.open_chats) || 0;
+      cur.messages += Number(r.open_chats) || 0;
       cur.days += 1;
       agg.set(acc, cur);
     }
     setModelSplits((prev) => ({
       ...prev,
-      [name]: Array.from(agg.values()).sort((a, b) => b.revenue - a.revenue),
+      [name]: Array.from(agg.values()).sort((a, b) => (b.revenue - a.revenue) || (b.messages - a.messages)),
     }));
-    setLoadingSplit(null);
+    setLoadingSplit((prev) => {
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
   }
+
 
   async function runBackfill() {
     setBackfilling(true);
@@ -489,9 +535,9 @@ export default function Messages() {
                   ? { label: "PASST", cls: "border-emerald-400/25 text-emerald-300 bg-emerald-500/[0.05]", sparkTone: "text-emerald-300" }
                   : { label: "", cls: "", sparkTone: "text-white/40" };
           const spark = sparkData[r.chatter_name] ?? [];
-          const isOpen = expanded === r.chatter_name;
+          const isOpen = !collapsed.has(r.chatter_name);
           const split = modelSplits[r.chatter_name];
-          const chatterAvgRev = split && split.length > 0 ? split.reduce((s, x) => s + x.revenue, 0) / split.length : 0;
+          const isSplitLoading = loadingSplit.has(r.chatter_name);
 
           return (
             <div
@@ -499,7 +545,7 @@ export default function Messages() {
               className="group relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:border-white/[0.12] hover:from-white/[0.05] transition-all duration-300"
             >
               <button
-                onClick={() => toggleExpand(r.chatter_name)}
+                onClick={() => toggleCollapse(r.chatter_name)}
                 className="w-full text-left p-5"
               >
                 <div className="flex items-baseline justify-between mb-2 gap-3">
@@ -557,40 +603,62 @@ export default function Messages() {
                 </div>
               </button>
 
-              {/* Expanded: model split */}
+              {/* Model split — expanded by default */}
               {isOpen && (
-                <div className="border-t border-white/[0.05] px-5 py-4 space-y-2">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-white/40 font-light mb-3">
-                    Modell-Aufteilung ({dateRange(range).from === dateRange(range).to ? "heute" : `${range}`})
+                <div className="border-t border-white/[0.05] px-5 py-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/40 font-light">
+                      Modell-Aufteilung
+                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-white/25 font-light flex items-center gap-4">
+                      <span className="w-14 text-right">Msg</span>
+                      <span className="w-14 text-right">Anteil</span>
+                      <span className="w-20 text-right">Umsatz</span>
+                    </div>
                   </div>
-                  {loadingSplit === r.chatter_name && (
+                  {isSplitLoading && !split && (
                     <div className="text-xs text-white/40 font-light">Lade…</div>
                   )}
-                  {!loadingSplit && split && split.length === 0 && (
+                  {split && split.length === 0 && (
                     <div className="text-xs text-white/40 font-light">Keine Modell-Daten im Zeitraum.</div>
                   )}
-                  {!loadingSplit && split && split.length > 0 && (() => {
-                    const totalRev = split.reduce((s, x) => s + x.revenue, 0) || 1;
-                    return split.map((m) => {
-                      const share = (m.revenue / totalRev) * 100;
-                      const ratio = chatterAvgRev > 0 ? m.revenue / chatterAvgRev : 1;
-                      const tone =
-                        ratio >= 1.15 ? "bg-emerald-400" : ratio >= 0.7 ? "bg-amber-400" : "bg-rose-400";
-                      return (
-                        <div key={m.account} className="flex items-center gap-3 text-xs">
-                          <span className={`h-1.5 w-1.5 rounded-full ${tone} shrink-0`} />
-                          <span className="text-white/80 font-light truncate flex-1">{m.account}</span>
-                          <span className="text-white/40 tabular-nums font-light w-12 text-right">{share.toFixed(0)}%</span>
-                          <span className="text-white/70 tabular-nums font-light w-20 text-right">{fmtEur(m.revenue)}</span>
-                        </div>
-                      );
-                    });
+                  {split && split.length > 0 && (() => {
+                    const totalMsg = split.reduce((s, x) => s + x.messages, 0);
+                    const totalRev = split.reduce((s, x) => s + x.revenue, 0);
+                    // share basis: use messages if we have them, else revenue
+                    const shareBasis: "msg" | "rev" = totalMsg > 0 ? "msg" : "rev";
+                    const shareTotal = shareBasis === "msg" ? totalMsg : (totalRev || 1);
+                    // per-model €/msg for tone
+                    return (
+                      <div className="space-y-2">
+                        {split.map((m) => {
+                          const shareVal = shareBasis === "msg" ? m.messages : m.revenue;
+                          const share = shareTotal > 0 ? (shareVal / shareTotal) * 100 : 0;
+                          const modelEff = m.messages > 0 ? m.revenue / m.messages : 0;
+                          const tone =
+                            modelEff >= avgEff * 1.15 ? "bg-emerald-400"
+                            : modelEff >= avgEff * 0.7 ? "bg-amber-400"
+                            : modelEff > 0 ? "bg-rose-400"
+                            : "bg-white/20";
+                          return (
+                            <div key={m.account} className="flex items-center gap-3 text-xs">
+                              <span className={`h-1.5 w-1.5 rounded-full ${tone} shrink-0`} />
+                              <span className="text-white/80 font-light truncate flex-1">{m.account}</span>
+                              <span className="text-white/50 tabular-nums font-light w-14 text-right">{fmtInt(m.messages)}</span>
+                              <span className="text-white/40 tabular-nums font-light w-14 text-right">{share.toFixed(0)}%</span>
+                              <span className="text-white/80 tabular-nums font-light w-20 text-right">{fmtEur(m.revenue)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   })()}
                 </div>
               )}
             </div>
           );
         })}
+
       </div>
 
       {/* Backfill hint at the bottom */}
