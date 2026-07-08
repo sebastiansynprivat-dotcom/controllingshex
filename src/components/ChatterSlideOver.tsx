@@ -794,6 +794,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   const displayName = toTitleCase(chatterName);
   const initials = useMemo(() => getInitials(chatterName), [chatterName]);
+  // Kompakt-Layout für die Primär-Seite im Vergleich, damit beide Panes symmetrisch aussehen
+  const compact = !!compareWith && !inline;
   const trendAccent =
     trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
