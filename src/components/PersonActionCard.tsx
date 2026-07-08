@@ -79,14 +79,14 @@ const TONE: Record<
 };
 
 const UPGRADE_TONE = {
-  glow: "from-amber-500/10 via-amber-600/[0.03]",
-  accent: "text-amber-300",
-  bar: "bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]",
-  barDim: "bg-amber-500/40",
-  dot: "bg-amber-500",
+  glow: "from-emerald-500/10 via-emerald-600/[0.03]",
+  accent: "text-emerald-300",
+  bar: "bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]",
+  barDim: "bg-emerald-500/40",
+  dot: "bg-emerald-500",
   statusLabel: "Upgrade",
-  pill: "border-amber-400/25 bg-amber-500/[0.06] text-amber-300/90",
-  insertBar: "bg-amber-500/60",
+  pill: "border-emerald-400/25 bg-emerald-500/[0.06] text-emerald-300/90",
+  insertBar: "bg-emerald-500/60",
 };
 
 const DOWNGRADE_TONE = {
