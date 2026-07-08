@@ -14,6 +14,8 @@ import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
+import CompareTray from "@/components/today/CompareTray";
+
 import { useSidebar } from "@/components/ui/sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
