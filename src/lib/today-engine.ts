@@ -864,6 +864,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         modelName: r.modelName ?? null,
         secondaryChatter: r.secondaryChatter ?? null,
         evidence,
+        meta: r.meta,
       },
     });
   }
