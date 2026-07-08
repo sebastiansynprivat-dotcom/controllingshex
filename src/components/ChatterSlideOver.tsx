@@ -1343,7 +1343,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact />
 
               {/* 30-Tage-Trend — compact sparkline */}
-              <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" />
+              <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" historyRows={history} />
 
               {/* KPI Grid */}
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
