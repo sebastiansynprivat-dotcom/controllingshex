@@ -212,7 +212,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
     const m = revenueDaysByKey.get(a.key);
     if (m && m.size > 0) {
       const vals = [...m.values()];
-      a.avgRevenuePerActiveDay = vals.reduce((s, v) => s + v, 0) / vals.size;
+      a.avgRevenuePerActiveDay = vals.reduce((s, v) => s + v, 0) / vals.length;
     }
   }
   // Chatter, die im Roster sind, aber gar keine Zeile hatten → auch aufnehmen
