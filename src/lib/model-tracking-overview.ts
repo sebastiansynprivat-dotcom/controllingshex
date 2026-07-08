@@ -470,6 +470,17 @@ export async function detectRelevantModelAlerts(
   thirtyAgo.setDate(thirtyAgo.getDate() - 30);
   const thirtyAgoIso = thirtyAgo.toISOString().split("T")[0];
 
+  // Aktive Chatter×Model-Zuordnung aus letztem Report — Alerts nur für
+  // Kombinationen, die aktuell auch wirklich noch bestehen.
+  const activeChatterModels = await loadActiveChatterModels(platform);
+  const isCurrentPair = (chatter: string | null, model: string): boolean => {
+    if (!chatter) return false;
+    if (activeChatterModels === null) return true;
+    const set = activeChatterModels.get(normalizeChatterName(chatter));
+    if (!set) return false;
+    return set.has(normalizeAccountName(model));
+  };
+
   const alerts: ModelAlert[] = [];
 
   for (const [modelName, dateMap] of byModel) {
