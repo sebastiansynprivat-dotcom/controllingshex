@@ -882,47 +882,184 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   const modelsLoginsBlock =
     chatterModels.length > 0 ? (
-      <div className="space-y-3">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Models & Logins</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="space-y-2.5">
+        <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Models & Logins</p>
+        <div className="premium-card rounded-xl divide-y divide-white/[0.04] overflow-hidden">
           {chatterModels.map((m) => (
-            <div key={m.name} className="rounded-xl bg-white/[0.02] border border-white/[0.05] px-3 py-2.5 space-y-1.5">
-              <p className="text-[12px] text-foreground/80 font-light tracking-wide truncate">{m.name}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {m.email ? (
-                  <button
-                    onClick={() => copyToClipboard(m.email!, "E-Mail")}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide max-w-full"
-                    title={`E-Mail kopieren: ${m.email}`}
-                  >
-                    <span className="text-primary/60">✉</span>
-                    <span className="truncate max-w-[140px]">{m.email}</span>
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">
-                    keine Mail
-                  </span>
-                )}
-                {m.password ? (
-                  <button
-                    onClick={() => copyToClipboard(m.password!, "Passwort")}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide"
-                    title="Passwort kopieren"
-                  >
-                    <span className="text-primary/60">🔑</span>
-                    <span>{"•".repeat(Math.min(m.password.length, 10))}</span>
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">
-                    kein Passwort
-                  </span>
-                )}
-              </div>
-            </div>
+            <ModelLoginRow key={m.name} model={m} onCopy={copyToClipboard} />
           ))}
         </div>
       </div>
     ) : null;
+
+  const assignedLabels = useMemo(
+    () => allLabels.filter((l) => assignedLabelIds.has(l.id)),
+    [allLabels, assignedLabelIds],
+  );
+
+  const renderLabelsControl = (variant: "header" | "compact" = "header") => {
+    const chipSize =
+      variant === "compact"
+        ? "px-1.5 py-0.5 text-[9px]"
+        : "px-2 py-0.5 text-[10px]";
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+        {assignedLabels.slice(0, 4).map((label) => (
+          <span
+            key={label.id}
+            className={`inline-flex items-center gap-1 rounded-full border font-medium tracking-wide max-w-[140px] ${chipSize}`}
+            style={{
+              backgroundColor: label.color + "22",
+              borderColor: label.color + "55",
+              color: "rgba(255,255,255,0.85)",
+            }}
+            title={label.label_name}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+            <span className="truncate">{label.label_name}</span>
+          </span>
+        ))}
+        {assignedLabels.length > 4 && (
+          <span className="text-[10px] text-white/40 font-light tabular-nums">+{assignedLabels.length - 4}</span>
+        )}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={`inline-flex items-center gap-1 rounded-full border border-dashed border-white/15 text-white/45 hover:text-primary hover:border-primary/40 transition-colors font-medium tracking-wide ${chipSize}`}
+              title="Labels verwalten"
+            >
+              <Tag className="h-2.5 w-2.5" />
+              <span>{assignedLabels.length === 0 ? "Label" : "+"}</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            sideOffset={8}
+            className="w-72 p-3 bg-zinc-950/98 border-white/[0.08] backdrop-blur-xl z-[60]"
+          >
+            <div className="space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-medium">Labels</p>
+              <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-1">
+                {allLabels.length === 0 ? (
+                  <p className="text-[11px] text-white/25 font-light text-center py-3 italic">
+                    Noch keine Labels erstellt.
+                  </p>
+                ) : (
+                  allLabels.map((label) => {
+                    const isAssigned = assignedLabelIds.has(label.id);
+                    return (
+                      <div
+                        key={label.id}
+                        className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleLabel(label.id)}
+                          className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        >
+                          <span
+                            className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all ${
+                              isAssigned ? "border-transparent" : "border-white/20"
+                            }`}
+                            style={isAssigned ? { backgroundColor: label.color } : {}}
+                          >
+                            {isAssigned && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                          </span>
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: label.color }}
+                          />
+                          <span className="text-xs text-foreground/85 font-light truncate">
+                            {label.label_name}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Label "${label.label_name}" workspace-weit löschen? Dies entfernt es bei allen Chattern.`,
+                              )
+                            ) {
+                              deleteLabel(label.id);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-white/30 hover:text-red-400 transition-all shrink-0"
+                          title="Label workspace-weit löschen"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="border-t border-white/[0.06] pt-3">
+                {!showNewLabel ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewLabel(true)}
+                    className="w-full text-[11px] text-primary/75 hover:text-primary flex items-center justify-center gap-1 py-1.5 rounded-lg hover:bg-primary/[0.06] transition-colors font-medium tracking-wide"
+                  >
+                    <Plus className="h-3 w-3" /> Neues Label
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      placeholder="Label-Name"
+                      autoFocus
+                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-foreground/85 font-light placeholder:text-white/20 focus:outline-none focus:border-primary/30"
+                      onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                    />
+                    <div className="flex gap-1.5">
+                      {LABEL_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setNewLabelColor(c)}
+                          className={`w-5 h-5 rounded-full border-2 transition-all ${
+                            newLabelColor === c
+                              ? "border-white/70 scale-110"
+                              : "border-transparent opacity-60 hover:opacity-100"
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={createLabel}
+                        disabled={!newLabelName.trim()}
+                        className="flex-1 py-1.5 rounded-lg bg-primary/12 border border-primary/25 text-primary text-[11px] font-medium hover:bg-primary/18 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+                      >
+                        Erstellen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewLabel(false);
+                          setNewLabelName("");
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] text-white/55 text-[11px] hover:bg-white/[0.06] transition-colors"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  };
+
+
 
   if (inline || splitView) {
     if (!open) return null;
