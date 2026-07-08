@@ -17,6 +17,7 @@ const items = [
   { title: "Heute", url: "/today", icon: ListChecks },
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Live-Tracking", url: "/live", icon: Radio },
+  { title: "Nachrichten", url: "/nachrichten", icon: Inbox },
   { title: "Push", url: "/push", icon: Megaphone },
   { title: "Auffälligkeiten", url: "/auffaelligkeiten", icon: AlertOctagon },
   { title: "Ziele", url: "/ziele", icon: Target },
