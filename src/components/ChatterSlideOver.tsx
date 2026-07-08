@@ -902,14 +902,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const modelsLoginsBlock =
     chatterModels.length > 0 ? (
       <div className="space-y-2.5">
-        <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Models & Logins</p>
-        <div className="premium-card rounded-xl divide-y divide-white/[0.04] overflow-hidden">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Models & Logins</p>
+          <span className="text-[10px] text-white/25 font-light tracking-wide">
+            {chatterModels.length} {chatterModels.length === 1 ? "Account" : "Accounts"}
+          </span>
+        </div>
+        <div className="premium-card rounded-2xl divide-y divide-white/[0.05] overflow-hidden">
           {chatterModels.map((m) => (
             <ModelLoginRow key={m.name} model={m} onCopy={copyToClipboard} />
           ))}
         </div>
       </div>
     ) : null;
+
 
   const assignedLabels = useMemo(
     () => allLabels.filter((l) => assignedLabelIds.has(l.id)),
