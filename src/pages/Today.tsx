@@ -333,6 +333,8 @@ export default function Today() {
     const watch: UnifiedAction[] = [];
     const wins: UnifiedAction[] = [];
     const done: UnifiedAction[] = [];
+    const isHidden = (a: UnifiedAction) => a.primaryKind === "wakeup"; // Wieder-aktiv komplett ausblenden
+
 
     for (const a of data.primary) {
       const v = visibility(a);
