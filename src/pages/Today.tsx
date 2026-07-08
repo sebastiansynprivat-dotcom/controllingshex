@@ -287,11 +287,13 @@ export default function Today() {
           // sanitize: kein Verzug wenn heute Umsatz gemacht
           if (rev > 0 && delayDays > 0) delayDays = 0;
           const openChats = Number(r.open_chats) || 0;
-          if (delayDays <= 0 && openChats <= 0) continue;
+          // Alle Accounts des Chatters anzeigen — auch wenn 0 offen / 0 Verzug,
+          // damit sichtbar bleibt, auf wie vielen Models er sitzt.
           const arr = map.get(name) ?? [];
           arr.push({ account, openChats, delayDays });
           map.set(name, arr);
         }
+
         // Sortieren: höchster Verzug zuerst, dann meiste offene Chats
         for (const [k, arr] of map) {
           arr.sort((a, b) => b.delayDays - a.delayDays || b.openChats - a.openChats);
