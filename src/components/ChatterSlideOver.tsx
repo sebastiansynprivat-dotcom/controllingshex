@@ -1107,6 +1107,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 </span>
               )}
             </div>
+            <div className="mt-1.5">{renderLabelsControl("compact")}</div>
           </div>
           {splitView && (
             <button
