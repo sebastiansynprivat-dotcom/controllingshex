@@ -219,8 +219,42 @@ export default function Messages() {
       });
     }
     setSparkData(sparks);
+
+    // Bulk-load model split for every chatter in range (always expanded)
+    const names = Array.from(agg.keys());
+    if (names.length > 0) {
+      const { data: splitRaw } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, account, revenue_today, open_chats")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .in("chatter_name", names)
+        .gte("analysis_date", from)
+        .lte("analysis_date", to);
+      const perChatter = new Map<string, Map<string, ModelSplitRow>>();
+      for (const r of (splitRaw ?? []) as any[]) {
+        const name = r.chatter_name as string;
+        const acc = (r.account as string) || "—";
+        if (!perChatter.has(name)) perChatter.set(name, new Map());
+        const m = perChatter.get(name)!;
+        const cur = m.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
+        cur.revenue += Number(r.revenue_today) || 0;
+        cur.messages += Number(r.open_chats) || 0;
+        cur.days += 1;
+        m.set(acc, cur);
+      }
+      const splits: Record<string, ModelSplitRow[]> = {};
+      for (const [name, m] of perChatter) {
+        splits[name] = Array.from(m.values()).sort(
+          (a, b) => (b.messages - a.messages) || (b.revenue - a.revenue),
+        );
+      }
+      setModelSplits(splits);
+    }
+
     setLoading(false);
   }
+
 
   useEffect(() => {
     load();
