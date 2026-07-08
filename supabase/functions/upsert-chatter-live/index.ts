@@ -90,18 +90,25 @@ Deno.serve(async (req) => {
     new Set(rowsInput.map((r) => (r?.platform ?? "Maloum"))),
   );
   const canonical = new Map<string, string>(); // key: `${platformLower}|${nameLower}` → canonical name
+  const ownerUsers = new Map<string, Set<string>>(); // key: `${platformLower}|${canonicalLower}` → Set<user_id>
   for (const p of platforms) {
     const { data: hist } = await supabase
       .from("chatter_history")
-      .select("chatter_name, analysis_date")
+      .select("chatter_name, analysis_date, user_id")
       .eq("platform", p)
       .order("analysis_date", { ascending: false })
       .limit(5000);
     for (const h of hist ?? []) {
       const name = (h as any).chatter_name as string | null;
+      const uid = (h as any).user_id as string | null;
       if (!name) continue;
-      const key = `${p.toLowerCase()}|${cleanWs(name).toLowerCase()}`;
-      if (!canonical.has(key)) canonical.set(key, cleanWs(name));
+      const cleaned = cleanWs(name);
+      const key = `${p.toLowerCase()}|${cleaned.toLowerCase()}`;
+      if (!canonical.has(key)) canonical.set(key, cleaned);
+      if (uid) {
+        if (!ownerUsers.has(key)) ownerUsers.set(key, new Set());
+        ownerUsers.get(key)!.add(uid);
+      }
     }
   }
 
