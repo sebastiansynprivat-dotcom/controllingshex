@@ -20,8 +20,6 @@ import {
   RefreshCw,
   Trash2,
   Check,
-  Eye,
-  EyeOff,
   Copy,
   Mail,
   KeyRound,
