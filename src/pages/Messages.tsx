@@ -82,7 +82,7 @@ export default function Messages() {
     const { from, to } = dateRange(range);
     const { data, error } = await supabase
       .from("chatter_incoming_stats")
-      .select("chatter_name, incoming_count, last_revenue, updated_at, date")
+      .select("chatter_name, incoming_count, last_revenue, last_unread, updated_at, date")
       .eq("user_id", user.id)
       .eq("platform", platform)
       .gte("date", from)
@@ -92,31 +92,33 @@ export default function Messages() {
       setLoading(false);
       return;
     }
-    // Aggregate across date range per chatter
+    // Aggregate across date range per chatter (sum reads + last unread per day)
     const agg = new Map<string, Row>();
     for (const r of (data ?? []) as any[]) {
       const key = r.chatter_name as string;
       const cur = agg.get(key);
+      const readsPlusUnread =
+        (Number(r.incoming_count) || 0) + Math.max(0, Number(r.last_unread) || 0);
       if (cur) {
-        cur.incoming_count += Number(r.incoming_count) || 0;
+        cur.incoming_count += readsPlusUnread;
         cur.last_revenue += Number(r.last_revenue) || 0;
         if (new Date(r.updated_at) > new Date(cur.updated_at)) cur.updated_at = r.updated_at;
       } else {
         agg.set(key, {
           chatter_name: key,
-          incoming_count: Number(r.incoming_count) || 0,
+          incoming_count: readsPlusUnread,
           last_revenue: Number(r.last_revenue) || 0,
+          last_unread: Number(r.last_unread) || 0,
           updated_at: r.updated_at,
         });
       }
     }
-    setRows(Array.from(agg.values()));
 
-    // Live snapshot (for "aktiv vor" badge)
+    // Live snapshot (for "aktiv vor" badge + accurate today unread)
     const today = shiftDate();
     const { data: liveData } = await supabase
       .from("chatter_history_live")
-      .select("chatter_name, revenue, updated_at")
+      .select("chatter_name, revenue, unread_chats, updated_at")
       .eq("platform", platform)
       .eq("date", today);
     const liveMap: Record<string, LiveRow> = {};
@@ -125,10 +127,28 @@ export default function Messages() {
       const prev = liveMap[r.chatter_name];
       const t = new Date(r.updated_at).getTime();
       if (!prev || new Date(prev.updated_at).getTime() < t) {
-        liveMap[r.chatter_name] = { chatter_name: r.chatter_name, revenue: Number(r.revenue) || 0, updated_at: r.updated_at };
+        liveMap[r.chatter_name] = {
+          chatter_name: r.chatter_name,
+          revenue: Number(r.revenue) || 0,
+          unread_chats: Number(r.unread_chats) || 0,
+          updated_at: r.updated_at,
+        };
       }
       if (newest === null || t > newest) newest = t;
     }
+
+    // For "today" range: replace stored last_unread contribution with the truly current
+    // unread from live snapshot, so the count reflects reality this second.
+    if (range === "today") {
+      for (const [name, row] of agg) {
+        const liveUnread = liveMap[name]?.unread_chats ?? 0;
+        // row.incoming_count currently = reads + last_unread_stored. Swap in live unread.
+        row.incoming_count = row.incoming_count - row.last_unread + liveUnread;
+        row.last_unread = liveUnread;
+      }
+    }
+
+    setRows(Array.from(agg.values()));
     setLive(liveMap);
     setLastPushAgo(newest ? new Date(newest).toISOString() : null);
     setLoading(false);
