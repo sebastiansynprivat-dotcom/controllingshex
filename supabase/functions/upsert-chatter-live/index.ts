@@ -65,7 +65,12 @@ Deno.serve(async (req) => {
   const today = new Date().toISOString().slice(0, 10);
 
   function cleanWs(s: string): string {
-    return s.trim().replace(/\s+/g, " ");
+    return s
+      .normalize("NFKC")
+      .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
+      .replace(/[\u00A0\u2007\u202F]/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
   }
   function rosterKey(s: string): string {
     return cleanWs(s).toLowerCase().replace(/[_\s]+/g, " ").trim();
