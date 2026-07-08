@@ -7,6 +7,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { TimeRange } from "@/lib/timerange-categorize";
+import {
+  loadActiveChatterModels,
+  normalizeAccountName,
+  normalizeChatterName,
+} from "@/lib/active-chatters";
 
 const PAGE_SIZE = 1000;
 
