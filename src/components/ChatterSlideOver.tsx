@@ -125,6 +125,10 @@ function RevenueTooltip({ active, payload }: any) {
         {formatCurrency(row.revenue_today)}
       </p>
       <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.mass_dms} MassDMs</p>
+      <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide flex items-center gap-1.5">
+        <Clock className="h-3 w-3 text-white/40" />
+        {row.response_delay_days} {row.response_delay_days === 1 ? "Tag" : "Tage"} Verzug
+      </p>
       {row.note && (
         <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">
           📝 {row.note}
