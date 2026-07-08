@@ -463,9 +463,13 @@ export default function Messages() {
       .eq("chatter_name", name)
       .gte("analysis_date", from)
       .lte("analysis_date", to);
+    const activeModels = await loadActiveChatterModels(platform);
+    const activePairs = activeModels?.get(normalizeChatterName(name)) ?? null;
     const agg = new Map<string, ModelSplitRow>();
     for (const r of (data ?? []) as any[]) {
       const acc = (r.account as string) || "—";
+      // Nur Models, die dieser Chatter im letzten Report noch hat.
+      if (acc !== "—" && activePairs && !activePairs.has(normalizeAccountName(acc))) continue;
       const cur = agg.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
       cur.revenue += Number(r.revenue_today) || 0;
       cur.messages += Number(r.open_chats) || 0;
