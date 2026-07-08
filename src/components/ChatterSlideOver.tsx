@@ -1487,68 +1487,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               {/* Online-Zeiten (Stunden-Profil) */}
               <ChatterActivityHoursCard chatterName={chatterName} platform={platform} compact />
 
-              {/* 30-Tage-Trend */}
-              {last30.length >= 4 && (
-                <div className="premium-card rounded-2xl p-5 relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">30-Tage-Trend</p>
-                    <span
-                      className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${trend30.direction === "up" ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25" : trend30.direction === "down" ? "bg-red-500/12 text-red-300 border border-red-500/25" : "bg-white/[0.05] text-white/55 border border-white/[0.08]"}`}
-                    >
-                      {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
-                      {trend30.pct > 0 ? "+" : ""}
-                      {trend30.pct}%
-                    </span>
-                  </div>
-                  <ResponsiveContainer width="100%" height={120}>
-                    <AreaChart data={last30}>
-                      <defs>
-                        <linearGradient id="trend30FillInline" x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="0%"
-                            stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                            stopOpacity={0.25}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="analysis_date"
-                        tickFormatter={formatDate}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                        tickFormatter={(v) => `${v}€`}
-                        width={45}
-                      />
-                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
-                      <Area
-                        type="monotone"
-                        dataKey="revenue_today"
-                        stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                        strokeWidth={2}
-                        fill="url(#trend30FillInline)"
-                        dot={false}
-                        activeDot={{
-                          r: 4,
-                          fill: trend30.direction === "down" ? "#ef4444" : "#10b981",
-                          stroke: "rgba(255,255,255,0.15)",
-                          strokeWidth: 4,
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
 
             </div>
           )}
