@@ -372,6 +372,17 @@ export default function Today() {
   const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
   const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
 
+  const isUpDownTab = kindTab === "upgrade" || kindTab === "downgrade";
+  const upgradeList = useMemo(
+    () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "upgrade") : []),
+    [isUpDownTab, statusList],
+  );
+  const downgradeList = useMemo(
+    () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "downgrade") : []),
+    [isUpDownTab, statusList],
+  );
+  const compareActive = compareUpDown && isUpDownTab;
+
   useEffect(() => {
     if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
   }, [isSwapTab, status, platform]);
