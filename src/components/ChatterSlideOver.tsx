@@ -247,7 +247,7 @@ function ModelLoginRow({
                 title="Passwort kopieren"
                 className="tabular-nums text-white/55 hover:text-primary"
               >
-                {showPw ? model.password : "•".repeat(Math.min(model.password.length, 10))}
+                {"•".repeat(Math.min(model.password.length, 10))}
               </button>
             </>
           ) : null}
