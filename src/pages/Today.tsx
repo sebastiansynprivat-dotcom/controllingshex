@@ -14,7 +14,6 @@ import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
-import UpgradeHero from "@/components/today/UpgradeHero";
 import { useSidebar } from "@/components/ui/sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
@@ -714,12 +713,6 @@ export default function Today() {
                   />
                 )}
 
-                {kindTab === "upgrade" && !compareActive && (
-                  <UpgradeHero
-                    count={upgradeList.length}
-                    impactEur={upgradeImpact}
-                  />
-                )}
 
                 {isUpDownTab && (upgradeList.length > 0 || downgradeList.length > 0) && (
                   <div className="flex items-center gap-2">
