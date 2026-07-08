@@ -83,6 +83,7 @@ interface ComboAgg {
   revenue: number;
   daysUnderRatio: number; // Anzahl Tage mit ≤ EFF_RATIO_MAX
   daysWithData: number;
+  firstPatternDate: string | null; // frühestes Datum, an dem das Muster erfüllt war
 }
 
 export async function buildDowngradeCandidates(platform: string): Promise<RevenueTask[]> {
