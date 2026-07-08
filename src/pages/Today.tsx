@@ -337,20 +337,24 @@ export default function Today() {
 
 
     for (const a of data.primary) {
+      if (isHidden(a)) continue;
       const v = visibility(a);
       if (v === "open") open.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.watchlist) {
+      if (isHidden(a)) continue;
       const v = visibility(a);
       if (v === "open") watch.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.wins) {
+      if (isHidden(a)) continue;
       const v = visibility(a);
       if (v === "open") wins.push(a);
       else if (v === "done") done.push(a);
     }
+
 
     const openImpact = open.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
     const doneImpact = done.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
