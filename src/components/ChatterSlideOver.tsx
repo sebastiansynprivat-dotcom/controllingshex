@@ -1525,8 +1525,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                         {trend30.pct > 0 ? "+" : ""}
                         {trend30.pct}% / 30T
                       </span>
-                    )}
                   </div>
+                  <div className="mt-2">{renderLabelsControl("header")}</div>
                 </div>
               </>
             )}
