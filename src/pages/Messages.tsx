@@ -46,7 +46,9 @@ interface WasteRow {
   messages: number;
   revenue: number;
   eff: number;
+  latestDate: string;
 }
+
 
 
 
