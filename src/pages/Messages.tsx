@@ -553,49 +553,92 @@ export default function Messages() {
       </div>
 
       {/* Potenzial verschenkt — 30 Tage */}
-      {wasted.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-rose-400/20 bg-gradient-to-b from-rose-500/[0.06] to-rose-500/[0.02] p-4">
-          <div className="flex items-baseline justify-between mb-3">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-rose-300/80 font-light">
-              Potenzial verschenkt
+      {(() => {
+        const visible = wasted.filter((w) => {
+          const key = `${w.chatter_name}||${w.account}`;
+          const dismissedAt = wasteDismissals[key];
+          if (!dismissedAt) return true;
+          // reappear when a newer report exists
+          return w.latestDate > dismissedAt;
+        });
+        if (visible.length === 0) return null;
+        return (
+          <div className="mb-6 rounded-2xl border border-rose-400/20 bg-gradient-to-b from-rose-500/[0.06] to-rose-500/[0.02] p-4">
+            <div className="flex items-baseline justify-between mb-3">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-rose-300/80 font-light">
+                Potenzial verschenkt
+              </div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">
+                {visible.length} · 30 Tage
+              </div>
             </div>
-            <div className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">
-              30 Tage
+            <div className="space-y-1.5">
+              {visible.map((w) => {
+                const key = `${w.chatter_name}||${w.account}`;
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center gap-2 text-xs font-light py-1.5 px-2 rounded hover:bg-white/[0.03] transition"
+                  >
+                    <button
+                      onClick={async () => {
+                        if (!user) return;
+                        setWasteDismissals((prev) => ({ ...prev, [key]: w.latestDate }));
+                        const { error } = await supabase
+                          .from("waste_dismissals")
+                          .upsert(
+                            {
+                              user_id: user.id,
+                              platform,
+                              chatter_name: w.chatter_name,
+                              account: w.account,
+                              dismissed_at_analysis_date: w.latestDate,
+                            },
+                            { onConflict: "user_id,platform,chatter_name,account" },
+                          );
+                        if (error) {
+                          toast({ title: "Konnte nicht abhaken", description: error.message, variant: "destructive" });
+                        }
+                      }}
+                      className="h-4 w-4 rounded border border-white/20 bg-white/[0.02] flex items-center justify-center hover:border-emerald-400/60 hover:bg-emerald-500/10 transition shrink-0"
+                      aria-label="Erledigt"
+                    >
+                      <Check className="h-3 w-3 text-white/0 hover:text-emerald-300" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(`chatter-${w.chatter_name}`);
+                        if (el) {
+                          el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          setCollapsed((prev) => {
+                            const next = new Set(prev);
+                            next.delete(w.chatter_name);
+                            return next;
+                          });
+                        }
+                      }}
+                      className="flex-1 flex items-center gap-3 text-left min-w-0"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-400/70 shrink-0" />
+                      <span className="text-white/90 uppercase tracking-[0.14em] truncate">
+                        {w.chatter_name}
+                      </span>
+                      <span className="text-white/30">auf</span>
+                      <span className="text-white/80 truncate flex-1">{w.account}</span>
+                      <span className="text-white/50 tabular-nums shrink-0">{fmtInt(w.messages)} Msg</span>
+                      <span className="text-white/25">·</span>
+                      <span className="text-white/50 tabular-nums shrink-0">{fmtEur(w.revenue)}</span>
+                      <span className="text-white/25">·</span>
+                      <span className="text-rose-300 tabular-nums shrink-0">{fmtEurDec(w.eff)}/Msg</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div className="space-y-1.5">
-            {wasted.map((w) => (
-              <button
-                key={`${w.chatter_name}||${w.account}`}
-                onClick={() => {
-                  const el = document.getElementById(`chatter-${w.chatter_name}`);
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    setCollapsed((prev) => {
-                      const next = new Set(prev);
-                      next.delete(w.chatter_name);
-                      return next;
-                    });
-                  }
-                }}
-                className="w-full text-left flex items-center gap-3 text-xs font-light py-1.5 px-2 rounded hover:bg-white/[0.03] transition"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-400/70 shrink-0" />
-                <span className="text-white/90 uppercase tracking-[0.14em] truncate">
-                  {w.chatter_name}
-                </span>
-                <span className="text-white/30">auf</span>
-                <span className="text-white/80 truncate flex-1">{w.account}</span>
-                <span className="text-white/50 tabular-nums shrink-0">{fmtInt(w.messages)} Msg</span>
-                <span className="text-white/25">·</span>
-                <span className="text-white/50 tabular-nums shrink-0">{fmtEur(w.revenue)}</span>
-                <span className="text-white/25">·</span>
-                <span className="text-rose-300 tabular-nums shrink-0">{fmtEurDec(w.eff)}/Msg</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
+
 
 
       {/* Empty state */}
