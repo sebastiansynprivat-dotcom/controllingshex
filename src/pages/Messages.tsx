@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, ChevronDown, Inbox, RefreshCw, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -55,6 +55,14 @@ interface WasteRow {
   latestDate: string;
 }
 
+type ChatterHistoryRow = {
+  chatter_name: string;
+  account: string;
+  revenue_today: number | null;
+  open_chats: number | null;
+  analysis_date: string;
+};
+
 
 
 
@@ -86,6 +94,18 @@ function dateRange(range: RangeKey): { from: string; to: string } {
   return { from, to: today };
 }
 
+function rangeLabel(range: RangeKey): string {
+  if (range === "today") return "Heute";
+  if (range === "7d") return "7 Tage";
+  return "30 Tage";
+}
+
+function quantile(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+}
+
 // Simple SVG sparkline
 function Sparkline({ points, tone }: { points: number[]; tone: string }) {
   if (points.length < 2) return <div className="w-[60px] h-5" />;
@@ -107,6 +127,8 @@ function Sparkline({ points, tone }: { points: number[]; tone: string }) {
 export default function Messages() {
   const { platform } = usePlatform();
   const { user } = useAuth();
+  const loadRunRef = useRef(0);
+  const loadingRef = useRef(false);
   const [range, setRange] = useState<RangeKey>("today");
   const [sort, setSort] = useState<SortKey>("incoming");
   const [dir, setDir] = useState<"desc" | "asc">("desc");
@@ -123,6 +145,38 @@ export default function Messages() {
   const [wasted, setWasted] = useState<WasteRow[]>([]);
   const [wasteDismissals, setWasteDismissals] = useState<Record<string, string>>({});
 
+  async function fetchChatterHistoryRows(params: {
+    from: string;
+    to: string;
+    names?: string[];
+  }): Promise<ChatterHistoryRow[]> {
+    if (!user) return [];
+    const pageSize = 1000;
+    const all: ChatterHistoryRow[] = [];
+    for (let offset = 0; ; offset += pageSize) {
+      let query = supabase
+        .from("chatter_history")
+        .select("chatter_name, account, revenue_today, open_chats, analysis_date")
+        .eq("user_id", user.id)
+        .eq("platform", platform)
+        .gte("analysis_date", params.from)
+        .lte("analysis_date", params.to)
+        .order("analysis_date", { ascending: false })
+        .range(offset, offset + pageSize - 1);
+
+      if (params.names && params.names.length > 0) {
+        query = query.in("chatter_name", params.names);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      const page = (data ?? []) as ChatterHistoryRow[];
+      all.push(...page);
+      if (page.length < pageSize) break;
+    }
+    return all;
+  }
+
 
 
 
@@ -130,8 +184,12 @@ export default function Messages() {
     document.title = "Nachrichten – Live-Tracking";
   }, []);
 
-  async function load() {
+  async function load(force = false) {
     if (!user) return;
+    if (loadingRef.current && !force) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => runId === loadRunRef.current;
+    loadingRef.current = true;
     setLoading(true);
     const { from, to } = dateRange(range);
 
@@ -159,7 +217,10 @@ export default function Messages() {
       .lte("date", to);
     if (error) {
       toast({ title: "Fehler beim Laden", description: error.message, variant: "destructive" });
-      setLoading(false);
+      if (isCurrentRun()) {
+        loadingRef.current = false;
+        setLoading(false);
+      }
       return;
     }
     const agg = new Map<string, Row>();
@@ -214,6 +275,7 @@ export default function Messages() {
       }
     }
 
+    if (!isCurrentRun()) return;
     setRows(Array.from(agg.values()));
     setLive(liveMap);
     setLastPushAgo(newest ? new Date(newest).toISOString() : null);
@@ -256,21 +318,76 @@ export default function Messages() {
         return c.rev / c.msg;
       });
     }
+    if (!isCurrentRun()) return;
     setSparkData(sparks);
 
-    // Bulk-load model split for every chatter in range (always expanded)
+    // Potenzial verschenkt: aktueller Zeitraum, alle paginierten Chatter×Account-Kombis.
+    const wasteRaw = await fetchChatterHistoryRows({ from, to });
+    if (!isCurrentRun()) return;
+    const combos = new Map<string, WasteRow>();
+    for (const r of wasteRaw) {
+      const name = (r.chatter_name as string) || "";
+      const acc = (r.account as string) || "";
+      if (!name || !acc) continue;
+      // Nur aktuelle Chatter×Model-Paare (aus letztem Report) berücksichtigen —
+      // ehemalige Zuweisungen sind für "Potenzial verschenkt" nicht mehr relevant.
+      if (!isActivePair(name, acc)) continue;
+      const key = `${name}||${acc}`;
+      const d = (r.analysis_date as string) || "";
+      const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0, latestDate: d };
+      cur.messages += Number(r.open_chats) || 0;
+      cur.revenue += Number(r.revenue_today) || 0;
+      if (d > cur.latestDate) cur.latestDate = d;
+      combos.set(key, cur);
+    }
+    const comboArr = Array.from(combos.values())
+      .filter((c) => c.messages > 0)
+      .map((c) => ({ ...c, eff: c.messages > 0 ? c.revenue / c.messages : 0 }));
+    if (comboArr.length >= 3) {
+      // Baseline = gewichtetes Ø €/Msg über alle aktiven Kombis (Umsatz/Msg gesamt).
+      // Verschenkt = viel Traffic im gewählten Zeitraum, aber unter Plattform-Schnitt.
+      // Wichtig: keine Ergebnis-Kappung, damit wirklich alle auffälligen Chatter sichtbar sind.
+      const totMsg = comboArr.reduce((s, c) => s + c.messages, 0);
+      const totRev = comboArr.reduce((s, c) => s + c.revenue, 0);
+      const avgEff = totMsg > 0 ? totRev / totMsg : 0;
+      const minMessages = range === "today" ? 10 : range === "7d" ? 20 : 30;
+      const trafficCutoff = Math.max(minMessages, quantile(comboArr.map((c) => c.messages), 0.5));
+      const w = comboArr
+        .filter((c) => c.messages >= trafficCutoff && c.eff < avgEff)
+        .sort((a, b) => (b.messages - a.messages) || (a.eff - b.eff));
+      setWasted(w);
+    } else {
+      setWasted([]);
+    }
+
+
+    // Load dismissals
+    const { data: dismRaw } = await supabase
+      .from("waste_dismissals")
+      .select("chatter_name, account, dismissed_at_analysis_date")
+      .eq("user_id", user.id)
+      .eq("platform", platform);
+    const dism: Record<string, string> = {};
+    for (const r of (dismRaw ?? []) as any[]) {
+      dism[`${r.chatter_name}||${r.account}`] = r.dismissed_at_analysis_date as string;
+    }
+    if (!isCurrentRun()) return;
+    setWasteDismissals(dism);
+
+
+    if (isCurrentRun()) {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+
+    // Bulk-load model split for every chatter in range (always expanded), bewusst nach
+    // "Potenzial verschenkt", damit der Warnblock beim Zeitraum-Wechsel nicht warten muss.
     const names = Array.from(agg.keys());
     if (names.length > 0) {
-      const { data: splitRaw } = await supabase
-        .from("chatter_history")
-        .select("chatter_name, account, revenue_today, open_chats")
-        .eq("user_id", user.id)
-        .eq("platform", platform)
-        .in("chatter_name", names)
-        .gte("analysis_date", from)
-        .lte("analysis_date", to);
+      const splitRaw = await fetchChatterHistoryRows({ from, to, names });
+      if (!isCurrentRun()) return;
       const perChatter = new Map<string, Map<string, ModelSplitRow>>();
-      for (const r of (splitRaw ?? []) as any[]) {
+      for (const r of splitRaw) {
         const name = r.chatter_name as string;
         const acc = (r.account as string) || "—";
         // Nur (Chatter × Model)-Paare zeigen, die im letzten Report noch bestehen.
@@ -290,77 +407,25 @@ export default function Messages() {
         );
       }
       setModelSplits(splits);
-    }
-
-    // Potenzial verschenkt: last 30 days, chatter × account combinations
-    const wasteFrom = new Date(today);
-    wasteFrom.setDate(wasteFrom.getDate() - 29);
-    const wasteFromStr = wasteFrom.toISOString().slice(0, 10);
-    const { data: wasteRaw } = await supabase
-      .from("chatter_history")
-      .select("chatter_name, account, revenue_today, open_chats, analysis_date")
-      .eq("user_id", user.id)
-      .eq("platform", platform)
-      .gte("analysis_date", wasteFromStr)
-      .lte("analysis_date", today);
-    const combos = new Map<string, WasteRow>();
-    for (const r of (wasteRaw ?? []) as any[]) {
-      const name = (r.chatter_name as string) || "";
-      const acc = (r.account as string) || "";
-      if (!name || !acc) continue;
-      // Nur aktuelle Chatter×Model-Paare (aus letztem Report) berücksichtigen —
-      // ehemalige Zuweisungen sind für "Potenzial verschenkt" nicht mehr relevant.
-      if (!isActivePair(name, acc)) continue;
-      const key = `${name}||${acc}`;
-      const d = (r.analysis_date as string) || "";
-      const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0, latestDate: d };
-      cur.messages += Number(r.open_chats) || 0;
-      cur.revenue += Number(r.revenue_today) || 0;
-      if (d > cur.latestDate) cur.latestDate = d;
-      combos.set(key, cur);
-    }
-    const comboArr = Array.from(combos.values())
-      .filter((c) => c.messages >= 30)
-      .map((c) => ({ ...c, eff: c.messages > 0 ? c.revenue / c.messages : 0 }));
-    if (comboArr.length >= 3) {
-      // Baseline = gewichtetes Ø €/Msg über alle aktiven Kombis (Umsatz/Msg gesamt).
-      // Verschenkt = Kombi bekommt viele Nachrichten, macht aber deutlich weniger
-      // €/Msg als der Schnitt. Keine harten Percentile mehr — dadurch tauchen ALLE
-      // wirklich unterperformenden Accounts auf, nicht nur die untersten 33%.
-      const totMsg = comboArr.reduce((s, c) => s + c.messages, 0);
-      const totRev = comboArr.reduce((s, c) => s + c.revenue, 0);
-      const avgEff = totMsg > 0 ? totRev / totMsg : 0;
-      const effCutoff = avgEff * 0.7; // 30% unter Ø
-      const w = comboArr
-        .filter((c) => c.eff <= effCutoff)
-        .sort((a, b) => b.messages - a.messages);
-      setWasted(w);
     } else {
-      setWasted([]);
+      setModelSplits({});
     }
-
-
-    // Load dismissals
-    const { data: dismRaw } = await supabase
-      .from("waste_dismissals")
-      .select("chatter_name, account, dismissed_at_analysis_date")
-      .eq("user_id", user.id)
-      .eq("platform", platform);
-    const dism: Record<string, string> = {};
-    for (const r of (dismRaw ?? []) as any[]) {
-      dism[`${r.chatter_name}||${r.account}`] = r.dismissed_at_analysis_date as string;
-    }
-    setWasteDismissals(dism);
-
-
-    setLoading(false);
   }
 
 
 
   useEffect(() => {
-    load();
-    const iv = setInterval(load, 30000);
+    setRows([]);
+    setLive({});
+    setSparkData({});
+    setModelSplits({});
+    setWasted([]);
+    setWasteDismissals({});
+  }, [platform, range, user?.id]);
+
+  useEffect(() => {
+    load(true);
+    const iv = setInterval(() => load(false), 30000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, range, user?.id]);
@@ -377,7 +442,7 @@ export default function Messages() {
           table: "chatter_incoming_stats",
           filter: `user_id=eq.${user.id}`,
         },
-        () => load(),
+        () => load(false),
       )
       .subscribe();
     return () => {
@@ -588,7 +653,7 @@ export default function Messages() {
         </div>
       </div>
 
-      {/* Potenzial verschenkt — 30 Tage */}
+      {/* Potenzial verschenkt */}
       {(() => {
         const visible = wasted.filter((w) => {
           const key = `${w.chatter_name}||${w.account}`;
@@ -605,7 +670,7 @@ export default function Messages() {
                 Potenzial verschenkt
               </div>
               <div className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">
-                {visible.length} · 30 Tage
+                {visible.length} · {rangeLabel(range)}
               </div>
             </div>
             <div className="space-y-1.5">
