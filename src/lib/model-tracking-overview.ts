@@ -505,6 +505,11 @@ export async function detectRelevantModelAlerts(
     const currentPhase = phases[phases.length - 1] ?? null;
     const previousPhase = phases.length >= 2 ? phases[phases.length - 2] : null;
 
+    // Skip Alerts, wenn der aktuelle Chatter im letzten Report nicht mehr
+    // auf diesem Model steht — dann sind Rückgang/Underperform-Signale nicht
+    // mehr handlungsrelevant.
+    if (!isCurrentPair(currentPhase?.chatterName ?? null, modelName)) continue;
+
     // Alert 1: Decline since chatter switch
     if (currentPhase && previousPhase && previousPhase.avgPerDay > 0 && currentPhase.days >= 3) {
       const deltaPct = Math.round(
