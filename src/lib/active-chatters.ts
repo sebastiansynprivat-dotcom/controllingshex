@@ -4,7 +4,11 @@
  * gelten als "raus" und werden in der UI komplett ausgeblendet — ihre History
  * bleibt aber in der Datenbank erhalten.
  *
- * Wird von Daily-Todos, Recovery-Queue und Anomaly-Engine benutzt.
+ * Zusätzlich wird pro Chatter das aktuell zugeordnete Model/Account aus dem
+ * letzten Report vorgehalten. Damit lassen sich "current view"-Anzeigen (Live-
+ * Tracking, Model-Split, Recovery, Tinder, ...) darauf einschränken, dass nur
+ * die JETZT tatsächlich gültige Chatter×Model-Kombination auftaucht — auch
+ * wenn in der History noch andere Kombis stehen.
  */
 import { supabase } from "@/integrations/supabase/client";
 import { onChatterDataUpdated } from "@/lib/data-events";
@@ -18,9 +22,7 @@ import { onChatterDataUpdated } from "@/lib/data-events";
 function stripInvisible(s: string): string {
   return s
     .normalize("NFKC")
-    // Variation Selectors (FE00–FE0F) + Zero-Width-Bereich + BOM + Bidi-Marks
     .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
-    // NBSP & ähnliche Spaces → normales Space
     .replace(/[\u00A0\u2007\u202F]/g, " ");
 }
 
@@ -28,26 +30,27 @@ export function normalizeChatterName(name: string): string {
   return stripInvisible(name).toLowerCase().replace(/[_ ]+/g, "_").trim();
 }
 
+export function normalizeAccountName(acc: string): string {
+  return stripInvisible(acc).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 interface CacheEntry {
   ts: number;
   names: Set<string>;
-  /** null = noch nie ein Report geladen → keinen Filter anwenden */
+  /** Chatter (normalized) → Set of currently assigned model/account (normalized) */
+  chatterModels: Map<string, Set<string>>;
+  /** All currently assigned models across all chatters (normalized) */
+  activeModels: Set<string>;
+  /** false = noch nie ein Report geladen → keinen Filter anwenden */
   hasReport: boolean;
 }
 
 const cache = new Map<string, CacheEntry>();
 const TTL_MS = 60_000;
 
-/**
- * Liefert die normalisierten Namen aller Chatter aus dem aktuellsten Report.
- * Returns `null`, wenn (noch) gar kein Report existiert — dann darf NICHT
- * gefiltert werden, sonst sieht der Nutzer komplett leere Listen.
- */
-export async function loadActiveChatterNames(platform: string): Promise<Set<string> | null> {
+async function loadEntry(platform: string): Promise<CacheEntry> {
   const cached = cache.get(platform);
-  if (cached && Date.now() - cached.ts < TTL_MS) {
-    return cached.hasReport ? cached.names : null;
-  }
+  if (cached && Date.now() - cached.ts < TTL_MS) return cached;
 
   const { data } = await supabase
     .from("analysis_reports")
@@ -58,23 +61,89 @@ export async function loadActiveChatterNames(platform: string): Promise<Set<stri
     .limit(1);
 
   const result = data?.[0]?.result_json as
-    | { categories?: { chatters?: { name?: string }[] }[] }
+    | { categories?: { chatters?: { name?: string; account?: string }[] }[] }
     | null
     | undefined;
 
   if (!result || !Array.isArray(result.categories)) {
-    cache.set(platform, { ts: Date.now(), names: new Set(), hasReport: false });
-    return null;
+    const empty: CacheEntry = {
+      ts: Date.now(),
+      names: new Set(),
+      chatterModels: new Map(),
+      activeModels: new Set(),
+      hasReport: false,
+    };
+    cache.set(platform, empty);
+    return empty;
   }
 
   const names = new Set<string>();
+  const chatterModels = new Map<string, Set<string>>();
+  const activeModels = new Set<string>();
   for (const cat of result.categories) {
     for (const ch of cat.chatters ?? []) {
-      if (ch?.name) names.add(normalizeChatterName(ch.name));
+      if (!ch?.name) continue;
+      const n = normalizeChatterName(ch.name);
+      names.add(n);
+      const acc = ch.account ? normalizeAccountName(ch.account) : "";
+      if (acc) {
+        if (!chatterModels.has(n)) chatterModels.set(n, new Set());
+        chatterModels.get(n)!.add(acc);
+        activeModels.add(acc);
+      }
     }
   }
-  cache.set(platform, { ts: Date.now(), names, hasReport: true });
-  return names;
+  const entry: CacheEntry = {
+    ts: Date.now(),
+    names,
+    chatterModels,
+    activeModels,
+    hasReport: true,
+  };
+  cache.set(platform, entry);
+  return entry;
+}
+
+/**
+ * Namen aller Chatter im aktuellsten Report (normalisiert).
+ * `null` wenn (noch) kein Report existiert — dann NICHT filtern.
+ */
+export async function loadActiveChatterNames(platform: string): Promise<Set<string> | null> {
+  const e = await loadEntry(platform);
+  return e.hasReport ? e.names : null;
+}
+
+/**
+ * Chatter (normalisiert) → Set der aktuell zugeordneten Models (normalisiert).
+ * `null` wenn (noch) kein Report existiert.
+ */
+export async function loadActiveChatterModels(
+  platform: string,
+): Promise<Map<string, Set<string>> | null> {
+  const e = await loadEntry(platform);
+  return e.hasReport ? e.chatterModels : null;
+}
+
+/** Alle Models (normalisiert), die aktuell irgendeinem Chatter zugeordnet sind. */
+export async function loadActiveModels(platform: string): Promise<Set<string> | null> {
+  const e = await loadEntry(platform);
+  return e.hasReport ? e.activeModels : null;
+}
+
+/**
+ * True, wenn dieses (Chatter, Model)-Paar im letzten Report so vorkommt.
+ * Kein Report vorhanden → true (nicht filtern).
+ */
+export async function isActiveChatterModel(
+  platform: string,
+  chatter: string,
+  account: string,
+): Promise<boolean> {
+  const e = await loadEntry(platform);
+  if (!e.hasReport) return true;
+  const set = e.chatterModels.get(normalizeChatterName(chatter));
+  if (!set) return false;
+  return set.has(normalizeAccountName(account));
 }
 
 export function invalidateActiveChattersCache(platform?: string): void {
