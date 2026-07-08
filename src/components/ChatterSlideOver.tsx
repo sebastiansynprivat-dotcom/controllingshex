@@ -218,32 +218,50 @@ function ModelLoginRow({
 }) {
   const [showPw, setShowPw] = useState(false);
   return (
-    <div className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.02] transition-colors min-w-0">
+    <div className="group flex items-center gap-3 px-4 py-3 hover:bg-white/[0.025] transition-colors min-w-0">
+      <div
+        className="h-8 w-8 shrink-0 rounded-lg bg-primary/[0.08] border border-primary/20 flex items-center justify-center text-[10px] font-medium tracking-wide text-primary/90"
+        title={model.name}
+      >
+        {getInitials(model.name).slice(0, 2)}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] text-foreground/85 font-light tracking-wide truncate">{model.name}</p>
-        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/35 font-mono tracking-tight">
+        <p className="text-[12px] text-foreground/90 font-light tracking-wide truncate">{model.name}</p>
+        <div className="mt-1 flex items-center gap-2 text-[11px] font-mono">
           {model.email ? (
-            <span className="truncate max-w-[180px]">{model.email}</span>
+            <button
+              type="button"
+              onClick={() => onCopy(model.email!, "E-Mail")}
+              title="E-Mail kopieren"
+              className="min-w-0 max-w-[220px] truncate text-white/55 hover:text-primary text-left"
+            >
+              {model.email}
+            </button>
           ) : (
-            <span className="italic text-white/20">keine Mail</span>
+            <span className="italic text-white/20 text-[10px]">keine Mail</span>
           )}
           {model.password ? (
             <>
               <span className="text-white/15">·</span>
-              <span className="tabular-nums">
+              <button
+                type="button"
+                onClick={() => onCopy(model.password!, "Passwort")}
+                title="Passwort kopieren"
+                className="tabular-nums text-white/55 hover:text-primary"
+              >
                 {showPw ? model.password : "•".repeat(Math.min(model.password.length, 10))}
-              </span>
+              </button>
             </>
           ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         {model.email && (
           <button
             type="button"
             onClick={() => onCopy(model.email!, "E-Mail")}
             title="E-Mail kopieren"
-            className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
           >
             <Mail className="h-3.5 w-3.5" />
           </button>
@@ -254,7 +272,7 @@ function ModelLoginRow({
               type="button"
               onClick={() => setShowPw((v) => !v)}
               title={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
-              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
             >
               {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
@@ -262,7 +280,7 @@ function ModelLoginRow({
               type="button"
               onClick={() => onCopy(model.password!, "Passwort")}
               title="Passwort kopieren"
-              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
             >
               <KeyRound className="h-3.5 w-3.5" />
             </button>
@@ -272,6 +290,7 @@ function ModelLoginRow({
     </div>
   );
 }
+
 
 
 
