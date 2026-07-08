@@ -134,6 +134,22 @@ export default function Messages() {
     if (!user) return;
     setLoading(true);
     const { from, to } = dateRange(range);
+
+    // Active-Chatter-Filter (Chatter aus letztem Report) + aktuelle Chatter×Model-Zuordnung.
+    // Wenn noch kein Report existiert → null → nicht filtern (Nutzer sieht sonst leere Listen).
+    const [activeNames, activeChatterModels] = await Promise.all([
+      loadActiveChatterNames(platform),
+      loadActiveChatterModels(platform),
+    ]);
+    const isActiveChatter = (name: string) =>
+      activeNames === null || activeNames.has(normalizeChatterName(name));
+    const isActivePair = (name: string, account: string) => {
+      if (activeChatterModels === null) return true;
+      const set = activeChatterModels.get(normalizeChatterName(name));
+      if (!set) return false;
+      return set.has(normalizeAccountName(account));
+    };
+
     const { data, error } = await supabase
       .from("chatter_incoming_stats")
       .select("chatter_name, incoming_count, last_revenue, last_unread, updated_at, date")
