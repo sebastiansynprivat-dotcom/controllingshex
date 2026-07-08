@@ -1378,8 +1378,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
-            className={`sticky top-0 z-30 flex items-center gap-3 sm:gap-4 ${splitView ? "px-4 pb-3" : compact ? "px-4 sm:px-6 pb-3 sm:pb-4" : "px-5 sm:px-10 pb-4 sm:py-5"} border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0`}
-            style={{ paddingTop: compact ? "calc(env(safe-area-inset-top, 0px) + 0.75rem)" : "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
+            className={`sticky top-0 z-30 flex items-center gap-3 sm:gap-4 ${splitView ? "px-4 pb-3" : compact ? "px-4 sm:px-6 py-3 sm:py-4" : "px-5 sm:px-10 pb-4 sm:py-5"} border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0`}
+            style={compact ? { paddingTop: "max(env(safe-area-inset-top, 0px), 0.75rem)" } : { paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
 
             <div
