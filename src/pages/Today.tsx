@@ -746,43 +746,56 @@ export default function Today() {
                 )}
 
                 {compareActive ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {([
-                      { key: "upgrade" as const, label: "Upgrade-Kandidaten", accent: "text-emerald-300", border: "border-emerald-500/25", bg: "bg-emerald-500/[0.04]", items: upgradeList },
-                      { key: "downgrade" as const, label: "Downgrade-Kandidaten", accent: "text-red-300", border: "border-red-500/25", bg: "bg-red-500/[0.04]", items: downgradeList },
-                    ]).map((col) => (
-                      <div
-                        key={col.key}
-                        className={cn("rounded-2xl border p-3 flex flex-col min-h-0", col.border, col.bg)}
-                      >
-                        <div className="flex items-center justify-between px-1 pb-2 sticky top-0 z-10 bg-inherit">
-                          <span className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", col.accent)}>
-                            {col.label}
-                          </span>
-                          <span className="text-[10px] tabular-nums text-white/40 font-light">
-                            {col.items.length}
-                          </span>
-                        </div>
-                        <div className="space-y-3 overflow-y-auto pr-1 max-h-[70vh]">
-                          {col.items.length === 0 ? (
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center text-[11px] text-white/40 font-light">
-                              Keine Einträge
+                      { key: "upgrade" as const, label: "Upgrade", sublabel: "bereit für mehr", icon: Rocket, accent: "text-emerald-300", border: "border-emerald-500/20", bg: "bg-emerald-500/[0.03]", badge: "bg-emerald-500/15 border-emerald-400/25 text-emerald-200", items: upgradeList },
+                      { key: "downgrade" as const, label: "Downgrade", sublabel: "Rückgang", icon: TrendingDown, accent: "text-red-300", border: "border-red-500/20", bg: "bg-red-500/[0.03]", badge: "bg-red-500/15 border-red-400/25 text-red-200", items: downgradeList },
+                    ]).map((col) => {
+                      const Icon = col.icon;
+                      return (
+                        <div
+                          key={col.key}
+                          className={cn("rounded-2xl border flex flex-col min-h-0 overflow-hidden", col.border, col.bg)}
+                        >
+                          <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
+                            <div className="flex items-center gap-2.5">
+                              <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg border bg-white/[0.04]", col.border, col.accent)}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className={cn("text-[12px] font-semibold leading-none tracking-tight", col.accent)}>
+                                  {col.label}
+                                </span>
+                                <span className="text-[10px] text-white/35 font-light leading-none mt-1">
+                                  {col.sublabel}
+                                </span>
+                              </div>
                             </div>
-                          ) : (
-                            col.items.map((a) => (
-                              <PersonActionCard
-                                key={a.bundleKey}
-                                action={a}
-                                onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                                onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                                onAct={act}
-                                readonly={isReadonly}
-                              />
-                            ))
-                          )}
+                            <span className={cn("inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium tabular-nums border", col.badge)}>
+                              {col.items.length}
+                            </span>
+                          </div>
+                          <div className="p-3 space-y-3 overflow-y-auto pr-1 max-h-[70vh]">
+                            {col.items.length === 0 ? (
+                              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center text-[11px] text-white/40 font-light">
+                                Keine Einträge
+                              </div>
+                            ) : (
+                              col.items.map((a) => (
+                                <PersonActionCard
+                                  key={a.bundleKey}
+                                  action={a}
+                                  onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                                  onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                                  onAct={act}
+                                  readonly={isReadonly}
+                                />
+                              ))
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : kindTab === "all" ? (
                   <div className="space-y-5">
