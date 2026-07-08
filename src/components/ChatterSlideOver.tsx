@@ -473,7 +473,11 @@ function Trend30Block({
             <Tooltip
               content={<RevenueTooltip historyRows={historyRows} />}
               cursor={{ stroke: "rgba(255,255,255,0.08)" }}
+              allowEscapeViewBox={{ x: true, y: true }}
+              wrapperStyle={{ zIndex: 80, outline: "none", pointerEvents: "none" }}
+              offset={16}
             />
+
             <Area
               type="monotone"
               dataKey="revenue_today"
