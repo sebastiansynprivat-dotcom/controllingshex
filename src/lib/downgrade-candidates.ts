@@ -410,6 +410,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
       score: impact + c.messages, // primär nach Impact, sekundär Volumen
       chatterName: c.chatter,
       modelName: c.account,
+      meta: { downgradeSince: c.firstPatternDate ?? from },
     });
   }
 
