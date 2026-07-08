@@ -1575,6 +1575,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_incoming_stats: {
+        Args: {
+          p_chatter_name: string
+          p_date: string
+          p_delta: number
+          p_last_revenue: number
+          p_last_unread: number
+          p_platform: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       recompute_live_now: { Args: never; Returns: undefined }
     }
     Enums: {
