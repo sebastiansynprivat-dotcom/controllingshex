@@ -1700,8 +1700,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   </p>
                 ) : (
                   <>
+                    {modelsLoginsBlock}
+
                     {/* ── Live KPI Grid (Echtzeit) ── */}
                     <div className="space-y-2.5">
+
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-1.5 w-1.5">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
