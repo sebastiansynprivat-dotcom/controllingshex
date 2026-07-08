@@ -261,8 +261,8 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
   const copy = (label: string, value: string | null) => {
     if (!value) return;
     navigator.clipboard.writeText(value);
-    toast.success("Erfolgreich kopiert", {
-      description: label,
+    toast.success(`${label} kopiert`, {
+      description: "Wert befindet sich in der Zwischenablage",
       position: "bottom-right",
       duration: 2000,
     });
