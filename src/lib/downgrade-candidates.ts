@@ -17,7 +17,12 @@
  * Chatters werden als Nebenevidenz im Warum-Text erwähnt.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import {
+  loadActiveChatterNames,
+  loadActiveChatterModels,
+  normalizeAccountName,
+  normalizeChatterName,
+} from "@/lib/active-chatters";
 import type { RevenueTask } from "@/lib/revenue-tasks";
 
 const WINDOW_DAYS = 7;
