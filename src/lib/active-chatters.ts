@@ -146,6 +146,45 @@ export async function isActiveChatterModel(
   return set.has(normalizeAccountName(account));
 }
 
+/**
+ * Filtert eine Liste von {chatter_name, account}-Rows: behält nur Zeilen,
+ * bei denen die (Chatter, Account)-Kombi im NEUESTEN Report noch existiert.
+ * Historische Kombis (Chatter hatte Account X, hat ihn heute nicht mehr)
+ * werden verworfen. Wenn noch kein Report existiert → alle Rows behalten.
+ *
+ * `account` darf eine kommaseparierte Liste enthalten — es werden nur die
+ * noch aktiven Accounts zurückgegeben; ist keiner mehr aktiv, wird die Row
+ * gedroppt.
+ */
+export async function filterRowsToActiveCombos<
+  T extends { chatter_name?: string | null; account?: string | null },
+>(platform: string, rows: T[]): Promise<T[]> {
+  const models = await loadActiveChatterModels(platform);
+  if (!models) return rows;
+  const out: T[] = [];
+  for (const r of rows) {
+    const name = r.chatter_name;
+    if (!name) {
+      out.push(r);
+      continue;
+    }
+    const allowed = models.get(normalizeChatterName(name));
+    if (!allowed || allowed.size === 0) continue;
+    const raw = (r.account ?? "").trim();
+    if (!raw) {
+      // Ohne Account-Info kann Chatter nicht ausgeschlossen werden, solange er
+      // im Roster steht.
+      out.push(r);
+      continue;
+    }
+    const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const kept = parts.filter((p) => allowed.has(normalizeAccountName(p)));
+    if (kept.length === 0) continue;
+    out.push(kept.length === parts.length ? r : { ...r, account: kept.join(", ") });
+  }
+  return out;
+}
+
 export function invalidateActiveChattersCache(platform?: string): void {
   if (platform) cache.delete(platform);
   else cache.clear();

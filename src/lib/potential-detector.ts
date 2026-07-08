@@ -11,7 +11,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { tierForFollowers } from "@/lib/account-tiers";
-import { normalizeChatterName } from "@/lib/active-chatters";
+import { filterRowsToActiveCombos, normalizeChatterName } from "@/lib/active-chatters";
 import type { AccountFitMatrix, FitEntry } from "@/lib/account-fit";
 
 export type PotentialKind = "hidden_star" | "wrong_fit" | "riser_confirms";
@@ -86,7 +86,7 @@ async function loadCurrentAssignments(
     .ilike("platform", platform)
     .gte("analysis_date", since);
 
-  const rows = data ?? [];
+  const rows = await filterRowsToActiveCombos(platform, data ?? []);
   // Heutige Pairs
   const todayPairs = new Map<string, { chatter: string; account: string; revenue: number }>();
   // Historische Pairs für daysOnAccount
