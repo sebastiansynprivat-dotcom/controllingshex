@@ -260,10 +260,11 @@ function TrayColumn({
                 <p className="text-[12px] font-medium text-white/85 truncate">
                   {a.chatterName ?? "—"}
                 </p>
-                {a.headline && (
-                  <p className="text-[10px] text-white/40 font-light truncate">{a.headline}</p>
+                {a.signals[0]?.title && (
+                  <p className="text-[10px] text-white/40 font-light truncate">{a.signals[0].title}</p>
                 )}
               </div>
+
               <button
                 type="button"
                 onClick={(e) => {
