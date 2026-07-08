@@ -472,26 +472,26 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const modelNames = (modelRows || []).map((m) => m.model_name);
   if (modelNames.length > 0) {
     try {
-    const troubles = await detectModelTroubles(platform, modelNames);
-    for (const t of troubles.slice(0, 8)) {
-      // Wenn der aktuelle Chatter nicht mehr im neuesten Report ist, Todo skippen.
-      if (t.currentChatter && !isActive(t.currentChatter)) continue;
-      const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
-        ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
-        : 0;
-      const followers = followersByModel.get(t.modelName.toLowerCase().trim()) ?? 0;
-      const followerPart = followers > 0 ? ` (${formatFollowers(followers)} Follower)` : "";
-      todos.push({
-        key: `model:${t.modelName}:${today}`,
-        category: "model",
-        score: t.severity === "high" ? 85 : 78,
-        title: `Model "${t.modelName}"${followerPart} im Rückgang`,
-        why: t.reason,
-        modelName: t.modelName,
-        chatterName: t.currentChatter,
-        meta: { modelDropPerDay: dropPerDay },
-      });
-    }
+      const troubles = await detectModelTroubles(platform, modelNames);
+      for (const t of troubles.slice(0, 8)) {
+        // Wenn der aktuelle Chatter nicht mehr im neuesten Report ist, Todo skippen.
+        if (t.currentChatter && !isActive(t.currentChatter)) continue;
+        const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
+          ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
+          : 0;
+        const followers = followersByModel.get(t.modelName.toLowerCase().trim()) ?? 0;
+        const followerPart = followers > 0 ? ` (${formatFollowers(followers)} Follower)` : "";
+        todos.push({
+          key: `model:${t.modelName}:${today}`,
+          category: "model",
+          score: t.severity === "high" ? 85 : 78,
+          title: `Model "${t.modelName}"${followerPart} im Rückgang`,
+          why: t.reason,
+          modelName: t.modelName,
+          chatterName: t.currentChatter,
+          meta: { modelDropPerDay: dropPerDay },
+        });
+      }
     } catch (e) {
       console.warn("[daily-todos] model trouble detection failed", e);
     }
