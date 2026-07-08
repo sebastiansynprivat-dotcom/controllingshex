@@ -496,7 +496,7 @@ export default function Today() {
         verzug: "248,113,113", recovery: "251,146,60", wakeup: "52,211,153",
         swap: "34,211,238",   phase: "56,189,248",    revenue: "52,211,153",
         activity: "45,212,191", model: "232,121,249", slot: "129,140,248",
-        upgrade: "251,191,36",
+        upgrade: "52,211,153",
         positive: "163,230,53",
       };
       return { key: kindTab, color: map[kindTab] ?? "255,255,255", intensity: 0.11 };
