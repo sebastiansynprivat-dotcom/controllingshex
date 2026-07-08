@@ -63,7 +63,7 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "gold-text",  dot: "bg-amber-400/80" },
+  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
