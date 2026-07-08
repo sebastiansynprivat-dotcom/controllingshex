@@ -308,15 +308,20 @@ export default function Messages() {
     return m;
   }, [rows]);
 
-  async function toggleExpand(name: string) {
-    if (expanded === name) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(name);
-    if (modelSplits[name]) return;
-    if (!user) return;
-    setLoadingSplit(name);
+  function toggleCollapse(name: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+    // ensure data loaded when opening
+    if (collapsed.has(name)) loadSplit(name);
+  }
+
+  async function loadSplit(name: string) {
+    if (modelSplits[name] || !user) return;
+    setLoadingSplit((prev) => new Set(prev).add(name));
     const { from, to } = dateRange(range);
     const { data } = await supabase
       .from("chatter_history")
@@ -329,18 +334,23 @@ export default function Messages() {
     const agg = new Map<string, ModelSplitRow>();
     for (const r of (data ?? []) as any[]) {
       const acc = (r.account as string) || "—";
-      const cur = agg.get(acc) ?? { account: acc, revenue: 0, open_chats: 0, days: 0 };
+      const cur = agg.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
       cur.revenue += Number(r.revenue_today) || 0;
-      cur.open_chats += Number(r.open_chats) || 0;
+      cur.messages += Number(r.open_chats) || 0;
       cur.days += 1;
       agg.set(acc, cur);
     }
     setModelSplits((prev) => ({
       ...prev,
-      [name]: Array.from(agg.values()).sort((a, b) => b.revenue - a.revenue),
+      [name]: Array.from(agg.values()).sort((a, b) => (b.revenue - a.revenue) || (b.messages - a.messages)),
     }));
-    setLoadingSplit(null);
+    setLoadingSplit((prev) => {
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
   }
+
 
   async function runBackfill() {
     setBackfilling(true);
