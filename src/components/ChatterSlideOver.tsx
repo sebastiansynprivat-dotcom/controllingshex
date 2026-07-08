@@ -1302,63 +1302,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
               {modelsLoginsBlock}
 
-              {/* Live KPI Grid */}
-              <div className="space-y-2">
+              {/* Live KPI Grid — compact horizontal strip */}
+              <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact />
 
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  </span>
-                  <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">
-                    Echtzeit · Heute
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                  {liveKpis.map((kpi) => {
-                    const Icon = kpi.icon;
-                    return (
-                      <div
-                        key={kpi.label}
-                        className="relative rounded-xl p-3 sm:p-4 min-w-0 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.04] to-transparent pointer-events-none" />
-                        <div className="relative flex items-center gap-1.5">
-                          <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/55 font-medium leading-snug">
-                            {kpi.label}
-                          </p>
-                        </div>
-                        <p
-                          className={`relative text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
-                        >
-                          {kpi.value}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      {isActiveToday && (
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                      )}
-                      <span
-                        className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`}
-                      />
-                    </span>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
-                  </div>
-                  <p
-                    className={`text-[11px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}
-                  >
-                    {isActiveToday ? "Aktiv" : "Inaktiv"}
-                  </p>
-                </div>
-              </div>
+              {/* 30-Tage-Trend — compact sparkline */}
+              <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" />
 
               {/* KPI Grid */}
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -1371,12 +1319,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     >
                       <div className="flex items-center gap-1.5">
                         <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                        <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug">
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug truncate">
                           {kpi.label}
                         </p>
                       </div>
                       <p
-                        className={`text-lg sm:text-xl font-extralight mt-2 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                        className={`text-base sm:text-lg font-extralight mt-1.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
                       >
                         {kpi.value}
                       </p>
@@ -1384,6 +1332,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   );
                 })}
               </div>
+
 
 
               {/* Notes — direkt unter Labels */}
