@@ -14,6 +14,11 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
+import {
+  loadActiveChatterModels,
+  normalizeAccountName,
+  normalizeChatterName,
+} from "@/lib/active-chatters";
 
 export type MismatchKind = "pull_up" | "underused";
 
