@@ -115,6 +115,8 @@ export default function Messages() {
   const [modelSplits, setModelSplits] = useState<Record<string, ModelSplitRow[]>>({});
   const [loadingSplit, setLoadingSplit] = useState<Set<string>>(new Set());
   const [wasted, setWasted] = useState<WasteRow[]>([]);
+  const [wasteDismissals, setWasteDismissals] = useState<Record<string, string>>({});
+
 
 
 
@@ -271,7 +273,7 @@ export default function Messages() {
     const wasteFromStr = wasteFrom.toISOString().slice(0, 10);
     const { data: wasteRaw } = await supabase
       .from("chatter_history")
-      .select("chatter_name, account, revenue_today, open_chats")
+      .select("chatter_name, account, revenue_today, open_chats, analysis_date")
       .eq("user_id", user.id)
       .eq("platform", platform)
       .gte("analysis_date", wasteFromStr)
@@ -282,9 +284,11 @@ export default function Messages() {
       const acc = (r.account as string) || "";
       if (!name || !acc) continue;
       const key = `${name}||${acc}`;
-      const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0 };
+      const d = (r.analysis_date as string) || "";
+      const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0, latestDate: d };
       cur.messages += Number(r.open_chats) || 0;
       cur.revenue += Number(r.revenue_today) || 0;
+      if (d > cur.latestDate) cur.latestDate = d;
       combos.set(key, cur);
     }
     const comboArr = Array.from(combos.values())
@@ -298,12 +302,24 @@ export default function Messages() {
       const effLo = q(effs, 0.33);
       const w = comboArr
         .filter((c) => c.messages >= volHi && c.eff <= effLo)
-        .sort((a, b) => b.messages - a.messages)
-        .slice(0, 5);
+        .sort((a, b) => b.messages - a.messages);
       setWasted(w);
     } else {
       setWasted([]);
     }
+
+    // Load dismissals
+    const { data: dismRaw } = await supabase
+      .from("waste_dismissals")
+      .select("chatter_name, account, dismissed_at_analysis_date")
+      .eq("user_id", user.id)
+      .eq("platform", platform);
+    const dism: Record<string, string> = {};
+    for (const r of (dismRaw ?? []) as any[]) {
+      dism[`${r.chatter_name}||${r.account}`] = r.dismissed_at_analysis_date as string;
+    }
+    setWasteDismissals(dism);
+
 
     setLoading(false);
   }
