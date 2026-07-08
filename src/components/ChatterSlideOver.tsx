@@ -20,8 +20,6 @@ import {
   RefreshCw,
   Trash2,
   Check,
-  Eye,
-  EyeOff,
   Copy,
   Mail,
   KeyRound,
@@ -216,7 +214,7 @@ function ModelLoginRow({
   model: { name: string; email: string | null; password: string | null };
   onCopy: (value: string, label: string) => void;
 }) {
-  const [showPw, setShowPw] = useState(false);
+  
   return (
     <div className="group flex items-center gap-3 px-4 py-3 hover:bg-white/[0.025] transition-colors min-w-0">
       <div
@@ -249,7 +247,7 @@ function ModelLoginRow({
                 title="Passwort kopieren"
                 className="tabular-nums text-white/55 hover:text-primary"
               >
-                {showPw ? model.password : "•".repeat(Math.min(model.password.length, 10))}
+                {"•".repeat(Math.min(model.password.length, 10))}
               </button>
             </>
           ) : null}
@@ -267,24 +265,14 @@ function ModelLoginRow({
           </button>
         )}
         {model.password && (
-          <>
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              title={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
-              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
-            >
-              {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => onCopy(model.password!, "Passwort")}
-              title="Passwort kopieren"
-              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => onCopy(model.password!, "Passwort")}
+            title="Passwort kopieren"
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+          </button>
         )}
       </div>
     </div>
