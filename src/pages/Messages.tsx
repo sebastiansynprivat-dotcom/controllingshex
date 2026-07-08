@@ -100,9 +100,10 @@ export default function Messages() {
   const [backfilling, setBackfilling] = useState(false);
   const [lastPushAgo, setLastPushAgo] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [modelSplits, setModelSplits] = useState<Record<string, ModelSplitRow[]>>({});
-  const [loadingSplit, setLoadingSplit] = useState<string | null>(null);
+  const [loadingSplit, setLoadingSplit] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     document.title = "Nachrichten – Live-Tracking";
