@@ -679,7 +679,7 @@ export default function Messages() {
                 return (
                   <div
                     key={key}
-                    className="flex items-center gap-2 text-xs font-light py-1.5 px-2 rounded hover:bg-white/[0.03] transition"
+                    className="flex items-start gap-2 text-xs font-light py-2 px-2 rounded hover:bg-white/[0.03] transition"
                   >
                     <button
                       onClick={async () => {
@@ -701,7 +701,7 @@ export default function Messages() {
                           toast({ title: "Konnte nicht abhaken", description: error.message, variant: "destructive" });
                         }
                       }}
-                      className="h-4 w-4 rounded border border-white/20 bg-white/[0.02] flex items-center justify-center hover:border-emerald-400/60 hover:bg-emerald-500/10 transition shrink-0"
+                      className="h-4 w-4 rounded border border-white/20 bg-white/[0.02] flex items-center justify-center hover:border-emerald-400/60 hover:bg-emerald-500/10 transition shrink-0 mt-0.5"
                       aria-label="Erledigt"
                     >
                       <Check className="h-3 w-3 text-white/0 hover:text-emerald-300" />
@@ -718,19 +718,25 @@ export default function Messages() {
                           });
                         }
                       }}
-                      className="flex-1 flex items-center gap-3 text-left min-w-0"
+                      className="flex-1 text-left min-w-0"
                     >
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-400/70 shrink-0" />
-                      <span className="text-white/90 uppercase tracking-[0.14em] truncate">
-                        {w.chatter_name}
-                      </span>
-                      <span className="text-white/30">auf</span>
-                      <span className="text-white/80 truncate flex-1">{w.account}</span>
-                      <span className="text-white/50 tabular-nums shrink-0">{fmtInt(w.messages)} Msg</span>
-                      <span className="text-white/25">·</span>
-                      <span className="text-white/50 tabular-nums shrink-0">{fmtEur(w.revenue)}</span>
-                      <span className="text-white/25">·</span>
-                      <span className="text-rose-300 tabular-nums shrink-0">{fmtEurDec(w.eff)}/Msg</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-400/70 shrink-0" />
+                          <span className="text-white/90 uppercase tracking-[0.14em] break-words">
+                            {w.chatter_name}
+                          </span>
+                          <span className="text-white/30">auf</span>
+                          <span className="text-white/80 break-words">{w.account}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-white/50 tabular-nums sm:ml-auto">
+                          <span>{fmtInt(w.messages)} Msg</span>
+                          <span className="text-white/25">·</span>
+                          <span>{fmtEur(w.revenue)}</span>
+                          <span className="text-white/25">·</span>
+                          <span className="text-rose-300">{fmtEurDec(w.eff)}/Msg</span>
+                        </div>
+                      </div>
                     </button>
                   </div>
                 );
