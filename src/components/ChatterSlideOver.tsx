@@ -1582,15 +1582,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       {kpis.map((kpi) => {
                         const Icon = kpi.icon;
                         return (
-                          <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-5">
+                          <div key={kpi.label} className={`premium-card premium-card-interactive rounded-xl ${compact ? "p-3 sm:p-4" : "p-5"}`}>
                             <div className="flex items-center gap-1.5">
-                              <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">
+                              <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                              <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/45 font-medium`}>
                                 {kpi.label}
                               </p>
                             </div>
                             <p
-                              className={`text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                              className={`${compact ? "text-lg sm:text-xl mt-2" : "text-2xl mt-2.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
                             >
                               {kpi.value}
                             </p>
