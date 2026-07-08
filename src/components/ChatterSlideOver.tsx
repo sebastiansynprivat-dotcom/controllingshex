@@ -1912,7 +1912,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       )}
                     </div>
 
-                    {modelsLoginsBlock}
+
 
                     {/* ── Online-Zeiten (Stunden-Profil) ── */}
                     <ChatterActivityHoursCard chatterName={chatterName} platform={platform} />
