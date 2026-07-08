@@ -257,7 +257,12 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
     const rev = (Number(r.revenue_today) || 0) * share;
     if (msg <= 0 && rev <= 0) continue;
     const chKey = normalizeChatterName(name);
+    const allowedAccs = activeChatterModels.get(chKey);
     for (const acc of accounts) {
+      // Nur Kombis, die im NEUESTEN Report noch existieren. Historische
+      // Zuordnungen (z. B. Chatter hatte Account X, hat ihn heute nicht mehr)
+      // dürfen keine Downgrade-Karte auslösen.
+      if (allowedAccs && !allowedAccs.has(normalizeAccountName(acc))) continue;
       const key = `${chKey}||${acc.toLowerCase()}`;
       if (!comboLabels.has(key)) comboLabels.set(key, { chatter: name, account: acc });
       const dayMap = perComboDay.get(key) ?? new Map<string, DayCell>();
