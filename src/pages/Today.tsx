@@ -235,6 +235,67 @@ export default function Today() {
     return () => { cancel = true; };
   }, [platform, labelDataNonce]);
 
+  // Verzug-Model-Breakdown: pro Chatter die neuesten Werte pro Account (open_chats, delay)
+  useEffect(() => {
+    if (!data) return;
+    const chatterNames = Array.from(
+      new Set(
+        data.actions
+          .filter((a) => a.primaryKind === "verzug" && a.chatterName)
+          .map((a) => a.chatterName as string),
+      ),
+    );
+    if (chatterNames.length === 0) {
+      setVerzugBreakdown(new Map());
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      try {
+        const { data: rows, error } = await supabase
+          .from("chatter_history")
+          .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
+          .eq("platform", platform)
+          .in("chatter_name", chatterNames)
+          .order("analysis_date", { ascending: false })
+          .limit(2000);
+        if (cancel || error || !rows) return;
+        const seen = new Set<string>();
+        const map = new Map<string, VerzugBreakdownEntry[]>();
+        for (const r of rows as any[]) {
+          const name = (r.chatter_name || "").trim();
+          const account = (r.account || "").trim();
+          if (!name || !account) continue;
+          const key = `${name}||${account}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const rev = Number(r.revenue_today) || 0;
+          let delayDays = Number(r.response_delay_days) || 0;
+          // sanitize: kein Verzug wenn heute Umsatz gemacht
+          if (rev > 0 && delayDays > 0) delayDays = 0;
+          const openChats = Number(r.open_chats) || 0;
+          if (delayDays <= 0 && openChats <= 0) continue;
+          const arr = map.get(name) ?? [];
+          arr.push({ account, openChats, delayDays });
+          map.set(name, arr);
+        }
+        // Sortieren: höchster Verzug zuerst, dann meiste offene Chats
+        for (const [k, arr] of map) {
+          arr.sort((a, b) => b.delayDays - a.delayDays || b.openChats - a.openChats);
+          map.set(k, arr);
+        }
+        setVerzugBreakdown(map);
+      } catch (e) {
+        console.error("[Today/verzugBreakdown]", e);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [platform, data]);
+
+
+
   // localStorage sync für selectedLabelIds
   useEffect(() => {
     try {
