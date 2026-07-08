@@ -1413,19 +1413,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       key={kpi.label}
                       className={`premium-card premium-card-interactive rounded-xl p-3 sm:p-4 min-w-0 ${hasDetails ? "col-span-2" : ""}`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Icon className="h-3 w-3 shrink-0" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug truncate">
-                            {kpi.label}
-                          </p>
-                        </div>
-                        <p
-                          className={`text-base sm:text-lg font-extralight tracking-tight tabular-nums shrink-0 ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
-                        >
-                          {kpi.value}
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="h-3 w-3 shrink-0" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug truncate">
+                          {kpi.label}
                         </p>
                       </div>
+                      <p
+                        className={`text-base sm:text-lg font-extralight mt-1.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                      >
+                        {kpi.value}
+                      </p>
                       {hasDetails && (
                         <div className="mt-3 pt-3 border-t border-white/[0.05] space-y-1.5">
                           {kpi.details!.map((m) => (
@@ -1442,9 +1440,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                           ))}
                         </div>
                       )}
-                      {!hasDetails && (
-                        <div className="h-0" />
-                      )}
+
                     </div>
                   );
                 })}
