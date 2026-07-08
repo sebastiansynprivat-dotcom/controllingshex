@@ -109,6 +109,20 @@ function getVerzugDays(a: UnifiedAction): number | null {
   return null;
 }
 
+function normalizeBreakdownKey(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, " ");
+}
+
+function splitAccounts(value: string | null | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export default function Today() {
   const { platform } = usePlatform();
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
@@ -235,7 +249,7 @@ export default function Today() {
     return () => { cancel = true; };
   }, [platform, labelDataNonce]);
 
-  // Verzug-Model-Breakdown: pro Chatter die neuesten Werte pro Account (open_chats, delay)
+  // Verzug-Model-Breakdown: Account-Liste aus dem neuesten Report, Zahlen aus Live.
   useEffect(() => {
     if (!data) return;
     const all: UnifiedAction[] = [...(data.primary || []), ...(data.watchlist || []), ...(data.wins || [])];
@@ -254,47 +268,126 @@ export default function Today() {
     let cancel = false;
     (async () => {
       try {
-        const { data: rows, error } = await supabase
-          .from("chatter_history")
-          .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
-          .eq("platform", platform)
-          .in("chatter_name", chatterNames)
-          .order("analysis_date", { ascending: false })
-          .limit(2000);
-        if (cancel || error || !rows) return;
-        // Nur der neueste analysis_date pro Chatter zählt (sonst tauchen alte Accounts auf,
-        // auf denen der Chatter längst nicht mehr arbeitet).
+        const today = new Date().toISOString().split("T")[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+        const targetKeys = new Set(chatterNames.map(normalizeBreakdownKey));
+
+        const [historyRes, liveRes] = await Promise.all([
+          supabase
+            .from("chatter_history")
+            .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
+            .ilike("platform", platform)
+            .order("analysis_date", { ascending: false })
+            .limit(5000),
+          supabase
+            .from("chatter_history_live")
+            .select("chatter_name, unread_chats, oldest_chat, date, updated_at")
+            .ilike("platform", platform)
+            .gte("date", yesterday),
+        ]);
+        if (cancel || historyRes.error || liveRes.error) return;
+
+        const rows = ((historyRes.data ?? []) as any[]).filter((r) =>
+          targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
+        );
+        const liveRows = ((liveRes.data ?? []) as any[]).filter((r) =>
+          targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
+        );
+
+        type LiveAgg = { unread: number; oldest: number; date: string; updatedAt: string };
+        const newestLiveDateByChatter = new Map<string, string>();
+        for (const r of liveRows) {
+          const key = normalizeBreakdownKey(r.chatter_name);
+          const d = (r.date || "") as string;
+          if (!key || !d) continue;
+          const prev = newestLiveDateByChatter.get(key);
+          if (!prev || d > prev) newestLiveDateByChatter.set(key, d);
+        }
+        const liveByChatter = new Map<string, LiveAgg>();
+        for (const r of liveRows) {
+          const key = normalizeBreakdownKey(r.chatter_name);
+          const d = (r.date || "") as string;
+          if (!key || !d || d !== newestLiveDateByChatter.get(key)) continue;
+          const cur = liveByChatter.get(key) ?? { unread: 0, oldest: 0, date: d, updatedAt: "" };
+          cur.unread += Number(r.unread_chats) || 0;
+          cur.oldest = Math.max(cur.oldest, Number(r.oldest_chat) || 0);
+          if ((r.updated_at ?? "") > cur.updatedAt) cur.updatedAt = r.updated_at ?? "";
+          liveByChatter.set(key, cur);
+        }
+
+        // Nur der neueste analysis_date pro Chatter zählt für die Account-Zuordnung.
         const latestDateByChatter = new Map<string, string>();
-        for (const r of rows as any[]) {
-          const name = (r.chatter_name || "").trim();
+        for (const r of rows) {
+          const name = normalizeBreakdownKey(r.chatter_name);
           const d = (r.analysis_date || "") as string;
           if (!name || !d) continue;
           const prev = latestDateByChatter.get(name);
           if (!prev || d > prev) latestDateByChatter.set(name, d);
         }
-        const seen = new Set<string>();
-        const map = new Map<string, VerzugBreakdownEntry[]>();
-        for (const r of rows as any[]) {
-          const name = (r.chatter_name || "").trim();
-          const account = (r.account || "").trim();
-          if (!name || !account) continue;
-          if ((r.analysis_date || "") !== latestDateByChatter.get(name)) continue;
-          const key = `${name}||${account}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
+
+        type AccountSnapshot = { account: string; reportOpen: number; reportDelay: number };
+        const accountsByChatter = new Map<string, Map<string, AccountSnapshot>>();
+        const displayNameByKey = new Map<string, string>();
+        for (const r of rows) {
+          const nameKey = normalizeBreakdownKey(r.chatter_name);
+          const displayName = (r.chatter_name || "").trim();
+          const accounts = splitAccounts(r.account);
+          if (!nameKey || accounts.length === 0) continue;
+          if ((r.analysis_date || "") !== latestDateByChatter.get(nameKey)) continue;
+          if (displayName && !displayNameByKey.has(nameKey)) displayNameByKey.set(nameKey, displayName);
+
           const rev = Number(r.revenue_today) || 0;
-          let delayDays = Number(r.response_delay_days) || 0;
-          // sanitize: kein Verzug wenn heute Umsatz gemacht
-          if (rev > 0 && delayDays > 0) delayDays = 0;
-          const openChats = Number(r.open_chats) || 0;
-          // Alle Accounts des Chatters anzeigen — auch wenn 0 offen / 0 Verzug,
-          // damit sichtbar bleibt, auf wie vielen Models er sitzt.
-          const arr = map.get(name) ?? [];
-          arr.push({ account, openChats, delayDays });
-          map.set(name, arr);
+          const reportDelay = rev > 0 ? 0 : Number(r.response_delay_days) || 0;
+          const reportOpen = (Number(r.open_chats) || 0) / accounts.length;
+          const byAccount = accountsByChatter.get(nameKey) ?? new Map<string, AccountSnapshot>();
+          for (const account of accounts) {
+            const accountKey = normalizeBreakdownKey(account);
+            const cur = byAccount.get(accountKey) ?? { account, reportOpen: 0, reportDelay: 0 };
+            cur.reportOpen += reportOpen;
+            cur.reportDelay = Math.max(cur.reportDelay, reportDelay);
+            byAccount.set(accountKey, cur);
+          }
+          accountsByChatter.set(nameKey, byAccount);
         }
 
-        // Sortieren: höchster Verzug zuerst, dann meiste offene Chats
+        const map = new Map<string, VerzugBreakdownEntry[]>();
+        for (const [nameKey, byAccount] of accountsByChatter) {
+          const accounts = [...byAccount.values()];
+          const live = liveByChatter.get(nameKey);
+          const liveUnread = Math.max(0, Math.round(live?.unread ?? 0));
+          const liveDelay = live && live.date === today ? Math.max(0, Math.round(live.oldest)) : 0;
+
+          let liveCarrierKey: string | null = null;
+          const positiveAccounts = accounts.filter((a) => a.reportOpen > 0);
+          if (accounts.length === 1) {
+            liveCarrierKey = normalizeBreakdownKey(accounts[0].account);
+          } else if (positiveAccounts.length === 1) {
+            liveCarrierKey = normalizeBreakdownKey(positiveAccounts[0].account);
+          } else if (liveUnread > 0 && accounts.length > 0) {
+            const strongest = [...accounts].sort(
+              (a, b) => b.reportDelay - a.reportDelay || b.reportOpen - a.reportOpen || a.account.localeCompare(b.account),
+            )[0];
+            liveCarrierKey = normalizeBreakdownKey(strongest.account);
+          }
+
+          const arr = accounts.map((account) => {
+            const accountKey = normalizeBreakdownKey(account.account);
+            const carriesLive = accountKey === liveCarrierKey;
+            return {
+              account: account.account,
+              openChats: carriesLive ? liveUnread : 0,
+              delayDays: carriesLive && liveUnread > 0 ? liveDelay : 0,
+            };
+          });
+
+          const displayName = displayNameByKey.get(nameKey) ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey) ?? nameKey;
+          map.set(displayName, arr);
+          for (const originalName of chatterNames) {
+            if (normalizeBreakdownKey(originalName) === nameKey) map.set(originalName, arr);
+          }
+        }
+
+        // Sortieren: Live-Problem oben, danach stabile Account-Reihenfolge.
         for (const [k, arr] of map) {
           arr.sort((a, b) => b.delayDays - a.delayDays || b.openChats - a.openChats);
           map.set(k, arr);
