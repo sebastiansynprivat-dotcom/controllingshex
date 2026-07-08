@@ -273,6 +273,8 @@ export default function Messages() {
       for (const r of (splitRaw ?? []) as any[]) {
         const name = r.chatter_name as string;
         const acc = (r.account as string) || "—";
+        // Nur (Chatter × Model)-Paare zeigen, die im letzten Report noch bestehen.
+        if (acc !== "—" && !isActivePair(name, acc)) continue;
         if (!perChatter.has(name)) perChatter.set(name, new Map());
         const m = perChatter.get(name)!;
         const cur = m.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
