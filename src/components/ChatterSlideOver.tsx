@@ -1242,11 +1242,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 })}
               </div>
 
-              {modelsLoginsBlock}
-
 
               {/* Notes — direkt unter Labels */}
               <div className="space-y-4">
+
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
                 <div className="flex gap-2">
                   <textarea
