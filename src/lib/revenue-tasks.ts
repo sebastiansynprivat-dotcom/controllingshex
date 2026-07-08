@@ -40,6 +40,9 @@ export interface RevenueTask {
   chatterName?: string | null;
   secondaryChatter?: string | null;
   modelName?: string | null;
+  meta?: {
+    downgradeSince?: string; // YYYY-MM-DD, für chronologische Sortierung im Downgrade-Tab
+  };
 }
 
 const MAX_TASKS = 20;
