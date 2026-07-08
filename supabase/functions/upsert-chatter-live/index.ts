@@ -133,6 +133,30 @@ Deno.serve(async (req) => {
     };
   });
 
+  // Read prior live snapshots for delta computation (before upsert overwrites them)
+  const priorKeyOf = (r: { platform: string; telegram_id: string | null; date: string }) =>
+    `${r.platform}|${r.telegram_id ?? ""}|${r.date}`;
+  const priorMap = new Map<string, { unread: number; revenue: number }>();
+  const priorFilters = rows.filter((r) => r.telegram_id);
+  if (priorFilters.length > 0) {
+    const orExpr = priorFilters
+      .map(
+        (r) =>
+          `and(platform.eq.${r.platform},telegram_id.eq.${r.telegram_id},date.eq.${r.date})`,
+      )
+      .join(",");
+    const { data: priors } = await supabase
+      .from("chatter_history_live")
+      .select("platform,telegram_id,date,unread_chats,revenue")
+      .or(orExpr);
+    for (const p of priors ?? []) {
+      priorMap.set(priorKeyOf(p as any), {
+        unread: Number((p as any).unread_chats ?? 0),
+        revenue: Number((p as any).revenue ?? 0),
+      });
+    }
+  }
+
   const { data, error } = await supabase
     .from("chatter_history_live")
     .upsert(rows, { onConflict: "platform,telegram_id,date" })
@@ -143,6 +167,32 @@ Deno.serve(async (req) => {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // Increment incoming_stats per row/user (fire-and-collect)
+  for (const r of rows) {
+    const prior = priorMap.get(priorKeyOf(r as any));
+    const priorUnread = prior?.unread ?? Number(r.unread_chats ?? 0);
+    const priorRevenue = prior?.revenue ?? Number(r.revenue ?? 0);
+    const unreadDrop = Math.max(0, priorUnread - Number(r.unread_chats ?? 0));
+    const revenueEvent = Number(r.revenue ?? 0) > priorRevenue ? 1 : 0;
+    const delta = unreadDrop + revenueEvent;
+    if (delta <= 0) continue;
+    const key = `${r.platform.toLowerCase()}|${r.chatter_name.toLowerCase()}`;
+    const uids = ownerUsers.get(key);
+    if (!uids || uids.size === 0) continue;
+    for (const uid of uids) {
+      const { error: rpcErr } = await supabase.rpc("increment_incoming_stats", {
+        p_user_id: uid,
+        p_platform: r.platform,
+        p_chatter_name: r.chatter_name,
+        p_date: r.date,
+        p_delta: delta,
+        p_last_unread: Number(r.unread_chats ?? 0),
+        p_last_revenue: Number(r.revenue ?? 0),
+      });
+      if (rpcErr) console.error("increment_incoming_stats failed:", rpcErr.message);
+    }
   }
 
   await supabase.rpc("recompute_live_now");
