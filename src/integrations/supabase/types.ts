@@ -577,6 +577,45 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_incoming_stats: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          date: string
+          id: string
+          incoming_count: number
+          last_revenue: number | null
+          last_unread: number | null
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          date?: string
+          id?: string
+          incoming_count?: number
+          last_revenue?: number | null
+          last_unread?: number | null
+          platform?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          date?: string
+          id?: string
+          incoming_count?: number
+          last_revenue?: number | null
+          last_unread?: number | null
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_inputs: {
         Row: {
           chatter_name: string
@@ -1535,6 +1574,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_incoming_stats: {
+        Args: {
+          p_chatter_name: string
+          p_date: string
+          p_delta: number
+          p_last_revenue: number
+          p_last_unread: number
+          p_platform: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       recompute_live_now: { Args: never; Returns: undefined }
     }

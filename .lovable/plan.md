@@ -1,99 +1,106 @@
 ## Ziel
-Wochenziel-Prozess robuster & schneller: Kanal-Filter in der Rückblick-Ansicht, plattform­übergreifende Zusammenführung pro Chatter, korrekter Tages­durchschnitt bei kleinen Zielen, saubere Behandlung neuer Chatter inkl. eigener Einführungs­nachricht.
 
-Alle Änderungen betreffen ausschließlich das Wochenziel-System.
+Neuer Sidebar-Reiter **"Nachrichten"** (`/nachrichten`), der pro Chatter live zeigt:
+- wie viele Nachrichten heute reinkamen (Proxy),
+- wie viel Umsatz daraus wurde,
+- **€ pro eingehender Nachricht** als Effizienz-Kennzahl.
 
----
+Standard-Sortierung: meiste Nachrichten oben. Toggle-Button zum Umkehren. Zusätzlich Sortier-Umschalter für Umsatz / €-pro-Msg, damit du auf einen Blick siehst, wer viel bekommt aber wenig draus macht → Tausch-Signal.
 
-### 1) Kanal-Filter in „Vergangene Wochenziele"
-Datei: `src/components/PastWeeklyGoalsTab.tsx`
+## Datengrundlage
 
-- Chip-Filter oberhalb der Liste: **Alle · WhatsApp · Plattform** (mit Counts).
-- Klassifikation via bereits vorhandenem `classifyName()`-Ansatz aus `BulkGoalMessagesDialog.tsx` (WhatsApp = abgekürzter Nachname / letzter Token ≤ 3 Zeichen oder endet auf „."). Helper in eine kleine Util `src/lib/chatter-channel.ts` extrahieren, damit Bulk-Dialog + Past-Tab dieselbe Logik nutzen.
-- Auswahl in `localStorage` merken (Key `pastWeeklyGoals.channelFilter`).
-- Optional: dezente Kanal-Chip-Anzeige pro Zeile (WA / Plattform), damit sofort erkennbar.
-
-Analog auch in der „Aktuelle Wochenziele"-Übersicht (`WeeklyGoals.tsx`, Tab `current`) denselben Chip-Filter anbieten, damit man WA-Nachrichten am Stück durcharbeiten kann.
-
----
-
-### 2) Chatter über mehrere Plattformen zusammenführen
-Problem: derselbe Chatter (z. B. Maloum + Bratzzels) hat pro Plattform ein eigenes Wochenziel und eigene Zielerreichung → widersprüchliches Feedback.
-
-Ansatz **Zusammenführung nur auf Feedback-Ebene** (kein Schema-Umbau):
-- In `PastWeeklyGoalsTab` und in der Feedback-/Vorschlagslogik von `WeeklyGoals.tsx` alle `weekly_goal_results` des Chatters **plattform­übergreifend** laden (nicht mehr `.eq("platform", platform)` filtern für die Aggregation).
-- Pro Chatter + Woche: `goal_eur` und `actual_eur` **über alle Plattformen summieren**, `achieved = sum(actual) ≥ sum(goal)`.
-- `lastAchievementPct` (Bucket-Zuordnung Star/Strong/On-Track/Close/Off-Track) basiert auf der zusammengeführten Vorwoche → nur **ein** Bucket, damit nur **eine** Feedback-Nachricht pro Chatter.
-- Bei der Nachrichten-Generierung im Bulk-Dialog werden Duplikate (gleicher Chatter-Name, mehrere Plattformen) zu einer Zeile gemergt; das Ziel wird als Summe angezeigt.
-- Der Platform-Switch bleibt für die *Bearbeitung* / Zielsetzung erhalten, aber „letzte-Woche"-Klassifikation ist plattform­übergreifend.
-
----
-
-### 3) Korrekte Tagesberechnung bei kleinen Wochenzielen
-Datei: `supabase/functions/generate-goal-message/index.ts`
-
-Aktuell:
+**Live-Proxy pro Push** (aus `chatter_history_live`, alle 10–15 min):
 ```
-const dailyTarget = Math.round((proposedGoal / 7) / 10) * 10;
+incoming_delta = max(0, unread_now − unread_last_push)
+               + max(0, revenue_now − revenue_last_push) > 0 ? 1 : 0
 ```
-→ bei Ziel 10 € = 0.
+Jede Umsatzsteigerung zählt als mindestens 1 eingehende Nachricht (Kauf setzt Chat voraus). Aufsummiert pro Chatter/Schicht-Tag = `incoming_count`. Bei 3–4h Schicht ergibt das 12–18 Datenpunkte pro Chatter — genug für Größenordnung und Ranking, nicht Message-genau. Wird im UI transparent als "~" (geschätzt) markiert.
 
-Neu (sanftes Runden, nie auf 0):
-- Wenn `proposedGoal / 7 < 20` → auf **1 €** runden (`Math.max(1, Math.round(proposedGoal / 7))`).
-- Sonst wie bisher auf 10 € runden.
-- Ausgabe im Template `{tagesziel}` bleibt gleich, aber Wert ist nun sinnvoll (z. B. „Ø 1 €/Tag").
+**Speicherung:** Neue Tabelle `chatter_incoming_stats` (user_id, platform, chatter_name, date, incoming_count, last_unread, last_revenue, updated_at). Wird bei jedem `upsert-chatter-live`-Push nachgeführt.
 
----
+## Backfill für historische Tage
 
-### 4) Neue Chatter erkennen (kein „letzte Woche erreicht/nicht erreicht")
-- Neuer Szenario-Typ `weekly_intro` im Edge-Function-Flow.
-- Erkennung: Für den Chatter existiert **kein** `weekly_goal_results`-Eintrag (plattform­übergreifend geprüft, siehe Punkt 2), d. h. er hatte noch nie ein abgeschlossenes Wochenziel.
-- Wenn `weekly_intro` → wird **nicht** auto-klassifiziert nach growth/flat/decline; stattdessen wird die Intro-Vorlage verwendet.
-- Sobald mindestens ein `weekly_goal_results`-Eintrag existiert, greift ab der nächsten Runde automatisch die reguläre Bucket-Logik.
+Zusätzlich rückwirkende Berechnung aus `chatter_hourly_stats` (die Tabelle hält Stundensnapshots seit Projektstart, siehe `snapshot-hourly-stats`).
 
----
-
-### 5) Eigene Einführungs-Vorlage `weekly_intro`
-- Neuer Scenario-Key `weekly_intro` in:
-  - `supabase/functions/generate-goal-message/index.ts` (`DEFAULT_WEEKLY` + Auswahllogik).
-  - `src/components/GoalMessageTemplatesDialog.tsx` (`WEEKLY_LABELS`, `DEFAULTS`, `ALL_SCENARIOS`, `activeScenarios` für Wochenziele).
-- Platzhalter: `{name}`, `{ziel}`, `{tagesziel}` (kein `{letztewoche_umsatz}` da nicht vorhanden).
-- Default-Text (editierbar):
-  > „Hey {name}, ab jetzt arbeiten wir mit Wochenzielen 🎯🏻 Jede Woche gibt's ein klares Ziel + kurzes Feedback, damit du dich Woche für Woche steigerst.
-  >
-  > Dein erstes Ziel: *{ziel}* — Ø *{tagesziel}/Tag*. Ziel wird regelmäßig an deine Entwicklung angepasst. Los geht's 💪🏻"
-- Im Templates-Dialog als eigene Karte (4. Karte unter Wochenziele) mit „Erstes Wochenziel (neuer Chatter)" gekennzeichnet.
-
----
-
-### Technische Details
-
-**Neue Util** `src/lib/chatter-channel.ts`
-```ts
-export type ChatterChannel = "whatsapp" | "platform";
-export function classifyChannel(name: string): ChatterChannel { /* aus BulkGoalMessagesDialog übernommen */ }
+**Backfill-Formel pro Chatter/Tag:**
 ```
-Import in `BulkGoalMessagesDialog.tsx` und `PastWeeklyGoalsTab.tsx` + `WeeklyGoals.tsx`.
-
-**Edge-Function-Flow (weekly)**
+incoming_count(day) = Σ über alle Stundenslots:
+    max(0, unread_delta_neg)   // wenn unread runtergegangen → gelesene Msgs
+  + (revenue_hour > 0 ? 1 : 0) // jede Stunde mit Umsatz = mind. 1 Kauf
 ```
-if (!hasAnyPreviousResult) scenario = "weekly_intro";
-else scenario = scenarioOverride ?? autoBucket(vsPrior);
+Wobei `unread_delta_neg = max(0, unread_prev_hour − unread_this_hour)`. Positive Deltas (neue Msgs kommen rein) sind bereits im nächsten `unread_delta_neg` enthalten, sonst würden wir doppelt zählen. Alternative Variante wird vor Umsetzung mit Beispieldaten gegengeprüft.
+
+**Umsetzung:**
+- Neue Edge Function `backfill-incoming-stats`:
+  - Optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` Parameter, default = alle verfügbaren Tage.
+  - Liest `chatter_hourly_stats` gruppiert pro user/platform/chatter/date.
+  - Rechnet Formel, upsert in `chatter_incoming_stats` (onConflict user_id,platform,chatter_name,date).
+  - Idempotent: mehrfach ausführbar, gleicher Output.
+- Wird **einmal manuell** nach dem Deployment getriggert (Admin-Button in Settings oder direkter Aufruf), danach übernimmt der Live-Path für den aktuellen Tag.
+- History-Tage im UI verfügbar über einen Datums-Range-Switcher: "Heute" / "Letzte 7 Tage" / "Letzte 30 Tage".
+
+**Genauigkeitshinweis:** Backfill ist noch gröber als Live (Stundenauflösung statt 15 min), aber gut genug für Trends. Im UI unterschieden über Badge "geschätzt (Backfill)" bei historischen Tagen.
+
+## UI — Premium Layout
+
+Route `/nachrichten`, Sidebar-Icon: `Inbox` (lucide).
+
+Aufbau (mobile-first, max-w-2xl zentriert):
+
+```text
+┌─────────────────────────────────────────┐
+│  NACHRICHTEN                            │
+│  Wer bekommt wie viel — und macht was   │
+│  daraus.                                │
+├─────────────────────────────────────────┤
+│  [Heute ▾]  [Sortieren: Msgs ↓]  [Live●]│
+├─────────────────────────────────────────┤
+│  #1  ANNA                    ~340 msg   │
+│  ████████████████░░░  1.240 €           │
+│  3,65 €/msg    · aktiv vor 2 min        │
+├─────────────────────────────────────────┤
+│  #2  LEA                     ~280 msg   │
+│  ██████████░░░░░░░░░    420 €           │
+│  1,50 €/msg    · Rückgang               │
+├─────────────────────────────────────────┤
+│  ...                                    │
+└─────────────────────────────────────────┘
 ```
-`hasAnyPreviousResult` = COUNT `weekly_goal_results` für `chatter_name` (alle Plattformen) > 0.
 
-**Frontend (`WeeklyGoals.tsx`)**
-- Beim Vorschlags-Load zusätzlich Set `chattersWithHistory` (aus `weekly_goal_results`, plattform­übergreifend) laden.
-- Chatter ohne History → Bucket `new` (bereits vorhanden), aber Bulk-Dialog schickt `goal_type: "weekly"` — Edge-Function entscheidet dann selbst auf `weekly_intro`.
+**Card-Design pro Chatter:**
+- Rank-Nummer groß, dünn (font-light, gold-tint für Top 3).
+- Chatter-Name in Uppercase-Tracking.
+- Rechts: `~340 msg` mit Tilde (signalisiert Schätzung).
+- Progress-Bar: Länge = Umsatz relativ zum Top-Chatter. Farbe = € pro Message (grün ≥ Ø, amber < Ø, rot ≪ Ø).
+- Sub-Zeile: `€/msg` groß + Live-Status ("aktiv vor Xmin" / "Pause" / "offline") mit pulsierendem Dot.
+- Sanfte Hover-Elevation, backdrop-blur, border white/[0.06], gradient analog `PushCounterCard`.
 
-**Keine Schema-Änderungen** nötig. Kein Migrations-Bedarf.
+**Header-Controls:**
+- Datums-Dropdown: Heute / Letzte 7 Tage / Letzte 30 Tage.
+- Sortier-Dropdown: Nachrichten / Umsatz / €-pro-Msg.
+- Richtungs-Toggle (↑↓).
+- Live-Dot mit "letzter Push vor Xmin".
 
----
+**Empty-State** für Chatter ohne Signal: ausgegraut ganz unten, "heute noch kein Signal".
 
-### Betroffene Dateien
-- `src/lib/chatter-channel.ts` *(neu)*
-- `src/components/PastWeeklyGoalsTab.tsx`
-- `src/components/BulkGoalMessagesDialog.tsx`
-- `src/components/GoalMessageTemplatesDialog.tsx`
-- `src/pages/WeeklyGoals.tsx`
-- `supabase/functions/generate-goal-message/index.ts`
+## Technische Details
+
+1. **Migration:** neue Tabelle `chatter_incoming_stats` + Index auf (user_id, platform, date) + RLS + GRANT (analog `chatter_history_live`).
+2. **Edge Function `upsert-chatter-live`:** vor dem Upsert alten Snapshot aus `chatter_history_live` lesen → Diff berechnen → `chatter_incoming_stats` upserten. Additiv, alter Flow unangetastet.
+3. **Edge Function `backfill-incoming-stats`:** neue Function, service-role, iteriert `chatter_hourly_stats`, füllt `chatter_incoming_stats` idempotent.
+4. **Frontend:**
+   - `src/pages/Messages.tsx` (Route `/nachrichten`).
+   - `src/components/messages/ChatterMessageRow.tsx`.
+   - Query via `supabase.from('chatter_incoming_stats')` + Join auf `chatter_history_live` für Live-Status.
+   - Realtime-Subscription für automatisches Re-Ranking.
+   - Range/Sort-State in `useState`, Default: heute, `incoming_count desc`.
+5. **Sidebar:** Eintrag zwischen "Live-Tracking" und "Push".
+6. **App.tsx:** Route `/nachrichten`.
+7. **Backfill-Trigger:** einmaliger Aufruf nach Deployment via `supabase.functions.invoke('backfill-incoming-stats')` — Button dezent in Settings, oder ich triggere es einmal für dich.
+
+## Was bewusst NICHT drin ist
+
+- Kein Reply-Time-Tracking (braucht anderes Extension-Signal).
+- Keine Message-genaue Historie — bewusst als Schätzung markiert.
+
+Reihenfolge beim Bau: Migration → Live-Edge-Function-Erweiterung → Backfill-Function → UI → Backfill einmal triggern.
