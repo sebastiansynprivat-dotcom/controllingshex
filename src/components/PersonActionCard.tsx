@@ -21,7 +21,10 @@ interface Props {
   onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss" | "reject-account") => void;
   /** Karten in Wins/Erledigt-Ansicht: kein primary action button, gedimmt. */
   readonly?: boolean;
+  /** Verzug-Detail pro Model (nur für Verzug-Karten): Model-Name, offene Chats, Verzug-Tage. */
+  verzugBreakdown?: { account: string; openChats: number; delayDays: number }[];
 }
+
 
 const TONE: Record<
   UnifiedAction["tone"],
@@ -168,7 +171,9 @@ export default function PersonActionCard({
   onModelClick,
   onAct,
   readonly = false,
+  verzugBreakdown,
 }: Props) {
+
   const [celebrating, setCelebrating] = useState(false);
   const tone =
     action.primaryKind === "upgrade"
@@ -593,7 +598,60 @@ export default function PersonActionCard({
           )}
         </div>
 
+        {action.primaryKind === "verzug" && verzugBreakdown && verzugBreakdown.length > 0 && (
+          <div className="px-5 pb-4">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-white/[0.05] bg-white/[0.015]">
+                <span className="text-[9.5px] font-bold uppercase tracking-[0.18em] text-white/50">
+                  Aufschlüsselung pro Model
+                </span>
+                <span className="text-[9.5px] font-medium uppercase tracking-[0.16em] text-white/30 tabular-nums">
+                  {verzugBreakdown.length} {verzugBreakdown.length === 1 ? "Model" : "Models"}
+                </span>
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {verzugBreakdown.map((m) => {
+                  const critical = m.delayDays >= 3;
+                  const warn = m.delayDays >= 1 && m.delayDays < 3;
+                  return (
+                    <button
+                      key={m.account}
+                      type="button"
+                      onClick={(e) => {
+                        stop(e);
+                        if (onModelClick) onModelClick(m.account, action.chatterName ?? null);
+                      }}
+                      className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
+                    >
+                      <span className="text-[12.5px] font-medium text-white/90 truncate tracking-wide">
+                        {m.account}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/75">
+                          {m.openChats} offen
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border",
+                            critical && "bg-red-500/12 border-red-500/25 text-red-300",
+                            warn && "bg-amber-500/12 border-amber-500/25 text-amber-300",
+                            !critical && !warn && "bg-white/[0.04] border-white/[0.06] text-white/50",
+                          )}
+                        >
+                          <Clock className="h-3 w-3" />
+                          {m.delayDays > 0 ? `${m.delayDays}d Verzug` : "aktuell"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
+
         <div className="px-5 pb-5 pt-1">
           <div className="flex items-center justify-between border-t border-white/[0.05] pt-3">
             <button
