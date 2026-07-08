@@ -21,12 +21,14 @@ interface Row {
   chatter_name: string;
   incoming_count: number;
   last_revenue: number;
+  last_unread: number;
   updated_at: string;
 }
 
 interface LiveRow {
   chatter_name: string;
   revenue: number;
+  unread_chats: number;
   updated_at: string;
 }
 
