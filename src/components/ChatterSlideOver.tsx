@@ -1394,7 +1394,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   navigator.clipboard.writeText(displayName);
                   toast.success("Name kopiert");
                 }}
-                className="text-xl sm:text-[26px] font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+                className={`${compact ? "text-lg" : "text-xl sm:text-[26px]"} font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate`}
                 title="Klicken zum Kopieren"
               >
                 {displayName}
