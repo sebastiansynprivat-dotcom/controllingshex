@@ -133,36 +133,64 @@ function RevenueTooltip({
   const totalDelay = rowsForDate.length
     ? Math.round(rowsForDate.reduce((s, r) => s + r.response_delay_days, 0) / rowsForDate.length)
     : 0;
+  const perModel = [...rowsForDate].sort(
+    (a, b) => (b.revenue_today || 0) - (a.revenue_today || 0)
+  );
+  const totalRevenue = rowsForDate.reduce((s, r) => s + (r.revenue_today || 0), 0) || row.revenue_today;
+  const totalMassDms = rowsForDate.reduce((s, r) => s + (r.mass_dms || 0), 0) || row.mass_dms;
+  const totalOpen = rowsForDate.reduce((s, r) => s + (r.open_chats || 0), 0);
   return (
-    <div className="premium-card rounded-xl px-5 py-3.5 max-w-[260px]">
-      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">
-        {formatDate(row.analysis_date)}
-      </p>
-      <p className="text-lg font-extralight gold-text tracking-tight tabular-nums">
-        {formatCurrency(row.revenue_today)}
-      </p>
-      <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.mass_dms} MassDMs</p>
-
-      {modelsWithDelay.length > 0 ? (
-        <div className="mt-2 border-t border-white/[0.06] pt-2 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">Verzug pro Model</p>
-          {modelsWithDelay.map((r) => (
-            <p
-              key={r.account}
-              className="text-[11px] text-white/55 font-light tracking-wide flex items-center justify-between gap-3"
-            >
-              <span className="truncate">{r.account}</span>
-              <span className="text-white/70 tabular-nums shrink-0">
-                {r.response_delay_days} {r.response_delay_days === 1 ? "Tag" : "Tage"}
-              </span>
-            </p>
-          ))}
-        </div>
-      ) : (
-        <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide flex items-center gap-1.5">
-          <Clock className="h-3 w-3 text-white/40" />
-          {totalDelay} {totalDelay === 1 ? "Tag" : "Tage"} Verzug
+    <div className="premium-card rounded-xl px-5 py-3.5 w-[300px]">
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+          {formatDate(row.analysis_date)}
         </p>
+        {totalDelay > 0 && (
+          <span className="text-[10px] text-[#E25822]/85 font-light tracking-wide tabular-nums flex items-center gap-1">
+            <Clock className="h-2.5 w-2.5" />
+            Ø {totalDelay}d
+          </span>
+        )}
+      </div>
+      <p className="text-lg font-extralight gold-text tracking-tight tabular-nums">
+        {formatCurrency(totalRevenue)}
+      </p>
+      <p className="text-[11px] text-white/45 font-light mt-0.5 tracking-wide">
+        {totalMassDms} MassDMs · {totalOpen} offen
+      </p>
+
+      {perModel.length > 0 && (
+        <div className="mt-3 border-t border-white/[0.06] pt-2.5 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">Pro Model</p>
+          {perModel.map((r) => {
+            const delayed = r.response_delay_days > 0;
+            return (
+              <div
+                key={r.account}
+                className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-2.5 py-2"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-[11.5px] text-white/85 font-medium truncate tracking-wide">
+                    {r.account || "—"}
+                  </span>
+                  {delayed ? (
+                    <span className="text-[10px] text-[#E25822]/90 font-light tabular-nums shrink-0 flex items-center gap-1">
+                      <Clock className="h-2.5 w-2.5" />
+                      {r.response_delay_days}d
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-emerald-400/70 font-light shrink-0">on time</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3 text-[10.5px] font-light tabular-nums text-white/50">
+                  <span>{formatCurrency(r.revenue_today)}</span>
+                  <span>{r.open_chats} offen</span>
+                  <span>{r.mass_dms} DMs</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {row.note && (
