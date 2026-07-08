@@ -45,6 +45,10 @@ export interface ActionSignal {
   evidence?: EvidenceRow[];
   /** Talent-Karte: erlaubt „Anderer Account"-Button, sperrt diese Kombi 7T */
   rejectAccount?: { riser: string; account: string } | null;
+  /** Optionale Metadaten aus der Revenue-Task, z. B. für chronologische Sortierung. */
+  meta?: {
+    downgradeSince?: string;
+  };
 }
 
 export interface UnifiedAction {
