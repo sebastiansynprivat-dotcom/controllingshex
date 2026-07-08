@@ -1535,17 +1535,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                           return (
                             <div
                               key={kpi.label}
-                              className="relative rounded-xl p-5 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden"
+                              className={`relative rounded-xl ${compact ? "p-3 sm:p-4" : "p-5"} bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden`}
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] to-transparent pointer-events-none" />
                               <div className="relative flex items-center gap-1.5">
-                                <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                                <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">
+                                <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                                <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/55 font-medium`}>
                                   {kpi.label}
                                 </p>
                               </div>
                               <p
-                                className={`relative text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
+                                className={`relative ${compact ? "text-lg sm:text-xl mt-2" : "text-2xl mt-2.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
                               >
                                 {kpi.value}
                               </p>
