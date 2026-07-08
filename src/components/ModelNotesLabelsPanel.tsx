@@ -233,7 +233,7 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<LoginData>({ email: null, password: null, profile_url: null });
-  const [showPw, setShowPw] = useState(false);
+  
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
