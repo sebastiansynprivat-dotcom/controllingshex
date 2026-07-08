@@ -40,6 +40,15 @@ interface ModelSplitRow {
   days: number;
 }
 
+interface WasteRow {
+  chatter_name: string;
+  account: string;
+  messages: number;
+  revenue: number;
+  eff: number;
+}
+
+
 
 function fmtInt(n: number) {
   return new Intl.NumberFormat("de-DE").format(Math.round(n));
@@ -103,6 +112,8 @@ export default function Messages() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [modelSplits, setModelSplits] = useState<Record<string, ModelSplitRow[]>>({});
   const [loadingSplit, setLoadingSplit] = useState<Set<string>>(new Set());
+  const [wasted, setWasted] = useState<WasteRow[]>([]);
+
 
 
   useEffect(() => {
