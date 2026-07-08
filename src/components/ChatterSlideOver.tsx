@@ -265,24 +265,14 @@ function ModelLoginRow({
           </button>
         )}
         {model.password && (
-          <>
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              title={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
-              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
-            >
-              {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => onCopy(model.password!, "Passwort")}
-              title="Passwort kopieren"
-              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => onCopy(model.password!, "Passwort")}
+            title="Passwort kopieren"
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+          </button>
         )}
       </div>
     </div>
