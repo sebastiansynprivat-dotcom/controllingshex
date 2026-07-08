@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone, Inbox } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
