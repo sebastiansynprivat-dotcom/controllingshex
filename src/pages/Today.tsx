@@ -262,12 +262,23 @@ export default function Today() {
           .order("analysis_date", { ascending: false })
           .limit(2000);
         if (cancel || error || !rows) return;
+        // Nur der neueste analysis_date pro Chatter zählt (sonst tauchen alte Accounts auf,
+        // auf denen der Chatter längst nicht mehr arbeitet).
+        const latestDateByChatter = new Map<string, string>();
+        for (const r of rows as any[]) {
+          const name = (r.chatter_name || "").trim();
+          const d = (r.analysis_date || "") as string;
+          if (!name || !d) continue;
+          const prev = latestDateByChatter.get(name);
+          if (!prev || d > prev) latestDateByChatter.set(name, d);
+        }
         const seen = new Set<string>();
         const map = new Map<string, VerzugBreakdownEntry[]>();
         for (const r of rows as any[]) {
           const name = (r.chatter_name || "").trim();
           const account = (r.account || "").trim();
           if (!name || !account) continue;
+          if ((r.analysis_date || "") !== latestDateByChatter.get(name)) continue;
           const key = `${name}||${account}`;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -286,6 +297,7 @@ export default function Today() {
           arr.sort((a, b) => b.delayDays - a.delayDays || b.openChats - a.openChats);
           map.set(k, arr);
         }
+
         setVerzugBreakdown(map);
       } catch (e) {
         console.error("[Today/verzugBreakdown]", e);
