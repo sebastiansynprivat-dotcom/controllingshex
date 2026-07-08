@@ -1517,6 +1517,50 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               className={`${compareWith ? `sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 ${activePane === "primary" ? "flex-1" : "hidden sm:block"}` : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
               style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
             >
+              {compact && (
+                <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-zinc-950 z-10 shrink-0">
+                  <div
+                    className="premium-stat flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-light tracking-wide text-primary/80"
+                    style={{ filter: "drop-shadow(0 0 8px hsl(40 50% 60% / 0.15))" }}
+                  >
+                    {initials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2
+                      onClick={() => {
+                        navigator.clipboard.writeText(displayName);
+                        toast.success("Name kopiert");
+                      }}
+                      className="text-lg font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+                      title="Klicken zum Kopieren"
+                    >
+                      {displayName}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+                        {platform} · Profil
+                      </p>
+                      {trend30.direction !== "stable" && (
+                        <span
+                          className={`premium-chip inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-md ${
+                            trend30.direction === "up"
+                              ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
+                              : "text-red-300 bg-red-500/10 border border-red-500/20"
+                          }`}
+                        >
+                          {trend30.direction === "up" ? (
+                            <TrendingUp className="h-2.5 w-2.5" />
+                          ) : (
+                            <TrendingDown className="h-2.5 w-2.5" />
+                          )}
+                          {trend30.pct > 0 ? "+" : ""}
+                          {trend30.pct}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className={`${splitView ? "p-4 space-y-6" : compact ? "p-4 sm:p-6 space-y-6 sm:space-y-8" : "p-5 sm:p-10 space-y-8 sm:space-y-12"} pb-16`}>
                 {loading ? (
                   <ProfileSkeleton />
