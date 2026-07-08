@@ -18,7 +18,15 @@ import {
   Loader2,
   Download,
   RefreshCw,
+  Trash2,
+  Check,
+  Eye,
+  EyeOff,
+  Copy,
+  Mail,
+  KeyRound,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
