@@ -66,7 +66,7 @@ const SWAP_RENDER_BATCH = 8;
 const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
   { id: "verzug",   label: "Verzug",         icon: AlertTriangle,  accent: "text-red-300",      dot: "bg-red-400/80" },
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
-  { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
+  // { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" }, // entfernt auf Wunsch
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
   { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
@@ -333,22 +333,28 @@ export default function Today() {
     const watch: UnifiedAction[] = [];
     const wins: UnifiedAction[] = [];
     const done: UnifiedAction[] = [];
+    const isHidden = (a: UnifiedAction) => a.primaryKind === "wakeup"; // Wieder-aktiv komplett ausblenden
+
 
     for (const a of data.primary) {
+      if (isHidden(a)) continue;
       const v = visibility(a);
       if (v === "open") open.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.watchlist) {
+      if (isHidden(a)) continue;
       const v = visibility(a);
       if (v === "open") watch.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.wins) {
+      if (isHidden(a)) continue;
       const v = visibility(a);
       if (v === "open") wins.push(a);
       else if (v === "done") done.push(a);
     }
+
 
     const openImpact = open.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
     const doneImpact = done.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
