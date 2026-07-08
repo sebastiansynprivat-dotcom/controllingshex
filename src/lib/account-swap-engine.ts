@@ -678,11 +678,16 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
   const models = (modelsRes.data ?? []) as ModelRow[];
 
   // Aktive-Chatter-Filter
-  const history = historyRaw.filter((r) => {
+  const historyByActiveNames = historyRaw.filter((r) => {
     if (!r.chatter_name) return false;
     if (!activeNames) return true;
     return activeNames.has(normalizeChatterName(r.chatter_name));
   });
+  // Zusätzlich: historische Chatter×Account-Kombis droppen, die im neuesten
+  // Report nicht mehr zusammen auftauchen (Chatter sitzt heute nicht mehr auf
+  // diesem Account). Sonst empfiehlt die Engine Swaps für längst aufgelöste
+  // Zuordnungen.
+  const history = await filterRowsToActiveCombos(platform, historyByActiveNames);
   if (history.length === 0) return [];
 
   // Followers + Account-Labels
