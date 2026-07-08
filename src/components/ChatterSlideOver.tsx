@@ -389,11 +389,13 @@ function Trend30Block({
   trend30,
   compact = false,
   gradientId,
+  historyRows,
 }: {
   last30: HistoryRow[];
   trend30: { pct: number; direction: "up" | "down" | "stable" };
   compact?: boolean;
   gradientId: string;
+  historyRows?: HistoryRow[];
 }) {
   if (last30.length < 4) return null;
   const trendAccent =
@@ -440,7 +442,10 @@ function Trend30Block({
               tickFormatter={(v) => `${v}€`}
               width={compact ? 40 : 50}
             />
-            <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+            <Tooltip
+              content={<RevenueTooltip historyRows={historyRows} />}
+              cursor={{ stroke: "rgba(255,255,255,0.08)" }}
+            />
             <Area
               type="monotone"
               dataKey="revenue_today"
@@ -461,6 +466,7 @@ function Trend30Block({
     </div>
   );
 }
+
 
 
 
