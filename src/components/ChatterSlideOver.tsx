@@ -35,11 +35,13 @@ import { onChatterDataUpdated, emitChatterLabelsUpdated } from "@/lib/data-event
 
 interface HistoryRow {
   analysis_date: string;
+  account: string;
   revenue_today: number;
   mass_dms: number;
   open_chats: number;
   response_delay_days: number;
 }
+
 
 interface CoachingNote {
   id: string;
