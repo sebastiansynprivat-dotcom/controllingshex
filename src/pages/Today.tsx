@@ -971,7 +971,9 @@ export default function Today() {
                         onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                         onAct={act}
                         readonly={isReadonly}
+                        verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
                       />
+
                     ))}
                     {remainingSwapCount > 0 && (
                       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-light text-white/35">
