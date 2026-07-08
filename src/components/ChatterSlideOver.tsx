@@ -291,6 +291,149 @@ function ModelLoginRow({
   );
 }
 
+function LiveKpiStrip({
+  liveKpis,
+  isActiveToday,
+  compact = false,
+}: {
+  liveKpis: { label: string; value: string; icon: any; accent: string; gold: boolean }[];
+  isActiveToday: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        </span>
+        <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">Echtzeit · Heute</p>
+      </div>
+      <div className={`grid grid-cols-4 ${compact ? "gap-2" : "gap-2 sm:gap-3"}`}>
+        {liveKpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.label}
+              className={`relative rounded-xl bg-emerald-500/[0.03] border border-emerald-500/15 overflow-hidden ${compact ? "p-2.5 sm:p-3" : "p-3"}`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.04] to-transparent pointer-events-none" />
+              <div className="relative flex items-center gap-1">
+                <Icon className={`${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`} style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
+                <p
+                  className={`${compact ? "text-[8px] tracking-[0.12em]" : "text-[9px] tracking-[0.14em]"} uppercase text-white/45 font-medium truncate`}
+                >
+                  {kpi.label}
+                </p>
+              </div>
+              <p
+                className={`relative ${compact ? "text-xs sm:text-sm mt-1" : "text-sm sm:text-base mt-1.5"} font-medium tracking-tight tabular-nums truncate ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
+              >
+                {kpi.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <div
+        className={`flex items-center justify-between rounded-xl px-3 py-2 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}
+      >
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            {isActiveToday && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+            )}
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`} />
+          </span>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">Heute aktiv</p>
+        </div>
+        <p className={`text-[11px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}>
+          {isActiveToday ? "Aktiv" : "Inaktiv"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Trend30Block({
+  last30,
+  trend30,
+  compact = false,
+  gradientId,
+}: {
+  last30: HistoryRow[];
+  trend30: { pct: number; direction: "up" | "down" | "stable" };
+  compact?: boolean;
+  gradientId: string;
+}) {
+  if (last30.length < 4) return null;
+  const trendAccent =
+    trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <SectionHeader accent={trendAccent}>30-Tage-Trend</SectionHeader>
+          <span
+            className={`premium-chip text-[10px] font-medium px-2 py-0.5 rounded-full tabular-nums ${
+              trend30.direction === "up"
+                ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25"
+                : trend30.direction === "down"
+                  ? "bg-red-500/12 text-red-300 border border-red-500/25"
+                  : "bg-white/[0.05] text-white/55 border border-white/[0.08]"
+            }`}
+          >
+            {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"} {trend30.pct > 0 ? "+" : ""}
+            {trend30.pct}%
+          </span>
+        </div>
+      </div>
+      <div className={`premium-card relative ${compact ? "rounded-2xl p-4" : "rounded-2xl p-5"}`}>
+        <ResponsiveContainer width="100%" height={compact ? 100 : 120}>
+          <AreaChart data={last30}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              dataKey="analysis_date"
+              tickFormatter={formatDate}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "rgba(255,255,255,0.35)", fontSize: compact ? 9 : 10 }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: compact ? 9 : 10 }}
+              tickFormatter={(v) => `${v}€`}
+              width={compact ? 40 : 50}
+            />
+            <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+            <Area
+              type="monotone"
+              dataKey="revenue_today"
+              stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
+              strokeWidth={2}
+              fill={`url(#${gradientId})`}
+              dot={false}
+              activeDot={{
+                r: 4,
+                fill: trend30.direction === "down" ? "#ef4444" : "#10b981",
+                stroke: "rgba(255,255,255,0.15)",
+                strokeWidth: 4,
+              }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+
 
 
 
