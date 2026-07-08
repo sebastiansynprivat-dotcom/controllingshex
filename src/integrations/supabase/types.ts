@@ -1571,6 +1571,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _roster_name_key: { Args: { p_name: string }; Returns: string }
+      cleanup_stale_live_for_latest_report: {
+        Args: { p_platform: string }
+        Returns: undefined
+      }
       get_chatter_onboarding: {
         Args: { p_platform: string }
         Returns: {

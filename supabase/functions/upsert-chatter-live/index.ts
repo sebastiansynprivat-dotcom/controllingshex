@@ -65,7 +65,15 @@ Deno.serve(async (req) => {
   const today = new Date().toISOString().slice(0, 10);
 
   function cleanWs(s: string): string {
-    return s.trim().replace(/\s+/g, " ");
+    return s
+      .normalize("NFKC")
+      .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
+      .replace(/[\u00A0\u2007\u202F]/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+  }
+  function rosterKey(s: string): string {
+    return cleanWs(s).toLowerCase().replace(/[_\s]+/g, " ").trim();
   }
   function titleCase(s: string): string {
     return cleanWs(s)
@@ -91,19 +99,45 @@ Deno.serve(async (req) => {
   );
   const canonical = new Map<string, string>(); // key: `${platformLower}|${nameLower}` → canonical name
   const ownerUsers = new Map<string, Set<string>>(); // key: `${platformLower}|${canonicalLower}` → Set<user_id>
+  const activeRoster = new Map<string, Set<string>>(); // platformLower → current report roster keys
   for (const p of platforms) {
-    const { data: hist } = await supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date, user_id")
-      .eq("platform", p)
-      .order("analysis_date", { ascending: false })
-      .limit(5000);
+    const [{ data: hist }, { data: reports }] = await Promise.all([
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, analysis_date, user_id")
+        .eq("platform", p)
+        .order("analysis_date", { ascending: false })
+        .limit(5000),
+      supabase
+        .from("analysis_reports")
+        .select("result_json")
+        .eq("platform", p)
+        .not("result_json", "is", null)
+        .order("analysis_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1),
+    ]);
+
+    const platformKey = p.toLowerCase();
+    const roster = new Set<string>();
+    const latestResult = (reports?.[0] as any)?.result_json;
+    for (const cat of latestResult?.categories ?? []) {
+      for (const ch of cat?.chatters ?? []) {
+        const name = typeof ch?.name === "string" ? ch.name : "";
+        const key = rosterKey(name);
+        if (key) roster.add(key);
+      }
+    }
+    if (roster.size > 0) activeRoster.set(platformKey, roster);
+
     for (const h of hist ?? []) {
       const name = (h as any).chatter_name as string | null;
       const uid = (h as any).user_id as string | null;
       if (!name) continue;
       const cleaned = cleanWs(name);
-      const key = `${p.toLowerCase()}|${cleaned.toLowerCase()}`;
+      const nameKey = rosterKey(cleaned);
+      if (roster.size > 0 && !roster.has(nameKey)) continue;
+      const key = `${platformKey}|${nameKey}`;
       if (!canonical.has(key)) canonical.set(key, cleaned);
       if (uid) {
         if (!ownerUsers.has(key)) ownerUsers.set(key, new Set());
@@ -112,15 +146,20 @@ Deno.serve(async (req) => {
     }
   }
 
-  const rows = rowsInput.map((r) => {
+  const rows = rowsInput.flatMap((r) => {
     if (!r || typeof r.chatter_name !== "string" || r.chatter_name.trim() === "") {
       throw new Error("chatter_name is required for each row");
     }
     const platform = r.platform ?? "Maloum";
     const cleaned = cleanWs(r.chatter_name);
-    const lookupKey = `${platform.toLowerCase()}|${cleaned.toLowerCase()}`;
+    const platformKey = platform.toLowerCase();
+    const inputKey = rosterKey(cleaned);
+    const roster = activeRoster.get(platformKey);
+    if (roster && !roster.has(inputKey)) return [];
+    const lookupKey = `${platformKey}|${inputKey}`;
     const canonicalName = canonical.get(lookupKey) ?? titleCase(cleaned);
-    return {
+    if (roster && !roster.has(rosterKey(canonicalName))) return [];
+    return [{
       platform,
       chatter_name: canonicalName,
       telegram_id: r.telegram_id ?? null,
@@ -130,8 +169,15 @@ Deno.serve(async (req) => {
       oldest_chat: r.oldest_chat ?? null,
       date: r.date ?? today,
       updated_at: new Date().toISOString(),
-    };
+    }];
   });
+
+  if (rows.length === 0) {
+    return new Response(JSON.stringify({ success: true, count: 0, rows: [] }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   // Read prior live snapshots for delta computation (before upsert overwrites them)
   const priorKeyOf = (r: { platform: string; telegram_id: string | null; date: string }) =>

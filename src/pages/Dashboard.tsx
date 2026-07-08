@@ -69,7 +69,8 @@ export default function Dashboard() {
         .select("id, analysis_date, chatter_count, result_json")
         .eq("platform", platform)
         .not("result_json", "is", null)
-        .order("analysis_date", { ascending: false });
+        .order("analysis_date", { ascending: false })
+        .order("created_at", { ascending: false });
 
       if (data && data.length > 0) {
         const rows = data as unknown as ReportRow[];
