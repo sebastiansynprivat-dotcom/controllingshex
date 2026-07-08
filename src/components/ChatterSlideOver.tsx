@@ -114,12 +114,27 @@ function formatCurrency(v: number) {
 }
 
 /* Custom Tooltips */
-function RevenueTooltip({ active, payload }: any) {
+function RevenueTooltip({
+  active,
+  payload,
+  historyRows,
+}: {
+  active?: boolean;
+  payload?: any[];
+  historyRows?: HistoryRow[];
+}) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload as (HistoryRow & { note?: string }) | undefined;
   if (!row) return null;
+  const rowsForDate = (historyRows || []).filter((r) => r.analysis_date === row.analysis_date);
+  const modelsWithDelay = rowsForDate
+    .filter((r) => r.response_delay_days > 0)
+    .sort((a, b) => b.response_delay_days - a.response_delay_days);
+  const totalDelay = rowsForDate.length
+    ? Math.round(rowsForDate.reduce((s, r) => s + r.response_delay_days, 0) / rowsForDate.length)
+    : 0;
   return (
-    <div className="premium-card rounded-xl px-5 py-3.5 max-w-[240px]">
+    <div className="premium-card rounded-xl px-5 py-3.5 max-w-[260px]">
       <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">
         {formatDate(row.analysis_date)}
       </p>
@@ -127,10 +142,29 @@ function RevenueTooltip({ active, payload }: any) {
         {formatCurrency(row.revenue_today)}
       </p>
       <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.mass_dms} MassDMs</p>
-      <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide flex items-center gap-1.5">
-        <Clock className="h-3 w-3 text-white/40" />
-        {row.response_delay_days} {row.response_delay_days === 1 ? "Tag" : "Tage"} Verzug
-      </p>
+
+      {modelsWithDelay.length > 0 ? (
+        <div className="mt-2 border-t border-white/[0.06] pt-2 space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">Verzug pro Model</p>
+          {modelsWithDelay.map((r) => (
+            <p
+              key={r.account}
+              className="text-[11px] text-white/55 font-light tracking-wide flex items-center justify-between gap-3"
+            >
+              <span className="truncate">{r.account}</span>
+              <span className="text-white/70 tabular-nums shrink-0">
+                {r.response_delay_days} {r.response_delay_days === 1 ? "Tag" : "Tage"}
+              </span>
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide flex items-center gap-1.5">
+          <Clock className="h-3 w-3 text-white/40" />
+          {totalDelay} {totalDelay === 1 ? "Tag" : "Tage"} Verzug
+        </p>
+      )}
+
       {row.note && (
         <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">
           📝 {row.note}
@@ -139,6 +173,7 @@ function RevenueTooltip({ active, payload }: any) {
     </div>
   );
 }
+
 
 function GhostChatTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
