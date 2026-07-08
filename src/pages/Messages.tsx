@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Inbox, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Inbox, RefreshCw, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 
 type RangeKey = "today" | "7d" | "30d";
 type SortKey = "incoming" | "revenue" | "efficiency";
+type FitBucket = "overloaded" | "underused" | "fit" | null;
 
 interface Row {
   chatter_name: string;
@@ -30,6 +31,13 @@ interface LiveRow {
   revenue: number;
   unread_chats: number;
   updated_at: string;
+}
+
+interface ModelSplitRow {
+  account: string;
+  revenue: number;
+  open_chats: number;
+  days: number;
 }
 
 function fmtInt(n: number) {
@@ -60,6 +68,24 @@ function dateRange(range: RangeKey): { from: string; to: string } {
   return { from, to: today };
 }
 
+// Simple SVG sparkline
+function Sparkline({ points, tone }: { points: number[]; tone: string }) {
+  if (points.length < 2) return <div className="w-[60px] h-5" />;
+  const max = Math.max(...points, 0.0001);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const w = 60, h = 20;
+  const step = w / (points.length - 1);
+  const path = points
+    .map((v, i) => `${i === 0 ? "M" : "L"} ${(i * step).toFixed(1)} ${(h - ((v - min) / range) * h).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} className="opacity-80">
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={tone} />
+    </svg>
+  );
+}
+
 export default function Messages() {
   const { platform } = usePlatform();
   const { user } = useAuth();
@@ -68,9 +94,14 @@ export default function Messages() {
   const [dir, setDir] = useState<"desc" | "asc">("desc");
   const [rows, setRows] = useState<Row[]>([]);
   const [live, setLive] = useState<Record<string, LiveRow>>({});
+  const [sparkData, setSparkData] = useState<Record<string, number[]>>({});
   const [loading, setLoading] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [lastPushAgo, setLastPushAgo] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [modelSplits, setModelSplits] = useState<Record<string, ModelSplitRow[]>>({});
+  const [loadingSplit, setLoadingSplit] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Nachrichten – Live-Tracking";
@@ -92,7 +123,6 @@ export default function Messages() {
       setLoading(false);
       return;
     }
-    // Aggregate across date range per chatter (sum reads + last unread per day)
     const agg = new Map<string, Row>();
     for (const r of (data ?? []) as any[]) {
       const key = r.chatter_name as string;
@@ -114,7 +144,6 @@ export default function Messages() {
       }
     }
 
-    // Live snapshot (for "aktiv vor" badge + accurate today unread)
     const today = shiftDate();
     const { data: liveData } = await supabase
       .from("chatter_history_live")
@@ -137,12 +166,9 @@ export default function Messages() {
       if (newest === null || t > newest) newest = t;
     }
 
-    // For "today" range: replace stored last_unread contribution with the truly current
-    // unread from live snapshot, so the count reflects reality this second.
     if (range === "today") {
       for (const [name, row] of agg) {
         const liveUnread = liveMap[name]?.unread_chats ?? 0;
-        // row.incoming_count currently = reads + last_unread_stored. Swap in live unread.
         row.incoming_count = row.incoming_count - row.last_unread + liveUnread;
         row.last_unread = liveUnread;
       }
@@ -151,18 +177,56 @@ export default function Messages() {
     setRows(Array.from(agg.values()));
     setLive(liveMap);
     setLastPushAgo(newest ? new Date(newest).toISOString() : null);
+
+    // Sparkline data — always last 7 days regardless of range
+    const sparkFrom = new Date(today);
+    sparkFrom.setDate(sparkFrom.getDate() - 6);
+    const sparkFromStr = sparkFrom.toISOString().slice(0, 10);
+    const { data: sparkRaw } = await supabase
+      .from("chatter_incoming_stats")
+      .select("chatter_name, date, incoming_count, last_unread, last_revenue")
+      .eq("user_id", user.id)
+      .eq("platform", platform)
+      .gte("date", sparkFromStr)
+      .lte("date", today);
+    const perChatterDay = new Map<string, Map<string, { msg: number; rev: number }>>();
+    for (const r of (sparkRaw ?? []) as any[]) {
+      const name = r.chatter_name as string;
+      const d = r.date as string;
+      const msg = (Number(r.incoming_count) || 0) + Math.max(0, Number(r.last_unread) || 0);
+      const rev = Number(r.last_revenue) || 0;
+      if (!perChatterDay.has(name)) perChatterDay.set(name, new Map());
+      const dayMap = perChatterDay.get(name)!;
+      const cur = dayMap.get(d) ?? { msg: 0, rev: 0 };
+      cur.msg += msg;
+      cur.rev += rev;
+      dayMap.set(d, cur);
+    }
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    const sparks: Record<string, number[]> = {};
+    for (const [name, dayMap] of perChatterDay) {
+      sparks[name] = days.map((d) => {
+        const c = dayMap.get(d);
+        if (!c || c.msg <= 0) return 0;
+        return c.rev / c.msg;
+      });
+    }
+    setSparkData(sparks);
     setLoading(false);
   }
 
   useEffect(() => {
     load();
-    // Refresh every 30s
     const iv = setInterval(load, 30000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, range, user?.id]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user) return;
     const ch = supabase
@@ -184,8 +248,15 @@ export default function Messages() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Filter by search
+  const filtered = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => r.chatter_name.toLowerCase().includes(q));
+  }, [rows, search]);
+
   const sorted = useMemo(() => {
-    const arr = [...rows];
+    const arr = [...filtered];
     const cmp = (a: Row, b: Row) => {
       let va = 0, vb = 0;
       if (sort === "incoming") {
@@ -199,7 +270,7 @@ export default function Messages() {
       return dir === "desc" ? vb - va : va - vb;
     };
     return arr.sort(cmp);
-  }, [rows, sort, dir]);
+  }, [filtered, sort, dir]);
 
   const maxRevenue = Math.max(1, ...rows.map((r) => r.last_revenue));
   const avgEff = useMemo(() => {
@@ -207,6 +278,67 @@ export default function Messages() {
     const msgs = rows.reduce((s, r) => s + r.incoming_count, 0);
     return msgs > 0 ? total / msgs : 0;
   }, [rows]);
+
+  // Fit-Buckets: Perzentile (33/66) über alle Chatter mit ≥10 msgs
+  const fitBuckets = useMemo(() => {
+    const eligible = rows.filter((r) => r.incoming_count >= 10);
+    if (eligible.length < 3) return new Map<string, FitBucket>();
+    const vols = [...eligible].map((r) => r.incoming_count).sort((a, b) => a - b);
+    const effs = [...eligible]
+      .map((r) => (r.incoming_count > 0 ? r.last_revenue / r.incoming_count : 0))
+      .sort((a, b) => a - b);
+    const q = (arr: number[], p: number) => arr[Math.floor(arr.length * p)];
+    const volLo = q(vols, 0.33), volHi = q(vols, 0.66);
+    const effLo = q(effs, 0.33), effHi = q(effs, 0.66);
+    const m = new Map<string, FitBucket>();
+    for (const r of rows) {
+      if (r.incoming_count < 10) {
+        m.set(r.chatter_name, null);
+        continue;
+      }
+      const vol = r.incoming_count;
+      const eff = r.last_revenue / r.incoming_count;
+      if (vol >= volHi && eff <= effLo) m.set(r.chatter_name, "overloaded");
+      else if (vol <= volLo && eff >= effHi) m.set(r.chatter_name, "underused");
+      else if (eff >= effLo && vol >= volLo) m.set(r.chatter_name, "fit");
+      else m.set(r.chatter_name, null);
+    }
+    return m;
+  }, [rows]);
+
+  async function toggleExpand(name: string) {
+    if (expanded === name) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(name);
+    if (modelSplits[name]) return;
+    if (!user) return;
+    setLoadingSplit(name);
+    const { from, to } = dateRange(range);
+    const { data } = await supabase
+      .from("chatter_history")
+      .select("account, revenue_today, open_chats, analysis_date")
+      .eq("user_id", user.id)
+      .eq("platform", platform)
+      .eq("chatter_name", name)
+      .gte("analysis_date", from)
+      .lte("analysis_date", to);
+    const agg = new Map<string, ModelSplitRow>();
+    for (const r of (data ?? []) as any[]) {
+      const acc = (r.account as string) || "—";
+      const cur = agg.get(acc) ?? { account: acc, revenue: 0, open_chats: 0, days: 0 };
+      cur.revenue += Number(r.revenue_today) || 0;
+      cur.open_chats += Number(r.open_chats) || 0;
+      cur.days += 1;
+      agg.set(acc, cur);
+    }
+    setModelSplits((prev) => ({
+      ...prev,
+      [name]: Array.from(agg.values()).sort((a, b) => b.revenue - a.revenue),
+    }));
+    setLoadingSplit(null);
+  }
 
   async function runBackfill() {
     setBackfilling(true);
@@ -237,6 +369,26 @@ export default function Messages() {
         <p className="text-lg font-light text-white/80 leading-snug">
           Wer bekommt wie viel — und macht was daraus.
         </p>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Chatter suchen…"
+          className="w-full h-9 pl-9 pr-9 rounded-md bg-white/[0.02] border border-white/[0.06] text-xs font-light text-white/90 placeholder:text-white/30 outline-none focus:border-white/20 transition"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded text-white/40 hover:text-white/80"
+            aria-label="Suche löschen"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Controls */}
@@ -271,12 +423,17 @@ export default function Messages() {
           {dir === "desc" ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
         </button>
 
-        <div className="ml-auto flex items-center gap-2 text-[11px] text-white/40 font-light">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping bg-emerald-400" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-          </span>
-          {lastPushAgo ? `Push vor ${since(lastPushAgo)}` : "wartend"}
+        <div className="ml-auto flex items-center gap-3 text-[11px] text-white/40 font-light">
+          {search && (
+            <span className="tabular-nums">{sorted.length} von {rows.length}</span>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping bg-emerald-400" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+            </span>
+            {lastPushAgo ? `Push vor ${since(lastPushAgo)}` : "wartend"}
+          </div>
         </div>
       </div>
 
@@ -284,9 +441,9 @@ export default function Messages() {
       {!loading && sorted.length === 0 && (
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
           <p className="text-sm text-white/60 font-light mb-4">
-            Noch keine Nachrichten-Daten für diesen Zeitraum.
+            {search ? "Kein Chatter gefunden." : "Noch keine Nachrichten-Daten für diesen Zeitraum."}
           </p>
-          {range !== "today" && (
+          {range !== "today" && !search && (
             <Button
               variant="outline"
               size="sm"
@@ -322,56 +479,115 @@ export default function Messages() {
           const liveAgo = liveRow ? since(liveRow.updated_at) : null;
           const rank = idx + 1;
           const rankTone = rank <= 3 ? "gold-text" : "text-white/30";
+          const bucket = fitBuckets.get(r.chatter_name) ?? null;
+          const bucketMeta =
+            bucket === "overloaded"
+              ? { label: "ÜBERLASTET", cls: "border-rose-400/30 text-rose-300 bg-rose-500/[0.06]", sparkTone: "text-rose-300" }
+              : bucket === "underused"
+                ? { label: "UNTERAUSGELASTET", cls: "border-amber-300/30 text-amber-200 bg-amber-500/[0.06]", sparkTone: "text-amber-300" }
+                : bucket === "fit"
+                  ? { label: "PASST", cls: "border-emerald-400/25 text-emerald-300 bg-emerald-500/[0.05]", sparkTone: "text-emerald-300" }
+                  : { label: "", cls: "", sparkTone: "text-white/40" };
+          const spark = sparkData[r.chatter_name] ?? [];
+          const isOpen = expanded === r.chatter_name;
+          const split = modelSplits[r.chatter_name];
+          const chatterAvgRev = split && split.length > 0 ? split.reduce((s, x) => s + x.revenue, 0) / split.length : 0;
 
           return (
             <div
               key={r.chatter_name}
-              className="group relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] p-5 hover:border-white/[0.12] hover:from-white/[0.05] transition-all duration-300"
+              className="group relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:border-white/[0.12] hover:from-white/[0.05] transition-all duration-300"
             >
-              <div className="flex items-baseline justify-between mb-2">
-                <div className="flex items-baseline gap-3">
-                  <span className={`text-2xl font-extralight tabular-nums ${rankTone}`}>
-                    #{rank}
-                  </span>
-                  <span className="text-sm uppercase tracking-[0.22em] font-light text-white/85">
-                    {r.chatter_name}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-light text-white/90 tabular-nums">
-                    ~{fmtInt(r.incoming_count)} <span className="text-[10px] text-white/40 uppercase tracking-widest">msg</span>
+              <button
+                onClick={() => toggleExpand(r.chatter_name)}
+                className="w-full text-left p-5"
+              >
+                <div className="flex items-baseline justify-between mb-2 gap-3">
+                  <div className="flex items-baseline gap-3 min-w-0">
+                    <span className={`text-2xl font-extralight tabular-nums ${rankTone}`}>
+                      #{rank}
+                    </span>
+                    <span className="text-sm uppercase tracking-[0.22em] font-light text-white/85 truncate">
+                      {r.chatter_name}
+                    </span>
+                    {bucket && (
+                      <span className={`shrink-0 text-[9px] tracking-[0.18em] font-light px-1.5 py-0.5 rounded border ${bucketMeta.cls}`}>
+                        {bucketMeta.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-lg font-light text-white/90 tabular-nums">
+                      ~{fmtInt(r.incoming_count)} <span className="text-[10px] text-white/40 uppercase tracking-widest">msg</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Progress bar */}
-              <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden mb-3">
-                <div
-                  className={`absolute inset-y-0 left-0 bg-gradient-to-r ${efficiencyTone} rounded-full transition-all duration-700`}
-                  style={{ width: `${barPct}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3 font-light">
-                  <span className={`${effText} tabular-nums`}>{fmtEurDec(eff)}/msg</span>
-                  <span className="text-white/25">·</span>
-                  <span className="text-white/50 tabular-nums">{fmtEur(r.last_revenue)}</span>
+                {/* Progress bar + sparkline */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden flex-1">
+                    <div
+                      className={`absolute inset-y-0 left-0 bg-gradient-to-r ${efficiencyTone} rounded-full transition-all duration-700`}
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <Sparkline points={spark} tone={bucketMeta.sparkTone} />
                 </div>
-                <div className="flex items-center gap-1.5 text-white/40 font-light">
-                  {liveAgo ? (
-                    <>
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
-                      aktiv vor {liveAgo}
-                    </>
-                  ) : (
-                    <>
-                      <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-                      offline
-                    </>
+
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3 font-light">
+                    <span className={`${effText} tabular-nums`}>{fmtEurDec(eff)}/msg</span>
+                    <span className="text-white/25">·</span>
+                    <span className="text-white/50 tabular-nums">{fmtEur(r.last_revenue)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/40 font-light">
+                    {liveAgo ? (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
+                        <span>aktiv vor {liveAgo}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
+                        <span>offline</span>
+                      </>
+                    )}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  </div>
+                </div>
+              </button>
+
+              {/* Expanded: model split */}
+              {isOpen && (
+                <div className="border-t border-white/[0.05] px-5 py-4 space-y-2">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-white/40 font-light mb-3">
+                    Modell-Aufteilung ({dateRange(range).from === dateRange(range).to ? "heute" : `${range}`})
+                  </div>
+                  {loadingSplit === r.chatter_name && (
+                    <div className="text-xs text-white/40 font-light">Lade…</div>
                   )}
+                  {!loadingSplit && split && split.length === 0 && (
+                    <div className="text-xs text-white/40 font-light">Keine Modell-Daten im Zeitraum.</div>
+                  )}
+                  {!loadingSplit && split && split.length > 0 && (() => {
+                    const totalRev = split.reduce((s, x) => s + x.revenue, 0) || 1;
+                    return split.map((m) => {
+                      const share = (m.revenue / totalRev) * 100;
+                      const ratio = chatterAvgRev > 0 ? m.revenue / chatterAvgRev : 1;
+                      const tone =
+                        ratio >= 1.15 ? "bg-emerald-400" : ratio >= 0.7 ? "bg-amber-400" : "bg-rose-400";
+                      return (
+                        <div key={m.account} className="flex items-center gap-3 text-xs">
+                          <span className={`h-1.5 w-1.5 rounded-full ${tone} shrink-0`} />
+                          <span className="text-white/80 font-light truncate flex-1">{m.account}</span>
+                          <span className="text-white/40 tabular-nums font-light w-12 text-right">{share.toFixed(0)}%</span>
+                          <span className="text-white/70 tabular-nums font-light w-20 text-right">{fmtEur(m.revenue)}</span>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
