@@ -794,6 +794,8 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   const displayName = toTitleCase(chatterName);
   const initials = useMemo(() => getInitials(chatterName), [chatterName]);
+  // Kompakt-Layout für die Primär-Seite im Vergleich, damit beide Panes symmetrisch aussehen
+  const compact = !!compareWith && !inline;
   const trendAccent =
     trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
@@ -1376,12 +1378,12 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         >
           {/* ── Hero Header (sticky, mit safe-area expanded Hit-Area für Close) ── */}
           <div
-            className={`sticky top-0 z-30 flex items-center gap-3 sm:gap-4 ${splitView ? "px-4 pb-3" : "px-5 sm:px-10 pb-4 sm:py-5"} border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0`}
+            className={`sticky top-0 z-30 flex items-center gap-3 sm:gap-4 ${splitView ? "px-4 pb-3" : compact ? "px-4 sm:px-6 pb-3 sm:pb-4" : "px-5 sm:px-10 pb-4 sm:py-5"} border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl shrink-0`}
             style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
           >
 
             <div
-              className="premium-stat flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-light tracking-wide text-primary/85"
+              className={`premium-stat flex ${compact ? "h-11 w-11 text-sm" : "h-12 w-12 sm:h-14 sm:w-14 text-base sm:text-lg"} shrink-0 items-center justify-center rounded-2xl font-light tracking-wide text-primary/85`}
               style={{ filter: "drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))" }}
             >
               {initials}
@@ -1392,7 +1394,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   navigator.clipboard.writeText(displayName);
                   toast.success("Name kopiert");
                 }}
-                className="text-xl sm:text-[26px] font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate"
+                className={`${compact ? "text-lg" : "text-xl sm:text-[26px]"} font-extralight tracking-tight gold-text cursor-pointer hover:opacity-70 transition-opacity duration-200 truncate`}
                 title="Klicken zum Kopieren"
               >
                 {displayName}
@@ -1507,7 +1509,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               className={`${compareWith ? `sm:flex-shrink-0 sm:flex-grow-0 sm:min-w-0 ${activePane === "primary" ? "flex-1" : "hidden sm:block"}` : "flex-1"} overflow-y-auto overflow-x-hidden scrollbar-none`}
               style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)", willChange: "flex-basis" }}
             >
-              <div className={`${splitView ? "p-4 space-y-6" : "p-5 sm:p-10 space-y-8 sm:space-y-12"} pb-16`}>
+              <div className={`${splitView ? "p-4 space-y-6" : compact ? "p-4 sm:p-6 space-y-6 sm:space-y-8" : "p-5 sm:p-10 space-y-8 sm:space-y-12"} pb-16`}>
                 {loading ? (
                   <ProfileSkeleton />
                 ) : history.length === 0 && !liveProfile ? (
@@ -1533,17 +1535,17 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                           return (
                             <div
                               key={kpi.label}
-                              className="relative rounded-xl p-5 bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden"
+                              className={`relative rounded-xl ${compact ? "p-3 sm:p-4" : "p-5"} bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden`}
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] to-transparent pointer-events-none" />
                               <div className="relative flex items-center gap-1.5">
-                                <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                                <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">
+                                <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                                <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/55 font-medium`}>
                                   {kpi.label}
                                 </p>
                               </div>
                               <p
-                                className={`relative text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
+                                className={`relative ${compact ? "text-lg sm:text-xl mt-2" : "text-2xl mt-2.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
                               >
                                 {kpi.value}
                               </p>
@@ -1580,15 +1582,15 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       {kpis.map((kpi) => {
                         const Icon = kpi.icon;
                         return (
-                          <div key={kpi.label} className="premium-card premium-card-interactive rounded-xl p-5">
+                          <div key={kpi.label} className={`premium-card premium-card-interactive rounded-xl ${compact ? "p-3 sm:p-4" : "p-5"}`}>
                             <div className="flex items-center gap-1.5">
-                              <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-medium">
+                              <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
+                              <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/45 font-medium`}>
                                 {kpi.label}
                               </p>
                             </div>
                             <p
-                              className={`text-2xl font-extralight mt-2.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                              className={`${compact ? "text-lg sm:text-xl mt-2" : "text-2xl mt-2.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
                             >
                               {kpi.value}
                             </p>
