@@ -6,7 +6,7 @@
  * pro Tag in daily_todo_state als done markiert werden kann.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeChatterName } from "@/lib/active-chatters";
+import { filterRowsToActiveCombos, normalizeChatterName } from "@/lib/active-chatters";
 import type { ChatterLabel, LabelAssignment } from "@/lib/chatter-labels";
 
 export interface LabelCard {
