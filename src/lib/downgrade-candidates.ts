@@ -95,6 +95,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
   const activeNames = await loadActiveChatterNames(platform);
   if (!activeNames) return []; // Kein Report → nicht filtern, aber auch keine Karten
   if (activeNames.size === 0) return [];
+  const activeChatterModels = (await loadActiveChatterModels(platform)) ?? new Map();
 
   const [historyRes, sessionsRes, onboardingRes] = await Promise.all([
     (async () => {
