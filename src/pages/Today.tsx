@@ -714,9 +714,9 @@ export default function Today() {
                   />
                 )}
 
-                {isUpDownTab && (
+                {kindTab === "upgrade" && !compareActive && (
                   <UpgradeHero
-                    count={kindTab === "upgrade" ? upgradeList.length : upgradeList.length}
+                    count={upgradeList.length}
                     impactEur={upgradeImpact}
                   />
                 )}
@@ -736,7 +736,7 @@ export default function Today() {
                           className={cn(
                             "px-3 py-1.5 rounded-full text-[11px] font-light tracking-wide transition-all border",
                             active
-                              ? "bg-amber-500/15 border-amber-500/40 text-amber-200"
+                              ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200"
                               : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20",
                           )}
                         >
@@ -755,7 +755,7 @@ export default function Today() {
                 {compareActive ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {([
-                      { key: "upgrade" as const, label: "Upgrade-Kandidaten", accent: "gold-text", border: "border-amber-500/25", bg: "bg-amber-500/[0.04]", items: upgradeList },
+                      { key: "upgrade" as const, label: "Upgrade-Kandidaten", accent: "text-emerald-300", border: "border-emerald-500/25", bg: "bg-emerald-500/[0.04]", items: upgradeList },
                       { key: "downgrade" as const, label: "Downgrade-Kandidaten", accent: "text-red-300", border: "border-red-500/25", bg: "bg-red-500/[0.04]", items: downgradeList },
                     ]).map((col) => (
                       <div
