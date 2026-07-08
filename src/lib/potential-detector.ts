@@ -86,7 +86,7 @@ async function loadCurrentAssignments(
     .ilike("platform", platform)
     .gte("analysis_date", since);
 
-  const rows = data ?? [];
+  const rows = await filterRowsToActiveCombos(platform, data ?? []);
   // Heutige Pairs
   const todayPairs = new Map<string, { chatter: string; account: string; revenue: number }>();
   // Historische Pairs für daysOnAccount
