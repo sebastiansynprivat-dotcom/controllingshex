@@ -295,7 +295,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, swapTasks] = await Promise.all([
+  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, swapTasks, downgradeTasks] = await Promise.all([
     supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
@@ -320,6 +320,10 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     loadActiveChatterNames(platform),
     buildAccountSwapTasks(platform).catch((e) => {
       console.warn("[revenue-tasks] account-swap-engine failed", e);
+      return [] as RevenueTask[];
+    }),
+    buildDowngradeCandidates(platform).catch((e) => {
+      console.warn("[revenue-tasks] downgrade-candidates failed", e);
       return [] as RevenueTask[];
     }),
   ]);
