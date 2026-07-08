@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone, CalendarDays, ChevronDown, Rocket } from "lucide-react";
+import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone, CalendarDays, ChevronDown, Rocket, Archive } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
@@ -14,6 +14,8 @@ import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
+import CompareTray from "@/components/today/CompareTray";
+
 import { useSidebar } from "@/components/ui/sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
@@ -119,6 +121,25 @@ export default function Today() {
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
   const [compareUpDown, setCompareUpDown] = useState(false);
+  const trayStorageKey = `today.compareTray.${platform}`;
+  const [trayIds, setTrayIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(trayStorageKey);
+      setTrayIds(raw ? new Set(JSON.parse(raw)) : new Set());
+    } catch {
+      setTrayIds(new Set());
+    }
+  }, [trayStorageKey]);
+  const persistTray = (next: Set<string>) => {
+    setTrayIds(next);
+    try {
+      localStorage.setItem(trayStorageKey, JSON.stringify([...next]));
+    } catch {
+      // ignore
+    }
+  };
+
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
@@ -373,19 +394,33 @@ export default function Today() {
   const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
 
   const isUpDownTab = kindTab === "upgrade" || kindTab === "downgrade";
-  const upgradeList = useMemo(
+  const upgradeListAll = useMemo(
     () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "upgrade") : []),
     [isUpDownTab, statusList],
   );
-  const downgradeList = useMemo(
+  const downgradeListAll = useMemo(
     () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "downgrade") : []),
     [isUpDownTab, statusList],
+  );
+  const upgradeList = useMemo(
+    () => upgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
+    [upgradeListAll, trayIds],
+  );
+  const downgradeList = useMemo(
+    () => downgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
+    [downgradeListAll, trayIds],
+  );
+  const trayItems = useMemo(
+    () => [...upgradeListAll, ...downgradeListAll].filter((a) => trayIds.has(a.bundleKey)),
+    [upgradeListAll, downgradeListAll, trayIds],
   );
   const upgradeImpact = useMemo(
     () => upgradeList.reduce((s, a) => s + a.totalImpactEurPerWeek, 0),
     [upgradeList],
   );
   const compareActive = compareUpDown && isUpDownTab;
+
+
 
   useEffect(() => {
     if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
@@ -782,16 +817,40 @@ export default function Today() {
                               </div>
                             ) : (
                               col.items.map((a) => (
-                                <PersonActionCard
+                                <div
                                   key={a.bundleKey}
-                                  action={a}
-                                  onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                                  onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                                  onAct={act}
-                                  readonly={isReadonly}
-                                />
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("application/x-tray-bundlekey", a.bundleKey);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  className="group relative cursor-grab active:cursor-grabbing"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const next = new Set(trayIds);
+                                      next.add(a.bundleKey);
+                                      persistTray(next);
+                                    }}
+                                    title="In Ablage"
+                                    className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full flex items-center justify-center bg-background/70 border border-white/[0.08] text-white/50 hover:text-emerald-200 hover:border-emerald-400/40 hover:bg-emerald-500/15 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-md"
+                                    aria-label="In Ablage legen"
+                                  >
+                                    <Archive className="h-3.5 w-3.5" />
+                                  </button>
+                                  <PersonActionCard
+                                    action={a}
+                                    onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                                    onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                                    onAct={act}
+                                    readonly={isReadonly}
+                                  />
+                                </div>
                               ))
                             )}
+
                           </div>
                         </div>
                       );
@@ -1074,7 +1133,34 @@ export default function Today() {
         onSelectAll={() => setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)))}
         onClearAll={() => setSelectedLabelIds(new Set())}
       />
+
+      {compareActive && (
+        <CompareTray
+          items={trayItems}
+          onDropAction={(key) => {
+            const next = new Set(trayIds);
+            next.add(key);
+            persistTray(next);
+          }}
+          onReturn={(a) => {
+            const next = new Set(trayIds);
+            next.delete(a.bundleKey);
+            persistTray(next);
+          }}
+          onCheckOff={(a) => {
+            act(a, "done");
+            const next = new Set(trayIds);
+            next.delete(a.bundleKey);
+            persistTray(next);
+          }}
+          onCompare={(u, d) => {
+            if (!u.chatterName || !d.chatterName) return;
+            setSelectedChatter({ name: u.chatterName, compareWith: d.chatterName });
+          }}
+        />
+      )}
     </>
+
   );
 }
 
