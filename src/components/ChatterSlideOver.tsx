@@ -1383,7 +1383,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           >
 
             <div
-              className="premium-stat flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl text-base sm:text-lg font-light tracking-wide text-primary/85"
+              className={`premium-stat flex ${compact ? "h-11 w-11 text-sm" : "h-12 w-12 sm:h-14 sm:w-14 text-base sm:text-lg"} shrink-0 items-center justify-center rounded-2xl font-light tracking-wide text-primary/85`}
               style={{ filter: "drop-shadow(0 0 10px hsl(40 50% 60% / 0.18))" }}
             >
               {initials}
