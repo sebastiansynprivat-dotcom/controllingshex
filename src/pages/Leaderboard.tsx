@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import CountUp from "@/components/CountUp";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 type FilterMode = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
 
