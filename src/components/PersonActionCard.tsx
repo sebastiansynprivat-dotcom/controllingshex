@@ -171,7 +171,9 @@ export default function PersonActionCard({
   onModelClick,
   onAct,
   readonly = false,
+  verzugBreakdown,
 }: Props) {
+
   const [celebrating, setCelebrating] = useState(false);
   const tone =
     action.primaryKind === "upgrade"
