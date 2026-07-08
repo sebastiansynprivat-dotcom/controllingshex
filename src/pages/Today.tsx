@@ -63,7 +63,7 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "gold-text",  dot: "bg-amber-400/80" },
+  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
@@ -496,7 +496,7 @@ export default function Today() {
         verzug: "248,113,113", recovery: "251,146,60", wakeup: "52,211,153",
         swap: "34,211,238",   phase: "56,189,248",    revenue: "52,211,153",
         activity: "45,212,191", model: "232,121,249", slot: "129,140,248",
-        upgrade: "251,191,36",
+        upgrade: "52,211,153",
         positive: "163,230,53",
       };
       return { key: kindTab, color: map[kindTab] ?? "255,255,255", intensity: 0.11 };
@@ -714,9 +714,9 @@ export default function Today() {
                   />
                 )}
 
-                {isUpDownTab && (
+                {kindTab === "upgrade" && !compareActive && (
                   <UpgradeHero
-                    count={kindTab === "upgrade" ? upgradeList.length : upgradeList.length}
+                    count={upgradeList.length}
                     impactEur={upgradeImpact}
                   />
                 )}
@@ -736,7 +736,7 @@ export default function Today() {
                           className={cn(
                             "px-3 py-1.5 rounded-full text-[11px] font-light tracking-wide transition-all border",
                             active
-                              ? "bg-amber-500/15 border-amber-500/40 text-amber-200"
+                              ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200"
                               : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20",
                           )}
                         >
@@ -755,7 +755,7 @@ export default function Today() {
                 {compareActive ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {([
-                      { key: "upgrade" as const, label: "Upgrade-Kandidaten", accent: "gold-text", border: "border-amber-500/25", bg: "bg-amber-500/[0.04]", items: upgradeList },
+                      { key: "upgrade" as const, label: "Upgrade-Kandidaten", accent: "text-emerald-300", border: "border-emerald-500/25", bg: "bg-emerald-500/[0.04]", items: upgradeList },
                       { key: "downgrade" as const, label: "Downgrade-Kandidaten", accent: "text-red-300", border: "border-red-500/25", bg: "bg-red-500/[0.04]", items: downgradeList },
                     ]).map((col) => (
                       <div
