@@ -1048,12 +1048,42 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     return { avgChats: avgC.toFixed(1), avgDelay: avgDel.toFixed(1), trend };
   }, [history]);
 
+  const delayByModel = useMemo(() => {
+    const map = new Map<string, { account: string; delayedDays: number; sumDelay: number; latestDelay: number; latestDate: string; maxDelay: number }>();
+    for (const r of history) {
+      const acc = (r.account || "").trim();
+      if (!acc) continue;
+      const cur = map.get(acc) || { account: acc, delayedDays: 0, sumDelay: 0, latestDelay: 0, latestDate: "", maxDelay: 0 };
+      if (r.response_delay_days > 0) {
+        cur.delayedDays += 1;
+        cur.sumDelay += r.response_delay_days;
+        if (r.response_delay_days > cur.maxDelay) cur.maxDelay = r.response_delay_days;
+      }
+      if (!cur.latestDate || r.analysis_date >= cur.latestDate) {
+        cur.latestDate = r.analysis_date;
+        cur.latestDelay = r.response_delay_days;
+      }
+      map.set(acc, cur);
+    }
+    return Array.from(map.values())
+      .filter((m) => m.latestDelay > 0 || m.delayedDays > 0)
+      .map((m) => ({
+        account: m.account,
+        latestDelay: m.latestDelay,
+        avgDelay: m.delayedDays ? m.sumDelay / m.delayedDays : 0,
+        delayedDays: m.delayedDays,
+        maxDelay: m.maxDelay,
+      }))
+      .sort((a, b) => b.latestDelay - a.latestDelay || b.avgDelay - a.avgDelay);
+  }, [history]);
+
   const kpis = [
-    { label: "Ø Tagesumsatz", value: formatCurrency(avgRevenue), icon: Coins, accent: "45 75% 55%", gold: true },
-    { label: "Höchster Umsatz", value: formatCurrency(maxRevenue), icon: Trophy, accent: "45 75% 55%", gold: true },
-    { label: "Ø MassDMs / Tag", value: String(avgDMs), icon: MessageSquare, accent: "212 90% 60%", gold: false },
-    { label: "Ø Antwort-Verzug", value: `${avgDelay} Tage`, icon: Clock, accent: "0 84% 60%", gold: false },
+    { label: "Ø Tagesumsatz", value: formatCurrency(avgRevenue), icon: Coins, accent: "45 75% 55%", gold: true, details: null as null | typeof delayByModel },
+    { label: "Höchster Umsatz", value: formatCurrency(maxRevenue), icon: Trophy, accent: "45 75% 55%", gold: true, details: null },
+    { label: "Ø MassDMs / Tag", value: String(avgDMs), icon: MessageSquare, accent: "212 90% 60%", gold: false, details: null },
+    { label: "Ø Antwort-Verzug", value: `${avgDelay} Tage`, icon: Clock, accent: "0 84% 60%", gold: false, details: delayByModel.length ? delayByModel : null },
   ];
+
 
   // Echtzeit-Karten (Heute) — Platzhalter: letzte verfügbare Tageswerte
   const today = history.length ? history[history.length - 1] : null;
