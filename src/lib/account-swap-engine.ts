@@ -877,35 +877,13 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     });
   }
 
-  // -------- DOWNGRADE-KANDIDATEN (eigene Sektion) --------
-  // Alle Downgrade-Kandidaten, unabhängig davon, ob im Swap-Matching ein
-  // Ersatz gefunden wurde. Dedup pro Chatter+Account, stärkste Severity gewinnt
-  // (zero_streak > delay > underperformance).
-  const bestDownByKey = new Map<string, DowngradeCandidate>();
-  for (const d of downgrades) {
-    const k = `${d.chatter.toLowerCase()}|${d.accountKey}`;
-    const prev = bestDownByKey.get(k);
-    if (!prev || d.severityRank < prev.severityRank) bestDownByKey.set(k, d);
-  }
-  for (const d of bestDownByKey.values()) {
-    const reasonLabel =
-      d.reason === "zero_streak" ? "Null-Euro-Serie"
-        : d.reason === "delay" ? "Chats im Verzug"
-          : "Unterperformance";
-    // Höhere Severity = höherer Score. zero_streak=3, delay=2, underperformance=1
-    const severityBoost = 3 - d.severityRank;
-    tasks.push({
-      key: `rev:downgrade:${d.accountKey}:${d.chatter.toLowerCase()}:${today}`,
-      kind: "downgrade",
-      title: `${d.chatter} runter von „${d.accountLabel}" — ${reasonLabel}`,
-      why: downgradeReasonText(d),
-      impactEurPerWeek: 0,
-      confidence: 0.7,
-      score: (d.followers || 1) * severityBoost,
-      chatterName: d.chatter,
-      modelName: d.accountLabel,
-    });
-  }
+  // -------- DOWNGRADE-KANDIDATEN --------
+  // Werden jetzt vom neuen Modul `downgrade-candidates.ts` erzeugt, das klare
+  // Kriterien nutzt (komplette Inaktivität ODER Volumen ohne Konversion).
+  // Die alten Signale (zero_streak / delay / underperformance) bleiben intern
+  // im Swap-Matching oben aktiv, werden aber nicht mehr als eigene Karten
+  // im Heute-Tab dargestellt.
+
 
   return tasks;
 }
