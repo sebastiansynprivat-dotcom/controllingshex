@@ -75,7 +75,8 @@ Deno.serve(async (req) => {
     platform: string;
     chatter_name: string;
     date: string;
-    incoming: number;
+    reads: number;         // Sum of unread drops per hour (messages the chatter cleared)
+    unreadCumulative: number; // Sum of unread_delta across the day → proxy for EOD unread
     lastRevenue: number;
   };
   const aggMap = new Map<string, Agg>();
@@ -88,16 +89,17 @@ Deno.serve(async (req) => {
         platform: r.platform,
         chatter_name: r.chatter_name,
         date: r.date,
-        incoming: 0,
+        reads: 0,
+        unreadCumulative: 0,
         lastRevenue: 0,
       };
       aggMap.set(key, a);
     }
-    // Backfill formula: each hour that reduced unread contributes those reads
-    const readsThisHour = Math.max(0, -Number(r.unread_delta ?? 0));
-    // Every hour with revenue implies at least one purchasing chat
-    const purchase = Number(r.revenue ?? 0) > 0 ? 1 : 0;
-    a.incoming += readsThisHour + purchase;
+    const delta = Number(r.unread_delta ?? 0);
+    // Reads (messages the chatter processed) contribute to arrivals — they had to arrive first
+    a.reads += Math.max(0, -delta);
+    // Net movement of unread queue across the day
+    a.unreadCumulative += delta;
     a.lastRevenue += Number(r.revenue ?? 0);
   }
 
@@ -106,7 +108,9 @@ Deno.serve(async (req) => {
     platform: a.platform,
     chatter_name: a.chatter_name,
     date: a.date,
-    incoming_count: a.incoming,
+    // reads_count only; UI adds last_unread on top to get total arrivals
+    incoming_count: a.reads,
+    last_unread: Math.max(0, a.unreadCumulative),
     last_revenue: a.lastRevenue,
     updated_at: new Date().toISOString(),
   }));
