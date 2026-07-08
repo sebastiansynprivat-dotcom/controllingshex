@@ -84,6 +84,8 @@ export interface UnifiedAction {
   costOfInactionEurPerWeek: number;
   /** A1 — Aus action_outcomes gelernter ROI-Multiplier (1.0 = neutral) */
   roiMultiplier: number;
+  /** Für Downgrade-Kandidaten: frühestes Datum, ab dem das Muster gilt (YYYY-MM-DD). */
+  downgradeSince: string | null;
 }
 
 interface HistoryRow {
