@@ -24,6 +24,7 @@ import {
 import { loadMismatchMap, type MismatchEntry } from "@/lib/effort-potential";
 import { tierForFollowers } from "@/lib/account-tiers";
 import { buildAccountSwapTasks } from "@/lib/account-swap-engine";
+import { buildDowngradeCandidates } from "@/lib/downgrade-candidates";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 export type RevenueTaskKind = "recovery" | "phase" | "mismatch" | "swap" | "slot" | "upgrade" | "downgrade";
