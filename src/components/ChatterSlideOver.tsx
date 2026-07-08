@@ -309,7 +309,7 @@ function LiveKpiStrip({
         </span>
         <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">Echtzeit · Heute</p>
       </div>
-      <div className={`grid grid-cols-4 ${compact ? "gap-2" : "gap-2 sm:gap-3"}`}>
+      <div className={`grid grid-cols-2 sm:grid-cols-4 ${compact ? "gap-2" : "gap-2 sm:gap-3"}`}>
         {liveKpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
