@@ -25,6 +25,7 @@ import NotFound from "@/pages/NotFound";
 import Today from "@/pages/Today";
 import LiveTracking from "@/pages/LiveTracking";
 import Push from "@/pages/Push";
+import Messages from "@/pages/Messages";
 
 const queryClient = new QueryClient();
 
