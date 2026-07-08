@@ -35,11 +35,13 @@ import { onChatterDataUpdated, emitChatterLabelsUpdated } from "@/lib/data-event
 
 interface HistoryRow {
   analysis_date: string;
+  account: string;
   revenue_today: number;
   mass_dms: number;
   open_chats: number;
   response_delay_days: number;
 }
+
 
 interface CoachingNote {
   id: string;
@@ -112,12 +114,27 @@ function formatCurrency(v: number) {
 }
 
 /* Custom Tooltips */
-function RevenueTooltip({ active, payload }: any) {
+function RevenueTooltip({
+  active,
+  payload,
+  historyRows,
+}: {
+  active?: boolean;
+  payload?: any[];
+  historyRows?: HistoryRow[];
+}) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload as (HistoryRow & { note?: string }) | undefined;
   if (!row) return null;
+  const rowsForDate = (historyRows || []).filter((r) => r.analysis_date === row.analysis_date);
+  const modelsWithDelay = rowsForDate
+    .filter((r) => r.response_delay_days > 0)
+    .sort((a, b) => b.response_delay_days - a.response_delay_days);
+  const totalDelay = rowsForDate.length
+    ? Math.round(rowsForDate.reduce((s, r) => s + r.response_delay_days, 0) / rowsForDate.length)
+    : 0;
   return (
-    <div className="premium-card rounded-xl px-5 py-3.5 max-w-[240px]">
+    <div className="premium-card rounded-xl px-5 py-3.5 max-w-[260px]">
       <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-2">
         {formatDate(row.analysis_date)}
       </p>
@@ -125,10 +142,29 @@ function RevenueTooltip({ active, payload }: any) {
         {formatCurrency(row.revenue_today)}
       </p>
       <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide">{row.mass_dms} MassDMs</p>
-      <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide flex items-center gap-1.5">
-        <Clock className="h-3 w-3 text-white/40" />
-        {row.response_delay_days} {row.response_delay_days === 1 ? "Tag" : "Tage"} Verzug
-      </p>
+
+      {modelsWithDelay.length > 0 ? (
+        <div className="mt-2 border-t border-white/[0.06] pt-2 space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">Verzug pro Model</p>
+          {modelsWithDelay.map((r) => (
+            <p
+              key={r.account}
+              className="text-[11px] text-white/55 font-light tracking-wide flex items-center justify-between gap-3"
+            >
+              <span className="truncate">{r.account}</span>
+              <span className="text-white/70 tabular-nums shrink-0">
+                {r.response_delay_days} {r.response_delay_days === 1 ? "Tag" : "Tage"}
+              </span>
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-white/45 font-light mt-1 tracking-wide flex items-center gap-1.5">
+          <Clock className="h-3 w-3 text-white/40" />
+          {totalDelay} {totalDelay === 1 ? "Tag" : "Tage"} Verzug
+        </p>
+      )}
+
       {row.note && (
         <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">
           📝 {row.note}
@@ -137,6 +173,7 @@ function RevenueTooltip({ active, payload }: any) {
     </div>
   );
 }
+
 
 function GhostChatTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
@@ -352,11 +389,13 @@ function Trend30Block({
   trend30,
   compact = false,
   gradientId,
+  historyRows,
 }: {
   last30: HistoryRow[];
   trend30: { pct: number; direction: "up" | "down" | "stable" };
   compact?: boolean;
   gradientId: string;
+  historyRows?: HistoryRow[];
 }) {
   if (last30.length < 4) return null;
   const trendAccent =
@@ -403,7 +442,10 @@ function Trend30Block({
               tickFormatter={(v) => `${v}€`}
               width={compact ? 40 : 50}
             />
-            <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+            <Tooltip
+              content={<RevenueTooltip historyRows={historyRows} />}
+              cursor={{ stroke: "rgba(255,255,255,0.08)" }}
+            />
             <Area
               type="monotone"
               dataKey="revenue_today"
@@ -424,6 +466,7 @@ function Trend30Block({
     </div>
   );
 }
+
 
 
 
@@ -637,7 +680,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     Promise.all([
       supabase
         .from("chatter_history")
-        .select("analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
+        .select("analysis_date, account, revenue_today, mass_dms, open_chats, response_delay_days")
         .eq("chatter_name", chatterName)
         .eq("platform", platform)
         .order("analysis_date", { ascending: true }),
@@ -659,6 +702,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           const rev = Number(r.revenue_today) || 0;
           return {
             analysis_date: r.analysis_date,
+            account: (r.account || "").trim(),
             revenue_today: rev,
             mass_dms: Number(r.mass_dms) || 0,
             open_chats: Number(r.open_chats) || 0,
@@ -670,6 +714,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       setChatterMemos((memosRes.data as ChatterMemo[]) || []);
       setLoading(false);
     });
+
   }, [chatterName, platform]);
 
   useEffect(() => {
@@ -1298,7 +1343,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact />
 
               {/* 30-Tage-Trend — compact sparkline */}
-              <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" />
+              <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" historyRows={history} />
 
               {/* KPI Grid */}
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -1728,7 +1773,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact={compact} />
 
                     {/* ── 30-Tage-Trend ── */}
-                    <Trend30Block last30={last30} trend30={trend30} compact={compact} gradientId="trend30Fill" />
+                    <Trend30Block last30={last30} trend30={trend30} compact={compact} gradientId="trend30Fill" historyRows={history} />
 
                     {/* ── 2. KPI Grid (2×2) ── */}
                     <div className="grid grid-cols-2 gap-4">
