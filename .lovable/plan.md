@@ -1,45 +1,59 @@
 ## Ziel
-Im Vergleichsmodus (Upgrade ↔ Downgrade) eine schwebende **Ablage** einbauen, in die man Karten per Drag & Drop legen kann, um Paare zu sammeln, abzuhaken und direkt Profil-für-Profil zu vergleichen.
+Das Chatter-Profil (`ChatterSlideOver`) aufräumen: weniger Rauschen, wichtige Zahlen sofort im Blick, Labels als schneller Header-Kontrol statt großer Sektion, keine ungenutzten Blöcke mehr. Keine Datenquelle wird gelöscht — nur UI/Anordnung.
 
-## User-Flow
+## Neue Sektions-Reihenfolge (oben → unten)
 
-1. Vergleichsmodus wird aktiv → unten rechts erscheint ein fixierter **Ablage-Button** (kleiner Kreis mit Zähler-Badge).
-2. Nutzer zieht eine Karte (Upgrade oder Downgrade) auf den Kreis → Karte verschwindet aus der Spalte und landet in der Ablage.
-3. Klick auf den Kreis öffnet ein Panel/Popover mit allen abgelegten Karten, gruppiert in **Upgrade** und **Downgrade**.
-4. In der Ablage kann jede Karte:
-   - abgehakt werden (Häkchen → endgültig erledigt, verschwindet auch nach Neu-Laden aus der Ansicht),
-   - zurück in die Liste geschoben werden (kleines „×"),
-   - per **Vergleichen**-Button neben einem Upgrade + Downgrade → öffnet beide Profile side-by-side (nutzt vorhandenes `ChatterSlideOver` mit `compareWith`).
-5. Oben in der Ablage: **Vergleich starten**-Button, der aktiv wird, sobald genau **1 Upgrade + 1 Downgrade** ausgewählt sind.
+1. **Hero-Header** — Avatar · Name · Platform · 30T-Trend-Pill · **Labels-Chip-Row + „+ Label"-Dropdown** · Vergleichen · Schließen
+2. **Live-KPIs (Echtzeit)** — Tagesumsatz · Mass-DMs · „Heute aktiv"-Zeile (unverändert)
+3. **Basis-KPIs (2×2)** — bestehende Kennzahlen (unverändert)
+4. **30-Tage-Trend** _(hochgezogen)_
+5. **Postfach-Disziplin** _(hochgezogen)_
+6. **Models & Logins** _(cleaner: reine Chip/Reveal-Liste, statt großer Karte)_
+7. **Online-Zeiten** (Stunden-Profil)
+8. **Management-Logbuch** (Notizen/Memos)
+9. **Verlauf-Tabelle** (unverändert)
 
-## UI-Details
+## Entfernte Sektionen (nur UI, Code/Feature bleibt)
 
-- Ablage-Button: 56px Kreis, `fixed bottom-24 right-4` (über der Bottom-Nav), leichter Glow, Badge mit Anzahl.
-- Nur sichtbar, wenn `compareActive === true`.
-- Drop-Zone: Kreis vergrößert sich + grüner Ring beim Hover-Drag.
-- Panel: gleitet von rechts unten auf, max. 360px breit, glassy Card im Projekt-Stil (kein Hardcode-Weiß, Design-Tokens).
-- Cards in der Ablage: kompakte Variante (Name, Kind-Badge, Mini-Metric, Aktionen: Vergleichen · Abhaken · Zurück).
+- **Voice-Memo-Sektion** komplett aus dem Profil raus (Funktion `handleGenerateVoiceMemo` und Import bleiben ungenutzt / können in Folge-Cleanup entfernt werden).
+- **7-Tage-Trend / `WeekTrendCard`** aus dem Profil raus.
+
+## Labels: neuer Header-Flow
+
+- Direkt hinter dem Namen: horizontale Chip-Row der zugewiesenen Labels (max. 4 sichtbar, Rest als „+N").
+- Ein kleiner **„+ Label"-Button** öffnet ein Popover:
+  - Suchfeld
+  - Liste aller Workspace-Labels mit Checkbox → Toggle
+  - Inline „Neues Label" (Name + Farbtupfer, wie heute)
+  - Neben jedem Label ein **Papierkorb-Icon** → löscht das Label workspace-weit (Confirm-Dialog, nutzt bestehende `deleteLabel`-Funktion)
+- Chip-Klick im Header → Popover auf demselben Label vor-fokussiert (optional, nice-to-have)
+- Bisherige große „Labels"-Sektion im Body entfällt.
+
+## Models & Logins: cleaner
+
+Statt der aktuellen breiten Karte:
+- Kompakte Sektion „Models & Logins" mit einer Zeile pro Model:
+  - Model-Name · Copy-Button für E-Mail · „Passwort anzeigen"-Toggle (Auge-Icon) · Copy-Button für PW
+- Alles einzeilig, monospace-Werte, dezente Divider. Kein Header-Padding-Overkill.
 
 ## Technische Umsetzung
 
-- **Neue Komponente** `src/components/today/CompareTray.tsx`
-  - Props: `upgradeItems`, `downgradeItems`, `onCheckOff(action)`, `onReturn(action)`, `onCompare(upgradeAction, downgradeAction)`.
-  - Interner State: `open` (Panel), `selection` (jeweils ein Upgrade/Downgrade highlighted).
-- **State in `Today.tsx`**:
-  - `trayIds: Set<string>` (bundleKey) – über `localStorage` persistiert pro Platform (`today.compareTray.<platform>`), damit die Ablage über Reloads erhalten bleibt.
-  - `checkedTrayIds: Set<string>` – ebenfalls persistiert; diese Actions werden aus `upgradeList`/`downgradeList` gefiltert, ähnlich wie bereits Done-Status.
-- **Filter der Spalten**: `upgradeList` und `downgradeList` werden vor dem Rendern um `trayIds` und `checkedTrayIds` reduziert. Ablage-Panel bekommt die Vollobjekte über eine `Map<bundleKey, UnifiedAction>`.
-- **Drag & Drop**: Native HTML5 DnD (`draggable`, `onDragStart`, `onDragOver`, `onDrop`) – reicht für Desktop; auf Touch fällt ein Long-Press-Fallback dazu (kleiner „In Ablage"-Button unten in der Karte, damit mobil nichts verloren geht).
-  - `PersonActionCard` bekommt optionale Props `draggable`, `onDragStart`, `onSendToTray` – nur im Vergleichsmodus gesetzt, sonst unverändert.
-- **Abhaken**: nutzt vorhandene `act()`-Funktion mit Status „done" (analog Bottom-Bar-Done-Flow), damit es sich mit `todo_state`/`action-outcomes` deckt. Falls das für Upgrade/Downgrade nicht sinnvoll ist, alternativ ein lokal persistiertes „dismissed" mit Reset-Option in der Ablage.
-- **Vergleich-Button**: ruft `setSelectedChatter({ name: upgrade.chatterName, compareWith: downgrade.chatterName })` – die bestehende Split-View im `ChatterSlideOver` übernimmt den Rest.
+- Datei: `src/components/ChatterSlideOver.tsx`
+  - Hero-Header (Zeile ~1379): neue `LabelChips` + `LabelPopover`-Komponente einhängen (im selben File, klein gehalten).
+  - Body-Reihenfolge (Zeile 1573+) neu sortieren gemäß Liste oben.
+  - Voice-Memo-JSX (~1734–1778) und 7-Tage-Trend-JSX (~1814–1817) entfernen.
+  - Alte Labels-Sektion (~1656) entfernen.
+  - Bestehende Handler `toggleLabel`, `createLabel`, `deleteLabel` bleiben.
+- Kompakte Variante (inline/split, Zeile 858+): gleiche neue Reihenfolge & Header-Labels, entsprechend runter-skaliert. Die kompakte inline-Sektion (Zeile 1005 `{modelsLoginsBlock}`, 1073 Voice-Memo etc.) analog aufräumen.
+- Keine DB-Änderungen, keine neuen Tabellen.
+- shadcn `Popover` + `Command` sind bereits im Projekt vorhanden — für das Label-Popover verwenden.
 
 ## Was NICHT geändert wird
 
-- Kein Umbau der Datenpipeline (`today-engine`).
-- Kein neues DB-Schema; Persistenz nur `localStorage`. Bei Bedarf später auf Supabase heben.
-- Single-Modus, andere Tabs, Bottom-Nav bleiben unverändert.
+- Vergleichs-Modus-Symmetrie (letzter Fix bleibt).
+- Datenpipeline / Backend / Migrations.
+- Andere Views (Today, Models etc.).
 
 ## Offene Frage
 
-Soll „Abhaken" **dauerhaft** (per Server via `recordActionDone`) speichern, oder nur **lokal** (verschwindet nur auf diesem Gerät bis zum nächsten Report)? Default-Vorschlag: **dauerhaft via `act("done")`**, damit es auch im Wins-Feed landet – lässt sich beim Umsetzen kurz bestätigen.
+Das **Löschen eines Labels aus dem Workspace** wirkt für ALLE Chatter (bestehende Funktion). Confirm-Dialog vorschalten? _Default-Vorschlag: ja — kurzer AlertDialog „Label X wirklich workspace-weit löschen?"_

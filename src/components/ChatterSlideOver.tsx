@@ -18,7 +18,15 @@ import {
   Loader2,
   Download,
   RefreshCw,
+  Trash2,
+  Check,
+  Eye,
+  EyeOff,
+  Copy,
+  Mail,
+  KeyRound,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -200,6 +208,72 @@ function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
     </div>
   );
 }
+
+function ModelLoginRow({
+  model,
+  onCopy,
+}: {
+  model: { name: string; email: string | null; password: string | null };
+  onCopy: (value: string, label: string) => void;
+}) {
+  const [showPw, setShowPw] = useState(false);
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.02] transition-colors min-w-0">
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] text-foreground/85 font-light tracking-wide truncate">{model.name}</p>
+        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/35 font-mono tracking-tight">
+          {model.email ? (
+            <span className="truncate max-w-[180px]">{model.email}</span>
+          ) : (
+            <span className="italic text-white/20">keine Mail</span>
+          )}
+          {model.password ? (
+            <>
+              <span className="text-white/15">·</span>
+              <span className="tabular-nums">
+                {showPw ? model.password : "•".repeat(Math.min(model.password.length, 10))}
+              </span>
+            </>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        {model.email && (
+          <button
+            type="button"
+            onClick={() => onCopy(model.email!, "E-Mail")}
+            title="E-Mail kopieren"
+            className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+          >
+            <Mail className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {model.password && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              title={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
+              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+            >
+              {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => onCopy(model.password!, "Passwort")}
+              title="Passwort kopieren"
+              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 
 export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
@@ -808,47 +882,184 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
   const modelsLoginsBlock =
     chatterModels.length > 0 ? (
-      <div className="space-y-3">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Models & Logins</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="space-y-2.5">
+        <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Models & Logins</p>
+        <div className="premium-card rounded-xl divide-y divide-white/[0.04] overflow-hidden">
           {chatterModels.map((m) => (
-            <div key={m.name} className="rounded-xl bg-white/[0.02] border border-white/[0.05] px-3 py-2.5 space-y-1.5">
-              <p className="text-[12px] text-foreground/80 font-light tracking-wide truncate">{m.name}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {m.email ? (
-                  <button
-                    onClick={() => copyToClipboard(m.email!, "E-Mail")}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide max-w-full"
-                    title={`E-Mail kopieren: ${m.email}`}
-                  >
-                    <span className="text-primary/60">✉</span>
-                    <span className="truncate max-w-[140px]">{m.email}</span>
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">
-                    keine Mail
-                  </span>
-                )}
-                {m.password ? (
-                  <button
-                    onClick={() => copyToClipboard(m.password!, "Passwort")}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/55 hover:text-white/85 hover:border-primary/25 transition-all duration-200 font-light tracking-wide"
-                    title="Passwort kopieren"
-                  >
-                    <span className="text-primary/60">🔑</span>
-                    <span>{"•".repeat(Math.min(m.password.length, 10))}</span>
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-white/15 font-light italic">
-                    kein Passwort
-                  </span>
-                )}
-              </div>
-            </div>
+            <ModelLoginRow key={m.name} model={m} onCopy={copyToClipboard} />
           ))}
         </div>
       </div>
     ) : null;
+
+  const assignedLabels = useMemo(
+    () => allLabels.filter((l) => assignedLabelIds.has(l.id)),
+    [allLabels, assignedLabelIds],
+  );
+
+  const renderLabelsControl = (variant: "header" | "compact" = "header") => {
+    const chipSize =
+      variant === "compact"
+        ? "px-1.5 py-0.5 text-[9px]"
+        : "px-2 py-0.5 text-[10px]";
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+        {assignedLabels.slice(0, 4).map((label) => (
+          <span
+            key={label.id}
+            className={`inline-flex items-center gap-1 rounded-full border font-medium tracking-wide max-w-[140px] ${chipSize}`}
+            style={{
+              backgroundColor: label.color + "22",
+              borderColor: label.color + "55",
+              color: "rgba(255,255,255,0.85)",
+            }}
+            title={label.label_name}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+            <span className="truncate">{label.label_name}</span>
+          </span>
+        ))}
+        {assignedLabels.length > 4 && (
+          <span className="text-[10px] text-white/40 font-light tabular-nums">+{assignedLabels.length - 4}</span>
+        )}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={`inline-flex items-center gap-1 rounded-full border border-dashed border-white/15 text-white/45 hover:text-primary hover:border-primary/40 transition-colors font-medium tracking-wide ${chipSize}`}
+              title="Labels verwalten"
+            >
+              <Tag className="h-2.5 w-2.5" />
+              <span>{assignedLabels.length === 0 ? "Label" : "+"}</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            sideOffset={8}
+            className="w-72 p-3 bg-zinc-950/98 border-white/[0.08] backdrop-blur-xl z-[60]"
+          >
+            <div className="space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-medium">Labels</p>
+              <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-1">
+                {allLabels.length === 0 ? (
+                  <p className="text-[11px] text-white/25 font-light text-center py-3 italic">
+                    Noch keine Labels erstellt.
+                  </p>
+                ) : (
+                  allLabels.map((label) => {
+                    const isAssigned = assignedLabelIds.has(label.id);
+                    return (
+                      <div
+                        key={label.id}
+                        className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleLabel(label.id)}
+                          className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        >
+                          <span
+                            className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all ${
+                              isAssigned ? "border-transparent" : "border-white/20"
+                            }`}
+                            style={isAssigned ? { backgroundColor: label.color } : {}}
+                          >
+                            {isAssigned && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                          </span>
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: label.color }}
+                          />
+                          <span className="text-xs text-foreground/85 font-light truncate">
+                            {label.label_name}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Label "${label.label_name}" workspace-weit löschen? Dies entfernt es bei allen Chattern.`,
+                              )
+                            ) {
+                              deleteLabel(label.id);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-white/30 hover:text-red-400 transition-all shrink-0"
+                          title="Label workspace-weit löschen"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="border-t border-white/[0.06] pt-3">
+                {!showNewLabel ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewLabel(true)}
+                    className="w-full text-[11px] text-primary/75 hover:text-primary flex items-center justify-center gap-1 py-1.5 rounded-lg hover:bg-primary/[0.06] transition-colors font-medium tracking-wide"
+                  >
+                    <Plus className="h-3 w-3" /> Neues Label
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      placeholder="Label-Name"
+                      autoFocus
+                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-foreground/85 font-light placeholder:text-white/20 focus:outline-none focus:border-primary/30"
+                      onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                    />
+                    <div className="flex gap-1.5">
+                      {LABEL_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setNewLabelColor(c)}
+                          className={`w-5 h-5 rounded-full border-2 transition-all ${
+                            newLabelColor === c
+                              ? "border-white/70 scale-110"
+                              : "border-transparent opacity-60 hover:opacity-100"
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={createLabel}
+                        disabled={!newLabelName.trim()}
+                        className="flex-1 py-1.5 rounded-lg bg-primary/12 border border-primary/25 text-primary text-[11px] font-medium hover:bg-primary/18 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+                      >
+                        Erstellen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewLabel(false);
+                          setNewLabelName("");
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] text-white/55 text-[11px] hover:bg-white/[0.06] transition-colors"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  };
+
+
 
   if (inline || splitView) {
     if (!open) return null;
@@ -896,6 +1107,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 </span>
               )}
             </div>
+            <div className="mt-1.5">{renderLabelsControl("compact")}</div>
           </div>
           {splitView && (
             <button
@@ -1004,114 +1216,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
               {modelsLoginsBlock}
 
-              {/* Labels */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
-                    <Tag className="h-3 w-3" /> Labels
-                  </p>
-                  <button
-                    onClick={() => setShowNewLabel(!showNewLabel)}
-                    className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
-                  >
-                    <Plus className="h-3 w-3" /> Neu
-                  </button>
-                </div>
-                {showNewLabel && (
-                  <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
-                    <input
-                      value={newLabelName}
-                      onChange={(e) => setNewLabelName(e.target.value)}
-                      placeholder="Label-Name"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
-                      onKeyDown={(e) => e.key === "Enter" && createLabel()}
-                    />
-                    <div className="flex gap-2">
-                      {LABEL_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setNewLabelColor(c)}
-                          className={`w-5 h-5 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                    <button
-                      onClick={createLabel}
-                      disabled={!newLabelName.trim()}
-                      className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-                    >
-                      Erstellen
-                    </button>
-                  </div>
-                )}
-                {allLabels.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {allLabels.map((label) => {
-                      const isAssigned = assignedLabelIds.has(label.id);
-                      return (
-                        <button
-                          key={label.id}
-                          onClick={() => toggleLabel(label.id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${isAssigned ? "border-white/20 text-white shadow-sm" : "border-white/[0.06] text-white/30 hover:text-white/50"}`}
-                          style={
-                            isAssigned ? { backgroundColor: label.color + "25", borderColor: label.color + "50" } : {}
-                          }
-                        >
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                          {label.label_name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {allLabels.length === 0 && !showNewLabel && (
-                  <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
-                )}
-              </div>
-
-              {/* Voice-Memo */}
-              <div className="space-y-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Voice-Memo</p>
-                {!memoUrl && (
-                  <button
-                    onClick={generateMemo}
-                    disabled={memoLoading}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/25 text-primary hover:from-primary/20 hover:to-primary/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {memoLoading ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm font-light">Generiere mit deiner Stimme…</span></>
-                    ) : (
-                      <><Mic className="h-4 w-4" /><span className="text-sm font-light">Memo generieren</span></>
-                    )}
-                  </button>
-                )}
-                {memoUrl && (
-                  <div className="space-y-2 rounded-xl bg-white/[0.02] border border-white/[0.05] p-3">
-                    <audio src={memoUrl} controls className="w-full h-10" />
-                    {memoText && (
-                      <p className="text-[11px] text-white/50 font-light leading-relaxed italic">„{memoText}"</p>
-                    )}
-                    <div className="flex gap-2">
-                      <a
-                        href={memoUrl}
-                        download={`memo-${chatterName}.mp3`}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-white/70 hover:bg-white/[0.06] transition-colors"
-                      >
-                        <Download className="h-3.5 w-3.5" />Download
-                      </a>
-                      <button
-                        onClick={generateMemo}
-                        disabled={memoLoading}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-white/70 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
-                      >
-                        {memoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        Neu
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Notes — direkt unter Labels */}
               <div className="space-y-4">
@@ -1260,9 +1364,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 )}
               </div>
 
-              {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
-
-              <WeekTrendCard history={history} compact />
 
               {/* Online-Zeiten (Stunden-Profil) */}
               <ChatterActivityHoursCard chatterName={chatterName} platform={platform} compact />
@@ -1426,6 +1527,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       </span>
                     )}
                   </div>
+                  <div className="mt-2">{renderLabelsControl("header")}</div>
                 </div>
               </>
             )}
@@ -1558,6 +1660,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                         </span>
                       )}
                     </div>
+                    <div className="mt-1.5">{renderLabelsControl("compact")}</div>
                   </div>
                 </div>
               )}
@@ -1651,172 +1754,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       })}
                     </div>
 
-                    {modelsLoginsBlock}
-
-                    {/* ── Labels ── */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light flex items-center gap-1.5">
-                          <Tag className="h-3 w-3" /> Labels
-                        </p>
-                        <button
-                          onClick={() => setShowNewLabel(!showNewLabel)}
-                          className="text-[10px] text-primary/60 hover:text-primary transition-colors font-medium tracking-wide flex items-center gap-1"
-                        >
-                          <Plus className="h-3 w-3" /> Neu
-                        </button>
-                      </div>
-
-                      {showNewLabel && (
-                        <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 space-y-3">
-                          <input
-                            value={newLabelName}
-                            onChange={(e) => setNewLabelName(e.target.value)}
-                            placeholder="Label-Name"
-                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground/80 font-light placeholder:text-white/15 focus:outline-none focus:border-primary/20 transition-colors"
-                            onKeyDown={(e) => e.key === "Enter" && createLabel()}
-                          />
-                          <div className="flex gap-2">
-                            {LABEL_COLORS.map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => setNewLabelColor(c)}
-                                className={`w-6 h-6 rounded-full border-2 transition-all ${newLabelColor === c ? "border-white/60 scale-110" : "border-transparent opacity-60 hover:opacity-100"}`}
-                                style={{ backgroundColor: c }}
-                              />
-                            ))}
-                          </div>
-                          <button
-                            onClick={createLabel}
-                            disabled={!newLabelName.trim()}
-                            className="w-full py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-                          >
-                            Erstellen
-                          </button>
-                        </div>
-                      )}
-
-                      {allLabels.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {allLabels.map((label) => {
-                            const isAssigned = assignedLabelIds.has(label.id);
-                            return (
-                              <button
-                                key={label.id}
-                                onClick={() => toggleLabel(label.id)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 border ${
-                                  isAssigned
-                                    ? "border-white/20 text-white shadow-sm"
-                                    : "border-white/[0.06] text-white/30 hover:text-white/50"
-                                }`}
-                                style={
-                                  isAssigned
-                                    ? { backgroundColor: label.color + "25", borderColor: label.color + "50" }
-                                    : {}
-                                }
-                              >
-                                <span
-                                  className="w-2 h-2 rounded-full shrink-0"
-                                  style={{ backgroundColor: label.color }}
-                                />
-                                {label.label_name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {allLabels.length === 0 && !showNewLabel && (
-                        <p className="text-[11px] text-white/15 font-light">Noch keine Labels erstellt.</p>
-                      )}
-                    </div>
-
-                    {/* ── Voice-Memo ── */}
-                    <div className="space-y-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
-                        Voice-Memo
-                      </p>
-                      {!memoUrl && (
-                        <button
-                          onClick={generateMemo}
-                          disabled={memoLoading}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/25 text-primary hover:from-primary/20 hover:to-primary/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {memoLoading ? (
-                            <><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm font-light">Generiere mit deiner Stimme…</span></>
-                          ) : (
-                            <><Mic className="h-4 w-4" /><span className="text-sm font-light">Memo generieren</span></>
-                          )}
-                        </button>
-                      )}
-                      {memoUrl && (
-                        <div className="premium-card space-y-2 rounded-xl p-3">
-                          <audio src={memoUrl} controls className="w-full h-10" />
-                          {memoText && (
-                            <p className="text-[11px] text-white/55 font-light leading-relaxed italic">„{memoText}"</p>
-                          )}
-                          <div className="flex gap-2">
-                            <a
-                              href={memoUrl}
-                              download={`memo-${chatterName}.mp3`}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-white/70 hover:bg-white/[0.06] transition-colors"
-                            >
-                              <Download className="h-3.5 w-3.5" />Download
-                            </a>
-                            <button
-                              onClick={generateMemo}
-                              disabled={memoLoading}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-white/70 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
-                            >
-                              {memoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                              Neu
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Management-Logbuch — direkt unter Labels ── */}
-                    <div className="space-y-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
-                        Management-Logbuch
-                      </p>
-                      <div className="flex gap-3">
-                        <textarea
-                          value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
-                          placeholder="Was wurde heute besprochen?"
-                          rows={2}
-                          className="premium-card flex-1 rounded-xl px-4 py-3 text-sm text-foreground/85 font-light placeholder:text-white/25 resize-none focus:outline-none focus:border-primary/30 transition-colors duration-300"
-                        />
-                        <button
-                          onClick={saveNote}
-                          disabled={savingNote || !noteText.trim()}
-                          className="premium-chip self-end px-4 py-3 rounded-xl bg-primary/12 border border-primary/25 text-primary hover:bg-primary/18 transition-all duration-300 disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.97]"
-                        >
-                          <Send className="h-4 w-4" />
-                        </button>
-                      </div>
-                      {notes.length > 0 && (
-                        <div className="space-y-2 max-h-60 overflow-y-auto">
-                          {notes.map((n) => (
-                            <div key={n.id} className="premium-card rounded-xl px-4 py-3">
-                              <p className="text-xs text-foreground/80 font-light leading-relaxed">{n.note_text}</p>
-                              <p className="text-[10px] text-white/30 font-light mt-2 tracking-wide">
-                                {formatDateTime(n.created_at)}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) ── */}
-                    <WeekTrendCard history={history} />
-
-                    {/* ── Online-Zeiten (Stunden-Profil) ── */}
-                    <ChatterActivityHoursCard chatterName={chatterName} platform={platform} />
-
                     {/* ── 30-Tage-Trend ── */}
                     {last30.length >= 4 && (
                       <div className="premium-card rounded-2xl p-7 relative">
@@ -1888,8 +1825,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       </div>
                     )}
 
-
-                    {/* ── 4. Postfach-Disziplin ── */}
+                    {/* ── Postfach-Disziplin ── */}
                     <div className="space-y-5">
                       <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
                         Postfach-Disziplin
@@ -1945,6 +1881,48 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                         </div>
                       )}
                     </div>
+
+                    {modelsLoginsBlock}
+
+                    {/* ── Online-Zeiten (Stunden-Profil) ── */}
+                    <ChatterActivityHoursCard chatterName={chatterName} platform={platform} />
+
+                    {/* ── Management-Logbuch ── */}
+                    <div className="space-y-5">
+                      <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
+                        Management-Logbuch
+                      </p>
+                      <div className="flex gap-3">
+                        <textarea
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          placeholder="Was wurde heute besprochen?"
+                          rows={2}
+                          className="premium-card flex-1 rounded-xl px-4 py-3 text-sm text-foreground/85 font-light placeholder:text-white/25 resize-none focus:outline-none focus:border-primary/30 transition-colors duration-300"
+                        />
+                        <button
+                          onClick={saveNote}
+                          disabled={savingNote || !noteText.trim()}
+                          className="premium-chip self-end px-4 py-3 rounded-xl bg-primary/12 border border-primary/25 text-primary hover:bg-primary/18 transition-all duration-300 disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.97]"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {notes.length > 0 && (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {notes.map((n) => (
+                            <div key={n.id} className="premium-card rounded-xl px-4 py-3">
+                              <p className="text-xs text-foreground/80 font-light leading-relaxed">{n.note_text}</p>
+                              <p className="text-[10px] text-white/30 font-light mt-2 tracking-wide">
+                                {formatDateTime(n.created_at)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+
 
                     {/* ── 6. Verlauf-Tabelle ── */}
                     <div>
