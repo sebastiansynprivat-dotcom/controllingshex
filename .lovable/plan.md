@@ -1,51 +1,45 @@
-## Downgrade-Kandidaten in "Heute"
+## Ziel
+Im Vergleichsmodus (Upgrade ↔ Downgrade) eine schwebende **Ablage** einbauen, in die man Karten per Drag & Drop legen kann, um Paare zu sammeln, abzuhaken und direkt Profil-für-Profil zu vergleichen.
 
-Neben "Upgrade-Kandidaten" bekommt "Heute" eine eigene Karte "Downgrade-Kandidaten". Sie zeigt zwei klar getrennte Gründe an, warum jemand runtergestuft oder rausgenommen werden sollte — direkt im Warum-Text sichtbar.
+## User-Flow
 
-### Auslöser (zwei Buckets)
+1. Vergleichsmodus wird aktiv → unten rechts erscheint ein fixierter **Ablage-Button** (kleiner Kreis mit Zähler-Badge).
+2. Nutzer zieht eine Karte (Upgrade oder Downgrade) auf den Kreis → Karte verschwindet aus der Spalte und landet in der Ablage.
+3. Klick auf den Kreis öffnet ein Panel/Popover mit allen abgelegten Karten, gruppiert in **Upgrade** und **Downgrade**.
+4. In der Ablage kann jede Karte:
+   - abgehakt werden (Häkchen → endgültig erledigt, verschwindet auch nach Neu-Laden aus der Ansicht),
+   - zurück in die Liste geschoben werden (kleines „×"),
+   - per **Vergleichen**-Button neben einem Upgrade + Downgrade → öffnet beide Profile side-by-side (nutzt vorhandenes `ChatterSlideOver` mit `compareWith`).
+5. Oben in der Ablage: **Vergleich starten**-Button, der aktiv wird, sobald genau **1 Upgrade + 1 Downgrade** ausgewählt sind.
 
-**A) Komplett inaktiv (Chatter-Ebene)**
-- Chatter ist im letzten Report (nach aktuellem Roster-Fix bereits gefiltert) — hat aber im relevanten Zeitfenster **keine** Aktivität:
-  - 0 aktive Sessions **und** 0 Umsatz **und** 0 Mass-DMs **und** 0 bearbeitete eingehende Nachrichten.
-- Fenster: Standard **7 Tage** (rollierend, exkl. Onboarding-Tage: erst ab Tag 4 nach `onboarded_on`).
-- Warum-Text: „Seit X Tagen keine Session, kein Umsatz, keine Nachrichten bearbeitet. Onboarding: Tag Y."
+## UI-Details
 
-**B) Volumen ohne Konversion (Chatter × Account)**
-- Aktive Chatter-Account-Kombination, die viel eingehendes Volumen abbekommt, es aber schlecht in Umsatz dreht — die gleiche Logik wie „Potenzial verschenkt" auf Messages, hier aber härter getriggert:
-  - Nachrichten ≥ **max(30, Median der Kombinationen)** im Zeitfenster,
-  - €/Msg **≤ 50 %** des Plattform-Ø (gewichtet nach Volumen),
-  - Persistenz: gilt an **≥ 3 der letzten 7 Tage** (kein Ein-Tages-Ausreißer).
-- Warum-Text: „Account bekommt Ø X Msg/Tag, aber nur Y €/Msg (Plattform-Ø Z €/Msg — 55 % darunter). 3 von 7 Tagen im gleichen Muster."
+- Ablage-Button: 56px Kreis, `fixed bottom-24 right-4` (über der Bottom-Nav), leichter Glow, Badge mit Anzahl.
+- Nur sichtbar, wenn `compareActive === true`.
+- Drop-Zone: Kreis vergrößert sich + grüner Ring beim Hover-Drag.
+- Panel: gleitet von rechts unten auf, max. 360px breit, glassy Card im Projekt-Stil (kein Hardcode-Weiß, Design-Tokens).
+- Cards in der Ablage: kompakte Variante (Name, Kind-Badge, Mini-Metric, Aktionen: Vergleichen · Abhaken · Zurück).
 
-### Impact-Berechnung
-- **Inaktiv:** `costOfInaction = lastKnownAvgRevenuePerDay * 7`, Fallback auf Peer-Median des Accounts, falls kein eigener Wert vorhanden.
-- **Volumen ohne Konversion:** `(plattform_€_pro_Msg * 0.7 − aktuelles_€_pro_Msg) * msgs_pro_Woche` — konservativ auf 70 % Plattform-Ø gekappt.
+## Technische Umsetzung
 
-### Dedup & Sortierung
-- Pro Chatter maximal **eine** Karte. Wenn beide Buckets zutreffen → Bucket A gewinnt (Inaktivität ist die härtere Aussage).
-- Wenn Bucket B mehrfach zutrifft (mehrere Accounts) → höchstes Volumen gewinnt, weitere Accounts werden im Warum-Text als Nebenevidenz erwähnt.
-- Sortierung: nach Impact absteigend, Bucket A vor B bei Gleichstand.
+- **Neue Komponente** `src/components/today/CompareTray.tsx`
+  - Props: `upgradeItems`, `downgradeItems`, `onCheckOff(action)`, `onReturn(action)`, `onCompare(upgradeAction, downgradeAction)`.
+  - Interner State: `open` (Panel), `selection` (jeweils ein Upgrade/Downgrade highlighted).
+- **State in `Today.tsx`**:
+  - `trayIds: Set<string>` (bundleKey) – über `localStorage` persistiert pro Platform (`today.compareTray.<platform>`), damit die Ablage über Reloads erhalten bleibt.
+  - `checkedTrayIds: Set<string>` – ebenfalls persistiert; diese Actions werden aus `upgradeList`/`downgradeList` gefiltert, ähnlich wie bereits Done-Status.
+- **Filter der Spalten**: `upgradeList` und `downgradeList` werden vor dem Rendern um `trayIds` und `checkedTrayIds` reduziert. Ablage-Panel bekommt die Vollobjekte über eine `Map<bundleKey, UnifiedAction>`.
+- **Drag & Drop**: Native HTML5 DnD (`draggable`, `onDragStart`, `onDragOver`, `onDrop`) – reicht für Desktop; auf Touch fällt ein Long-Press-Fallback dazu (kleiner „In Ablage"-Button unten in der Karte, damit mobil nichts verloren geht).
+  - `PersonActionCard` bekommt optionale Props `draggable`, `onDragStart`, `onSendToTray` – nur im Vergleichsmodus gesetzt, sonst unverändert.
+- **Abhaken**: nutzt vorhandene `act()`-Funktion mit Status „done" (analog Bottom-Bar-Done-Flow), damit es sich mit `todo_state`/`action-outcomes` deckt. Falls das für Upgrade/Downgrade nicht sinnvoll ist, alternativ ein lokal persistiertes „dismissed" mit Reset-Option in der Ablage.
+- **Vergleich-Button**: ruft `setSelectedChatter({ name: upgrade.chatterName, compareWith: downgrade.chatterName })` – die bestehende Split-View im `ChatterSlideOver` übernimmt den Rest.
 
-### Roster-Filter
-- Es gilt der bereits gebaute Roster-Filter (nur Chatter aus dem letzten Report). Keine karteileichen.
+## Was NICHT geändert wird
 
-### Bestehende `downgrade`-Logik
-Die aktuelle Karte wird von `account-swap-engine.ts` (`zero_streak / delay / underperformance` pro Chatter+Account) gespeist. Diese Logik wird für die neue Karte **ersetzt** — die alten Signale bleiben intern für Account-Tausch-Vorschläge (Sektion „Account-Tausch") verfügbar, tauchen aber nicht mehr als eigene Downgrade-Karten auf.
+- Kein Umbau der Datenpipeline (`today-engine`).
+- Kein neues DB-Schema; Persistenz nur `localStorage`. Bei Bedarf später auf Supabase heben.
+- Single-Modus, andere Tabs, Bottom-Nav bleiben unverändert.
 
-### Technische Umsetzung
+## Offene Frage
 
-- **Neues Modul** `src/lib/downgrade-candidates.ts`
-  - `buildDowngradeCandidates(ctx): DowngradeSignal[]`
-  - Liest: `chatter_history` (Roster + letzter Umsatz/Msgs), `chatter_activity_sessions` (Aktivität), `chatter_incoming_stats` (eingehende Msg-Zahlen), `get_chatter_onboarding` (Onboarding-Tag).
-- **Integration** in `src/lib/today-engine.ts` bzw. `revenue-tasks.ts`:
-  - Neue Signale werden als `kind: "downgrade"` in den Task-Stream gepusht.
-  - Die bisherige Downgrade-Erzeugung in `account-swap-engine.ts` (Zeilen ~880–908) wird auf `kind: "swap-support"` umgeschrieben oder unterdrückt, damit keine doppelten Karten entstehen.
-- **UI** in `src/pages/Today.tsx`:
-  - Der bestehende `KIND_DEFS`-Eintrag `downgrade` (Zeile 66) bleibt — nur die Datenquelle wechselt.
-  - Farbton bleibt rot; Icon `TrendingDown`.
-- **Kein DB-Schemawechsel** nötig — alle Tabellen existieren.
-
-### Verifikation
-- Typcheck grün.
-- Screenshot der „Heute"-Seite (Desktop + 440 px Mobile), der die neue Karte mit ≥ 1 Kandidat je Bucket zeigt.
-- Warum-Text ist auf Mobile vollständig lesbar (kein `truncate`).
+Soll „Abhaken" **dauerhaft** (per Server via `recordActionDone`) speichern, oder nur **lokal** (verschwindet nur auf diesem Gerät bis zum nächsten Report)? Default-Vorschlag: **dauerhaft via `act("done")`**, damit es auch im Wins-Feed landet – lässt sich beim Umsetzen kurz bestätigen.
