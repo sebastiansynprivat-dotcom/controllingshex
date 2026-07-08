@@ -277,23 +277,24 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
 
   // Baseline = gewichtetes Ø €/Msg über alle Kombis mit Traffic
   let totMsg = 0, totRev = 0;
-  const comboAggs: ComboAgg[] = [];
-  for (const [key, dayMap] of perComboDay) {
-    let m = 0, r = 0;
-    for (const c of dayMap.values()) { m += c.messages; r += c.revenue; }
-    if (m <= 0) continue;
-    totMsg += m; totRev += r;
-    const label = comboLabels.get(key)!;
-    comboAggs.push({
-      chatterKey: key.split("||")[0],
-      chatter: label.chatter,
-      account: label.account,
-      messages: m,
-      revenue: r,
-      daysUnderRatio: 0,
-      daysWithData: dayMap.size,
-    });
-  }
+    const comboAggs: ComboAgg[] = [];
+    for (const [key, dayMap] of perComboDay) {
+      let m = 0, r = 0;
+      for (const c of dayMap.values()) { m += c.messages; r += c.revenue; }
+      if (m <= 0) continue;
+      totMsg += m; totRev += r;
+      const label = comboLabels.get(key)!;
+      comboAggs.push({
+        chatterKey: key.split("||")[0],
+        chatter: label.chatter,
+        account: label.account,
+        messages: m,
+        revenue: r,
+        daysUnderRatio: 0,
+        daysWithData: dayMap.size,
+        firstPatternDate: null,
+      });
+    }
   const avgEff = totMsg > 0 ? totRev / totMsg : 0;
   const volumeMedian = median(comboAggs.map((c) => c.messages));
   const msgThreshold = Math.max(MIN_MESSAGES, volumeMedian);
