@@ -78,6 +78,28 @@ const TONE: Record<
   },
 };
 
+const UPGRADE_TONE = {
+  glow: "from-amber-500/10 via-amber-600/[0.03]",
+  accent: "text-amber-300",
+  bar: "bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]",
+  barDim: "bg-amber-500/40",
+  dot: "bg-amber-500",
+  statusLabel: "Upgrade",
+  pill: "border-amber-400/25 bg-amber-500/[0.06] text-amber-300/90",
+  insertBar: "bg-amber-500/60",
+};
+
+const DOWNGRADE_TONE = {
+  glow: "from-red-500/10 via-red-600/[0.03]",
+  accent: "text-red-300",
+  bar: "bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.4)]",
+  barDim: "bg-red-500/40",
+  dot: "bg-red-500",
+  statusLabel: "Downgrade",
+  pill: "border-red-400/25 bg-red-500/[0.06] text-red-300/90",
+  insertBar: "bg-red-500/60",
+};
+
 const KIND_LABEL: Record<ActionSourceKind, string> = {
   verzug: "Verzug",
   recovery: "Recovery",
@@ -148,7 +170,12 @@ export default function PersonActionCard({
   readonly = false,
 }: Props) {
   const [celebrating, setCelebrating] = useState(false);
-  const tone = TONE[action.tone];
+  const tone =
+    action.primaryKind === "upgrade"
+      ? UPGRADE_TONE
+      : action.primaryKind === "downgrade"
+        ? DOWNGRADE_TONE
+        : TONE[action.tone];
 
   const handleComplete = () => {
     if (celebrating) return;
