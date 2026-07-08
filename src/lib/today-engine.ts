@@ -1000,6 +1000,11 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
 
     const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost * roiMultiplier;
 
+    const downgradeSince = sigs
+      .map((s) => s.meta?.downgradeSince)
+      .filter((d): d is string => !!d)
+      .sort()[0] ?? null;
+
     actions.push({
       bundleKey,
       todoKeys: sigs.map((s) => s.todoKey),
@@ -1019,6 +1024,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       confidence,
       costOfInactionEurPerWeek,
       roiMultiplier,
+      downgradeSince,
     });
   }
 
