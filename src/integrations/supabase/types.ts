@@ -577,6 +577,45 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_incoming_stats: {
+        Row: {
+          chatter_name: string
+          created_at: string
+          date: string
+          id: string
+          incoming_count: number
+          last_revenue: number | null
+          last_unread: number | null
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chatter_name: string
+          created_at?: string
+          date?: string
+          id?: string
+          incoming_count?: number
+          last_revenue?: number | null
+          last_unread?: number | null
+          platform?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chatter_name?: string
+          created_at?: string
+          date?: string
+          id?: string
+          incoming_count?: number
+          last_revenue?: number | null
+          last_unread?: number | null
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatter_inputs: {
         Row: {
           chatter_name: string
