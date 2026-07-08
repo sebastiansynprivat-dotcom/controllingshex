@@ -412,9 +412,8 @@ export default function Messages() {
             <h1 className="text-xs uppercase tracking-[0.28em] text-white/50 font-light">Nachrichten</h1>
           </div>
         </div>
-        <p className="text-lg font-light text-white/80 leading-snug">
-          Wer bekommt wie viel — und macht was daraus.
-        </p>
+
+
       </div>
 
       {/* Search */}
