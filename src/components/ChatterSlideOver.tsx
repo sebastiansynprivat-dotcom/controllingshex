@@ -209,6 +209,72 @@ function ProfileSkeleton({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function ModelLoginRow({
+  model,
+  onCopy,
+}: {
+  model: { name: string; email: string | null; password: string | null };
+  onCopy: (value: string, label: string) => void;
+}) {
+  const [showPw, setShowPw] = useState(false);
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.02] transition-colors min-w-0">
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] text-foreground/85 font-light tracking-wide truncate">{model.name}</p>
+        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/35 font-mono tracking-tight">
+          {model.email ? (
+            <span className="truncate max-w-[180px]">{model.email}</span>
+          ) : (
+            <span className="italic text-white/20">keine Mail</span>
+          )}
+          {model.password ? (
+            <>
+              <span className="text-white/15">·</span>
+              <span className="tabular-nums">
+                {showPw ? model.password : "•".repeat(Math.min(model.password.length, 10))}
+              </span>
+            </>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        {model.email && (
+          <button
+            type="button"
+            onClick={() => onCopy(model.email!, "E-Mail")}
+            title="E-Mail kopieren"
+            className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+          >
+            <Mail className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {model.password && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              title={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
+              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+            >
+              {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => onCopy(model.password!, "Passwort")}
+              title="Passwort kopieren"
+              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
 export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
