@@ -303,12 +303,17 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
   for (const c of comboAggs) {
     const dayMap = perComboDay.get(`${c.chatterKey}||${c.account.toLowerCase()}`)!;
     let n = 0;
-    for (const cell of dayMap.values()) {
+    let firstPatternDate: string | null = null;
+    for (const [date, cell] of dayMap) {
       if (cell.messages < 5) continue; // Ein-Nachrichten-Tage überspringen
       const eff = cell.revenue / cell.messages;
-      if (eff <= avgEff * EFF_RATIO_MAX) n += 1;
+      if (eff <= avgEff * EFF_RATIO_MAX) {
+        n += 1;
+        if (!firstPatternDate || date < firstPatternDate) firstPatternDate = date;
+      }
     }
     c.daysUnderRatio = n;
+    c.firstPatternDate = firstPatternDate;
   }
 
   const bucketB = comboAggs.filter((c) => {
