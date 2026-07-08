@@ -170,7 +170,10 @@ export default function Today() {
   const [labelDataNonce, setLabelDataNonce] = useState(0);
   const reloadLabelData = () => setLabelDataNonce((n) => n + 1);
 
+  const [verzugBreakdown, setVerzugBreakdown] = useState<Map<string, VerzugBreakdownEntry[]>>(new Map());
+
   const isSunday = new Date().getDay() === 0;
+
 
 
   const todayLabel = new Date().toLocaleDateString("de-DE", {
