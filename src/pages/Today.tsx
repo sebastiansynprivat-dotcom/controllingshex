@@ -238,9 +238,10 @@ export default function Today() {
   // Verzug-Model-Breakdown: pro Chatter die neuesten Werte pro Account (open_chats, delay)
   useEffect(() => {
     if (!data) return;
-    const chatterNames = Array.from(
+    const all: UnifiedAction[] = [...(data.primary || []), ...(data.watchlist || []), ...(data.wins || [])];
+    const chatterNames: string[] = Array.from(
       new Set(
-        data.actions
+        all
           .filter((a) => a.primaryKind === "verzug" && a.chatterName)
           .map((a) => a.chatterName as string),
       ),
@@ -249,6 +250,7 @@ export default function Today() {
       setVerzugBreakdown(new Map());
       return;
     }
+
     let cancel = false;
     (async () => {
       try {
