@@ -97,6 +97,7 @@ const SOLO_KINDS = new Set<ActionSourceKind>([
   "talent",
   "swap",
   "upgrade",
+  "downgrade",
   "phase",
   // Account-only
   "slot",
@@ -115,6 +116,7 @@ const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "
   mismatch: "warning",
   swap: "info",
   upgrade: "info",
+  downgrade: "warning",
   slot: "warning",
   model: "info",
   talent: "info",
@@ -135,6 +137,7 @@ const KIND_PRIORITY: ActionSourceKind[] = [
   "slot",
   "swap",
   "upgrade",
+  "downgrade",
   "model",
   "talent",
   "positive",
