@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 
   const { data, error } = await supabase
     .from("chatter_history_live")
-    .upsert(rows, { onConflict: "platform,chatter_name,date" })
+    .upsert(rows, { onConflict: "platform,telegram_id,date" })
     .select();
 
   if (error) {
