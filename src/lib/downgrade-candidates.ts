@@ -17,7 +17,12 @@
  * Chatters werden als Nebenevidenz im Warum-Text erwähnt.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import {
+  loadActiveChatterNames,
+  loadActiveChatterModels,
+  normalizeAccountName,
+  normalizeChatterName,
+} from "@/lib/active-chatters";
 import type { RevenueTask } from "@/lib/revenue-tasks";
 
 const WINDOW_DAYS = 7;
@@ -90,6 +95,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
   const activeNames = await loadActiveChatterNames(platform);
   if (!activeNames) return []; // Kein Report → nicht filtern, aber auch keine Karten
   if (activeNames.size === 0) return [];
+  const activeChatterModels = (await loadActiveChatterModels(platform)) ?? new Map();
 
   const [historyRes, sessionsRes, onboardingRes] = await Promise.all([
     (async () => {
@@ -251,7 +257,12 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
     const rev = (Number(r.revenue_today) || 0) * share;
     if (msg <= 0 && rev <= 0) continue;
     const chKey = normalizeChatterName(name);
+    const allowedAccs = activeChatterModels.get(chKey);
     for (const acc of accounts) {
+      // Nur Kombis, die im NEUESTEN Report noch existieren. Historische
+      // Zuordnungen (z. B. Chatter hatte Account X, hat ihn heute nicht mehr)
+      // dürfen keine Downgrade-Karte auslösen.
+      if (allowedAccs && !allowedAccs.has(normalizeAccountName(acc))) continue;
       const key = `${chKey}||${acc.toLowerCase()}`;
       if (!comboLabels.has(key)) comboLabels.set(key, { chatter: name, account: acc });
       const dayMap = perComboDay.get(key) ?? new Map<string, DayCell>();
