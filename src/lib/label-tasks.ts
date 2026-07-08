@@ -6,7 +6,7 @@
  * pro Tag in daily_todo_state als done markiert werden kann.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { filterRowsToActiveCombos, normalizeChatterName } from "@/lib/active-chatters";
+import { filterRowsToActiveCombos, loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import type { ChatterLabel, LabelAssignment } from "@/lib/chatter-labels";
 
 export interface LabelCard {
@@ -56,6 +56,12 @@ export async function loadLabelCards(
   assignments: LabelAssignment[],
 ): Promise<LabelCard[]> {
   if (assignments.length === 0) return [];
+
+  const activeNames = await loadActiveChatterNames(platform);
+  const activeAssignments = activeNames
+    ? assignments.filter((a) => activeNames.has(a.chatter_key))
+    : assignments;
+  if (activeAssignments.length === 0) return [];
 
   const today = todayStr();
   const yesterday = (() => {
@@ -197,7 +203,7 @@ export async function loadLabelCards(
   const labelById = new Map(labels.map((l) => [l.id, l]));
   const cards: LabelCard[] = [];
 
-  for (const a of assignments) {
+  for (const a of activeAssignments) {
     const label = labelById.get(a.label_id);
     if (!label) continue;
     const live = liveByChatter.get(a.chatter_key);
