@@ -674,7 +674,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     Promise.all([
       supabase
         .from("chatter_history")
-        .select("analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
+        .select("analysis_date, account, revenue_today, mass_dms, open_chats, response_delay_days")
         .eq("chatter_name", chatterName)
         .eq("platform", platform)
         .order("analysis_date", { ascending: true }),
@@ -696,6 +696,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
           const rev = Number(r.revenue_today) || 0;
           return {
             analysis_date: r.analysis_date,
+            account: (r.account || "").trim(),
             revenue_today: rev,
             mass_dms: Number(r.mass_dms) || 0,
             open_chats: Number(r.open_chats) || 0,
@@ -707,6 +708,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
       setChatterMemos((memosRes.data as ChatterMemo[]) || []);
       setLoading(false);
     });
+
   }, [chatterName, platform]);
 
   useEffect(() => {
