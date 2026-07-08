@@ -90,6 +90,7 @@ const KIND_LABEL: Record<ActionSourceKind, string> = {
   mismatch: "Mismatch",
   swap: "Account-Tausch",
   upgrade: "Upgrade-Kandidat",
+  downgrade: "Downgrade-Kandidat",
   slot: "Slot",
   potential: "Potenzial",
   wakeup: "Wieder aktiv",
