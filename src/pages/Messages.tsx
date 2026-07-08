@@ -36,9 +36,10 @@ interface LiveRow {
 interface ModelSplitRow {
   account: string;
   revenue: number;
-  open_chats: number;
+  messages: number;
   days: number;
 }
+
 
 function fmtInt(n: number) {
   return new Intl.NumberFormat("de-DE").format(Math.round(n));
