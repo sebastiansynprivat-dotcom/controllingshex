@@ -214,7 +214,7 @@ function ModelLoginRow({
   model: { name: string; email: string | null; password: string | null };
   onCopy: (value: string, label: string) => void;
 }) {
-  const [showPw, setShowPw] = useState(false);
+  
   return (
     <div className="group flex items-center gap-3 px-4 py-3 hover:bg-white/[0.025] transition-colors min-w-0">
       <div
