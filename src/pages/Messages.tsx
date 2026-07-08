@@ -765,15 +765,8 @@ export default function Messages() {
               {/* Model split — expanded by default */}
               {isOpen && (
                 <div className="border-t border-white/[0.05] px-5 py-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/40 font-light">
-                      Modell-Aufteilung
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-white/25 font-light flex items-center gap-4">
-                      <span className="w-14 text-right">Msg</span>
-                      <span className="w-14 text-right">Anteil</span>
-                      <span className="w-20 text-right">Umsatz</span>
-                    </div>
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-white/40 font-light mb-3">
+                    Modell-Aufteilung
                   </div>
                   {isSplitLoading && !split && (
                     <div className="text-xs text-white/40 font-light">Lade…</div>
@@ -783,29 +776,32 @@ export default function Messages() {
                   )}
                   {split && split.length > 0 && (() => {
                     const totalMsg = split.reduce((s, x) => s + x.messages, 0);
-                    const totalRev = split.reduce((s, x) => s + x.revenue, 0);
-                    // share basis: use messages if we have them, else revenue
-                    const shareBasis: "msg" | "rev" = totalMsg > 0 ? "msg" : "rev";
-                    const shareTotal = shareBasis === "msg" ? totalMsg : (totalRev || 1);
-                    // per-model €/msg for tone
                     return (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {split.map((m) => {
-                          const shareVal = shareBasis === "msg" ? m.messages : m.revenue;
-                          const share = shareTotal > 0 ? (shareVal / shareTotal) * 100 : 0;
-                          const modelEff = m.messages > 0 ? m.revenue / m.messages : 0;
-                          const tone =
-                            modelEff >= avgEff * 1.15 ? "bg-emerald-400"
-                            : modelEff >= avgEff * 0.7 ? "bg-amber-400"
-                            : modelEff > 0 ? "bg-rose-400"
-                            : "bg-white/20";
+                          const share = totalMsg > 0 ? (m.messages / totalMsg) * 100 : 0;
                           return (
-                            <div key={m.account} className="flex items-center gap-3 text-xs">
-                              <span className={`h-1.5 w-1.5 rounded-full ${tone} shrink-0`} />
-                              <span className="text-white/80 font-light truncate flex-1">{m.account}</span>
-                              <span className="text-white/50 tabular-nums font-light w-14 text-right">{fmtInt(m.messages)}</span>
-                              <span className="text-white/40 tabular-nums font-light w-14 text-right">{share.toFixed(0)}%</span>
-                              <span className="text-white/80 tabular-nums font-light w-20 text-right">{fmtEur(m.revenue)}</span>
+                            <div key={m.account} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-white/40 shrink-0" />
+                                  <span className="text-white/80 font-light truncate">{m.account}</span>
+                                </div>
+                                <span className="text-white/70 tabular-nums font-light shrink-0 pl-3">
+                                  {fmtEur(m.revenue)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2.5">
+                                <div className="relative h-1.5 rounded-full bg-white/[0.04] overflow-hidden flex-1">
+                                  <div
+                                    className="absolute inset-y-0 left-0 rounded-full bg-primary/40 transition-all duration-700"
+                                    style={{ width: `${share}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-white/40 tabular-nums font-light w-9 text-right shrink-0">
+                                  {share.toFixed(0)}%
+                                </span>
+                              </div>
                             </div>
                           );
                         })}
