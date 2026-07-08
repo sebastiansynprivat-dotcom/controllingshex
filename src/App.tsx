@@ -55,6 +55,7 @@ const AppRoutes = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/live" element={<LiveTracking />} />
               <Route path="/push" element={<Push />} />
+              <Route path="/nachrichten" element={<Messages />} />
               <Route path="/today" element={<Today />} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
               <Route path="/ziele" element={<Goals />} />
