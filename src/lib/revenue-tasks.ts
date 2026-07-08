@@ -455,6 +455,11 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   /* 4. ACCOUNT-TAUSCH (neue Engine) */
   tasks.push(...swapTasks);
 
+  /* 4b. DOWNGRADE-KANDIDATEN (eigene Karte, klare Kriterien) */
+  tasks.push(...downgradeTasks);
+
+
+
 
   /* 5. HOCHFREQUENZ-LÜCKE */
   const slotGaps = detectSlotGaps(hourly, chatterCurrentAccount, followersByAcc);
