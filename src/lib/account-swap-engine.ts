@@ -20,11 +20,7 @@
  *   Y > Z > X-Prio-1 > X-Prio-2.
  */
 import { supabase } from "@/integrations/supabase/client";
-import {
-  filterRowsToActiveCombos,
-  loadActiveChatterNames,
-  normalizeChatterName,
-} from "@/lib/active-chatters";
+import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import type { RevenueTask } from "@/lib/revenue-tasks";
 
 // ---------- Konstanten ----------
