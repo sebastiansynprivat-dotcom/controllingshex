@@ -84,28 +84,8 @@ export default function Leaderboard() {
       const prevFromStr = format(prevRange.from, "yyyy-MM-dd");
       const prevToStr = format(prevRange.to, "yyyy-MM-dd");
 
-      // Fetch active chatter names from the latest report
-      const { data: latestReport } = await supabase
-        .from("analysis_reports")
-        .select("result_json")
-        .eq("platform", platform)
-        .eq("user_id", session?.user?.id ?? "")
-        .order("analysis_date", { ascending: false })
-        .limit(1)
-        .single();
-
-      const normalize = (n: string) => n.toLowerCase().replace(/[_ ]+/g, "_").trim();
-
-      const activeNames = new Set<string>();
-      if (latestReport?.result_json) {
-        const result = latestReport.result_json as any;
-        const categories = result?.categories ?? [];
-        for (const cat of categories) {
-          for (const ch of cat.chatters ?? []) {
-            if (ch.name) activeNames.add(normalize(ch.name));
-          }
-        }
-      }
+      // Aktive Chatter aus letztem Report (shared helper — konsistent zum Rest der App)
+      const activeNames = await loadActiveChatterNames(platform);
 
       // Current + previous period in parallel
       const [currentRes, prevRes] = await Promise.all([
@@ -131,7 +111,7 @@ export default function Leaderboard() {
         Record<string, { total: number; days: Set<string> }>
       >((acc, row) => {
         const name = row.chatter_name;
-        if (activeNames.size > 0 && !activeNames.has(normalize(name))) return acc;
+        if (activeNames && !activeNames.has(normalizeChatterName(name))) return acc;
         if (!acc[name]) acc[name] = { total: 0, days: new Set() };
         acc[name].total += Number(row.revenue_today ?? 0);
         acc[name].days.add(row.analysis_date);
