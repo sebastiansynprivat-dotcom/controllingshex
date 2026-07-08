@@ -118,6 +118,7 @@ export default function Today() {
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
+  const [compareUpDown, setCompareUpDown] = useState(false);
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
@@ -370,6 +371,17 @@ export default function Today() {
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
   const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
   const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
+
+  const isUpDownTab = kindTab === "upgrade" || kindTab === "downgrade";
+  const upgradeList = useMemo(
+    () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "upgrade") : []),
+    [isUpDownTab, statusList],
+  );
+  const downgradeList = useMemo(
+    () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "downgrade") : []),
+    [isUpDownTab, statusList],
+  );
+  const compareActive = compareUpDown && isUpDownTab;
 
   useEffect(() => {
     if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
@@ -697,7 +709,76 @@ export default function Today() {
                   />
                 )}
 
-                {kindTab === "all" ? (
+                {isUpDownTab && (upgradeList.length > 0 || downgradeList.length > 0) && (
+                  <div className="flex items-center gap-2">
+                    {([
+                      { id: "single" as const, label: "Einzeln" },
+                      { id: "compare" as const, label: "Vergleich" },
+                    ]).map((opt) => {
+                      const active = (opt.id === "compare") === compareUpDown;
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => setCompareUpDown(opt.id === "compare")}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-[11px] font-light tracking-wide transition-all border",
+                            active
+                              ? "bg-fuchsia-500/15 border-fuchsia-500/40 text-fuchsia-200"
+                              : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                    {compareActive && (
+                      <span className="text-[10px] text-white/30 font-light tracking-wide ml-1">
+                        {upgradeList.length} Upgrade · {downgradeList.length} Downgrade
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {compareActive ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {([
+                      { key: "upgrade" as const, label: "Upgrade-Kandidaten", accent: "text-fuchsia-300", border: "border-fuchsia-500/25", bg: "bg-fuchsia-500/[0.04]", items: upgradeList },
+                      { key: "downgrade" as const, label: "Downgrade-Kandidaten", accent: "text-red-300", border: "border-red-500/25", bg: "bg-red-500/[0.04]", items: downgradeList },
+                    ]).map((col) => (
+                      <div
+                        key={col.key}
+                        className={cn("rounded-2xl border p-3 flex flex-col min-h-0", col.border, col.bg)}
+                      >
+                        <div className="flex items-center justify-between px-1 pb-2 sticky top-0 z-10 bg-inherit">
+                          <span className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", col.accent)}>
+                            {col.label}
+                          </span>
+                          <span className="text-[10px] tabular-nums text-white/40 font-light">
+                            {col.items.length}
+                          </span>
+                        </div>
+                        <div className="space-y-3 overflow-y-auto pr-1 max-h-[70vh]">
+                          {col.items.length === 0 ? (
+                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center text-[11px] text-white/40 font-light">
+                              Keine Einträge
+                            </div>
+                          ) : (
+                            col.items.map((a) => (
+                              <PersonActionCard
+                                key={a.bundleKey}
+                                action={a}
+                                onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                                onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                                onAct={act}
+                                readonly={isReadonly}
+                              />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : kindTab === "all" ? (
                   <div className="space-y-5">
                     {groupByKind(visibleList).map((g) => (
                       <div key={g.id} className="space-y-2">
