@@ -128,6 +128,7 @@ export default function Messages() {
   const { platform } = usePlatform();
   const { user } = useAuth();
   const loadRunRef = useRef(0);
+  const loadingRef = useRef(false);
   const [range, setRange] = useState<RangeKey>("today");
   const [sort, setSort] = useState<SortKey>("incoming");
   const [dir, setDir] = useState<"desc" | "asc">("desc");
@@ -183,10 +184,12 @@ export default function Messages() {
     document.title = "Nachrichten – Live-Tracking";
   }, []);
 
-  async function load() {
+  async function load(force = false) {
     if (!user) return;
+    if (loadingRef.current && !force) return;
     const runId = ++loadRunRef.current;
     const isCurrentRun = () => runId === loadRunRef.current;
+    loadingRef.current = true;
     setLoading(true);
     const { from, to } = dateRange(range);
 
@@ -214,7 +217,10 @@ export default function Messages() {
       .lte("date", to);
     if (error) {
       toast({ title: "Fehler beim Laden", description: error.message, variant: "destructive" });
-      if (isCurrentRun()) setLoading(false);
+      if (isCurrentRun()) {
+        loadingRef.current = false;
+        setLoading(false);
+      }
       return;
     }
     const agg = new Map<string, Row>();
@@ -315,36 +321,6 @@ export default function Messages() {
     if (!isCurrentRun()) return;
     setSparkData(sparks);
 
-    // Bulk-load model split for every chatter in range (always expanded)
-    const names = Array.from(agg.keys());
-    if (names.length > 0) {
-      const splitRaw = await fetchChatterHistoryRows({ from, to, names });
-      if (!isCurrentRun()) return;
-      const perChatter = new Map<string, Map<string, ModelSplitRow>>();
-      for (const r of splitRaw) {
-        const name = r.chatter_name as string;
-        const acc = (r.account as string) || "—";
-        // Nur (Chatter × Model)-Paare zeigen, die im letzten Report noch bestehen.
-        if (acc !== "—" && !isActivePair(name, acc)) continue;
-        if (!perChatter.has(name)) perChatter.set(name, new Map());
-        const m = perChatter.get(name)!;
-        const cur = m.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
-        cur.revenue += Number(r.revenue_today) || 0;
-        cur.messages += Number(r.open_chats) || 0;
-        cur.days += 1;
-        m.set(acc, cur);
-      }
-      const splits: Record<string, ModelSplitRow[]> = {};
-      for (const [name, m] of perChatter) {
-        splits[name] = Array.from(m.values()).sort(
-          (a, b) => (b.messages - a.messages) || (b.revenue - a.revenue),
-        );
-      }
-      setModelSplits(splits);
-    } else {
-      setModelSplits({});
-    }
-
     // Potenzial verschenkt: aktueller Zeitraum, alle paginierten Chatter×Account-Kombis.
     const wasteRaw = await fetchChatterHistoryRows({ from, to });
     if (!isCurrentRun()) return;
@@ -399,7 +375,41 @@ export default function Messages() {
     setWasteDismissals(dism);
 
 
-    if (isCurrentRun()) setLoading(false);
+    if (isCurrentRun()) {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+
+    // Bulk-load model split for every chatter in range (always expanded), bewusst nach
+    // "Potenzial verschenkt", damit der Warnblock beim Zeitraum-Wechsel nicht warten muss.
+    const names = Array.from(agg.keys());
+    if (names.length > 0) {
+      const splitRaw = await fetchChatterHistoryRows({ from, to, names });
+      if (!isCurrentRun()) return;
+      const perChatter = new Map<string, Map<string, ModelSplitRow>>();
+      for (const r of splitRaw) {
+        const name = r.chatter_name as string;
+        const acc = (r.account as string) || "—";
+        // Nur (Chatter × Model)-Paare zeigen, die im letzten Report noch bestehen.
+        if (acc !== "—" && !isActivePair(name, acc)) continue;
+        if (!perChatter.has(name)) perChatter.set(name, new Map());
+        const m = perChatter.get(name)!;
+        const cur = m.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
+        cur.revenue += Number(r.revenue_today) || 0;
+        cur.messages += Number(r.open_chats) || 0;
+        cur.days += 1;
+        m.set(acc, cur);
+      }
+      const splits: Record<string, ModelSplitRow[]> = {};
+      for (const [name, m] of perChatter) {
+        splits[name] = Array.from(m.values()).sort(
+          (a, b) => (b.messages - a.messages) || (b.revenue - a.revenue),
+        );
+      }
+      setModelSplits(splits);
+    } else {
+      setModelSplits({});
+    }
   }
 
 
@@ -414,8 +424,8 @@ export default function Messages() {
   }, [platform, range, user?.id]);
 
   useEffect(() => {
-    load();
-    const iv = setInterval(load, 30000);
+    load(true);
+    const iv = setInterval(() => load(false), 30000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, range, user?.id]);
@@ -432,7 +442,7 @@ export default function Messages() {
           table: "chatter_incoming_stats",
           filter: `user_id=eq.${user.id}`,
         },
-        () => load(),
+        () => load(false),
       )
       .subscribe();
     return () => {
