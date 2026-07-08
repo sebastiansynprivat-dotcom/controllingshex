@@ -502,7 +502,7 @@ export type Database = {
           oldest_chat: number | null
           platform: string
           revenue: number
-          telegram_id: string | null
+          telegram_id: string
           unread_chats: number
           updated_at: string
         }
@@ -514,7 +514,7 @@ export type Database = {
           oldest_chat?: number | null
           platform?: string
           revenue?: number
-          telegram_id?: string | null
+          telegram_id: string
           unread_chats?: number
           updated_at?: string
         }
@@ -526,7 +526,7 @@ export type Database = {
           oldest_chat?: number | null
           platform?: string
           revenue?: number
-          telegram_id?: string | null
+          telegram_id?: string
           unread_chats?: number
           updated_at?: string
         }
