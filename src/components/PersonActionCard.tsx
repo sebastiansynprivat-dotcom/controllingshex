@@ -21,7 +21,10 @@ interface Props {
   onAct: (action: UnifiedAction, kind: "done" | "snooze" | "dismiss" | "reject-account") => void;
   /** Karten in Wins/Erledigt-Ansicht: kein primary action button, gedimmt. */
   readonly?: boolean;
+  /** Verzug-Detail pro Model (nur für Verzug-Karten): Model-Name, offene Chats, Verzug-Tage. */
+  verzugBreakdown?: { account: string; openChats: number; delayDays: number }[];
 }
+
 
 const TONE: Record<
   UnifiedAction["tone"],
