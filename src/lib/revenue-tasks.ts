@@ -479,7 +479,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const final: RevenueTask[] = [];
   const swapsOnly: RevenueTask[] = [];
   for (const t of sorted) {
-    if (t.kind === "swap" || t.kind === "upgrade") {
+    if (t.kind === "swap" || t.kind === "upgrade" || t.kind === "downgrade") {
       swapsOnly.push(t);
       continue;
     }
