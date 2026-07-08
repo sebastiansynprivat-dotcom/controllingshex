@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Tag, StickyNote, Plus, X, Send, Trash2, KeyRound, Copy, Pencil, Check, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Tag, StickyNote, Plus, X, Send, Trash2, KeyRound, Copy, Pencil, Check, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
