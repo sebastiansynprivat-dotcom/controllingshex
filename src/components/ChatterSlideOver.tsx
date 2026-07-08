@@ -1364,9 +1364,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 )}
               </div>
 
-              {/* 7-Tage-Trend (Umsatz, Verzug, Mass-DMs) */}
-
-              <WeekTrendCard history={history} compact />
 
               {/* Online-Zeiten (Stunden-Profil) */}
               <ChatterActivityHoursCard chatterName={chatterName} platform={platform} compact />
