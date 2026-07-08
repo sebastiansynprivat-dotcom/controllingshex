@@ -45,6 +45,10 @@ export interface ActionSignal {
   evidence?: EvidenceRow[];
   /** Talent-Karte: erlaubt „Anderer Account"-Button, sperrt diese Kombi 7T */
   rejectAccount?: { riser: string; account: string } | null;
+  /** Optionale Metadaten aus der Revenue-Task, z. B. für chronologische Sortierung. */
+  meta?: {
+    downgradeSince?: string;
+  };
 }
 
 export interface UnifiedAction {
@@ -80,6 +84,8 @@ export interface UnifiedAction {
   costOfInactionEurPerWeek: number;
   /** A1 — Aus action_outcomes gelernter ROI-Multiplier (1.0 = neutral) */
   roiMultiplier: number;
+  /** Für Downgrade-Kandidaten: frühestes Datum, ab dem das Muster gilt (YYYY-MM-DD). */
+  downgradeSince: string | null;
 }
 
 interface HistoryRow {
@@ -858,6 +864,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
         modelName: r.modelName ?? null,
         secondaryChatter: r.secondaryChatter ?? null,
         evidence,
+        meta: r.meta,
       },
     });
   }
@@ -994,6 +1001,11 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
 
     const score = totalImpact * importance * persistenceBoost * kindBoost * peakBoost * roiMultiplier;
 
+    const downgradeSince = sigs
+      .map((s) => s.meta?.downgradeSince)
+      .filter((d): d is string => !!d)
+      .sort()[0] ?? null;
+
     actions.push({
       bundleKey,
       todoKeys: sigs.map((s) => s.todoKey),
@@ -1013,6 +1025,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       confidence,
       costOfInactionEurPerWeek,
       roiMultiplier,
+      downgradeSince,
     });
   }
 

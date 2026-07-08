@@ -483,7 +483,17 @@ export default function Today() {
     [upgradeListAll, trayIds],
   );
   const downgradeList = useMemo(
-    () => downgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
+    () => downgradeListAll
+      .filter((a) => !trayIds.has(a.bundleKey))
+      .sort((a, b) => {
+        // Höchster Umsatzimpact oben, bei Gleichstand chronologisch (ältestes Muster zuerst)
+        if (b.totalImpactEurPerWeek !== a.totalImpactEurPerWeek) {
+          return b.totalImpactEurPerWeek - a.totalImpactEurPerWeek;
+        }
+        const da = a.downgradeSince ?? "9999-12-31";
+        const db = b.downgradeSince ?? "9999-12-31";
+        return da.localeCompare(db);
+      }),
     [downgradeListAll, trayIds],
   );
   const trayItems = useMemo(

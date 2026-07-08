@@ -83,6 +83,7 @@ interface ComboAgg {
   revenue: number;
   daysUnderRatio: number; // Anzahl Tage mit ≤ EFF_RATIO_MAX
   daysWithData: number;
+  firstPatternDate: string | null; // frühestes Datum, an dem das Muster erfüllt war
 }
 
 export async function buildDowngradeCandidates(platform: string): Promise<RevenueTask[]> {
@@ -276,23 +277,24 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
 
   // Baseline = gewichtetes Ø €/Msg über alle Kombis mit Traffic
   let totMsg = 0, totRev = 0;
-  const comboAggs: ComboAgg[] = [];
-  for (const [key, dayMap] of perComboDay) {
-    let m = 0, r = 0;
-    for (const c of dayMap.values()) { m += c.messages; r += c.revenue; }
-    if (m <= 0) continue;
-    totMsg += m; totRev += r;
-    const label = comboLabels.get(key)!;
-    comboAggs.push({
-      chatterKey: key.split("||")[0],
-      chatter: label.chatter,
-      account: label.account,
-      messages: m,
-      revenue: r,
-      daysUnderRatio: 0,
-      daysWithData: dayMap.size,
-    });
-  }
+    const comboAggs: ComboAgg[] = [];
+    for (const [key, dayMap] of perComboDay) {
+      let m = 0, r = 0;
+      for (const c of dayMap.values()) { m += c.messages; r += c.revenue; }
+      if (m <= 0) continue;
+      totMsg += m; totRev += r;
+      const label = comboLabels.get(key)!;
+      comboAggs.push({
+        chatterKey: key.split("||")[0],
+        chatter: label.chatter,
+        account: label.account,
+        messages: m,
+        revenue: r,
+        daysUnderRatio: 0,
+        daysWithData: dayMap.size,
+        firstPatternDate: null,
+      });
+    }
   const avgEff = totMsg > 0 ? totRev / totMsg : 0;
   const volumeMedian = median(comboAggs.map((c) => c.messages));
   const msgThreshold = Math.max(MIN_MESSAGES, volumeMedian);
@@ -301,12 +303,17 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
   for (const c of comboAggs) {
     const dayMap = perComboDay.get(`${c.chatterKey}||${c.account.toLowerCase()}`)!;
     let n = 0;
-    for (const cell of dayMap.values()) {
+    let firstPatternDate: string | null = null;
+    for (const [date, cell] of dayMap) {
       if (cell.messages < 5) continue; // Ein-Nachrichten-Tage überspringen
       const eff = cell.revenue / cell.messages;
-      if (eff <= avgEff * EFF_RATIO_MAX) n += 1;
+      if (eff <= avgEff * EFF_RATIO_MAX) {
+        n += 1;
+        if (!firstPatternDate || date < firstPatternDate) firstPatternDate = date;
+      }
     }
     c.daysUnderRatio = n;
+    c.firstPatternDate = firstPatternDate;
   }
 
   const bucketB = comboAggs.filter((c) => {
@@ -369,6 +376,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
       score: 1_000_000 + cost, // Inaktiv immer oben
       chatterName: a.display,
       modelName: null,
+      meta: { downgradeSince: a.lastActivityDate ?? onboardedOnByKey.get(a.key) ?? from },
     });
   }
 
@@ -402,6 +410,7 @@ export async function buildDowngradeCandidates(platform: string): Promise<Revenu
       score: impact + c.messages, // primär nach Impact, sekundär Volumen
       chatterName: c.chatter,
       modelName: c.account,
+      meta: { downgradeSince: c.firstPatternDate ?? from },
     });
   }
 
