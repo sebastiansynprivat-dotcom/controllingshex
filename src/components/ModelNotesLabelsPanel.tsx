@@ -360,18 +360,9 @@ function ModelLoginData({ platform, modelName }: { platform: string; modelName: 
           {data.password && (
             <LoginRow
               label="Passwort"
-              value={showPw ? data.password : "••••••••••"}
+              value={data.password}
               mono
               onCopy={() => copy("Passwort", data.password)}
-              extra={
-                <button
-                  onClick={() => setShowPw((v) => !v)}
-                  className="text-white/40 hover:text-white/80 transition-colors p-1"
-                  aria-label={showPw ? "Verbergen" : "Anzeigen"}
-                >
-                  {showPw ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                </button>
-              }
             />
           )}
           {data.profile_url && (
