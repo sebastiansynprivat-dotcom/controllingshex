@@ -1794,80 +1794,26 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   <>
                     {modelsLoginsBlock}
 
-                    {/* ── Live KPI Grid (Echtzeit) ── */}
-                    <div className="space-y-2.5">
+                    {/* ── Live KPI Grid (Echtzeit) — compact strip ── */}
+                    <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact={compact} />
 
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        </span>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300/70 font-medium">
-                          Echtzeit · Heute
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        {liveKpis.map((kpi) => {
-                          const Icon = kpi.icon;
-                          return (
-                            <div
-                              key={kpi.label}
-                              className={`relative rounded-xl ${compact ? "p-3 sm:p-4" : "p-5"} bg-emerald-500/[0.03] border border-emerald-500/20 overflow-hidden`}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] to-transparent pointer-events-none" />
-                              <div className="relative flex items-center gap-1.5">
-                                <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                                <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/55 font-medium`}>
-                                  {kpi.label}
-                                </p>
-                              </div>
-                              <p
-                                className={`relative ${compact ? "text-lg sm:text-xl mt-2" : "text-2xl mt-2.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/90"}`}
-                              >
-                                {kpi.value}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div
-                        className={`flex items-center justify-between rounded-xl px-4 py-3 border ${isActiveToday ? "bg-emerald-500/[0.05] border-emerald-500/25" : "bg-white/[0.02] border-white/[0.06]"}`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="relative flex h-2 w-2">
-                            {isActiveToday && (
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                            )}
-                            <span
-                              className={`relative inline-flex h-2 w-2 rounded-full ${isActiveToday ? "bg-emerald-400" : "bg-white/25"}`}
-                            />
-                          </span>
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-medium">
-                            Heute aktiv
-                          </p>
-                        </div>
-                        <p
-                          className={`text-[12px] font-medium tracking-wide ${isActiveToday ? "text-emerald-300" : "text-white/40"}`}
-                        >
-                          {isActiveToday ? "Aktiv" : "Inaktiv"}
-                        </p>
-                      </div>
-                    </div>
+                    {/* ── 30-Tage-Trend ── */}
+                    <Trend30Block last30={last30} trend30={trend30} compact={compact} gradientId="trend30Fill" />
 
                     {/* ── 2. KPI Grid (2×2) ── */}
                     <div className="grid grid-cols-2 gap-4">
                       {kpis.map((kpi) => {
                         const Icon = kpi.icon;
                         return (
-                          <div key={kpi.label} className={`premium-card premium-card-interactive rounded-xl ${compact ? "p-3 sm:p-4" : "p-5"}`}>
+                          <div key={kpi.label} className={`premium-card premium-card-interactive rounded-xl ${compact ? "p-3 sm:p-4" : "p-4"}`}>
                             <div className="flex items-center gap-1.5">
                               <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} style={{ color: `hsl(${kpi.accent} / 0.75)` }} />
-                              <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/45 font-medium`}>
+                              <p className={`${compact ? "text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em]" : "text-[10px] tracking-[0.2em]"} uppercase text-white/45 font-medium truncate`}>
                                 {kpi.label}
                               </p>
                             </div>
                             <p
-                              className={`${compact ? "text-lg sm:text-xl mt-2" : "text-2xl mt-2.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                              className={`${compact ? "text-base sm:text-lg mt-1.5" : "text-lg mt-1.5"} font-extralight tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
                             >
                               {kpi.value}
                             </p>
@@ -1876,76 +1822,6 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       })}
                     </div>
 
-                    {/* ── 30-Tage-Trend ── */}
-                    {last30.length >= 4 && (
-                      <div className="premium-card rounded-2xl p-7 relative">
-                        <div className="flex items-center justify-between mb-5">
-                          <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">
-                            30-Tage-Trend
-                          </p>
-                          <span
-                            className={`premium-chip text-[11px] font-medium px-3 py-1 rounded-full tabular-nums ${
-                              trend30.direction === "up"
-                                ? "bg-emerald-500/12 text-emerald-300 border border-emerald-500/25"
-                                : trend30.direction === "down"
-                                  ? "bg-red-500/12 text-red-300 border border-red-500/25"
-                                  : "bg-white/[0.05] text-white/55 border border-white/[0.08]"
-                            }`}
-                          >
-                            {trend30.direction === "up" ? "↑" : trend30.direction === "down" ? "↓" : "→"}{" "}
-                            {trend30.pct > 0 ? "+" : ""}
-                            {trend30.pct}%
-                          </span>
-                        </div>
-                        <ResponsiveContainer width="100%" height={140}>
-                          <AreaChart data={last30}>
-                            <defs>
-                              <linearGradient id="trend30Fill" x1="0" y1="0" x2="0" y2="1">
-                                <stop
-                                  offset="0%"
-                                  stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                                  stopOpacity={0.25}
-                                />
-                                <stop
-                                  offset="100%"
-                                  stopColor={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                                  stopOpacity={0}
-                                />
-                              </linearGradient>
-                            </defs>
-                            <XAxis
-                              dataKey="analysis_date"
-                              tickFormatter={formatDate}
-                              axisLine={false}
-                              tickLine={false}
-                              tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
-                            />
-                            <YAxis
-                              axisLine={false}
-                              tickLine={false}
-                              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                              tickFormatter={(v) => `${v}€`}
-                              width={50}
-                            />
-                            <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
-                            <Area
-                              type="monotone"
-                              dataKey="revenue_today"
-                              stroke={trend30.direction === "down" ? "#ef4444" : "#10b981"}
-                              strokeWidth={2}
-                              fill="url(#trend30Fill)"
-                              dot={false}
-                              activeDot={{
-                                r: 4,
-                                fill: trend30.direction === "down" ? "#ef4444" : "#10b981",
-                                stroke: "rgba(255,255,255,0.15)",
-                                strokeWidth: 4,
-                              }}
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
 
                     {/* ── Postfach-Disziplin ── */}
                     <div className="space-y-5">
