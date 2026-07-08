@@ -323,18 +323,22 @@ export default function Messages() {
       .filter((c) => c.messages >= 30)
       .map((c) => ({ ...c, eff: c.messages > 0 ? c.revenue / c.messages : 0 }));
     if (comboArr.length >= 3) {
-      const vols = [...comboArr].map((c) => c.messages).sort((a, b) => a - b);
-      const effs = [...comboArr].map((c) => c.eff).sort((a, b) => a - b);
-      const q = (arr: number[], p: number) => arr[Math.floor(arr.length * p)];
-      const volHi = q(vols, 0.66);
-      const effLo = q(effs, 0.33);
+      // Baseline = gewichtetes Ø €/Msg über alle aktiven Kombis (Umsatz/Msg gesamt).
+      // Verschenkt = Kombi bekommt viele Nachrichten, macht aber deutlich weniger
+      // €/Msg als der Schnitt. Keine harten Percentile mehr — dadurch tauchen ALLE
+      // wirklich unterperformenden Accounts auf, nicht nur die untersten 33%.
+      const totMsg = comboArr.reduce((s, c) => s + c.messages, 0);
+      const totRev = comboArr.reduce((s, c) => s + c.revenue, 0);
+      const avgEff = totMsg > 0 ? totRev / totMsg : 0;
+      const effCutoff = avgEff * 0.7; // 30% unter Ø
       const w = comboArr
-        .filter((c) => c.messages >= volHi && c.eff <= effLo)
+        .filter((c) => c.eff <= effCutoff)
         .sort((a, b) => b.messages - a.messages);
       setWasted(w);
     } else {
       setWasted([]);
     }
+
 
     // Load dismissals
     const { data: dismRaw } = await supabase
