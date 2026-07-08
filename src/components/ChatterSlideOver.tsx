@@ -465,11 +465,26 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
     }
     let cancelled = false;
     (async () => {
+      // Nur der letzte Report zählt – sonst sammeln sich alte Model-Zuordnungen an
+      const { data: latestRow } = await supabase
+        .from("chatter_history")
+        .select("analysis_date")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .order("analysis_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!latestRow?.analysis_date) {
+        setChatterModels([]);
+        return;
+      }
       const { data: histRows } = await supabase
         .from("chatter_history")
         .select("account")
         .eq("chatter_name", chatterName)
-        .eq("platform", platform);
+        .eq("platform", platform)
+        .eq("analysis_date", latestRow.analysis_date);
       if (cancelled) return;
       const accounts = Array.from(
         new Set(
@@ -486,6 +501,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
         setChatterModels([]);
         return;
       }
+
       const { data: modelRows } = await supabase
         .from("models")
         .select("model_name, email, password")
