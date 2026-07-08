@@ -40,6 +40,15 @@ interface ModelSplitRow {
   days: number;
 }
 
+interface WasteRow {
+  chatter_name: string;
+  account: string;
+  messages: number;
+  revenue: number;
+  eff: number;
+}
+
+
 
 function fmtInt(n: number) {
   return new Intl.NumberFormat("de-DE").format(Math.round(n));
@@ -103,6 +112,8 @@ export default function Messages() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [modelSplits, setModelSplits] = useState<Record<string, ModelSplitRow[]>>({});
   const [loadingSplit, setLoadingSplit] = useState<Set<string>>(new Set());
+  const [wasted, setWasted] = useState<WasteRow[]>([]);
+
 
 
   useEffect(() => {
@@ -252,8 +263,49 @@ export default function Messages() {
       setModelSplits(splits);
     }
 
+    // Potenzial verschenkt: last 30 days, chatter × account combinations
+    const wasteFrom = new Date(today);
+    wasteFrom.setDate(wasteFrom.getDate() - 29);
+    const wasteFromStr = wasteFrom.toISOString().slice(0, 10);
+    const { data: wasteRaw } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, account, revenue_today, open_chats")
+      .eq("user_id", user.id)
+      .eq("platform", platform)
+      .gte("analysis_date", wasteFromStr)
+      .lte("analysis_date", today);
+    const combos = new Map<string, WasteRow>();
+    for (const r of (wasteRaw ?? []) as any[]) {
+      const name = (r.chatter_name as string) || "";
+      const acc = (r.account as string) || "";
+      if (!name || !acc) continue;
+      const key = `${name}||${acc}`;
+      const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0 };
+      cur.messages += Number(r.open_chats) || 0;
+      cur.revenue += Number(r.revenue_today) || 0;
+      combos.set(key, cur);
+    }
+    const comboArr = Array.from(combos.values())
+      .filter((c) => c.messages >= 30)
+      .map((c) => ({ ...c, eff: c.messages > 0 ? c.revenue / c.messages : 0 }));
+    if (comboArr.length >= 3) {
+      const vols = [...comboArr].map((c) => c.messages).sort((a, b) => a - b);
+      const effs = [...comboArr].map((c) => c.eff).sort((a, b) => a - b);
+      const q = (arr: number[], p: number) => arr[Math.floor(arr.length * p)];
+      const volHi = q(vols, 0.66);
+      const effLo = q(effs, 0.33);
+      const w = comboArr
+        .filter((c) => c.messages >= volHi && c.eff <= effLo)
+        .sort((a, b) => b.messages - a.messages)
+        .slice(0, 5);
+      setWasted(w);
+    } else {
+      setWasted([]);
+    }
+
     setLoading(false);
   }
+
 
 
   useEffect(() => {
@@ -482,6 +534,52 @@ export default function Messages() {
         </div>
       </div>
 
+      {/* Potenzial verschenkt — 30 Tage */}
+      {wasted.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-rose-400/20 bg-gradient-to-b from-rose-500/[0.06] to-rose-500/[0.02] p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-rose-300/80 font-light">
+              Potenzial verschenkt
+            </div>
+            <div className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-light">
+              30 Tage
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {wasted.map((w) => (
+              <button
+                key={`${w.chatter_name}||${w.account}`}
+                onClick={() => {
+                  const el = document.getElementById(`chatter-${w.chatter_name}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    setCollapsed((prev) => {
+                      const next = new Set(prev);
+                      next.delete(w.chatter_name);
+                      return next;
+                    });
+                  }
+                }}
+                className="w-full text-left flex items-center gap-3 text-xs font-light py-1.5 px-2 rounded hover:bg-white/[0.03] transition"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-400/70 shrink-0" />
+                <span className="text-white/90 uppercase tracking-[0.14em] truncate">
+                  {w.chatter_name}
+                </span>
+                <span className="text-white/30">auf</span>
+                <span className="text-white/80 truncate flex-1">{w.account}</span>
+                <span className="text-white/50 tabular-nums shrink-0">{fmtInt(w.messages)} Msg</span>
+                <span className="text-white/25">·</span>
+                <span className="text-white/50 tabular-nums shrink-0">{fmtEur(w.revenue)}</span>
+                <span className="text-white/25">·</span>
+                <span className="text-rose-300 tabular-nums shrink-0">{fmtEurDec(w.eff)}/Msg</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+
       {/* Empty state */}
       {!loading && sorted.length === 0 && (
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
@@ -541,6 +639,7 @@ export default function Messages() {
           return (
             <div
               key={r.chatter_name}
+              id={`chatter-${r.chatter_name}`}
               className="group relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:border-white/[0.12] hover:from-white/[0.05] transition-all duration-300"
             >
               <button
