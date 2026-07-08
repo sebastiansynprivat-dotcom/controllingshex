@@ -394,19 +394,33 @@ export default function Today() {
   const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
 
   const isUpDownTab = kindTab === "upgrade" || kindTab === "downgrade";
-  const upgradeList = useMemo(
+  const upgradeListAll = useMemo(
     () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "upgrade") : []),
     [isUpDownTab, statusList],
   );
-  const downgradeList = useMemo(
+  const downgradeListAll = useMemo(
     () => (isUpDownTab ? statusList.filter((a) => a.primaryKind === "downgrade") : []),
     [isUpDownTab, statusList],
+  );
+  const upgradeList = useMemo(
+    () => upgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
+    [upgradeListAll, trayIds],
+  );
+  const downgradeList = useMemo(
+    () => downgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
+    [downgradeListAll, trayIds],
+  );
+  const trayItems = useMemo(
+    () => [...upgradeListAll, ...downgradeListAll].filter((a) => trayIds.has(a.bundleKey)),
+    [upgradeListAll, downgradeListAll, trayIds],
   );
   const upgradeImpact = useMemo(
     () => upgradeList.reduce((s, a) => s + a.totalImpactEurPerWeek, 0),
     [upgradeList],
   );
   const compareActive = compareUpDown && isUpDownTab;
+
+
 
   useEffect(() => {
     if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
