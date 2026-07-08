@@ -1464,6 +1464,39 @@ export type Database = {
         }
         Relationships: []
       }
+      waste_dismissals: {
+        Row: {
+          account: string
+          chatter_name: string
+          created_at: string
+          dismissed_at_analysis_date: string
+          id: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account: string
+          chatter_name: string
+          created_at?: string
+          dismissed_at_analysis_date: string
+          id?: string
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account?: string
+          chatter_name?: string
+          created_at?: string
+          dismissed_at_analysis_date?: string
+          id?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_goal_results: {
         Row: {
           achieved: boolean
