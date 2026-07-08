@@ -263,8 +263,49 @@ export default function Messages() {
       setModelSplits(splits);
     }
 
+    // Potenzial verschenkt: last 30 days, chatter × account combinations
+    const wasteFrom = new Date(today);
+    wasteFrom.setDate(wasteFrom.getDate() - 29);
+    const wasteFromStr = wasteFrom.toISOString().slice(0, 10);
+    const { data: wasteRaw } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, account, revenue_today, open_chats")
+      .eq("user_id", user.id)
+      .eq("platform", platform)
+      .gte("analysis_date", wasteFromStr)
+      .lte("analysis_date", today);
+    const combos = new Map<string, WasteRow>();
+    for (const r of (wasteRaw ?? []) as any[]) {
+      const name = (r.chatter_name as string) || "";
+      const acc = (r.account as string) || "";
+      if (!name || !acc) continue;
+      const key = `${name}||${acc}`;
+      const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0 };
+      cur.messages += Number(r.open_chats) || 0;
+      cur.revenue += Number(r.revenue_today) || 0;
+      combos.set(key, cur);
+    }
+    const comboArr = Array.from(combos.values())
+      .filter((c) => c.messages >= 30)
+      .map((c) => ({ ...c, eff: c.messages > 0 ? c.revenue / c.messages : 0 }));
+    if (comboArr.length >= 3) {
+      const vols = [...comboArr].map((c) => c.messages).sort((a, b) => a - b);
+      const effs = [...comboArr].map((c) => c.eff).sort((a, b) => a - b);
+      const q = (arr: number[], p: number) => arr[Math.floor(arr.length * p)];
+      const volHi = q(vols, 0.66);
+      const effLo = q(effs, 0.33);
+      const w = comboArr
+        .filter((c) => c.messages >= volHi && c.eff <= effLo)
+        .sort((a, b) => b.messages - a.messages)
+        .slice(0, 5);
+      setWasted(w);
+    } else {
+      setWasted([]);
+    }
+
     setLoading(false);
   }
+
 
 
   useEffect(() => {
