@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { shiftDate } from "@/lib/live-activity";
+import {
+  loadActiveChatterNames,
+  loadActiveChatterModels,
+  normalizeChatterName,
+  normalizeAccountName,
+} from "@/lib/active-chatters";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -128,6 +134,22 @@ export default function Messages() {
     if (!user) return;
     setLoading(true);
     const { from, to } = dateRange(range);
+
+    // Active-Chatter-Filter (Chatter aus letztem Report) + aktuelle Chatter×Model-Zuordnung.
+    // Wenn noch kein Report existiert → null → nicht filtern (Nutzer sieht sonst leere Listen).
+    const [activeNames, activeChatterModels] = await Promise.all([
+      loadActiveChatterNames(platform),
+      loadActiveChatterModels(platform),
+    ]);
+    const isActiveChatter = (name: string) =>
+      activeNames === null || activeNames.has(normalizeChatterName(name));
+    const isActivePair = (name: string, account: string) => {
+      if (activeChatterModels === null) return true;
+      const set = activeChatterModels.get(normalizeChatterName(name));
+      if (!set) return false;
+      return set.has(normalizeAccountName(account));
+    };
+
     const { data, error } = await supabase
       .from("chatter_incoming_stats")
       .select("chatter_name, incoming_count, last_revenue, last_unread, updated_at, date")
@@ -143,6 +165,7 @@ export default function Messages() {
     const agg = new Map<string, Row>();
     for (const r of (data ?? []) as any[]) {
       const key = r.chatter_name as string;
+      if (!isActiveChatter(key)) continue;
       const cur = agg.get(key);
       const readsPlusUnread =
         (Number(r.incoming_count) || 0) + Math.max(0, Number(r.last_unread) || 0);
@@ -250,6 +273,8 @@ export default function Messages() {
       for (const r of (splitRaw ?? []) as any[]) {
         const name = r.chatter_name as string;
         const acc = (r.account as string) || "—";
+        // Nur (Chatter × Model)-Paare zeigen, die im letzten Report noch bestehen.
+        if (acc !== "—" && !isActivePair(name, acc)) continue;
         if (!perChatter.has(name)) perChatter.set(name, new Map());
         const m = perChatter.get(name)!;
         const cur = m.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
@@ -283,6 +308,9 @@ export default function Messages() {
       const name = (r.chatter_name as string) || "";
       const acc = (r.account as string) || "";
       if (!name || !acc) continue;
+      // Nur aktuelle Chatter×Model-Paare (aus letztem Report) berücksichtigen —
+      // ehemalige Zuweisungen sind für "Potenzial verschenkt" nicht mehr relevant.
+      if (!isActivePair(name, acc)) continue;
       const key = `${name}||${acc}`;
       const d = (r.analysis_date as string) || "";
       const cur = combos.get(key) ?? { chatter_name: name, account: acc, messages: 0, revenue: 0, eff: 0, latestDate: d };
@@ -435,9 +463,13 @@ export default function Messages() {
       .eq("chatter_name", name)
       .gte("analysis_date", from)
       .lte("analysis_date", to);
+    const activeModels = await loadActiveChatterModels(platform);
+    const activePairs = activeModels?.get(normalizeChatterName(name)) ?? null;
     const agg = new Map<string, ModelSplitRow>();
     for (const r of (data ?? []) as any[]) {
       const acc = (r.account as string) || "—";
+      // Nur Models, die dieser Chatter im letzten Report noch hat.
+      if (acc !== "—" && activePairs && !activePairs.has(normalizeAccountName(acc))) continue;
       const cur = agg.get(acc) ?? { account: acc, revenue: 0, messages: 0, days: 0 };
       cur.revenue += Number(r.revenue_today) || 0;
       cur.messages += Number(r.open_chats) || 0;

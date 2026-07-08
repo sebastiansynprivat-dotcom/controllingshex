@@ -14,6 +14,11 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
+import {
+  loadActiveChatterModels,
+  normalizeAccountName,
+  normalizeChatterName,
+} from "@/lib/active-chatters";
 
 export type MismatchKind = "pull_up" | "underused";
 
@@ -137,9 +142,20 @@ export async function loadMismatchMap(platform: string): Promise<MismatchResult>
   const todayMs = Date.now();
   const byKey = new Map<string, MismatchEntry>();
 
+  // Aktive Chatter×Model-Zuordnung aus letztem Report — sonst schlagen
+  // "pull_up"/"underused"-Alerts auf Kombinationen an, die der Nutzer
+  // gar nicht mehr im Einsatz hat.
+  const activeChatterModels = await loadActiveChatterModels(platform);
+
   for (const [key, days] of dayHours) {
     const account = accountByChatter.get(key);
     if (!account) continue; // ohne Account-Zuweisung kein Tier-Vergleich
+
+    // Muss aktuell noch dieses Model haben (falls Report vorhanden).
+    if (activeChatterModels !== null) {
+      const activeSet = activeChatterModels.get(normalizeChatterName(key));
+      if (!activeSet || !activeSet.has(normalizeAccountName(account))) continue;
+    }
 
     const followers = followerByAcc.get(norm(account)) ?? 0;
     const tier = tierForFollowers(followers);

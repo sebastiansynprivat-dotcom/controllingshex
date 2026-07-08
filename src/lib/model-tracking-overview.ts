@@ -7,6 +7,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { TimeRange } from "@/lib/timerange-categorize";
+import {
+  loadActiveChatterModels,
+  normalizeAccountName,
+  normalizeChatterName,
+} from "@/lib/active-chatters";
 
 const PAGE_SIZE = 1000;
 
@@ -465,6 +470,17 @@ export async function detectRelevantModelAlerts(
   thirtyAgo.setDate(thirtyAgo.getDate() - 30);
   const thirtyAgoIso = thirtyAgo.toISOString().split("T")[0];
 
+  // Aktive Chatter×Model-Zuordnung aus letztem Report — Alerts nur für
+  // Kombinationen, die aktuell auch wirklich noch bestehen.
+  const activeChatterModels = await loadActiveChatterModels(platform);
+  const isCurrentPair = (chatter: string | null, model: string): boolean => {
+    if (!chatter) return false;
+    if (activeChatterModels === null) return true;
+    const set = activeChatterModels.get(normalizeChatterName(chatter));
+    if (!set) return false;
+    return set.has(normalizeAccountName(model));
+  };
+
   const alerts: ModelAlert[] = [];
 
   for (const [modelName, dateMap] of byModel) {
@@ -488,6 +504,11 @@ export async function detectRelevantModelAlerts(
     const phases = derivePhases(daily);
     const currentPhase = phases[phases.length - 1] ?? null;
     const previousPhase = phases.length >= 2 ? phases[phases.length - 2] : null;
+
+    // Skip Alerts, wenn der aktuelle Chatter im letzten Report nicht mehr
+    // auf diesem Model steht — dann sind Rückgang/Underperform-Signale nicht
+    // mehr handlungsrelevant.
+    if (!isCurrentPair(currentPhase?.chatterName ?? null, modelName)) continue;
 
     // Alert 1: Decline since chatter switch
     if (currentPhase && previousPhase && previousPhase.avgPerDay > 0 && currentPhase.days >= 3) {
