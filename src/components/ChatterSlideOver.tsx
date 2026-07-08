@@ -1407,26 +1407,49 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 {kpis.map((kpi) => {
                   const Icon = kpi.icon;
+                  const hasDetails = !!kpi.details && kpi.details.length > 0;
                   return (
                     <div
                       key={kpi.label}
-                      className="premium-card premium-card-interactive rounded-xl p-3 sm:p-4 min-w-0"
+                      className={`premium-card premium-card-interactive rounded-xl p-3 sm:p-4 min-w-0 ${hasDetails ? "col-span-2" : ""}`}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <Icon className="h-3 w-3" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
-                        <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug truncate">
-                          {kpi.label}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Icon className="h-3 w-3 shrink-0" style={{ color: `hsl(${kpi.accent} / 0.7)` }} />
+                          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white/45 font-medium leading-snug truncate">
+                            {kpi.label}
+                          </p>
+                        </div>
+                        <p
+                          className={`text-base sm:text-lg font-extralight tracking-tight tabular-nums shrink-0 ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
+                        >
+                          {kpi.value}
                         </p>
                       </div>
-                      <p
-                        className={`text-base sm:text-lg font-extralight mt-1.5 tracking-tight tabular-nums ${kpi.gold ? "gold-text" : "text-foreground/85"}`}
-                      >
-                        {kpi.value}
-                      </p>
+                      {hasDetails && (
+                        <div className="mt-3 pt-3 border-t border-white/[0.05] space-y-1.5">
+                          {kpi.details!.map((m) => (
+                            <div key={m.account} className="flex items-center justify-between gap-3 text-[11.5px]">
+                              <span className="text-white/80 font-medium tracking-wide truncate">{m.account}</span>
+                              <div className="flex items-center gap-3 shrink-0 tabular-nums font-light">
+                                <span className={`${m.latestDelay > 0 ? "text-[#E25822]/90" : "text-white/30"}`}>
+                                  aktuell {m.latestDelay}d
+                                </span>
+                                <span className="text-white/40">Ø {m.avgDelay.toFixed(1)}d</span>
+                                <span className="text-white/30">max {m.maxDelay}d</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!hasDetails && (
+                        <div className="h-0" />
+                      )}
                     </div>
                   );
                 })}
               </div>
+
 
 
 
