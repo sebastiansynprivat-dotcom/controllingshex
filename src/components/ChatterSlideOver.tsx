@@ -218,32 +218,50 @@ function ModelLoginRow({
 }) {
   const [showPw, setShowPw] = useState(false);
   return (
-    <div className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.02] transition-colors min-w-0">
+    <div className="group flex items-center gap-3 px-4 py-3 hover:bg-white/[0.025] transition-colors min-w-0">
+      <div
+        className="h-8 w-8 shrink-0 rounded-lg bg-primary/[0.08] border border-primary/20 flex items-center justify-center text-[10px] font-medium tracking-wide text-primary/90"
+        title={model.name}
+      >
+        {getInitials(model.name).slice(0, 2)}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] text-foreground/85 font-light tracking-wide truncate">{model.name}</p>
-        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/35 font-mono tracking-tight">
+        <p className="text-[12px] text-foreground/90 font-light tracking-wide truncate">{model.name}</p>
+        <div className="mt-1 flex items-center gap-2 text-[11px] font-mono">
           {model.email ? (
-            <span className="truncate max-w-[180px]">{model.email}</span>
+            <button
+              type="button"
+              onClick={() => onCopy(model.email!, "E-Mail")}
+              title="E-Mail kopieren"
+              className="min-w-0 max-w-[220px] truncate text-white/55 hover:text-primary text-left"
+            >
+              {model.email}
+            </button>
           ) : (
-            <span className="italic text-white/20">keine Mail</span>
+            <span className="italic text-white/20 text-[10px]">keine Mail</span>
           )}
           {model.password ? (
             <>
               <span className="text-white/15">·</span>
-              <span className="tabular-nums">
+              <button
+                type="button"
+                onClick={() => onCopy(model.password!, "Passwort")}
+                title="Passwort kopieren"
+                className="tabular-nums text-white/55 hover:text-primary"
+              >
                 {showPw ? model.password : "•".repeat(Math.min(model.password.length, 10))}
-              </span>
+              </button>
             </>
           ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         {model.email && (
           <button
             type="button"
             onClick={() => onCopy(model.email!, "E-Mail")}
             title="E-Mail kopieren"
-            className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
           >
             <Mail className="h-3.5 w-3.5" />
           </button>
@@ -254,7 +272,7 @@ function ModelLoginRow({
               type="button"
               onClick={() => setShowPw((v) => !v)}
               title={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
-              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
             >
               {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
@@ -262,7 +280,7 @@ function ModelLoginRow({
               type="button"
               onClick={() => onCopy(model.password!, "Passwort")}
               title="Passwort kopieren"
-              className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/[0.04] transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-white/45 hover:text-primary hover:bg-primary/[0.08] border border-transparent hover:border-primary/20 transition-all"
             >
               <KeyRound className="h-3.5 w-3.5" />
             </button>
@@ -272,6 +290,7 @@ function ModelLoginRow({
     </div>
   );
 }
+
 
 
 
@@ -883,14 +902,20 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const modelsLoginsBlock =
     chatterModels.length > 0 ? (
       <div className="space-y-2.5">
-        <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Models & Logins</p>
-        <div className="premium-card rounded-xl divide-y divide-white/[0.04] overflow-hidden">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-[0.2em] gold-text-subtle font-medium">Models & Logins</p>
+          <span className="text-[10px] text-white/25 font-light tracking-wide">
+            {chatterModels.length} {chatterModels.length === 1 ? "Account" : "Accounts"}
+          </span>
+        </div>
+        <div className="premium-card rounded-2xl divide-y divide-white/[0.05] overflow-hidden">
           {chatterModels.map((m) => (
             <ModelLoginRow key={m.name} model={m} onCopy={copyToClipboard} />
           ))}
         </div>
       </div>
     ) : null;
+
 
   const assignedLabels = useMemo(
     () => allLabels.filter((l) => assignedLabelIds.has(l.id)),
@@ -1132,8 +1157,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
             </div>
           ) : (
             <div className="p-4 sm:p-6 pb-16 space-y-6 sm:space-y-8">
+              {modelsLoginsBlock}
+
               {/* Live KPI Grid */}
               <div className="space-y-2">
+
                 <div className="flex items-center gap-1.5">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
@@ -1214,11 +1242,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 })}
               </div>
 
-              {modelsLoginsBlock}
-
 
               {/* Notes — direkt unter Labels */}
               <div className="space-y-4">
+
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-light">Management-Logbuch</p>
                 <div className="flex gap-2">
                   <textarea
@@ -1532,7 +1559,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               </>
             )}
 
-            {/* Vergleichen-mit Button (nur im non-inline Mode) */}
+            {/* Vergleichen-mit Button (nur im non-inline Mode) — icon-only, spart Platz für Name */}
             {!inline && (
               <button
                 type="button"
@@ -1541,16 +1568,16 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   else setPickerOpen(true);
                 }}
                 title={compareWith ? "Vergleich beenden" : "Mit anderem Chatter vergleichen"}
-                className={`premium-chip shrink-0 inline-flex items-center gap-2 h-11 px-3.5 sm:px-4 rounded-xl border text-[10px] uppercase tracking-[0.2em] font-medium transition-all duration-300 active:scale-[0.97] ${
+                className={`premium-chip shrink-0 inline-flex items-center justify-center h-11 w-11 rounded-xl border transition-all duration-300 active:scale-[0.97] ${
                   compareWith
                     ? "border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.12]"
                     : "border-white/[0.08] bg-white/[0.02] text-white/55 hover:text-primary hover:border-primary/25 hover:bg-primary/[0.04]"
                 }`}
               >
-                <GitCompareArrows className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{compareWith ? "Vergleich aus" : "Vergleichen"}</span>
+                <GitCompareArrows className="h-4 w-4" />
               </button>
             )}
+
             {/* Close-Button: 44x44px (Apple HIG), erweiterte Hit-Area über safe-area */}
             <button
               onClick={onClose}
@@ -1673,8 +1700,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                   </p>
                 ) : (
                   <>
+                    {modelsLoginsBlock}
+
                     {/* ── Live KPI Grid (Echtzeit) ── */}
                     <div className="space-y-2.5">
+
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-1.5 w-1.5">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
@@ -1882,7 +1912,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                       )}
                     </div>
 
-                    {modelsLoginsBlock}
+
 
                     {/* ── Online-Zeiten (Stunden-Profil) ── */}
                     <ChatterActivityHoursCard chatterName={chatterName} platform={platform} />
