@@ -140,52 +140,80 @@ function RevenueTooltip({
   const totalMassDms = rowsForDate.reduce((s, r) => s + (r.mass_dms || 0), 0) || row.mass_dms;
   const totalOpen = rowsForDate.reduce((s, r) => s + (r.open_chats || 0), 0);
   return (
-    <div className="premium-card rounded-xl px-5 py-3.5 w-[300px]">
-      <div className="flex items-baseline justify-between gap-3 mb-2">
-        <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+    <div
+      className="premium-card rounded-2xl px-5 py-4 w-[340px] shadow-2xl backdrop-blur-xl"
+      style={{ background: "rgba(12,12,14,0.96)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] gold-text-subtle font-medium tracking-[0.24em] uppercase">
           {formatDate(row.analysis_date)}
         </p>
         {totalDelay > 0 && (
-          <span className="text-[10px] text-[#E25822]/85 font-light tracking-wide tabular-nums flex items-center gap-1">
+          <span className="text-[10px] text-[#E25822]/90 font-light tracking-wide tabular-nums flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E25822]/10 border border-[#E25822]/20">
             <Clock className="h-2.5 w-2.5" />
-            Ø {totalDelay}d
+            Ø {totalDelay}d Verzug
           </span>
         )}
       </div>
-      <p className="text-lg font-extralight gold-text tracking-tight tabular-nums">
-        {formatCurrency(totalRevenue)}
-      </p>
-      <p className="text-[11px] text-white/45 font-light mt-0.5 tracking-wide">
-        {totalMassDms} MassDMs · {totalOpen} offen
-      </p>
 
+      {/* Summary */}
+      <div className="mt-3 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-2xl font-extralight gold-text tracking-tight tabular-nums leading-none">
+            {formatCurrency(totalRevenue)}
+          </p>
+          <p className="text-[10.5px] text-white/40 font-light mt-1.5 tracking-wide">
+            Tagesumsatz gesamt
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-right">
+          <span className="text-[10px] uppercase tracking-wider text-white/35 font-medium">MassDMs</span>
+          <span className="text-[11.5px] text-white/75 font-light tabular-nums">{totalMassDms}</span>
+          <span className="text-[10px] uppercase tracking-wider text-white/35 font-medium">Offen</span>
+          <span className="text-[11.5px] text-white/75 font-light tabular-nums">{totalOpen}</span>
+        </div>
+      </div>
+
+      {/* Per-Model */}
       {perModel.length > 0 && (
-        <div className="mt-3 border-t border-white/[0.06] pt-2.5 space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">Pro Model</p>
+        <div className="mt-3.5 border-t border-white/[0.06] pt-3 space-y-2 max-h-[280px] overflow-y-auto pr-0.5">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-medium mb-1.5">Pro Model</p>
           {perModel.map((r) => {
             const delayed = r.response_delay_days > 0;
             return (
               <div
                 key={r.account}
-                className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-2.5 py-2"
+                className="rounded-lg bg-white/[0.025] border border-white/[0.05] px-3 py-2.5"
               >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[11.5px] text-white/85 font-medium truncate tracking-wide">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[12px] text-white/90 font-medium tracking-wide break-all">
                     {r.account || "—"}
                   </span>
                   {delayed ? (
-                    <span className="text-[10px] text-[#E25822]/90 font-light tabular-nums shrink-0 flex items-center gap-1">
+                    <span className="text-[10px] text-[#E25822]/90 font-light tabular-nums shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#E25822]/10 border border-[#E25822]/20">
                       <Clock className="h-2.5 w-2.5" />
                       {r.response_delay_days}d
                     </span>
                   ) : (
-                    <span className="text-[10px] text-emerald-400/70 font-light shrink-0">on time</span>
+                    <span className="text-[10px] text-emerald-400/80 font-light shrink-0 px-1.5 py-0.5 rounded-full bg-emerald-500/8 border border-emerald-500/15">
+                      on time
+                    </span>
                   )}
                 </div>
-                <div className="flex items-center justify-between gap-3 text-[10.5px] font-light tabular-nums text-white/50">
-                  <span>{formatCurrency(r.revenue_today)}</span>
-                  <span>{r.open_chats} offen</span>
-                  <span>{r.mass_dms} DMs</span>
+                <div className="grid grid-cols-3 gap-2 text-[10.5px] font-light">
+                  <div className="flex flex-col">
+                    <span className="text-white/30 uppercase tracking-wider text-[9px]">Umsatz</span>
+                    <span className="gold-text tabular-nums mt-0.5">{formatCurrency(r.revenue_today)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-white/30 uppercase tracking-wider text-[9px]">Offen</span>
+                    <span className="text-white/70 tabular-nums mt-0.5">{r.open_chats}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-white/30 uppercase tracking-wider text-[9px]">DMs</span>
+                    <span className="text-white/70 tabular-nums mt-0.5">{r.mass_dms}</span>
+                  </div>
                 </div>
               </div>
             );
@@ -194,13 +222,14 @@ function RevenueTooltip({
       )}
 
       {row.note && (
-        <p className="text-[11px] text-primary/80 font-light mt-2 border-t border-white/[0.06] pt-2 leading-relaxed">
+        <p className="text-[11px] text-primary/80 font-light mt-3 border-t border-white/[0.06] pt-2.5 leading-relaxed">
           📝 {row.note}
         </p>
       )}
     </div>
   );
 }
+
 
 
 function GhostChatTooltip({ active, payload }: any) {
