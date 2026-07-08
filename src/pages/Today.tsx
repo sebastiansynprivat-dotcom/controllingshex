@@ -817,16 +817,40 @@ export default function Today() {
                               </div>
                             ) : (
                               col.items.map((a) => (
-                                <PersonActionCard
+                                <div
                                   key={a.bundleKey}
-                                  action={a}
-                                  onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                                  onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                                  onAct={act}
-                                  readonly={isReadonly}
-                                />
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("application/x-tray-bundlekey", a.bundleKey);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  className="group relative cursor-grab active:cursor-grabbing"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const next = new Set(trayIds);
+                                      next.add(a.bundleKey);
+                                      persistTray(next);
+                                    }}
+                                    title="In Ablage"
+                                    className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full flex items-center justify-center bg-background/70 border border-white/[0.08] text-white/50 hover:text-emerald-200 hover:border-emerald-400/40 hover:bg-emerald-500/15 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-md"
+                                    aria-label="In Ablage legen"
+                                  >
+                                    <Archive className="h-3.5 w-3.5" />
+                                  </button>
+                                  <PersonActionCard
+                                    action={a}
+                                    onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                                    onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                                    onAct={act}
+                                    readonly={isReadonly}
+                                  />
+                                </div>
                               ))
                             )}
+
                           </div>
                         </div>
                       );
