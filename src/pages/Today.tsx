@@ -1283,6 +1283,32 @@ export default function Today() {
                 className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 cursor-grab [-webkit-overflow-scrolling:touch]"
                 style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)", maskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)" }}
               >
+                {([
+                  { id: "all" as ChannelFilter, label: "Alle" },
+                  { id: "whatsapp" as ChannelFilter, label: "WhatsApp" },
+                  { id: "platform" as ChannelFilter, label: "Plattform" },
+                ]).map((c) => {
+                  const active = channelFilter === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setChannelFilter(c.id)}
+                      className={cn(
+                        "snap-start shrink-0 px-3 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border",
+                        active
+                          ? c.id === "whatsapp"
+                            ? "bg-emerald-500/15 border-emerald-400/35 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.4)]"
+                            : c.id === "platform"
+                              ? "bg-sky-500/15 border-sky-400/35 text-sky-100 shadow-[0_0_18px_-6px_rgba(56,189,248,0.4)]"
+                              : "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                          : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                      )}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+                <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
                 {statusOptions.map((o) => {
                   const active = status === o.id;
                   return (
