@@ -45,10 +45,20 @@ function formatDateShort(iso: string): string {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
 
+interface LifetimeChatterStats {
+  chatterName: string;
+  totalRevenue: number;
+  activeDays: number;
+  avgPerDay: number;
+  firstDate: string;
+  lastDate: string;
+}
+
 export default function ModelPerformanceSlideOver({ open, onClose, modelName, platform, focusChatter, splitView = false }: Props) {
   const [period, setPeriod] = useState<7 | 14 | 30 | 90>(30);
   const [tl, setTl] = useState<ModelTimeline | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lifetime, setLifetime] = useState<LifetimeChatterStats[]>([]);
 
   const dateRange = useMemo(() => {
     const to = new Date();
@@ -65,15 +75,97 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
       .finally(() => setLoading(false));
   }, [open, modelName, platform, dateRange]);
 
+  // Lifetime aggregate pro Chatter für dieses Model – für den Gesamt-Vergleich.
+  useEffect(() => {
+    if (!open || !modelName) return;
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today, analysis_date")
+        .eq("platform", platform)
+        .eq("account", modelName);
+      if (cancel) return;
+      const byChatter = new Map<string, { total: number; days: Set<string>; first: string; last: string }>();
+      for (const row of data || []) {
+        const name = row.chatter_name?.trim();
+        const date = row.analysis_date;
+        if (!name || !date) continue;
+        const rev = Number(row.revenue_today) || 0;
+        if (!byChatter.has(name)) byChatter.set(name, { total: 0, days: new Set(), first: date, last: date });
+        const s = byChatter.get(name)!;
+        s.total += rev;
+        s.days.add(date);
+        if (date < s.first) s.first = date;
+        if (date > s.last) s.last = date;
+      }
+      const arr: LifetimeChatterStats[] = Array.from(byChatter.entries()).map(([chatterName, s]) => ({
+        chatterName,
+        totalRevenue: s.total,
+        activeDays: s.days.size,
+        avgPerDay: s.days.size > 0 ? s.total / s.days.size : 0,
+        firstDate: s.first,
+        lastDate: s.last,
+      }));
+      arr.sort((a, b) => b.avgPerDay - a.avgPerDay);
+      setLifetime(arr);
+    })();
+    return () => { cancel = true; };
+  }, [open, modelName, platform]);
+
   const chatterColors = useMemo(() => {
     const map = new Map<string, string>();
-    if (!tl) return map;
     let i = 0;
-    for (const p of tl.phases) {
+    // Phasen zuerst (Reihenfolge im Chart) …
+    for (const p of tl?.phases ?? []) {
       if (!map.has(p.chatterName)) {
         map.set(p.chatterName, PHASE_COLORS[i % PHASE_COLORS.length]);
         i++;
       }
+    }
+    // … dann restliche Chatter aus dem Lifetime-Set, damit die Vergleichs-Karte
+    // jedem Chatter eine stabile Farbe zuweisen kann.
+    for (const l of lifetime) {
+      if (!map.has(l.chatterName)) {
+        map.set(l.chatterName, PHASE_COLORS[i % PHASE_COLORS.length]);
+        i++;
+      }
+    }
+    return map;
+  }, [tl, lifetime]);
+
+  // Chart-Daten pro Chatter aufsplitten, damit jede Chatter-Phase in ihrer
+  // eigenen Farbe im Umsatz-Verlauf gezeichnet wird.
+  const chartData = useMemo(() => {
+    if (!tl) return [] as Array<Record<string, any>>;
+    const chatters = Array.from(chatterColors.keys());
+    const rows: Record<string, any>[] = tl.daily.map((d) => {
+      const row: Record<string, any> = { date: d.date, chatter: d.chatter, revenue: d.revenue };
+      for (const c of chatters) row[`c__${c}`] = null;
+      if (d.chatter) row[`c__${d.chatter}`] = d.revenue;
+      return row;
+    });
+    // An Chatter-Wechseln den vorherigen Chatter am Wechsel-Tag mitzeichnen,
+    // damit die Segmente ohne Lücke zusammenlaufen.
+    for (let i = 1; i < tl.daily.length; i++) {
+      const prev = tl.daily[i - 1];
+      const cur = tl.daily[i];
+      if (prev.chatter && cur.chatter && prev.chatter !== cur.chatter) {
+        rows[i][`c__${prev.chatter}`] = cur.revenue;
+      }
+    }
+    return rows;
+  }, [tl, chatterColors]);
+
+  // Aggregat pro Chatter im aktuellen Zeitraum (kann mehrere Phasen desselben
+  // Chatters umfassen).
+  const periodByChatter = useMemo(() => {
+    const map = new Map<string, { total: number; days: number }>();
+    for (const p of tl?.phases ?? []) {
+      const cur = map.get(p.chatterName) ?? { total: 0, days: 0 };
+      cur.total += p.totalRevenue;
+      cur.days += p.days;
+      map.set(p.chatterName, cur);
     }
     return map;
   }, [tl]);
@@ -152,7 +244,7 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
             </p>
             <div className={splitView ? "h-56 w-full min-w-0" : "h-64 w-full min-w-0"}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={tl.daily} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke="hsl(0 0% 100% / 0.04)" />
                   <XAxis
                     dataKey="date"
@@ -174,7 +266,8 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                     content={({ active, payload, label }: any) => {
                       if (!active || !payload?.length) return null;
                       const p = payload[0]?.payload || {};
-                      const rev = Number(payload[0]?.value ?? 0);
+                      const rev = Number(p.revenue ?? 0);
+                      const color = p.chatter ? chatterColors.get(p.chatter) : undefined;
                       return (
                         <div
                           className="rounded-lg border border-white/10 bg-[#141414]/95 backdrop-blur-md px-3 py-2 shadow-2xl"
@@ -186,8 +279,9 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                           <div className="text-[14px] font-medium text-white">
                             {rev.toFixed(0)} €
                           </div>
-                          <div className="text-[11px] text-white/60 mt-0.5 truncate">
-                            {p.chatter || "—"}
+                          <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                            {color && <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />}
+                            <span className="text-[11px] text-white/60 truncate">{p.chatter || "—"}</span>
                           </div>
                         </div>
                       );
@@ -199,7 +293,7 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                       x1={p.fromDate}
                       x2={p.toDate}
                       fill={chatterColors.get(p.chatterName)}
-                      fillOpacity={0.06}
+                      fillOpacity={0.08}
                       stroke="none"
                     />
                   ))}
@@ -211,19 +305,25 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                       strokeDasharray="3 3"
                     />
                   ))}
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(45, 90%, 60%)"
-                    strokeWidth={2}
-                    dot={{ r: 2.5, fill: "hsl(45, 90%, 60%)" }}
-                    activeDot={{ r: 4 }}
-                  />
+                  {Array.from(chatterColors.entries()).map(([name, color]) => (
+                    <Line
+                      key={`line-${name}`}
+                      type="monotone"
+                      dataKey={`c__${name}`}
+                      name={name}
+                      stroke={color}
+                      strokeWidth={2}
+                      connectNulls={false}
+                      dot={{ r: 2.5, fill: color, stroke: color }}
+                      activeDot={{ r: 4, stroke: color, strokeWidth: 2, fill: "#0e0e0e" }}
+                      isAnimationActive={false}
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            {tl.phases.length > 0 && (
+            {chatterColors.size > 0 && (
               <div className="flex flex-wrap gap-2 mt-3 min-w-0">
                 {Array.from(chatterColors.entries()).map(([name, color]) => (
                   <button
@@ -240,6 +340,15 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
               </div>
             )}
           </div>
+
+          {/* Chatter-Vergleich: Ø/Tag pro Chatter im Zeitraum + Lifetime */}
+          <ChatterComparisonCard
+            periodByChatter={periodByChatter}
+            lifetime={lifetime}
+            chatterColors={chatterColors}
+            periodDays={period}
+          />
+
 
           {focusChatter && (
             <ChatterCompareCard
@@ -368,6 +477,141 @@ function PhaseRow({ phase, isCurrent, vsPrev, color }: {
             <TrendingDown className="h-3 w-3" /> {vsPrev}%
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Chatter-Vergleich: Ø/Tag pro Chatter im gewählten Zeitraum PLUS Lifetime.
+ * Farbcodiert wie im Umsatz-Verlauf, sortiert nach Ø/Tag im Zeitraum.
+ */
+function ChatterComparisonCard({
+  periodByChatter,
+  lifetime,
+  chatterColors,
+  periodDays,
+}: {
+  periodByChatter: Map<string, { total: number; days: number }>;
+  lifetime: LifetimeChatterStats[];
+  chatterColors: Map<string, string>;
+  periodDays: number;
+}) {
+  const rows = useMemo(() => {
+    const names = new Set<string>([
+      ...periodByChatter.keys(),
+      ...lifetime.map((l) => l.chatterName),
+    ]);
+    const lifetimeMap = new Map(lifetime.map((l) => [l.chatterName, l]));
+    const items = Array.from(names).map((name) => {
+      const p = periodByChatter.get(name);
+      const l = lifetimeMap.get(name);
+      const periodAvg = p && p.days > 0 ? p.total / p.days : 0;
+      return {
+        name,
+        color: chatterColors.get(name) || "#666",
+        periodTotal: p?.total ?? 0,
+        periodDays: p?.days ?? 0,
+        periodAvg,
+        lifetimeAvg: l?.avgPerDay ?? 0,
+        lifetimeTotal: l?.totalRevenue ?? 0,
+        lifetimeDays: l?.activeDays ?? 0,
+        inPeriod: !!p && p.days > 0,
+      };
+    });
+    items.sort((a, b) => {
+      if (a.inPeriod !== b.inPeriod) return a.inPeriod ? -1 : 1;
+      return (b.inPeriod ? b.periodAvg : b.lifetimeAvg) - (a.inPeriod ? a.periodAvg : a.lifetimeAvg);
+    });
+    return items;
+  }, [periodByChatter, lifetime, chatterColors]);
+
+  const maxAvg = useMemo(
+    () => rows.reduce((m, r) => Math.max(m, r.inPeriod ? r.periodAvg : r.lifetimeAvg), 0),
+    [rows]
+  );
+
+  if (rows.length === 0) return null;
+
+  const topPeriod = rows.find((r) => r.inPeriod);
+  const bottomPeriod = [...rows].reverse().find((r) => r.inPeriod);
+  const spreadPct =
+    topPeriod && bottomPeriod && bottomPeriod.periodAvg > 0 && topPeriod !== bottomPeriod
+      ? Math.round(((topPeriod.periodAvg - bottomPeriod.periodAvg) / bottomPeriod.periodAvg) * 100)
+      : null;
+
+  return (
+    <div className="premium-card rounded-2xl overflow-hidden min-w-0">
+      <div className="p-4 sm:p-5 border-b border-white/[0.05] flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+            Chatter-Vergleich
+          </p>
+          <p className="text-[10.5px] text-white/35 font-light mt-0.5">
+            Ø / Tag im {periodDays}-Tage-Zeitraum · Lifetime als Referenz
+          </p>
+        </div>
+        {spreadPct !== null && (
+          <div className="text-right shrink-0">
+            <div className="text-[13px] font-light gold-text tabular-nums">+{spreadPct}%</div>
+            <div className="text-[9px] text-white/30 uppercase tracking-wider">Spread</div>
+          </div>
+        )}
+      </div>
+      <div className="divide-y divide-white/[0.04]">
+        {rows.map((r) => {
+          const barPct =
+            maxAvg > 0
+              ? Math.max(2, Math.round(((r.inPeriod ? r.periodAvg : r.lifetimeAvg) / maxAvg) * 100))
+              : 0;
+          return (
+            <div key={r.name} className={cn("p-4 sm:p-5", !r.inPeriod && "opacity-60")}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: r.color }} />
+                <button
+                  type="button"
+                  onClick={(e) => copyChatter(r.name, e)}
+                  className="flex-1 min-w-0 text-left text-[13.5px] text-foreground/85 font-light hover:text-white hover:underline underline-offset-2 truncate"
+                  title="Klick zum Kopieren"
+                >
+                  {r.name}
+                </button>
+                {!r.inPeriod && (
+                  <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.04] text-white/40 border border-white/[0.06] shrink-0">
+                    Nur historisch
+                  </span>
+                )}
+                <div className="text-right shrink-0">
+                  <div className="text-[13.5px] font-light gold-text tabular-nums">
+                    {formatEur(r.inPeriod ? r.periodAvg : r.lifetimeAvg)}
+                  </div>
+                  <div className="text-[9.5px] text-white/30 font-light">Ø / Tag</div>
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-white/[0.04] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${barPct}%`,
+                    background: `linear-gradient(90deg, ${r.color}55, ${r.color})`,
+                  }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px] font-light text-white/45 tabular-nums">
+                <span>
+                  {r.inPeriod ? (
+                    <>Zeitraum: <span className="text-white/70">{formatEur(r.periodTotal)}</span> · {r.periodDays}T</>
+                  ) : (
+                    <>Keine Aktivität im Zeitraum</>
+                  )}
+                </span>
+                <span>
+                  Lifetime: <span className="text-white/70">{formatEur(r.lifetimeAvg)}</span> Ø · {r.lifetimeDays}T
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
