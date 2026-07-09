@@ -318,6 +318,7 @@ export default function Today() {
     );
     if (chatterNames.length === 0) {
       setVerzugBreakdown(new Map());
+      setVerzugAvgOpenChats(new Map());
       return;
     }
 
