@@ -48,12 +48,11 @@ export default function ModelPhaseTrend30({ platform, modelName, focusChatter, c
     let cancel = false;
     setLoading(true);
     const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
+    // All-Time: sehr frühes Startdatum, damit die komplette Historie geladen wird.
     loadModelTimeline(
       platform,
       modelName,
-      from.toISOString().split("T")[0],
+      "2000-01-01",
       to.toISOString().split("T")[0],
     )
       .then((t) => !cancel && setTl(t))
