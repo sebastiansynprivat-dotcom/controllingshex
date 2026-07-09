@@ -638,14 +638,7 @@ export default function Today() {
     if (kindTab === "downgrade") {
       // Downgrade-Kandidaten: wichtigste (= höchster Umsatzimpact) zuerst,
       // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
-      return [...list].sort((a, b) => {
-        if (b.totalImpactEurPerWeek !== a.totalImpactEurPerWeek) {
-          return b.totalImpactEurPerWeek - a.totalImpactEurPerWeek;
-        }
-        const da = a.downgradeSince ?? "9999-12-31";
-        const db = b.downgradeSince ?? "9999-12-31";
-        return da.localeCompare(db);
-      });
+      return sortDowngradeActions(list);
     }
     return list;
   }, [baseVisibleList, kindTab, verzugDayFilter]);
