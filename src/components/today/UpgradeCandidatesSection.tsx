@@ -38,11 +38,11 @@ export default function UpgradeCandidatesSection({
     [cards, doneKeys],
   );
 
-  if (visible.length === 0) return null;
-
   const doneCount = useMemo(() => {
     return cards.filter((c) => isUpgradeTaskLabel(c.label) && doneKeys.has(c.todoKey)).length;
   }, [cards, doneKeys]);
+
+  if (visible.length === 0) return null;
 
   return (
     <motion.section
@@ -124,15 +124,6 @@ export default function UpgradeCandidatesSection({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {visible.length === 0 && !collapsed && (
-        <div className="premium-card rounded-2xl p-5 text-center">
-          <div className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-emerald-500/10 border border-emerald-500/25 mb-2">
-            <Check className="h-3.5 w-3.5 text-emerald-300" />
-          </div>
-          <p className="text-[12px] text-white/65 font-light">Alle Upgrade-Kandidaten erledigt 🏻</p>
-        </div>
-      )}
     </motion.section>
   );
 }
