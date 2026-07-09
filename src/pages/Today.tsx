@@ -134,15 +134,6 @@ function splitAccounts(value: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-function cleanChatterDisplayName(value: string | null | undefined): string {
-  return (value ?? "")
-    .normalize("NFKC")
-    .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
-    .replace(/[\u00A0\u2007\u202F]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function sameChatterName(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false;
   return normalizeChatterName(a) === normalizeChatterName(b);
@@ -1443,7 +1434,7 @@ export default function Today() {
       {(() => {
         const splitActive = !!selectedModel && !!selectedModel.chatter;
         const chatterOpen = !!selectedChatter || splitActive;
-        const chatterName = cleanChatterDisplayName(selectedChatter?.name ?? selectedModel?.chatter ?? null);
+        const chatterName = selectedChatter?.name ?? selectedModel?.chatter ?? null;
         const chatterCompare = selectedChatter?.compareWith ?? null;
         const slideFocusChatter = selectedModel?.chatter && sameChatterName(selectedModel.chatter, chatterName)
           ? chatterName
