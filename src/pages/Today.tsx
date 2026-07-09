@@ -918,7 +918,7 @@ export default function Today() {
             <div className="text-center py-12 text-white/25 text-xs font-light tracking-wide">
               Bündele Tagesaufgaben …
             </div>
-          ) : extraFilter === "onboarding" ? (
+          ) : status === "onboarding" || extraFilter === "onboarding" ? (
             <OnboardingList
               groups={onboardingGroups}
               allLabels={labels}
@@ -1323,23 +1323,6 @@ export default function Today() {
                   <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
                   Push
                 </button>
-                {onboardingCount > 0 && (
-                  <button
-                    onClick={() => { setExtraFilter("onboarding"); setKindTab("all"); }}
-                    className={cn(
-                      "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                      extraFilter === "onboarding"
-                        ? "bg-emerald-500/[0.12] border-emerald-400/30 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.4)]"
-                        : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
-                    )}
-                  >
-                    <Sprout className={cn("h-3 w-3", extraFilter === "onboarding" ? "text-emerald-300" : "text-white/40")} />
-                    Onboarding
-                    <span className={cn("tabular-nums text-[10px]", extraFilter === "onboarding" ? "text-emerald-200/85" : "text-white/30")}>
-                      {onboardingCount}
-                    </span>
-                  </button>
-                )}
                 {labels.length > 0 && (
                   <button
                     onClick={() => {
@@ -1612,7 +1595,9 @@ function EmptyState({ status, hasAnyOpen }: { status: StatusMode; hasAnyOpen: bo
       }
     : status === "wins"
       ? { title: "Heute noch keine Wins", sub: "Schau später nochmal rein." }
-      : { title: "Noch nichts erledigt", sub: "Die ersten Häkchen warten." };
+      : status === "onboarding"
+        ? { title: "Kein Onboarding aktiv", sub: "Keine neuen Chatter in der Einarbeitung." }
+        : { title: "Noch nichts erledigt", sub: "Die ersten Häkchen warten." };
 
   return (
     <div className="premium-card rounded-2xl p-8 text-center">
