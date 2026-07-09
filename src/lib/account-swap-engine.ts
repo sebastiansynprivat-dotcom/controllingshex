@@ -927,6 +927,7 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     upgradesZ: upgradesZ.length,
     upgradesX1: upgradesX1.length,
     upgradesX2: upgradesX2.length,
+    upgradesHC: upgradesHC.length,
     matches: matches.length,
     unusedY: unusedY.length,
   });
