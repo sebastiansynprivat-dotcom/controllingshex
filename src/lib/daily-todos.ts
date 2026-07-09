@@ -425,31 +425,34 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       }
     }
     // Positive Outlier — läuft besser als sonst.
-    // Zwei Routen, jeweils "heute nicht katastrophal" (≥ 50 % des 30T-Ø oder Report noch offen):
+    // Drei Routen — es reicht, wenn EINE zutrifft:
     //   A) 14T-Schnitt ≥ 125 % des 30T-Ø  (nachhaltiger Aufwärtstrend)
     //   B)  7T-Schnitt ≥ 135 % des 30T-Ø  (frischer Streak)
+    //   C) Heute ≥ 150 % des 30T-Ø        (heutiger Ausreißer nach oben)
     const past7Cutoff = new Date();
     past7Cutoff.setDate(past7Cutoff.getDate() - 7);
     const past7Iso = past7Cutoff.toISOString().split("T")[0];
     const days7 = aggByDay(historical.filter((e) => e.analysis_date >= past7Iso));
     const rev7 = avg(days7.map((d) => d.rev));
 
-    const todayOk = todayRev >= rev30 * 0.5 || todayRev === 0; // 0 = Report für heute noch nicht drin → nicht ausschließen
-    const trend14 = days30.length >= 8 && rev30 >= 50 && rev14 >= rev30 * 1.25;
-    const streak7 = days7.length >= 4 && rev30 >= 50 && rev7 >= rev30 * 1.35;
+    const trend14 = days30.length >= 6 && rev30 >= 30 && rev14 >= rev30 * 1.25;
+    const streak7 = days7.length >= 4 && rev30 >= 30 && rev7 >= rev30 * 1.35;
+    const spikeToday = days30.length >= 5 && rev30 >= 30 && todayRev >= rev30 * 1.5;
 
-    if (todayOk && (trend14 || streak7)) {
-      // Bevorzuge die stärkere Route für Titel/Reason
-      const use7 = streak7 && (!trend14 || (rev7 / Math.max(1, rev30)) > (rev14 / Math.max(1, rev30)));
-      const windowLabel = use7 ? "7T" : "14T";
-      const windowAvg = use7 ? rev7 : rev14;
-      const up = Math.round(((windowAvg - rev30) / rev30) * 100);
+    if (trend14 || streak7 || spikeToday) {
+      // Stärkste Route für Titel/Reason wählen (relatives Plus)
+      type Route = { label: string; avgVal: number; up: number };
+      const candidates: Route[] = [];
+      if (trend14) candidates.push({ label: "14T", avgVal: rev14, up: Math.round(((rev14 - rev30) / rev30) * 100) });
+      if (streak7) candidates.push({ label: "7T", avgVal: rev7, up: Math.round(((rev7 - rev30) / rev30) * 100) });
+      if (spikeToday) candidates.push({ label: "heute", avgVal: todayRev, up: Math.round(((todayRev - rev30) / rev30) * 100) });
+      const best = candidates.reduce((a, b) => (b.up > a.up ? b : a));
       todos.push({
         key: `pos:${name}:${today}`,
         category: "positive",
         score: Math.round(40 * importance),
-        title: `Was läuft bei ${name} richtig? (+${up} % ${windowLabel})`,
-        why: `Letzte ${windowLabel} Ø ${windowAvg.toFixed(0)} € vs. 30T Ø ${rev30.toFixed(0)} €${modelSuffix} — Erfolgsrezept abgreifen.`,
+        title: `Was läuft bei ${name} richtig? (+${best.up} % ${best.label})`,
+        why: `${best.label === "heute" ? "Heute" : `Letzte ${best.label} Ø`} ${best.avgVal.toFixed(0)} € vs. 30T Ø ${rev30.toFixed(0)} €${modelSuffix} — Erfolgsrezept abgreifen.`,
         chatterName: name,
         meta: { todayRevenue: todayRev, baselineRevenue: rev30 },
       });
