@@ -12,9 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   loadActiveChatterNames,
   loadActiveModels,
+  loadModelChatters,
   normalizeAccountName,
   normalizeChatterName,
 } from "@/lib/active-chatters";
+
 
 export type PushBucketId =
   | "hot"
