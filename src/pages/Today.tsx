@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Tag, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
+import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
@@ -11,8 +11,6 @@ import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
-import LabelCardList from "@/components/today/LabelCardList";
-import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
 import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
 import CompareTray from "@/components/today/CompareTray";
@@ -42,9 +40,6 @@ import {
 } from "@/lib/action-outcomes";
 import {
   ensureSystemLabels,
-  isSystemLabel,
-  isUpgradeReceivedLabel,
-  isUpgradeTaskLabel,
   loadChatterLabels,
   loadLabelAssignments,
   type ChatterLabel,
@@ -65,11 +60,10 @@ export type VerzugBreakdownEntry = { account: string; openChats: number; delayDa
 
 
 type StatusMode = "open" | "wins" | "onboarding" | "done";
-type ExtraFilter = "none" | "onboarding" | "labels" | "push";
+type ExtraFilter = "none" | "onboarding" | "push";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
-const LABEL_FILTER_STORAGE_KEY = "today.activeLabelFilters";
 const SWAP_RENDER_BATCH = 8;
 
 
@@ -218,16 +212,6 @@ export default function Today() {
   const [assignments, setAssignments] = useState<LabelAssignment[]>([]);
   const [onboardingGroups, setOnboardingGroups] = useState<import("@/lib/onboarding-filter").OnboardingGroup[]>([]);
   const [labelCards, setLabelCards] = useState<import("@/lib/label-tasks").LabelCard[]>([]);
-  const [labelFilterOpen, setLabelFilterOpen] = useState(false);
-  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem(LABEL_FILTER_STORAGE_KEY);
-      if (raw) return new Set(JSON.parse(raw));
-    } catch {
-      // ignore corrupted local filter cache
-    }
-    return new Set();
-  });
   const [labelDataNonce, setLabelDataNonce] = useState(0);
   const reloadLabelData = () => setLabelDataNonce((n) => n + 1);
 
@@ -489,16 +473,6 @@ export default function Today() {
 
 
 
-  // localStorage sync für selectedLabelIds
-  useEffect(() => {
-    try {
-      localStorage.setItem(LABEL_FILTER_STORAGE_KEY, JSON.stringify([...selectedLabelIds]));
-    } catch {
-      // ignore unavailable localStorage
-    }
-  }, [selectedLabelIds]);
-
-
   const visibility = (action: UnifiedAction): "open" | "done" | "hidden" | "snoozed-active" => {
     const now = new Date();
     let anyOpen = false;
@@ -729,67 +703,12 @@ export default function Today() {
   }, [kindTab, availableKinds]);
 
 
-  // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
-  const systemLabelIdSet = useMemo(
-    () => new Set(labels.filter(isSystemLabel).map((l) => l.id)),
-    [labels],
-  );
-  // Im Labels-Tab sichtbare Labels = System-Labels OHNE "✅ Upgrade bekommen" (terminal)
-  const visibleLabelIdSet = useMemo(
-    () => new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)),
-    [labels],
-  );
-  useEffect(() => {
-    if (labels.length === 0 || visibleLabelIdSet.size === 0) return;
-
-    const selectedVisible = labels.filter((l) => visibleLabelIdSet.has(l.id) && selectedLabelIds.has(l.id));
-    const visibleWithOpenCards = new Set(
-      labelCards
-        .filter((c) => visibleLabelIdSet.has(c.label.id) && states[c.todoKey]?.status !== "done")
-        .map((c) => c.label.id),
-    );
-    const selectedHasOnlyUpgradeCards = selectedVisible.length > 0
-      && selectedVisible.every((l) => l.label_name === "🟢 Upgrade" || l.label_name === "💛 Premium Upgrade")
-      && [...visibleWithOpenCards].some((id) => !selectedLabelIds.has(id));
-
-    // Auch zurücksetzen, wenn gespeicherte IDs nicht mehr zu aktuellen Labels gehören (stale Filter)
-    const selectedHasAnyValidVisible = selectedVisible.length > 0;
-
-    if (selectedLabelIds.size === 0 || selectedHasOnlyUpgradeCards || !selectedHasAnyValidVisible) {
-      setSelectedLabelIds(new Set(visibleLabelIdSet));
-    }
-  }, [labelCards, labels, selectedLabelIds, states, visibleLabelIdSet]);
-  const labelCountsByLabel = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of labelCards) {
-      if (!visibleLabelIdSet.has(c.label.id)) continue;
-      if (states[c.todoKey]?.status === "done") continue;
-      m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
-    }
-    return m;
-  }, [labelCards, states, visibleLabelIdSet]);
-
-  const visibleLabelCards = useMemo(
-    () => labelCards.filter((c) => visibleLabelIdSet.has(c.label.id) && selectedLabelIds.has(c.label.id)),
-    [labelCards, selectedLabelIds, visibleLabelIdSet],
-  );
+  // Label-Karten: heute schon erledigte Keys für Upgrade-Kandidaten-Sektion
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
     for (const c of labelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
     return s;
   }, [labelCards, states]);
-
-  const totalLabelOpenCount = useMemo(() => {
-    let n = 0;
-    for (const c of labelCards) {
-      if (!visibleLabelIdSet.has(c.label.id)) continue;
-      if (!selectedLabelIds.has(c.label.id)) continue;
-      if (states[c.todoKey]?.status === "done") continue;
-      if (!isUpgradeTaskLabel(c.label)) continue;
-      n += 1;
-    }
-    return n;
-  }, [labelCards, selectedLabelIds, states, visibleLabelIdSet]);
 
 
   const onboardingCount = useMemo(
@@ -814,7 +733,6 @@ export default function Today() {
     if (status === "done")  return { key: "done",    color: "148,163,184", intensity: 0.05 }; // Slate → ruhig
     if (extraFilter === "push")       return { key: "push", color: "236,72,153",  intensity: 0.12 };
     if (extraFilter === "onboarding") return { key: "onb", color: "52,211,153", intensity: 0.11 };
-    if (extraFilter === "labels")     return { key: "lbl", color: "251,191,36", intensity: 0.10 };
     if (kindTab !== "all") {
       const map: Partial<Record<ActionSourceKind, string>> = {
         verzug: "248,113,113", recovery: "251,146,60", wakeup: "52,211,153",
@@ -1008,25 +926,6 @@ export default function Today() {
             <PushSection
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
-            />
-          ) : extraFilter === "labels" ? (
-            <LabelCardList
-              cards={visibleLabelCards}
-              doneKeys={labelDoneKeys}
-              platform={platform}
-              readonly={isReadonly}
-              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
-              onComplete={async (key) => {
-                const prev = { ...states };
-                setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
-                try {
-                  await setTodoStatus(platform, key, "done", null);
-                } catch {
-                  setStates(prev);
-                  throw new Error("save failed");
-                }
-              }}
-              onLabelRemoved={reloadLabelData}
             />
           ) : baseVisibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
@@ -1440,34 +1339,6 @@ export default function Today() {
                   return (
                     <>
                       {verzugGroup && renderKind(verzugGroup)}
-                      {labels.length > 0 && (
-                        <button
-                          onClick={() => {
-                            if (extraFilter === "labels") {
-                              setLabelFilterOpen(true);
-                            } else {
-                              setExtraFilter("labels");
-                              setKindTab("all");
-                              // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
-                              if (selectedLabelIds.size === 0) {
-                                setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)));
-                              }
-                            }
-                          }}
-                          className={cn(
-                            "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                            extraFilter === "labels"
-                              ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
-                              : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
-                          )}
-                        >
-                          <Tag className={cn("h-3 w-3", extraFilter === "labels" ? "text-amber-200" : "text-white/40")} />
-                          Labels
-                          <span className={cn("tabular-nums text-[10px]", extraFilter === "labels" ? "text-white/70" : "text-white/30")}>
-                            {totalLabelOpenCount}
-                          </span>
-                        </button>
-                      )}
                       {otherKinds.map(renderKind)}
                     </>
                   );
@@ -1519,22 +1390,6 @@ export default function Today() {
           </>
         );
       })()}
-
-      <LabelFilterSheet
-        open={labelFilterOpen}
-        onOpenChange={setLabelFilterOpen}
-        labels={labels}
-        countsByLabel={labelCountsByLabel}
-        selectedIds={selectedLabelIds}
-        onToggle={(id) => {
-          const next = new Set(selectedLabelIds);
-          if (next.has(id)) next.delete(id);
-          else next.add(id);
-          setSelectedLabelIds(next);
-        }}
-        onSelectAll={() => setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)))}
-        onClearAll={() => setSelectedLabelIds(new Set())}
-      />
 
       {compareActive && (
         <CompareTray
