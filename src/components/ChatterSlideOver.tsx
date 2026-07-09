@@ -149,11 +149,18 @@ function RevenueTooltip({
   const hasPortalTarget = typeof document !== "undefined" && rect && coordinate;
   const x = hasPortalTarget ? rect.left + coordinate.x : 0;
   const y = hasPortalTarget ? rect.top + coordinate.y : 0;
+  const availableAbove = hasPortalTarget ? y - 24 : 420;
+  const availableBelow = hasPortalTarget ? window.innerHeight - y - 24 : 420;
+  const placement = availableAbove >= availableBelow ? "above" : "below";
+  const tooltipMaxHeight = Math.min(420, Math.max(180, placement === "above" ? availableAbove : availableBelow));
+  const modelListMaxHeight = Math.max(96, Math.min(260, tooltipMaxHeight - 150));
   const left = hasPortalTarget
     ? Math.min(Math.max(12, x - tooltipWidth / 2), window.innerWidth - tooltipWidth - 12)
     : undefined;
   const top = hasPortalTarget
-    ? Math.max(12, y - 18)
+    ? placement === "above"
+      ? Math.max(12, y - 16)
+      : Math.min(window.innerHeight - 12, y + 16)
     : undefined;
 
   const tooltip = (
@@ -162,6 +169,8 @@ function RevenueTooltip({
       style={{
         width: tooltipWidth,
         maxWidth: "calc(100vw - 24px)",
+        maxHeight: tooltipMaxHeight,
+        overflow: "hidden",
         background: "rgba(12,12,14,0.98)",
         border: "1px solid rgba(255,255,255,0.1)",
         boxShadow: "0 24px 70px -20px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.03)",
@@ -200,7 +209,7 @@ function RevenueTooltip({
 
       {/* Per-Model */}
       {perModel.length > 0 && (
-        <div className="mt-3.5 border-t border-white/[0.06] pt-3 space-y-2 max-h-[280px] overflow-y-auto pr-0.5">
+        <div className="mt-3.5 border-t border-white/[0.06] pt-3 space-y-2 overflow-y-auto pr-0.5" style={{ maxHeight: modelListMaxHeight }}>
           <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-medium mb-1.5">Pro Model</p>
           {perModel.map((r) => {
             const delayed = r.response_delay_days > 0;
@@ -260,7 +269,7 @@ function RevenueTooltip({
       style={{
         left,
         top,
-        transform: "translateY(-100%)",
+        transform: placement === "above" ? "translateY(-100%)" : undefined,
       }}
     >
       {tooltip}
