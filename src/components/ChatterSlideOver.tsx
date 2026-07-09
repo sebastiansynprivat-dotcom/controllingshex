@@ -32,6 +32,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "rec
 import WeekTrendCard from "@/components/WeekTrendCard";
 import ChatterActivityHoursCard from "@/components/ChatterActivityHoursCard";
 import { onChatterDataUpdated, emitChatterLabelsUpdated } from "@/lib/data-events";
+import ModelPhaseTrend30 from "@/components/chatter/ModelPhaseTrend30";
 
 interface HistoryRow {
   analysis_date: string;
@@ -74,6 +75,12 @@ interface Props {
   initialCompareWith?: string | null;
   /** Split-View: rendert das Panel auf der rechten Bildschirmhälfte (nebeneinander mit dem Model-Monitor). */
   splitView?: boolean;
+  /**
+   * Optional: Modell-Kontext, aus dem heraus das Profil geöffnet wurde.
+   * Wenn gesetzt, wird der 30-Tage-Trend durch die farbcodierte Model-Timeline
+   * ersetzt (Chatter-Phasen + Ø/Tag pro Chatter).
+   */
+  modelContext?: string | null;
 }
 
 function toTitleCase(name: string): string {
@@ -583,7 +590,7 @@ function Trend30Block({
 
 
 
-export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false }: Props) {
+export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false, modelContext = null }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
@@ -1518,7 +1525,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
               <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact />
 
               {/* 30-Tage-Trend — compact sparkline */}
-              <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" historyRows={history} />
+              {modelContext ? (
+                <ModelPhaseTrend30 platform={platform} modelName={modelContext} focusChatter={chatterName} compact />
+              ) : (
+                <Trend30Block last30={last30} trend30={trend30} compact gradientId="trend30FillInline" historyRows={history} />
+              )}
 
               {/* KPI Grid */}
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -1967,7 +1978,11 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     <LiveKpiStrip liveKpis={liveKpis} isActiveToday={isActiveToday} compact={compact} />
 
                     {/* ── 30-Tage-Trend ── */}
-                    <Trend30Block last30={last30} trend30={trend30} compact={compact} gradientId="trend30Fill" historyRows={history} />
+                    {modelContext ? (
+                      <ModelPhaseTrend30 platform={platform} modelName={modelContext} focusChatter={chatterName} compact={compact} />
+                    ) : (
+                      <Trend30Block last30={last30} trend30={trend30} compact={compact} gradientId="trend30Fill" historyRows={history} />
+                    )}
 
                     {/* ── 2. KPI Grid (2×2) ── */}
                     <div className="grid grid-cols-2 gap-4">
