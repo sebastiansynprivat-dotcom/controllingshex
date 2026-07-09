@@ -41,6 +41,14 @@ const MIN_LIFETIME_DAYS = 14;
 const RECENT_WINDOW_DAYS = 14;
 const ZERO_STREAK_DAYS = 7;
 
+// High-Converter Klasse — nutzt Live-Efficiency (RPC get_live_efficiency).
+const HC_WINDOW_DAYS = 14;
+const HC_MIN_INCOMING = 50;         // Volumen-Gate
+const HC_LIFT_FACTOR = 1.3;         // eur/incoming ≥ 1.3× Peer-Median des aktuellen Tiers
+const HC_MIN_TIER_SAMPLE = 3;       // Median nur zuverlässig ab n=3 Peers im Tier
+
+
+
 // ---------- Typen ----------
 interface HistoryRow {
   chatter_name: string;
