@@ -441,6 +441,17 @@ export async function loadPushCards(platform: string): Promise<PushCard[]> {
     }
   }
 
+  // ==== SILENT MODELS ====
+  // Models mit heute 0 €, aber 7T-Ø > 10 €/Tag und mind. 3 aktive Tage.
+  try {
+    const silent = await loadSilentModelCards(platform, today);
+    cards.push(...silent);
+  } catch (e) {
+    console.error("[push-buckets] silent models", e);
+  }
+
+
+
   // Sortierung: nach Bucket-Order, dann Score absteigend
   cards.sort((a, b) => {
     if (a.bucket.order !== b.bucket.order) return a.bucket.order - b.bucket.order;
