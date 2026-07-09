@@ -12,11 +12,144 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeAccountName, normalizeChatterName } from "@/lib/active-chatters";
+
+const PAGE_SIZE = 1000;
+
+interface RawHistoryRow {
+  account: string | null;
+  chatter_name: string | null;
+  revenue_today: number | string | null;
+  analysis_date: string | null;
+}
+
+export interface ModelHistoryPoint {
+  date: string;
+  chatterName: string;
+  chatterKey: string;
+  revenue: number;
+}
+
+function cleanDisplayName(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitAccounts(raw: string | null | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((s) => cleanDisplayName(s))
+    .filter(Boolean);
+}
+
+function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+async function fetchModelCandidateRows(
+  platform: string,
+  modelName: string,
+  fromDate?: string,
+  toDate?: string,
+): Promise<RawHistoryRow[]> {
+  const out: RawHistoryRow[] = [];
+  let offset = 0;
+  const term = cleanDisplayName(modelName);
+
+  while (true) {
+    let query = supabase
+      .from("chatter_history")
+      .select("account, chatter_name, revenue_today, analysis_date")
+      .eq("platform", platform)
+      .ilike("account", `%${escapeIlike(term)}%`)
+      .order("analysis_date", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (fromDate) query = query.gte("analysis_date", fromDate);
+    if (toDate) query = query.lte("analysis_date", toDate);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    out.push(...(data as RawHistoryRow[]));
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return out;
+}
+
+async function loadFollowerMap(platform: string): Promise<Map<string, number>> {
+  const { data } = await supabase
+    .from("models")
+    .select("model_name, follower_count")
+    .eq("platform", platform);
+
+  const map = new Map<string, number>();
+  for (const row of data || []) {
+    const key = normalizeAccountName(String(row.model_name ?? ""));
+    if (key) map.set(key, Number(row.follower_count) || 0);
+  }
+  return map;
+}
+
+/**
+ * Lädt die Historie für ein Model robust über Case-/Schreibweisen hinweg.
+ * Wichtig: `account` kann mehrere Models enthalten ("A, B") – dann wird der
+ * Umsatz wie in der Model-Übersicht auf das passende Model aufgeteilt.
+ */
+export async function loadModelHistoryForModel(
+  platform: string,
+  modelName: string,
+  fromDate?: string,
+  toDate?: string,
+): Promise<ModelHistoryPoint[]> {
+  const targetKey = normalizeAccountName(modelName);
+  if (!targetKey) return [];
+
+  const [rows, followerMap] = await Promise.all([
+    fetchModelCandidateRows(platform, modelName, fromDate, toDate),
+    loadFollowerMap(platform),
+  ]);
+
+  const points: ModelHistoryPoint[] = [];
+  for (const row of rows) {
+    const date = row.analysis_date;
+    if (!date) continue;
+
+    const accounts = splitAccounts(row.account);
+    const accountKeys = accounts.map((a) => normalizeAccountName(a));
+    const targetIndex = accountKeys.findIndex((key) => key === targetKey);
+    if (targetIndex === -1) continue;
+
+    const totalRevenue = Number(row.revenue_today) || 0;
+    let revenue = totalRevenue;
+    if (accounts.length > 1) {
+      const weights = accountKeys.map((key) => Math.max(0, followerMap.get(key) ?? 0));
+      const weightSum = weights.reduce((sum, w) => sum + w, 0);
+      revenue = weightSum > 0
+        ? totalRevenue * (weights[targetIndex] / weightSum)
+        : totalRevenue / accounts.length;
+    }
+
+    const chatterName = cleanDisplayName(row.chatter_name) || "—";
+    const chatterKey = normalizeChatterName(chatterName) || chatterName.toLowerCase();
+    points.push({ date, chatterName, chatterKey, revenue });
+  }
+
+  points.sort((a, b) => a.date.localeCompare(b.date));
+  return points;
+}
 
 export interface DailyPoint {
   date: string;          // YYYY-MM-DD
   revenue: number;
   chatter: string | null;
+  chatterKey?: string | null;
 }
 
 export interface ChatterPhase {
@@ -59,25 +192,16 @@ export async function loadModelTimeline(
   fromDate: string,
   toDate: string
 ): Promise<ModelTimeline> {
-  const { data } = await supabase
-    .from("chatter_history")
-    .select("chatter_name, revenue_today, analysis_date")
-    .eq("platform", platform)
-    .eq("account", modelName)
-    .gte("analysis_date", fromDate)
-    .lte("analysis_date", toDate)
-    .order("analysis_date", { ascending: true });
+  const data = await loadModelHistoryForModel(platform, modelName, fromDate, toDate);
 
   // Gruppieren pro Tag
-  const byDay = new Map<string, Map<string, number>>(); // date -> chatter -> sum
-  for (const row of data || []) {
-    const date = row.analysis_date;
-    const chatter = row.chatter_name?.trim() || "—";
-    const rev = Number(row.revenue_today) || 0;
-    if (!date) continue;
-    if (!byDay.has(date)) byDay.set(date, new Map());
-    const m = byDay.get(date)!;
-    m.set(chatter, (m.get(chatter) ?? 0) + rev);
+  const byDay = new Map<string, Map<string, { name: string; revenue: number }>>(); // date -> chatterKey -> sum
+  for (const row of data) {
+    if (!byDay.has(row.date)) byDay.set(row.date, new Map());
+    const m = byDay.get(row.date)!;
+    const cur = m.get(row.chatterKey) ?? { name: row.chatterName, revenue: 0 };
+    cur.revenue += row.revenue;
+    m.set(row.chatterKey, cur);
   }
 
   const daily: DailyPoint[] = [];
@@ -85,16 +209,18 @@ export async function loadModelTimeline(
   for (const date of sortedDates) {
     const m = byDay.get(date)!;
     let topChatter: string | null = null;
+    let topChatterKey: string | null = null;
     let topRev = -1;
     let total = 0;
-    for (const [name, rev] of m) {
-      total += rev;
-      if (rev > topRev) {
-        topRev = rev;
-        topChatter = name;
+    for (const [key, item] of m) {
+      total += item.revenue;
+      if (item.revenue > topRev) {
+        topRev = item.revenue;
+        topChatter = item.name;
+        topChatterKey = key;
       }
     }
-    daily.push({ date, revenue: total, chatter: topChatter });
+    daily.push({ date, revenue: total, chatter: topChatter, chatterKey: topChatterKey });
   }
 
   // Phasen ableiten: aufeinanderfolgende Tage mit gleichem Chatter
@@ -102,7 +228,7 @@ export async function loadModelTimeline(
   for (const point of daily) {
     if (!point.chatter) continue;
     const last = phases[phases.length - 1];
-    if (last && last.chatterName === point.chatter) {
+    if (last && normalizeChatterName(last.chatterName) === (point.chatterKey ?? normalizeChatterName(point.chatter))) {
       last.toDate = point.date;
       last.days += 1;
       last.totalRevenue += point.revenue;
