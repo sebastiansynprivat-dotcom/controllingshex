@@ -49,6 +49,14 @@ import {
   type LabelAssignment,
 } from "@/lib/chatter-labels";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchHiddenUpgrades,
+  hideUpgradeChatter,
+  unhideUpgradeChatter,
+  hiddenChatterKey,
+  onHiddenUpgradesUpdated,
+  type HiddenUpgradeEntry,
+} from "@/lib/hidden-upgrades";
 
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
