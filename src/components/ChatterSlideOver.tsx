@@ -118,10 +118,14 @@ function RevenueTooltip({
   active,
   payload,
   historyRows,
+  coordinate,
+  chartRef,
 }: {
   active?: boolean;
   payload?: any[];
   historyRows?: HistoryRow[];
+  coordinate?: { x: number; y: number };
+  chartRef?: React.RefObject<HTMLDivElement>;
 }) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload as (HistoryRow & { note?: string }) | undefined;
@@ -139,10 +143,38 @@ function RevenueTooltip({
   const totalRevenue = rowsForDate.reduce((s, r) => s + (r.revenue_today || 0), 0) || row.revenue_today;
   const totalMassDms = rowsForDate.reduce((s, r) => s + (r.mass_dms || 0), 0) || row.mass_dms;
   const totalOpen = rowsForDate.reduce((s, r) => s + (r.open_chats || 0), 0);
-  return (
+
+  const tooltipWidth = typeof window !== "undefined" ? Math.min(340, Math.max(280, window.innerWidth - 24)) : 340;
+  const rect = chartRef?.current?.getBoundingClientRect();
+  const hasPortalTarget = typeof document !== "undefined" && rect && coordinate;
+  const x = hasPortalTarget ? rect.left + coordinate.x : 0;
+  const y = hasPortalTarget ? rect.top + coordinate.y : 0;
+  const availableAbove = hasPortalTarget ? y - 24 : 420;
+  const availableBelow = hasPortalTarget ? window.innerHeight - y - 24 : 420;
+  const placement = availableAbove >= availableBelow ? "above" : "below";
+  const tooltipMaxHeight = Math.min(420, Math.max(180, placement === "above" ? availableAbove : availableBelow));
+  const modelListMaxHeight = Math.max(96, Math.min(260, tooltipMaxHeight - 150));
+  const left = hasPortalTarget
+    ? Math.min(Math.max(12, x - tooltipWidth / 2), window.innerWidth - tooltipWidth - 12)
+    : undefined;
+  const top = hasPortalTarget
+    ? placement === "above"
+      ? Math.max(12, y - 16)
+      : Math.min(window.innerHeight - 12, y + 16)
+    : undefined;
+
+  const tooltip = (
     <div
-      className="premium-card rounded-2xl px-5 py-4 w-[340px] shadow-2xl backdrop-blur-xl"
-      style={{ background: "rgba(12,12,14,0.96)", border: "1px solid rgba(255,255,255,0.08)" }}
+      className="premium-card rounded-2xl px-5 py-4 shadow-2xl backdrop-blur-xl"
+      style={{
+        width: tooltipWidth,
+        maxWidth: "calc(100vw - 24px)",
+        maxHeight: tooltipMaxHeight,
+        overflow: "hidden",
+        background: "rgba(12,12,14,0.98)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 24px 70px -20px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.03)",
+      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
@@ -177,7 +209,7 @@ function RevenueTooltip({
 
       {/* Per-Model */}
       {perModel.length > 0 && (
-        <div className="mt-3.5 border-t border-white/[0.06] pt-3 space-y-2 max-h-[280px] overflow-y-auto pr-0.5">
+        <div className="mt-3.5 border-t border-white/[0.06] pt-3 space-y-2 overflow-y-auto pr-0.5" style={{ maxHeight: modelListMaxHeight }}>
           <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-medium mb-1.5">Pro Model</p>
           {perModel.map((r) => {
             const delayed = r.response_delay_days > 0;
@@ -227,6 +259,22 @@ function RevenueTooltip({
         </p>
       )}
     </div>
+  );
+
+  if (!hasPortalTarget) return tooltip;
+
+  return createPortal(
+    <div
+      className="pointer-events-none fixed z-[1000]"
+      style={{
+        left,
+        top,
+        transform: placement === "above" ? "translateY(-100%)" : undefined,
+      }}
+    >
+      {tooltip}
+    </div>,
+    document.body
   );
 }
 
@@ -454,6 +502,7 @@ function Trend30Block({
   gradientId: string;
   historyRows?: HistoryRow[];
 }) {
+  const chartRef = useRef<HTMLDivElement>(null);
   if (last30.length < 4) return null;
   const trendAccent =
     trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
@@ -476,7 +525,7 @@ function Trend30Block({
           </span>
         </div>
       </div>
-      <div className={`premium-card relative ${compact ? "rounded-2xl p-4" : "rounded-2xl p-5"}`}>
+      <div ref={chartRef} className={`premium-card relative ${compact ? "rounded-2xl p-4" : "rounded-2xl p-5"}`}>
         <ResponsiveContainer width="100%" height={compact ? 100 : 120}>
           <AreaChart data={last30}>
             <defs>
@@ -500,11 +549,12 @@ function Trend30Block({
               width={compact ? 40 : 50}
             />
             <Tooltip
-              content={<RevenueTooltip historyRows={historyRows} />}
+              content={<RevenueTooltip historyRows={historyRows} chartRef={chartRef} />}
               cursor={{ stroke: "rgba(255,255,255,0.08)" }}
               allowEscapeViewBox={{ x: true, y: true }}
-              wrapperStyle={{ zIndex: 80, outline: "none", pointerEvents: "none" }}
+              wrapperStyle={{ zIndex: 1000, outline: "none", pointerEvents: "none" }}
               offset={16}
+              isAnimationActive={false}
             />
 
             <Area
