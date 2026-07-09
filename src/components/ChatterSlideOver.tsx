@@ -74,6 +74,12 @@ interface Props {
   initialCompareWith?: string | null;
   /** Split-View: rendert das Panel auf der rechten Bildschirmhälfte (nebeneinander mit dem Model-Monitor). */
   splitView?: boolean;
+  /**
+   * Optional: Modell-Kontext, aus dem heraus das Profil geöffnet wurde.
+   * Wenn gesetzt, wird der 30-Tage-Trend durch die farbcodierte Model-Timeline
+   * ersetzt (Chatter-Phasen + Ø/Tag pro Chatter).
+   */
+  modelContext?: string | null;
 }
 
 function toTitleCase(name: string): string {
