@@ -58,19 +58,10 @@ const GROUPS: GroupDef[] = [
     id: "offline",
     emoji: "🌙",
     label: "Chatter offline",
-    sub: "Schichtstart · Abgetaucht · Offline",
+    sub: "Offline · Schichtstart · Abgetaucht · Model schweigt",
     accent: "text-indigo-200",
     glow: "from-indigo-500/[0.08] via-transparent to-transparent",
     chip: "bg-indigo-500/15 text-indigo-200 border-indigo-400/25",
-  },
-  {
-    id: "silent_model",
-    emoji: "📉",
-    label: "Models schweigen",
-    sub: "Heute 0 € trotz aktivem 7T-Schnitt",
-    accent: "text-slate-200",
-    glow: "from-slate-400/[0.07] via-transparent to-transparent",
-    chip: "bg-slate-400/15 text-slate-100 border-slate-300/20",
   },
 ];
 
@@ -81,7 +72,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<PushBucketGroup, boolean>>({
-    crisis: true, nudge: true, winning: true, offline: true, silent_model: true,
+    crisis: true, nudge: true, winning: true, offline: true,
   });
 
 
@@ -124,7 +115,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   );
 
   const byGroup = useMemo(() => {
-    const m: Record<PushBucketGroup, PushCard[]> = { crisis: [], nudge: [], winning: [], offline: [], silent_model: [] };
+    const m: Record<PushBucketGroup, PushCard[]> = { crisis: [], nudge: [], winning: [], offline: [] };
     for (const c of openCards) m[c.bucket.group].push(c);
     for (const k of Object.keys(m) as PushBucketGroup[]) {
       m[k].sort((a, b) => {
@@ -136,14 +127,13 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   }, [openCards]);
 
   const stats = useMemo(() => {
-    let live = 0, offline = 0, urgent = 0, silent = 0;
+    let live = 0, offline = 0, urgent = 0;
     for (const c of openCards) {
-      if (c.bucket.group === "silent_model") silent++;
-      else if (c.isLive) live++;
+      if (c.isLive) live++;
       else offline++;
       if (c.bucket.id === "rescue" || c.bucket.id === "kick" || c.bucket.id === "shift_due") urgent++;
     }
-    return { live, offline, urgent, silent };
+    return { live, offline, urgent };
   }, [openCards]);
 
   const act = async (card: PushCard, kind: "done" | "snooze") => {
@@ -186,7 +176,6 @@ export default function PushSection({ platform, onChatterClick }: Props) {
           </h2>
           <p className="mt-1 text-[11.5px] text-white/50 font-light">
             {stats.offline} offline · {stats.live} live
-            {stats.silent > 0 && <span className="text-slate-300/90"> · {stats.silent} stille Models</span>}
             {stats.urgent > 0 && <span className="text-orange-300/90"> · {stats.urgent} dringend</span>}
           </p>
         </div>
@@ -327,7 +316,7 @@ function PushCardItem({
   onChatterClick: (name: string) => void;
   onAct: (card: PushCard, kind: "done" | "snooze") => void;
 }) {
-  const isSilentModel = card.bucket.group === "silent_model";
+  const isSilentModel = card.bucket.id === "silent_model";
   return (
     <motion.div
       layout
