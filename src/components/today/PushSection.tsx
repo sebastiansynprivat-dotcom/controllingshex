@@ -185,39 +185,86 @@ export default function PushSection({ platform, onChatterClick }: Props) {
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="space-y-4 pt-1">
+            <div className="space-y-2.5 pt-1">
               {GROUPS.map((g) => {
                 const list = byGroup[g.id];
                 if (list.length === 0) return null;
                 const isCol = groupCollapsed[g.id];
                 return (
-                  <div key={g.id} className="space-y-2">
+                  <motion.div
+                    key={g.id}
+                    layout
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className={cn(
+                      "relative rounded-2xl overflow-hidden border border-white/[0.07]",
+                      "bg-white/[0.025] backdrop-blur-xl",
+                      "shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_20px_60px_-30px_rgba(0,0,0,0.6)]",
+                      "transition-colors",
+                      !isCol && "border-white/[0.12]",
+                    )}
+                  >
+                    {/* subtiler Farbschimmer */}
+                    <div
+                      aria-hidden
+                      className={cn(
+                        "pointer-events-none absolute inset-0 bg-gradient-to-br opacity-80",
+                        g.glow,
+                      )}
+                    />
+                    {/* Glanzkante oben */}
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    />
+
                     <button
                       onClick={() => toggleGroup(g.id)}
-                      className="w-full flex items-center justify-between gap-3 group/hd text-left px-1"
+                      className="relative w-full flex items-center justify-between gap-3 group/hd text-left px-4 py-3.5"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-[13px] leading-none">{g.emoji}</span>
-                        <span className={cn("text-[10.5px] uppercase tracking-[0.16em] font-semibold", g.accent)}>
-                          {g.label}
-                        </span>
-                        <span className="text-[10px] tabular-nums text-white/40 font-medium">({list.length})</span>
-                        <span className="hidden sm:inline text-[10.5px] text-white/25 font-light truncate">· {g.sub}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-[16px] leading-none drop-shadow-sm">{g.emoji}</span>
+                        <div className="min-w-0 flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className={cn("text-[11px] uppercase tracking-[0.18em] font-semibold", g.accent)}>
+                              {g.label}
+                            </span>
+                            <span className={cn(
+                              "tabular-nums text-[10px] font-semibold px-1.5 py-0.5 rounded-full border",
+                              g.chip,
+                            )}>
+                              {list.length}
+                            </span>
+                          </div>
+                          <span className="text-[10.5px] text-white/35 font-light truncate">{g.sub}</span>
+                        </div>
                       </div>
-                      <ChevronDown
-                        className={cn("h-3.5 w-3.5 text-white/25 group-hover/hd:text-white/60 transition-transform shrink-0", isCol && "-rotate-90")}
-                      />
+                      <div
+                        className={cn(
+                          "h-7 w-7 rounded-full flex items-center justify-center border border-white/10 bg-white/[0.03]",
+                          "group-hover/hd:bg-white/[0.08] group-hover/hd:border-white/20 transition-all",
+                        )}
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 text-white/60 transition-transform duration-300",
+                            isCol && "-rotate-90",
+                          )}
+                        />
+                      </div>
                     </button>
+
                     <AnimatePresence initial={false}>
                       {!isCol && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
+                          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                          className="relative overflow-hidden"
                         >
-                          <div className="space-y-2">
+                          {/* Innerer Trenner */}
+                          <div className="mx-4 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                          <div className="p-3 space-y-2">
                             {list.map((card) => (
                               <PushCardItem
                                 key={card.todoKey}
@@ -230,10 +277,11 @@ export default function PushSection({ platform, onChatterClick }: Props) {
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
+
           </motion.div>
         )}
       </AnimatePresence>
