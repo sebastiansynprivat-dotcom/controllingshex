@@ -48,12 +48,11 @@ export default function ModelPhaseTrend30({ platform, modelName, focusChatter, c
     let cancel = false;
     setLoading(true);
     const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
+    // All-Time: sehr frühes Startdatum, damit die komplette Historie geladen wird.
     loadModelTimeline(
       platform,
       modelName,
-      from.toISOString().split("T")[0],
+      "2000-01-01",
       to.toISOString().split("T")[0],
     )
       .then((t) => !cancel && setTl(t))
@@ -106,7 +105,7 @@ export default function ModelPhaseTrend30({ platform, modelName, focusChatter, c
   if (loading && !tl) {
     return (
       <div className={`premium-card rounded-2xl ${compact ? "p-4" : "p-5"} text-center text-white/30 text-[11px] font-light`}>
-        Lade Model-Trend …
+        Lade All-Time-Trend …
       </div>
     );
   }
@@ -124,7 +123,7 @@ export default function ModelPhaseTrend30({ platform, modelName, focusChatter, c
               style={{ background: "hsl(45 90% 55%)" }}
             />
             <span className="text-[10px] uppercase tracking-[0.18em] text-white/50 font-medium">
-              30-Tage-Trend · {modelName}
+              All-Time-Trend · {modelName}
             </span>
           </div>
         </div>
