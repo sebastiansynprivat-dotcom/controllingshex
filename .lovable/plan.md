@@ -1,59 +1,60 @@
 ## Ziel
-Das Chatter-Profil (`ChatterSlideOver`) aufräumen: weniger Rauschen, wichtige Zahlen sofort im Blick, Labels als schneller Header-Kontrol statt großer Sektion, keine ungenutzten Blöcke mehr. Keine Datenquelle wird gelöscht — nur UI/Anordnung.
+Neue Upgrade-Klasse `high_converter` in die bestehende Upgrade-Kandidaten-Logik einbauen. Alte Trigger (`seed`, `second_account`, `promotion`) bleiben unverändert – rein additiv.
 
-## Neue Sektions-Reihenfolge (oben → unten)
+## Was neu dazukommt
 
-1. **Hero-Header** — Avatar · Name · Platform · 30T-Trend-Pill · **Labels-Chip-Row + „+ Label"-Dropdown** · Vergleichen · Schließen
-2. **Live-KPIs (Echtzeit)** — Tagesumsatz · Mass-DMs · „Heute aktiv"-Zeile (unverändert)
-3. **Basis-KPIs (2×2)** — bestehende Kennzahlen (unverändert)
-4. **30-Tage-Trend** _(hochgezogen)_
-5. **Postfach-Disziplin** _(hochgezogen)_
-6. **Models & Logins** _(cleaner: reine Chip/Reveal-Liste, statt großer Karte)_
-7. **Online-Zeiten** (Stunden-Profil)
-8. **Management-Logbuch** (Notizen/Memos)
-9. **Verlauf-Tabelle** (unverändert)
+**Neue Klasse: `high_converter`**
+Chatter, die pro eingehender Nachricht überdurchschnittlich viel Umsatz machen – auch wenn ihr Account (noch) klein ist.
 
-## Entfernte Sektionen (nur UI, Code/Feature bleibt)
+### Datenquellen (alle vorhanden, nichts neu bauen)
+- `get_live_efficiency(user_id, platform, from, to)` RPC → liefert `eur_per_incoming`, `total_incoming_proxy`, `total_revenue` pro Chatter
+- `account-tiers.ts` → Tier-Zuordnung (seed/starter/growth/top) via Follower-Count
+- `chatter_history` (bestehend) → aktueller Account-Zuweisungs-Snapshot
 
-- **Voice-Memo-Sektion** komplett aus dem Profil raus (Funktion `handleGenerateVoiceMemo` und Import bleiben ungenutzt / können in Folge-Cleanup entfernt werden).
-- **7-Tage-Trend / `WeekTrendCard`** aus dem Profil raus.
+### Trigger-Bedingungen (alle müssen erfüllt sein)
+1. **Volumen-Gate:** `total_incoming_proxy ≥ 50` in den letzten 14 Tagen (sonst Zufall)
+2. **Aktivitäts-Gate:** `total_active_min ≥ 60` und `session_count ≥ 3` (nutzt bestehendes `hasUsableLiveData`)
+3. **Conversion-Lift:** `eur_per_incoming` des Chatters ≥ **1.3× Peer-Median** auf Accounts derselben Tier-Gruppe
+4. **Chatter sitzt aktuell nicht schon auf einem Top-Tier-Account** (sonst nichts zu upgraden)
 
-## Labels: neuer Header-Flow
+### Peer-Median-Berechnung
+- Für jeden Tier (`seed`, `starter`, `growth`, `top`) den Median von `eur_per_incoming` über alle Chatter berechnen, die aktuell auf einem Account dieses Tiers sitzen und das Volumen-Gate erfüllen.
+- Vergleich: Chatter-Wert vs. Median seines **aktuellen** Tiers.
 
-- Direkt hinter dem Namen: horizontale Chip-Row der zugewiesenen Labels (max. 4 sichtbar, Rest als „+N").
-- Ein kleiner **„+ Label"-Button** öffnet ein Popover:
-  - Suchfeld
-  - Liste aller Workspace-Labels mit Checkbox → Toggle
-  - Inline „Neues Label" (Name + Farbtupfer, wie heute)
-  - Neben jedem Label ein **Papierkorb-Icon** → löscht das Label workspace-weit (Confirm-Dialog, nutzt bestehende `deleteLabel`-Funktion)
-- Chip-Klick im Header → Popover auf demselben Label vor-fokussiert (optional, nice-to-have)
-- Bisherige große „Labels"-Sektion im Body entfällt.
+### Priorität im Dedup (in `account-swap-engine.ts`)
+Neue Reihenfolge:
+```
+high_converter > second_account > promotion > seed_p1 > seed_p2
+```
+Pro Chatter weiterhin nur eine Karte. Wenn ein Chatter sowohl `high_converter` als auch z. B. `promotion` triggert, gewinnt `high_converter`.
 
-## Models & Logins: cleaner
+### Fallback-Verhalten
+- Keine Live-/Incoming-Daten für einen Chatter → `high_converter` triggert einfach nicht, alte Klassen greifen wie bisher.
+- Kein Chatter fällt aus der Liste raus, der vorher drin war.
 
-Statt der aktuellen breiten Karte:
-- Kompakte Sektion „Models & Logins" mit einer Zeile pro Model:
-  - Model-Name · Copy-Button für E-Mail · „Passwort anzeigen"-Toggle (Auge-Icon) · Copy-Button für PW
-- Alles einzeilig, monospace-Werte, dezente Divider. Kein Header-Padding-Overkill.
+## Technische Details
 
-## Technische Umsetzung
+### Änderungen an `src/lib/account-swap-engine.ts`
+- Neuen Type `"high_converter"` zum Upgrade-Kind-Union hinzufügen
+- Neue Funktion `detectHighConverters(platform, currentAssignments, followersByAcc)`:
+  - Lädt Live-Efficiency für die letzten 14 Tage via `fetchLiveEfficiency` (aus `src/lib/live-efficiency.ts`)
+  - Filtert auf Volumen-/Aktivitäts-Gate
+  - Berechnet Peer-Median pro Tier
+  - Emittiert Kandidaten mit `eur_per_incoming ≥ 1.3× tier-median`
+- In der bestehenden Aggregation aufrufen und **vor** den anderen Klassen ins Dedup einspeisen
+- `impactEurPerWeek` bleibt konsistent mit den anderen Upgrade-Karten (aktuell hart 0 gesetzt) – nicht anfassen
 
-- Datei: `src/components/ChatterSlideOver.tsx`
-  - Hero-Header (Zeile ~1379): neue `LabelChips` + `LabelPopover`-Komponente einhängen (im selben File, klein gehalten).
-  - Body-Reihenfolge (Zeile 1573+) neu sortieren gemäß Liste oben.
-  - Voice-Memo-JSX (~1734–1778) und 7-Tage-Trend-JSX (~1814–1817) entfernen.
-  - Alte Labels-Sektion (~1656) entfernen.
-  - Bestehende Handler `toggleLabel`, `createLabel`, `deleteLabel` bleiben.
-- Kompakte Variante (inline/split, Zeile 858+): gleiche neue Reihenfolge & Header-Labels, entsprechend runter-skaliert. Die kompakte inline-Sektion (Zeile 1005 `{modelsLoginsBlock}`, 1073 Voice-Memo etc.) analog aufräumen.
-- Keine DB-Änderungen, keine neuen Tabellen.
-- shadcn `Popover` + `Command` sind bereits im Projekt vorhanden — für das Label-Popover verwenden.
+### Änderungen an `src/pages/Today.tsx`
+- Nur Anzeige-Label ergänzen: `high_converter` → z. B. „Top-Konvertierer" mit Kurzbegründung („X €/Nachricht, +Y% über Peer-Median")
+- Rendering nutzt weiterhin `PersonActionCard`, keine neuen Komponenten
 
-## Was NICHT geändert wird
+### Keine Änderungen an
+- DB-Schema, RLS, RPCs
+- Bestehende Upgrade-Klassen und deren Schwellen
+- `potential-detector.ts` (parallel-System bleibt wie es ist)
 
-- Vergleichs-Modus-Symmetrie (letzter Fix bleibt).
-- Datenpipeline / Backend / Migrations.
-- Andere Views (Today, Models etc.).
-
-## Offene Frage
-
-Das **Löschen eines Labels aus dem Workspace** wirkt für ALLE Chatter (bestehende Funktion). Confirm-Dialog vorschalten? _Default-Vorschlag: ja — kurzer AlertDialog „Label X wirklich workspace-weit löschen?"_
+## Offene Punkte (kann ich mit Defaults bauen, sag Bescheid wenn was anders sein soll)
+- **Zeitfenster:** 14 Tage (analog zur bestehenden Upgrade-Logik)
+- **Volumen-Gate:** 50 incoming/14T
+- **Lift-Faktor:** 1.3×
+- **Tier-Vergleich:** gegen Peer-Median des **aktuellen** Tiers (nicht Ziel-Tier)

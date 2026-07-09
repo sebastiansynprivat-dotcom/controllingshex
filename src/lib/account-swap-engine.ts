@@ -21,6 +21,8 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import { fetchLiveEfficiency, hasUsableLiveData, type LiveEfficiencyRow } from "@/lib/live-efficiency";
+import { tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import type { RevenueTask } from "@/lib/revenue-tasks";
 
 // ---------- Konstanten ----------
@@ -38,6 +40,14 @@ const MIN_SEED_RECENT_AVG = 10;
 const MIN_LIFETIME_DAYS = 14;
 const RECENT_WINDOW_DAYS = 14;
 const ZERO_STREAK_DAYS = 7;
+
+// High-Converter Klasse — nutzt Live-Efficiency (RPC get_live_efficiency).
+const HC_WINDOW_DAYS = 14;
+const HC_MIN_INCOMING = 50;         // Volumen-Gate
+const HC_LIFT_FACTOR = 1.3;         // eur/incoming ≥ 1.3× Peer-Median des aktuellen Tiers
+const HC_MIN_TIER_SAMPLE = 3;       // Median nur zuverlässig ab n=3 Peers im Tier
+
+
 
 // ---------- Typen ----------
 interface HistoryRow {
@@ -68,7 +78,7 @@ interface DowngradeCandidate {
   severityRank: number; // 0 = zero_streak, 1 = delay, 2 = underperformance
 }
 
-type UpgradeType = "seed_p1" | "seed_p2" | "second_account" | "promotion";
+type UpgradeType = "seed_p1" | "seed_p2" | "second_account" | "promotion" | "high_converter";
 
 interface UpgradeCandidate {
   chatter: string;
@@ -82,6 +92,14 @@ interface UpgradeCandidate {
   todayRevenue: number;
   /** Nur Typ Z: Slot-spezifischer Score (Ziel-Account-Lifetime / Ist-Lifetime). */
   promotionDiff?: number;
+  /** Nur high_converter: €/eingehende Nachricht (letzte 14T). */
+  eurPerIncoming?: number;
+  /** Nur high_converter: Peer-Median €/Nachricht im aktuellen Tier. */
+  tierMedianEurPerIncoming?: number;
+  /** Nur high_converter: aktuelles Tier-Label des Chatters. */
+  currentTierLabel?: string;
+  /** Nur high_converter: Volumen (incoming proxy) im Fenster. */
+  incomingCount?: number;
 }
 
 interface SwapMatch {
@@ -633,8 +651,131 @@ function upgradeReasonText(u: UpgradeCandidate): string {
       return `${u.chatter} aktiv auf Seed-Account „${u.currentAccountLabel}" (${u.currentFollowers} Follower) mit Revenue — bereit für größeren Account.`;
     case "seed_p2":
       return `${u.chatter} aktiv auf Seed-Account „${u.currentAccountLabel}" (${u.currentFollowers} Follower), bisher ohne Revenue — Chance auf größeren Account.`;
+    case "high_converter": {
+      const epi = u.eurPerIncoming ?? 0;
+      const med = u.tierMedianEurPerIncoming ?? 0;
+      const lift = med > 0 ? Math.round(((epi / med) - 1) * 100) : 0;
+      const tier = u.currentTierLabel ?? "aktuelles Tier";
+      return `${u.chatter} konvertiert eingehende Nachrichten überdurchschnittlich: ${epi.toFixed(2).replace(".", ",")} €/Nachricht (14d, ${u.incomingCount ?? 0} Nachrichten) — +${lift}% über Peer-Median (${med.toFixed(2).replace(".", ",")} €) im Tier „${tier}". Größerer Account bringt mehr Volumen bei gleicher Conversion.`;
+    }
   }
 }
+
+/**
+ * High-Converter Detektor — Chatter, die pro eingehender Nachricht deutlich
+ * überdurchschnittlich viel Umsatz erzeugen (relativ zum Peer-Median ihres
+ * aktuellen Account-Tiers). Nutzt die RPC `get_live_efficiency` (letzte 14T).
+ *
+ * Ist bewusst additiv zu den bestehenden Upgrade-Typen: Chatter ohne
+ * Live-/Incoming-Daten triggern hier nicht — die alten Typen (seed/second/promotion)
+ * greifen dann wie bisher.
+ */
+async function detectUpgradesHighConverter(
+  platform: string,
+  lastAssignments: Map<string, Set<string>>,
+  followersByAcc: Map<string, number>,
+  activeNames: Set<string> | null,
+  originalChatterName: Map<string, string>,
+  originalAccountLabel: Map<string, string>,
+): Promise<UpgradeCandidate[]> {
+  const from = isoDaysAgo(HC_WINDOW_DAYS);
+  const to = todayStr();
+  let liveMap: Map<string, LiveEfficiencyRow>;
+  try {
+    liveMap = await fetchLiveEfficiency(platform, from, to);
+  } catch (e) {
+    console.warn("[account-swap-engine] high_converter: live-efficiency failed", e);
+    return [];
+  }
+  if (liveMap.size === 0) return [];
+
+  // Chatter-Effizienz-Rows re-normalisieren auf normalizeChatterName-Schema
+  // (fetchLiveEfficiency benutzt intern nur trim+lowercase).
+  const byNormalizedChatter = new Map<string, LiveEfficiencyRow>();
+  for (const row of liveMap.values()) {
+    const key = normalizeChatterName(row.chatter_name);
+    if (!key) continue;
+    // Falls Duplikate: die mit höherem Volumen gewinnt
+    const prev = byNormalizedChatter.get(key);
+    if (!prev || row.total_incoming_proxy > prev.total_incoming_proxy) {
+      byNormalizedChatter.set(key, row);
+    }
+  }
+
+  // Aktuelles Tier je Chatter = Tier des größten aktuell zugewiesenen Accounts.
+  const chatterTier = new Map<string, { id: AccountTierId; label: string; topAccount: string; followers: number } | null>();
+  for (const [ck, accs] of lastAssignments) {
+    if (activeNames && !activeNames.has(ck)) continue;
+    let bestAcc: string | null = null;
+    let bestFollowers = -1;
+    for (const a of accs) {
+      const f = followersByAcc.get(a) ?? 0;
+      if (f > bestFollowers) { bestFollowers = f; bestAcc = a; }
+    }
+    if (!bestAcc) { chatterTier.set(ck, null); continue; }
+    const tier = tierForFollowers(bestFollowers);
+    if (!tier) { chatterTier.set(ck, null); continue; }
+    chatterTier.set(ck, { id: tier.id, label: tier.label, topAccount: bestAcc, followers: bestFollowers });
+  }
+
+  // Peer-Median je Tier auf Basis der Chatter, die aktuell in diesem Tier sitzen
+  // UND das Volumen-Gate erfüllen.
+  const perTierValues = new Map<AccountTierId, number[]>();
+  for (const [ck, tier] of chatterTier) {
+    if (!tier) continue;
+    const row = byNormalizedChatter.get(ck);
+    if (!row) continue;
+    if (row.total_incoming_proxy < HC_MIN_INCOMING) continue;
+    if (!hasUsableLiveData(row)) continue;
+    if (!perTierValues.has(tier.id)) perTierValues.set(tier.id, []);
+    perTierValues.get(tier.id)!.push(row.eur_per_incoming);
+  }
+  const median = (arr: number[]): number => {
+    if (arr.length === 0) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+  };
+  const tierMedian = new Map<AccountTierId, number>();
+  for (const [tid, vals] of perTierValues) {
+    if (vals.length < HC_MIN_TIER_SAMPLE) continue;
+    tierMedian.set(tid, median(vals));
+  }
+
+  const out: UpgradeCandidate[] = [];
+  for (const [ck, tier] of chatterTier) {
+    if (!tier) continue;
+    // Bereits Top-Tier → nichts zu upgraden
+    if (tier.id === "top") continue;
+    const row = byNormalizedChatter.get(ck);
+    if (!row) continue;
+    if (row.total_incoming_proxy < HC_MIN_INCOMING) continue;
+    if (!hasUsableLiveData(row)) continue;
+    const med = tierMedian.get(tier.id);
+    if (med == null || med <= 0) continue;
+    if (row.eur_per_incoming < HC_LIFT_FACTOR * med) continue;
+
+    out.push({
+      chatter: originalChatterName.get(ck) ?? row.chatter_name,
+      type: "high_converter",
+      currentAccountKey: tier.topAccount,
+      currentAccountLabel: originalAccountLabel.get(tier.topAccount) ?? tier.topAccount,
+      currentFollowers: tier.followers,
+      currentLifetimeAvg: null,
+      recent14d: row.total_revenue / HC_WINDOW_DAYS,
+      ratio: row.eur_per_incoming / med,
+      todayRevenue: 0,
+      eurPerIncoming: row.eur_per_incoming,
+      tierMedianEurPerIncoming: med,
+      currentTierLabel: tier.label,
+      incomingCount: row.total_incoming_proxy,
+    });
+  }
+  out.sort((a, b) => (b.eurPerIncoming ?? 0) - (a.eurPerIncoming ?? 0));
+  return out;
+}
+
+
 
 // ---------- Public API ----------
 export async function buildAccountSwapTasks(platform: string): Promise<RevenueTask[]> {
@@ -750,6 +891,15 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     originalAccountLabel,
   );
 
+  const upgradesHC = await detectUpgradesHighConverter(
+    platform,
+    lastAssignments,
+    followersByAcc,
+    activeNames,
+    originalChatterName,
+    originalAccountLabel,
+  );
+
   const { matches, unusedY } = matchSwaps(
     downgrades,
     upgradesY,
@@ -777,6 +927,7 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     upgradesZ: upgradesZ.length,
     upgradesX1: upgradesX1.length,
     upgradesX2: upgradesX2.length,
+    upgradesHC: upgradesHC.length,
     matches: matches.length,
     unusedY: unusedY.length,
   });
@@ -838,40 +989,42 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
   }
 
   // -------- UPGRADE-KANDIDATEN (eigene Sektion) --------
-  // Alle Upgrade-Kandidaten — unabhängig davon, ob im Swap-Matching ein Slot
-  // gefunden wurde. Dedup pro Chatter, beste Type-Priorität gewinnt:
-  // second_account > promotion > seed_p1 > seed_p2.
+  // Dedup pro Chatter, beste Type-Priorität gewinnt:
+  // high_converter > second_account > promotion > seed_p1 > seed_p2.
   const typeRank: Record<UpgradeType, number> = {
+    high_converter: 5,
     second_account: 4,
     promotion: 3,
     seed_p1: 2,
     seed_p2: 1,
   };
   const bestByChatter = new Map<string, UpgradeCandidate>();
-  for (const u of [...upgradesY, ...upgradesZ, ...upgradesX1, ...upgradesX2]) {
+  for (const u of [...upgradesHC, ...upgradesY, ...upgradesZ, ...upgradesX1, ...upgradesX2]) {
     const k = u.chatter.toLowerCase();
     const prev = bestByChatter.get(k);
     if (!prev || typeRank[u.type] > typeRank[prev.type]) bestByChatter.set(k, u);
   }
   for (const u of bestByChatter.values()) {
     const typeLabel =
-      u.type === "second_account" ? "Zweiter Account"
-        : u.type === "promotion" ? "Hochstufung"
-          : u.type === "seed_p1" ? "Größerer Account (mit Revenue)"
-            : "Größerer Account (Seed)";
+      u.type === "high_converter" ? "Top-Konvertierer"
+        : u.type === "second_account" ? "Zweiter Account"
+          : u.type === "promotion" ? "Hochstufung"
+            : u.type === "seed_p1" ? "Größerer Account (mit Revenue)"
+              : "Größerer Account (Seed)";
     tasks.push({
       key: `rev:upgrade:${u.chatter.toLowerCase()}:${today}`,
       kind: "upgrade",
       title: `${u.chatter} → ${typeLabel}`,
       why: upgradeReasonText(u),
       impactEurPerWeek: 0,
-      confidence: 0.7,
+      confidence: u.type === "high_converter" ? 0.8 : 0.7,
       score:
         (u.currentFollowers || 1) *
-        (u.type === "second_account" ? 1.4
-          : u.type === "promotion" ? 1.2
-            : u.type === "seed_p1" ? 1.0
-              : 0.6),
+        (u.type === "high_converter" ? 1.6
+          : u.type === "second_account" ? 1.4
+            : u.type === "promotion" ? 1.2
+              : u.type === "seed_p1" ? 1.0
+                : 0.6),
       chatterName: u.chatter,
       modelName: u.currentAccountLabel,
     });
