@@ -60,6 +60,32 @@ interface HistoryRow {
   account: string | null;
 }
 
+async function loadChatterHistoryRows(platform: string, sinceStr: string): Promise<HistoryRow[]> {
+  const pageSize = 1000;
+  const out: HistoryRow[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
+      .eq("platform", platform)
+      .gte("analysis_date", sinceStr)
+      .order("analysis_date", { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      console.warn("[daily-todos] history lookup failed", error);
+      break;
+    }
+
+    const page = (data || []) as HistoryRow[];
+    out.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return out;
+}
+
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const s = [...values].sort((a, b) => a - b);
@@ -77,14 +103,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   thirtyAgo.setDate(thirtyAgo.getDate() - 30);
   const sinceStr = thirtyAgo.toISOString().split("T")[0];
 
-  const { data: history } = await supabase
-    .from("chatter_history")
-    .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
-    .eq("platform", platform)
-    .gte("analysis_date", sinceStr)
-    .order("analysis_date", { ascending: false });
-
-  const rows = (history || []) as HistoryRow[];
+  const rows = await loadChatterHistoryRows(platform, sinceStr);
   if (rows.length === 0) return [];
 
   // Nur Chatter berücksichtigen, die im neuesten Report noch enthalten sind.
