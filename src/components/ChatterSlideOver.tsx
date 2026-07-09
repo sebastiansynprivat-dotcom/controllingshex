@@ -32,6 +32,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "rec
 import WeekTrendCard from "@/components/WeekTrendCard";
 import ChatterActivityHoursCard from "@/components/ChatterActivityHoursCard";
 import { onChatterDataUpdated, emitChatterLabelsUpdated } from "@/lib/data-events";
+import ModelPhaseTrend30 from "@/components/chatter/ModelPhaseTrend30";
 
 interface HistoryRow {
   analysis_date: string;
