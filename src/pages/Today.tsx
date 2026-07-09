@@ -73,15 +73,15 @@ const SWAP_RENDER_BATCH = 8;
 
 const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
   { id: "verzug",   label: "Verzug",         icon: AlertTriangle,  accent: "text-red-300",      dot: "bg-red-400/80" },
+  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
+  { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   // { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" }, // entfernt auf Wunsch
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
-  { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
+  { id: "model",    label: "Model",          icon: Star,           accent: "text-fuchsia-300",  dot: "bg-fuchsia-400/80" },
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "activity", label: "Aktivität",      icon: Activity,       accent: "text-teal-300",     dot: "bg-teal-400/80" },
-  { id: "model",    label: "Model",          icon: Star,           accent: "text-fuchsia-300",  dot: "bg-fuchsia-400/80" },
   { id: "slot",     label: "Slot / Schicht", icon: CalendarClock,  accent: "text-indigo-300",   dot: "bg-indigo-400/80" },
   { id: "positive", label: "Wins-Signal",    icon: ThumbsUp,       accent: "text-lime-300",     dot: "bg-lime-400/80" },
 ];
@@ -1311,73 +1311,86 @@ export default function Today() {
                     {statusList.length}
                   </span>
                 </button>
-                <button
-                  onClick={() => { setExtraFilter("push"); setKindTab("all"); }}
-                  className={cn(
-                    "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                    extraFilter === "push"
-                      ? "bg-pink-500/[0.12] border-pink-400/30 text-pink-100 shadow-[0_0_18px_-6px_rgba(236,72,153,0.4)]"
-                      : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
-                  )}
-                >
-                  <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
-                  Push
-                </button>
-                {labels.length > 0 && (
-                  <button
-                    onClick={() => {
-                      if (extraFilter === "labels") {
-                        setLabelFilterOpen(true);
-                      } else {
-                        setExtraFilter("labels");
-                        setKindTab("all");
-                        // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
-                        if (selectedLabelIds.size === 0) {
-                          setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)));
-                        }
-                      }
-                    }}
-                    className={cn(
-                      "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                      extraFilter === "labels"
-                        ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
-                        : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
-                    )}
-                  >
-                    <Tag className={cn("h-3 w-3", extraFilter === "labels" ? "text-amber-200" : "text-white/40")} />
-                    Labels
-                    <span className={cn("tabular-nums text-[10px]", extraFilter === "labels" ? "text-white/70" : "text-white/30")}>
-                      {totalLabelOpenCount}
-                    </span>
-                  </button>
-                )}
 
-                {availableKinds.map((g) => {
-                  const Icon = g.icon;
-                  const active = kindTab === g.id;
+                {/* Kind-Filter in der gewünschten Reihenfolge: Verzug, Labels, Upgrade, Downgrade, Recovery, Account-Tausch, Model, … */}
+                {(() => {
+                  const verzugGroup = availableKinds.find((g) => g.id === "verzug");
+                  const otherKinds = availableKinds.filter((g) => g.id !== "verzug");
+
+                  const renderKind = (g: typeof availableKinds[number]) => {
+                    const Icon = g.icon;
+                    const active = kindTab === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        onClick={() => {
+                          setExtraFilter("none");
+                          if (g.id === "swap") setSwapRenderCount(SWAP_RENDER_BATCH);
+                          setKindTab(g.id);
+                        }}
+                        className={cn(
+                          "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                          active
+                            ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                            : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                        )}
+                      >
+                        <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
+                        {g.label}
+                        <span className={cn("tabular-nums text-[10px]", active ? "text-white/70" : "text-white/30")}>
+                          {g.items.length}
+                        </span>
+                      </button>
+                    );
+                  };
+
                   return (
-                    <button
-                      key={g.id}
-                      onClick={() => {
-                        setExtraFilter("none");
-                        if (g.id === "swap") setSwapRenderCount(SWAP_RENDER_BATCH);
-                        setKindTab(g.id);
-                      }}
-                      className={cn(
-                        "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                        active
-                          ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
-                          : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                    <>
+                      {verzugGroup && renderKind(verzugGroup)}
+                      {labels.length > 0 && (
+                        <button
+                          onClick={() => {
+                            if (extraFilter === "labels") {
+                              setLabelFilterOpen(true);
+                            } else {
+                              setExtraFilter("labels");
+                              setKindTab("all");
+                              // Beim ersten Aktivieren: alle Labels markieren falls noch keine Auswahl
+                              if (selectedLabelIds.size === 0) {
+                                setSelectedLabelIds(new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)));
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                            extraFilter === "labels"
+                              ? "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                              : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                          )}
+                        >
+                          <Tag className={cn("h-3 w-3", extraFilter === "labels" ? "text-amber-200" : "text-white/40")} />
+                          Labels
+                          <span className={cn("tabular-nums text-[10px]", extraFilter === "labels" ? "text-white/70" : "text-white/30")}>
+                            {totalLabelOpenCount}
+                          </span>
+                        </button>
                       )}
-                    >
-                      <Icon className={cn("h-3 w-3", active ? g.accent : "text-white/40")} />
-                      {g.label}
-                      <span className={cn("tabular-nums text-[10px]", active ? "text-white/70" : "text-white/30")}>
-                        {g.items.length}
-                      </span>
-                    </button>
+                      {otherKinds.map(renderKind)}
+                      <button
+                        onClick={() => { setExtraFilter("push"); setKindTab("all"); }}
+                        className={cn(
+                          "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                          extraFilter === "push"
+                            ? "bg-pink-500/[0.12] border-pink-400/30 text-pink-100 shadow-[0_0_18px_-6px_rgba(236,72,153,0.4)]"
+                            : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                        )}
+                      >
+                        <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
+                        Push
+                      </button>
+                    </>
                   );
-                })}
+                })()}
               </div>
             </div>
           </div>
