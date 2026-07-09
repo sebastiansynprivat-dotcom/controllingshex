@@ -724,17 +724,28 @@ export default function Today() {
   }, [kindTab, availableKinds]);
 
 
+  const filteredLabelCards = useMemo(
+    () => labelCards.filter((c) => channelFilter === "all" || classifyChannel(c.chatterName) === channelFilter),
+    [labelCards, channelFilter],
+  );
+  const filteredOnboardingGroups = useMemo(() => {
+    if (channelFilter === "all") return onboardingGroups;
+    return onboardingGroups
+      .map((g) => ({ ...g, items: g.items.filter((it) => classifyChannel(it.chatterName) === channelFilter) }))
+      .filter((g) => g.items.length > 0);
+  }, [onboardingGroups, channelFilter]);
+
   // Label-Karten: heute schon erledigte Keys für Upgrade-Kandidaten-Sektion
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
-    for (const c of labelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
+    for (const c of filteredLabelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
     return s;
-  }, [labelCards, states]);
+  }, [filteredLabelCards, states]);
 
 
   const onboardingCount = useMemo(
-    () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
-    [onboardingGroups],
+    () => filteredOnboardingGroups.reduce((s, g) => s + g.items.length, 0),
+    [filteredOnboardingGroups],
   );
 
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
