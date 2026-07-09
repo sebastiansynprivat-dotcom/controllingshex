@@ -33,6 +33,7 @@ import {
   type WeekProgress as GoalProgress,
   type GoalStatus,
 } from "@/lib/weekly-goals";
+import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 const LABEL_NAME = "Wochenziel";
 
@@ -425,6 +426,7 @@ export default function WeeklyGoals() {
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
   // Impact-Filter: granular nach Wochenziel-Höhe
   const [impactFilter, setImpactFilter] = useState<"all" | "lt100" | "lt300" | "lt500" | "lt1000" | "gte1000">("all");
+  const [channelFilter, setChannelFilter] = useState<"all" | ChatterChannel>("all");
   const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
@@ -1293,9 +1295,10 @@ export default function WeeklyGoals() {
     else if (impactFilter === "lt500") arr = arr.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500);
     else if (impactFilter === "lt1000") arr = arr.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000);
     else if (impactFilter === "gte1000") arr = arr.filter((r) => r.progress.goal >= 1000);
+    if (channelFilter !== "all") arr = arr.filter((r) => classifyChannel(r.chatter) === channelFilter);
     if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
     return arr;
-  }, [rows, statusFilter, impactFilter]);
+  }, [rows, statusFilter, impactFilter, channelFilter]);
 
   const impactCounts = useMemo(() => ({
     lt100: rows.filter((r) => r.progress.goal < 100).length,
@@ -1303,6 +1306,11 @@ export default function WeeklyGoals() {
     lt500: rows.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500).length,
     lt1000: rows.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000).length,
     gte1000: rows.filter((r) => r.progress.goal >= 1000).length,
+  }), [rows]);
+
+  const channelCounts = useMemo(() => ({
+    whatsapp: rows.filter((r) => classifyChannel(r.chatter) === "whatsapp").length,
+    platform: rows.filter((r) => classifyChannel(r.chatter) === "platform").length,
   }), [rows]);
 
   const sortedRows = useMemo(() => {
@@ -1445,6 +1453,30 @@ export default function WeeklyGoals() {
                     onClick={() => setImpactFilter(k)}
                     className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
                       impactFilter === k
+                        ? activeCls
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Channel filter: WhatsApp vs. Plattform */}
+            {rows.length > 0 && (channelCounts.whatsapp > 0 || channelCounts.platform > 0) && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {([
+                  ["all", "Alle Kanäle", channelCounts.whatsapp + channelCounts.platform, "border-white/20 bg-white/[0.06] text-white/90"],
+                  ["platform", "Plattform", channelCounts.platform, "border-violet-300/30 bg-violet-400/10 text-violet-200"],
+                  ["whatsapp", "WhatsApp", channelCounts.whatsapp, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+                ] as ["all" | ChatterChannel, string, number, string][]).map(([k, label, count, activeCls]) => (
+                  <button
+                    key={k}
+                    onClick={() => setChannelFilter(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                      channelFilter === k
                         ? activeCls
                         : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
                     }`}
