@@ -105,7 +105,7 @@ export default function ModelPhaseTrend30({ platform, modelName, focusChatter, c
   if (loading && !tl) {
     return (
       <div className={`premium-card rounded-2xl ${compact ? "p-4" : "p-5"} text-center text-white/30 text-[11px] font-light`}>
-        Lade Model-Trend …
+        Lade All-Time-Trend …
       </div>
     );
   }
