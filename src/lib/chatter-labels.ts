@@ -37,6 +37,11 @@ export function isSystemLabel(label: ChatterLabel): boolean {
   return SYSTEM_NAME_SET.has(label.label_name);
 }
 
+/** Labels, die im Heute-Tab als echte Upgrade-Aufgabe zählen. */
+export function isUpgradeTaskLabel(label: ChatterLabel): boolean {
+  return label.label_name === "🟢 Upgrade" || label.label_name === "💛 Premium Upgrade";
+}
+
 /** "Terminal"-Label: Chatter ist final eingestuft → verschwindet aus Onboarding & Labels-Tab. */
 export function isUpgradeReceivedLabel(label: ChatterLabel): boolean {
   return label.label_name === UPGRADE_RECEIVED_LABEL_NAME;
