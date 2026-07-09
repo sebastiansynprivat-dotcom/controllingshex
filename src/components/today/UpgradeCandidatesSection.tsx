@@ -102,17 +102,9 @@ export default function UpgradeCandidatesSection({
         onClick={() => setCollapsed((c) => !c)}
         className="w-full flex items-end justify-between gap-4 group text-left"
       >
-        <div className="min-w-0">
-          <h2 className="text-base font-normal tracking-tight text-white/90 leading-tight">
-            Offene Upgrade-Labels
-          </h2>
-          <p className="mt-1 text-[11.5px] text-white/50 font-light">
-            {openCards.length} offen
-            {doneCards.length > 0 && (
-              <span className="text-emerald-300/80"> · {doneCards.length} heute upgegradet</span>
-            )}
-          </p>
-        </div>
+        <h2 className="text-base font-normal tracking-tight text-white/90 leading-tight">
+          Offene Upgrade-Labels
+        </h2>
         <ChevronDown
           className={cn(
             "h-4 w-4 text-white/30 group-hover:text-white/60 transition-transform shrink-0",
