@@ -205,6 +205,20 @@ export default function Today() {
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
+    try {
+      const v = localStorage.getItem(CHANNEL_FILTER_STORAGE_KEY);
+      return v === "whatsapp" || v === "platform" ? v : "all";
+    } catch { return "all"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(CHANNEL_FILTER_STORAGE_KEY, channelFilter); } catch {}
+  }, [channelFilter]);
+  const passesChannel = (a: UnifiedAction) => {
+    if (channelFilter === "all") return true;
+    if (!a.chatterName) return true; // Model-Aktionen ohne Chatter nicht ausfiltern
+    return classifyChannel(a.chatterName) === channelFilter;
+  };
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
