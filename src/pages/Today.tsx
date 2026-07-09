@@ -43,6 +43,7 @@ import {
   ensureSystemLabels,
   isSystemLabel,
   isUpgradeReceivedLabel,
+  isUpgradeTaskLabel,
   loadChatterLabels,
   loadLabelAssignments,
   type ChatterLabel,
@@ -729,6 +730,7 @@ export default function Today() {
       if (!visibleLabelIdSet.has(c.label.id)) continue;
       if (!selectedLabelIds.has(c.label.id)) continue;
       if (states[c.todoKey]?.status === "done") continue;
+      if (!isUpgradeTaskLabel(c.label)) continue;
       n += 1;
     }
     return n;
