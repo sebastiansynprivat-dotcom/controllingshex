@@ -477,3 +477,102 @@ function pickDisplayName(
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
 }
+
+/**
+ * Silent-Model-Karten: Model hat heute 0 € gemacht, aber im 7T-Schnitt (ohne
+ * heute) > 10 €/Tag und mind. 3 aktive Tage → verantwortliche Chatter noch mal
+ * anhauen.
+ */
+async function loadSilentModelCards(platform: string, today: string): Promise<PushCard[]> {
+  const sevenAgo = new Date();
+  sevenAgo.setDate(sevenAgo.getDate() - 7);
+  const sinceIso = sevenAgo.toISOString().slice(0, 10);
+
+  const { data: rows } = await supabase
+    .from("chatter_history")
+    .select("chatter_name, account, analysis_date, revenue_today")
+    .ilike("platform", platform)
+    .gte("analysis_date", sinceIso);
+
+  if (!rows || rows.length === 0) return [];
+
+  const activeModels = await loadActiveModels(platform);
+
+  // Pro Model (normalisiert): { revByDay: Map<date, sum>, displayName, todayChatters: Set }
+  interface Agg {
+    display: string;
+    revByDay: Map<string, number>;
+    todayChatters: Map<string, string>; // normKey -> displayName
+  }
+  const perModel = new Map<string, Agg>();
+
+  for (const r of rows) {
+    const rawAcc = (r.account ?? "").trim();
+    const rawName = (r.chatter_name ?? "").trim();
+    if (!rawAcc) continue;
+    const parts = rawAcc.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length === 0) continue;
+    const rev = Number(r.revenue_today ?? 0);
+    const perAcc = rev / parts.length;
+    for (const acc of parts) {
+      const key = normalizeAccountName(acc);
+      if (activeModels && !activeModels.has(key)) continue;
+      let agg = perModel.get(key);
+      if (!agg) {
+        agg = { display: acc, revByDay: new Map(), todayChatters: new Map() };
+        perModel.set(key, agg);
+      }
+      agg.revByDay.set(r.analysis_date, (agg.revByDay.get(r.analysis_date) ?? 0) + perAcc);
+      if (r.analysis_date === today && rawName) {
+        const nk = normalizeChatterName(rawName);
+        if (!agg.todayChatters.has(nk)) agg.todayChatters.set(nk, rawName);
+      }
+    }
+  }
+
+  const cards: PushCard[] = [];
+  for (const [modelKey, agg] of perModel) {
+    const todayRev = agg.revByDay.get(today) ?? 0;
+    if (todayRev > 0) continue;
+
+    // 7T-Schnitt ohne heute
+    let sum = 0;
+    let activeDays = 0;
+    let totalDays = 0;
+    let yesterday = 0;
+    const yIso = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0,10); })();
+    for (const [date, rev] of agg.revByDay) {
+      if (date === today) continue;
+      totalDays++;
+      sum += rev;
+      if (rev > 0) activeDays++;
+      if (date === yIso) yesterday = rev;
+    }
+    if (totalDays === 0) continue;
+    const avg = sum / totalDays;
+    if (avg <= 10) continue;
+    if (activeDays < 3) continue;
+
+    const chatters = Array.from(agg.todayChatters.values());
+    const chatterText = chatters.length > 0
+      ? chatters.length === 1 ? chatters[0] : `${chatters.length} Chatter`
+      : "kein Chatter zugewiesen";
+
+    cards.push({
+      todoKey: `push:model:${modelKey}:silent:${today}`,
+      chatterName: agg.display,
+      bucket: PUSH_BUCKETS.silent_model,
+      isLive: false,
+      score: 40 + Math.min(40, avg),
+      suggestion: chatters.length > 0
+        ? `Heute noch 0 € — ${chatterText} noch mal anhauen.`
+        : `Heute noch 0 € auf ${agg.display} — heute kein Chatter zugewiesen.`,
+      dataLine: `7T-Ø: ${fmtEur(avg)}/Tag${yesterday > 0 ? ` · gestern: ${fmtEur(yesterday)}` : ""} · heute: 0 €`,
+      assignedChatters: chatters,
+    });
+  }
+
+  cards.sort((a, b) => b.score - a.score);
+  return cards;
+}
+
