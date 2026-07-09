@@ -152,9 +152,12 @@ export interface PushCard {
   isLive: boolean;
   /** Score für innerhalb-Bucket-Sortierung (höher = wichtiger) */
   score: number;
-  /** Nur für silent_model — Chatter, die heute auf dem Model sitzen */
+  /** Nur für silent_model — Chatter, die im letzten Report auf dem Model sitzen */
   assignedChatters?: string[];
+  /** Nur für silent_model — Model-Display-Name */
+  modelName?: string;
 }
+
 
 
 interface LiveSnap {
