@@ -482,6 +482,141 @@ function PhaseRow({ phase, isCurrent, vsPrev, color }: {
   );
 }
 
+/**
+ * Chatter-Vergleich: Ø/Tag pro Chatter im gewählten Zeitraum PLUS Lifetime.
+ * Farbcodiert wie im Umsatz-Verlauf, sortiert nach Ø/Tag im Zeitraum.
+ */
+function ChatterComparisonCard({
+  periodByChatter,
+  lifetime,
+  chatterColors,
+  periodDays,
+}: {
+  periodByChatter: Map<string, { total: number; days: number }>;
+  lifetime: LifetimeChatterStats[];
+  chatterColors: Map<string, string>;
+  periodDays: number;
+}) {
+  const rows = useMemo(() => {
+    const names = new Set<string>([
+      ...periodByChatter.keys(),
+      ...lifetime.map((l) => l.chatterName),
+    ]);
+    const lifetimeMap = new Map(lifetime.map((l) => [l.chatterName, l]));
+    const items = Array.from(names).map((name) => {
+      const p = periodByChatter.get(name);
+      const l = lifetimeMap.get(name);
+      const periodAvg = p && p.days > 0 ? p.total / p.days : 0;
+      return {
+        name,
+        color: chatterColors.get(name) || "#666",
+        periodTotal: p?.total ?? 0,
+        periodDays: p?.days ?? 0,
+        periodAvg,
+        lifetimeAvg: l?.avgPerDay ?? 0,
+        lifetimeTotal: l?.totalRevenue ?? 0,
+        lifetimeDays: l?.activeDays ?? 0,
+        inPeriod: !!p && p.days > 0,
+      };
+    });
+    items.sort((a, b) => {
+      if (a.inPeriod !== b.inPeriod) return a.inPeriod ? -1 : 1;
+      return (b.inPeriod ? b.periodAvg : b.lifetimeAvg) - (a.inPeriod ? a.periodAvg : a.lifetimeAvg);
+    });
+    return items;
+  }, [periodByChatter, lifetime, chatterColors]);
+
+  const maxAvg = useMemo(
+    () => rows.reduce((m, r) => Math.max(m, r.inPeriod ? r.periodAvg : r.lifetimeAvg), 0),
+    [rows]
+  );
+
+  if (rows.length === 0) return null;
+
+  const topPeriod = rows.find((r) => r.inPeriod);
+  const bottomPeriod = [...rows].reverse().find((r) => r.inPeriod);
+  const spreadPct =
+    topPeriod && bottomPeriod && bottomPeriod.periodAvg > 0 && topPeriod !== bottomPeriod
+      ? Math.round(((topPeriod.periodAvg - bottomPeriod.periodAvg) / bottomPeriod.periodAvg) * 100)
+      : null;
+
+  return (
+    <div className="premium-card rounded-2xl overflow-hidden min-w-0">
+      <div className="p-4 sm:p-5 border-b border-white/[0.05] flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase">
+            Chatter-Vergleich
+          </p>
+          <p className="text-[10.5px] text-white/35 font-light mt-0.5">
+            Ø / Tag im {periodDays}-Tage-Zeitraum · Lifetime als Referenz
+          </p>
+        </div>
+        {spreadPct !== null && (
+          <div className="text-right shrink-0">
+            <div className="text-[13px] font-light gold-text tabular-nums">+{spreadPct}%</div>
+            <div className="text-[9px] text-white/30 uppercase tracking-wider">Spread</div>
+          </div>
+        )}
+      </div>
+      <div className="divide-y divide-white/[0.04]">
+        {rows.map((r) => {
+          const barPct =
+            maxAvg > 0
+              ? Math.max(2, Math.round(((r.inPeriod ? r.periodAvg : r.lifetimeAvg) / maxAvg) * 100))
+              : 0;
+          return (
+            <div key={r.name} className={cn("p-4 sm:p-5", !r.inPeriod && "opacity-60")}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: r.color }} />
+                <button
+                  type="button"
+                  onClick={(e) => copyChatter(r.name, e)}
+                  className="flex-1 min-w-0 text-left text-[13.5px] text-foreground/85 font-light hover:text-white hover:underline underline-offset-2 truncate"
+                  title="Klick zum Kopieren"
+                >
+                  {r.name}
+                </button>
+                {!r.inPeriod && (
+                  <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.04] text-white/40 border border-white/[0.06] shrink-0">
+                    Nur historisch
+                  </span>
+                )}
+                <div className="text-right shrink-0">
+                  <div className="text-[13.5px] font-light gold-text tabular-nums">
+                    {formatEur(r.inPeriod ? r.periodAvg : r.lifetimeAvg)}
+                  </div>
+                  <div className="text-[9.5px] text-white/30 font-light">Ø / Tag</div>
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-white/[0.04] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${barPct}%`,
+                    background: `linear-gradient(90deg, ${r.color}55, ${r.color})`,
+                  }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px] font-light text-white/45 tabular-nums">
+                <span>
+                  {r.inPeriod ? (
+                    <>Zeitraum: <span className="text-white/70">{formatEur(r.periodTotal)}</span> · {r.periodDays}T</>
+                  ) : (
+                    <>Keine Aktivität im Zeitraum</>
+                  )}
+                </span>
+                <span>
+                  Lifetime: <span className="text-white/70">{formatEur(r.lifetimeAvg)}</span> Ø · {r.lifetimeDays}T
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface ChatterDay {
   date: string;
   thisModel: number;
