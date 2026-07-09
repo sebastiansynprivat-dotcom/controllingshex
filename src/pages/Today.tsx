@@ -90,6 +90,18 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
 ];
 
 
+function sortDowngradeActions(actions: UnifiedAction[]) {
+  return [...actions].sort((a, b) => {
+    // Höchster Umsatzimpact oben, bei Gleichstand chronologisch (ältestes Muster zuerst)
+    if (b.totalImpactEurPerWeek !== a.totalImpactEurPerWeek) {
+      return b.totalImpactEurPerWeek - a.totalImpactEurPerWeek;
+    }
+    const da = a.downgradeSince ?? "9999-12-31";
+    const db = b.downgradeSince ?? "9999-12-31";
+    return da.localeCompare(db);
+  });
+}
+
 function groupByKind(actions: UnifiedAction[]) {
   const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
   for (const a of actions) {
@@ -99,7 +111,8 @@ function groupByKind(actions: UnifiedAction[]) {
   }
   return KIND_DEFS
     .map((def) => {
-      const items = buckets.get(def.id) ?? [];
+      const rawItems = buckets.get(def.id) ?? [];
+      const items = def.id === "downgrade" ? sortDowngradeActions(rawItems) : rawItems;
       const sumImpact = items.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
       return { ...def, items, sumImpact };
     })
@@ -614,13 +627,21 @@ export default function Today() {
     }
   }, [kindTab, verzugDayCounts, verzugDayFilter]);
 
-  const visibleList =
-    kindTab === "verzug" && verzugDayFilter.size > 0
-      ? baseVisibleList.filter((a) => {
-          const d = getVerzugDays(a);
-          return d != null && verzugDayFilter.has(d);
-        })
-      : baseVisibleList;
+  const visibleList = useMemo(() => {
+    const list =
+      kindTab === "verzug" && verzugDayFilter.size > 0
+        ? baseVisibleList.filter((a) => {
+            const d = getVerzugDays(a);
+            return d != null && verzugDayFilter.has(d);
+          })
+        : baseVisibleList;
+    if (kindTab === "downgrade") {
+      // Downgrade-Kandidaten: wichtigste (= höchster Umsatzimpact) zuerst,
+      // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
+      return sortDowngradeActions(list);
+    }
+    return list;
+  }, [baseVisibleList, kindTab, verzugDayFilter]);
 
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
   const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
@@ -644,17 +665,7 @@ export default function Today() {
     [upgradeListAll, trayIds, hiddenUpgradeKeys],
   );
   const downgradeList = useMemo(
-    () => downgradeListAll
-      .filter((a) => !trayIds.has(a.bundleKey))
-      .sort((a, b) => {
-        // Höchster Umsatzimpact oben, bei Gleichstand chronologisch (ältestes Muster zuerst)
-        if (b.totalImpactEurPerWeek !== a.totalImpactEurPerWeek) {
-          return b.totalImpactEurPerWeek - a.totalImpactEurPerWeek;
-        }
-        const da = a.downgradeSince ?? "9999-12-31";
-        const db = b.downgradeSince ?? "9999-12-31";
-        return da.localeCompare(db);
-      }),
+    () => sortDowngradeActions(downgradeListAll.filter((a) => !trayIds.has(a.bundleKey))),
     [downgradeListAll, trayIds],
   );
   const trayItems = useMemo(
