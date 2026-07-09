@@ -948,7 +948,7 @@ export default function Today() {
             </div>
           ) : status === "onboarding" || extraFilter === "onboarding" ? (
             <OnboardingList
-              groups={onboardingGroups}
+              groups={filteredOnboardingGroups}
               allLabels={labels}
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
