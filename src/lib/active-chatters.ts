@@ -82,6 +82,7 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
       names: new Set(),
       chatterModels: new Map(),
       activeModels: new Set(),
+      modelChatters: new Map(),
       hasReport: false,
     };
     cache.set(platform, empty);
@@ -91,16 +92,27 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
   const names = new Set<string>();
   const chatterModels = new Map<string, Set<string>>();
   const activeModels = new Set<string>();
+  const modelChatters = new Map<string, ModelChatterInfo>();
   for (const cat of result.categories) {
     for (const ch of cat.chatters ?? []) {
       if (!ch?.name) continue;
+      const nDisplay = ch.name.trim();
       const n = normalizeChatterName(ch.name);
       names.add(n);
-      const acc = ch.account ? normalizeAccountName(ch.account) : "";
-      if (acc) {
+      const rawAcc = ch.account ?? "";
+      const parts = rawAcc.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const acc of parts) {
+        const accKey = normalizeAccountName(acc);
+        if (!accKey) continue;
         if (!chatterModels.has(n)) chatterModels.set(n, new Set());
-        chatterModels.get(n)!.add(acc);
-        activeModels.add(acc);
+        chatterModels.get(n)!.add(accKey);
+        activeModels.add(accKey);
+        let info = modelChatters.get(accKey);
+        if (!info) {
+          info = { display: acc, chatters: [] };
+          modelChatters.set(accKey, info);
+        }
+        if (!info.chatters.includes(nDisplay)) info.chatters.push(nDisplay);
       }
     }
   }
@@ -109,10 +121,12 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
     names,
     chatterModels,
     activeModels,
+    modelChatters,
     hasReport: true,
   };
   cache.set(platform, entry);
   return entry;
+
 }
 
 /**
