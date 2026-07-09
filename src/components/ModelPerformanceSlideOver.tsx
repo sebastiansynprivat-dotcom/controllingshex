@@ -166,17 +166,32 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                     tickFormatter={(v) => `${v}€`}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: "#141414",
-                      border: "1px solid hsl(0 0% 100% / 0.08)",
-                      borderRadius: 8,
-                      fontSize: 12,
+                    cursor={{ stroke: "hsl(0 0% 100% / 0.15)", strokeWidth: 1 }}
+                    wrapperStyle={{ zIndex: 60, outline: "none", pointerEvents: "none" }}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    offset={12}
+                    isAnimationActive={false}
+                    content={({ active, payload, label }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const p = payload[0]?.payload || {};
+                      const rev = Number(payload[0]?.value ?? 0);
+                      return (
+                        <div
+                          className="rounded-lg border border-white/10 bg-[#141414]/95 backdrop-blur-md px-3 py-2 shadow-2xl"
+                          style={{ fontSize: 12, minWidth: 140 }}
+                        >
+                          <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">
+                            {formatDateShort(label)}
+                          </div>
+                          <div className="text-[14px] font-medium text-white">
+                            {rev.toFixed(0)} €
+                          </div>
+                          <div className="text-[11px] text-white/60 mt-0.5 truncate">
+                            {p.chatter || "—"}
+                          </div>
+                        </div>
+                      );
                     }}
-                    labelFormatter={(v) => `Datum: ${v}`}
-                    formatter={(value: number, _name: string, item: any) => [
-                      `${value.toFixed(0)} €`,
-                      item?.payload?.chatter || "—",
-                    ]}
                   />
                   {tl.phases.map((p, i) => (
                     <ReferenceArea
