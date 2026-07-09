@@ -1172,6 +1172,7 @@ export default function Today() {
                                     onAct={act}
                                     readonly={isReadonly}
                                     verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
+                                    verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
                                   />
 
                                 </div>
