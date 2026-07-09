@@ -5,12 +5,11 @@
  */
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useState } from "react";
-import { Check, ChevronRight, ChevronDown, Clock, MessageCircle, X as XIcon, Tag, Users, TrendingUp, BarChart3 } from "lucide-react";
+import { ChevronRight, ChevronDown, Tag } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { MagneticHover } from "@/components/MagneticHover";
+import LabelCardRow from "@/components/today/LabelCardRow";
 import type { LabelCard } from "@/lib/label-tasks";
-import { removeLabelFromChatter } from "@/lib/chatter-labels";
 
 function formatCompact(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "") + "M";
