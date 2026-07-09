@@ -244,7 +244,7 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
             </p>
             <div className={splitView ? "h-56 w-full min-w-0" : "h-64 w-full min-w-0"}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={tl.daily} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke="hsl(0 0% 100% / 0.04)" />
                   <XAxis
                     dataKey="date"
@@ -266,7 +266,8 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                     content={({ active, payload, label }: any) => {
                       if (!active || !payload?.length) return null;
                       const p = payload[0]?.payload || {};
-                      const rev = Number(payload[0]?.value ?? 0);
+                      const rev = Number(p.revenue ?? 0);
+                      const color = p.chatter ? chatterColors.get(p.chatter) : undefined;
                       return (
                         <div
                           className="rounded-lg border border-white/10 bg-[#141414]/95 backdrop-blur-md px-3 py-2 shadow-2xl"
@@ -278,8 +279,9 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                           <div className="text-[14px] font-medium text-white">
                             {rev.toFixed(0)} €
                           </div>
-                          <div className="text-[11px] text-white/60 mt-0.5 truncate">
-                            {p.chatter || "—"}
+                          <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                            {color && <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />}
+                            <span className="text-[11px] text-white/60 truncate">{p.chatter || "—"}</span>
                           </div>
                         </div>
                       );
@@ -291,7 +293,7 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                       x1={p.fromDate}
                       x2={p.toDate}
                       fill={chatterColors.get(p.chatterName)}
-                      fillOpacity={0.06}
+                      fillOpacity={0.08}
                       stroke="none"
                     />
                   ))}
@@ -303,19 +305,25 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                       strokeDasharray="3 3"
                     />
                   ))}
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(45, 90%, 60%)"
-                    strokeWidth={2}
-                    dot={{ r: 2.5, fill: "hsl(45, 90%, 60%)" }}
-                    activeDot={{ r: 4 }}
-                  />
+                  {Array.from(chatterColors.entries()).map(([name, color]) => (
+                    <Line
+                      key={`line-${name}`}
+                      type="monotone"
+                      dataKey={`c__${name}`}
+                      name={name}
+                      stroke={color}
+                      strokeWidth={2}
+                      connectNulls={false}
+                      dot={{ r: 2.5, fill: color, stroke: color }}
+                      activeDot={{ r: 4, stroke: color, strokeWidth: 2, fill: "#0e0e0e" }}
+                      isAnimationActive={false}
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            {tl.phases.length > 0 && (
+            {chatterColors.size > 0 && (
               <div className="flex flex-wrap gap-2 mt-3 min-w-0">
                 {Array.from(chatterColors.entries()).map(([name, color]) => (
                   <button
@@ -332,6 +340,15 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
               </div>
             )}
           </div>
+
+          {/* Chatter-Vergleich: Ø/Tag pro Chatter im Zeitraum + Lifetime */}
+          <ChatterComparisonCard
+            periodByChatter={periodByChatter}
+            lifetime={lifetime}
+            chatterColors={chatterColors}
+            periodDays={period}
+          />
+
 
           {focusChatter && (
             <ChatterCompareCard
