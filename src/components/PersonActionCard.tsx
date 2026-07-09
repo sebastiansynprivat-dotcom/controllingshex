@@ -23,6 +23,8 @@ interface Props {
   readonly?: boolean;
   /** Verzug-Detail pro Model (nur für Verzug-Karten): Model-Name, offene Chats, Verzug-Tage. */
   verzugBreakdown?: { account: string; openChats: number; delayDays: number }[];
+  /** 14T-Durchschnitt offener Chats pro Chatter (nur für Verzug-Karten). */
+  verzugAvgOpenChats?: number;
 }
 
 
