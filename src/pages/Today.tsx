@@ -559,10 +559,16 @@ export default function Today() {
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
-  const baseVisibleList =
+  const baseVisibleList = (
     kindTab === "all"
       ? statusList
-      : statusList.filter((a) => a.primaryKind === kindTab);
+      : statusList.filter((a) => a.primaryKind === kindTab)
+  ).filter((a) => {
+    // Dauerhaft ausgeblendete Chatter aus Upgrade-Kandidaten entfernen
+    if (a.primaryKind !== "upgrade") return true;
+    if (!a.chatterName) return true;
+    return !hiddenUpgradeKeys.has(hiddenChatterKey(a.chatterName));
+  });
 
   // Verzug-Tage-Filter: alle vorkommenden Tage mit Counts (sortiert: höchster Verzug zuerst)
   const verzugDayCounts = useMemo(() => {
