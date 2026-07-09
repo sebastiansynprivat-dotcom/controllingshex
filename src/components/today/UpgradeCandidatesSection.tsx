@@ -74,6 +74,15 @@ export default function UpgradeCandidatesSection({
     [cards, doneKeys],
   );
 
+  const [collapsed, setCollapsed] = useState<Record<GroupId, boolean>>({
+    open: true,
+    done: false,
+  });
+
+  const toggleGroup = (id: GroupId) => {
+    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   if (openCards.length === 0 && doneCards.length === 0) return null;
 
   const byGroup: Record<GroupId, LabelCard[]> = {
@@ -92,6 +101,7 @@ export default function UpgradeCandidatesSection({
         {GROUPS.map((g) => {
           const list = byGroup[g.id];
           if (list.length === 0) return null;
+          const isCollapsed = collapsed[g.id];
           return (
             <motion.div
               key={g.id}
@@ -118,7 +128,11 @@ export default function UpgradeCandidatesSection({
                 className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
               />
 
-              <div className="relative w-full flex items-center gap-3 px-4 py-3.5">
+              <button
+                type="button"
+                onClick={() => toggleGroup(g.id)}
+                className="relative w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-white/[0.02] transition-colors"
+              >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-[16px] leading-none drop-shadow-sm">{g.emoji}</span>
                   <div className="min-w-0 flex flex-col gap-0.5">
@@ -145,21 +159,39 @@ export default function UpgradeCandidatesSection({
                     </span>
                   </div>
                 </div>
-              </div>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 text-white/30 shrink-0 transition-transform duration-300",
+                    !isCollapsed && "rotate-180",
+                  )}
+                />
+              </button>
 
-              <div className="mx-4 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-              <div className="p-3 space-y-2">
-                {list.map((c) => (
-                  <LabelCardRow
-                    key={c.todoKey}
-                    card={c}
-                    platform={platform}
-                    onChatterClick={onChatterClick}
-                    onComplete={onComplete}
-                    onLabelRemoved={onLabelRemoved}
-                  />
-                ))}
-              </div>
+              <AnimatePresence initial={false}>
+                {!isCollapsed && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mx-4 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                    <div className="p-3 space-y-2">
+                      {list.map((c) => (
+                        <LabelCardRow
+                          key={c.todoKey}
+                          card={c}
+                          platform={platform}
+                          onChatterClick={onChatterClick}
+                          onComplete={onComplete}
+                          onLabelRemoved={onLabelRemoved}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           );
         })}
