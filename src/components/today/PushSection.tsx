@@ -72,7 +72,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<PushBucketGroup, boolean>>({
-    crisis: true, nudge: true, winning: true, offline: true, silent_model: true,
+    crisis: true, nudge: true, winning: true, offline: true,
   });
 
 
@@ -115,7 +115,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   );
 
   const byGroup = useMemo(() => {
-    const m: Record<PushBucketGroup, PushCard[]> = { crisis: [], nudge: [], winning: [], offline: [], silent_model: [] };
+    const m: Record<PushBucketGroup, PushCard[]> = { crisis: [], nudge: [], winning: [], offline: [] };
     for (const c of openCards) m[c.bucket.group].push(c);
     for (const k of Object.keys(m) as PushBucketGroup[]) {
       m[k].sort((a, b) => {
@@ -127,14 +127,13 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   }, [openCards]);
 
   const stats = useMemo(() => {
-    let live = 0, offline = 0, urgent = 0, silent = 0;
+    let live = 0, offline = 0, urgent = 0;
     for (const c of openCards) {
-      if (c.bucket.group === "silent_model") silent++;
-      else if (c.isLive) live++;
+      if (c.isLive) live++;
       else offline++;
       if (c.bucket.id === "rescue" || c.bucket.id === "kick" || c.bucket.id === "shift_due") urgent++;
     }
-    return { live, offline, urgent, silent };
+    return { live, offline, urgent };
   }, [openCards]);
 
   const act = async (card: PushCard, kind: "done" | "snooze") => {
