@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Tag, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
+import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
@@ -11,8 +11,6 @@ import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
-import LabelCardList from "@/components/today/LabelCardList";
-import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
 import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
 import CompareTray from "@/components/today/CompareTray";
@@ -42,9 +40,6 @@ import {
 } from "@/lib/action-outcomes";
 import {
   ensureSystemLabels,
-  isSystemLabel,
-  isUpgradeReceivedLabel,
-  isUpgradeTaskLabel,
   loadChatterLabels,
   loadLabelAssignments,
   type ChatterLabel,
