@@ -78,7 +78,7 @@ interface DowngradeCandidate {
   severityRank: number; // 0 = zero_streak, 1 = delay, 2 = underperformance
 }
 
-type UpgradeType = "seed_p1" | "seed_p2" | "second_account" | "promotion";
+type UpgradeType = "seed_p1" | "seed_p2" | "second_account" | "promotion" | "high_converter";
 
 interface UpgradeCandidate {
   chatter: string;
@@ -92,6 +92,14 @@ interface UpgradeCandidate {
   todayRevenue: number;
   /** Nur Typ Z: Slot-spezifischer Score (Ziel-Account-Lifetime / Ist-Lifetime). */
   promotionDiff?: number;
+  /** Nur high_converter: €/eingehende Nachricht (letzte 14T). */
+  eurPerIncoming?: number;
+  /** Nur high_converter: Peer-Median €/Nachricht im aktuellen Tier. */
+  tierMedianEurPerIncoming?: number;
+  /** Nur high_converter: aktuelles Tier-Label des Chatters. */
+  currentTierLabel?: string;
+  /** Nur high_converter: Volumen (incoming proxy) im Fenster. */
+  incomingCount?: number;
 }
 
 interface SwapMatch {
