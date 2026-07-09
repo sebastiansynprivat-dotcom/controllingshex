@@ -232,6 +232,7 @@ export default function PersonActionCard({
   onAct,
   readonly = false,
   verzugBreakdown,
+  verzugAvgOpenChats,
 }: Props) {
 
   const [celebrating, setCelebrating] = useState(false);
