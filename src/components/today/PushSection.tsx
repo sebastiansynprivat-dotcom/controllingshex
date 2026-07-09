@@ -246,15 +246,16 @@ function PushCardItem({
               <span className="text-[12px] leading-none">{card.bucket.emoji}</span>
               {card.bucket.label}
             </span>
-            {isSilentModel ? (
-              <span className="text-[14px] font-medium text-foreground truncate">{card.chatterName}</span>
-            ) : (
-              <button
-                onClick={() => onChatterClick(card.chatterName)}
-                className="text-[14px] font-medium text-foreground hover:text-white transition-colors text-left truncate"
-              >
-                {card.chatterName}
-              </button>
+            <button
+              onClick={() => onChatterClick(card.chatterName)}
+              className="text-[14px] font-medium text-foreground hover:text-white transition-colors text-left truncate"
+            >
+              {card.chatterName}
+            </button>
+            {isSilentModel && card.modelName && (
+              <span className="text-[11px] text-white/40 font-light">
+                · {card.modelName}
+              </span>
             )}
           </div>
           <p className="text-[12.5px] text-white/85 font-light mt-1.5 leading-snug">
@@ -263,20 +264,8 @@ function PushCardItem({
           <p className="text-[10.5px] text-white/40 font-light mt-1.5 tabular-nums">
             {card.dataLine}
           </p>
-          {isSilentModel && card.assignedChatters && card.assignedChatters.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {card.assignedChatters.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => onChatterClick(c)}
-                  className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-white/[0.05] border border-white/10 text-white/75 hover:bg-white/[0.1] hover:text-white transition-colors"
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
+
         <div className="flex flex-col gap-1.5 shrink-0">
           <button
             onClick={() => onAct(card, "done")}
