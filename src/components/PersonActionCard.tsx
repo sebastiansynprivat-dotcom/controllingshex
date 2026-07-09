@@ -428,39 +428,54 @@ export default function PersonActionCard({
             </div>
 
             <div className="text-right shrink-0">
-              <div
-                className={cn(
-                  "text-[22px] font-light tracking-tighter tabular-nums",
-                  hasImpact ? tone.accent : "text-white/30",
-                )}
-                title={
-                  action.confidence === "low"
-                    ? "Niedrige Konfidenz (<5 Tage Daten)"
-                    : action.confidence === "medium"
-                      ? "Mittlere Konfidenz (5–14 Tage)"
-                      : "Hohe Konfidenz (≥15 Tage)"
-                }
-              >
-                {hasImpact ? (
-                  <>
-                    {impactPrefix}
-                    {impactStr}{" "}
-                    <span className="text-[13px] opacity-50">/Wo</span>
-                  </>
-                ) : (
-                  "—"
-                )}
-              </div>
-              <div
-                className={cn(
-                  "mt-1 text-[9px] font-bold uppercase tracking-[0.18em] flex items-center justify-end gap-1.5",
-                  tone.accent,
-                  "opacity-85",
-                )}
-              >
-                <span className={cn("w-1 h-1 rounded-full animate-pulse", tone.dot)} />
-                {tone.statusLabel}
-              </div>
+              {action.primaryKind === "upgrade" ? (
+                <div
+                  className={cn(
+                    "mt-1 text-[9px] font-bold uppercase tracking-[0.18em] flex items-center justify-end gap-1.5",
+                    tone.accent,
+                    "opacity-85",
+                  )}
+                >
+                  <span className={cn("w-1 h-1 rounded-full animate-pulse", tone.dot)} />
+                  {tone.statusLabel}
+                </div>
+              ) : (
+                <>
+                  <div
+                    className={cn(
+                      "text-[22px] font-light tracking-tighter tabular-nums",
+                      hasImpact ? tone.accent : "text-white/30",
+                    )}
+                    title={
+                      action.confidence === "low"
+                        ? "Niedrige Konfidenz (<5 Tage Daten)"
+                        : action.confidence === "medium"
+                          ? "Mittlere Konfidenz (5–14 Tage)"
+                          : "Hohe Konfidenz (≥15 Tage)"
+                    }
+                  >
+                    {hasImpact ? (
+                      <>
+                        {impactPrefix}
+                        {impactStr}{" "}
+                        <span className="text-[13px] opacity-50">/Wo</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "mt-1 text-[9px] font-bold uppercase tracking-[0.18em] flex items-center justify-end gap-1.5",
+                      tone.accent,
+                      "opacity-85",
+                    )}
+                  >
+                    <span className={cn("w-1 h-1 rounded-full animate-pulse", tone.dot)} />
+                    {tone.statusLabel}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
