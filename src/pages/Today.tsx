@@ -930,8 +930,8 @@ export default function Today() {
 
 
 
-          {/* Gelabelte Upgrade-Kandidaten — eigene Sektion, sieht man direkt */}
-          {!loading && status === "open" && extraFilter === "none" && (
+          {/* Gelabelte Upgrade-Kandidaten — nur im Upgrade-Kandidaten-Tab anzeigen */}
+          {!loading && status === "open" && extraFilter === "none" && kindTab === "upgrade" && (
             <UpgradeCandidatesSection
               cards={labelCards}
               doneKeys={labelDoneKeys}
