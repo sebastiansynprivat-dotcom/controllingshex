@@ -124,7 +124,7 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "hot",
     label: "Hot",
     emoji: "🔥",
-    group: "live",
+    group: "winning",
     order: 8,
     accent: "text-pink-300",
     ring: "border-pink-400/30",
