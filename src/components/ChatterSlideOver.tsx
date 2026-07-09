@@ -1213,12 +1213,46 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const trendAccent =
     trend30.direction === "up" ? "152 70% 45%" : trend30.direction === "down" ? "0 84% 60%" : "240 5% 60%";
 
-  const copyToClipboard = (value: string, label: string) => {
-    navigator.clipboard.writeText(value).then(
-      () => toast.success(`${label} kopiert`),
-      () => toast.error(`${label} konnte nicht kopiert werden`),
-    );
+  const copyToClipboard = async (value: string, label: string) => {
+    const fallback = () => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.top = "0";
+        ta.style.left = "0";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    };
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        toast.success(`${label} kopiert`);
+        return;
+      }
+      if (fallback()) {
+        toast.success(`${label} kopiert`);
+        return;
+      }
+      throw new Error("no clipboard");
+    } catch {
+      if (fallback()) {
+        toast.success(`${label} kopiert`);
+      } else {
+        toast.error(`${label} konnte nicht kopiert werden`);
+      }
+    }
   };
+
 
   const modelsLoginsBlock =
     chatterModels.length > 0 ? (
