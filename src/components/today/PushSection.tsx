@@ -81,8 +81,9 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<PushBucketGroup, boolean>>({
-    live: true, offline: true, silent_model: true,
+    crisis: true, nudge: true, winning: true, offline: true, silent_model: true,
   });
+
 
   const [refreshTick, setRefreshTick] = useState(0);
 
