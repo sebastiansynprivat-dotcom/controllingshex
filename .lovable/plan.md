@@ -1,60 +1,67 @@
 ## Ziel
-Neue Upgrade-Klasse `high_converter` in die bestehende Upgrade-Kandidaten-Logik einbauen. Alte Trigger (`seed`, `second_account`, `promotion`) bleiben unverändert – rein additiv.
 
-## Was neu dazukommt
+Im Push-Tab zwei Dinge verbessern:
 
-**Neue Klasse: `high_converter`**
-Chatter, die pro eingehender Nachricht überdurchschnittlich viel Umsatz machen – auch wenn ihr Account (noch) klein ist.
+1. **Neuer Signal-Typ:** Models, die heute noch 0 € gemacht haben, aber im 7-Tage-Schnitt > 10 €/Tag liegen. Immer sichtbar, damit du am Abend gezielt die verantwortlichen Chatter noch mal anhauen kannst.
+2. **Layout des Push-Tabs neu gliedern**, damit die Sektionen abends auf einen Blick klar sind — statt einer langen Chip-Reihe echte visuelle Gruppen.
 
-### Datenquellen (alle vorhanden, nichts neu bauen)
-- `get_live_efficiency(user_id, platform, from, to)` RPC → liefert `eur_per_incoming`, `total_incoming_proxy`, `total_revenue` pro Chatter
-- `account-tiers.ts` → Tier-Zuordnung (seed/starter/growth/top) via Follower-Count
-- `chatter_history` (bestehend) → aktueller Account-Zuweisungs-Snapshot
+## Neuer Bucket: „Model schweigt"
 
-### Trigger-Bedingungen (alle müssen erfüllt sein)
-1. **Volumen-Gate:** `total_incoming_proxy ≥ 50` in den letzten 14 Tagen (sonst Zufall)
-2. **Aktivitäts-Gate:** `total_active_min ≥ 60` und `session_count ≥ 3` (nutzt bestehendes `hasUsableLiveData`)
-3. **Conversion-Lift:** `eur_per_incoming` des Chatters ≥ **1.3× Peer-Median** auf Accounts derselben Tier-Gruppe
-4. **Chatter sitzt aktuell nicht schon auf einem Top-Tier-Account** (sonst nichts zu upgraden)
+- **Trigger:** Model hat heute (`chatter_history_live` oder `chatter_history` mit `analysis_date = today`) 0 € Umsatz UND im 7-Tage-Schnitt (ohne heute) > 10 €/Tag.
+- **Rauschen-Filter:** Model muss in den letzten 7 Tagen an mind. 3 Tagen Umsatz > 0 gehabt haben (sonst tote Accounts).
+- **Anzeige:** Model-Name + verantwortliche Chatter (heutige Zuordnung aus `chatter_history` `chatter_name → account`). Datazeile: `7T-Ø: 45 €/Tag · gestern: 62 € · heute: 0 €`.
+- **Aktion pro Karte:** Klick auf Chatter-Name öffnet ChatterSlideOver wie gehabt; „Erledigt"/„Snooze 1h" wie bei den anderen Push-Karten.
+- **Immer sichtbar** — kein Uhrzeit-Gate.
 
-### Peer-Median-Berechnung
-- Für jeden Tier (`seed`, `starter`, `growth`, `top`) den Median von `eur_per_incoming` über alle Chatter berechnen, die aktuell auf einem Account dieses Tiers sitzen und das Volumen-Gate erfüllen.
-- Vergleich: Chatter-Wert vs. Median seines **aktuellen** Tiers.
+## Push-Tab Layout-Redesign
 
-### Priorität im Dedup (in `account-swap-engine.ts`)
-Neue Reihenfolge:
+Statt einer flachen Chip-Filter-Reihe mit allen Buckets vermischt, drei klare visuelle Sektionen mit Sektions-Header + Karten darunter:
+
+```text
+┌─────────────────────────────────────────────┐
+│ Header: „Wen pushst du jetzt?"              │
+│         X offline · Y live · Z dringend     │
+├─────────────────────────────────────────────┤
+│ 🔥 JETZT LIVE                (3)            │
+│    Rescue · Kick · Hot · Boost · Push       │
+│    → Karten                                 │
+├─────────────────────────────────────────────┤
+│ 🌙 CHATTER OFFLINE           (5)            │
+│    Schichtstart fällig · Abgetaucht · Offline│
+│    → Karten                                 │
+├─────────────────────────────────────────────┤
+│ 📉 MODELS SCHWEIGEN          (4)            │
+│    Heute 0 € trotz aktivem 7T-Schnitt       │
+│    → Karten                                 │
+└─────────────────────────────────────────────┘
 ```
-high_converter > second_account > promotion > seed_p1 > seed_p2
-```
-Pro Chatter weiterhin nur eine Karte. Wenn ein Chatter sowohl `high_converter` als auch z. B. `promotion` triggert, gewinnt `high_converter`.
 
-### Fallback-Verhalten
-- Keine Live-/Incoming-Daten für einen Chatter → `high_converter` triggert einfach nicht, alte Klassen greifen wie bisher.
-- Kein Chatter fällt aus der Liste raus, der vorher drin war.
+- Jede Sektion collabsibel (Chevron), Standard: aufgeklappt wenn > 0 Karten.
+- Innerhalb einer Sektion bleibt die bisherige Sortierung nach Bucket-Order + Score.
+- Wenn eine Sektion leer ist: gar nicht rendern (kein „Alles klar"-Platzhalter pro Sektion, nur ein globaler wenn alle drei leer sind).
+- Bucket-Filter-Chips **entfallen** — die Gruppierung ersetzt sie. Weniger Klicks, klareres Abend-Scanning.
 
-## Technische Details
+## Technische Umsetzung
 
-### Änderungen an `src/lib/account-swap-engine.ts`
-- Neuen Type `"high_converter"` zum Upgrade-Kind-Union hinzufügen
-- Neue Funktion `detectHighConverters(platform, currentAssignments, followersByAcc)`:
-  - Lädt Live-Efficiency für die letzten 14 Tage via `fetchLiveEfficiency` (aus `src/lib/live-efficiency.ts`)
-  - Filtert auf Volumen-/Aktivitäts-Gate
-  - Berechnet Peer-Median pro Tier
-  - Emittiert Kandidaten mit `eur_per_incoming ≥ 1.3× tier-median`
-- In der bestehenden Aggregation aufrufen und **vor** den anderen Klassen ins Dedup einspeisen
-- `impactEurPerWeek` bleibt konsistent mit den anderen Upgrade-Karten (aktuell hart 0 gesetzt) – nicht anfassen
+**`src/lib/push-buckets.ts`**
+- Neuer `PushBucketId`: `"silent_model"` mit eigenem Look (z. B. `bg-slate-500/[0.06]`, `border-slate-400/25`, `text-slate-300`, Emoji 📉).
+- Neues Feld `group` auf den Buckets nutzen: bereits vorhanden (`"live" | "offline"`) — dritte Gruppe `"silent_model"` hinzufügen.
+- Neue Loader-Funktion oder Erweiterung von `loadPushCards`: lädt zusätzlich
+  - `chatter_history` letzte 7 Tage inkl. `account`-Spalte
+  - Aggregiert pro Model: `sum(revenue_today)/days` (7T-Ø ohne heute), heutiger Umsatz, Chatter der heute drauf sitzen
+  - Filter: 7T-Ø > 10 €, aktive Tage ≥ 3, heute = 0 €
+- Neue `PushCard`-Instanzen mit `chatterName` = Model-Name (für Anzeige), zusätzlichem Feld `assignedChatters?: string[]` für die Sub-Zeile.
 
-### Änderungen an `src/pages/Today.tsx`
-- Nur Anzeige-Label ergänzen: `high_converter` → z. B. „Top-Konvertierer" mit Kurzbegründung („X €/Nachricht, +Y% über Peer-Median")
-- Rendering nutzt weiterhin `PersonActionCard`, keine neuen Komponenten
+**`src/components/today/PushSection.tsx`**
+- Karten nach `bucket.group` in drei Arrays teilen: `liveCards`, `offlineCards`, `silentModelCards`.
+- Chip-Filter-Block entfernen. Stattdessen drei `<SectionBlock>`-Komponenten rendern, jede mit eigenem Header (Emoji, Label, Count, Chevron) und eigenem Collapse-State (`useState<Record<"live"|"offline"|"silent","boolean">>`).
+- `PushCardItem` erweitern: wenn `assignedChatters?.length`, kleine Zeile darunter mit Chatter-Chips, klickbar zum Öffnen des Slide-Overs.
+- Global-Stats-Zeile im Header ergänzen um `silentModels`-Count.
 
-### Keine Änderungen an
-- DB-Schema, RLS, RPCs
-- Bestehende Upgrade-Klassen und deren Schwellen
-- `potential-detector.ts` (parallel-System bleibt wie es ist)
+**Keine DB-Änderungen nötig** — alle Daten sind schon da (`chatter_history` mit `account` + `revenue_today`, `chatter_history_live`).
 
-## Offene Punkte (kann ich mit Defaults bauen, sag Bescheid wenn was anders sein soll)
-- **Zeitfenster:** 14 Tage (analog zur bestehenden Upgrade-Logik)
-- **Volumen-Gate:** 50 incoming/14T
-- **Lift-Faktor:** 1.3×
-- **Tier-Vergleich:** gegen Peer-Median des **aktuellen** Tiers (nicht Ziel-Tier)
+## Nicht Teil dieses Plans
+
+- Uhrzeit-Gate für Silent-Models (User will „immer sichtbar")
+- Zusätzliche Filter-Optionen für andere Buckets
+- Änderungen am ChatterSlideOver oder an anderen Heute-Tabs
