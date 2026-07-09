@@ -59,6 +59,7 @@ import {
   onHiddenUpgradesUpdated,
   type HiddenUpgradeEntry,
 } from "@/lib/hidden-upgrades";
+import { normalizeChatterName } from "@/lib/active-chatters";
 
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
@@ -131,6 +132,11 @@ function splitAccounts(value: string | null | undefined): string[] {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function sameChatterName(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return normalizeChatterName(a) === normalizeChatterName(b);
 }
 
 export default function Today() {
@@ -1430,6 +1436,9 @@ export default function Today() {
         const chatterOpen = !!selectedChatter || splitActive;
         const chatterName = selectedChatter?.name ?? selectedModel?.chatter ?? null;
         const chatterCompare = selectedChatter?.compareWith ?? null;
+        const slideFocusChatter = selectedModel?.chatter && sameChatterName(selectedModel.chatter, chatterName)
+          ? chatterName
+          : (selectedModel?.chatter ?? null);
         return (
           <>
             {chatterOpen && chatterName && (
@@ -1450,7 +1459,7 @@ export default function Today() {
               open={!!selectedModel}
               onClose={() => setSelectedModel(null)}
               modelName={selectedModel?.name ?? null}
-              focusChatter={selectedModel?.chatter ?? null}
+              focusChatter={slideFocusChatter}
               platform={platform}
               splitView={splitActive}
             />

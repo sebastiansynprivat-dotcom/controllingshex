@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { X } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, CartesianGrid, AreaChart, Area } from "recharts";
 import { TrendingDown, TrendingUp, AlertTriangle, User } from "lucide-react";
-import { loadModelTimeline, formatEur, type ModelTimeline, type ChatterPhase } from "@/lib/model-tracking";
+import { loadModelTimeline, loadModelHistoryForModel, formatEur, type ModelTimeline, type ChatterPhase } from "@/lib/model-tracking";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import ModelNotesLabelsPanel from "@/components/ModelNotesLabelsPanel";
@@ -80,18 +80,14 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
     if (!open || !modelName) return;
     let cancel = false;
     (async () => {
-      const { data } = await supabase
-        .from("chatter_history")
-        .select("chatter_name, revenue_today, analysis_date")
-        .eq("platform", platform)
-        .eq("account", modelName);
+      const data = await loadModelHistoryForModel(platform, modelName);
       if (cancel) return;
       const byChatter = new Map<string, { total: number; days: Set<string>; first: string; last: string }>();
-      for (const row of data || []) {
-        const name = row.chatter_name?.trim();
-        const date = row.analysis_date;
+      for (const row of data) {
+        const name = row.chatterName;
+        const date = row.date;
         if (!name || !date) continue;
-        const rev = Number(row.revenue_today) || 0;
+        const rev = Number(row.revenue) || 0;
         if (!byChatter.has(name)) byChatter.set(name, { total: 0, days: new Set(), first: date, last: date });
         const s = byChatter.get(name)!;
         s.total += rev;
@@ -242,6 +238,7 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
             <p className="text-[10px] gold-text-subtle font-medium tracking-[0.2em] uppercase mb-3">
               Umsatz-Verlauf
             </p>
+            <PhaseTimelineBar phases={tl.phases} chatterColors={chatterColors} />
             <div className={splitView ? "h-56 w-full min-w-0" : "h-64 w-full min-w-0"}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -293,7 +290,7 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                       x1={p.fromDate}
                       x2={p.toDate}
                       fill={chatterColors.get(p.chatterName)}
-                      fillOpacity={0.08}
+                      fillOpacity={0.16}
                       stroke="none"
                     />
                   ))}
@@ -301,8 +298,9 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                     <ReferenceLine
                       key={`line-${i}`}
                       x={p.fromDate}
-                      stroke="hsl(0 0% 100% / 0.25)"
-                      strokeDasharray="3 3"
+                      stroke={chatterColors.get(p.chatterName) || "hsl(0 0% 100% / 0.35)"}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
                     />
                   ))}
                   {Array.from(chatterColors.entries()).map(([name, color]) => (
@@ -312,10 +310,10 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
                       dataKey={`c__${name}`}
                       name={name}
                       stroke={color}
-                      strokeWidth={2}
+                      strokeWidth={3}
                       connectNulls={false}
-                      dot={{ r: 2.5, fill: color, stroke: color }}
-                      activeDot={{ r: 4, stroke: color, strokeWidth: 2, fill: "#0e0e0e" }}
+                      dot={{ r: 3, fill: color, stroke: "#0e0e0e", strokeWidth: 1.5 }}
+                      activeDot={{ r: 5, stroke: color, strokeWidth: 2, fill: "#0e0e0e" }}
                       isAnimationActive={false}
                     />
                   ))}
@@ -429,6 +427,49 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
         {body}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function PhaseTimelineBar({ phases, chatterColors }: { phases: ChatterPhase[]; chatterColors: Map<string, string> }) {
+  const totalDays = phases.reduce((sum, p) => sum + p.days, 0);
+  if (phases.length === 0 || totalDays <= 0) return null;
+
+  return (
+    <div className="mb-4 rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
+      <div className="flex h-7 w-full overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.03]">
+        {phases.map((p, i) => {
+          const color = chatterColors.get(p.chatterName) || "hsl(0 0% 100% / 0.35)";
+          const width = Math.max(8, (p.days / totalDays) * 100);
+          return (
+            <div
+              key={`${p.chatterName}-${p.fromDate}-${i}`}
+              className="relative min-w-0 border-r border-background/35 last:border-r-0"
+              style={{ width: `${width}%`, background: `linear-gradient(90deg, ${color}44, ${color}88)` }}
+              title={`${p.chatterName}: ${formatDateShort(p.fromDate)} – ${formatDateShort(p.toDate)} · ${formatEur(p.avgPerDay)} Ø/Tag`}
+            >
+              <div className="absolute inset-0 flex items-center px-2 min-w-0">
+                <span className="truncate text-[10px] font-medium text-white drop-shadow-sm">{p.chatterName}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 grid gap-1.5">
+        {phases.map((p, i) => {
+          const color = chatterColors.get(p.chatterName) || "hsl(0 0% 100% / 0.35)";
+          return (
+            <div key={`${p.chatterName}-${p.fromDate}-meta-${i}`} className="flex items-center justify-between gap-3 text-[10.5px] font-light min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+                <span className="truncate text-white/65">{p.chatterName}</span>
+                <span className="text-white/25 shrink-0">· {formatDateShort(p.fromDate)}–{formatDateShort(p.toDate)}</span>
+              </div>
+              <span className="shrink-0 tabular-nums gold-text-subtle">{formatEur(p.avgPerDay)} Ø/Tag</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

@@ -164,8 +164,14 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   // 1) Pool: alle distinct Models in last 365d (account-String wird gesplittet)
   const poolRows = await fetchRangeRows(platform, yearAgoIso, todayIso);
   const modelSet = new Set<string>();
+  const modelDisplay = new Map<string, string>();
   for (const r of poolRows) {
-    for (const acc of splitAccounts(r.account)) modelSet.add(acc);
+    for (const acc of splitAccounts(r.account)) {
+      const key = normalizeAccountName(acc);
+      if (!key) continue;
+      modelSet.add(key);
+      if (!modelDisplay.has(key)) modelDisplay.set(key, acc);
+    }
   }
 
   // 2) Range-Daten: pro (model, date) summieren
@@ -187,13 +193,16 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   const byModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of rangeRows) {
     for (const part of expandRow(r, followerMap)) {
-      const dateMap = byModel.get(part.account) ?? new Map();
+      const modelKey = normalizeAccountName(part.account);
+      if (!modelKey) continue;
+      if (!modelDisplay.has(modelKey)) modelDisplay.set(modelKey, part.account);
+      const dateMap = byModel.get(modelKey) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
       const cName = part.chatter || "—";
       day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + part.revenue);
       dateMap.set(part.date, day);
-      byModel.set(part.account, dateMap);
+      byModel.set(modelKey, dateMap);
     }
   }
 
@@ -201,7 +210,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   // 3) Last chatter: pro Model letzter Tag mit Aktivität, dort Top-Revenue-Chatter
   //    (0-Revenue-Chatter werden ignoriert, solange ein positiver existiert).
   const latestChatter = new Map<string, string>();
-  for (const [modelName, dateMap] of byModel.entries()) {
+  for (const [modelKey, dateMap] of byModel.entries()) {
     const sortedDates = Array.from(dateMap.keys()).sort();
     // letzter Tag mit positivem Revenue ODER fallback letzter Tag überhaupt
     let chosenDate: string | null = null;
@@ -218,7 +227,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       if (name === "—") continue;
       if (rev > topRev) { topRev = rev; topName = name; }
     }
-    if (topName) latestChatter.set(modelName, topName);
+    if (topName) latestChatter.set(modelKey, topName);
   }
 
   const rangeDaysCount = (() => {
@@ -231,20 +240,24 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
   const poolByModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
   for (const r of poolRows) {
     for (const part of expandRow(r, followerMap)) {
+      const modelKey = normalizeAccountName(part.account);
+      if (!modelKey) continue;
+      if (!modelDisplay.has(modelKey)) modelDisplay.set(modelKey, part.account);
 
-      const dateMap = poolByModel.get(part.account) ?? new Map();
+      const dateMap = poolByModel.get(modelKey) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
       const cName = part.chatter || "—";
       day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + part.revenue);
       dateMap.set(part.date, day);
-      poolByModel.set(part.account, dateMap);
+      poolByModel.set(modelKey, dateMap);
     }
   }
 
   const out: ModelOverviewRow[] = [];
-  for (const modelName of modelSet) {
-    const dateMap = byModel.get(modelName);
+  for (const modelKey of modelSet) {
+    const modelName = modelDisplay.get(modelKey) ?? modelKey;
+    const dateMap = byModel.get(modelKey);
     const daily: DailyPoint[] = [];
     if (dateMap) {
       const sortedDates = Array.from(dateMap.keys()).sort();
@@ -266,7 +279,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     // OHNE den gewählten Range. Nur Tage mit revenue > 0 zählen (Pausen raus).
     // Fallback: Wenn zu wenig Baseline-Daten, nutze Range-interne Regression,
     // damit der Account NICHT aus den Trend-Kategorien rausfliegt.
-    const poolForTrend = poolByModel.get(modelName);
+    const poolForTrend = poolByModel.get(modelKey);
     let trendResult: { direction: TrendDirection; pct: number | null; slope: number } = {
       direction: "none",
       pct: null,
@@ -328,7 +341,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     }));
 
     // Phasen aus 365T-Pool
-    const poolDateMap = poolByModel.get(modelName);
+    const poolDateMap = poolByModel.get(modelKey);
     let currentPhaseDays: number | null = null;
     let previousPhaseExisted = false;
     let previousPhaseTrendDown = false;
@@ -371,7 +384,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       totalRevenue,
       avgPerDay,
       pointCount: daily.length,
-      currentChatter: latestChatter.get(modelName) ?? null,
+      currentChatter: latestChatter.get(modelKey) ?? null,
       trend: trendResult.direction,
       trendPct: trendResult.pct,
       slope: trendResult.slope,
@@ -454,15 +467,19 @@ export async function detectRelevantModelAlerts(
 
   // Group per model -> per day (account-String wird gesplittet)
   const byModel = new Map<string, Map<string, { revenue: number; chatters: Map<string, number> }>>();
+  const modelDisplay = new Map<string, string>();
   for (const r of rows) {
     for (const part of expandRow(r)) {
-      const dateMap = byModel.get(part.account) ?? new Map();
+      const modelKey = normalizeAccountName(part.account);
+      if (!modelKey) continue;
+      if (!modelDisplay.has(modelKey)) modelDisplay.set(modelKey, part.account);
+      const dateMap = byModel.get(modelKey) ?? new Map();
       const day = dateMap.get(part.date) ?? { revenue: 0, chatters: new Map<string, number>() };
       day.revenue += part.revenue;
       const cName = part.chatter || "—";
       day.chatters.set(cName, (day.chatters.get(cName) ?? 0) + part.revenue);
       dateMap.set(part.date, day);
-      byModel.set(part.account, dateMap);
+      byModel.set(modelKey, dateMap);
     }
   }
 
@@ -483,7 +500,8 @@ export async function detectRelevantModelAlerts(
 
   const alerts: ModelAlert[] = [];
 
-  for (const [modelName, dateMap] of byModel) {
+  for (const [modelKey, dateMap] of byModel) {
+    const modelName = modelDisplay.get(modelKey) ?? modelKey;
     const dates = Array.from(dateMap.keys()).sort();
     const daily: DailyPoint[] = dates.map((d) => {
       const entry = dateMap.get(d)!;
