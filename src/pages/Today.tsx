@@ -703,67 +703,12 @@ export default function Today() {
   }, [kindTab, availableKinds]);
 
 
-  // Label-Karten: Counts pro Label + heute schon erledigte rausfiltern
-  const systemLabelIdSet = useMemo(
-    () => new Set(labels.filter(isSystemLabel).map((l) => l.id)),
-    [labels],
-  );
-  // Im Labels-Tab sichtbare Labels = System-Labels OHNE "✅ Upgrade bekommen" (terminal)
-  const visibleLabelIdSet = useMemo(
-    () => new Set(labels.filter((l) => isSystemLabel(l) && !isUpgradeReceivedLabel(l)).map((l) => l.id)),
-    [labels],
-  );
-  useEffect(() => {
-    if (labels.length === 0 || visibleLabelIdSet.size === 0) return;
-
-    const selectedVisible = labels.filter((l) => visibleLabelIdSet.has(l.id) && selectedLabelIds.has(l.id));
-    const visibleWithOpenCards = new Set(
-      labelCards
-        .filter((c) => visibleLabelIdSet.has(c.label.id) && states[c.todoKey]?.status !== "done")
-        .map((c) => c.label.id),
-    );
-    const selectedHasOnlyUpgradeCards = selectedVisible.length > 0
-      && selectedVisible.every((l) => l.label_name === "🟢 Upgrade" || l.label_name === "💛 Premium Upgrade")
-      && [...visibleWithOpenCards].some((id) => !selectedLabelIds.has(id));
-
-    // Auch zurücksetzen, wenn gespeicherte IDs nicht mehr zu aktuellen Labels gehören (stale Filter)
-    const selectedHasAnyValidVisible = selectedVisible.length > 0;
-
-    if (selectedLabelIds.size === 0 || selectedHasOnlyUpgradeCards || !selectedHasAnyValidVisible) {
-      setSelectedLabelIds(new Set(visibleLabelIdSet));
-    }
-  }, [labelCards, labels, selectedLabelIds, states, visibleLabelIdSet]);
-  const labelCountsByLabel = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of labelCards) {
-      if (!visibleLabelIdSet.has(c.label.id)) continue;
-      if (states[c.todoKey]?.status === "done") continue;
-      m.set(c.label.id, (m.get(c.label.id) ?? 0) + 1);
-    }
-    return m;
-  }, [labelCards, states, visibleLabelIdSet]);
-
-  const visibleLabelCards = useMemo(
-    () => labelCards.filter((c) => visibleLabelIdSet.has(c.label.id) && selectedLabelIds.has(c.label.id)),
-    [labelCards, selectedLabelIds, visibleLabelIdSet],
-  );
+  // Label-Karten: heute schon erledigte Keys für Upgrade-Kandidaten-Sektion
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
     for (const c of labelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
     return s;
   }, [labelCards, states]);
-
-  const totalLabelOpenCount = useMemo(() => {
-    let n = 0;
-    for (const c of labelCards) {
-      if (!visibleLabelIdSet.has(c.label.id)) continue;
-      if (!selectedLabelIds.has(c.label.id)) continue;
-      if (states[c.todoKey]?.status === "done") continue;
-      if (!isUpgradeTaskLabel(c.label)) continue;
-      n += 1;
-    }
-    return n;
-  }, [labelCards, selectedLabelIds, states, visibleLabelIdSet]);
 
 
   const onboardingCount = useMemo(
