@@ -589,7 +589,7 @@ function Trend30Block({
 
 
 
-export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false }: Props) {
+export default function ChatterSlideOver({ open, onClose, chatterName, platform, inline = false, initialCompareWith = null, splitView = false, modelContext = null }: Props) {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<CoachingNote[]>([]);
