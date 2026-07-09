@@ -124,7 +124,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   );
 
   const byGroup = useMemo(() => {
-    const m: Record<PushBucketGroup, PushCard[]> = { live: [], offline: [], silent_model: [] };
+    const m: Record<PushBucketGroup, PushCard[]> = { crisis: [], nudge: [], winning: [], offline: [], silent_model: [] };
     for (const c of openCards) m[c.bucket.group].push(c);
     for (const k of Object.keys(m) as PushBucketGroup[]) {
       m[k].sort((a, b) => {
