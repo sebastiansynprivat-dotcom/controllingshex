@@ -614,13 +614,28 @@ export default function Today() {
     }
   }, [kindTab, verzugDayCounts, verzugDayFilter]);
 
-  const visibleList =
-    kindTab === "verzug" && verzugDayFilter.size > 0
-      ? baseVisibleList.filter((a) => {
-          const d = getVerzugDays(a);
-          return d != null && verzugDayFilter.has(d);
-        })
-      : baseVisibleList;
+  const visibleList = useMemo(() => {
+    const list =
+      kindTab === "verzug" && verzugDayFilter.size > 0
+        ? baseVisibleList.filter((a) => {
+            const d = getVerzugDays(a);
+            return d != null && verzugDayFilter.has(d);
+          })
+        : baseVisibleList;
+    if (kindTab === "downgrade") {
+      // Downgrade-Kandidaten: wichtigste (= höchster Umsatzimpact) zuerst,
+      // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
+      return [...list].sort((a, b) => {
+        if (b.totalImpactEurPerWeek !== a.totalImpactEurPerWeek) {
+          return b.totalImpactEurPerWeek - a.totalImpactEurPerWeek;
+        }
+        const da = a.downgradeSince ?? "9999-12-31";
+        const db = b.downgradeSince ?? "9999-12-31";
+        return da.localeCompare(db);
+      });
+    }
+    return list;
+  }, [baseVisibleList, kindTab, verzugDayFilter]);
 
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
   const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
