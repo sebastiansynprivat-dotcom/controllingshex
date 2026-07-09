@@ -55,6 +55,10 @@ import {
   type HiddenUpgradeEntry,
 } from "@/lib/hidden-upgrades";
 import { normalizeChatterName } from "@/lib/active-chatters";
+import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
+
+type ChannelFilter = "all" | "whatsapp" | "platform";
+const CHANNEL_FILTER_STORAGE_KEY = "today.channelFilter";
 
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
@@ -201,6 +205,20 @@ export default function Today() {
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
+    try {
+      const v = localStorage.getItem(CHANNEL_FILTER_STORAGE_KEY);
+      return v === "whatsapp" || v === "platform" ? v : "all";
+    } catch { return "all"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(CHANNEL_FILTER_STORAGE_KEY, channelFilter); } catch {}
+  }, [channelFilter]);
+  const passesChannel = (a: UnifiedAction) => {
+    if (channelFilter === "all") return true;
+    if (!a.chatterName) return true; // Model-Aktionen ohne Chatter nicht ausfiltern
+    return classifyChannel(a.chatterName) === channelFilter;
+  };
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
@@ -503,18 +521,21 @@ export default function Today() {
 
     for (const a of data.primary) {
       if (isHidden(a)) continue;
+      if (!passesChannel(a)) continue;
       const v = visibility(a);
       if (v === "open") open.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.watchlist) {
       if (isHidden(a)) continue;
+      if (!passesChannel(a)) continue;
       const v = visibility(a);
       if (v === "open") watch.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.wins) {
       if (isHidden(a)) continue;
+      if (!passesChannel(a)) continue;
       const v = visibility(a);
       if (v === "open") wins.push(a);
       else if (v === "done") done.push(a);
@@ -525,7 +546,7 @@ export default function Today() {
     const doneImpact = done.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
 
     return { primary: open, watchlist: watch, wins, done, openImpact, doneImpact };
-  }, [data, states]);
+  }, [data, states, channelFilter]);
 
   const totalPrimaryActions = (data?.primary.length ?? 0);
   const completedPrimary = totalPrimaryActions - filtered.primary.length;
@@ -703,17 +724,28 @@ export default function Today() {
   }, [kindTab, availableKinds]);
 
 
+  const filteredLabelCards = useMemo(
+    () => labelCards.filter((c) => channelFilter === "all" || classifyChannel(c.chatterName) === channelFilter),
+    [labelCards, channelFilter],
+  );
+  const filteredOnboardingGroups = useMemo(() => {
+    if (channelFilter === "all") return onboardingGroups;
+    return onboardingGroups
+      .map((g) => ({ ...g, items: g.items.filter((it) => classifyChannel(it.chatterName) === channelFilter) }))
+      .filter((g) => g.items.length > 0);
+  }, [onboardingGroups, channelFilter]);
+
   // Label-Karten: heute schon erledigte Keys für Upgrade-Kandidaten-Sektion
   const labelDoneKeys = useMemo(() => {
     const s = new Set<string>();
-    for (const c of labelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
+    for (const c of filteredLabelCards) if (states[c.todoKey]?.status === "done") s.add(c.todoKey);
     return s;
-  }, [labelCards, states]);
+  }, [filteredLabelCards, states]);
 
 
   const onboardingCount = useMemo(
-    () => onboardingGroups.reduce((s, g) => s + g.items.length, 0),
-    [onboardingGroups],
+    () => filteredOnboardingGroups.reduce((s, g) => s + g.items.length, 0),
+    [filteredOnboardingGroups],
   );
 
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
@@ -891,7 +923,7 @@ export default function Today() {
           {/* Gelabelte Upgrade-Kandidaten — nur im Upgrade-Kandidaten-Tab anzeigen */}
           {!loading && status === "open" && extraFilter === "none" && kindTab === "upgrade" && (
             <UpgradeCandidatesSection
-              cards={labelCards}
+              cards={filteredLabelCards}
               doneKeys={labelDoneKeys}
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
@@ -916,7 +948,7 @@ export default function Today() {
             </div>
           ) : status === "onboarding" || extraFilter === "onboarding" ? (
             <OnboardingList
-              groups={onboardingGroups}
+              groups={filteredOnboardingGroups}
               allLabels={labels}
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
@@ -1251,6 +1283,32 @@ export default function Today() {
                 className="relative flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-3 py-2.5 scrollbar-none snap-x snap-proximity scroll-px-3 cursor-grab [-webkit-overflow-scrolling:touch]"
                 style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)", maskImage: "linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)" }}
               >
+                {([
+                  { id: "all" as ChannelFilter, label: "Alle" },
+                  { id: "whatsapp" as ChannelFilter, label: "WhatsApp" },
+                  { id: "platform" as ChannelFilter, label: "Plattform" },
+                ]).map((c) => {
+                  const active = channelFilter === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setChannelFilter(c.id)}
+                      className={cn(
+                        "snap-start shrink-0 px-3 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border",
+                        active
+                          ? c.id === "whatsapp"
+                            ? "bg-emerald-500/15 border-emerald-400/35 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.4)]"
+                            : c.id === "platform"
+                              ? "bg-sky-500/15 border-sky-400/35 text-sky-100 shadow-[0_0_18px_-6px_rgba(56,189,248,0.4)]"
+                              : "bg-white/[0.09] border-white/20 text-foreground shadow-[0_0_18px_-6px_rgba(255,255,255,0.25)]"
+                          : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                      )}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+                <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
                 {statusOptions.map((o) => {
                   const active = status === o.id;
                   return (
