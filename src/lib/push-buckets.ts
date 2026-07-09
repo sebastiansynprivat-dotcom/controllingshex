@@ -61,7 +61,8 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "kick",
     label: "Kick",
     emoji: "⚡",
-    group: "live",
+    group: "crisis",
+
     order: 2,
     accent: "text-red-300",
     ring: "border-red-400/30",
