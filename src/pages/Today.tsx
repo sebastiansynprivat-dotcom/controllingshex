@@ -14,6 +14,7 @@ import OnboardingList from "@/components/today/OnboardingList";
 import LabelCardList from "@/components/today/LabelCardList";
 import LabelFilterSheet from "@/components/today/LabelFilterSheet";
 import PushSection from "@/components/today/PushSection";
+import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
 import CompareTray from "@/components/today/CompareTray";
 
 import { useSidebar } from "@/components/ui/sidebar";
@@ -914,6 +915,27 @@ export default function Today() {
 
 
 
+
+          {/* Gelabelte Upgrade-Kandidaten — eigene Sektion, sieht man direkt */}
+          {!loading && status === "open" && extraFilter === "none" && (
+            <UpgradeCandidatesSection
+              cards={labelCards}
+              doneKeys={labelDoneKeys}
+              platform={platform}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onComplete={async (key) => {
+                const prev = { ...states };
+                setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
+                try {
+                  await setTodoStatus(platform, key, "done", null);
+                } catch {
+                  setStates(prev);
+                  throw new Error("save failed");
+                }
+              }}
+              onLabelRemoved={reloadLabelData}
+            />
+          )}
 
           {/* Content */}
           {loading ? (
