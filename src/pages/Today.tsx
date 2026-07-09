@@ -1452,6 +1452,7 @@ export default function Today() {
                 initialCompareWith={chatterCompare}
                 platform={platform}
                 splitView={splitActive}
+                modelContext={splitActive ? selectedModel?.name ?? null : null}
               />
             )}
 
