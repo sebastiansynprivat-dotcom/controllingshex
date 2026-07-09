@@ -1464,6 +1464,30 @@ export default function WeeklyGoals() {
               </div>
             )}
 
+            {/* Channel filter: WhatsApp vs. Plattform */}
+            {rows.length > 0 && (channelCounts.whatsapp > 0 || channelCounts.platform > 0) && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {([
+                  ["all", "Alle Kanäle", channelCounts.whatsapp + channelCounts.platform, "border-white/20 bg-white/[0.06] text-white/90"],
+                  ["platform", "Plattform", channelCounts.platform, "border-violet-300/30 bg-violet-400/10 text-violet-200"],
+                  ["whatsapp", "WhatsApp", channelCounts.whatsapp, "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"],
+                ] as ["all" | ChatterChannel, string, number, string][]).map(([k, label, count, activeCls]) => (
+                  <button
+                    key={k}
+                    onClick={() => setChannelFilter(k)}
+                    className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-light flex items-center gap-1.5 ${
+                      channelFilter === k
+                        ? activeCls
+                        : "border-white/[0.05] bg-white/[0.015] text-white/45 hover:text-white/70 hover:border-white/10"
+                    }`}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Status filter */}
             {rows.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
