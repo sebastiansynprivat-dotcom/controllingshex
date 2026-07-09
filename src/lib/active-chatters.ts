@@ -149,6 +149,18 @@ export async function loadActiveChatterModels(
   return e.hasReport ? e.chatterModels : null;
 }
 
+/**
+ * Model (normalisiert) → Info mit Display-Name + Chatter-Display-Namen aus letztem Report.
+ * `null` wenn (noch) kein Report existiert.
+ */
+export async function loadModelChatters(
+  platform: string,
+): Promise<Map<string, ModelChatterInfo> | null> {
+  const e = await loadEntry(platform);
+  return e.hasReport ? e.modelChatters : null;
+}
+
+
 /** Alle Models (normalisiert), die aktuell irgendeinem Chatter zugeordnet sind. */
 export async function loadActiveModels(platform: string): Promise<Set<string> | null> {
   const e = await loadEntry(platform);
