@@ -989,40 +989,42 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
   }
 
   // -------- UPGRADE-KANDIDATEN (eigene Sektion) --------
-  // Alle Upgrade-Kandidaten — unabhängig davon, ob im Swap-Matching ein Slot
-  // gefunden wurde. Dedup pro Chatter, beste Type-Priorität gewinnt:
-  // second_account > promotion > seed_p1 > seed_p2.
+  // Dedup pro Chatter, beste Type-Priorität gewinnt:
+  // high_converter > second_account > promotion > seed_p1 > seed_p2.
   const typeRank: Record<UpgradeType, number> = {
+    high_converter: 5,
     second_account: 4,
     promotion: 3,
     seed_p1: 2,
     seed_p2: 1,
   };
   const bestByChatter = new Map<string, UpgradeCandidate>();
-  for (const u of [...upgradesY, ...upgradesZ, ...upgradesX1, ...upgradesX2]) {
+  for (const u of [...upgradesHC, ...upgradesY, ...upgradesZ, ...upgradesX1, ...upgradesX2]) {
     const k = u.chatter.toLowerCase();
     const prev = bestByChatter.get(k);
     if (!prev || typeRank[u.type] > typeRank[prev.type]) bestByChatter.set(k, u);
   }
   for (const u of bestByChatter.values()) {
     const typeLabel =
-      u.type === "second_account" ? "Zweiter Account"
-        : u.type === "promotion" ? "Hochstufung"
-          : u.type === "seed_p1" ? "Größerer Account (mit Revenue)"
-            : "Größerer Account (Seed)";
+      u.type === "high_converter" ? "Top-Konvertierer"
+        : u.type === "second_account" ? "Zweiter Account"
+          : u.type === "promotion" ? "Hochstufung"
+            : u.type === "seed_p1" ? "Größerer Account (mit Revenue)"
+              : "Größerer Account (Seed)";
     tasks.push({
       key: `rev:upgrade:${u.chatter.toLowerCase()}:${today}`,
       kind: "upgrade",
       title: `${u.chatter} → ${typeLabel}`,
       why: upgradeReasonText(u),
       impactEurPerWeek: 0,
-      confidence: 0.7,
+      confidence: u.type === "high_converter" ? 0.8 : 0.7,
       score:
         (u.currentFollowers || 1) *
-        (u.type === "second_account" ? 1.4
-          : u.type === "promotion" ? 1.2
-            : u.type === "seed_p1" ? 1.0
-              : 0.6),
+        (u.type === "high_converter" ? 1.6
+          : u.type === "second_account" ? 1.4
+            : u.type === "promotion" ? 1.2
+              : u.type === "seed_p1" ? 1.0
+                : 0.6),
       chatterName: u.chatter,
       modelName: u.currentAccountLabel,
     });
