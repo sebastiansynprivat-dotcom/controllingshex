@@ -59,6 +59,7 @@ import {
   onHiddenUpgradesUpdated,
   type HiddenUpgradeEntry,
 } from "@/lib/hidden-upgrades";
+import { normalizeChatterName } from "@/lib/active-chatters";
 
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
@@ -131,6 +132,20 @@ function splitAccounts(value: string | null | undefined): string[] {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function cleanChatterDisplayName(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sameChatterName(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return normalizeChatterName(a) === normalizeChatterName(b);
 }
 
 export default function Today() {
@@ -1428,8 +1443,11 @@ export default function Today() {
       {(() => {
         const splitActive = !!selectedModel && !!selectedModel.chatter;
         const chatterOpen = !!selectedChatter || splitActive;
-        const chatterName = selectedChatter?.name ?? selectedModel?.chatter ?? null;
+        const chatterName = cleanChatterDisplayName(selectedChatter?.name ?? selectedModel?.chatter ?? null);
         const chatterCompare = selectedChatter?.compareWith ?? null;
+        const slideFocusChatter = selectedModel?.chatter && sameChatterName(selectedModel.chatter, chatterName)
+          ? chatterName
+          : (selectedModel?.chatter ?? null);
         return (
           <>
             {chatterOpen && chatterName && (
@@ -1450,7 +1468,7 @@ export default function Today() {
               open={!!selectedModel}
               onClose={() => setSelectedModel(null)}
               modelName={selectedModel?.name ?? null}
-              focusChatter={selectedModel?.chatter ?? null}
+              focusChatter={slideFocusChatter}
               platform={platform}
               splitView={splitActive}
             />
