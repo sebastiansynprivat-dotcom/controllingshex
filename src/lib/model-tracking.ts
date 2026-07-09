@@ -50,6 +50,14 @@ function escapeIlike(value: string): string {
   return value.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
+function accountSearchPatterns(modelName: string): string[] {
+  const clean = cleanDisplayName(modelName);
+  const variants = new Set<string>([clean]);
+  variants.add(clean.replace(/\s+/g, "_"));
+  variants.add(clean.replace(/[_\s]+/g, ""));
+  return Array.from(variants).filter(Boolean);
+}
+
 async function fetchModelCandidateRows(
   platform: string,
   modelName: string,
@@ -58,14 +66,14 @@ async function fetchModelCandidateRows(
 ): Promise<RawHistoryRow[]> {
   const out: RawHistoryRow[] = [];
   let offset = 0;
-  const term = cleanDisplayName(modelName);
+  const patterns = accountSearchPatterns(modelName);
 
   while (true) {
     let query = supabase
       .from("chatter_history")
       .select("account, chatter_name, revenue_today, analysis_date")
       .eq("platform", platform)
-      .ilike("account", `%${escapeIlike(term)}%`)
+      .or(patterns.map((term) => `account.ilike.%${escapeIlike(term)}%`).join(","))
       .order("analysis_date", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
