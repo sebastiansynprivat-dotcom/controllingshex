@@ -29,7 +29,7 @@ export type PushBucketId =
   | "offline"
   | "silent_model";
 
-export type PushBucketGroup = "live" | "offline" | "silent_model";
+export type PushBucketGroup = "crisis" | "winning" | "nudge" | "offline" | "silent_model";
 
 export interface PushBucketDef {
   id: PushBucketId;
