@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone, CalendarDays, ChevronDown, Rocket, Archive } from "lucide-react";
+import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Sprout, Tag, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
@@ -49,6 +49,14 @@ import {
   type LabelAssignment,
 } from "@/lib/chatter-labels";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchHiddenUpgrades,
+  hideUpgradeChatter,
+  unhideUpgradeChatter,
+  hiddenChatterKey,
+  onHiddenUpgradesUpdated,
+  type HiddenUpgradeEntry,
+} from "@/lib/hidden-upgrades";
 
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
@@ -157,6 +165,24 @@ export default function Today() {
       // ignore
     }
   };
+
+  // Dauerhaft ausgeblendete Upgrade-Kandidaten (Chatter ohne realistisches Upgrade-Potenzial)
+  const [hiddenUpgrades, setHiddenUpgrades] = useState<HiddenUpgradeEntry[]>([]);
+  const [showHiddenPanel, setShowHiddenPanel] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const rows = await fetchHiddenUpgrades(platform);
+      if (!cancelled) setHiddenUpgrades(rows);
+    };
+    load();
+    const off = onHiddenUpgradesUpdated(load);
+    return () => { cancelled = true; off(); };
+  }, [platform]);
+  const hiddenUpgradeKeys = useMemo(
+    () => new Set(hiddenUpgrades.map((h) => h.chatterKey)),
+    [hiddenUpgrades],
+  );
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
@@ -586,8 +612,12 @@ export default function Today() {
     [isUpDownTab, statusList],
   );
   const upgradeList = useMemo(
-    () => upgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
-    [upgradeListAll, trayIds],
+    () => upgradeListAll.filter((a) => {
+      if (trayIds.has(a.bundleKey)) return false;
+      if (a.chatterName && hiddenUpgradeKeys.has(hiddenChatterKey(a.chatterName))) return false;
+      return true;
+    }),
+    [upgradeListAll, trayIds, hiddenUpgradeKeys],
   );
   const downgradeList = useMemo(
     () => downgradeListAll
@@ -1033,6 +1063,20 @@ export default function Today() {
                                   >
                                     <Archive className="h-3.5 w-3.5" />
                                   </button>
+                                  {col.key === "upgrade" && a.chatterName && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void hideUpgradeChatter(platform, a.chatterName!);
+                                      }}
+                                      title="Dauerhaft ausblenden (kein Upgrade möglich)"
+                                      className="absolute top-2 right-11 z-10 h-7 w-7 rounded-full flex items-center justify-center bg-background/70 border border-white/[0.08] text-white/50 hover:text-amber-200 hover:border-amber-400/40 hover:bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-md"
+                                      aria-label="Chatter dauerhaft ausblenden"
+                                    >
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
                                   <PersonActionCard
                                     action={a}
                                     onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
@@ -1086,21 +1130,88 @@ export default function Today() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {renderedVisibleList.map((a) => (
-                      <PersonActionCard
-                        key={a.bundleKey}
-                        action={a}
-                        onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
-                        onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                        onAct={act}
-                        readonly={isReadonly}
-                        verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
-                      />
-
-                    ))}
+                    {renderedVisibleList.map((a) => {
+                      const isUpgrade = a.primaryKind === "upgrade" && a.chatterName;
+                      const card = (
+                        <PersonActionCard
+                          action={a}
+                          onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                          onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                          onAct={act}
+                          readonly={isReadonly}
+                          verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
+                        />
+                      );
+                      if (!isUpgrade) return <div key={a.bundleKey}>{card}</div>;
+                      return (
+                        <div key={a.bundleKey} className="group relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void hideUpgradeChatter(platform, a.chatterName!);
+                            }}
+                            title="Dauerhaft ausblenden (kein Upgrade möglich)"
+                            className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full flex items-center justify-center bg-background/70 border border-white/[0.08] text-white/50 hover:text-amber-200 hover:border-amber-400/40 hover:bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-md"
+                            aria-label="Chatter dauerhaft ausblenden"
+                          >
+                            <EyeOff className="h-3.5 w-3.5" />
+                          </button>
+                          {card}
+                        </div>
+                      );
+                    })}
                     {remainingSwapCount > 0 && (
                       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-light text-white/35">
                         Lade weitere {remainingSwapCount} Account-Tausch-Vorschläge …
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Ausgeblendet-Panel: nur im Upgrade-Tab und nur wenn Einträge vorhanden */}
+                {kindTab === "upgrade" && hiddenUpgrades.length > 0 && (
+                  <div className="mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowHiddenPanel((v) => !v)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-white/50">
+                          <EyeOff className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                            Ausgeblendet
+                          </span>
+                          <span className="text-[10px] text-white/35 font-light leading-none mt-1">
+                            Chatter ohne realistisches Upgrade — dauerhaft versteckt
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium tabular-nums bg-white/[0.05] border border-white/[0.08] text-white/60">
+                          {hiddenUpgrades.length}
+                        </span>
+                        <ChevronDown className={cn("h-4 w-4 text-white/40 transition-transform", showHiddenPanel && "rotate-180")} />
+                      </div>
+                    </button>
+                    {showHiddenPanel && (
+                      <div className="border-t border-white/[0.06] divide-y divide-white/[0.04]">
+                        {hiddenUpgrades.map((h) => (
+                          <div key={h.chatterKey} className="flex items-center justify-between px-4 py-2.5">
+                            <span className="text-[13px] text-white/80 font-light">{h.originalName}</span>
+                            <button
+                              type="button"
+                              onClick={() => void unhideUpgradeChatter(platform, h.chatterKey)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-medium tracking-wide border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-emerald-200 hover:border-emerald-400/40 hover:bg-emerald-500/10 transition-all"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              Wieder einblenden
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
