@@ -100,7 +100,7 @@ export default function UpgradeCandidatesSection({
     >
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="w-full flex items-end justify-between gap-4 group text-left"
+        className="w-full flex items-center justify-between gap-4 group text-left"
       >
         <h2 className="text-base font-normal tracking-tight text-white/90 leading-tight">
           Offene Upgrade-Labels
