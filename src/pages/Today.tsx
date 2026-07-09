@@ -212,16 +212,6 @@ export default function Today() {
   const [assignments, setAssignments] = useState<LabelAssignment[]>([]);
   const [onboardingGroups, setOnboardingGroups] = useState<import("@/lib/onboarding-filter").OnboardingGroup[]>([]);
   const [labelCards, setLabelCards] = useState<import("@/lib/label-tasks").LabelCard[]>([]);
-  const [labelFilterOpen, setLabelFilterOpen] = useState(false);
-  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem(LABEL_FILTER_STORAGE_KEY);
-      if (raw) return new Set(JSON.parse(raw));
-    } catch {
-      // ignore corrupted local filter cache
-    }
-    return new Set();
-  });
   const [labelDataNonce, setLabelDataNonce] = useState(0);
   const reloadLabelData = () => setLabelDataNonce((n) => n + 1);
 
