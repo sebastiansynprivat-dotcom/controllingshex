@@ -1063,6 +1063,20 @@ export default function Today() {
                                   >
                                     <Archive className="h-3.5 w-3.5" />
                                   </button>
+                                  {col.key === "upgrade" && a.chatterName && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void hideUpgradeChatter(platform, a.chatterName!);
+                                      }}
+                                      title="Dauerhaft ausblenden (kein Upgrade möglich)"
+                                      className="absolute top-2 right-11 z-10 h-7 w-7 rounded-full flex items-center justify-center bg-background/70 border border-white/[0.08] text-white/50 hover:text-amber-200 hover:border-amber-400/40 hover:bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-md"
+                                      aria-label="Chatter dauerhaft ausblenden"
+                                    >
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
                                   <PersonActionCard
                                     action={a}
                                     onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
