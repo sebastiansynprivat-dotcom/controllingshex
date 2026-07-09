@@ -563,114 +563,120 @@ export default function PersonActionCard({
 
         {/* Signal-Liste */}
         <div className="px-5 pb-4 flex flex-col gap-2.5">
-          {rows.map((r, i) => {
-            const clickable =
-              !!r.compareWith && !!action.chatterName && !readonly;
-            const isStrong = r.intensity === "strong";
-            const isMedium = r.intensity === "medium";
-            const isSoft = r.intensity === "soft";
-            return (
-              <button
-                key={r.key}
-                type="button"
-                onClick={(e) => {
-                  stop(e);
-                  if (clickable) openDetails(r.compareWith);
-                  else openDetails();
-                }}
-                className={cn(
-                  "group/item relative w-full text-left rounded-xl p-4 pr-10 transition-colors overflow-hidden",
-                  isStrong &&
-                    "bg-black/35 border border-white/[0.06] hover:bg-black/45 hover:border-white/[0.10]",
-                  isMedium &&
-                    "bg-black/20 border border-white/[0.04] hover:bg-black/30 hover:border-white/[0.08]",
-                  isSoft &&
-                    "bg-transparent border-t border-white/[0.05] rounded-none px-4 py-3 hover:bg-white/[0.02]",
-                )}
-              >
-                <div
-                  className={cn(
-                    "absolute left-0 top-0 bottom-0",
-                    isStrong && `w-1.5 ${tone.insertBar}`,
-                    isMedium && `w-1 ${tone.barDim}`,
-                    isSoft && `w-px ${tone.barDim} opacity-60`,
-                  )}
-                />
-                <div className="flex flex-col gap-1.5 min-w-0">
-                  {r.kindLabel && (
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em]",
-                        tone.accent,
-                        !isStrong && "opacity-70",
-                      )}
-                    >
-                      <span className={cn("h-1 w-1 rounded-full", tone.dot)} />
-                      {r.kindLabel}
-                    </span>
-                  )}
-                  <span
+          {action.primaryKind === "verzug" ? (
+            <VerzugCompactCards {...getVerzugStats(action, verzugBreakdown, verzugAvgOpenChats)} />
+          ) : (
+            <>
+              {rows.map((r, i) => {
+                const clickable =
+                  !!r.compareWith && !!action.chatterName && !readonly;
+                const isStrong = r.intensity === "strong";
+                const isMedium = r.intensity === "medium";
+                const isSoft = r.intensity === "soft";
+                return (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={(e) => {
+                      stop(e);
+                      if (clickable) openDetails(r.compareWith);
+                      else openDetails();
+                    }}
                     className={cn(
-                      "font-medium break-words leading-[1.25]",
-                      isStrong && "text-[14px] text-white/95",
-                      isMedium && "text-[13.5px] text-white/85",
-                      isSoft && "text-[13px] text-white/70",
+                      "group/item relative w-full text-left rounded-xl p-4 pr-10 transition-colors overflow-hidden",
+                      isStrong &&
+                        "bg-black/35 border border-white/[0.06] hover:bg-black/45 hover:border-white/[0.10]",
+                      isMedium &&
+                        "bg-black/20 border border-white/[0.04] hover:bg-black/30 hover:border-white/[0.08]",
+                      isSoft &&
+                        "bg-transparent border-t border-white/[0.05] rounded-none px-4 py-3 hover:bg-white/[0.02]",
                     )}
                   >
-                    {r.title}
-                  </span>
-                  {r.meta && (isSoft ? (
-                    <span className="text-[12px] text-white/45 font-normal break-words leading-[1.45] line-clamp-2">
-                      {r.meta}
-                    </span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {parseMetaChips(r.meta).map((chip, idx) => {
-                        const baseText = isStrong ? "text-white/75" : "text-white/55";
-                        if (chip.kind === "live") {
-                          return (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-medium text-emerald-300/90 tabular-nums"
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              {chip.text}
-                            </span>
-                          );
-                        }
-                        if (chip.kind === "model") {
-                          return (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/70"
-                            >
-                              {chip.text}
-                            </span>
-                          );
-                        }
-                        return (
-                          <span
-                            key={idx}
-                            className={cn(
-                              "inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.025] text-[11.5px] font-normal tabular-nums",
-                              baseText,
-                            )}
-                          >
-                            {chip.text}
-                          </span>
-                        );
-                      })}
+                    <div
+                      className={cn(
+                        "absolute left-0 top-0 bottom-0",
+                        isStrong && `w-1.5 ${tone.insertBar}`,
+                        isMedium && `w-1 ${tone.barDim}`,
+                        isSoft && `w-px ${tone.barDim} opacity-60`,
+                      )}
+                    />
+                    <div className="flex flex-col gap-1.5 min-w-0">
+                      {r.kindLabel && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em]",
+                            tone.accent,
+                            !isStrong && "opacity-70",
+                          )}
+                        >
+                          <span className={cn("h-1 w-1 rounded-full", tone.dot)} />
+                          {r.kindLabel}
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "font-medium break-words leading-[1.25]",
+                          isStrong && "text-[14px] text-white/95",
+                          isMedium && "text-[13.5px] text-white/85",
+                          isSoft && "text-[13px] text-white/70",
+                        )}
+                      >
+                        {r.title}
+                      </span>
+                      {r.meta && (isSoft ? (
+                        <span className="text-[12px] text-white/45 font-normal break-words leading-[1.45] line-clamp-2">
+                          {r.meta}
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {parseMetaChips(r.meta).map((chip, idx) => {
+                            const baseText = isStrong ? "text-white/75" : "text-white/55";
+                            if (chip.kind === "live") {
+                              return (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-medium text-emerald-300/90 tabular-nums"
+                                >
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  {chip.text}
+                                </span>
+                              );
+                            }
+                            if (chip.kind === "model") {
+                              return (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/70"
+                                >
+                                  {chip.text}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                key={idx}
+                                className={cn(
+                                  "inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.025] text-[11.5px] font-normal tabular-nums",
+                                  baseText,
+                                )}
+                              >
+                                {chip.text}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20 group-hover/item:text-white/45 transition-colors shrink-0" />
-              </button>
-            );
-          })}
-          {restCount > 0 && (
-            <p className="text-[10px] text-white/35 font-light px-1 pt-0.5">
-              + {restCount} weitere Signal{restCount > 1 ? "e" : ""}
-            </p>
+                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20 group-hover/item:text-white/45 transition-colors shrink-0" />
+                  </button>
+                );
+              })}
+              {restCount > 0 && (
+                <p className="text-[10px] text-white/35 font-light px-1 pt-0.5">
+                  + {restCount} weitere Signal{restCount > 1 ? "e" : ""}
+                </p>
+              )}
+            </>
           )}
         </div>
 
