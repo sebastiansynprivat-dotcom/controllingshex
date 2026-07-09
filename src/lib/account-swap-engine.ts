@@ -21,6 +21,8 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import { fetchLiveEfficiency, hasUsableLiveData, type LiveEfficiencyRow } from "@/lib/live-efficiency";
+import { tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import type { RevenueTask } from "@/lib/revenue-tasks";
 
 // ---------- Konstanten ----------
