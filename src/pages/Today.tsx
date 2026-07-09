@@ -743,8 +743,8 @@ export default function Today() {
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
     { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
     { id: "wins", label: "Wins", count: filtered.wins.length },
-    ...(onboardingCount > 0 ? [{ id: "onboarding" as StatusMode, label: "Onboarding", count: onboardingCount }] : []),
     { id: "done", label: "Erledigt", count: filtered.done.length },
+    ...(onboardingCount > 0 ? [{ id: "onboarding" as StatusMode, label: "Onboarding", count: onboardingCount }] : []),
   ];
 
   // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
@@ -1296,6 +1296,18 @@ export default function Today() {
                     </button>
                   );
                 })}
+                <button
+                  onClick={() => { setExtraFilter("push"); setKindTab("all"); }}
+                  className={cn(
+                    "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                    extraFilter === "push"
+                      ? "bg-pink-500/[0.12] border-pink-400/30 text-pink-100 shadow-[0_0_18px_-6px_rgba(236,72,153,0.4)]"
+                      : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                  )}
+                >
+                  <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
+                  Push
+                </button>
                 <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
                 <button
                   onClick={() => { setExtraFilter("none"); setKindTab("all"); }}
@@ -1376,18 +1388,6 @@ export default function Today() {
                         </button>
                       )}
                       {otherKinds.map(renderKind)}
-                      <button
-                        onClick={() => { setExtraFilter("push"); setKindTab("all"); }}
-                        className={cn(
-                          "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
-                          extraFilter === "push"
-                            ? "bg-pink-500/[0.12] border-pink-400/30 text-pink-100 shadow-[0_0_18px_-6px_rgba(236,72,153,0.4)]"
-                            : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
-                        )}
-                      >
-                        <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
-                        Push
-                      </button>
                     </>
                   );
                 })()}
