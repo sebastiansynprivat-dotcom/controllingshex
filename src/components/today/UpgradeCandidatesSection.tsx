@@ -1,6 +1,6 @@
 /**
  * UpgradeCandidatesSection — gelabelte Upgrade-Kandidaten (🟢 Upgrade, 💛 Premium Upgrade)
- * als eigene Luxus-Sektion im Heute-Tab.
+ * als eigene Sektion im Heute-Tab.
  *
  * Layout wie die Push-Sektion:
  *  - Übergreifender Header mit Chevron zum Ein-/Ausklappen der ganzen Sektion
@@ -9,7 +9,7 @@
  */
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Rocket, Check } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import LabelCardRow from "@/components/today/LabelCardRow";
