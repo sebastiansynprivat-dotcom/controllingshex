@@ -175,15 +175,16 @@ function VerzugCompactCards({
   avgOpenChats: number;
 }) {
   const items = [
-    { label: "Ältester Chat", value: `${oldestDays} Tage` },
-    { label: "Offen", value: `${openChats}` },
-    { label: "Ø 14T", value: `${avgOpenChats}` },
+    { label: "Ältester Chat", value: `${oldestDays} Tage`, title: "Alter des ältesten noch offenen Chats" },
+    { label: "Offen", value: `${openChats}`, title: "Aktuell offene Chats" },
+    { label: "Ø 14T", value: `${avgOpenChats}`, title: "Durchschnittlich offene Chats pro Tag in den letzten 14 Tagen" },
   ];
   return (
     <div className="grid grid-cols-3 gap-2">
       {items.map((item) => (
         <div
           key={item.label}
+          title={item.title}
           className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5 text-center"
         >
           <div className="text-[10px] uppercase tracking-wider text-white/50 font-medium leading-tight">
