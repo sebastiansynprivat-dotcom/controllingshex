@@ -123,7 +123,7 @@ export default function ModelPhaseTrend30({ platform, modelName, focusChatter, c
               style={{ background: "hsl(45 90% 55%)" }}
             />
             <span className="text-[10px] uppercase tracking-[0.18em] text-white/50 font-medium">
-              30-Tage-Trend · {modelName}
+              All-Time-Trend · {modelName}
             </span>
           </div>
         </div>
