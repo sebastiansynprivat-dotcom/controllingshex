@@ -124,6 +124,26 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     ring: "border-pink-400/30",
     tint: "bg-pink-500/[0.06]",
   },
+  silent_model: {
+    id: "silent_model",
+    label: "Model schweigt",
+    emoji: "📉",
+    group: "silent_model",
+    order: 9,
+    accent: "text-slate-300",
+    ring: "border-slate-400/25",
+    tint: "bg-slate-500/[0.06]",
+  },
+};
+
+export interface PushCard {
+
+    group: "live",
+    order: 8,
+    accent: "text-pink-300",
+    ring: "border-pink-400/30",
+    tint: "bg-pink-500/[0.06]",
+  },
 };
 
 export interface PushCard {
