@@ -916,6 +916,27 @@ export default function Today() {
 
 
 
+          {/* Gelabelte Upgrade-Kandidaten — eigene Sektion, sieht man direkt */}
+          {!loading && status === "open" && extraFilter === "none" && (
+            <UpgradeCandidatesSection
+              cards={labelCards}
+              doneKeys={labelDoneKeys}
+              platform={platform}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onComplete={async (key) => {
+                const prev = { ...states };
+                setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
+                try {
+                  await setTodoStatus(platform, key, "done", null);
+                } catch {
+                  setStates(prev);
+                  throw new Error("save failed");
+                }
+              }}
+              onLabelRemoved={reloadLabelData}
+            />
+          )}
+
           {/* Content */}
           {loading ? (
             <div className="text-center py-12 text-white/25 text-xs font-light tracking-wide">
