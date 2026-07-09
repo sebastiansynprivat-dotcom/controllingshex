@@ -55,6 +55,10 @@ import {
   type HiddenUpgradeEntry,
 } from "@/lib/hidden-upgrades";
 import { normalizeChatterName } from "@/lib/active-chatters";
+import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
+
+type ChannelFilter = "all" | "whatsapp" | "platform";
+const CHANNEL_FILTER_STORAGE_KEY = "today.channelFilter";
 
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
