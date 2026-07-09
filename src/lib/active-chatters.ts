@@ -34,6 +34,13 @@ export function normalizeAccountName(acc: string): string {
   return stripInvisible(acc).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+export interface ModelChatterInfo {
+  /** Original-Display-Name des Models */
+  display: string;
+  /** Chatter-Display-Namen aus dem letzten Report */
+  chatters: string[];
+}
+
 interface CacheEntry {
   ts: number;
   names: Set<string>;
@@ -41,9 +48,12 @@ interface CacheEntry {
   chatterModels: Map<string, Set<string>>;
   /** All currently assigned models across all chatters (normalized) */
   activeModels: Set<string>;
+  /** Model (normalized) → info incl. display name + assigned chatter display names */
+  modelChatters: Map<string, ModelChatterInfo>;
   /** false = noch nie ein Report geladen → keinen Filter anwenden */
   hasReport: boolean;
 }
+
 
 const cache = new Map<string, CacheEntry>();
 const TTL_MS = 60_000;
