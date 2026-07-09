@@ -11,6 +11,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
   loadActiveChatterNames,
+  loadActiveModels,
+  normalizeAccountName,
   normalizeChatterName,
 } from "@/lib/active-chatters";
 
@@ -22,13 +24,16 @@ export type PushBucketId =
   | "rescue"
   | "shift_due"
   | "dropped_off"
-  | "offline";
+  | "offline"
+  | "silent_model";
+
+export type PushBucketGroup = "live" | "offline" | "silent_model";
 
 export interface PushBucketDef {
   id: PushBucketId;
   label: string;
   emoji: string;
-  group: "live" | "offline";
+  group: PushBucketGroup;
   /** Dringlichkeits-Reihenfolge in der UI (kleinere = oben) */
   order: number;
   /** Tailwind accent classes */
@@ -36,6 +41,7 @@ export interface PushBucketDef {
   ring: string;
   tint: string;
 }
+
 
 export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
   rescue: {
