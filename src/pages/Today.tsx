@@ -473,16 +473,6 @@ export default function Today() {
 
 
 
-  // localStorage sync für selectedLabelIds
-  useEffect(() => {
-    try {
-      localStorage.setItem(LABEL_FILTER_STORAGE_KEY, JSON.stringify([...selectedLabelIds]));
-    } catch {
-      // ignore unavailable localStorage
-    }
-  }, [selectedLabelIds]);
-
-
   const visibility = (action: UnifiedAction): "open" | "done" | "hidden" | "snoozed-active" => {
     const now = new Date();
     let anyOpen = false;
