@@ -140,6 +140,64 @@ function initials(name: string | null | undefined): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "··";
 }
 
+function getVerzugStats(
+  action: UnifiedAction,
+  breakdown?: { account: string; openChats: number; delayDays: number }[],
+  avgOpenChats?: number,
+) {
+  let oldestDays = breakdown && breakdown.length > 0
+    ? Math.max(...breakdown.map((m) => m.delayDays))
+    : null;
+  let openChats = breakdown ? breakdown.reduce((s, m) => s + m.openChats, 0) : null;
+  if (oldestDays == null || openChats == null) {
+    const sig = action.signals.find((s) => s.kind === "verzug");
+    if (sig) {
+      const oldestMatch = sig.title.match(/(\d+)\s*T/) || sig.why.match(/(\d+)\s*T/);
+      if (oldestDays == null && oldestMatch) oldestDays = Number(oldestMatch[1]);
+      const openMatch = sig.why.match(/(\d+)\s+ungelesen/);
+      if (openChats == null && openMatch) openChats = Number(openMatch[1]);
+    }
+  }
+  return {
+    oldestDays: oldestDays ?? 0,
+    openChats: openChats ?? 0,
+    avgOpenChats: avgOpenChats ?? 0,
+  };
+}
+
+function VerzugCompactCards({
+  oldestDays,
+  openChats,
+  avgOpenChats,
+}: {
+  oldestDays: number;
+  openChats: number;
+  avgOpenChats: number;
+}) {
+  const items = [
+    { label: "Ältester Chat", value: `${oldestDays} Tage` },
+    { label: "Offen", value: `${openChats}` },
+    { label: "Ø 14T", value: `${avgOpenChats}` },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5 text-center"
+        >
+          <div className="text-[10px] uppercase tracking-wider text-white/50 font-medium leading-tight">
+            {item.label}
+          </div>
+          <div className="mt-1 text-[14px] font-semibold text-white/90 tabular-nums leading-tight">
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const MAX_SIGNAL_ROWS = 3;
 
 type MetaChip = { kind: "live" | "model" | "plain"; text: string };
