@@ -450,11 +450,15 @@ export async function loadPushCards(platform: string): Promise<PushCard[]> {
     }
   }
 
-  // ==== SILENT MODELS ====
+  // ==== SILENT MODELS (unter Offline, nie doppelt) ====
   // Models mit heute 0 €, aber 7T-Ø > 10 €/Tag und mind. 3 aktive Tage.
+  // Chatters, die schon in einer Karte auftauchen, werden übersprungen.
   try {
+    const existingKeys = new Set(cards.map((c) => normalizeChatterName(c.chatterName)));
     const silent = await loadSilentModelCards(platform, today);
-    cards.push(...silent);
+    for (const s of silent) {
+      if (!existingKeys.has(normalizeChatterName(s.chatterName))) cards.push(s);
+    }
   } catch (e) {
     console.error("[push-buckets] silent models", e);
   }
