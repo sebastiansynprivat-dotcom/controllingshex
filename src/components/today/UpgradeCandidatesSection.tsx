@@ -2,11 +2,12 @@
  * UpgradeCandidatesSection — gelabelte Upgrade-Kandidaten (🟢 Upgrade, 💛 Premium Upgrade)
  * als eigene Sektion im Heute-Tab.
  *
- * Keine Klappschnittstelle mehr: die Gruppen sind immer sichtbar und
- * standardmäßig ausgeklappt.
+ * "Offene Upgrades" ist standardmäßig eingeklappt; "Heute upgegradet" bleibt
+ * ausgeklappt. Beide Gruppen lassen sich über den Header auf- und zuklappen.
  */
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import LabelCardRow from "@/components/today/LabelCardRow";
