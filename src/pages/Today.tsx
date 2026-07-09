@@ -73,15 +73,15 @@ const SWAP_RENDER_BATCH = 8;
 
 const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
   { id: "verzug",   label: "Verzug",         icon: AlertTriangle,  accent: "text-red-300",      dot: "bg-red-400/80" },
+  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
+  { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
   { id: "recovery", label: "Recovery",       icon: LifeBuoy,       accent: "text-orange-300",   dot: "bg-orange-400/80" },
   // { id: "wakeup",   label: "Wieder aktiv",   icon: BellRing,       accent: "text-emerald-300",  dot: "bg-emerald-400/80" }, // entfernt auf Wunsch
   { id: "swap",     label: "Account-Tausch", icon: ArrowLeftRight, accent: "text-cyan-300",     dot: "bg-cyan-400/80" },
-  { id: "upgrade",  label: "Upgrade-Kandidaten", icon: Rocket,    accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
-  { id: "downgrade", label: "Downgrade-Kandidaten", icon: TrendingDown, accent: "text-red-300", dot: "bg-red-400/80" },
+  { id: "model",    label: "Model",          icon: Star,           accent: "text-fuchsia-300",  dot: "bg-fuchsia-400/80" },
   { id: "phase",    label: "Phase",          icon: Clock,          accent: "text-sky-300",      dot: "bg-sky-400/80" },
   { id: "revenue",  label: "Revenue",        icon: TrendingUp,     accent: "text-emerald-300",  dot: "bg-emerald-400/80" },
   { id: "activity", label: "Aktivität",      icon: Activity,       accent: "text-teal-300",     dot: "bg-teal-400/80" },
-  { id: "model",    label: "Model",          icon: Star,           accent: "text-fuchsia-300",  dot: "bg-fuchsia-400/80" },
   { id: "slot",     label: "Slot / Schicht", icon: CalendarClock,  accent: "text-indigo-300",   dot: "bg-indigo-400/80" },
   { id: "positive", label: "Wins-Signal",    icon: ThumbsUp,       accent: "text-lime-300",     dot: "bg-lime-400/80" },
 ];
