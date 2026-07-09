@@ -927,25 +927,6 @@ export default function Today() {
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
             />
-          ) : extraFilter === "labels" ? (
-            <LabelCardList
-              cards={visibleLabelCards}
-              doneKeys={labelDoneKeys}
-              platform={platform}
-              readonly={isReadonly}
-              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
-              onComplete={async (key) => {
-                const prev = { ...states };
-                setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
-                try {
-                  await setTodoStatus(platform, key, "done", null);
-                } catch {
-                  setStates(prev);
-                  throw new Error("save failed");
-                }
-              }}
-              onLabelRemoved={reloadLabelData}
-            />
           ) : baseVisibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
           ) : (
