@@ -150,7 +150,7 @@ export default function Today() {
   const [data, setData] = useState<TodayEngineResult | null>(null);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [loading, setLoading] = useState(true);
-  const [selectedChatter, setSelectedChatter] = useState<{ name: string; compareWith: string | null } | null>(null);
+  const [selectedChatter, setSelectedChatter] = useState<{ name: string; compareWith: string | null; modelContext: string | null } | null>(null);
   const [selectedModel, setSelectedModel] = useState<{ name: string; chatter: string | null } | null>(null);
   const [status, setStatus] = useState<StatusMode>("open");
   const [kindTab, setKindTab] = useState<KindTab>("all");
@@ -217,6 +217,14 @@ export default function Today() {
   });
   const [labelDataNonce, setLabelDataNonce] = useState(0);
   const reloadLabelData = () => setLabelDataNonce((n) => n + 1);
+
+  const openChatterFromAction = (action: UnifiedAction, name: string, compareWith?: string | null) => {
+    setSelectedChatter({
+      name,
+      compareWith: compareWith ?? null,
+      modelContext: action.primaryKind === "model" ? action.modelName ?? null : null,
+    });
+  };
 
   const [verzugBreakdown, setVerzugBreakdown] = useState<Map<string, VerzugBreakdownEntry[]>>(new Map());
 
@@ -928,7 +936,7 @@ export default function Today() {
               cards={labelCards}
               doneKeys={labelDoneKeys}
               platform={platform}
-              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
               onComplete={async (key) => {
                 const prev = { ...states };
                 setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
@@ -953,13 +961,13 @@ export default function Today() {
               groups={onboardingGroups}
               allLabels={labels}
               platform={platform}
-              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
               onAssigned={reloadLabelData}
             />
           ) : extraFilter === "push" ? (
             <PushSection
               platform={platform}
-              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
             />
           ) : extraFilter === "labels" ? (
             <LabelCardList
@@ -967,7 +975,7 @@ export default function Today() {
               doneKeys={labelDoneKeys}
               platform={platform}
               readonly={isReadonly}
-              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null })}
+              onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
               onComplete={async (key) => {
                 const prev = { ...states };
                 setStates({ ...prev, [key]: { status: "done", snoozed_until: null } });
@@ -1119,7 +1127,7 @@ export default function Today() {
                                   )}
                                   <PersonActionCard
                                     action={a}
-                                    onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                                    onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
                                     onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                                     onAct={act}
                                     readonly={isReadonly}
@@ -1152,7 +1160,7 @@ export default function Today() {
                             <PersonActionCard
                               key={a.bundleKey}
                               action={a}
-                              onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                              onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
                               onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                               onAct={act}
                               readonly={isReadonly}
@@ -1175,7 +1183,7 @@ export default function Today() {
                       const card = (
                         <PersonActionCard
                           action={a}
-                          onChatterClick={(name, compareWith) => setSelectedChatter({ name, compareWith: compareWith ?? null })}
+                          onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
                           onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
                           onAct={act}
                           readonly={isReadonly}
@@ -1436,6 +1444,7 @@ export default function Today() {
         const chatterOpen = !!selectedChatter || splitActive;
         const chatterName = selectedChatter?.name ?? selectedModel?.chatter ?? null;
         const chatterCompare = selectedChatter?.compareWith ?? null;
+        const chatterModelContext = selectedChatter?.modelContext ?? (splitActive ? selectedModel?.name ?? null : null);
         const slideFocusChatter = selectedModel?.chatter && sameChatterName(selectedModel.chatter, chatterName)
           ? chatterName
           : (selectedModel?.chatter ?? null);
@@ -1452,7 +1461,7 @@ export default function Today() {
                 initialCompareWith={chatterCompare}
                 platform={platform}
                 splitView={splitActive}
-                modelContext={splitActive ? selectedModel?.name ?? null : null}
+                modelContext={chatterModelContext}
               />
             )}
 
@@ -1505,7 +1514,7 @@ export default function Today() {
           }}
           onCompare={(u, d) => {
             if (!u.chatterName || !d.chatterName) return;
-            setSelectedChatter({ name: u.chatterName, compareWith: d.chatterName });
+            setSelectedChatter({ name: u.chatterName, compareWith: d.chatterName, modelContext: null });
           }}
         />
       )}
