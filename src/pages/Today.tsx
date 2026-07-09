@@ -450,7 +450,34 @@ export default function Today() {
           map.set(k, arr);
         }
 
+        // 14T-Durchschnitt der offenen Chats pro Chatter (zur Verzug-Karte)
+        const avgMap = new Map<string, number>();
+        const cutoff = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0];
+        const chatsByDay = new Map<string, number>();
+        for (const r of rows) {
+          const d = (r.analysis_date || "") as string;
+          if (!d || d >= today || d < cutoff) continue;
+          const key = normalizeBreakdownKey(r.chatter_name);
+          const dayKey = `${key}::${d}`;
+          chatsByDay.set(dayKey, (chatsByDay.get(dayKey) || 0) + Number(r.open_chats || 0));
+        }
+        const dayCounts = new Map<string, number>();
+        for (const [dayKey, chats] of chatsByDay) {
+          const key = dayKey.split("::")[0];
+          avgMap.set(key, (avgMap.get(key) || 0) + chats);
+          dayCounts.set(key, (dayCounts.get(key) || 0) + 1);
+        }
+        for (const [key, total] of avgMap) {
+          const count = dayCounts.get(key) || 1;
+          avgMap.set(key, Math.round(total / count));
+        }
+        for (const name of chatterNames) {
+          const avg = avgMap.get(normalizeBreakdownKey(name));
+          if (avg != null) avgMap.set(name, avg);
+        }
+
         setVerzugBreakdown(map);
+        setVerzugAvgOpenChats(avgMap);
       } catch (e) {
         console.error("[Today/verzugBreakdown]", e);
       }
