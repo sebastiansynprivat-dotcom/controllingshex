@@ -45,10 +45,20 @@ function formatDateShort(iso: string): string {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
 
+interface LifetimeChatterStats {
+  chatterName: string;
+  totalRevenue: number;
+  activeDays: number;
+  avgPerDay: number;
+  firstDate: string;
+  lastDate: string;
+}
+
 export default function ModelPerformanceSlideOver({ open, onClose, modelName, platform, focusChatter, splitView = false }: Props) {
   const [period, setPeriod] = useState<7 | 14 | 30 | 90>(30);
   const [tl, setTl] = useState<ModelTimeline | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lifetime, setLifetime] = useState<LifetimeChatterStats[]>([]);
 
   const dateRange = useMemo(() => {
     const to = new Date();
@@ -65,15 +75,97 @@ export default function ModelPerformanceSlideOver({ open, onClose, modelName, pl
       .finally(() => setLoading(false));
   }, [open, modelName, platform, dateRange]);
 
+  // Lifetime aggregate pro Chatter für dieses Model – für den Gesamt-Vergleich.
+  useEffect(() => {
+    if (!open || !modelName) return;
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, revenue_today, analysis_date")
+        .eq("platform", platform)
+        .eq("account", modelName);
+      if (cancel) return;
+      const byChatter = new Map<string, { total: number; days: Set<string>; first: string; last: string }>();
+      for (const row of data || []) {
+        const name = row.chatter_name?.trim();
+        const date = row.analysis_date;
+        if (!name || !date) continue;
+        const rev = Number(row.revenue_today) || 0;
+        if (!byChatter.has(name)) byChatter.set(name, { total: 0, days: new Set(), first: date, last: date });
+        const s = byChatter.get(name)!;
+        s.total += rev;
+        s.days.add(date);
+        if (date < s.first) s.first = date;
+        if (date > s.last) s.last = date;
+      }
+      const arr: LifetimeChatterStats[] = Array.from(byChatter.entries()).map(([chatterName, s]) => ({
+        chatterName,
+        totalRevenue: s.total,
+        activeDays: s.days.size,
+        avgPerDay: s.days.size > 0 ? s.total / s.days.size : 0,
+        firstDate: s.first,
+        lastDate: s.last,
+      }));
+      arr.sort((a, b) => b.avgPerDay - a.avgPerDay);
+      setLifetime(arr);
+    })();
+    return () => { cancel = true; };
+  }, [open, modelName, platform]);
+
   const chatterColors = useMemo(() => {
     const map = new Map<string, string>();
-    if (!tl) return map;
     let i = 0;
-    for (const p of tl.phases) {
+    // Phasen zuerst (Reihenfolge im Chart) …
+    for (const p of tl?.phases ?? []) {
       if (!map.has(p.chatterName)) {
         map.set(p.chatterName, PHASE_COLORS[i % PHASE_COLORS.length]);
         i++;
       }
+    }
+    // … dann restliche Chatter aus dem Lifetime-Set, damit die Vergleichs-Karte
+    // jedem Chatter eine stabile Farbe zuweisen kann.
+    for (const l of lifetime) {
+      if (!map.has(l.chatterName)) {
+        map.set(l.chatterName, PHASE_COLORS[i % PHASE_COLORS.length]);
+        i++;
+      }
+    }
+    return map;
+  }, [tl, lifetime]);
+
+  // Chart-Daten pro Chatter aufsplitten, damit jede Chatter-Phase in ihrer
+  // eigenen Farbe im Umsatz-Verlauf gezeichnet wird.
+  const chartData = useMemo(() => {
+    if (!tl) return [] as Array<Record<string, any>>;
+    const chatters = Array.from(chatterColors.keys());
+    const rows: Record<string, any>[] = tl.daily.map((d) => {
+      const row: Record<string, any> = { date: d.date, chatter: d.chatter, revenue: d.revenue };
+      for (const c of chatters) row[`c__${c}`] = null;
+      if (d.chatter) row[`c__${d.chatter}`] = d.revenue;
+      return row;
+    });
+    // An Chatter-Wechseln den vorherigen Chatter am Wechsel-Tag mitzeichnen,
+    // damit die Segmente ohne Lücke zusammenlaufen.
+    for (let i = 1; i < tl.daily.length; i++) {
+      const prev = tl.daily[i - 1];
+      const cur = tl.daily[i];
+      if (prev.chatter && cur.chatter && prev.chatter !== cur.chatter) {
+        rows[i][`c__${prev.chatter}`] = cur.revenue;
+      }
+    }
+    return rows;
+  }, [tl, chatterColors]);
+
+  // Aggregat pro Chatter im aktuellen Zeitraum (kann mehrere Phasen desselben
+  // Chatters umfassen).
+  const periodByChatter = useMemo(() => {
+    const map = new Map<string, { total: number; days: number }>();
+    for (const p of tl?.phases ?? []) {
+      const cur = map.get(p.chatterName) ?? { total: 0, days: 0 };
+      cur.total += p.totalRevenue;
+      cur.days += p.days;
+      map.set(p.chatterName, cur);
     }
     return map;
   }, [tl]);
