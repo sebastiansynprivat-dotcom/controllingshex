@@ -33,6 +33,7 @@ import {
   type WeekProgress as GoalProgress,
   type GoalStatus,
 } from "@/lib/weekly-goals";
+import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 const LABEL_NAME = "Wochenziel";
 
