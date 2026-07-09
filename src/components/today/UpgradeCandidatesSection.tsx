@@ -7,7 +7,7 @@
  */
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Rocket, Check } from "lucide-react";
+import { ChevronDown, Rocket } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import LabelCardRow from "@/components/today/LabelCardRow";
