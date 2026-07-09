@@ -891,6 +891,15 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
     originalAccountLabel,
   );
 
+  const upgradesHC = await detectUpgradesHighConverter(
+    platform,
+    lastAssignments,
+    followersByAcc,
+    activeNames,
+    originalChatterName,
+    originalAccountLabel,
+  );
+
   const { matches, unusedY } = matchSwaps(
     downgrades,
     upgradesY,
