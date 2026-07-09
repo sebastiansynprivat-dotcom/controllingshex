@@ -1,6 +1,6 @@
 /**
  * UpgradeCandidatesSection — gelabelte Upgrade-Kandidaten (🟢 Upgrade, 💛 Premium Upgrade)
- * als eigene Luxus-Sektion im Heute-Tab.
+ * als eigene Sektion im Heute-Tab.
  *
  * Layout wie die Push-Sektion:
  *  - Übergreifender Header mit Chevron zum Ein-/Ausklappen der ganzen Sektion
@@ -9,7 +9,7 @@
  */
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Rocket, Check } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import LabelCardRow from "@/components/today/LabelCardRow";
@@ -103,14 +103,8 @@ export default function UpgradeCandidatesSection({
         className="w-full flex items-end justify-between gap-4 group text-left"
       >
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <Rocket className="h-3 w-3 text-emerald-300/80" />
-            <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-300/80 font-semibold">
-              Gelabelte Upgrades
-            </span>
-          </div>
-          <h2 className="text-xl font-light tracking-tight text-white/95 leading-tight">
-            Upgrade-Kandidaten
+          <h2 className="text-base font-normal tracking-tight text-white/90 leading-tight">
+            Offene Upgrade-Labels
           </h2>
           <p className="mt-1 text-[11.5px] text-white/50 font-light">
             {openCards.length} offen
