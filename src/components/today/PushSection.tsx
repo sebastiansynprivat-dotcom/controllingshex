@@ -176,7 +176,6 @@ export default function PushSection({ platform, onChatterClick }: Props) {
           </h2>
           <p className="mt-1 text-[11.5px] text-white/50 font-light">
             {stats.offline} offline · {stats.live} live
-            {stats.silent > 0 && <span className="text-slate-300/90"> · {stats.silent} stille Models</span>}
             {stats.urgent > 0 && <span className="text-orange-300/90"> · {stats.urgent} dringend</span>}
           </p>
         </div>
@@ -317,7 +316,7 @@ function PushCardItem({
   onChatterClick: (name: string) => void;
   onAct: (card: PushCard, kind: "done" | "snooze") => void;
 }) {
-  const isSilentModel = card.bucket.group === "silent_model";
+  const isSilentModel = card.bucket.id === "silent_model";
   return (
     <motion.div
       layout
