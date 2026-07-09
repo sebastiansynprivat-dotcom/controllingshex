@@ -743,8 +743,8 @@ export default function Today() {
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
     { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
     { id: "wins", label: "Wins", count: filtered.wins.length },
-    ...(onboardingCount > 0 ? [{ id: "onboarding" as StatusMode, label: "Onboarding", count: onboardingCount }] : []),
     { id: "done", label: "Erledigt", count: filtered.done.length },
+    ...(onboardingCount > 0 ? [{ id: "onboarding" as StatusMode, label: "Onboarding", count: onboardingCount }] : []),
   ];
 
   // Nur "Erledigt" ist readonly — Wins können wie normale Aktionen abgehakt werden
