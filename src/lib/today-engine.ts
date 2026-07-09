@@ -111,6 +111,8 @@ const SOLO_KINDS = new Set<ActionSourceKind>([
   "mismatch",
   // v3 Potenzial — eigene Karte mit Evidence-Block, nicht in Personenbündel
   "potential",
+  // Wins müssen eigenständig bleiben; sonst werden sie von Verzug/Recovery derselben Person verschluckt.
+  "positive",
 ]);
 
 const TONE_BY_KIND: Record<ActionSourceKind, "critical" | "warning" | "info" | "positive"> = {
