@@ -20,13 +20,42 @@ interface GroupDef {
   label: string;
   sub: string;
   accent: string;
+  /** subtiler Farbschimmer für die Glass-Kachel */
+  glow: string;
+  /** Chip-Farbe für den Count */
+  chip: string;
 }
 
 const GROUPS: GroupDef[] = [
-  { id: "live", emoji: "🔥", label: "Jetzt live", sub: "Rescue · Kick · Hot · Boost · Push", accent: "text-orange-300/90" },
-  { id: "offline", emoji: "🌙", label: "Chatter offline", sub: "Schichtstart · Abgetaucht · Offline", accent: "text-indigo-300/90" },
-  { id: "silent_model", emoji: "📉", label: "Models schweigen", sub: "Heute 0 € trotz aktivem 7T-Schnitt", accent: "text-slate-300/90" },
+  {
+    id: "live",
+    emoji: "🔥",
+    label: "Jetzt live",
+    sub: "Rescue · Kick · Hot · Boost · Push",
+    accent: "text-orange-200",
+    glow: "from-orange-500/[0.09] via-transparent to-transparent",
+    chip: "bg-orange-500/15 text-orange-200 border-orange-400/25",
+  },
+  {
+    id: "offline",
+    emoji: "🌙",
+    label: "Chatter offline",
+    sub: "Schichtstart · Abgetaucht · Offline",
+    accent: "text-indigo-200",
+    glow: "from-indigo-500/[0.08] via-transparent to-transparent",
+    chip: "bg-indigo-500/15 text-indigo-200 border-indigo-400/25",
+  },
+  {
+    id: "silent_model",
+    emoji: "📉",
+    label: "Models schweigen",
+    sub: "Heute 0 € trotz aktivem 7T-Schnitt",
+    accent: "text-slate-200",
+    glow: "from-slate-400/[0.07] via-transparent to-transparent",
+    chip: "bg-slate-400/15 text-slate-100 border-slate-300/20",
+  },
 ];
+
 
 export default function PushSection({ platform, onChatterClick }: Props) {
   const [cards, setCards] = useState<PushCard[] | null>(null);
