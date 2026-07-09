@@ -521,18 +521,21 @@ export default function Today() {
 
     for (const a of data.primary) {
       if (isHidden(a)) continue;
+      if (!passesChannel(a)) continue;
       const v = visibility(a);
       if (v === "open") open.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.watchlist) {
       if (isHidden(a)) continue;
+      if (!passesChannel(a)) continue;
       const v = visibility(a);
       if (v === "open") watch.push(a);
       else if (v === "done") done.push(a);
     }
     for (const a of data.wins) {
       if (isHidden(a)) continue;
+      if (!passesChannel(a)) continue;
       const v = visibility(a);
       if (v === "open") wins.push(a);
       else if (v === "done") done.push(a);
@@ -543,7 +546,7 @@ export default function Today() {
     const doneImpact = done.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
 
     return { primary: open, watchlist: watch, wins, done, openImpact, doneImpact };
-  }, [data, states]);
+  }, [data, states, channelFilter]);
 
   const totalPrimaryActions = (data?.primary.length ?? 0);
   const completedPrimary = totalPrimaryActions - filtered.primary.length;
