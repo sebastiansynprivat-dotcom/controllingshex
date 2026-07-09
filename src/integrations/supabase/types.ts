@@ -864,6 +864,33 @@ export type Database = {
         }
         Relationships: []
       }
+      hidden_upgrade_chatters: {
+        Row: {
+          chatter_key: string
+          created_at: string
+          id: string
+          original_name: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          chatter_key: string
+          created_at?: string
+          id?: string
+          original_name: string
+          platform: string
+          user_id: string
+        }
+        Update: {
+          chatter_key?: string
+          created_at?: string
+          id?: string
+          original_name?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hot_streak_alerts: {
         Row: {
           alert_date: string
