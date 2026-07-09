@@ -3,19 +3,13 @@
  * gleiches Look & Feel wie die Standard-Action-Karten. Abhakbar pro Tag.
  * Label-Gruppen sind standardmäßig eingeklappt.
  */
-import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { ChevronRight, ChevronDown, Tag } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import LabelCardRow from "@/components/today/LabelCardRow";
 import type { LabelCard } from "@/lib/label-tasks";
-
-function formatCompact(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "") + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "") + "K";
-  return String(n);
-}
 
 interface Props {
   cards: LabelCard[];
