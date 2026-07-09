@@ -612,8 +612,12 @@ export default function Today() {
     [isUpDownTab, statusList],
   );
   const upgradeList = useMemo(
-    () => upgradeListAll.filter((a) => !trayIds.has(a.bundleKey)),
-    [upgradeListAll, trayIds],
+    () => upgradeListAll.filter((a) => {
+      if (trayIds.has(a.bundleKey)) return false;
+      if (a.chatterName && hiddenUpgradeKeys.has(hiddenChatterKey(a.chatterName))) return false;
+      return true;
+    }),
+    [upgradeListAll, trayIds, hiddenUpgradeKeys],
   );
   const downgradeList = useMemo(
     () => downgradeListAll
