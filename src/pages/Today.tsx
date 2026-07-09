@@ -60,11 +60,10 @@ export type VerzugBreakdownEntry = { account: string; openChats: number; delayDa
 
 
 type StatusMode = "open" | "wins" | "onboarding" | "done";
-type ExtraFilter = "none" | "onboarding" | "labels" | "push";
+type ExtraFilter = "none" | "onboarding" | "push";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
-const LABEL_FILTER_STORAGE_KEY = "today.activeLabelFilters";
 const SWAP_RENDER_BATCH = 8;
 
 
