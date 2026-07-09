@@ -426,6 +426,7 @@ export default function WeeklyGoals() {
   const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
   // Impact-Filter: granular nach Wochenziel-Höhe
   const [impactFilter, setImpactFilter] = useState<"all" | "lt100" | "lt300" | "lt500" | "lt1000" | "gte1000">("all");
+  const [channelFilter, setChannelFilter] = useState<"all" | ChatterChannel>("all");
   const [tab, setTab] = useState<"current" | "future" | "past">("current");
   const [selected, setSelected] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
