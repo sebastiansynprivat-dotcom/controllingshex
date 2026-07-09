@@ -166,6 +166,24 @@ export default function Today() {
     }
   };
 
+  // Dauerhaft ausgeblendete Upgrade-Kandidaten (Chatter ohne realistisches Upgrade-Potenzial)
+  const [hiddenUpgrades, setHiddenUpgrades] = useState<HiddenUpgradeEntry[]>([]);
+  const [showHiddenPanel, setShowHiddenPanel] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const rows = await fetchHiddenUpgrades(platform);
+      if (!cancelled) setHiddenUpgrades(rows);
+    };
+    load();
+    const off = onHiddenUpgradesUpdated(load);
+    return () => { cancelled = true; off(); };
+  }, [platform]);
+  const hiddenUpgradeKeys = useMemo(
+    () => new Set(hiddenUpgrades.map((h) => h.chatterKey)),
+    [hiddenUpgrades],
+  );
+
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
