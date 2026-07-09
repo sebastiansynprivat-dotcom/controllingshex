@@ -1295,9 +1295,10 @@ export default function WeeklyGoals() {
     else if (impactFilter === "lt500") arr = arr.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500);
     else if (impactFilter === "lt1000") arr = arr.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000);
     else if (impactFilter === "gte1000") arr = arr.filter((r) => r.progress.goal >= 1000);
+    if (channelFilter !== "all") arr = arr.filter((r) => classifyChannel(r.chatter) === channelFilter);
     if (statusFilter !== "all") arr = arr.filter((r) => r.progress.status === statusFilter);
     return arr;
-  }, [rows, statusFilter, impactFilter]);
+  }, [rows, statusFilter, impactFilter, channelFilter]);
 
   const impactCounts = useMemo(() => ({
     lt100: rows.filter((r) => r.progress.goal < 100).length,
@@ -1305,6 +1306,11 @@ export default function WeeklyGoals() {
     lt500: rows.filter((r) => r.progress.goal >= 300 && r.progress.goal < 500).length,
     lt1000: rows.filter((r) => r.progress.goal >= 500 && r.progress.goal < 1000).length,
     gte1000: rows.filter((r) => r.progress.goal >= 1000).length,
+  }), [rows]);
+
+  const channelCounts = useMemo(() => ({
+    whatsapp: rows.filter((r) => classifyChannel(r.chatter) === "whatsapp").length,
+    platform: rows.filter((r) => classifyChannel(r.chatter) === "platform").length,
   }), [rows]);
 
   const sortedRows = useMemo(() => {
