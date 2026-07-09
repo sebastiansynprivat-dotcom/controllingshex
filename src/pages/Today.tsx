@@ -240,6 +240,7 @@ export default function Today() {
   };
 
   const [verzugBreakdown, setVerzugBreakdown] = useState<Map<string, VerzugBreakdownEntry[]>>(new Map());
+  const [verzugAvgOpenChats, setVerzugAvgOpenChats] = useState<Map<string, number>>(new Map());
 
   const isSunday = new Date().getDay() === 0;
 
