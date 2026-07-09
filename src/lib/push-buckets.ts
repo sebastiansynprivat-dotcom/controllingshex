@@ -29,7 +29,7 @@ export type PushBucketId =
   | "offline"
   | "silent_model";
 
-export type PushBucketGroup = "crisis" | "winning" | "nudge" | "offline" | "silent_model";
+export type PushBucketGroup = "crisis" | "winning" | "nudge" | "offline";
 
 export interface PushBucketDef {
   id: PushBucketId;
@@ -134,8 +134,8 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "silent_model",
     label: "Model schweigt",
     emoji: "📉",
-    group: "silent_model",
-    order: 9,
+    group: "offline",
+    order: 3,
     accent: "text-slate-300",
     ring: "border-slate-400/25",
     tint: "bg-slate-500/[0.06]",

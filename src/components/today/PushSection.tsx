@@ -58,19 +58,10 @@ const GROUPS: GroupDef[] = [
     id: "offline",
     emoji: "🌙",
     label: "Chatter offline",
-    sub: "Schichtstart · Abgetaucht · Offline",
+    sub: "Offline · Schichtstart · Abgetaucht · Model schweigt",
     accent: "text-indigo-200",
     glow: "from-indigo-500/[0.08] via-transparent to-transparent",
     chip: "bg-indigo-500/15 text-indigo-200 border-indigo-400/25",
-  },
-  {
-    id: "silent_model",
-    emoji: "📉",
-    label: "Models schweigen",
-    sub: "Heute 0 € trotz aktivem 7T-Schnitt",
-    accent: "text-slate-200",
-    glow: "from-slate-400/[0.07] via-transparent to-transparent",
-    chip: "bg-slate-400/15 text-slate-100 border-slate-300/20",
   },
 ];
 
