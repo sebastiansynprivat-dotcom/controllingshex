@@ -61,7 +61,7 @@ import {
 export type VerzugBreakdownEntry = { account: string; openChats: number; delayDays: number };
 
 
-type StatusMode = "open" | "wins" | "done";
+type StatusMode = "open" | "wins" | "onboarding" | "done";
 type ExtraFilter = "none" | "onboarding" | "labels" | "push";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
@@ -555,7 +555,9 @@ export default function Today() {
       ? [...filtered.primary, ...filtered.watchlist]
       : status === "wins"
         ? filtered.wins
-        : filtered.done;
+        : status === "onboarding"
+          ? []
+          : filtered.done;
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
   const availableKinds = groupByKind(statusList);
@@ -741,6 +743,7 @@ export default function Today() {
   const statusOptions: { id: StatusMode; label: string; count: number }[] = [
     { id: "open", label: "Offen", count: filtered.primary.length + filtered.watchlist.length },
     { id: "wins", label: "Wins", count: filtered.wins.length },
+    ...(onboardingCount > 0 ? [{ id: "onboarding" as StatusMode, label: "Onboarding", count: onboardingCount }] : []),
     { id: "done", label: "Erledigt", count: filtered.done.length },
   ];
 
@@ -750,6 +753,7 @@ export default function Today() {
   // Ambient Filter-Tint — gibt jeder Filter-Auswahl eine eigene Stimmungsfarbe
   const activeTint = (() => {
     if (status === "wins")  return { key: "wins",    color: "163,230,53",  intensity: 0.14 }; // Lime → Dopamin
+    if (status === "onboarding") return { key: "onb-status", color: "52,211,153", intensity: 0.11 };
     if (status === "done")  return { key: "done",    color: "148,163,184", intensity: 0.05 }; // Slate → ruhig
     if (extraFilter === "push")       return { key: "push", color: "236,72,153",  intensity: 0.12 };
     if (extraFilter === "onboarding") return { key: "onb", color: "52,211,153", intensity: 0.11 };
