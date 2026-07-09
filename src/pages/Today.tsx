@@ -90,6 +90,18 @@ const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; acce
 ];
 
 
+function sortDowngradeActions(actions: UnifiedAction[]) {
+  return [...actions].sort((a, b) => {
+    // Höchster Umsatzimpact oben, bei Gleichstand chronologisch (ältestes Muster zuerst)
+    if (b.totalImpactEurPerWeek !== a.totalImpactEurPerWeek) {
+      return b.totalImpactEurPerWeek - a.totalImpactEurPerWeek;
+    }
+    const da = a.downgradeSince ?? "9999-12-31";
+    const db = b.downgradeSince ?? "9999-12-31";
+    return da.localeCompare(db);
+  });
+}
+
 function groupByKind(actions: UnifiedAction[]) {
   const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
   for (const a of actions) {
@@ -99,7 +111,8 @@ function groupByKind(actions: UnifiedAction[]) {
   }
   return KIND_DEFS
     .map((def) => {
-      const items = buckets.get(def.id) ?? [];
+      const rawItems = buckets.get(def.id) ?? [];
+      const items = def.id === "downgrade" ? sortDowngradeActions(rawItems) : rawItems;
       const sumImpact = items.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
       return { ...def, items, sumImpact };
     })
