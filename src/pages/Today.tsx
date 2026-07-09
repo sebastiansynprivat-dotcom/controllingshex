@@ -923,7 +923,7 @@ export default function Today() {
           {/* Gelabelte Upgrade-Kandidaten — nur im Upgrade-Kandidaten-Tab anzeigen */}
           {!loading && status === "open" && extraFilter === "none" && kindTab === "upgrade" && (
             <UpgradeCandidatesSection
-              cards={labelCards}
+              cards={filteredLabelCards}
               doneKeys={labelDoneKeys}
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
