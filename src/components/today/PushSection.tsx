@@ -28,13 +28,31 @@ interface GroupDef {
 
 const GROUPS: GroupDef[] = [
   {
-    id: "live",
+    id: "crisis",
+    emoji: "🚨",
+    label: "Krise — sofort ran",
+    sub: "Rescue · Kick — brennt, jetzt entlasten",
+    accent: "text-red-200",
+    glow: "from-red-500/[0.10] via-transparent to-transparent",
+    chip: "bg-red-500/15 text-red-200 border-red-400/30",
+  },
+  {
+    id: "nudge",
+    emoji: "💪",
+    label: "Am Anschieben",
+    sub: "Push — knapp unter Pace, kurz motivieren",
+    accent: "text-yellow-200",
+    glow: "from-yellow-500/[0.08] via-transparent to-transparent",
+    chip: "bg-yellow-500/15 text-yellow-200 border-yellow-400/25",
+  },
+  {
+    id: "winning",
     emoji: "🔥",
-    label: "Jetzt live",
-    sub: "Rescue · Kick · Hot · Boost · Push",
-    accent: "text-orange-200",
-    glow: "from-orange-500/[0.09] via-transparent to-transparent",
-    chip: "bg-orange-500/15 text-orange-200 border-orange-400/25",
+    label: "Läuft — bestätigen",
+    sub: "Hot · Boost — Tempo halten, loben",
+    accent: "text-emerald-200",
+    glow: "from-emerald-500/[0.08] via-transparent to-transparent",
+    chip: "bg-emerald-500/15 text-emerald-200 border-emerald-400/25",
   },
   {
     id: "offline",
@@ -57,13 +75,15 @@ const GROUPS: GroupDef[] = [
 ];
 
 
+
 export default function PushSection({ platform, onChatterClick }: Props) {
   const [cards, setCards] = useState<PushCard[] | null>(null);
   const [states, setStates] = useState<Record<string, TodoState>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<PushBucketGroup, boolean>>({
-    live: true, offline: true, silent_model: true,
+    crisis: true, nudge: true, winning: true, offline: true, silent_model: true,
   });
+
 
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -104,7 +124,7 @@ export default function PushSection({ platform, onChatterClick }: Props) {
   );
 
   const byGroup = useMemo(() => {
-    const m: Record<PushBucketGroup, PushCard[]> = { live: [], offline: [], silent_model: [] };
+    const m: Record<PushBucketGroup, PushCard[]> = { crisis: [], nudge: [], winning: [], offline: [], silent_model: [] };
     for (const c of openCards) m[c.bucket.group].push(c);
     for (const k of Object.keys(m) as PushBucketGroup[]) {
       m[k].sort((a, b) => {

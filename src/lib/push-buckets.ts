@@ -29,7 +29,7 @@ export type PushBucketId =
   | "offline"
   | "silent_model";
 
-export type PushBucketGroup = "live" | "offline" | "silent_model";
+export type PushBucketGroup = "crisis" | "winning" | "nudge" | "offline" | "silent_model";
 
 export interface PushBucketDef {
   id: PushBucketId;
@@ -50,7 +50,8 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "rescue",
     label: "Rescue",
     emoji: "🩹",
-    group: "live",
+    group: "crisis",
+
     order: 1,
     accent: "text-orange-300",
     ring: "border-orange-400/30",
@@ -60,7 +61,8 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "kick",
     label: "Kick",
     emoji: "⚡",
-    group: "live",
+    group: "crisis",
+
     order: 2,
     accent: "text-red-300",
     ring: "border-red-400/30",
@@ -100,7 +102,8 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "push",
     label: "Push",
     emoji: "💪",
-    group: "live",
+    group: "nudge",
+
     order: 6,
     accent: "text-yellow-300",
     ring: "border-yellow-400/25",
@@ -110,7 +113,8 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "boost",
     label: "Boost",
     emoji: "🚀",
-    group: "live",
+    group: "winning",
+
     order: 7,
     accent: "text-emerald-300",
     ring: "border-emerald-400/25",
@@ -120,7 +124,7 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
     id: "hot",
     label: "Hot",
     emoji: "🔥",
-    group: "live",
+    group: "winning",
     order: 8,
     accent: "text-pink-300",
     ring: "border-pink-400/30",
