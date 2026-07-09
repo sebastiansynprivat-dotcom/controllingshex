@@ -138,15 +138,6 @@ export const PUSH_BUCKETS: Record<PushBucketId, PushBucketDef> = {
 
 export interface PushCard {
 
-    group: "live",
-    order: 8,
-    accent: "text-pink-300",
-    ring: "border-pink-400/30",
-    tint: "bg-pink-500/[0.06]",
-  },
-};
-
-export interface PushCard {
   /** Stabiler todo-key für daily_todo_state */
   todoKey: string;
   chatterName: string;
