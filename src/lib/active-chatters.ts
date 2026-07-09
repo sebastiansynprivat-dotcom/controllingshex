@@ -34,6 +34,13 @@ export function normalizeAccountName(acc: string): string {
   return stripInvisible(acc).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+export interface ModelChatterInfo {
+  /** Original-Display-Name des Models */
+  display: string;
+  /** Chatter-Display-Namen aus dem letzten Report */
+  chatters: string[];
+}
+
 interface CacheEntry {
   ts: number;
   names: Set<string>;
@@ -41,9 +48,12 @@ interface CacheEntry {
   chatterModels: Map<string, Set<string>>;
   /** All currently assigned models across all chatters (normalized) */
   activeModels: Set<string>;
+  /** Model (normalized) → info incl. display name + assigned chatter display names */
+  modelChatters: Map<string, ModelChatterInfo>;
   /** false = noch nie ein Report geladen → keinen Filter anwenden */
   hasReport: boolean;
 }
+
 
 const cache = new Map<string, CacheEntry>();
 const TTL_MS = 60_000;
@@ -72,6 +82,7 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
       names: new Set(),
       chatterModels: new Map(),
       activeModels: new Set(),
+      modelChatters: new Map(),
       hasReport: false,
     };
     cache.set(platform, empty);
@@ -81,16 +92,27 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
   const names = new Set<string>();
   const chatterModels = new Map<string, Set<string>>();
   const activeModels = new Set<string>();
+  const modelChatters = new Map<string, ModelChatterInfo>();
   for (const cat of result.categories) {
     for (const ch of cat.chatters ?? []) {
       if (!ch?.name) continue;
+      const nDisplay = ch.name.trim();
       const n = normalizeChatterName(ch.name);
       names.add(n);
-      const acc = ch.account ? normalizeAccountName(ch.account) : "";
-      if (acc) {
+      const rawAcc = ch.account ?? "";
+      const parts = rawAcc.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const acc of parts) {
+        const accKey = normalizeAccountName(acc);
+        if (!accKey) continue;
         if (!chatterModels.has(n)) chatterModels.set(n, new Set());
-        chatterModels.get(n)!.add(acc);
-        activeModels.add(acc);
+        chatterModels.get(n)!.add(accKey);
+        activeModels.add(accKey);
+        let info = modelChatters.get(accKey);
+        if (!info) {
+          info = { display: acc, chatters: [] };
+          modelChatters.set(accKey, info);
+        }
+        if (!info.chatters.includes(nDisplay)) info.chatters.push(nDisplay);
       }
     }
   }
@@ -99,10 +121,12 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
     names,
     chatterModels,
     activeModels,
+    modelChatters,
     hasReport: true,
   };
   cache.set(platform, entry);
   return entry;
+
 }
 
 /**
@@ -124,6 +148,18 @@ export async function loadActiveChatterModels(
   const e = await loadEntry(platform);
   return e.hasReport ? e.chatterModels : null;
 }
+
+/**
+ * Model (normalisiert) → Info mit Display-Name + Chatter-Display-Namen aus letztem Report.
+ * `null` wenn (noch) kein Report existiert.
+ */
+export async function loadModelChatters(
+  platform: string,
+): Promise<Map<string, ModelChatterInfo> | null> {
+  const e = await loadEntry(platform);
+  return e.hasReport ? e.modelChatters : null;
+}
+
 
 /** Alle Models (normalisiert), die aktuell irgendeinem Chatter zugeordnet sind. */
 export async function loadActiveModels(platform: string): Promise<Set<string> | null> {

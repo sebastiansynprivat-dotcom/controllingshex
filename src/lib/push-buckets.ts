@@ -12,9 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   loadActiveChatterNames,
   loadActiveModels,
+  loadModelChatters,
   normalizeAccountName,
   normalizeChatterName,
 } from "@/lib/active-chatters";
+
 
 export type PushBucketId =
   | "hot"
@@ -150,9 +152,12 @@ export interface PushCard {
   isLive: boolean;
   /** Score für innerhalb-Bucket-Sortierung (höher = wichtiger) */
   score: number;
-  /** Nur für silent_model — Chatter, die heute auf dem Model sitzen */
+  /** Nur für silent_model — Chatter, die im letzten Report auf dem Model sitzen */
   assignedChatters?: string[];
+  /** Nur für silent_model — Model-Display-Name */
+  modelName?: string;
 }
+
 
 
 interface LiveSnap {
@@ -497,18 +502,16 @@ async function loadSilentModelCards(platform: string, today: string): Promise<Pu
   if (!rows || rows.length === 0) return [];
 
   const activeModels = await loadActiveModels(platform);
+  const modelChatters = await loadModelChatters(platform);
 
-  // Pro Model (normalisiert): { revByDay: Map<date, sum>, displayName, todayChatters: Set }
   interface Agg {
     display: string;
     revByDay: Map<string, number>;
-    todayChatters: Map<string, string>; // normKey -> displayName
   }
   const perModel = new Map<string, Agg>();
 
   for (const r of rows) {
     const rawAcc = (r.account ?? "").trim();
-    const rawName = (r.chatter_name ?? "").trim();
     if (!rawAcc) continue;
     const parts = rawAcc.split(",").map((s) => s.trim()).filter(Boolean);
     if (parts.length === 0) continue;
@@ -519,28 +522,24 @@ async function loadSilentModelCards(platform: string, today: string): Promise<Pu
       if (activeModels && !activeModels.has(key)) continue;
       let agg = perModel.get(key);
       if (!agg) {
-        agg = { display: acc, revByDay: new Map(), todayChatters: new Map() };
+        agg = { display: acc, revByDay: new Map() };
         perModel.set(key, agg);
       }
       agg.revByDay.set(r.analysis_date, (agg.revByDay.get(r.analysis_date) ?? 0) + perAcc);
-      if (r.analysis_date === today && rawName) {
-        const nk = normalizeChatterName(rawName);
-        if (!agg.todayChatters.has(nk)) agg.todayChatters.set(nk, rawName);
-      }
     }
   }
 
+  const yIso = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
   const cards: PushCard[] = [];
+
   for (const [modelKey, agg] of perModel) {
     const todayRev = agg.revByDay.get(today) ?? 0;
     if (todayRev > 0) continue;
 
-    // 7T-Schnitt ohne heute
     let sum = 0;
     let activeDays = 0;
     let totalDays = 0;
     let yesterday = 0;
-    const yIso = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0,10); })();
     for (const [date, rev] of agg.revByDay) {
       if (date === today) continue;
       totalDays++;
@@ -553,26 +552,45 @@ async function loadSilentModelCards(platform: string, today: string): Promise<Pu
     if (avg <= 10) continue;
     if (activeDays < 3) continue;
 
-    const chatters = Array.from(agg.todayChatters.values());
-    const chatterText = chatters.length > 0
-      ? chatters.length === 1 ? chatters[0] : `${chatters.length} Chatter`
-      : "kein Chatter zugewiesen";
+    const info = modelChatters?.get(modelKey);
+    const modelDisplay = info?.display ?? agg.display;
+    const chatters = info?.chatters ?? [];
 
-    cards.push({
-      todoKey: `push:model:${modelKey}:silent:${today}`,
-      chatterName: agg.display,
-      bucket: PUSH_BUCKETS.silent_model,
-      isLive: false,
-      score: 40 + Math.min(40, avg),
-      suggestion: chatters.length > 0
-        ? `Heute noch 0 € — ${chatterText} noch mal anhauen.`
-        : `Heute noch 0 € auf ${agg.display} — heute kein Chatter zugewiesen.`,
-      dataLine: `7T-Ø: ${fmtEur(avg)}/Tag${yesterday > 0 ? ` · gestern: ${fmtEur(yesterday)}` : ""} · heute: 0 €`,
-      assignedChatters: chatters,
-    });
+    if (chatters.length === 0) {
+      // Kein Chatter im letzten Report zugeordnet — Karte trotzdem zeigen,
+      // aber ohne Chatter-Primärname.
+      cards.push({
+        todoKey: `push:model:${modelKey}:silent:${today}`,
+        chatterName: modelDisplay,
+        modelName: modelDisplay,
+        bucket: PUSH_BUCKETS.silent_model,
+        isLive: false,
+        score: 40 + Math.min(40, avg),
+        suggestion: `${modelDisplay} heute noch 0 € — kein Chatter im letzten Report zugewiesen.`,
+        dataLine: `7T-Ø: ${fmtEur(avg)}/Tag${yesterday > 0 ? ` · gestern: ${fmtEur(yesterday)}` : ""} · heute: 0 €`,
+        assignedChatters: [],
+      });
+      continue;
+    }
+
+    // Eine Karte pro (Chatter, Model)-Kombi aus dem letzten Report
+    for (const chatter of chatters) {
+      cards.push({
+        todoKey: `push:silent:${normalizeChatterName(chatter)}:${modelKey}:${today}`,
+        chatterName: chatter,
+        modelName: modelDisplay,
+        bucket: PUSH_BUCKETS.silent_model,
+        isLive: false,
+        score: 40 + Math.min(40, avg),
+        suggestion: `${chatter} auf ${modelDisplay} — heute noch 0 €. Nachhaken, was los ist.`,
+        dataLine: `Model ${modelDisplay} · 7T-Ø: ${fmtEur(avg)}/Tag${yesterday > 0 ? ` · gestern: ${fmtEur(yesterday)}` : ""} · heute: 0 €`,
+        assignedChatters: [chatter],
+      });
+    }
   }
 
   cards.sort((a, b) => b.score - a.score);
   return cards;
 }
+
 
