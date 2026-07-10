@@ -9,6 +9,7 @@ import { Layout } from "@/components/Layout";
 import { LuxuryCursor } from "@/components/LuxuryCursor";
 import Dashboard from "@/pages/Dashboard";
 import UploadPage from "@/pages/Upload";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Models from "@/pages/Models";
 import SettingsPage from "@/pages/SettingsPage";
 import AIConsultant from "@/pages/AIConsultant";
@@ -56,7 +57,7 @@ const AppRoutes = () => (
               <Route path="/live" element={<LiveTracking />} />
               <Route path="/push" element={<Push />} />
               <Route path="/nachrichten" element={<Messages />} />
-              <Route path="/today" element={<Today />} />
+              <Route path="/today" element={<ErrorBoundary><Today /></ErrorBoundary>} />
               <Route path="/auffaelligkeiten" element={<Anomalies />} />
               <Route path="/ziele" element={<Goals />} />
               <Route path="/monatsziele" element={<Navigate to="/ziele" replace />} />
