@@ -725,13 +725,13 @@ export default function Today() {
 
 
   const filteredLabelCards = useMemo(
-    () => labelCards.filter((c) => channelFilter === "all" || classifyChannel(c.chatterName) === channelFilter),
+    () => labelCards.filter((c) => channelFilter === "all" || (c.chatterName && classifyChannel(c.chatterName) === channelFilter)),
     [labelCards, channelFilter],
   );
   const filteredOnboardingGroups = useMemo(() => {
     if (channelFilter === "all") return onboardingGroups;
     return onboardingGroups
-      .map((g) => ({ ...g, items: g.items.filter((it) => classifyChannel(it.chatterName) === channelFilter) }))
+      .map((g) => ({ ...g, items: g.items.filter((it) => it.chatterName && classifyChannel(it.chatterName) === channelFilter) }))
       .filter((g) => g.items.length > 0);
   }, [onboardingGroups, channelFilter]);
 
