@@ -123,9 +123,12 @@ function fmtEur(v: number): string {
 
 /** Liest die "ältester Chat XT"-Tage aus einem Verzug-Signal. */
 function getVerzugDays(a: UnifiedAction): number | null {
+  if (!a?.signals) return null;
   for (const s of a.signals) {
-    if (s.kind !== "verzug") continue;
-    const m = s.title.match(/(\d+)\s*T/i) || s.why.match(/ältester Chat\s+(\d+)\s*T/i);
+    if (!s || s.kind !== "verzug") continue;
+    const title = typeof s.title === "string" ? s.title : "";
+    const why = typeof s.why === "string" ? s.why : "";
+    const m = title.match(/(\d+)\s*T/i) || why.match(/ältester Chat\s+(\d+)\s*T/i);
     if (m) return parseInt(m[1], 10);
   }
   return null;
@@ -133,9 +136,11 @@ function getVerzugDays(a: UnifiedAction): number | null {
 
 /** Liest die aktuelle Anzahl offener/ungelesener Chats aus einem Verzug-Signal. */
 function getVerzugOpenChats(a: UnifiedAction): number {
+  if (!a?.signals) return 0;
   for (const s of a.signals) {
-    if (s.kind !== "verzug") continue;
-    const m = s.why.match(/(\d+)\s+ungelesen/i);
+    if (!s || s.kind !== "verzug") continue;
+    const why = typeof s.why === "string" ? s.why : "";
+    const m = why.match(/(\d+)\s+ungelesen/i);
     if (m) return parseInt(m[1], 10);
   }
   return 0;
