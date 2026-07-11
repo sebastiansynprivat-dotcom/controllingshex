@@ -514,18 +514,25 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   if (modelNames.length > 0) {
     try {
       const troubles = await detectModelTroubles(platform, modelNames);
-      for (const t of troubles.slice(0, 8)) {
-        // Wenn der aktuelle Chatter nicht mehr im neuesten Report ist, Todo skippen.
-        if (t.currentChatter && !isActive(t.currentChatter)) continue;
-        const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
-          ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
-          : 0;
+      const scored = troubles
+        .filter((t) => !(t.currentChatter && !isActive(t.currentChatter)))
+        .map((t) => {
+          const dropPerDay = (t.baselineAvgPerDay ?? 0) > 0 && (t.currentAvgPerDay ?? 0) >= 0
+            ? Math.max(0, (t.baselineAvgPerDay ?? 0) - (t.currentAvgPerDay ?? 0))
+            : 0;
+          return { t, dropPerDay };
+        })
+        // Impact-Sortierung: größter €/Tag-Drop zuerst
+        .sort((a, b) => b.dropPerDay - a.dropPerDay);
+      for (const { t, dropPerDay } of scored) {
         const followers = followersByModel.get(t.modelName.toLowerCase().trim()) ?? 0;
         const followerPart = followers > 0 ? ` (${formatFollowers(followers)} Follower)` : "";
+        // Score reflektiert Impact, damit globale Sortierung stimmt
+        const impactScore = Math.min(99, 70 + Math.round(dropPerDay));
         todos.push({
           key: `model:${t.modelName}:${today}`,
           category: "model",
-          score: t.severity === "high" ? 85 : 78,
+          score: t.severity === "high" ? Math.max(85, impactScore) : impactScore,
           title: `Model "${t.modelName}"${followerPart} im Rückgang`,
           why: t.reason,
           modelName: t.modelName,
