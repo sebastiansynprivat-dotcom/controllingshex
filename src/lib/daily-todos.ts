@@ -637,19 +637,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const oldestDays = Math.round(live.oldest);
     if (oldestDays < 2) continue;
 
-    // Display-Name: erstes chatter_history-Vorkommen ODER Fallback aus dem
-    // Live-Datensatz selbst (nameKey ist normalisiert, wir brauchen den
-    // Original-String).
+    // Display-Name bevorzugt aus chatter_history (Report-Schreibweise), sonst
+    // aus dem Live-Datensatz selbst.
     let displayName: string | null = null;
     for (const [dispName] of byChatter) {
       if (normalizeChatterName(dispName) === nameKey) { displayName = dispName; break; }
     }
-    if (!displayName) {
-      // Fallback: liveByName-Key ist bereits normalisiert; hol den Roh-Namen
-      // aus dem letzten Query — dazu einmal alle live-Zeilen re-scannen.
-      // Vereinfachung: nameKey capitalized.
-      displayName = nameKey.replace(/(^|\s)\S/g, (c) => c.toUpperCase());
-    }
+    if (!displayName) displayName = live.displayName;
 
     if (day1Names.has(nameKey)) continue;
     // Wenn wir eine aktive Roster-Liste haben und der Chatter NICHT drin ist,
