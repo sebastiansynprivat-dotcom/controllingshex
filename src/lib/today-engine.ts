@@ -536,23 +536,35 @@ async function detectWakeups(
   const since = isoDaysAgo(4);
   const yesterday = isoDaysAgo(1);
 
-  const [historyRes, liveRes, liveYestRes] = await Promise.all([
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("analysis_date", since),
-    supabase
-      .from("chatter_history_live")
-      .select("chatter_name, revenue, mass_dms, unread_chats")
-      .ilike("platform", platform)
-      .eq("date", today),
-    supabase
-      .from("chatter_history_live")
-      .select("chatter_name, unread_chats")
-      .ilike("platform", platform)
-      .eq("date", yesterday),
+  type HistRow = { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null };
+  type LiveTodayRow = { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null };
+  type LiveYestRow = { chatter_name: string; unread_chats: number | null };
+  const [historyRows, liveRows, liveYestRows] = await Promise.all([
+    fetchAllPaged<HistRow>((from, to) =>
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, analysis_date, revenue_today, mass_dms")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("analysis_date", since)
+        .range(from, to)
+    ),
+    fetchAllPaged<LiveTodayRow>((from, to) =>
+      supabase
+        .from("chatter_history_live")
+        .select("chatter_name, revenue, mass_dms, unread_chats")
+        .ilike("platform", platform)
+        .eq("date", today)
+        .range(from, to)
+    ),
+    fetchAllPaged<LiveYestRow>((from, to) =>
+      supabase
+        .from("chatter_history_live")
+        .select("chatter_name, unread_chats")
+        .ilike("platform", platform)
+        .eq("date", yesterday)
+        .range(from, to)
+    ),
   ]);
 
   // Per-chatter pro Tag aggregieren
