@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
-import type { UnifiedAction, ActionSourceKind } from "@/lib/today-engine";
+import type { UnifiedAction, ActionSourceKind, ActionSignal } from "@/lib/today-engine";
 
 interface Props {
   action: UnifiedAction;
@@ -146,15 +146,18 @@ function getVerzugStats(
   avgOpenChats?: number,
 ) {
   let oldestDays = breakdown && breakdown.length > 0
-    ? Math.max(...breakdown.map((m) => m.delayDays))
+    ? Math.max(...breakdown.map((m) => Number(m?.delayDays) || 0))
     : null;
-  let openChats = breakdown ? breakdown.reduce((s, m) => s + m.openChats, 0) : null;
+  let openChats = breakdown ? breakdown.reduce((s, m) => s + (Number(m?.openChats) || 0), 0) : null;
   if (oldestDays == null || openChats == null) {
-    const sig = action.signals.find((s) => s.kind === "verzug");
+    const signals = Array.isArray(action?.signals) ? action.signals : [];
+    const sig = signals.find((s) => s?.kind === "verzug");
     if (sig) {
-      const oldestMatch = sig.title.match(/(\d+)\s*T/) || sig.why.match(/(\d+)\s*T/);
+      const title = typeof sig.title === "string" ? sig.title : "";
+      const why = typeof sig.why === "string" ? sig.why : "";
+      const oldestMatch = title.match(/(\d+)\s*T/) || why.match(/(\d+)\s*T/);
       if (oldestDays == null && oldestMatch) oldestDays = Number(oldestMatch[1]);
-      const openMatch = sig.why.match(/(\d+)\s+ungelesen/);
+      const openMatch = why.match(/(\d+)\s+ungelesen/);
       if (openChats == null && openMatch) openChats = Number(openMatch[1]);
     }
   }
@@ -209,7 +212,7 @@ const MAX_SIGNAL_ROWS = 3;
 type MetaChip = { kind: "live" | "model" | "plain"; text: string };
 
 function parseMetaChips(meta: string): MetaChip[] {
-  const parts = meta.split(" · ");
+  const parts = String(meta ?? "").split(" · ");
   const chips: MetaChip[] = [];
   for (const raw of parts) {
     const p = raw.trim();
@@ -242,12 +245,24 @@ export default function PersonActionCard({
 }: Props) {
 
   const [celebrating, setCelebrating] = useState(false);
+  const safeSignals: ActionSignal[] = Array.isArray(action?.signals)
+    ? action.signals.filter(Boolean)
+    : [];
+  const fallbackSignal: ActionSignal = {
+    source: "todo",
+    kind: action?.primaryKind ?? "activity",
+    title: action?.chatterName ?? action?.modelName ?? "Aktion",
+    why: "",
+    impactEurPerWeek: null,
+    todoKey: action?.bundleKey ?? "fallback-action",
+  };
+  const headlineSignal = safeSignals[0] ?? fallbackSignal;
   const tone =
     action.primaryKind === "upgrade"
       ? UPGRADE_TONE
       : action.primaryKind === "downgrade"
         ? DOWNGRADE_TONE
-        : TONE[action.tone];
+        : TONE[action.tone] ?? TONE.warning;
 
   const handleComplete = () => {
     if (celebrating) return;
@@ -260,11 +275,10 @@ export default function PersonActionCard({
     window.setTimeout(() => onAct(action, "done"), 620);
   };
 
-  const headlineSignal = action.signals[0];
-  const bundled = action.signals.length > 1;
+  const bundled = safeSignals.length > 1;
 
   const displayName =
-    action.chatterName ?? action.modelName ?? headlineSignal.title;
+    action.chatterName ?? action.modelName ?? String(headlineSignal.title ?? "Aktion");
 
   const bundleLabel = `${KIND_LABEL[action.primaryKind]}-Bundle`;
   const singleLabel = KIND_LABEL[action.primaryKind];
@@ -286,12 +300,12 @@ export default function PersonActionCard({
       "mismatch",
       "phase",
     ]);
-    const prioritized = action.signals.find(
+    const prioritized = safeSignals.find(
       (s) => directCompareKinds.has(s.kind) && (s.compareWith || s.secondaryChatter),
     );
     if (prioritized)
       return prioritized.compareWith ?? prioritized.secondaryChatter ?? null;
-    const any = action.signals.find((s) => s.compareWith || s.secondaryChatter);
+    const any = safeSignals.find((s) => s.compareWith || s.secondaryChatter);
     return any?.compareWith ?? any?.secondaryChatter ?? null;
   })();
 
@@ -319,10 +333,10 @@ export default function PersonActionCard({
   };
 
   const rows: Row[] = bundled
-    ? action.signals.slice(0, MAX_SIGNAL_ROWS).map((s, i) => ({
-        key: s.todoKey,
-        title: s.title,
-        meta: s.why,
+    ? safeSignals.slice(0, MAX_SIGNAL_ROWS).map((s, i) => ({
+        key: s.todoKey ?? `${action.bundleKey ?? "signal"}-${i}`,
+        title: typeof s.title === "string" ? s.title : String(s.title ?? "Aktion"),
+        meta: typeof s.why === "string" ? s.why : null,
         intensity: i === 0 ? "strong" : i === 1 ? "medium" : "soft",
         compareWith: s.compareWith ?? s.secondaryChatter ?? null,
         kindLabel: KIND_LABEL[s.kind] ?? null,
@@ -330,9 +344,9 @@ export default function PersonActionCard({
     : (() => {
         const r: Row[] = [
           {
-            key: headlineSignal.todoKey,
-            title: headlineSignal.title,
-            meta: headlineSignal.why,
+            key: headlineSignal.todoKey ?? action.bundleKey ?? "headline-signal",
+            title: typeof headlineSignal.title === "string" ? headlineSignal.title : String(headlineSignal.title ?? "Aktion"),
+            meta: typeof headlineSignal.why === "string" ? headlineSignal.why : null,
             intensity: "strong",
             compareWith:
               headlineSignal.compareWith ?? headlineSignal.secondaryChatter ?? null,
@@ -343,7 +357,7 @@ export default function PersonActionCard({
         ev.slice(0, MAX_SIGNAL_ROWS - 1).forEach((e, i) => {
           r.push({
             key: `ev-${i}`,
-            title: e.text,
+            title: typeof e.text === "string" ? e.text : String(e.text ?? "Beleg"),
             meta: null,
             intensity: "soft",
             compareWith: null,
@@ -353,7 +367,7 @@ export default function PersonActionCard({
         return r;
       })();
 
-  const restCount = bundled ? Math.max(0, action.signals.length - MAX_SIGNAL_ROWS) : 0;
+  const restCount = bundled ? Math.max(0, safeSignals.length - MAX_SIGNAL_ROWS) : 0;
 
   return (
     <motion.div
@@ -489,7 +503,7 @@ export default function PersonActionCard({
               </div>
               <p className="text-[10.5px] font-bold text-white/35 uppercase tracking-[0.18em]">
                 {bundled
-                  ? `${action.signals.length} aktive Signale detektiert`
+                  ? `${safeSignals.length} aktive Signale detektiert`
                   : "1 Signal detektiert"}
               </p>
             </div>
