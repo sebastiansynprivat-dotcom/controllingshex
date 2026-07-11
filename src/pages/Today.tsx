@@ -268,30 +268,53 @@ export default function Today() {
   });
 
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
   useEffect(() => {
     let cancel = false;
     setLoading(true);
+    setLoadError(null);
     // Backfill alte Outcomes vorab — füllt 24/48/72h-Snapshots
     backfillOutcomes(platform).catch(() => {});
     // System-Labels seeden (idempotent)
     ensureSystemLabels(platform).catch(() => {});
-    Promise.all([
-      buildTodayActions(platform),
-      loadTodoStates(platform),
-      loadPendingFeedback(platform),
-      isSunday ? loadWeekRecap(platform) : Promise.resolve(null),
-    ])
-      .then(([d, s, fb, rc]) => {
-        if (cancel) return;
-        setData(d);
-        setStates(s);
-        setPendingFeedback(fb);
-        setRecap(rc);
-      })
-      .catch((e) => console.error("[Today]", e))
-      .finally(() => !cancel && setLoading(false));
+
+    const runWithRetry = async () => {
+      const attempts = 3;
+      let lastErr: unknown = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const [d, s, fb, rc] = await Promise.all([
+            buildTodayActions(platform),
+            loadTodoStates(platform),
+            loadPendingFeedback(platform),
+            isSunday ? loadWeekRecap(platform) : Promise.resolve(null),
+          ]);
+          if (cancel) return;
+          setData(d);
+          setStates(s);
+          setPendingFeedback(fb);
+          setRecap(rc);
+          setLoadError(null);
+          return;
+        } catch (e) {
+          lastErr = e;
+          console.error(`[Today] load attempt ${i + 1} failed`, e);
+          if (i < attempts - 1) {
+            await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+          }
+        }
+      }
+      if (!cancel) setLoadError(String(lastErr ?? "unknown error"));
+    };
+
+    runWithRetry().finally(() => { if (!cancel) setLoading(false); });
     return () => { cancel = true; };
-  }, [platform, isSunday]);
+  }, [platform, isSunday, loadAttempt]);
+
+  const retryLoad = () => setLoadAttempt((n) => n + 1);
+
 
   // Labels + Onboarding + Label-Karten — separat & reagiert auf labelDataNonce
   useEffect(() => {
@@ -988,8 +1011,20 @@ export default function Today() {
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
             />
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
+              <div className="text-white/70 text-sm font-light">Aufgaben konnten nicht geladen werden.</div>
+              <div className="text-white/40 text-xs font-light max-w-md">{loadError}</div>
+              <button
+                onClick={retryLoad}
+                className="px-4 py-2 rounded-full border border-white/20 text-white/80 text-xs uppercase tracking-wider hover:bg-white/[0.06] transition-all"
+              >
+                Erneut laden
+              </button>
+            </div>
           ) : baseVisibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
+
           ) : (
 
             <ErrorBoundary>
