@@ -1420,7 +1420,7 @@ export default function Today() {
         const slideFocusChatter = selectedModel?.chatter && sameChatterName(selectedModel.chatter, chatterName)
           ? chatterName
           : (selectedModel?.chatter ?? null);
-        return (
+        return createPortal(
           <>
             {chatterOpen && chatterName && (
               <ChatterSlideOver
@@ -1445,9 +1445,11 @@ export default function Today() {
               platform={platform}
               splitView={splitActive}
             />
-          </>
+          </>,
+          document.body,
         );
       })()}
+
 
       {compareActive && (
         <CompareTray
