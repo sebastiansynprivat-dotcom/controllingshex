@@ -290,12 +290,18 @@ export async function detectModelTroubles(
     if (tl.daily.length < 5) continue;
 
     // Trigger 1: aktuelle Phase deutlich schlechter als vorherige
+    // Relevanz-Gates: Vorgänger muss echten Umsatz gehabt haben (≥ 20 €/Tag,
+    // ≥ 5 aktive Tage), aktuelle Phase mindestens 3 Tage, absolutes Delta
+    // ≥ 10 €/Tag. Verhindert Bogus-Alerts durch Micro-Umsätze (z. B. 1× 5 €).
     if (
       tl.currentPhase &&
       tl.previousPhase &&
       tl.vsPreviousPct !== null &&
       tl.vsPreviousPct <= -20 &&
-      tl.currentPhase.days >= 3
+      tl.currentPhase.days >= 3 &&
+      tl.previousPhase.days >= 5 &&
+      tl.previousPhase.avgPerDay >= 20 &&
+      (tl.previousPhase.avgPerDay - tl.currentPhase.avgPerDay) >= 10
     ) {
       troubles.push({
         modelName: tl.modelName,
@@ -309,13 +315,14 @@ export async function detectModelTroubles(
       continue;
     }
 
-    // Trigger 2: letzte 7T unter 60% des 30T-Schnitts
+    // Trigger 2: letzte 7T unter 60% des 30T-Schnitts.
+    // Relevanz-Gates: 30T-Ø ≥ 30 €/Tag UND absoluter Drop ≥ 15 €/Tag.
     const last30 = tl.daily.slice(-30);
     const last7 = tl.daily.slice(-7);
     if (last30.length >= 14 && last7.length >= 5) {
       const avg30 = last30.reduce((s, p) => s + p.revenue, 0) / last30.length;
       const avg7 = last7.reduce((s, p) => s + p.revenue, 0) / last7.length;
-      if (avg30 >= 30 && avg7 < avg30 * 0.6) {
+      if (avg30 >= 30 && avg7 < avg30 * 0.6 && (avg30 - avg7) >= 15) {
         const dropPct = Math.round(((avg7 - avg30) / avg30) * 100);
         troubles.push({
           modelName: tl.modelName,
@@ -329,6 +336,7 @@ export async function detectModelTroubles(
       }
     }
   }
+
 
   // Höchste Severity zuerst, dann größter Drop
   troubles.sort((a, b) => {
