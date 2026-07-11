@@ -16,6 +16,7 @@
  * Alle Aufgaben sind deterministisch, transparent, ohne LLM.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/paged";
 import {
   computeLeaderboardRanks,
   computeRecoveryQueue,
@@ -298,26 +299,34 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const [historyRes, hourlyRes, modelsRes, recoveryHistory, mismatchRes, activeNames, swapTasks, downgradeTasks] = await Promise.all([
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("analysis_date", fromIso60)
-      .order("analysis_date", { ascending: false })
-      .range(0, 4999),
-    supabase
-      .from("chatter_hourly_stats")
-      .select("chatter_name, date, hour, revenue, mass_dms, unread_delta")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("date", fromIso30),
-    supabase
-      .from("models")
-      .select("model_name, follower_count")
-      .eq("user_id", user.id)
-      .ilike("platform", platform),
+  const [historyAllPaged, hourlyPaged, modelsPaged, recoveryHistory, mismatchRes, activeNames, swapTasks, downgradeTasks] = await Promise.all([
+    fetchAllPaged<HistoryRow>((from, to) =>
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, account, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("analysis_date", fromIso60)
+        .order("analysis_date", { ascending: false })
+        .range(from, to)
+    ),
+    fetchAllPaged<HourlyRow>((from, to) =>
+      supabase
+        .from("chatter_hourly_stats")
+        .select("chatter_name, date, hour, revenue, mass_dms, unread_delta")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("date", fromIso30)
+        .range(from, to)
+    ),
+    fetchAllPaged<{ model_name: string; follower_count: number }>((from, to) =>
+      supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .range(from, to)
+    ),
     loadRecoveryHistory(platform),
     loadMismatchMap(platform),
     loadActiveChatterNames(platform),
@@ -331,9 +340,9 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     }),
   ]);
 
-  const historyAll = (historyRes.data ?? []) as HistoryRow[];
-  const hourly = (hourlyRes.data ?? []) as HourlyRow[];
-  const models = (modelsRes.data ?? []) as { model_name: string; follower_count: number }[];
+  const historyAll = historyAllPaged as HistoryRow[];
+  const hourly = hourlyPaged as HourlyRow[];
+  const models = modelsPaged as { model_name: string; follower_count: number }[];
 
   const isActive = (name: string) =>
     activeNames === null ? true : activeNames.has(normalizeChatterName(name));
