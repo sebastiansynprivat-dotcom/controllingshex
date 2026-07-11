@@ -1019,6 +1019,35 @@ export default function Today() {
                   />
                 )}
 
+                {kindTab === "verzug" && baseVisibleList.length > 1 && (
+                  <div className="flex items-center gap-1.5 px-0.5">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-semibold mr-1">
+                      Sortieren
+                    </span>
+                    {([
+                      { id: "open" as const, label: "Meiste offene Chats" },
+                      { id: "oldest" as const, label: "Ältester Chat zuerst" },
+                    ]).map((opt) => {
+                      const active = verzugSort === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setVerzugSort(opt.id)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-[11px] font-medium tracking-wide transition-all border",
+                            active
+                              ? "bg-red-500/15 border-red-500/40 text-red-200"
+                              : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
 
                 {isUpDownTab && (upgradeList.length > 0 || downgradeList.length > 0) && (
                   <div className="flex items-center gap-2">
