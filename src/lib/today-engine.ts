@@ -569,7 +569,7 @@ async function detectWakeups(
 
   // Per-chatter pro Tag aggregieren
   const byChatterDay = new Map<string, Map<string, { rev: number; dm: number }>>();
-  for (const r of (historyRes.data ?? []) as { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null }[]) {
+  for (const r of historyRows {
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     if (!byChatterDay.has(k)) byChatterDay.set(k, new Map());
@@ -581,7 +581,7 @@ async function detectWakeups(
 
   // Live heute aggregieren
   const liveToday = new Map<string, { rev: number; dm: number; unread: number }>();
-  for (const r of (liveRes.data ?? []) as { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null }[]) {
+  for (const r of liveRows {
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     const cur = liveToday.get(k) ?? { rev: 0, dm: 0, unread: 0 };
@@ -591,7 +591,7 @@ async function detectWakeups(
     liveToday.set(k, cur);
   }
   const unreadYest = new Map<string, number>();
-  for (const r of (liveYestRes.data ?? []) as { chatter_name: string; unread_chats: number | null }[]) {
+  for (const r of liveYestRows {
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     unreadYest.set(k, (unreadYest.get(k) ?? 0) + (r.unread_chats ?? 0));
@@ -599,12 +599,12 @@ async function detectWakeups(
 
   // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
   let latestReportDate = "";
-  for (const r of (historyRes.data ?? []) as { analysis_date: string }[]) {
+  for (const r of historyRows {
     if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
   }
   const inLatestReport = new Set<string>();
   if (latestReportDate) {
-    for (const r of (historyRes.data ?? []) as { chatter_name: string; analysis_date: string }[]) {
+    for (const r of historyRows {
       if (r.analysis_date === latestReportDate && r.chatter_name) {
         inLatestReport.add(normalizeChatterName(r.chatter_name));
       }
@@ -640,7 +640,7 @@ async function detectWakeups(
 
     // Original chatter_name aus history holen (Capitalisierung)
     let original = k;
-    for (const r of (historyRes.data ?? []) as { chatter_name: string }[]) {
+    for (const r of historyRows {
       if (normalizeChatterName(r.chatter_name) === k) { original = r.chatter_name; break; }
     }
 
