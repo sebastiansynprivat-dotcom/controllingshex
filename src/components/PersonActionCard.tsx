@@ -495,7 +495,7 @@ export default function PersonActionCard({
             </div>
 
             <div className="text-right shrink-0">
-              {action.primaryKind === "upgrade" ? (
+              {action.primaryKind === "upgrade" || action.primaryKind === "verzug" ? (
                 <div
                   className={cn(
                     "mt-1 text-[9px] font-bold uppercase tracking-[0.18em] flex items-center justify-end gap-1.5",
@@ -557,7 +557,7 @@ export default function PersonActionCard({
                   <Clock className="h-3 w-3" /> {peakLabel} Uhr
                 </span>
               ) : null}
-              {showCoi && (
+              {showCoi && action.primaryKind !== "verzug" && (
                 <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.04] text-[10.5px] font-medium text-rose-300/85 tabular-nums">
                   <TrendingDown className="h-3 w-3" />
                   −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €<span className="text-rose-300/55">/Wo</span>
@@ -742,20 +742,30 @@ export default function PersonActionCard({
 
         <div className="px-5 pb-5 pt-1">
           <div className="flex items-center justify-between border-t border-white/[0.05] pt-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                stop(e);
-                openDetails();
-              }}
-              className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-300/90 shrink-0" />
-              <span className="text-[12px] font-semibold text-emerald-300/90 tabular-nums">
-                {impactPrefix}{impactStr}
-                <span className="text-[10px] font-medium text-emerald-300/55 ml-0.5">/Wo möglich</span>
-              </span>
-            </button>
+            {action.primaryKind === "verzug" ? (
+              <button
+                type="button"
+                onClick={(e) => { stop(e); openDetails(); }}
+                className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0 text-[11px] font-medium text-white/45 uppercase tracking-wider"
+              >
+                Details öffnen
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  stop(e);
+                  openDetails();
+                }}
+                className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
+              >
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-300/90 shrink-0" />
+                <span className="text-[12px] font-semibold text-emerald-300/90 tabular-nums">
+                  {impactPrefix}{impactStr}
+                  <span className="text-[10px] font-medium text-emerald-300/55 ml-0.5">/Wo möglich</span>
+                </span>
+              </button>
+            )}
 
 
 

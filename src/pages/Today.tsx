@@ -131,6 +131,18 @@ function getVerzugDays(a: UnifiedAction): number | null {
   return null;
 }
 
+/** Liest die aktuelle Anzahl offener/ungelesener Chats aus einem Verzug-Signal. */
+function getVerzugOpenChats(a: UnifiedAction): number {
+  for (const s of a.signals) {
+    if (s.kind !== "verzug") continue;
+    const m = s.why.match(/(\d+)\s+ungelesen/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return 0;
+}
+
+type VerzugSort = "open" | "oldest";
+
 function normalizeBreakdownKey(value: string | null | undefined): string {
   return (value ?? "")
     .trim()
@@ -204,6 +216,7 @@ export default function Today() {
   );
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
+  const [verzugSort, setVerzugSort] = useState<VerzugSort>("open");
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
     try {
@@ -664,8 +677,24 @@ export default function Today() {
       // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
       return sortDowngradeActions(list);
     }
+    if (kindTab === "verzug") {
+      const sorted = [...list];
+      if (verzugSort === "oldest") {
+        sorted.sort((a, b) =>
+          (getVerzugDays(b) ?? 0) - (getVerzugDays(a) ?? 0)
+          || getVerzugOpenChats(b) - getVerzugOpenChats(a),
+        );
+      } else {
+        // Standard: meiste offene Chats zuerst
+        sorted.sort((a, b) =>
+          getVerzugOpenChats(b) - getVerzugOpenChats(a)
+          || (getVerzugDays(b) ?? 0) - (getVerzugDays(a) ?? 0),
+        );
+      }
+      return sorted;
+    }
     return list;
-  }, [baseVisibleList, kindTab, verzugDayFilter]);
+  }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort]);
 
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
   const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
@@ -988,6 +1017,35 @@ export default function Today() {
                     onClear={() => setVerzugDayFilter(new Set())}
                     totalCount={baseVisibleList.length}
                   />
+                )}
+
+                {kindTab === "verzug" && baseVisibleList.length > 1 && (
+                  <div className="flex items-center gap-1.5 px-0.5">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-white/35 font-semibold mr-1">
+                      Sortieren
+                    </span>
+                    {([
+                      { id: "open" as const, label: "Meiste offene Chats" },
+                      { id: "oldest" as const, label: "Ältester Chat zuerst" },
+                    ]).map((opt) => {
+                      const active = verzugSort === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setVerzugSort(opt.id)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-[11px] font-medium tracking-wide transition-all border",
+                            active
+                              ? "bg-red-500/15 border-red-500/40 text-red-200"
+                              : "bg-white/[0.02] border-white/10 text-white/45 hover:text-white/70 hover:border-white/20",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
 
 
