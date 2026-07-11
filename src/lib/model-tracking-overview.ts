@@ -297,10 +297,11 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     };
     let baselineAvg: number | null = null;
     let currentAvg: number | null = null;
-    let baselineUsed = false;
+    let baseDays = 0;
+    let curDays = 0;
     if (poolForTrend) {
-      let baseSum = 0, baseDays = 0;
-      let curSum = 0, curDays = 0;
+      let baseSum = 0;
+      let curSum = 0;
       for (const [d, entry] of poolForTrend) {
         if (entry.revenue <= 0) continue;
         const inRange = d >= range.from && d <= range.to;
@@ -314,21 +315,29 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       }
       if (baseDays > 0) baselineAvg = baseSum / baseDays;
       if (curDays > 0) currentAvg = curSum / curDays;
-      if (baseDays >= 3 && curDays >= 2 && baselineAvg && baselineAvg > 0 && currentAvg != null) {
-        const pct = Math.round(((currentAvg - baselineAvg) / baselineAvg) * 100);
-        let direction: TrendDirection;
-        if (pct > 20) direction = "up";
-        else if (pct < -20) direction = "down";
-        else direction = "flat";
-        trendResult = { direction, pct, slope: currentAvg - baselineAvg };
-        baselineUsed = true;
-      }
     }
-    if (!baselineUsed) {
-      trendResult = computeTrend(daily, rangeDaysCount);
-    }
-    if (trendResult.direction === "none") {
-      trendResult = { direction: "flat", pct: null, slope: 0 };
+
+    // Ein Model bekommt nur dann einen Rückgang/Wachstum, wenn Lifetime-Baseline
+    // aussagekräftig ist: genug aktive Tage UND ≥ Mindest-Ø.
+    const hasSignal =
+      baselineAvg != null &&
+      baselineAvg > MIN_LIFETIME_AVG_EUR_PER_DAY &&
+      baseDays >= MIN_BASELINE_ACTIVE_DAYS &&
+      curDays >= MIN_CURRENT_ACTIVE_DAYS &&
+      currentAvg != null;
+
+    let trendResult: { direction: TrendDirection; pct: number | null; slope: number } = {
+      direction: "flat",
+      pct: null,
+      slope: 0,
+    };
+    if (hasSignal && baselineAvg! > 0) {
+      const pct = Math.round(((currentAvg! - baselineAvg!) / baselineAvg!) * 100);
+      let direction: TrendDirection;
+      if (pct > 20) direction = "up";
+      else if (pct < -20) direction = "down";
+      else direction = "flat";
+      trendResult = { direction, pct, slope: currentAvg! - baselineAvg! };
     }
 
     // Per-Chatter Ø: nur Tage mit revenue > 0 zählen pro Chatter
