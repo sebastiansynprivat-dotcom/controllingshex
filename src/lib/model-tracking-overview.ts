@@ -47,7 +47,17 @@ export interface ModelOverviewRow {
   baselineAvg: number | null;
   /** Ø Tagesumsatz (nur Tage > 0) im gewählten Range. */
   currentAvg: number | null;
+  /** true = genug Umsatz-Signal für Trend-Aussage (Baseline > MIN_LIFETIME_AVG_EUR_PER_DAY & genug Tage). */
+  hasSignal: boolean;
 }
+
+/**
+ * Mindest-Lifetime-Ø, damit ein Model überhaupt als "im Rückgang" oder "im Wachstum"
+ * markiert werden darf. Alles darunter = zu wenig Signal, kein Alarm.
+ */
+export const MIN_LIFETIME_AVG_EUR_PER_DAY = 5;
+const MIN_BASELINE_ACTIVE_DAYS = 14;
+const MIN_CURRENT_ACTIVE_DAYS = 5;
 
 
 /** Linear regression — returns slope (€/day) and intercept. */
