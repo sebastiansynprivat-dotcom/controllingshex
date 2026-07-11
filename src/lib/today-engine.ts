@@ -10,6 +10,24 @@
  * und liefert das UI-Label „3. Tag in Folge".
  */
 import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Lädt alle Zeilen einer Supabase-Query in Batches à `pageSize`.
+ * Umgeht das stille 1000-Zeilen-Limit von PostgREST.
+ */
+async function fetchAllPaged<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < 100_000; from += pageSize) {
+    const { data, error } = await build(from, from + pageSize - 1);
+    if (error || !data) break;
+    out.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return out;
+}
 import {
   generateDailyTodos,
   type DailyTodo,
