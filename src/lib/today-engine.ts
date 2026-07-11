@@ -10,6 +10,24 @@
  * und liefert das UI-Label „3. Tag in Folge".
  */
 import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Lädt alle Zeilen einer Supabase-Query in Batches à `pageSize`.
+ * Umgeht das stille 1000-Zeilen-Limit von PostgREST.
+ */
+async function fetchAllPaged<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < 100_000; from += pageSize) {
+    const { data, error } = await build(from, from + pageSize - 1);
+    if (error || !data) break;
+    out.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return out;
+}
 import {
   generateDailyTodos,
   type DailyTodo,
@@ -209,30 +227,35 @@ async function loadChatterStats(
   const sinceHourly = isoDaysAgo(20); // 21 Tage Hourly
   const today = todayISO();
 
-  const [historyRes, modelsRes, hourlyRes] = await Promise.all([
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("analysis_date", since)
-      .order("analysis_date", { ascending: false }),
-    supabase
-      .from("models")
-      .select("model_name, follower_count")
-      .eq("user_id", user.id)
-      .ilike("platform", platform),
-    supabase
-      .from("chatter_hourly_stats")
-      .select("chatter_name, hour, revenue")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("date", sinceHourly),
+  const [rows, models, hourlyRows] = await Promise.all([
+    fetchAllPaged<HistoryRow>((from, to) =>
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("analysis_date", since)
+        .order("analysis_date", { ascending: false })
+        .range(from, to)
+    ),
+    fetchAllPaged<{ model_name: string; follower_count: number }>((from, to) =>
+      supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .range(from, to)
+    ),
+    fetchAllPaged<{ chatter_name: string; hour: number; revenue: number | null }>((from, to) =>
+      supabase
+        .from("chatter_hourly_stats")
+        .select("chatter_name, hour, revenue")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("date", sinceHourly)
+        .range(from, to)
+    ),
   ]);
-
-  const rows = (historyRes.data ?? []) as HistoryRow[];
-  const models = (modelsRes.data ?? []) as { model_name: string; follower_count: number }[];
-  const hourlyRows = (hourlyRes.data ?? []) as { chatter_name: string; hour: number; revenue: number | null }[];
 
   // Pro Chatter: 24h Revenue-Buckets aggregieren → Peak-Window finden
   const hourlyByChatter = new Map<string, number[]>();
@@ -513,28 +536,40 @@ async function detectWakeups(
   const since = isoDaysAgo(4);
   const yesterday = isoDaysAgo(1);
 
-  const [historyRes, liveRes, liveYestRes] = await Promise.all([
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("analysis_date", since),
-    supabase
-      .from("chatter_history_live")
-      .select("chatter_name, revenue, mass_dms, unread_chats")
-      .ilike("platform", platform)
-      .eq("date", today),
-    supabase
-      .from("chatter_history_live")
-      .select("chatter_name, unread_chats")
-      .ilike("platform", platform)
-      .eq("date", yesterday),
+  type HistRow = { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null };
+  type LiveTodayRow = { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null };
+  type LiveYestRow = { chatter_name: string; unread_chats: number | null };
+  const [historyRows, liveRows, liveYestRows] = await Promise.all([
+    fetchAllPaged<HistRow>((from, to) =>
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, analysis_date, revenue_today, mass_dms")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("analysis_date", since)
+        .range(from, to)
+    ),
+    fetchAllPaged<LiveTodayRow>((from, to) =>
+      supabase
+        .from("chatter_history_live")
+        .select("chatter_name, revenue, mass_dms, unread_chats")
+        .ilike("platform", platform)
+        .eq("date", today)
+        .range(from, to)
+    ),
+    fetchAllPaged<LiveYestRow>((from, to) =>
+      supabase
+        .from("chatter_history_live")
+        .select("chatter_name, unread_chats")
+        .ilike("platform", platform)
+        .eq("date", yesterday)
+        .range(from, to)
+    ),
   ]);
 
   // Per-chatter pro Tag aggregieren
   const byChatterDay = new Map<string, Map<string, { rev: number; dm: number }>>();
-  for (const r of (historyRes.data ?? []) as { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null }[]) {
+  for (const r of historyRows) {
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     if (!byChatterDay.has(k)) byChatterDay.set(k, new Map());
@@ -546,7 +581,7 @@ async function detectWakeups(
 
   // Live heute aggregieren
   const liveToday = new Map<string, { rev: number; dm: number; unread: number }>();
-  for (const r of (liveRes.data ?? []) as { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null }[]) {
+  for (const r of liveRows) {
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     const cur = liveToday.get(k) ?? { rev: 0, dm: 0, unread: 0 };
@@ -556,7 +591,7 @@ async function detectWakeups(
     liveToday.set(k, cur);
   }
   const unreadYest = new Map<string, number>();
-  for (const r of (liveYestRes.data ?? []) as { chatter_name: string; unread_chats: number | null }[]) {
+  for (const r of liveYestRows) {
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     unreadYest.set(k, (unreadYest.get(k) ?? 0) + (r.unread_chats ?? 0));
@@ -564,12 +599,12 @@ async function detectWakeups(
 
   // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
   let latestReportDate = "";
-  for (const r of (historyRes.data ?? []) as { analysis_date: string }[]) {
+  for (const r of historyRows) {
     if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
   }
   const inLatestReport = new Set<string>();
   if (latestReportDate) {
-    for (const r of (historyRes.data ?? []) as { chatter_name: string; analysis_date: string }[]) {
+    for (const r of historyRows) {
       if (r.analysis_date === latestReportDate && r.chatter_name) {
         inLatestReport.add(normalizeChatterName(r.chatter_name));
       }
@@ -605,7 +640,7 @@ async function detectWakeups(
 
     // Original chatter_name aus history holen (Capitalisierung)
     let original = k;
-    for (const r of (historyRes.data ?? []) as { chatter_name: string }[]) {
+    for (const r of historyRows) {
       if (normalizeChatterName(r.chatter_name) === k) { original = r.chatter_name; break; }
     }
 
