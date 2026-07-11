@@ -10,6 +10,7 @@
  * historischen Belegen (evidence[]).
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/paged";
 import { tierForFollowers } from "@/lib/account-tiers";
 import { filterRowsToActiveCombos, normalizeChatterName } from "@/lib/active-chatters";
 import type { AccountFitMatrix, FitEntry } from "@/lib/account-fit";
