@@ -119,10 +119,12 @@ export function categorizeRowsByChatterAge(
   }
 
   if (direction === "flat") {
+    const noSignal: ModelOverviewRow[] = [];
     const newC: ModelOverviewRow[] = [];
     const oldC: ModelOverviewRow[] = [];
     const unknown: ModelOverviewRow[] = [];
     for (const r of rows) {
+      if (!r.hasSignal) { noSignal.push(r); continue; }
       if (r.currentPhaseDays == null) unknown.push(r);
       else if (isNewChatter(r)) newC.push(r);
       else oldC.push(r);
@@ -143,6 +145,15 @@ export function categorizeRowsByChatterAge(
         models: sorted(newC),
       },
     ];
+    if (noSignal.length > 0) {
+      buckets.push({
+        key: "flat-no-signal",
+        label: "Zu wenig Signal",
+        description: "Zu geringer Lifetime-Umsatz oder zu wenig aktive Tage für eine belastbare Trend-Aussage.",
+        tone: "neutral",
+        models: sorted(noSignal),
+      });
+    }
     if (unknown.length > 0) {
       buckets.push({
         key: "flat-unknown",
