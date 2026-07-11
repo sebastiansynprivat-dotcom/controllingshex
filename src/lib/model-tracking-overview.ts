@@ -410,6 +410,7 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
       chatterAvgs,
       baselineAvg,
       currentAvg,
+      hasSignal,
     });
   }
 
