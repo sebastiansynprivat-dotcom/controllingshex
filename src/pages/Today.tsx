@@ -131,6 +131,18 @@ function getVerzugDays(a: UnifiedAction): number | null {
   return null;
 }
 
+/** Liest die aktuelle Anzahl offener/ungelesener Chats aus einem Verzug-Signal. */
+function getVerzugOpenChats(a: UnifiedAction): number {
+  for (const s of a.signals) {
+    if (s.kind !== "verzug") continue;
+    const m = s.why.match(/(\d+)\s+ungelesen/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return 0;
+}
+
+type VerzugSort = "open" | "oldest";
+
 function normalizeBreakdownKey(value: string | null | undefined): string {
   return (value ?? "")
     .trim()
