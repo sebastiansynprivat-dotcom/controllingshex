@@ -31,12 +31,6 @@ export function categorizeRowsByChatterAge(
   const sorted = (list: ModelOverviewRow[]) =>
     [...list].sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-  // Rows ohne belastbares Umsatz-Signal werden aus up/down komplett rausgehalten
-  // und landen in einem eigenen "Zu wenig Signal"-Bucket unter flat.
-  const noSignal = rows.filter((r) => !r.hasSignal);
-  const signalRows = rows.filter((r) => r.hasSignal);
-  const rowsForDirection = direction === "flat" ? signalRows : (direction === "up" || direction === "down" ? signalRows : rows);
-
   if (direction === "down") {
     const switchNoHelp: ModelOverviewRow[] = [];
     const newChatter: ModelOverviewRow[] = [];
