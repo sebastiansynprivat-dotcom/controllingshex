@@ -340,9 +340,9 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     }),
   ]);
 
-  const historyAll = (historyRes.data ?? []) as HistoryRow[];
-  const hourly = (hourlyRes.data ?? []) as HourlyRow[];
-  const models = (modelsRes.data ?? []) as { model_name: string; follower_count: number }[];
+  const historyAll = historyAllPaged as HistoryRow[];
+  const hourly = hourlyPaged as HourlyRow[];
+  const models = modelsPaged as { model_name: string; follower_count: number }[];
 
   const isActive = (name: string) =>
     activeNames === null ? true : activeNames.has(normalizeChatterName(name));
