@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.backfill-incoming-stats]
 verify_jwt = false
+
+[functions.pull-chatter-live]
+verify_jwt = false
