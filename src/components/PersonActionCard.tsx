@@ -742,20 +742,30 @@ export default function PersonActionCard({
 
         <div className="px-5 pb-5 pt-1">
           <div className="flex items-center justify-between border-t border-white/[0.05] pt-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                stop(e);
-                openDetails();
-              }}
-              className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-300/90 shrink-0" />
-              <span className="text-[12px] font-semibold text-emerald-300/90 tabular-nums">
-                {impactPrefix}{impactStr}
-                <span className="text-[10px] font-medium text-emerald-300/55 ml-0.5">/Wo möglich</span>
-              </span>
-            </button>
+            {action.primaryKind === "verzug" ? (
+              <button
+                type="button"
+                onClick={(e) => { stop(e); openDetails(); }}
+                className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0 text-[11px] font-medium text-white/45 uppercase tracking-wider"
+              >
+                Details öffnen
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  stop(e);
+                  openDetails();
+                }}
+                className="flex items-center gap-2 -ml-1 pl-2 pr-2.5 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors min-w-0"
+              >
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-300/90 shrink-0" />
+                <span className="text-[12px] font-semibold text-emerald-300/90 tabular-nums">
+                  {impactPrefix}{impactStr}
+                  <span className="text-[10px] font-medium text-emerald-300/55 ml-0.5">/Wo möglich</span>
+                </span>
+              </button>
+            )}
 
 
 
