@@ -227,30 +227,35 @@ async function loadChatterStats(
   const sinceHourly = isoDaysAgo(20); // 21 Tage Hourly
   const today = todayISO();
 
-  const [historyRes, modelsRes, hourlyRes] = await Promise.all([
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("analysis_date", since)
-      .order("analysis_date", { ascending: false }),
-    supabase
-      .from("models")
-      .select("model_name, follower_count")
-      .eq("user_id", user.id)
-      .ilike("platform", platform),
-    supabase
-      .from("chatter_hourly_stats")
-      .select("chatter_name, hour, revenue")
-      .eq("user_id", user.id)
-      .ilike("platform", platform)
-      .gte("date", sinceHourly),
+  const [rows, models, hourlyRows] = await Promise.all([
+    fetchAllPaged<HistoryRow>((from, to) =>
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("analysis_date", since)
+        .order("analysis_date", { ascending: false })
+        .range(from, to)
+    ),
+    fetchAllPaged<{ model_name: string; follower_count: number }>((from, to) =>
+      supabase
+        .from("models")
+        .select("model_name, follower_count")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .range(from, to)
+    ),
+    fetchAllPaged<{ chatter_name: string; hour: number; revenue: number | null }>((from, to) =>
+      supabase
+        .from("chatter_hourly_stats")
+        .select("chatter_name, hour, revenue")
+        .eq("user_id", user.id)
+        .ilike("platform", platform)
+        .gte("date", sinceHourly)
+        .range(from, to)
+    ),
   ]);
-
-  const rows = (historyRes.data ?? []) as HistoryRow[];
-  const models = (modelsRes.data ?? []) as { model_name: string; follower_count: number }[];
-  const hourlyRows = (hourlyRes.data ?? []) as { chatter_name: string; hour: number; revenue: number | null }[];
 
   // Pro Chatter: 24h Revenue-Buckets aggregieren → Peak-Window finden
   const hourlyByChatter = new Map<string, number[]>();
