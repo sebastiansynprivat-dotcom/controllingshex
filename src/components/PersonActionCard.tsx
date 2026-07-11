@@ -175,10 +175,15 @@ function VerzugCompactCards({
   avgOpenChats: number;
 }) {
   const items = [
-    { label: "Ältester Chat", value: `${oldestDays} Tage`, title: "Alter des ältesten noch offenen Chats" },
-    { label: "Offen", value: `${openChats}`, title: "Aktuell offene Chats" },
-    { label: "Ø 14T", value: `${avgOpenChats}`, title: "Durchschnittlich offene Chats pro Tag in den letzten 14 Tagen" },
+    { label: "Ältester Chat", value: `${oldestDays} Tage`, title: "Alter des ältesten aktuell noch offenen Chats." },
+    { label: "Offen jetzt", value: `${openChats}`, title: "Aktuell offene (ungelesene) Chats über alle Models dieses Chatters." },
+    {
+      label: "Ø offen/Tag · 14T",
+      value: `${avgOpenChats}`,
+      title: `Wie viele Chats hatte dieser Chatter im Schnitt pro Tag offen — gemittelt über die letzten 14 Tage. Beispiel: 22 heißt, an einem typischen Tag lagen ~22 ungelesene Chats an. Vergleichswert zu "Offen jetzt", um zu sehen, ob der Rückstand ungewöhnlich hoch ist.`,
+    },
   ];
+
   return (
     <div className="grid grid-cols-3 gap-2">
       {items.map((item) => (
