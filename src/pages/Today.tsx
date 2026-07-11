@@ -216,6 +216,7 @@ export default function Today() {
   );
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
+  const [verzugSort, setVerzugSort] = useState<VerzugSort>("open");
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
     try {
