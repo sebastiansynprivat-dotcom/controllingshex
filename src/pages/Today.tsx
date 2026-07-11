@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -1602,9 +1601,7 @@ function VerzugDayFilterCard({
 
   const label = selected.size === 0
     ? `Alle Tage · ${totalCount}`
-    : selected.size === 1
-      ? `${[...selected][0]} ${[...selected][0] === 1 ? "Tag" : "Tage"} im Verzug · ${selectedCount}`
-      : `${selected.size} Tage ausgewählt · ${selectedCount}`;
+    : `${selected.size} aktiv · ${selectedCount}`;
 
   return (
     <div className="premium-card rounded-2xl border border-red-500/15 bg-red-500/[0.025] p-3">
@@ -1622,76 +1619,46 @@ function VerzugDayFilterCard({
             </p>
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={selected.size === 0}
+          className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-red-400/25 bg-red-500/[0.06] text-[11px] font-light text-red-100/90 hover:bg-red-500/[0.10] hover:border-red-400/40 disabled:opacity-40 disabled:hover:bg-red-500/[0.06] transition-colors"
+        >
+          <span className="tabular-nums">{label}</span>
+        </button>
+      </div>
+      <div className="mt-3 flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5" style={{ touchAction: "pan-x" }}>
+        <button
+          type="button"
+          onClick={onClear}
+          className={cn(
+            "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium tabular-nums transition-colors",
+            selected.size === 0
+              ? "border-red-400/35 bg-red-500/[0.12] text-red-100"
+              : "border-white/[0.08] bg-white/[0.02] text-white/45 hover:text-white/75",
+          )}
+        >
+          Alle {totalCount}
+        </button>
+        {days.map((d) => {
+          const active = selected.has(d.days);
+          return (
             <button
-              className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-red-400/25 bg-red-500/[0.06] text-[11px] font-light text-red-100/90 hover:bg-red-500/[0.10] hover:border-red-400/40 transition-colors"
-              aria-label="Verzugs-Tage filtern"
-            >
-              <span className="tabular-nums">{label}</span>
-              <ChevronDown className="h-3 w-3 opacity-70" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-64 bg-background/95 backdrop-blur-xl border-white/[0.08] max-h-[min(24rem,60vh)] overflow-y-auto"
-          >
-            <DropdownMenuLabel className="text-[10px] tracking-[0.24em] uppercase text-white/40 font-light">
-              Verzugs-Tage
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-white/[0.05]" />
-            <DropdownMenuItem
-              onClick={onClear}
-              onSelect={(e) => e.preventDefault()}
+              key={d.days}
+              type="button"
+              onClick={() => onToggle(d.days)}
               className={cn(
-                "flex items-center justify-between gap-3 py-2 cursor-pointer",
-                selected.size === 0 ? "bg-white/[0.04]" : "",
+                "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium tabular-nums transition-colors",
+                active
+                  ? "border-red-400/40 bg-red-500/[0.14] text-red-100"
+                  : "border-white/[0.08] bg-white/[0.02] text-white/45 hover:text-white/75",
               )}
             >
-              <span className="text-[12px] font-light text-white/90">Alle Tage</span>
-              <span className="text-[10px] tabular-nums text-white/40">{totalCount}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-white/[0.05]" />
-            {days.map((d) => {
-              const active = selected.has(d.days);
-              return (
-                <DropdownMenuItem
-                  key={d.days}
-                  onClick={() => onToggle(d.days)}
-                  onSelect={(e) => e.preventDefault()}
-                  className={cn(
-                    "flex items-center justify-between gap-3 py-2 cursor-pointer",
-                    active ? "bg-red-500/[0.08]" : "",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        "h-4 w-4 rounded border flex items-center justify-center transition-colors",
-                        active
-                          ? "bg-red-500 border-red-500"
-                          : "border-white/20 bg-transparent"
-                      )}
-                    >
-                      {active && <Check className="h-3 w-3 text-white" />}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[12px] font-light text-white/90">
-                        {d.days} {d.days === 1 ? "Tag" : "Tage"} im Verzug
-                      </span>
-                      <span className="text-[10px] text-white/40 font-light">
-                        Ältester offener Chat seit {d.days}T
-                      </span>
-                    </div>
-                  </div>
-                  <span className={cn("text-[10px] tabular-nums", active ? "text-red-200" : "text-white/40")}>
-                    {d.count}
-                  </span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {d.days}T · {d.count}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
