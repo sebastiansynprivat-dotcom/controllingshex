@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Megaphone, CalendarDays, ChevronDown, Rocket, Archive, RotateCcw } from "lucide-react";
+import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, LifeBuoy, Shuffle, Clock, TrendingUp, TrendingDown, Activity, Star, CalendarClock, ThumbsUp, BellRing, Megaphone, CalendarDays, Rocket, Archive, RotateCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -1032,15 +1032,7 @@ export default function Today() {
           ) : (
 
             <ErrorBoundary>
-            <AnimatePresence mode="sync" initial={false}>
-              <motion.div
-                key={kindTab}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12, ease: "easeOut" }}
-                className="space-y-3"
-              >
+              <div className="space-y-3">
                 {kindTab === "verzug" && verzugDayCounts.length > 0 && (
                   <VerzugDayFilterCard
                     days={verzugDayCounts}
@@ -1335,8 +1327,7 @@ export default function Today() {
                     )}
                   </div>
                 )}
-              </motion.div>
-            </AnimatePresence>
+              </div>
             </ErrorBoundary>
           )}
 
