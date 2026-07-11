@@ -503,7 +503,7 @@ export default function PersonActionCard({
               </div>
               <p className="text-[10.5px] font-bold text-white/35 uppercase tracking-[0.18em]">
                 {bundled
-                  ? `${action.signals.length} aktive Signale detektiert`
+                  ? `${safeSignals.length} aktive Signale detektiert`
                   : "1 Signal detektiert"}
               </p>
             </div>

@@ -597,7 +597,7 @@ export default function Today() {
 
   const act = async (action: UnifiedAction, kind: "done" | "snooze" | "dismiss" | "reject-account") => {
     if (kind === "reject-account") {
-      const sig = action.signals.find((s) => s.rejectAccount);
+      const sig = (Array.isArray(action?.signals) ? action.signals : []).find((s) => s?.rejectAccount);
       const rej = sig?.rejectAccount;
       if (!rej) return;
       try {
