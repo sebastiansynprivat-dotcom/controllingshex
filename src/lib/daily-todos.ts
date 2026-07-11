@@ -159,6 +159,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   //   - Verzug & offene Chats: falls live aufgelöst → Signal droppen
   //   - sonst Live-Werte in die Beschreibung packen
   interface LiveSnap {
+    displayName: string;
     unread: number;
     oldest: number;
     revenue: number;
@@ -183,6 +184,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       const k = normalizeChatterName(r.chatter_name);
       if (liveByName.has(k)) continue;
       liveByName.set(k, {
+        displayName: r.chatter_name,
         unread: Math.max(0, Number(r.unread_chats ?? 0)),
         oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
         revenue: Math.max(0, Number(r.revenue ?? 0)),
