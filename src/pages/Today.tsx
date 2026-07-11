@@ -677,8 +677,24 @@ export default function Today() {
       // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
       return sortDowngradeActions(list);
     }
+    if (kindTab === "verzug") {
+      const sorted = [...list];
+      if (verzugSort === "oldest") {
+        sorted.sort((a, b) =>
+          (getVerzugDays(b) ?? 0) - (getVerzugDays(a) ?? 0)
+          || getVerzugOpenChats(b) - getVerzugOpenChats(a),
+        );
+      } else {
+        // Standard: meiste offene Chats zuerst
+        sorted.sort((a, b) =>
+          getVerzugOpenChats(b) - getVerzugOpenChats(a)
+          || (getVerzugDays(b) ?? 0) - (getVerzugDays(a) ?? 0),
+        );
+      }
+      return sorted;
+    }
     return list;
-  }, [baseVisibleList, kindTab, verzugDayFilter]);
+  }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort]);
 
   const isSwapTab = kindTab === "swap" && extraFilter === "none";
   const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
