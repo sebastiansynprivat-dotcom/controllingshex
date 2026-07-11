@@ -80,12 +80,15 @@ async function loadCurrentAssignments(
   const since = isoDaysAgo(30);
   const today = todayIso();
 
-  const { data } = await supabase
-    .from("chatter_history")
-    .select("chatter_name, account, analysis_date, revenue_today")
-    .eq("user_id", user.id)
-    .ilike("platform", platform)
-    .gte("analysis_date", since);
+  const data = await fetchAllPaged<{ chatter_name: string; account: string; analysis_date: string; revenue_today: number | null }>((from, to) =>
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, account, analysis_date, revenue_today")
+      .eq("user_id", user.id)
+      .ilike("platform", platform)
+      .gte("analysis_date", since)
+      .range(from, to)
+  );
 
   const rows = await filterRowsToActiveCombos(platform, data ?? []);
   // Heutige Pairs
