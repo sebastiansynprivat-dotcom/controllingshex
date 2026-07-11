@@ -495,7 +495,7 @@ export default function PersonActionCard({
             </div>
 
             <div className="text-right shrink-0">
-              {action.primaryKind === "upgrade" ? (
+              {action.primaryKind === "upgrade" || action.primaryKind === "verzug" ? (
                 <div
                   className={cn(
                     "mt-1 text-[9px] font-bold uppercase tracking-[0.18em] flex items-center justify-end gap-1.5",
