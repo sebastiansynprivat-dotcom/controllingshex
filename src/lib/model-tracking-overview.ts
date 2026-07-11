@@ -467,16 +467,22 @@ function derivePhases(daily: DailyPoint[]): ChatterPhase[] {
 }
 
 /**
- * Detect alerts für Models. Lädt 60T Historie, filtert auf relevante Models
- * (Mindestumsatz letzte 30T + Mindest-Datenpunkte).
+ * Detect alerts für Models. Lädt 365T Historie, damit wir eine echte
+ * Lifetime-Baseline pro Model bilden können und nicht mehr gegen einen
+ * 30T-Nachbar-Schnitt vergleichen.
+ *
+ * Ein Model landet nur dann im Alert, wenn:
+ *   - Lifetime-Ø (aktive Tage außerhalb der letzten 30T) ≥ MIN_LIFETIME_AVG_EUR_PER_DAY
+ *   - Letzte 30T ≥ 150 € (Relevanz-Gate)
+ *   - Es einen echten, absoluten Einbruch gibt (nicht nur ein Prozent-Ausreißer).
  */
 export async function detectRelevantModelAlerts(
   platform: string,
-  relevanceMinEur30d = 100
+  relevanceMinEur30d = 150
 ): Promise<ModelAlert[]> {
   const today = new Date();
   const since = new Date(today);
-  since.setDate(since.getDate() - 60);
+  since.setDate(since.getDate() - 365);
   const fromIso = since.toISOString().split("T")[0];
   const toIso = today.toISOString().split("T")[0];
 
@@ -504,8 +510,6 @@ export async function detectRelevantModelAlerts(
   thirtyAgo.setDate(thirtyAgo.getDate() - 30);
   const thirtyAgoIso = thirtyAgo.toISOString().split("T")[0];
 
-  // Aktive Chatter×Model-Zuordnung aus letztem Report — Alerts nur für
-  // Kombinationen, die aktuell auch wirklich noch bestehen.
   const activeChatterModels = await loadActiveChatterModels(platform);
   const isCurrentPair = (chatter: string | null, model: string): boolean => {
     if (!chatter) return false;
@@ -530,23 +534,32 @@ export async function detectRelevantModelAlerts(
       return { date: d, revenue: entry.revenue, chatter: topChatter };
     });
 
-    // Relevance gate
     const last30 = daily.filter((p) => p.date >= thirtyAgoIso);
     const totalRevenue30d = last30.reduce((s, p) => s + p.revenue, 0);
     if (totalRevenue30d < relevanceMinEur30d) continue;
     if (last30.length < 5) continue;
 
+    // Lifetime-Baseline: aktive Tage älter als 30T
+    const lifetimeActive = daily.filter((p) => p.date < thirtyAgoIso && p.revenue > 0);
+    if (lifetimeActive.length < MIN_BASELINE_ACTIVE_DAYS) continue;
+    const lifetimeAvg =
+      lifetimeActive.reduce((s, p) => s + p.revenue, 0) / lifetimeActive.length;
+    if (lifetimeAvg < MIN_LIFETIME_AVG_EUR_PER_DAY) continue;
+
     const phases = derivePhases(daily);
     const currentPhase = phases[phases.length - 1] ?? null;
     const previousPhase = phases.length >= 2 ? phases[phases.length - 2] : null;
 
-    // Skip Alerts, wenn der aktuelle Chatter im letzten Report nicht mehr
-    // auf diesem Model steht — dann sind Rückgang/Underperform-Signale nicht
-    // mehr handlungsrelevant.
     if (!isCurrentPair(currentPhase?.chatterName ?? null, modelName)) continue;
 
-    // Alert 1: Decline since chatter switch
-    if (currentPhase && previousPhase && previousPhase.avgPerDay > 0 && currentPhase.days >= 3) {
+    // Alert 1: Seit Wechsel deutlich unter Vorgänger — absolute + relative Schwelle
+    if (
+      currentPhase &&
+      previousPhase &&
+      currentPhase.days >= 3 &&
+      previousPhase.avgPerDay >= 20 &&
+      currentPhase.avgPerDay < previousPhase.avgPerDay - 10
+    ) {
       const deltaPct = Math.round(
         ((currentPhase.avgPerDay - previousPhase.avgPerDay) / previousPhase.avgPerDay) * 100
       );
@@ -554,7 +567,7 @@ export async function detectRelevantModelAlerts(
         alerts.push({
           modelName,
           kind: "decline",
-          reason: `Seit Wechsel zu ${currentPhase.chatterName} im Rückgang vs. ${previousPhase.chatterName}`,
+          reason: `Seit Wechsel zu ${currentPhase.chatterName}: Ø ${fmtEur(currentPhase.avgPerDay)}/Tag (Vorgänger ${previousPhase.chatterName}: Ø ${fmtEur(previousPhase.avgPerDay)}/Tag)`,
           currentChatter: currentPhase.chatterName,
           deltaPct,
           severity: deltaPct <= -40 ? "high" : "medium",
@@ -564,17 +577,16 @@ export async function detectRelevantModelAlerts(
       }
     }
 
-    // Alert 2: Last 7d < 60% of 30d avg
-    const last7 = daily.slice(-7);
-    if (last30.length >= 14 && last7.length >= 5) {
-      const avg30 = last30.reduce((s, p) => s + p.revenue, 0) / last30.length;
-      const avg7 = last7.reduce((s, p) => s + p.revenue, 0) / last7.length;
-      if (avg30 >= 30 && avg7 < avg30 * 0.6) {
-        const dropPct = Math.round(((avg7 - avg30) / avg30) * 100);
+    // Alert 2: Letzte aktive Tage klar unter Lifetime-Baseline
+    const last7Active = daily.filter((p) => p.revenue > 0).slice(-7);
+    if (last7Active.length >= 5 && lifetimeAvg >= 10) {
+      const avg7 = last7Active.reduce((s, p) => s + p.revenue, 0) / last7Active.length;
+      if (avg7 < lifetimeAvg * 0.6 && lifetimeAvg - avg7 >= 10) {
+        const dropPct = Math.round(((avg7 - lifetimeAvg) / lifetimeAvg) * 100);
         alerts.push({
           modelName,
           kind: "decline",
-          reason: `Letzte 7T deutlich unter eigenem 30T-Schnitt`,
+          reason: `Lifetime Ø ${fmtEur(lifetimeAvg)}/Tag → aktuell Ø ${fmtEur(avg7)}/Tag (${dropPct}%)`,
           currentChatter: currentPhase?.chatterName ?? null,
           deltaPct: dropPct,
           severity: dropPct <= -50 ? "high" : "medium",
@@ -584,14 +596,15 @@ export async function detectRelevantModelAlerts(
       }
     }
 
-    // Alert 3: New chatter ≤7d & <70% of previous phase
+    // Alert 3: Neuer Chatter (2-7T) deutlich unter Vorgänger, absolute Schwelle
     if (
       currentPhase &&
       previousPhase &&
       currentPhase.days <= 7 &&
       currentPhase.days >= 2 &&
-      previousPhase.avgPerDay > 0 &&
-      currentPhase.avgPerDay < previousPhase.avgPerDay * 0.7
+      previousPhase.avgPerDay >= 20 &&
+      currentPhase.avgPerDay < previousPhase.avgPerDay * 0.7 &&
+      previousPhase.avgPerDay - currentPhase.avgPerDay >= 10
     ) {
       const deltaPct = Math.round(
         ((currentPhase.avgPerDay - previousPhase.avgPerDay) / previousPhase.avgPerDay) * 100
@@ -599,7 +612,7 @@ export async function detectRelevantModelAlerts(
       alerts.push({
         modelName,
         kind: "new_chatter_underperform",
-        reason: `Neuer Chatter ${currentPhase.chatterName} (Tag ${currentPhase.days}) unter Vorgänger-Schnitt`,
+        reason: `Neuer Chatter ${currentPhase.chatterName} (Tag ${currentPhase.days}): Ø ${fmtEur(currentPhase.avgPerDay)}/Tag vs. Vorgänger Ø ${fmtEur(previousPhase.avgPerDay)}/Tag`,
         currentChatter: currentPhase.chatterName,
         deltaPct,
         severity: deltaPct <= -50 ? "high" : "medium",
