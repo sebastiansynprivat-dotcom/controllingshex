@@ -557,7 +557,7 @@ export default function PersonActionCard({
                   <Clock className="h-3 w-3" /> {peakLabel} Uhr
                 </span>
               ) : null}
-              {showCoi && (
+              {showCoi && action.primaryKind !== "verzug" && (
                 <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.04] text-[10.5px] font-medium text-rose-300/85 tabular-nums">
                   <TrendingDown className="h-3 w-3" />
                   −{action.costOfInactionEurPerWeek.toLocaleString("de-DE")} €<span className="text-rose-300/55">/Wo</span>
