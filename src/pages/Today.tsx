@@ -1011,8 +1011,20 @@ export default function Today() {
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
             />
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
+              <div className="text-white/70 text-sm font-light">Aufgaben konnten nicht geladen werden.</div>
+              <div className="text-white/40 text-xs font-light max-w-md">{loadError}</div>
+              <button
+                onClick={retryLoad}
+                className="px-4 py-2 rounded-full border border-white/20 text-white/80 text-xs uppercase tracking-wider hover:bg-white/[0.06] transition-all"
+              >
+                Erneut laden
+              </button>
+            </div>
           ) : baseVisibleList.length === 0 ? (
             <EmptyState status={status} hasAnyOpen={filtered.primary.length + filtered.watchlist.length > 0} />
+
           ) : (
 
             <ErrorBoundary>
