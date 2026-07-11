@@ -646,8 +646,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     if (!displayName) displayName = live.displayName;
 
     if (day1Names.has(nameKey)) continue;
-    // Wenn wir eine aktive Roster-Liste haben und der Chatter NICHT drin ist,
-    // trotzdem drin lassen — die Live-Daten sind der stärkere Beleg.
+    // Nur Chatter aus dem aktuellen Roster (letzter Report) einbeziehen.
+    // Wer nicht mehr im letzten Report vorkommt, gehört nicht in den Verzugs-Tab.
+    if (!isActive(displayName)) continue;
     const key = `verzug:${displayName}:${today}`;
     if (existingVerzugKeys.has(key)) continue;
 
