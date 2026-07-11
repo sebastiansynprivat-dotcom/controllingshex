@@ -290,11 +290,8 @@ export async function loadModelOverview(platform: string, range: TimeRange): Pro
     // Fallback: Wenn zu wenig Baseline-Daten, nutze Range-interne Regression,
     // damit der Account NICHT aus den Trend-Kategorien rausfliegt.
     const poolForTrend = poolByModel.get(modelKey);
-    let trendResult: { direction: TrendDirection; pct: number | null; slope: number } = {
-      direction: "none",
-      pct: null,
-      slope: 0,
-    };
+
+
     let baselineAvg: number | null = null;
     let currentAvg: number | null = null;
     let baseDays = 0;
