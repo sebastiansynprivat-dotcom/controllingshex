@@ -159,6 +159,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   //   - Verzug & offene Chats: falls live aufgelöst → Signal droppen
   //   - sonst Live-Werte in die Beschreibung packen
   interface LiveSnap {
+    displayName: string;
     unread: number;
     oldest: number;
     revenue: number;
@@ -183,6 +184,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       const k = normalizeChatterName(r.chatter_name);
       if (liveByName.has(k)) continue;
       liveByName.set(k, {
+        displayName: r.chatter_name,
         unread: Math.max(0, Number(r.unread_chats ?? 0)),
         oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
         revenue: Math.max(0, Number(r.revenue ?? 0)),
@@ -621,6 +623,46 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     }
   } catch (e) {
     console.warn("[daily-todos] talent scout failed", e);
+  }
+
+  // === LIVE-PASS: Verzug-Todos für Chatter erzeugen, die zwar Live-Rückstand
+  // haben (oldest_chat ≥ 2), aber im chatter_history-Loop nicht als eigener
+  // Eintrag erschienen (z.B. weil sie in den 30T-Reports nicht auftauchen
+  // oder aus dem letzten Report gefallen sind). Ohne diesen Pass fehlen sie
+  // im Verzugs-Tab, obwohl die Live-Daten sie klar zeigen.
+  const existingVerzugKeys = new Set(
+    todos.filter((t) => t.category === "verzug").map((t) => t.key),
+  );
+  for (const [nameKey, live] of liveByName) {
+    const oldestDays = Math.round(live.oldest);
+    if (oldestDays < 2) continue;
+
+    // Display-Name bevorzugt aus chatter_history (Report-Schreibweise), sonst
+    // aus dem Live-Datensatz selbst.
+    let displayName: string | null = null;
+    for (const [dispName] of byChatter) {
+      if (normalizeChatterName(dispName) === nameKey) { displayName = dispName; break; }
+    }
+    if (!displayName) displayName = live.displayName;
+
+    if (day1Names.has(nameKey)) continue;
+    // Wenn wir eine aktive Roster-Liste haben und der Chatter NICHT drin ist,
+    // trotzdem drin lassen — die Live-Daten sind der stärkere Beleg.
+    const key = `verzug:${displayName}:${today}`;
+    if (existingVerzugKeys.has(key)) continue;
+
+    const importance = importanceFor(displayName);
+    const tag = importanceLabel(displayName);
+    todos.push({
+      key,
+      category: "verzug",
+      score: Math.round((90 + oldestDays * 5) * importance),
+      title: `${displayName} dringend — ältester Chat ${oldestDays}T${tag}`,
+      why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${live.unread} ungelesen${startSuffixFor(displayName)}. Sofort entlasten oder Ursache klären.`,
+      chatterName: displayName,
+      meta: { delayDays: oldestDays, todayOpenChats: live.unread },
+    });
+    existingVerzugKeys.add(key);
   }
 
   // Sortieren
