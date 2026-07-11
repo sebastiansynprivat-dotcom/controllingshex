@@ -16,6 +16,7 @@
  * Alle Aufgaben sind deterministisch, transparent, ohne LLM.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/paged";
 import {
   computeLeaderboardRanks,
   computeRecoveryQueue,
