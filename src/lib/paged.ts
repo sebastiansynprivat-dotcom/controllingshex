@@ -9,7 +9,7 @@ export async function fetchAllPaged<T>(
   pageSize = 1000,
 ): Promise<T[]> {
   const out: T[] = [];
-  for (let from = 0; from < 500_000; from += pageSize) {
+  for (let from = 0; ; from += pageSize) {
     let lastErr: unknown = null;
     let data: T[] | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {

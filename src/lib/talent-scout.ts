@@ -15,8 +15,6 @@ import { tierForFollowers, type AccountTier } from "@/lib/account-tiers";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 
 const HISTORY_DAYS = 7;
-const MAX_MATCHES = 8;
-const MAX_WORKHORSES = 12;
 const ONBOARDING_BONUS_MIN = 5;
 const ONBOARDING_BONUS_MAX = 45;
 const ONBOARDING_BONUS_FACTOR = 1.15;
@@ -406,8 +404,7 @@ export async function findTalentMatches(
   const workhorses = aggs
     .map((a) => ({ a, score: workhorseScore(a) }))
     .filter((w) => w.score > 0 && w.a.activeDays >= 3 && passesRiserPlatformFilter(w.a))
-    .sort((x, y) => y.score - x.score)
-    .slice(0, MAX_WORKHORSES);
+    .sort((x, y) => y.score - x.score);
 
   // Verwaiste Accounts — nach Live-Schmerz (oldest_chat + unread heute).
   const orphans = aggs
@@ -423,7 +420,6 @@ export async function findTalentMatches(
   const matches: TalentMatch[] = [];
 
   for (const w of workhorses) {
-    if (matches.length >= MAX_MATCHES) break;
     const wKey = norm(w.a.name);
     if (usedWorkhorses.has(wKey)) continue;
 

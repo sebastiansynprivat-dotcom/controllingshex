@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { normalizeChatterName, loadActiveChatterNames } from "@/lib/active-chatters";
 import type { ChatterLabel, LabelAssignment } from "@/lib/chatter-labels";
 import { isSystemLabel } from "@/lib/chatter-labels";
+import { fetchAllPaged } from "@/lib/paged";
 
 export interface OnboardingChatter {
   chatterName: string;
@@ -42,22 +43,24 @@ export async function loadOnboardingChatters(
   const minDays = opts.minDays ?? 1;
   const maxDays = opts.maxDays ?? 20;
 
-  const [onboardingRes, activeNames, accountsRes] = await Promise.all([
+  const [onboardingRes, activeNames, accountRows] = await Promise.all([
     supabase.rpc("get_chatter_onboarding", { p_platform: platform }),
     loadActiveChatterNames(platform),
-    supabase
-      .from("chatter_history")
-      .select("chatter_name, account, analysis_date")
-      .ilike("platform", platform)
-      .order("analysis_date", { ascending: false })
-      .limit(2000),
+    fetchAllPaged<{ chatter_name: string; account: string | null; analysis_date: string }>((from, to) =>
+      supabase
+        .from("chatter_history")
+        .select("chatter_name, account, analysis_date")
+        .ilike("platform", platform)
+        .order("analysis_date", { ascending: false })
+        .range(from, to)
+    ),
   ]);
 
   const onboarding = (onboardingRes.data ?? []) as { chatter_name: string; onboarded_on: string }[];
 
   // Account je Chatter — neuester Eintrag
   const accountByChatter = new Map<string, string>();
-  for (const r of (accountsRes.data ?? []) as { chatter_name: string; account: string | null }[]) {
+  for (const r of accountRows) {
     const k = normalizeChatterName(r.chatter_name);
     if (!accountByChatter.has(k) && r.account) {
       const first = r.account.split(",")[0]?.trim();
@@ -128,7 +131,7 @@ export async function loadOnboardingChatters(
       if (!accounts.length) return [] as { account: string | null; revenue_today: number | null }[];
       const all: { account: string | null; revenue_today: number | null }[] = [];
       const pageSize = 1000;
-      for (let from = 0; from < 200000; from += pageSize) {
+      for (let from = 0; ; from += pageSize) {
         const { data, error } = await supabase
           .from("chatter_history")
           .select("account, revenue_today")
