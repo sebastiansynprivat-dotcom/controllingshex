@@ -10,6 +10,7 @@ import { detectModelTroubles } from "@/lib/model-tracking";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import { findTalentMatches, findOrphanedAccounts } from "@/lib/talent-scout";
 import { loadActiveRejections } from "@/lib/talent-rejections";
+import { fetchAllPaged } from "@/lib/paged";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
@@ -170,11 +171,22 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   try {
     const todayIso = todayStr();
     const yIso = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const { data: liveRows } = await supabase
-      .from("chatter_history_live")
-      .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at")
-      .ilike("platform", platform)
-      .gte("date", yIso);
+    const liveRows = await fetchAllPaged<{
+      chatter_name: string;
+      date: string;
+      unread_chats: number | null;
+      oldest_chat: number | null;
+      revenue: number | null;
+      mass_dms: number | null;
+      updated_at: string | null;
+    }>((from, to) =>
+      supabase
+        .from("chatter_history_live")
+        .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at")
+        .ilike("platform", platform)
+        .gte("date", yIso)
+        .range(from, to)
+    );
     const sorted = [...(liveRows ?? [])].sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
@@ -211,10 +223,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
 
   // Models + Follower laden, um sie auf der Karte anzuzeigen.
-  const { data: modelRowsForLookup } = await supabase
-    .from("models")
-    .select("model_name, follower_count")
-    .eq("platform", platform);
+  const modelRowsForLookup = await fetchAllPaged<{ model_name: string; follower_count: number | null }>((from, to) =>
+    supabase
+      .from("models")
+      .select("model_name, follower_count")
+      .eq("platform", platform)
+      .range(from, to)
+  );
   const followersByModel = new Map<string, number>();
   for (const m of modelRowsForLookup || []) {
     const key = m.model_name.toLowerCase().trim();
@@ -506,11 +521,14 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
 
   // Models in Trouble
-  const { data: modelRows } = await supabase
-    .from("models")
-    .select("model_name")
-    .eq("platform", platform);
-  const modelNames = (modelRows || []).map((m) => m.model_name);
+  const modelRows = await fetchAllPaged<{ model_name: string }>((from, to) =>
+    supabase
+      .from("models")
+      .select("model_name")
+      .eq("platform", platform)
+      .range(from, to)
+  );
+  const modelNames = modelRows.map((m) => m.model_name);
   if (modelNames.length > 0) {
     try {
       const troubles = await detectModelTroubles(platform, modelNames);
@@ -596,13 +614,10 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     }
     // Solo-Warnungen für besonders verwaiste Accounts ohne passenden Workhorse
     const orphans = await findOrphanedAccounts(platform);
-    let soloCount = 0;
 
     for (const o of orphans) {
-      if (soloCount >= 3) break;
       if (matchedUnderusers.has(o.chatter.toLowerCase())) continue;
       if (!isActive(o.chatter)) continue;
-      soloCount++;
       const liveBits: string[] = [];
       if (o.oldestChatDays >= 1) liveBits.push(`ältester Chat ${o.oldestChatDays}T offen`);
       if (o.openChats > 0) liveBits.push(`${o.openChats} ungelesen`);

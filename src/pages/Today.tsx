@@ -45,6 +45,7 @@ import {
   type LabelAssignment,
 } from "@/lib/chatter-labels";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/paged";
 import {
   fetchHiddenUpgrades,
   hideUpgradeChatter,
@@ -66,10 +67,6 @@ type StatusMode = "open" | "wins" | "onboarding" | "done";
 type ExtraFilter = "none" | "onboarding" | "push";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
-
-const SWAP_RENDER_BATCH = 8;
-
-
 
 const KIND_DEFS: { id: ActionSourceKind; label: string; icon: typeof Flame; accent: string; dot: string }[] = [
   { id: "verzug",   label: "Verzug",         icon: AlertTriangle,  accent: "text-red-300",      dot: "bg-red-400/80" },
@@ -239,7 +236,6 @@ export default function Today() {
   const [pendingFeedback, setPendingFeedback] = useState<ActionOutcomeRow[]>([]);
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [topTab, setTopTab] = useState<TopTab>("actions");
-  const [swapRenderCount, setSwapRenderCount] = useState(SWAP_RENDER_BATCH);
   const { ref: filterScrollRef } = useDragScroll<HTMLDivElement>({ wheel: false });
 
   // Labels + Onboarding
@@ -371,25 +367,30 @@ export default function Today() {
         const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
         const targetKeys = new Set(chatterNames.map(normalizeBreakdownKey));
 
-        const [historyRes, liveRes] = await Promise.all([
-          supabase
-            .from("chatter_history")
-            .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
-            .ilike("platform", platform)
-            .order("analysis_date", { ascending: false })
-            .limit(5000),
-          supabase
-            .from("chatter_history_live")
-            .select("chatter_name, unread_chats, oldest_chat, date, updated_at")
-            .ilike("platform", platform)
-            .gte("date", yesterday),
+        const [historyRows, liveRowsPaged] = await Promise.all([
+          fetchAllPaged<any>((from, to) =>
+            supabase
+              .from("chatter_history")
+              .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
+              .ilike("platform", platform)
+              .order("analysis_date", { ascending: false })
+              .range(from, to)
+          ),
+          fetchAllPaged<any>((from, to) =>
+            supabase
+              .from("chatter_history_live")
+              .select("chatter_name, unread_chats, oldest_chat, date, updated_at")
+              .ilike("platform", platform)
+              .gte("date", yesterday)
+              .range(from, to)
+          ),
         ]);
-        if (cancel || historyRes.error || liveRes.error) return;
+        if (cancel) return;
 
-        const rows = ((historyRes.data ?? []) as any[]).filter((r) =>
+        const rows = historyRows.filter((r) =>
           targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
         );
-        const liveRows = ((liveRes.data ?? []) as any[]).filter((r) =>
+        const liveRows = liveRowsPaged.filter((r) =>
           targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
         );
 
@@ -723,9 +724,8 @@ export default function Today() {
     return list;
   }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort]);
 
-  const isSwapTab = kindTab === "swap" && extraFilter === "none";
-  const renderedVisibleList = isSwapTab ? visibleList.slice(0, swapRenderCount) : visibleList;
-  const remainingSwapCount = isSwapTab ? Math.max(0, visibleList.length - renderedVisibleList.length) : 0;
+  const renderedVisibleList = visibleList;
+  const remainingSwapCount = 0;
 
   const isUpDownTab = kindTab === "upgrade" || kindTab === "downgrade";
   const upgradeListAll = useMemo(
@@ -757,21 +757,6 @@ export default function Today() {
     [upgradeList],
   );
   const compareActive = compareUpDown && isUpDownTab;
-
-
-
-  useEffect(() => {
-    if (isSwapTab) setSwapRenderCount(SWAP_RENDER_BATCH);
-  }, [isSwapTab, status, platform]);
-
-  useEffect(() => {
-    if (!isSwapTab || swapRenderCount >= visibleList.length) return;
-    const id = window.setTimeout(() => {
-      setSwapRenderCount((count) => Math.min(count + SWAP_RENDER_BATCH, visibleList.length));
-    }, 90);
-    return () => window.clearTimeout(id);
-  }, [isSwapTab, swapRenderCount, visibleList.length]);
-
   // Falls aktiver Kind-Tab leer wird, auf "all" zurück (in Effect, nicht in Render)
   useEffect(() => {
     if (kindTab !== "all" && !availableKinds.some((g) => g.id === kindTab)) {
@@ -1463,7 +1448,6 @@ export default function Today() {
                         key={g.id}
                         onClick={() => {
                           setExtraFilter("none");
-                          if (g.id === "swap") setSwapRenderCount(SWAP_RENDER_BATCH);
                           setKindTab(g.id);
                         }}
                         className={cn(

@@ -3,8 +3,7 @@
  *
  * Idee: Statt allgemeiner To-Dos („X hat keine Antworten") werden hier nur
  * Aufgaben mit konkretem €-Hebel erzeugt. Jede Aufgabe trägt einen geschätzten
- * impactEurPerWeek + Begründung. Sortiert nach Score, gecappt auf Top-N,
- * dedupiert pro Chatter.
+ * impactEurPerWeek + Begründung. Sortiert nach Score, ohne künstliche Anzahl-Caps.
  *
  * Quellen, die zusammengeführt werden:
  *   1. Recovery-Queue          (recovery-queue.ts)
@@ -46,7 +45,6 @@ export interface RevenueTask {
   };
 }
 
-const MAX_TASKS = 20;
 const MIN_IMPACT_EUR_PER_WEEK = 30;
 
 function todayStr(): string {
@@ -376,7 +374,7 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
 
   /* 1. RECOVERY */
   const ranks = computeLeaderboardRanks(recoveryHistory);
-  const recovery = computeRecoveryQueue(recoveryHistory, ranks).slice(0, 6);
+  const recovery = computeRecoveryQueue(recoveryHistory, ranks);
   for (const r of recovery) {
     if (r.recoveryEur < MIN_IMPACT_EUR_PER_WEEK) continue;
     const acc = chatterCurrentAccount.get(normalizeChatterName(r.chatterName));
@@ -493,27 +491,8 @@ export async function generateRevenueTasks(platform: string): Promise<RevenueTas
     });
   }
 
-  /* DEDUPE pro Chatter (außer Slot — Account-bezogen; außer Swap — eigene Logik
-     in der Engine, darf nicht mit Recovery/Phase/Mismatch um die MAX_TASKS-Slots
-     konkurrieren). */
-  const seenChatter = new Set<string>();
+  /* Keine künstliche Anzahl-Begrenzung: alle erzeugten Revenue-Aufgaben zurückgeben.
+     Personenbezogene Mehrfachsignale werden später im Today-Engine-Bundle zusammengeführt. */
   const sorted = [...tasks].sort((a, b) => b.score - a.score);
-  const final: RevenueTask[] = [];
-  const swapsOnly: RevenueTask[] = [];
-  for (const t of sorted) {
-    if (t.kind === "swap" || t.kind === "upgrade" || t.kind === "downgrade") {
-      swapsOnly.push(t);
-      continue;
-    }
-    if (t.kind !== "slot" && t.chatterName) {
-      const k = normalizeChatterName(t.chatterName);
-      if (seenChatter.has(k)) continue;
-      seenChatter.add(k);
-    }
-    final.push(t);
-    if (final.length >= MAX_TASKS) break;
-  }
-  // Swap- + Upgrade-Tasks immer komplett mitliefern — Heute-Tab paginiert selbst.
-  final.push(...swapsOnly);
-  return final;
+  return sorted;
 }
