@@ -696,16 +696,18 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   try {
     const today = todayISO();
     const y = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const liveQ = await supabase
-      .from("chatter_history_live")
-      .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
-      .ilike("platform", platform)
-      .gte("date", y);
+    type Row = { chatter_name: string; date: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null };
+    const liveRows = await fetchAllPaged<Row>((from, to) =>
+      supabase
+        .from("chatter_history_live")
+        .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
+        .ilike("platform", platform)
+        .gte("date", y)
+        .range(from, to)
+    );
     const FRESH_MS = 6 * 60 * 60 * 1000; // 6h
     const now = Date.now();
-    // pro Chatter den neuesten (date, updated_at) Eintrag wählen
-    type Row = { chatter_name: string; date: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null };
-    const sorted = [...(liveQ.data ?? []) as Row[]].sort((a, b) => {
+    const sorted = [...liveRows].sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
     });
@@ -731,6 +733,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   } catch (e) {
     console.warn("[today-engine] live snapshot failed", e);
   }
+
 
   function shouldSuppress(opts: {
     kind: ActionSourceKind;
