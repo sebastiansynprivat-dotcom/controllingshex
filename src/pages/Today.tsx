@@ -875,7 +875,7 @@ export default function Today() {
                   />
                 </div>
                 <p className="text-[10px] text-white/35 font-light mt-1.5 tracking-wide">
-                  {completedPrimary} von {totalPrimaryActions} Top-Aktionen erledigt
+                  {completedPrimary} von {totalPrimaryActions} Aktionen erledigt
                 </p>
               </div>
             )}
