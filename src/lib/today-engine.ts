@@ -676,15 +676,19 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
     loadChatterStats(platform),
     loadRoiMultipliers(platform),
     loadAccountFitMatrix(platform),
-    supabase.auth.getUser().then(({ data }) =>
-      data.user
-        ? supabase
-            .from("models")
-            .select("model_name, follower_count")
-            .eq("user_id", data.user.id)
-            .ilike("platform", platform)
-        : { data: [] as { model_name: string; follower_count: number }[] }
-    ),
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return { data: [] as { model_name: string; follower_count: number }[] };
+      const rows = await fetchAllPaged<{ model_name: string; follower_count: number }>((from, to) =>
+        supabase
+          .from("models")
+          .select("model_name, follower_count")
+          .eq("user_id", data.user!.id)
+          .ilike("platform", platform)
+          .range(from, to)
+      );
+      return { data: rows };
+    }),
+
   ]);
   const { stats, importanceFor } = statsBundle;
 
