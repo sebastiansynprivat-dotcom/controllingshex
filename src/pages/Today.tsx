@@ -1458,7 +1458,20 @@ export default function Today() {
                   <Megaphone className={cn("h-3 w-3", extraFilter === "push" ? "text-pink-300" : "text-white/40")} />
                   Push
                 </button>
+                <button
+                  onClick={() => { setExtraFilter("anomalies"); setKindTab("all"); }}
+                  className={cn(
+                    "snap-start shrink-0 px-3.5 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                    extraFilter === "anomalies"
+                      ? "bg-amber-500/[0.12] border-amber-400/30 text-amber-100 shadow-[0_0_18px_-6px_rgba(251,191,36,0.4)]"
+                      : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:text-white/80 hover:border-white/[0.12]",
+                  )}
+                >
+                  <AlertTriangle className={cn("h-3 w-3", extraFilter === "anomalies" ? "text-amber-300" : "text-white/40")} />
+                  Auffälligkeiten
+                </button>
                 <div className="shrink-0 h-5 w-px bg-white/10 mx-1" />
+
                 <button
                   onClick={() => { setExtraFilter("none"); setKindTab("all"); }}
                   className={cn(
