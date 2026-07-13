@@ -8,7 +8,8 @@
  */
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, ChevronUp, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame, Sparkles, SlidersHorizontal, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame, Sparkles, SlidersHorizontal, X, Clock, AlertTriangle } from "lucide-react";
+import { loadActiveSnoozes, snoozeChatterUntilTomorrow, unsnoozeChatter, buildSnoozedChatterSet, type AnomalySnooze } from "@/lib/anomaly-snooze";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -104,7 +105,7 @@ interface Props {
   /** Default time range. */
   defaultRange?: TimeRange;
   /** Compact: less padding, smaller text — used in dashboard. */
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "today";
   /** Click on a chatter row. */
   onChatterSelect?: (name: string) => void;
   /** Optional limit when compact, with "show more" toggle. */
@@ -295,6 +296,55 @@ export default function AnomalyPanel({
     const off = onChatterDataUpdated(() => { load(); });
     return () => { cancel = true; off(); };
   }, [platform]);
+
+  // Snoozes — nur relevant für variant="today", aber überall geladen für Uhr-Marker.
+  const [snoozes, setSnoozes] = useState<AnomalySnooze[]>([]);
+  const reloadSnoozes = useCallback(async () => {
+    if (!user) return;
+    const rows = await loadActiveSnoozes(user.id, platform);
+    setSnoozes(rows);
+  }, [user, platform]);
+  useEffect(() => { reloadSnoozes(); }, [reloadSnoozes]);
+  const snoozedSet = useMemo(() => buildSnoozedChatterSet(snoozes), [snoozes]);
+  const isSnoozed = useCallback(
+    (name: string) => snoozedSet.has(normalizeChatterName(name)),
+    [snoozedSet],
+  );
+
+  const handleSnoozeChatter = async (name: string) => {
+    if (!user) return;
+    // optimistisch
+    setSnoozes((prev) => [
+      ...prev,
+      {
+        id: `tmp-${Date.now()}`,
+        chatter_name: name,
+        alert_type: null,
+        snoozed_until: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+      },
+    ]);
+    try {
+      await snoozeChatterUntilTomorrow({ userId: user.id, platform, chatterName: name });
+      toast.success(`„${name}" bis morgen ausgeblendet`);
+      await reloadSnoozes();
+    } catch (err) {
+      console.error("[AnomalyPanel] snooze failed:", err);
+      toast.error("Snooze fehlgeschlagen");
+      await reloadSnoozes();
+    }
+  };
+
+  const handleUnsnoozeChatter = async (name: string) => {
+    if (!user) return;
+    setSnoozes((prev) => prev.filter((s) => s.chatter_name !== name));
+    try {
+      await unsnoozeChatter({ userId: user.id, platform, chatterName: name });
+      await reloadSnoozes();
+    } catch (err) {
+      console.error("[AnomalyPanel] unsnooze failed:", err);
+      await reloadSnoozes();
+    }
+  };
 
 
   const labelsByChatter = useMemo(() => {
@@ -770,8 +820,8 @@ export default function AnomalyPanel({
     [groupedByChatter],
   );
 
-  const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
-  const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
+  const padding = variant === "compact" || variant === "today" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
+  const textSize = variant === "compact" || variant === "today" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
   const getChatterFollowers = (name: string) => {
     const accs = chatterAccounts.get(name) ?? [];
@@ -786,17 +836,39 @@ export default function AnomalyPanel({
   const fMax = filters.followerMax && filters.followerMax > 0 ? filters.followerMax : Infinity;
   const rMin = filters.revMin ?? 0;
   const rMax = filters.revMax && filters.revMax > 0 ? filters.revMax : Infinity;
-  const visibleGroups = (variant === "compact" && !expanded
+  const isCompactLike = variant === "compact" || variant === "today";
+  const visibleGroups = (isCompactLike && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
     : groupedByChatter
   ).filter((g) => {
     if (tray.has(g.name)) return false;
+    // Im Heute-Tab: gesnoozte Chatter ausblenden (auf /auffaelligkeiten bleiben sie sichtbar).
+    if (variant === "today" && isSnoozed(g.name)) return false;
     const fol = getChatterFollowers(g.name);
     if (fol < fMin || fol > fMax) return false;
     const avg = allTimeAvg.get(g.name) ?? 0;
     if (avg < rMin || avg > rMax) return false;
     return true;
   });
+
+  // Split für Heute-Tab: "Neu heute" (< 3 Tage auffällig) vs. "Eskaliert" (≥ 3 Tage).
+  const ESCALATION_DAYS = 3;
+  const todaySections = useMemo(() => {
+    if (variant !== "today") return null;
+    const fresh: typeof visibleGroups = [];
+    const escalated: typeof visibleGroups = [];
+    for (const g of visibleGroups) {
+      const since = categorySince.get(g.name);
+      const sinceRel = since ? relDays(since.since) : null;
+      const days = sinceRel?.days ?? 0;
+      if (days >= ESCALATION_DAYS) escalated.push(g);
+      else fresh.push(g);
+    }
+    return { fresh, escalated };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, visibleGroups, categorySince]);
+
+  const snoozedCount = snoozes.filter((s) => !s.alert_type).length;
 
 
   // Drop-Handler: Karte aus der Ablage zurück in die Übersicht ziehen.
@@ -824,16 +896,45 @@ export default function AnomalyPanel({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div className="flex items-baseline gap-2 sm:gap-3 min-w-0">
             <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/40 font-light">
-              Auffälligkeiten
+              {variant === "today" ? "Heute im Fokus" : "Auffälligkeiten"}
             </div>
-            <div className="text-[10px] text-white/35 font-light truncate">{rangeLabel(range)}</div>
+            {variant !== "today" && (
+              <div className="text-[10px] text-white/35 font-light truncate">{rangeLabel(range)}</div>
+            )}
           </div>
-          {!hideTimeControls && (
+          {!hideTimeControls && variant !== "today" && (
             <div className="-mx-1 sm:mx-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TimeRangeToggle value={range} onChange={setRange} />
             </div>
           )}
         </div>
+
+        {variant === "today" && todaySections && (
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/[0.08] border border-red-500/20 text-red-200/85">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+              Neu · {todaySections.fresh.length}
+            </span>
+            {todaySections.escalated.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-orange-500/[0.08] border border-orange-500/25 text-orange-200/90">
+                <Flame className="h-3 w-3" />
+                Eskaliert · {todaySections.escalated.length}
+              </span>
+            )}
+            {snoozedCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-white/50">
+                <Clock className="h-3 w-3" />
+                Snooze · {snoozedCount}
+              </span>
+            )}
+            <span className="ml-auto text-white/30 normal-case tracking-normal font-light">
+              Priorisiert · {rangeLabel(range)}
+            </span>
+          </div>
+        )}
+
+        {variant !== "today" && (<>
+
 
         {/* Mode-Toggle: Probleme vs. Highlights (im Vergleich-Modus ausgeblendet) */}
         {!forcedMode && (() => {
@@ -1050,7 +1151,9 @@ export default function AnomalyPanel({
             </div>
           )}
         </div>
+        </>)}
       </div>
+
 
 
       {/* Body */}
@@ -1071,9 +1174,12 @@ export default function AnomalyPanel({
           </div>
         </div>
       ) : (
-        <div className={`${variant === "compact" ? "p-2.5 sm:p-3" : "p-3 sm:p-4"} space-y-2.5 sm:space-y-3`}>
+        <div className={`${isCompactLike ? "p-2.5 sm:p-3" : "p-3 sm:p-4"} space-y-2.5 sm:space-y-3`}>
           <AnimatePresence initial={false}>
-            {visibleGroups.map((group, idx) => {
+            {(variant === "today" && todaySections
+              ? [...todaySections.fresh, ...todaySections.escalated]
+              : visibleGroups
+            ).map((group, idx) => {
               const topSev = SEVERITY_STYLE[group.topSeverity];
               const sevGlow = SEVERITY_GLOW[group.topSeverity] ?? SEVERITY_GLOW.info;
               const chatterKey = `chatter|${group.name}`;
@@ -1274,19 +1380,34 @@ export default function AnomalyPanel({
                       )}
                     </button>
 
-                    {/* Erledigt */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDismissChatter(group.name, group.items);
-                      }}
-                      disabled={isPending}
-                      title="Chatter komplett abhaken (bis zum nächsten Report)"
-                      className="shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="shrink-0 flex flex-col gap-1.5">
+                      {/* Erledigt */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDismissChatter(group.name, group.items);
+                        }}
+                        disabled={isPending}
+                        title="Chatter komplett abhaken (bis zum nächsten Report)"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      {variant === "today" && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSnoozeChatter(group.name);
+                          }}
+                          title="Bis morgen aus dem Heute-Tab ausblenden"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-sky-500/10 hover:border-sky-400/30 hover:text-sky-200 transition-all"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Zahlen-Trio: All-Time Ø · Zeitraum Ø · Abfall % */}
@@ -1379,7 +1500,7 @@ export default function AnomalyPanel({
 
       {!loading && anomalies.length > 0 && (
         <>
-          {variant === "compact" && groupedByChatter.length > compactInitialCount && (
+          {isCompactLike && groupedByChatter.length > compactInitialCount && (
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
@@ -1388,6 +1509,23 @@ export default function AnomalyPanel({
               {expanded ? "Weniger" : `${groupedByChatter.length - compactInitialCount} weitere Chatter`}
               <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
             </button>
+          )}
+
+          {variant === "today" && snoozedCount > 0 && (
+            <div className="border-t border-white/[0.04] px-3 py-2 flex items-center gap-2 text-[10px] text-white/45">
+              <Clock className="h-3 w-3" />
+              <span className="uppercase tracking-wider">{snoozedCount} gesnoozt bis morgen</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const names = snoozes.filter((s) => !s.alert_type).map((s) => s.chatter_name);
+                  for (const n of names) handleUnsnoozeChatter(n);
+                }}
+                className="ml-auto text-white/55 hover:text-white/85 transition-colors"
+              >
+                alle wieder einblenden
+              </button>
+            </div>
           )}
 
           <button
@@ -1400,6 +1538,7 @@ export default function AnomalyPanel({
           </button>
         </>
       )}
+
 
       <AnomalyDetailModal
         open={!!detailAnomaly}
