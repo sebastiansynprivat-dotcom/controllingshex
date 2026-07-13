@@ -297,6 +297,55 @@ export default function AnomalyPanel({
     return () => { cancel = true; off(); };
   }, [platform]);
 
+  // Snoozes — nur relevant für variant="today", aber überall geladen für Uhr-Marker.
+  const [snoozes, setSnoozes] = useState<AnomalySnooze[]>([]);
+  const reloadSnoozes = useCallback(async () => {
+    if (!user) return;
+    const rows = await loadActiveSnoozes(user.id, platform);
+    setSnoozes(rows);
+  }, [user, platform]);
+  useEffect(() => { reloadSnoozes(); }, [reloadSnoozes]);
+  const snoozedSet = useMemo(() => buildSnoozedChatterSet(snoozes), [snoozes]);
+  const isSnoozed = useCallback(
+    (name: string) => snoozedSet.has(normalizeChatterName(name)),
+    [snoozedSet],
+  );
+
+  const handleSnoozeChatter = async (name: string) => {
+    if (!user) return;
+    // optimistisch
+    setSnoozes((prev) => [
+      ...prev,
+      {
+        id: `tmp-${Date.now()}`,
+        chatter_name: name,
+        alert_type: null,
+        snoozed_until: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+      },
+    ]);
+    try {
+      await snoozeChatterUntilTomorrow({ userId: user.id, platform, chatterName: name });
+      toast.success(`„${name}" bis morgen ausgeblendet`);
+      await reloadSnoozes();
+    } catch (err) {
+      console.error("[AnomalyPanel] snooze failed:", err);
+      toast.error("Snooze fehlgeschlagen");
+      await reloadSnoozes();
+    }
+  };
+
+  const handleUnsnoozeChatter = async (name: string) => {
+    if (!user) return;
+    setSnoozes((prev) => prev.filter((s) => s.chatter_name !== name));
+    try {
+      await unsnoozeChatter({ userId: user.id, platform, chatterName: name });
+      await reloadSnoozes();
+    } catch (err) {
+      console.error("[AnomalyPanel] unsnooze failed:", err);
+      await reloadSnoozes();
+    }
+  };
+
 
   const labelsByChatter = useMemo(() => {
     const labelById = new Map(chatterLabels.map((l) => [l.id, l]));
