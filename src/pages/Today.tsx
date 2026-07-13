@@ -14,6 +14,7 @@ import PushSection from "@/components/today/PushSection";
 import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
 import AnomalyPanel from "@/components/AnomalyPanel";
 import CompareTray from "@/components/today/CompareTray";
+import TodayProgressRing from "@/components/today/TodayProgressRing";
 
 import { useSidebar } from "@/components/ui/sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -865,40 +866,130 @@ export default function Today() {
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           className="max-w-3xl mx-auto space-y-6 pb-32"
         >
-          {/* Header */}
-          <div>
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-extralight tracking-tight text-foreground">Heute</h1>
-                <p className="text-[11px] text-white/30 mt-1.5 font-light tracking-wider uppercase">
+          {/* Command Bar — Progress-Ring, Begrüßung, €-Hebel, Jump-Chips */}
+          <motion.div
+            layout
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="relative premium-card rounded-3xl p-5 sm:p-6 overflow-hidden"
+          >
+            {/* Ambient Glow */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-px rounded-3xl opacity-60"
+              style={{
+                background:
+                  "radial-gradient(120% 90% at 0% 0%, rgba(255,255,255,0.05) 0%, transparent 55%), radial-gradient(90% 80% at 100% 100%, rgba(52,211,153,0.08) 0%, transparent 60%)",
+              }}
+            />
+            <div className="relative flex items-start gap-4 sm:gap-5">
+              {!loading && totalPrimaryActions > 0 ? (
+                <TodayProgressRing
+                  pct={progressPct}
+                  done={completedPrimary}
+                  total={totalPrimaryActions}
+                />
+              ) : (
+                <div className="h-[68px] w-[68px] rounded-full border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-white/30" />
+                </div>
+              )}
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold tracking-[0.22em] uppercase text-white/35">
                   {todayLabel} · {platform}
                 </p>
+                <h1 className="mt-1 text-2xl sm:text-[26px] font-extralight tracking-tight text-foreground leading-tight">
+                  Heute
+                  {!loading && totalPrimaryActions > 0 && (
+                    <span className="ml-2 text-white/40 font-extralight">
+                      · {filtered.primary.length} offen
+                    </span>
+                  )}
+                </h1>
+                {!loading && totalPrimaryActions > 0 && (
+                  <p className="mt-1 text-[11.5px] text-white/45 font-light">
+                    {completedPrimary === totalPrimaryActions
+                      ? "Alles abgehakt für heute 🏻"
+                      : completedPrimary > 0
+                        ? `${completedPrimary} von ${totalPrimaryActions} Aktionen erledigt`
+                        : `${totalPrimaryActions} Aktionen bereit`}
+                  </p>
+                )}
               </div>
+
               {!loading && totalPrimaryActions > 0 && (
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wider text-white/35">Offener €-Hebel / Wo</p>
-                  <p className="text-2xl font-extralight tabular-nums text-emerald-300/95">
+                <div className="text-right shrink-0">
+                  <p className="text-[9.5px] uppercase tracking-[0.18em] text-white/35">€-Hebel / Wo</p>
+                  <p className="mt-0.5 text-2xl sm:text-[26px] font-extralight tabular-nums text-emerald-300/95">
                     +{fmtEur(filtered.openImpact)}
                   </p>
                 </div>
               )}
             </div>
-            {!loading && totalPrimaryActions > 0 && (
-              <div className="mt-4">
-                <div className="h-1 rounded-full bg-white/[0.05] overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-emerald-400/70 to-emerald-300/90"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPct}%` }}
-                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  />
-                </div>
-                <p className="text-[10px] text-white/35 font-light mt-1.5 tracking-wide">
-                  {completedPrimary} von {totalPrimaryActions} Aktionen erledigt
-                </p>
+
+            {/* Jump-Chips: schneller Sprung zu den wichtigsten Buckets */}
+            {!loading && availableKinds.length > 0 && (
+              <div className="relative mt-4 flex flex-wrap gap-1.5">
+                {(() => {
+                  const jumps: { id: KindTab | "reset"; label: string; icon: typeof Flame; count?: number; tone: string }[] = [];
+                  const verzug = availableKinds.find((g) => g.id === "verzug");
+                  if (verzug) jumps.push({ id: "verzug", label: "Verzug", icon: AlertTriangle, count: verzug.items.length, tone: "text-red-300 border-red-400/25 bg-red-500/[0.08]" });
+                  const downgrade = availableKinds.find((g) => g.id === "downgrade");
+                  if (downgrade) jumps.push({ id: "downgrade", label: "Umsatz-Risiko", icon: TrendingDown, count: downgrade.items.length, tone: "text-amber-200 border-amber-400/25 bg-amber-500/[0.08]" });
+                  const upgrade = availableKinds.find((g) => g.id === "upgrade");
+                  if (upgrade) jumps.push({ id: "upgrade", label: "Upgrade", icon: Rocket, count: upgrade.items.length, tone: "text-emerald-200 border-emerald-400/25 bg-emerald-500/[0.08]" });
+                  if (kindTab !== "all" || extraFilter !== "none") {
+                    jumps.push({ id: "reset", label: "Alles zeigen", icon: Sparkles, tone: "text-white/60 border-white/10 bg-white/[0.03]" });
+                  }
+                  return jumps.map((j) => {
+                    const active = j.id !== "reset" && kindTab === j.id && extraFilter === "none";
+                    const Icon = j.icon;
+                    return (
+                      <button
+                        key={j.id}
+                        onClick={() => {
+                          if (j.id === "reset") {
+                            setKindTab("all");
+                            setExtraFilter("none");
+                          } else {
+                            setExtraFilter("none");
+                            setKindTab(j.id as KindTab);
+                          }
+                        }}
+                        className={cn(
+                          "px-2.5 py-1 rounded-full border text-[10.5px] font-medium tracking-wide flex items-center gap-1.5 transition-all",
+                          j.tone,
+                          active
+                            ? "ring-1 ring-white/20 shadow-[0_0_18px_-6px_rgba(255,255,255,0.35)]"
+                            : "hover:border-white/20 hover:text-white",
+                        )}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {j.label}
+                        {typeof j.count === "number" && (
+                          <span className="tabular-nums text-[10px] text-white/60">{j.count}</span>
+                        )}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             )}
-          </div>
+
+            {/* Fortschrittsbalken (dünn) unter der Command-Bar */}
+            {!loading && totalPrimaryActions > 0 && (
+              <div className="relative mt-4 h-[3px] rounded-full bg-white/[0.05] overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-[hsl(var(--gold))]/70 via-emerald-300/80 to-emerald-400/95"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPct}%` }}
+                  transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                />
+              </div>
+            )}
+          </motion.div>
 
           {/* Top-Level Tab Switch */}
           <div className="flex items-center gap-1.5 border-b border-white/[0.05] pb-0">
