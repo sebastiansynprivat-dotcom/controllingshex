@@ -65,7 +65,7 @@ export type VerzugBreakdownEntry = { account: string; openChats: number; delayDa
 
 
 type StatusMode = "open" | "wins" | "onboarding" | "done";
-type ExtraFilter = "none" | "onboarding" | "push";
+type ExtraFilter = "none" | "onboarding" | "push" | "anomalies";
 type KindTab = "all" | ActionSourceKind;
 type TopTab = "actions" | "tracking";
 
