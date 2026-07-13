@@ -105,7 +105,7 @@ interface Props {
   /** Default time range. */
   defaultRange?: TimeRange;
   /** Compact: less padding, smaller text — used in dashboard. */
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "today";
   /** Click on a chatter row. */
   onChatterSelect?: (name: string) => void;
   /** Optional limit when compact, with "show more" toggle. */
