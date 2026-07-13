@@ -12,6 +12,7 @@ import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
 import PushSection from "@/components/today/PushSection";
 import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
+import AnomalyPanel from "@/components/AnomalyPanel";
 import CompareTray from "@/components/today/CompareTray";
 
 import { useSidebar } from "@/components/ui/sidebar";
@@ -930,6 +931,16 @@ export default function Today() {
             />
           ) : (
             <>
+
+          {/* Auffälligkeiten — Today-Fokus (Neu + Eskaliert), synchron mit /auffaelligkeiten */}
+          <AnomalyPanel
+            platform={platform}
+            variant="today"
+            forcedMode="problems"
+            compactInitialCount={5}
+            onChatterSelect={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
+          />
+
 
 
 
