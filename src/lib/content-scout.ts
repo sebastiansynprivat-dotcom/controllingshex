@@ -93,7 +93,7 @@ async function loadBuckets(platform: string, userId: string, from: string, to: s
         .ilike("platform", platform)
         .gte("date", from)
         .lte("date", to)
-        .range(f, t)
+        .range(f, t) as unknown as PromiseLike<{ data: LiveRow[] | null; error: unknown }>
     ),
     fetchAllPaged<HistoryRow>((f, t) =>
       supabase
@@ -103,7 +103,7 @@ async function loadBuckets(platform: string, userId: string, from: string, to: s
         .ilike("platform", platform)
         .gte("analysis_date", from)
         .lte("analysis_date", to)
-        .range(f, t)
+        .range(f, t) as unknown as PromiseLike<{ data: HistoryRow[] | null; error: unknown }>
     ),
   ]);
 
