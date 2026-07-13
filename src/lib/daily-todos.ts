@@ -62,29 +62,15 @@ interface HistoryRow {
 }
 
 async function loadChatterHistoryRows(platform: string, sinceStr: string): Promise<HistoryRow[]> {
-  const pageSize = 1000;
-  const out: HistoryRow[] = [];
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
+  return fetchAllPaged<HistoryRow>((from, to) =>
+    supabase
       .from("chatter_history")
       .select("chatter_name, analysis_date, revenue_today, mass_dms, open_chats, response_delay_days, account")
       .eq("platform", platform)
       .gte("analysis_date", sinceStr)
       .order("analysis_date", { ascending: false })
-      .range(from, from + pageSize - 1);
-
-    if (error) {
-      console.warn("[daily-todos] history lookup failed", error);
-      break;
-    }
-
-    const page = (data || []) as HistoryRow[];
-    out.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  return out;
+      .range(from, to)
+  );
 }
 
 function median(values: number[]): number {
@@ -712,12 +698,15 @@ export async function loadTodoStates(
 
   const sinceIso = latestReport?.created_at ?? todayStr() + "T00:00:00Z";
 
-  const { data } = await supabase
-    .from("daily_todo_state")
-    .select("todo_key, status, snoozed_until")
-    .eq("user_id", user.id)
-    .eq("platform", platform)
-    .gte("acted_at", sinceIso);
+  const data = await fetchAllPaged<{ todo_key: string; status: string; snoozed_until: string | null }>((from, to) =>
+    supabase
+      .from("daily_todo_state")
+      .select("todo_key, status, snoozed_until")
+      .eq("user_id", user.id)
+      .eq("platform", platform)
+      .gte("acted_at", sinceIso)
+      .range(from, to)
+  );
 
   const map: Record<string, TodoState> = {};
   for (const r of data || []) {
