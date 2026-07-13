@@ -1,5 +1,5 @@
 
-# Content Scout — Models mit gutem Content erkennen
+# Model Scout — Models mit Potenzial erkennen
 
 ## Idee in einem Satz
 Eine neue Seite `/content-scout`, die pro Model einen **Content-Score** zeigt (aus historischen Einzelverkäufen + Chat-Pull) und Models markiert, deren Content-Potenzial im Verhältnis zu ihrer Sichtbarkeit unterschätzt wird.
