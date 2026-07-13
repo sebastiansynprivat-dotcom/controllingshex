@@ -37,10 +37,10 @@ export default function ContentScout() {
         <header className="mb-6">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-amber-300" />
-            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">Content Scout</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">Model Scout</h1>
           </div>
           <p className="text-[12px] text-foreground/55 font-light max-w-xl">
-            Wer hat wirklich guten Content? Score kombiniert Einzelverkäufe, Umsatz, Chat-Pull und Konsistenz.
+            Wer hat wirklich Potenzial? Score kombiniert Einzelverkäufe, Umsatz, Chat-Pull und Konsistenz.
             Unterschätzte Perlen sind mit <Sparkles className="inline h-3 w-3 text-amber-300" /> markiert.
           </p>
           <div className="mt-4">

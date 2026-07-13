@@ -27,7 +27,7 @@ const items = [
   { title: "Swipe Mode", url: "/tinder", icon: Flame },
   { title: "Texts", url: "/notes", icon: StickyNote },
   { title: "Models & Follower", url: "/models", icon: Users },
-  { title: "Content Scout", url: "/content-scout", icon: Sparkles },
+  { title: "Model Scout", url: "/content-scout", icon: Sparkles },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
 

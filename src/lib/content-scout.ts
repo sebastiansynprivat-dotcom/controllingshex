@@ -1,5 +1,5 @@
 /**
- * Content Scout — identifiziert Models mit gutem Content anhand
+ * Model Scout — identifiziert Models mit Potenzial anhand
  *  (a) historischer Einzelverkäufe (aus chatter_history_live.revenue_details)
  *  (b) Chat-Pull (offene Chats / Aktivität aus chatter_history)
  *
