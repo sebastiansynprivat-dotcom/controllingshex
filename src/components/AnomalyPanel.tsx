@@ -8,7 +8,8 @@
  */
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, ChevronUp, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame, Sparkles, SlidersHorizontal, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, RotateCcw, Users, TrendingDown, ClipboardCheck, FileText, Video, Flame, Sparkles, SlidersHorizontal, X, Clock, AlertTriangle } from "lucide-react";
+import { loadActiveSnoozes, snoozeChatterUntilTomorrow, unsnoozeChatter, buildSnoozedChatterSet, type AnomalySnooze } from "@/lib/anomaly-snooze";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
