@@ -27,6 +27,7 @@ import Today from "@/pages/Today";
 import LiveTracking from "@/pages/LiveTracking";
 import Push from "@/pages/Push";
 import Messages from "@/pages/Messages";
+import ContentScout from "@/pages/ContentScout";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const AppRoutes = () => (
               <Route path="/notes" element={<Notes />} />
               <Route path="/tinder" element={<TinderMode />} />
               <Route path="/models" element={<Models />} />
+              <Route path="/content-scout" element={<ContentScout />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
