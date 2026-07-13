@@ -1151,7 +1151,9 @@ export default function AnomalyPanel({
             </div>
           )}
         </div>
+        </>)}
       </div>
+
 
 
       {/* Body */}
