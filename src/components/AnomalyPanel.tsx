@@ -820,8 +820,8 @@ export default function AnomalyPanel({
     [groupedByChatter],
   );
 
-  const padding = variant === "compact" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
-  const textSize = variant === "compact" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
+  const padding = variant === "compact" || variant === "today" ? "px-3 sm:px-4 py-3" : "px-4 sm:px-5 py-3 sm:py-4";
+  const textSize = variant === "compact" || variant === "today" ? "text-[15px]" : "text-[16.5px] sm:text-[17px]";
 
   const getChatterFollowers = (name: string) => {
     const accs = chatterAccounts.get(name) ?? [];
