@@ -836,17 +836,39 @@ export default function AnomalyPanel({
   const fMax = filters.followerMax && filters.followerMax > 0 ? filters.followerMax : Infinity;
   const rMin = filters.revMin ?? 0;
   const rMax = filters.revMax && filters.revMax > 0 ? filters.revMax : Infinity;
-  const visibleGroups = (variant === "compact" && !expanded
+  const isCompactLike = variant === "compact" || variant === "today";
+  const visibleGroups = (isCompactLike && !expanded
     ? groupedByChatter.slice(0, compactInitialCount)
     : groupedByChatter
   ).filter((g) => {
     if (tray.has(g.name)) return false;
+    // Im Heute-Tab: gesnoozte Chatter ausblenden (auf /auffaelligkeiten bleiben sie sichtbar).
+    if (variant === "today" && isSnoozed(g.name)) return false;
     const fol = getChatterFollowers(g.name);
     if (fol < fMin || fol > fMax) return false;
     const avg = allTimeAvg.get(g.name) ?? 0;
     if (avg < rMin || avg > rMax) return false;
     return true;
   });
+
+  // Split für Heute-Tab: "Neu heute" (< 3 Tage auffällig) vs. "Eskaliert" (≥ 3 Tage).
+  const ESCALATION_DAYS = 3;
+  const todaySections = useMemo(() => {
+    if (variant !== "today") return null;
+    const fresh: typeof visibleGroups = [];
+    const escalated: typeof visibleGroups = [];
+    for (const g of visibleGroups) {
+      const since = categorySince.get(g.name);
+      const sinceRel = since ? relDays(since.since) : null;
+      const days = sinceRel?.days ?? 0;
+      if (days >= ESCALATION_DAYS) escalated.push(g);
+      else fresh.push(g);
+    }
+    return { fresh, escalated };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, visibleGroups, categorySince]);
+
+  const snoozedCount = snoozes.filter((s) => !s.alert_type).length;
 
 
   // Drop-Handler: Karte aus der Ablage zurück in die Übersicht ziehen.
