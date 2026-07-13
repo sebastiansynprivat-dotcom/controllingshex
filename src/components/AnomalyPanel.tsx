@@ -1377,19 +1377,34 @@ export default function AnomalyPanel({
                       )}
                     </button>
 
-                    {/* Erledigt */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDismissChatter(group.name, group.items);
-                      }}
-                      disabled={isPending}
-                      title="Chatter komplett abhaken (bis zum nächsten Report)"
-                      className="shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="shrink-0 flex flex-col gap-1.5">
+                      {/* Erledigt */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDismissChatter(group.name, group.items);
+                        }}
+                        disabled={isPending}
+                        title="Chatter komplett abhaken (bis zum nächsten Report)"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-200 transition-all disabled:opacity-40"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      {variant === "today" && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSnoozeChatter(group.name);
+                          }}
+                          title="Bis morgen aus dem Heute-Tab ausblenden"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/45 hover:bg-sky-500/10 hover:border-sky-400/30 hover:text-sky-200 transition-all"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Zahlen-Trio: All-Time Ø · Zeitraum Ø · Abfall % */}
