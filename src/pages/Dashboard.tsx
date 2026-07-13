@@ -340,7 +340,8 @@ export default function Dashboard() {
             {/* Auffälligkeiten — synchron mit /auffaelligkeiten und Swipe-Mode */}
             <AnomalyPanel
               platform={platform}
-              variant="compact"
+              variant="today"
+              forcedMode="problems"
               compactInitialCount={5}
               onChatterSelect={setSelectedChatter}
             />
