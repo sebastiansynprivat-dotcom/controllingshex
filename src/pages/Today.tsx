@@ -14,6 +14,7 @@ import PushSection from "@/components/today/PushSection";
 import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
 import AnomalyPanel from "@/components/AnomalyPanel";
 import CompareTray from "@/components/today/CompareTray";
+import TodayProgressRing from "@/components/today/TodayProgressRing";
 
 import { useSidebar } from "@/components/ui/sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
