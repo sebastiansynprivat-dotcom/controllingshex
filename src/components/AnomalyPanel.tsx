@@ -896,16 +896,45 @@ export default function AnomalyPanel({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div className="flex items-baseline gap-2 sm:gap-3 min-w-0">
             <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/40 font-light">
-              Auffälligkeiten
+              {variant === "today" ? "Heute im Fokus" : "Auffälligkeiten"}
             </div>
-            <div className="text-[10px] text-white/35 font-light truncate">{rangeLabel(range)}</div>
+            {variant !== "today" && (
+              <div className="text-[10px] text-white/35 font-light truncate">{rangeLabel(range)}</div>
+            )}
           </div>
-          {!hideTimeControls && (
+          {!hideTimeControls && variant !== "today" && (
             <div className="-mx-1 sm:mx-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TimeRangeToggle value={range} onChange={setRange} />
             </div>
           )}
         </div>
+
+        {variant === "today" && todaySections && (
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/[0.08] border border-red-500/20 text-red-200/85">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+              Neu · {todaySections.fresh.length}
+            </span>
+            {todaySections.escalated.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-orange-500/[0.08] border border-orange-500/25 text-orange-200/90">
+                <Flame className="h-3 w-3" />
+                Eskaliert · {todaySections.escalated.length}
+              </span>
+            )}
+            {snoozedCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-white/50">
+                <Clock className="h-3 w-3" />
+                Snooze · {snoozedCount}
+              </span>
+            )}
+            <span className="ml-auto text-white/30 normal-case tracking-normal font-light">
+              Priorisiert · {rangeLabel(range)}
+            </span>
+          </div>
+        )}
+
+        {variant !== "today" && (<>
+
 
         {/* Mode-Toggle: Probleme vs. Highlights (im Vergleich-Modus ausgeblendet) */}
         {!forcedMode && (() => {
