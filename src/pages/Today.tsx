@@ -12,6 +12,7 @@ import ModelTrackingView from "@/components/today/ModelTrackingView";
 import OnboardingList from "@/components/today/OnboardingList";
 import PushSection from "@/components/today/PushSection";
 import UpgradeCandidatesSection from "@/components/today/UpgradeCandidatesSection";
+import AnomalyPanel from "@/components/AnomalyPanel";
 import CompareTray from "@/components/today/CompareTray";
 
 import { useSidebar } from "@/components/ui/sidebar";
