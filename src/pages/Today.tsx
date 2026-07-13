@@ -1188,15 +1188,17 @@ export default function Today() {
                                       <EyeOff className="h-3.5 w-3.5" />
                                     </button>
                                   )}
-                                  <PersonActionCard
-                                    action={a}
-                                    onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
-                                    onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                                    onAct={act}
-                                    readonly={isReadonly}
-                                    verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
-                                    verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
-                                  />
+                                  <ErrorBoundary fallback={<CardRenderFallback action={a} />}>
+                                    <PersonActionCard
+                                      action={a}
+                                      onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
+                                      onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                                      onAct={act}
+                                      readonly={isReadonly}
+                                      verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
+                                      verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
+                                    />
+                                  </ErrorBoundary>
 
                                 </div>
                               ))
@@ -1221,16 +1223,17 @@ export default function Today() {
                         </div>
                         <div className="space-y-3">
                           {g.items.map((a) => (
-                            <PersonActionCard
-                              key={a.bundleKey}
-                              action={a}
-                              onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
-                              onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                              onAct={act}
-                              readonly={isReadonly}
-                              verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
-                              verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
-                            />
+                            <ErrorBoundary key={a.bundleKey} fallback={<CardRenderFallback action={a} />}>
+                              <PersonActionCard
+                                action={a}
+                                onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
+                                onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                                onAct={act}
+                                readonly={isReadonly}
+                                verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
+                                verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
+                              />
+                            </ErrorBoundary>
                           ))}
 
                         </div>
@@ -1246,15 +1249,17 @@ export default function Today() {
                     {renderedVisibleList.map((a) => {
                       const isUpgrade = a.primaryKind === "upgrade" && a.chatterName;
                       const card = (
-                        <PersonActionCard
-                          action={a}
-                          onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
-                          onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
-                          onAct={act}
-                          readonly={isReadonly}
-                          verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
-                          verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
-                        />
+                        <ErrorBoundary fallback={<CardRenderFallback action={a} />}>
+                          <PersonActionCard
+                            action={a}
+                            onChatterClick={(name, compareWith) => openChatterFromAction(a, name, compareWith)}
+                            onModelClick={(name, chatter) => setSelectedModel({ name, chatter })}
+                            onAct={act}
+                            readonly={isReadonly}
+                            verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
+                            verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
+                          />
+                        </ErrorBoundary>
                       );
                       if (!isUpgrade) return <div key={a.bundleKey}>{card}</div>;
                       return (
