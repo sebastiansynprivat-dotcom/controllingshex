@@ -710,59 +710,6 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   }
 
 
-  function shouldSuppress(opts: {
-    kind: ActionSourceKind;
-    chatterKey: string | null;
-    meta?: Record<string, any>;
-    medianRevenue?: number;
-  }): boolean {
-    if (!opts.chatterKey) return false;
-    const live = liveSnap.get(opts.chatterKey);
-    if (!live || !live.fresh) return false;
-    const meta = opts.meta ?? {};
-    const med = opts.medianRevenue ?? 0;
-
-    switch (opts.kind) {
-      case "recovery": {
-        if (med <= 0) return false;
-        return live.rev >= med * 0.7;
-      }
-      case "revenue": {
-        const base = Number(meta.baselineRevenue) || med;
-        if (base <= 0) return false;
-        return live.rev >= base * 0.7;
-      }
-      case "verzug": {
-        const snapChats = Number(meta.todayOpenChats) || 0;
-        if (live.unread <= 10 && live.oldest <= 1) return true;
-        if (snapChats > 0 && live.unread <= snapChats * 0.5) return true;
-        return false;
-      }
-      case "activity": {
-        if (meta.todayOpenChats != null) {
-          const snapChats = Number(meta.todayOpenChats) || 0;
-          const baseChats = Number(meta.baselineOpenChats);
-          // Jam-Trigger ist 30 absolut → live darunter heißt: Problem nicht mehr akut
-          if (live.unread < 30) return true;
-          if (snapChats > 0 && live.unread <= snapChats * 0.5) return true;
-          if (Number.isFinite(baseChats) && baseChats > 0 && live.unread <= baseChats * 1.5) return true;
-          return false;
-        }
-        if (meta.baselineMassDms != null) {
-          const baseDm = Number(meta.baselineMassDms) || 0;
-          if (baseDm <= 0) return false;
-          return live.dm >= baseDm * 0.7;
-        }
-        if (meta.missingDays != null) {
-          return live.rev > 0 || live.dm > 0 || live.unread > 0;
-        }
-        return false;
-      }
-      default:
-        return false;
-    }
-  }
-
   function refreshWhy(kind: ActionSourceKind, chatterKey: string | null, why: string, meta?: Record<string, any>): string {
     if (!chatterKey) return why;
     const live = liveSnap.get(chatterKey);
@@ -834,9 +781,6 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   for (const t of todos) {
     const stat = t.chatterName ? stats.get(normalizeChatterName(t.chatterName)) : undefined;
     const chatterKey = t.chatterName ? normalizeChatterName(t.chatterName) : null;
-    if (shouldSuppress({ kind: t.category, chatterKey, meta: t.meta, medianRevenue: stat?.medianRevenue })) {
-      continue;
-    }
     const est = estimateImpactForTodo(t, stat);
     const why = refreshWhy(t.category, chatterKey, t.why, t.meta);
     signals.push({
@@ -863,9 +807,6 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   for (const r of revTasks) {
     const stat = r.chatterName ? stats.get(normalizeChatterName(r.chatterName)) : undefined;
     const chatterKey = r.chatterName ? normalizeChatterName(r.chatterName) : null;
-    if (shouldSuppress({ kind: r.kind as ActionSourceKind, chatterKey, medianRevenue: stat?.medianRevenue })) {
-      continue;
-    }
     const est = estimateImpactForRevenueTask(r, stat);
     let impact = est.impact != null ? Math.round(est.impact) : null;
     let why = r.why;
