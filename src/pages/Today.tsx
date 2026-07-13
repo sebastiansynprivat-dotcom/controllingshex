@@ -163,6 +163,24 @@ function sameChatterName(a: string | null | undefined, b: string | null | undefi
   return normalizeChatterName(a) === normalizeChatterName(b);
 }
 
+function CardRenderFallback({ action }: { action: UnifiedAction }) {
+  return (
+    <div className="premium-card rounded-2xl border border-red-500/20 bg-red-500/[0.03] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[12px] font-medium text-red-200/90">Karte konnte nicht gerendert werden</p>
+          <p className="mt-1 text-[11px] text-white/45 font-light truncate">
+            {action.chatterName ?? action.modelName ?? action.bundleKey}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/45">
+          {action.primaryKind}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Today() {
   const { platform } = usePlatform();
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
