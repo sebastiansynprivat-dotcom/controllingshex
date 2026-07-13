@@ -1174,9 +1174,12 @@ export default function AnomalyPanel({
           </div>
         </div>
       ) : (
-        <div className={`${variant === "compact" ? "p-2.5 sm:p-3" : "p-3 sm:p-4"} space-y-2.5 sm:space-y-3`}>
+        <div className={`${isCompactLike ? "p-2.5 sm:p-3" : "p-3 sm:p-4"} space-y-2.5 sm:space-y-3`}>
           <AnimatePresence initial={false}>
-            {visibleGroups.map((group, idx) => {
+            {(variant === "today" && todaySections
+              ? [...todaySections.fresh, ...todaySections.escalated]
+              : visibleGroups
+            ).map((group, idx) => {
               const topSev = SEVERITY_STYLE[group.topSeverity];
               const sevGlow = SEVERITY_GLOW[group.topSeverity] ?? SEVERITY_GLOW.info;
               const chatterKey = `chatter|${group.name}`;
