@@ -1500,7 +1500,7 @@ export default function AnomalyPanel({
 
       {!loading && anomalies.length > 0 && (
         <>
-          {variant === "compact" && groupedByChatter.length > compactInitialCount && (
+          {isCompactLike && groupedByChatter.length > compactInitialCount && (
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
@@ -1509,6 +1509,23 @@ export default function AnomalyPanel({
               {expanded ? "Weniger" : `${groupedByChatter.length - compactInitialCount} weitere Chatter`}
               <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
             </button>
+          )}
+
+          {variant === "today" && snoozedCount > 0 && (
+            <div className="border-t border-white/[0.04] px-3 py-2 flex items-center gap-2 text-[10px] text-white/45">
+              <Clock className="h-3 w-3" />
+              <span className="uppercase tracking-wider">{snoozedCount} gesnoozt bis morgen</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const names = snoozes.filter((s) => !s.alert_type).map((s) => s.chatter_name);
+                  for (const n of names) handleUnsnoozeChatter(n);
+                }}
+                className="ml-auto text-white/55 hover:text-white/85 transition-colors"
+              >
+                alle wieder einblenden
+              </button>
+            </div>
           )}
 
           <button
@@ -1521,6 +1538,7 @@ export default function AnomalyPanel({
           </button>
         </>
       )}
+
 
       <AnomalyDetailModal
         open={!!detailAnomaly}
