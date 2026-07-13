@@ -932,6 +932,16 @@ export default function Today() {
           ) : (
             <>
 
+          {/* Auffälligkeiten — Today-Fokus (Neu + Eskaliert), synchron mit /auffaelligkeiten */}
+          <AnomalyPanel
+            platform={platform}
+            variant="today"
+            forcedMode="problems"
+            compactInitialCount={5}
+            onChatterSelect={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
+          />
+
+
 
 
 
