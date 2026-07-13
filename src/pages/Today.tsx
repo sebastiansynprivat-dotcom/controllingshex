@@ -1025,6 +1025,15 @@ export default function Today() {
               platform={platform}
               onChatterClick={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
             />
+          ) : extraFilter === "anomalies" ? (
+            <AnomalyPanel
+              platform={platform}
+              variant="today"
+              forcedMode="problems"
+              compactInitialCount={50}
+              onChatterSelect={(name) => setSelectedChatter({ name, compareWith: null, modelContext: null })}
+            />
+
           ) : loadError ? (
             <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
               <div className="text-white/70 text-sm font-light">Aufgaben konnten nicht geladen werden.</div>
