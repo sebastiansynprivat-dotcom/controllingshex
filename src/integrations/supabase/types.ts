@@ -209,6 +209,36 @@ export type Database = {
         }
         Relationships: []
       }
+      anomaly_snooze: {
+        Row: {
+          alert_type: string | null
+          chatter_name: string
+          created_at: string
+          id: string
+          platform: string
+          snoozed_until: string
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string | null
+          chatter_name: string
+          created_at?: string
+          id?: string
+          platform: string
+          snoozed_until: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string | null
+          chatter_name?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          snoozed_until?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       channel_knowledge: {
         Row: {
           body: string
