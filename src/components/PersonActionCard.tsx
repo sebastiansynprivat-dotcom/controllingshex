@@ -9,7 +9,13 @@ import {
   RefreshCw,
   TrendingDown,
   TrendingUp,
+  Mail,
+  Key,
+  Copy,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MagneticHover } from "@/components/MagneticHover";
 import type { UnifiedAction, ActionSourceKind, ActionSignal } from "@/lib/today-engine";
