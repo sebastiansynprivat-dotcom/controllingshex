@@ -845,6 +845,7 @@ export default function WeeklyGoals() {
         const { data: wgrRows } = await supabase
           .from("weekly_goal_results")
           .select("chatter_name, week_key, week_start, goal_eur, actual_eur")
+          .eq("platform", platform)
           .gte("week_start", sixWeeksAgoIso)
           .order("week_start", { ascending: false });
 
