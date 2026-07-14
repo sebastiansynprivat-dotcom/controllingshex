@@ -343,16 +343,15 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       });
       continue;
     }
-    // Verzug — Live-Daten haben Vorrang; wenn Live keinen Backlog liefert oder
-    // ganz fehlt, fällt der Trigger auf das Report-Feld response_delay_days
-    // zurück (sonst kippen Chatter mit klarem Report-Rückstand aus dem Tab,
-    // sobald Live stale ist).
+    // Verzug — Live-Daten sind IMMER die Wahrheit, wenn ein Snapshot existiert.
+    // Nur wenn für diesen Chatter überhaupt kein Live-Snapshot vorliegt, fällt
+    // der Trigger auf das Report-Feld response_delay_days zurück. Damit werden
+    // stale Live-Werte nicht überschrieben und "0 offen / 0 T"-Karten
+    // verschwinden.
     const live = liveFor(name);
-    let emittedVerzug = false;
     if (live) {
       const oldestDays = Math.round(live.oldest);
-      const isBacklog = oldestDays >= 2;
-      if (isBacklog) {
+      if (oldestDays >= 2) {
         todos.push({
           key: `verzug:${name}:${today}`,
           category: "verzug",
@@ -362,30 +361,21 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           chatterName: name,
           meta: { delayDays: oldestDays, todayOpenChats: live.unread },
         });
-        emittedVerzug = true;
       }
+    } else if (todayMaxDelay >= 2 && todayOpenChats > 0) {
+      // Kein Live-Snapshot vorhanden → Report-Fallback (mit klarer Kennzeichnung).
+      todos.push({
+        key: `verzug:${name}:${today}`,
+        category: "verzug",
+        score: Math.round((90 + todayMaxDelay * 5) * importance),
+        title: `${name} dringend — ältester Chat ${todayMaxDelay}T${tag}`,
+        why: `Report (kein Live-Snapshot): ältester Chat ${todayMaxDelay}T · ${todayOpenChats} offene Chats${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
+        chatterName: name,
+        meta: { delayDays: todayMaxDelay, todayOpenChats },
+      });
     }
-    if (!emittedVerzug && todayMaxDelay >= 2 && todayOpenChats > 0) {
-      // Report meldet Rückstand — Live hat entweder keinen Snapshot geliefert
-      // oder ist stale. Nicht unterdrücken, nur wenn ein frischer Live-Snapshot
-      // aktiv sagt „nichts offen mehr" (unread=0 & oldest=0 & <60min alt).
-      const freshCleared = live
-        && live.unread === 0
-        && live.oldest === 0
-        && liveAgeMin(live) < 60;
-      if (!freshCleared) {
-        const src = live ? "Report (Live ohne Backlog)" : "Report (kein Live-Snapshot)";
-        todos.push({
-          key: `verzug:${name}:${today}`,
-          category: "verzug",
-          score: Math.round((90 + todayMaxDelay * 5) * importance),
-          title: `${name} dringend — ältester Chat ${todayMaxDelay}T${tag}`,
-          why: `${src}: ältester Chat ${todayMaxDelay}T · ${todayOpenChats} offene Chats${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
-          chatterName: name,
-          meta: { delayDays: todayMaxDelay, todayOpenChats },
-        });
-      }
-    }
+
+
 
 
 
