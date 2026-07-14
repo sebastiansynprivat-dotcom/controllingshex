@@ -147,6 +147,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   //   - sonst Live-Werte in die Beschreibung packen
   interface LiveSnap {
     displayName: string;
+    date: string;
     unread: number;
     oldest: number;
     revenue: number;
@@ -183,6 +184,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       if (liveByName.has(k)) continue;
       liveByName.set(k, {
         displayName: r.chatter_name,
+        date: r.date,
         unread: Math.max(0, Number(r.unread_chats ?? 0)),
         oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
         revenue: Math.max(0, Number(r.revenue ?? 0)),
@@ -204,6 +206,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const h = Math.floor(mins / 60);
     return h < 24 ? `${h}h` : `${Math.floor(h / 24)}T`;
   };
+  const isCurrentLive = (l: LiveSnap): boolean => l.date === today || liveAgeMin(l) <= 360;
 
 
 
@@ -329,6 +332,14 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // Aggregierte Tageswerte über alle Account-Zeilen
     const todayOpenChats = todayEntries.reduce((s, e) => s + (e.open_chats ?? 0), 0);
     const todayMaxDelay = todayEntries.reduce((m, e) => Math.max(m, e.response_delay_days ?? 0), 0);
+    const delayedReportEntries = todayEntries.filter(
+      (e) => (e.open_chats ?? 0) > 0 && (e.response_delay_days ?? 0) >= 2,
+    );
+    const reportOpenChatsInDelay = delayedReportEntries.reduce((s, e) => s + (e.open_chats ?? 0), 0);
+    const reportMaxDelayWithOpenChats = delayedReportEntries.reduce(
+      (m, e) => Math.max(m, e.response_delay_days ?? 0),
+      0,
+    );
 
     // Inaktivität — fehlt heute, war aber regelmäßig da
     if (!todayEntry && historical.length >= 5 && !onlyVerzug) {
@@ -343,15 +354,15 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       });
       continue;
     }
-    // Verzug — Live-Daten sind IMMER die Wahrheit, wenn ein Snapshot existiert.
-    // Nur wenn für diesen Chatter überhaupt kein Live-Snapshot vorliegt, fällt
-    // der Trigger auf das Report-Feld response_delay_days zurück. Damit werden
-    // stale Live-Werte nicht überschrieben und "0 offen / 0 T"-Karten
-    // verschwinden.
+    // Verzug — aktuelle Live-Daten sind die Wahrheit. Eine Karte entsteht nur,
+    // wenn der aktuelle Snapshot sowohl offene Chats als auch oldest_chat ≥ 2
+    // bestätigt. Ist Live stale/fehlt, fällt der Trigger auf Report-Zeilen zurück,
+    // aber nur auf Zeilen, bei denen offene Chats UND Delay auf derselben Account-
+    // Zeile stehen. Dadurch entstehen keine "0 offen / 0 T"-Verzüge mehr.
     const live = liveFor(name);
-    if (live) {
+    if (live && isCurrentLive(live)) {
       const oldestDays = Math.round(live.oldest);
-      if (oldestDays >= 2) {
+      if (live.unread > 0 && oldestDays >= 2) {
         todos.push({
           key: `verzug:${name}:${today}`,
           category: "verzug",
@@ -362,16 +373,16 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           meta: { delayDays: oldestDays, todayOpenChats: live.unread },
         });
       }
-    } else if (todayMaxDelay >= 2 && todayOpenChats > 0) {
-      // Kein Live-Snapshot vorhanden → Report-Fallback (mit klarer Kennzeichnung).
+    } else if (reportMaxDelayWithOpenChats >= 2 && reportOpenChatsInDelay > 0) {
+      // Kein aktueller Live-Snapshot vorhanden → Report-Fallback (mit klarer Kennzeichnung).
       todos.push({
         key: `verzug:${name}:${today}`,
         category: "verzug",
-        score: Math.round((90 + todayMaxDelay * 5) * importance),
-        title: `${name} dringend — ältester Chat ${todayMaxDelay}T${tag}`,
-        why: `Report (kein Live-Snapshot): ältester Chat ${todayMaxDelay}T · ${todayOpenChats} offene Chats${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
+        score: Math.round((90 + reportMaxDelayWithOpenChats * 5) * importance),
+        title: `${name} dringend — ältester Chat ${reportMaxDelayWithOpenChats}T${tag}`,
+        why: `Report (kein aktueller Live-Snapshot): ältester Chat ${reportMaxDelayWithOpenChats}T · ${reportOpenChatsInDelay} offene Chats${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
         chatterName: name,
-        meta: { delayDays: todayMaxDelay, todayOpenChats },
+        meta: { delayDays: reportMaxDelayWithOpenChats, todayOpenChats: reportOpenChatsInDelay },
       });
     }
 
@@ -660,6 +671,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   for (const [nameKey, live] of liveByName) {
     const oldestDays = Math.round(live.oldest);
     if (oldestDays < 2) continue;
+    if (live.unread <= 0) continue;
+    if (!isCurrentLive(live)) continue;
 
     // Display-Name bevorzugt aus chatter_history (Report-Schreibweise), sonst
     // aus dem Live-Datensatz selbst.

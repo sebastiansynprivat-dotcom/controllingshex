@@ -101,6 +101,7 @@ function sortDowngradeActions(actions: UnifiedAction[]) {
 function groupByKind(actions: UnifiedAction[]) {
   const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
   for (const a of actions) {
+    if (a.primaryKind === "verzug" && !hasRealVerzug(a)) continue;
     const arr = buckets.get(a.primaryKind) ?? [];
     arr.push(a);
     buckets.set(a.primaryKind, arr);
@@ -138,10 +139,16 @@ function getVerzugOpenChats(a: UnifiedAction): number {
   for (const s of a.signals) {
     if (!s || s.kind !== "verzug") continue;
     const why = typeof s.why === "string" ? s.why : "";
-    const m = why.match(/(\d+)\s+ungelesen/i);
+    const m = why.match(/(\d+)\s+(?:ungelesen|offene Chats|offen)/i);
     if (m) return parseInt(m[1], 10);
   }
   return 0;
+}
+
+function hasRealVerzug(a: UnifiedAction): boolean {
+  const days = getVerzugDays(a) ?? 0;
+  const openChats = getVerzugOpenChats(a);
+  return days >= 2 && openChats > 0;
 }
 
 type VerzugSort = "open" | "oldest";
@@ -480,7 +487,7 @@ export default function Today() {
           if (displayName && !displayNameByKey.has(nameKey)) displayNameByKey.set(nameKey, displayName);
 
           const rev = Number(r.revenue_today) || 0;
-          const reportDelay = rev > 0 ? 0 : Number(r.response_delay_days) || 0;
+          const reportDelay = Number(r.response_delay_days) || 0;
           const reportOpen = (Number(r.open_chats) || 0) / accounts.length;
           const byAccount = accountsByChatter.get(nameKey) ?? new Map<string, AccountSnapshot>();
           for (const account of accounts) {
@@ -499,6 +506,7 @@ export default function Today() {
           const live = liveByChatter.get(nameKey);
           const liveUnread = Math.max(0, Math.round(live?.unread ?? 0));
           const liveDelay = live && live.date === today ? Math.max(0, Math.round(live.oldest)) : 0;
+          const hasLiveVerzug = liveUnread > 0 && liveDelay >= 2;
 
           let liveCarrierKey: string | null = null;
           const positiveAccounts = accounts.filter((a) => a.reportOpen > 0);
@@ -506,7 +514,7 @@ export default function Today() {
             liveCarrierKey = normalizeBreakdownKey(accounts[0].account);
           } else if (positiveAccounts.length === 1) {
             liveCarrierKey = normalizeBreakdownKey(positiveAccounts[0].account);
-          } else if (liveUnread > 0 && accounts.length > 0) {
+          } else if (hasLiveVerzug && accounts.length > 0) {
             const strongest = [...accounts].sort(
               (a, b) => b.reportDelay - a.reportDelay || b.reportOpen - a.reportOpen || a.account.localeCompare(b.account),
             )[0];
@@ -516,12 +524,15 @@ export default function Today() {
           const arr = accounts.map((account) => {
             const accountKey = normalizeBreakdownKey(account.account);
             const carriesLive = accountKey === liveCarrierKey;
+            const useReport = !hasLiveVerzug;
             return {
               account: account.account,
-              openChats: carriesLive ? liveUnread : 0,
-              delayDays: carriesLive && liveUnread > 0 ? liveDelay : 0,
+              openChats: carriesLive ? liveUnread : useReport ? Math.max(0, Math.round(account.reportOpen)) : 0,
+              delayDays: carriesLive ? liveDelay : useReport ? Math.max(0, Math.round(account.reportDelay)) : 0,
             };
-          });
+          }).filter((account) => account.openChats > 0 && account.delayDays >= 2);
+
+          if (arr.length === 0) continue;
 
           const displayName = displayNameByKey.get(nameKey) ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey) ?? nameKey;
           map.set(displayName, arr);
@@ -715,11 +726,14 @@ export default function Today() {
           : filtered.done;
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
-  const availableKinds = groupByKind(statusList);
+  const statusListWithoutFalseVerzug = statusList.filter(
+    (a) => a.primaryKind !== "verzug" || hasRealVerzug(a),
+  );
+  const availableKinds = groupByKind(statusListWithoutFalseVerzug);
   const baseVisibleList = (
     kindTab === "all"
-      ? statusList
-      : statusList.filter((a) => a.primaryKind === kindTab)
+      ? statusListWithoutFalseVerzug
+      : statusListWithoutFalseVerzug.filter((a) => a.primaryKind === kindTab)
   ).filter((a) => {
     // Dauerhaft ausgeblendete Chatter aus Upgrade-Kandidaten entfernen
     if (a.primaryKind !== "upgrade") return true;
@@ -769,6 +783,9 @@ export default function Today() {
         if (!a.chatterName) return true;
         return activeRoster.has(normalizeChatterName(a.chatterName));
       });
+    }
+    if (kindTab === "verzug") {
+      list = list.filter(hasRealVerzug);
     }
     if (kindTab === "downgrade") {
       // Downgrade-Kandidaten: wichtigste (= höchster Umsatzimpact) zuerst,
