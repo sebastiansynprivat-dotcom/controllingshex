@@ -56,7 +56,7 @@ import {
   onHiddenUpgradesUpdated,
   type HiddenUpgradeEntry,
 } from "@/lib/hidden-upgrades";
-import { normalizeChatterName } from "@/lib/active-chatters";
+import { normalizeChatterName, loadActiveChatterNames, invalidateActiveChattersCache } from "@/lib/active-chatters";
 import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 type ChannelFilter = "all" | "whatsapp" | "platform";
@@ -238,6 +238,28 @@ export default function Today() {
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [verzugSort, setVerzugSort] = useState<VerzugSort>("open");
+  // Aktives Roster (Chatter aus dem letzten Report) — Belt-&-Suspender-Filter
+  // für den Verzug-Tab, damit Ex-Chatter niemals durchrutschen, selbst wenn
+  // die Engine sie noch mitliefert.
+  const [activeRoster, setActiveRoster] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadActiveChatterNames(platform).then((set) => {
+      if (!cancelled) setActiveRoster(set);
+    }).catch(() => { if (!cancelled) setActiveRoster(null); });
+    return () => { cancelled = true; };
+  }, [platform]);
+  // Wechsel auf Verzug-Tab → Roster-Cache verwerfen und frisch laden, damit
+  // ein gerade hochgeladener Report sofort greift.
+  useEffect(() => {
+    if (kindTab !== "verzug") return;
+    invalidateActiveChattersCache(platform);
+    let cancelled = false;
+    loadActiveChatterNames(platform).then((set) => {
+      if (!cancelled) setActiveRoster(set);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [kindTab, platform]);
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
     try {
@@ -732,13 +754,22 @@ export default function Today() {
   }, [kindTab, verzugDayCounts, verzugDayFilter]);
 
   const visibleList = useMemo(() => {
-    const list =
+    let list =
       kindTab === "verzug" && verzugDayFilter.size > 0
         ? baseVisibleList.filter((a) => {
             const d = getVerzugDays(a);
             return d != null && verzugDayFilter.has(d);
           })
         : baseVisibleList;
+    // Verzug-Tab: hart auf aktives Roster einschränken. Chatter, die im letzten
+    // Report nicht mehr vorkommen, sollen niemals hier auftauchen — selbst wenn
+    // die Engine sie aus stale Live-Snapshots noch mitliefert.
+    if (kindTab === "verzug" && activeRoster && activeRoster.size > 0) {
+      list = list.filter((a) => {
+        if (!a.chatterName) return true;
+        return activeRoster.has(normalizeChatterName(a.chatterName));
+      });
+    }
     if (kindTab === "downgrade") {
       // Downgrade-Kandidaten: wichtigste (= höchster Umsatzimpact) zuerst,
       // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
@@ -761,7 +792,7 @@ export default function Today() {
       return sorted;
     }
     return list;
-  }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort]);
+  }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort, activeRoster]);
 
   const renderedVisibleList = visibleList;
   const remainingSwapCount = 0;
