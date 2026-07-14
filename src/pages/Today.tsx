@@ -1359,6 +1359,7 @@ export default function Today() {
                                 readonly={isReadonly}
                                 verzugBreakdown={a.chatterName ? verzugBreakdown.get(a.chatterName) : undefined}
                                 verzugAvgOpenChats={a.chatterName ? verzugAvgOpenChats.get(a.chatterName) : undefined}
+                                accountLogins={accountLogins}
                               />
                             </ErrorBoundary>
                           ))}
