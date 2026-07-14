@@ -754,13 +754,22 @@ export default function Today() {
   }, [kindTab, verzugDayCounts, verzugDayFilter]);
 
   const visibleList = useMemo(() => {
-    const list =
+    let list =
       kindTab === "verzug" && verzugDayFilter.size > 0
         ? baseVisibleList.filter((a) => {
             const d = getVerzugDays(a);
             return d != null && verzugDayFilter.has(d);
           })
         : baseVisibleList;
+    // Verzug-Tab: hart auf aktives Roster einschränken. Chatter, die im letzten
+    // Report nicht mehr vorkommen, sollen niemals hier auftauchen — selbst wenn
+    // die Engine sie aus stale Live-Snapshots noch mitliefert.
+    if (kindTab === "verzug" && activeRoster && activeRoster.size > 0) {
+      list = list.filter((a) => {
+        if (!a.chatterName) return true;
+        return activeRoster.has(normalizeChatterName(a.chatterName));
+      });
+    }
     if (kindTab === "downgrade") {
       // Downgrade-Kandidaten: wichtigste (= höchster Umsatzimpact) zuerst,
       // danach chronologisch nach Beginn des Rückgangs (ältestes Muster zuerst).
@@ -783,7 +792,7 @@ export default function Today() {
       return sorted;
     }
     return list;
-  }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort]);
+  }, [baseVisibleList, kindTab, verzugDayFilter, verzugSort, activeRoster]);
 
   const renderedVisibleList = visibleList;
   const remainingSwapCount = 0;
