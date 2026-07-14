@@ -31,6 +31,8 @@ interface Props {
   verzugBreakdown?: { account: string; openChats: number; delayDays: number }[];
   /** 14T-Durchschnitt offener Chats pro Chatter (nur für Verzug-Karten). */
   verzugAvgOpenChats?: number;
+  /** Login-Daten pro Account (Key = account.toLowerCase().trim()). */
+  accountLogins?: Map<string, { email?: string | null; password?: string | null }>;
 }
 
 
