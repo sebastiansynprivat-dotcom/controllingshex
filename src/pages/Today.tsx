@@ -101,6 +101,7 @@ function sortDowngradeActions(actions: UnifiedAction[]) {
 function groupByKind(actions: UnifiedAction[]) {
   const buckets = new Map<ActionSourceKind, UnifiedAction[]>();
   for (const a of actions) {
+    if (a.primaryKind === "verzug" && !hasRealVerzug(a)) continue;
     const arr = buckets.get(a.primaryKind) ?? [];
     arr.push(a);
     buckets.set(a.primaryKind, arr);
@@ -725,11 +726,14 @@ export default function Today() {
           : filtered.done;
 
   // Verfügbare Kategorien für Tabs (nur welche mit count > 0)
-  const availableKinds = groupByKind(statusList);
+  const statusListWithoutFalseVerzug = statusList.filter(
+    (a) => a.primaryKind !== "verzug" || hasRealVerzug(a),
+  );
+  const availableKinds = groupByKind(statusListWithoutFalseVerzug);
   const baseVisibleList = (
     kindTab === "all"
-      ? statusList
-      : statusList.filter((a) => a.primaryKind === kindTab)
+      ? statusListWithoutFalseVerzug
+      : statusListWithoutFalseVerzug.filter((a) => a.primaryKind === kindTab)
   ).filter((a) => {
     // Dauerhaft ausgeblendete Chatter aus Upgrade-Kandidaten entfernen
     if (a.primaryKind !== "upgrade") return true;
