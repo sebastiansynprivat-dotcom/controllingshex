@@ -250,7 +250,23 @@ export default function PersonActionCard({
   readonly = false,
   verzugBreakdown,
   verzugAvgOpenChats,
+  accountLogins,
 }: Props) {
+  const [revealedPw, setRevealedPw] = useState<Set<string>>(new Set());
+  const togglePw = (key: string) =>
+    setRevealedPw((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  const copyToClipboard = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} kopiert`);
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
+    }
+  };
 
   const [celebrating, setCelebrating] = useState(false);
   const safeSignals: ActionSignal[] = Array.isArray(action?.signals)
