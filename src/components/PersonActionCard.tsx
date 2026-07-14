@@ -739,36 +739,88 @@ export default function PersonActionCard({
                 {verzugBreakdown.map((m) => {
                   const critical = m.delayDays >= 3;
                   const warn = m.delayDays >= 1 && m.delayDays < 3;
+                  const loginKey = m.account.toLowerCase().trim();
+                  const login = accountLogins?.get(loginKey);
+                  const pwRevealed = revealedPw.has(loginKey);
                   return (
-                    <button
-                      key={m.account}
-                      type="button"
-                      onClick={(e) => {
-                        stop(e);
-                        if (onModelClick) onModelClick(m.account, action.chatterName ?? null);
-                      }}
-                      className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
-                    >
-                      <span className="text-[12.5px] font-medium text-white/90 truncate tracking-wide">
-                        {m.account}
-                      </span>
-                      <div className="flex items-center gap-2 shrink-0 tabular-nums">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/75">
-                          {m.openChats} offen
+                    <div key={m.account} className="hover:bg-white/[0.03] transition-colors">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          stop(e);
+                          if (onModelClick) onModelClick(m.account, action.chatterName ?? null);
+                        }}
+                        className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left"
+                      >
+                        <span className="text-[12.5px] font-medium text-white/90 truncate tracking-wide">
+                          {m.account}
                         </span>
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border",
-                            critical && "bg-red-500/12 border-red-500/25 text-red-300",
-                            warn && "bg-amber-500/12 border-amber-500/25 text-amber-300",
-                            !critical && !warn && "bg-white/[0.04] border-white/[0.06] text-white/50",
+                        <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/75">
+                            {m.openChats} offen
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border",
+                              critical && "bg-red-500/12 border-red-500/25 text-red-300",
+                              warn && "bg-amber-500/12 border-amber-500/25 text-amber-300",
+                              !critical && !warn && "bg-white/[0.04] border-white/[0.06] text-white/50",
+                            )}
+                          >
+                            <Clock className="h-3 w-3" />
+                            {m.delayDays > 0 ? `${m.delayDays}d Verzug` : "aktuell"}
+                          </span>
+                        </div>
+                      </button>
+                      {login && (login.email || login.password) ? (
+                        <div className="px-3.5 pb-2.5 -mt-1 flex flex-col gap-1.5">
+                          {login.email && (
+                            <div className="flex items-center gap-2 text-[11px] text-white/60 min-w-0">
+                              <Mail className="h-3 w-3 text-white/35 shrink-0" />
+                              <span className="truncate font-mono">{login.email}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { stop(e); copyToClipboard(login.email!, "E-Mail"); }}
+                                className="ml-auto shrink-0 p-1 rounded hover:bg-white/[0.06] text-white/40 hover:text-white/80 transition-colors"
+                                title="E-Mail kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
                           )}
-                        >
-                          <Clock className="h-3 w-3" />
-                          {m.delayDays > 0 ? `${m.delayDays}d Verzug` : "aktuell"}
-                        </span>
-                      </div>
-                    </button>
+                          {login.password && (
+                            <div className="flex items-center gap-2 text-[11px] text-white/60 min-w-0">
+                              <Key className="h-3 w-3 text-white/35 shrink-0" />
+                              <span className="truncate font-mono tracking-wider">
+                                {pwRevealed ? login.password : "••••••••••"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => { stop(e); togglePw(loginKey); }}
+                                className="ml-auto shrink-0 p-1 rounded hover:bg-white/[0.06] text-white/40 hover:text-white/80 transition-colors"
+                                title={pwRevealed ? "Passwort verbergen" : "Passwort anzeigen"}
+                              >
+                                {pwRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { stop(e); copyToClipboard(login.password!, "Passwort"); }}
+                                className="shrink-0 p-1 rounded hover:bg-white/[0.06] text-white/40 hover:text-white/80 transition-colors"
+                                title="Passwort kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="px-3.5 pb-2.5 -mt-1">
+                          <span className="text-[10.5px] text-white/25 font-light italic">
+                            keine Login-Daten hinterlegt
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
