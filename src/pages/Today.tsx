@@ -56,7 +56,7 @@ import {
   onHiddenUpgradesUpdated,
   type HiddenUpgradeEntry,
 } from "@/lib/hidden-upgrades";
-import { normalizeChatterName } from "@/lib/active-chatters";
+import { normalizeChatterName, loadActiveChatterNames, invalidateActiveChattersCache } from "@/lib/active-chatters";
 import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 type ChannelFilter = "all" | "whatsapp" | "platform";
