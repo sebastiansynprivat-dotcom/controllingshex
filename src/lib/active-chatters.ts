@@ -64,19 +64,93 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
 
   const { data } = await supabase
     .from("analysis_reports")
-    .select("result_json")
+    .select("result_json, analysis_date")
     .eq("platform", platform)
     .not("result_json", "is", null)
     .order("analysis_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1);
 
-  const result = data?.[0]?.result_json as
+  const latestRow = data?.[0];
+  const result = latestRow?.result_json as
     | { categories?: { chatters?: { name?: string; account?: string }[] }[] }
     | null
     | undefined;
 
-  if (!result || !Array.isArray(result.categories)) {
+  const names = new Set<string>();
+  const chatterModels = new Map<string, Set<string>>();
+  const activeModels = new Set<string>();
+  const modelChatters = new Map<string, ModelChatterInfo>();
+
+  if (result && Array.isArray(result.categories)) {
+    for (const cat of result.categories) {
+      for (const ch of cat.chatters ?? []) {
+        if (!ch?.name) continue;
+        const nDisplay = ch.name.trim();
+        const n = normalizeChatterName(ch.name);
+        names.add(n);
+        const rawAcc = ch.account ?? "";
+        const parts = rawAcc.split(",").map((s) => s.trim()).filter(Boolean);
+        for (const acc of parts) {
+          const accKey = normalizeAccountName(acc);
+          if (!accKey) continue;
+          if (!chatterModels.has(n)) chatterModels.set(n, new Set());
+          chatterModels.get(n)!.add(accKey);
+          activeModels.add(accKey);
+          let info = modelChatters.get(accKey);
+          if (!info) {
+            info = { display: acc, chatters: [] };
+            modelChatters.set(accKey, info);
+          }
+          if (!info.chatters.includes(nDisplay)) info.chatters.push(nDisplay);
+        }
+      }
+    }
+  }
+
+  // Fallback: Report existiert, aber categories fehlen/leer sind (defekter Parse).
+  // Statt "Filter aus" → Roster aus chatter_history vom neuesten analysis_date
+  // rekonstruieren. So bleiben Ex-Chatter aus früheren Reports draußen.
+  if (names.size === 0 && latestRow?.analysis_date) {
+    try {
+      const { data: histRows } = await supabase
+        .from("chatter_history")
+        .select("chatter_name, account")
+        .eq("platform", platform)
+        .eq("analysis_date", latestRow.analysis_date);
+      for (const r of histRows ?? []) {
+        if (!r.chatter_name) continue;
+        const nDisplay = r.chatter_name.trim();
+        const n = normalizeChatterName(r.chatter_name);
+        names.add(n);
+        const rawAcc = (r.account ?? "").trim();
+        if (!rawAcc) continue;
+        for (const acc of rawAcc.split(",").map((s) => s.trim()).filter(Boolean)) {
+          const accKey = normalizeAccountName(acc);
+          if (!accKey) continue;
+          if (!chatterModels.has(n)) chatterModels.set(n, new Set());
+          chatterModels.get(n)!.add(accKey);
+          activeModels.add(accKey);
+          let info = modelChatters.get(accKey);
+          if (!info) {
+            info = { display: acc, chatters: [] };
+            modelChatters.set(accKey, info);
+          }
+          if (!info.chatters.includes(nDisplay)) info.chatters.push(nDisplay);
+        }
+      }
+      if (names.size > 0) {
+        console.warn(
+          `[active-chatters] Roster-Fallback via chatter_history (${platform}, ${latestRow.analysis_date}) — Report ohne parsebare categories.`,
+        );
+      }
+    } catch (e) {
+      console.warn("[active-chatters] history fallback failed", e);
+    }
+  }
+
+  // Wirklich kein Report vorhanden → hasReport=false (kein Filter).
+  if (!latestRow) {
     const empty: CacheEntry = {
       ts: Date.now(),
       names: new Set(),
@@ -89,33 +163,6 @@ async function loadEntry(platform: string): Promise<CacheEntry> {
     return empty;
   }
 
-  const names = new Set<string>();
-  const chatterModels = new Map<string, Set<string>>();
-  const activeModels = new Set<string>();
-  const modelChatters = new Map<string, ModelChatterInfo>();
-  for (const cat of result.categories) {
-    for (const ch of cat.chatters ?? []) {
-      if (!ch?.name) continue;
-      const nDisplay = ch.name.trim();
-      const n = normalizeChatterName(ch.name);
-      names.add(n);
-      const rawAcc = ch.account ?? "";
-      const parts = rawAcc.split(",").map((s) => s.trim()).filter(Boolean);
-      for (const acc of parts) {
-        const accKey = normalizeAccountName(acc);
-        if (!accKey) continue;
-        if (!chatterModels.has(n)) chatterModels.set(n, new Set());
-        chatterModels.get(n)!.add(accKey);
-        activeModels.add(accKey);
-        let info = modelChatters.get(accKey);
-        if (!info) {
-          info = { display: acc, chatters: [] };
-          modelChatters.set(accKey, info);
-        }
-        if (!info.chatters.includes(nDisplay)) info.chatters.push(nDisplay);
-      }
-    }
-  }
   const entry: CacheEntry = {
     ts: Date.now(),
     names,
