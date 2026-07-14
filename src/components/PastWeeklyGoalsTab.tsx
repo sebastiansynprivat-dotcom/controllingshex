@@ -207,7 +207,7 @@ export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
         {filterBtn("whatsapp", "WhatsApp", waCount)}
         {filterBtn("platform", "Plattform", platformCount)}
         <span className="text-[10px] text-white/30 font-light ml-1">
-          plattformübergreifend zusammengeführt
+          nur {platform}
         </span>
       </div>
 
