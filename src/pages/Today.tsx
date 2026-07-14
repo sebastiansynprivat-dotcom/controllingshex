@@ -542,6 +542,24 @@ export default function Today() {
 
         setVerzugBreakdown(map);
         setVerzugAvgOpenChats(avgMap);
+
+        // Login-Daten pro Account (E-Mail + Passwort) aus models
+        try {
+          const { data: modelsData } = await supabase
+            .from("models")
+            .select("model_name, email, password")
+            .ilike("platform", platform);
+          if (cancel) return;
+          const loginMap = new Map<string, { email?: string | null; password?: string | null }>();
+          for (const m of (modelsData || []) as Array<{ model_name: string; email?: string | null; password?: string | null }>) {
+            const key = (m.model_name || "").toLowerCase().trim();
+            if (!key) continue;
+            if (m.email || m.password) loginMap.set(key, { email: m.email, password: m.password });
+          }
+          setAccountLogins(loginMap);
+        } catch (e) {
+          console.error("[Today/accountLogins]", e);
+        }
       } catch (e) {
         console.error("[Today/verzugBreakdown]", e);
       }
