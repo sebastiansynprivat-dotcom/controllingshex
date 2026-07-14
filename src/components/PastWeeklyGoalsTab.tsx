@@ -5,7 +5,7 @@ import { formatEUR } from "@/lib/monthly-goals";
 import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 interface Props {
-  /** Plattform bleibt zur Kompatibilität, wird aber ignoriert – Auswertung ist plattformübergreifend. */
+  /** Aktiver Workspace – Ergebnisse werden strikt nach Plattform gefiltert. */
   platform: string;
   onOpenChatter?: (chatter: string) => void;
 }
