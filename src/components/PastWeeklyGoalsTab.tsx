@@ -5,7 +5,7 @@ import { formatEUR } from "@/lib/monthly-goals";
 import { classifyChannel, type ChatterChannel } from "@/lib/chatter-channel";
 
 interface Props {
-  /** Plattform bleibt zur Kompatibilität, wird aber ignoriert – Auswertung ist plattformübergreifend. */
+  /** Aktiver Workspace – Ergebnisse werden strikt nach Plattform gefiltert. */
   platform: string;
   onOpenChatter?: (chatter: string) => void;
 }
@@ -52,7 +52,7 @@ function weekRangeLabel(startIso: string, endIso: string): string {
   return `${sStr} – ${eStr}`;
 }
 
-export default function PastWeeklyGoalsTab({ onOpenChatter }: Props) {
+export default function PastWeeklyGoalsTab({ platform, onOpenChatter }: Props) {
   const [rows, setRows] = useState<RawResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,11 +74,12 @@ export default function PastWeeklyGoalsTab({ onOpenChatter }: Props) {
       setLoading(true);
       setError(null);
       try {
-        // Plattformübergreifend laden – ein Chatter, der auf mehreren Plattformen
-        // arbeitet, bekommt so nur EIN zusammengeführtes Feedback pro Woche.
+        // Nur Ergebnisse der aktuellen Plattform – Workspaces (Maloum / 4Based /
+        // Brezzels) werden strikt getrennt, damit kein fremder Chatter erscheint.
         const { data, error } = await supabase
           .from("weekly_goal_results")
           .select("chatter_name, platform, week_key, week_start, week_end, goal_eur, actual_eur, achieved")
+          .eq("platform", platform)
           .order("week_start", { ascending: false });
         if (error) throw error;
         if (!cancelled) setRows((data ?? []) as RawResultRow[]);
@@ -89,7 +90,7 @@ export default function PastWeeklyGoalsTab({ onOpenChatter }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [platform]);
 
   const groups: ChatterGroup[] = useMemo(() => {
     // 1) pro (chatter, week_key) Summen bilden
@@ -206,7 +207,7 @@ export default function PastWeeklyGoalsTab({ onOpenChatter }: Props) {
         {filterBtn("whatsapp", "WhatsApp", waCount)}
         {filterBtn("platform", "Plattform", platformCount)}
         <span className="text-[10px] text-white/30 font-light ml-1">
-          plattformübergreifend zusammengeführt
+          nur {platform}
         </span>
       </div>
 
