@@ -238,6 +238,28 @@ export default function Today() {
 
   const [verzugDayFilter, setVerzugDayFilter] = useState<Set<number>>(new Set());
   const [verzugSort, setVerzugSort] = useState<VerzugSort>("open");
+  // Aktives Roster (Chatter aus dem letzten Report) — Belt-&-Suspender-Filter
+  // für den Verzug-Tab, damit Ex-Chatter niemals durchrutschen, selbst wenn
+  // die Engine sie noch mitliefert.
+  const [activeRoster, setActiveRoster] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadActiveChatterNames(platform).then((set) => {
+      if (!cancelled) setActiveRoster(set);
+    }).catch(() => { if (!cancelled) setActiveRoster(null); });
+    return () => { cancelled = true; };
+  }, [platform]);
+  // Wechsel auf Verzug-Tab → Roster-Cache verwerfen und frisch laden, damit
+  // ein gerade hochgeladener Report sofort greift.
+  useEffect(() => {
+    if (kindTab !== "verzug") return;
+    invalidateActiveChattersCache(platform);
+    let cancelled = false;
+    loadActiveChatterNames(platform).then((set) => {
+      if (!cancelled) setActiveRoster(set);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [kindTab, platform]);
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>("none");
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
     try {
