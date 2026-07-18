@@ -33,7 +33,7 @@ export default function FiltersModal({ open, onOpenChange, model, telegramId, on
     onSubmit({
       telegram_id: telegramId,
       platform: model.platform,
-      token: PLACEHOLDER_TOKEN,
+      token: model.token,
       date_range: {
         start: format(from, "yyyy-MM-dd"),
         end: format(to, "yyyy-MM-dd"),
