@@ -9,8 +9,6 @@ import { cn } from "@/lib/utils";
 import { PLACEHOLDER_LINKED_USERS, type LinkedUser } from "@/lib/get-chats-mocks";
 import type { SelectedModel, SubmittedFilters } from "./GetChatsButton";
 
-// TODO: wire real token
-const PLACEHOLDER_TOKEN = "PLACEHOLDER_TOKEN";
 
 interface Props {
   open: boolean;
