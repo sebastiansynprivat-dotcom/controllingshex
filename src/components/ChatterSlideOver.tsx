@@ -1595,7 +1595,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
               {/* Get-Chats */}
               <div className="flex justify-center py-2">
-                <GetChatsButton />
+                <GetChatsButton telegramId={telegramId} />
               </div>
 
               {/* Notes — direkt unter Labels */}
