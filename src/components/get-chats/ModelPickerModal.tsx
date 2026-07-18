@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, ChevronRight } from "lucide-react";
 import type { SelectedModel } from "./GetChatsButton";
-
-const CONTROLLING_CHATS_URL =
-  "https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   open: boolean;
