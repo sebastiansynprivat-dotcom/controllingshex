@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ChevronRight } from "lucide-react";
 import type { SelectedModel } from "./GetChatsButton";
+
+const CONTROLLING_CHATS_URL =
+  "https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats";
 
 interface Props {
   open: boolean;
@@ -18,13 +20,24 @@ export default function ModelPickerModal({ open, onOpenChange, telegramId, onSel
 
   useEffect(() => {
     if (!open) return;
+    if (!telegramId) {
+      setError("Keine telegram_id für diesen Chatter gefunden.");
+      setModels([]);
+      return;
+    }
     setLoading(true);
     setError(null);
-    supabase.functions
-      .invoke("get-assigned-models", { body: { telegram_id: telegramId } })
-      .then(({ data, error }) => {
-        if (error) throw error;
-        setModels((data as any)?.models ?? []);
+    fetch(CONTROLLING_CHATS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegram_id: telegramId }),
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: { tokens?: Array<{ platform: string; username: string; token: string }> }) => {
+        setModels(data?.tokens ?? []);
       })
       .catch((e) => setError(e?.message ?? "Konnte Models nicht laden"))
       .finally(() => setLoading(false));
