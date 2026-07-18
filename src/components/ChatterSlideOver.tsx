@@ -1836,7 +1836,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
             {/* Get-Chats: sichtbar direkt im Header, nicht im scrollbaren Inhalt versteckt */}
             {!inline && !compareWith && (
-              <GetChatsButton telegramId={chatterName} />
+              <GetChatsButton telegramId={chatterName} compact />
             )}
 
             {/* Vergleichen-mit Button (nur im non-inline Mode) — icon-only, spart Platz für Name */}
