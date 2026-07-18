@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import GetChatsButton from "@/components/get-chats/GetChatsButton";
 import { createPortal } from "react-dom";
 import {
   X,
