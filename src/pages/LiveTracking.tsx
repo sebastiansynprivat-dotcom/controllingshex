@@ -799,6 +799,7 @@ export default function LiveTracking() {
               {lastSync !== null ? `· ${relTime(lastSync)} ago` : ""}
             </span>
           </div>
+          <GetChatsButton />
         </div>
 
         {/* Mega-KPI Card — Aktivitäts-Fokus */}
