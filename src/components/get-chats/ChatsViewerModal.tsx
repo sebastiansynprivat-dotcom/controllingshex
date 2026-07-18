@@ -20,12 +20,40 @@ interface Props {
 
 export default function ChatsViewerModal({ open, onOpenChange, filters, chats, loading, error, onRefresh }: Props) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setActiveChatId(chats[0]?.id ?? null);
+    setSavedIds(new Set());
   }, [chats]);
 
   const active = chats.find((c) => c.id === activeChatId) ?? null;
+  const modelUsername = filters?.user?.username ?? "";
+
+  const handleSave = async () => {
+    if (!active || !filters) return;
+    setSavingId(active.id);
+    try {
+      const { error: err } = await supabase.from("chats_preview").upsert(
+        {
+          chat_id: active.id,
+          platform: filters.platform,
+          model_username: modelUsername,
+          recipient_username: active.recipient_username ?? null,
+          chat: active as any,
+        },
+        { onConflict: "platform,model_username,chat_id" },
+      );
+      if (err) throw err;
+      setSavedIds((prev) => new Set(prev).add(active.id));
+      toast.success("Chat saved");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save chat");
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
