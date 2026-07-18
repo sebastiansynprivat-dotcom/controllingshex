@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, ChevronRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import type { SelectedModel } from "./GetChatsButton";
+
+const CONTROLLING_CHATS_URL = "https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats";
+const CONTROLLING_CHAT_KEY = import.meta.env.VITE_CONTROLLING_CHAT_KEY as string | undefined;
+
 
 interface Props {
   open: boolean;
