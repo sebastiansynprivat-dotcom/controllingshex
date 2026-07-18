@@ -12,6 +12,7 @@ type Step = "models" | "filters" | "viewer" | null;
 export interface SelectedModel {
   platform: string;
   username: string;
+  token: string;
 }
 
 export interface SubmittedFilters {
