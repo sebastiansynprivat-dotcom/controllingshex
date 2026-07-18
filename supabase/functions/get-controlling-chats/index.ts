@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get('CONTROLLING_CHAT_KEY');
+    const apiKey = Deno.env.get('CONTROLLING_CHAT_KEY')?.trim();
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'CONTROLLING_CHAT_KEY not configured' }), {
         status: 500,
