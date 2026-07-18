@@ -6,6 +6,7 @@ import ModelPickerModal from "./ModelPickerModal";
 import FiltersModal from "./FiltersModal";
 import ChatsViewerModal from "./ChatsViewerModal";
 import type { LinkedUser } from "@/lib/get-chats-mocks";
+import { fetchChats, type FetchedChat } from "@/lib/get-chats-api";
 
 type Step = "models" | "filters" | "viewer" | null;
 
@@ -27,6 +28,9 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
   const [step, setStep] = useState<Step>(null);
   const [model, setModel] = useState<SelectedModel | null>(null);
   const [filters, setFilters] = useState<SubmittedFilters | null>(null);
+  const [chats, setChats] = useState<FetchedChat[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <>
@@ -59,11 +63,20 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
         model={model}
         telegramId={telegramId}
         onBack={() => setStep("models")}
-        onSubmit={(payload) => {
+        onSubmit={async (payload) => {
           setFilters(payload);
-          // TODO: replace with real POST to backend
-          console.log("[Get-Chats] submit payload", payload);
           setStep("viewer");
+          setLoading(true);
+          setError(null);
+          setChats([]);
+          try {
+            const data = await fetchChats(payload);
+            setChats(data);
+          } catch (e) {
+            setError((e as Error).message || "Konnte Chats nicht laden");
+          } finally {
+            setLoading(false);
+          }
         }}
       />
 
@@ -71,6 +84,9 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
         open={step === "viewer"}
         onOpenChange={(o) => !o && setStep(null)}
         filters={filters}
+        chats={chats}
+        loading={loading}
+        error={error}
       />
     </>
   );
