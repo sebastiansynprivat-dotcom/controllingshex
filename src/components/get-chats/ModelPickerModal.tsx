@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import type { SelectedModel } from "./GetChatsButton";
-
-const CONTROLLING_CHATS_URL = "https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats";
-const CONTROLLING_CHAT_KEY = import.meta.env.VITE_CONTROLLING_CHAT_KEY as string | undefined;
-
 
 interface Props {
   open: boolean;
@@ -28,26 +25,16 @@ export default function ModelPickerModal({ open, onOpenChange, telegramId, onSel
     }
     setLoading(true);
     setError(null);
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (CONTROLLING_CHAT_KEY) headers["x-api-key"] = CONTROLLING_CHAT_KEY;
-    fetch(CONTROLLING_CHATS_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ telegram_id: telegramId }),
-    })
-      .then(async (r) => {
-        const text = await r.text();
-        if (!r.ok) throw new Error(text || `HTTP ${r.status}`);
-        return text ? JSON.parse(text) : {};
-      })
-      .then((data) => {
+    supabase.functions
+      .invoke("get-controlling-chats", { body: { telegram_id: telegramId } })
+      .then(({ data, error }) => {
+        if (error) throw error;
         const tokens = (data as { tokens?: Array<{ platform: string; username: string; token: string }> })?.tokens ?? [];
         setModels(tokens);
       })
       .catch((e) => setError(e?.message ?? "Konnte Models nicht laden"))
       .finally(() => setLoading(false));
   }, [open, telegramId]);
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
