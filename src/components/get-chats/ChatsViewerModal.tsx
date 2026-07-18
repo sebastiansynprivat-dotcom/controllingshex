@@ -76,7 +76,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
           </div>
           <DialogDescription className="text-white/55 font-light text-xs">
             {filters
-              ? `${filters.platform} · ${filters.date_range.start} – ${filters.date_range.end}${filters.user ? ` · ${filters.user.username}` : ""}`
+              ? `${filters.platform}${modelUsername ? ` · ${modelUsername}` : ""} · ${filters.date_range.start} – ${filters.date_range.end}`
               : "—"}
           </DialogDescription>
         </DialogHeader>
