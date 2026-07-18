@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { SubmittedFilters } from "./GetChatsButton";
 import type { FetchedChat } from "@/lib/get-chats-api";
 
@@ -18,12 +20,40 @@ interface Props {
 
 export default function ChatsViewerModal({ open, onOpenChange, filters, chats, loading, error, onRefresh }: Props) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setActiveChatId(chats[0]?.id ?? null);
+    setSavedIds(new Set());
   }, [chats]);
 
   const active = chats.find((c) => c.id === activeChatId) ?? null;
+  const modelUsername = filters?.user?.username ?? "";
+
+  const handleSave = async () => {
+    if (!active || !filters) return;
+    setSavingId(active.id);
+    try {
+      const { error: err } = await supabase.from("chats_preview").upsert(
+        {
+          chat_id: active.id,
+          platform: filters.platform,
+          model_username: modelUsername,
+          recipient_username: active.recipient_username ?? null,
+          chat: active as any,
+        },
+        { onConflict: "platform,model_username,chat_id" },
+      );
+      if (err) throw err;
+      setSavedIds((prev) => new Set(prev).add(active.id));
+      toast.success("Chat saved");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save chat");
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,7 +76,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
           </div>
           <DialogDescription className="text-white/55 font-light text-xs">
             {filters
-              ? `${filters.platform} · ${filters.date_range.start} – ${filters.date_range.end}${filters.user ? ` · ${filters.user.username}` : ""}`
+              ? `${filters.platform}${modelUsername ? ` · ${modelUsername}` : ""} · ${filters.date_range.start} – ${filters.date_range.end}`
               : "—"}
           </DialogDescription>
         </DialogHeader>
@@ -92,7 +122,25 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
           </div>
 
           {/* Right: messages */}
-          <div className="overflow-y-auto p-5 space-y-2">
+          <div className="relative overflow-y-auto p-5 space-y-2">
+            {active && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSave}
+                disabled={savingId === active.id}
+                title={savedIds.has(active.id) ? "Saved" : "Save chat"}
+                className="absolute top-3 right-3 z-10 h-8 w-8 text-white/60 hover:text-white bg-background/70 backdrop-blur border border-white/[0.08] hover:bg-white/[0.08]"
+              >
+                {savingId === active.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : savedIds.has(active.id) ? (
+                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             {!active && !loading && (
               <div className="text-xs text-white/45 font-light">Wähle einen Chat.</div>
             )}
