@@ -604,6 +604,24 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoUrl, setMemoUrl] = useState<string | null>(null);
   const [memoText, setMemoText] = useState<string | null>(null);
+  const [telegramId, setTelegramId] = useState<string>("");
+
+  useEffect(() => {
+    setTelegramId("");
+    if (!chatterName) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history_live")
+        .select("telegram_id")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && data?.telegram_id) setTelegramId(data.telegram_id);
+    })();
+    return () => { cancelled = true; };
+  }, [chatterName, platform]);
 
   const generateMemo = useCallback(async () => {
     setMemoLoading(true);
