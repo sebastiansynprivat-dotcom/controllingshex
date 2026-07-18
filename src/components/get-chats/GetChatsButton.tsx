@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import ModelPickerModal from "./ModelPickerModal";
 import FiltersModal from "./FiltersModal";
 import ChatsViewerModal from "./ChatsViewerModal";
@@ -21,7 +22,7 @@ export interface SubmittedFilters {
   user?: LinkedUser;
 }
 
-export default function GetChatsButton({ telegramId = "" }: { telegramId?: string }) {
+export default function GetChatsButton({ telegramId = "", compact = false }: { telegramId?: string; compact?: boolean }) {
   const [step, setStep] = useState<Step>(null);
   const [model, setModel] = useState<SelectedModel | null>(null);
   const [filters, setFilters] = useState<SubmittedFilters | null>(null);
@@ -31,10 +32,14 @@ export default function GetChatsButton({ telegramId = "" }: { telegramId?: strin
       <Button
         variant="outline"
         onClick={() => setStep("models")}
-        className="w-full h-11 rounded-xl border-primary/30 bg-primary/10 text-sm font-medium tracking-wide text-primary hover:bg-primary/20 hover:text-primary"
+        title="Get-Chats"
+        className={cn(
+          "h-11 rounded-xl border-primary/40 bg-primary/15 text-sm font-semibold tracking-wide text-primary hover:bg-primary/25 hover:text-primary",
+          compact ? "shrink-0 px-3 sm:px-4" : "w-full",
+        )}
       >
-        <MessageSquareText className="h-4 w-4 mr-2" />
-        Get-Chats
+        <MessageSquareText className="h-4 w-4" />
+        <span className={compact ? "hidden sm:inline" : undefined}>Get-Chats</span>
       </Button>
 
       <ModelPickerModal
