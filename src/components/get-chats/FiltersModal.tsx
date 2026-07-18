@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronLeft } from "lucide-react";
+import { CalendarIcon, ChevronLeft, Search, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { PLACEHOLDER_LINKED_USERS, type LinkedUser } from "@/lib/get-chats-mocks";
+import { supabase } from "@/integrations/supabase/client";
+import { type LinkedUser } from "@/lib/get-chats-mocks";
 import type { SelectedModel, SubmittedFilters } from "./GetChatsButton";
 
 
@@ -28,6 +30,52 @@ export default function FiltersModal({ open, onOpenChange, model, telegramId, on
   const [user, setUser] = useState<LinkedUser | null>(null);
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
+  const [users, setUsers] = useState<LinkedUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!open || !model) return;
+    let cancelled = false;
+    setUsersLoading(true);
+    setUsers([]);
+    setUser(null);
+    setQuery("");
+    (async () => {
+      const { data, error } = await supabase
+        .from("chats_preview")
+        .select("chat_id, recipient_username, updated_at")
+        .eq("platform", model.platform)
+        .eq("model_username", model.username)
+        .not("recipient_username", "is", null)
+        .order("updated_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        setUsers([]);
+      } else {
+        const seen = new Set<string>();
+        const deduped: LinkedUser[] = [];
+        for (const row of data ?? []) {
+          const uname = (row as any).recipient_username as string | null;
+          const cid = (row as any).chat_id as string | null;
+          if (!uname || !cid || seen.has(uname)) continue;
+          seen.add(uname);
+          deduped.push({ username: uname, chat_id: cid });
+        }
+        setUsers(deduped);
+      }
+      setUsersLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, model]);
+
+  const filteredUsers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => u.username.toLowerCase().includes(q));
+  }, [users, query]);
 
   const canSubmit = useMemo(() => !!(from && to && model && to >= from), [from, to, model]);
 
@@ -138,35 +186,56 @@ export default function FiltersModal({ open, onOpenChange, model, telegramId, on
             <div className="text-[10px] uppercase tracking-wider text-white/40 font-light mb-1.5">
               Kunde (optional)
             </div>
-            <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
-              <button
-                type="button"
-                onClick={() => setUser(null)}
-                className={cn(
-                  "w-full text-left px-2.5 py-2 rounded-md border text-xs font-light transition-all",
-                  user === null
-                    ? "bg-white/[0.06] border-white/20 text-white/90"
-                    : "bg-white/[0.02] border-white/[0.06] text-white/55 hover:bg-white/[0.04]",
-                )}
-              >
-                Alle Kunden
-              </button>
-              {PLACEHOLDER_LINKED_USERS.map((u) => (
-                <button
-                  key={u.chatid}
-                  type="button"
-                  onClick={() => setUser(u)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-2.5 py-2 rounded-md border text-xs font-light transition-all",
-                    user?.chatid === u.chatid
-                      ? "bg-white/[0.06] border-white/20 text-white/90"
-                      : "bg-white/[0.02] border-white/[0.06] text-white/55 hover:bg-white/[0.04]",
-                  )}
-                >
-                  <span>{u.username}</span>
-                  <span className="text-[10px] text-white/30 font-mono">{u.chatid}</span>
-                </button>
-              ))}
+            <button
+              type="button"
+              onClick={() => setUser(null)}
+              className={cn(
+                "w-full text-left px-2.5 py-2 rounded-md border text-xs font-light transition-all mb-2",
+                user === null
+                  ? "bg-white/[0.06] border-white/20 text-white/90"
+                  : "bg-white/[0.02] border-white/[0.06] text-white/55 hover:bg-white/[0.04]",
+              )}
+            >
+              Alle Kunden
+            </button>
+            <div className="relative mb-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Kunde suchen…"
+                className="h-8 pl-8 text-xs bg-white/[0.02] border-white/10 font-light"
+              />
+            </div>
+            <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+              {usersLoading ? (
+                <div className="flex items-center justify-center py-6 text-white/40">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="px-2.5 py-4 text-center text-[11px] text-white/40 font-light">
+                  {users.length === 0
+                    ? "Keine gespeicherten Kunden"
+                    : `Keine Treffer für „${query}"`}
+                </div>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.chat_id}
+                    type="button"
+                    onClick={() => setUser(u)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-2.5 py-2 rounded-md border text-xs font-light transition-all",
+                      user?.chat_id === u.chat_id
+                        ? "bg-white/[0.06] border-white/20 text-white/90"
+                        : "bg-white/[0.02] border-white/[0.06] text-white/55 hover:bg-white/[0.04]",
+                    )}
+                  >
+                    <span className="truncate">{u.username}</span>
+                    <span className="text-[10px] text-white/30 font-mono ml-2 shrink-0">{u.chat_id}</span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
