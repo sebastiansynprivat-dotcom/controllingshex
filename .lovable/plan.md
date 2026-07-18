@@ -1,35 +1,50 @@
-## Goals
-1. Persist chats into a new `chats_preview` table via a save button per chat.
-2. Show the model's username in the viewer modal's description line.
+## Goal
+Replace placeholder customer list in `FiltersModal` with real recipients from `chats_preview`, scoped by `platform` + `model_username`. Add a search input and scrollable list. Selected user changes request payload to `{ username, chat_id }`.
 
-## Database
-New table `public.chats_preview`:
-- `id` uuid pk
-- `chat_id` text
-- `platform` text
-- `model_username` text
-- `recipient_username` text
-- `chat` jsonb
-- `created_at`, `updated_at` timestamptz
-- Unique `(platform, model_username, chat_id)` → upsert.
+## Request payload shape
 
-Grants + RLS:
-- `GRANT SELECT, INSERT, UPDATE, DELETE ON public.chats_preview TO authenticated;`
-- `GRANT ALL TO service_role;`
-- RLS enabled; permissive policy for `authenticated` (all ops).
-- `updated_at` trigger via existing `public.update_updated_at_column()`.
+When a customer is selected, the POST body to `api.controlling.shexadmin.ngrok.pro/fetch-chats` is:
 
-## Frontend
-`src/components/get-chats/ChatsViewerModal.tsx`:
-- Update `DialogDescription` to include the model username, e.g.:
-  `{platform} · {modelUsername} · {start} – {end}`.
-  (Currently: `{platform} · {start} – {end}${user ? " · " + user.username : ""}`.)
-- Add a floating "Save" button in the top-right corner of the messages pane.
-  - Icon from lucide-react (`Bookmark`).
-  - States: idle / saving (spinner) / saved (checkmark).
-  - Toast via `sonner` on success/error.
-  - On click: upsert active chat into `chats_preview` with `platform`, `modelUsername`, `chat_id`, `recipient_username`, full chat as `chat`.
+```json
+{
+  "telegram_id": "…",
+  "platform": "…",
+  "token": "…",
+  "date_range": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
+  "user": { "username": "<recipient_username>", "chat_id": "<chat_id>" }
+}
+```
 
-## Technical notes
-- Model username source: `filters.user?.username` (assigned model account whose token fetched the chats).
-- Upsert: `supabase.from("chats_preview").upsert(row, { onConflict: "platform,model_username,chat_id" })`.
+When no customer is selected, `user` is omitted.
+
+## Changes
+
+### `src/lib/get-chats-mocks.ts`
+- Update `LinkedUser` type to `{ username: string; chat_id: string }`.
+- Remove `PLACEHOLDER_LINKED_USERS`.
+
+### `src/components/get-chats/FiltersModal.tsx`
+- Use `model` prop (`platform` + `username`) to query.
+- On modal open, fetch from `chats_preview`:
+  ```
+  supabase.from("chats_preview")
+    .select("chat_id, recipient_username, updated_at")
+    .eq("platform", model.platform)
+    .eq("model_username", model.username)
+    .not("recipient_username", "is", null)
+    .order("updated_at", { ascending: false })
+  ```
+- Dedupe by `recipient_username` (keep most recent `chat_id`).
+- Add a search `Input` above the list, case-insensitive substring match on `recipient_username`. Local `query` state.
+- List container: `max-h-64 overflow-y-auto` (already has similar styling); "Alle Kunden" row stays pinned above the scrollable list (outside the scroll area).
+- States: loading (spinner), empty ("Keine gespeicherten Kunden"), no-match ("Keine Treffer für …").
+
+### `src/components/get-chats/GetChatsButton.tsx`
+- `SubmittedFilters.user` becomes `{ username: string; chat_id: string }` — flows straight into the fetch payload.
+
+### `src/lib/get-chats-api.ts`
+- No change.
+
+## Notes
+- `recipient_username` displayed verbatim.
+- No migration needed — `chats_preview` already readable by authenticated users.
