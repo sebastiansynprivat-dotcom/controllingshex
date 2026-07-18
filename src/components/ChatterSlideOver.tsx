@@ -1575,8 +1575,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 })}
               </div>
 
-
-
+              {/* Get-Chats */}
+              <div className="flex justify-start">
+                <GetChatsButton />
+              </div>
 
               {/* Notes — direkt unter Labels */}
               <div className="space-y-4">
