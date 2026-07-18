@@ -80,6 +80,20 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
         }}
       />
 
+      const handleRefresh = async () => {
+        if (!filters) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const data = await fetchChats(filters);
+          setChats(data);
+        } catch (e) {
+          setError((e as Error).message || "Konnte Chats nicht laden");
+        } finally {
+          setLoading(false);
+        }
+      };
+
       <ChatsViewerModal
         open={step === "viewer"}
         onOpenChange={(o) => !o && setStep(null)}
@@ -87,6 +101,7 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
         chats={chats}
         loading={loading}
         error={error}
+        onRefresh={handleRefresh}
       />
     </>
   );

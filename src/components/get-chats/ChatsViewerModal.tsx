@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SubmittedFilters } from "./GetChatsButton";
 import type { FetchedChat } from "@/lib/get-chats-api";
@@ -12,9 +13,10 @@ interface Props {
   chats: FetchedChat[];
   loading: boolean;
   error: string | null;
+  onRefresh?: () => void;
 }
 
-export default function ChatsViewerModal({ open, onOpenChange, filters, chats, loading, error }: Props) {
+export default function ChatsViewerModal({ open, onOpenChange, filters, chats, loading, error, onRefresh }: Props) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,7 +29,21 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl bg-background border-white/10 p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/[0.06]">
-          <DialogTitle className="text-lg font-semibold tracking-tight">Chats</DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="text-lg font-semibold tracking-tight">Chats</DialogTitle>
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRefresh}
+                disabled={loading}
+                title="Aktualisieren"
+                className="h-8 w-8 -mr-2 text-white/60 hover:text-white hover:bg-white/[0.06]"
+              >
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              </Button>
+            )}
+          </div>
           <DialogDescription className="text-white/55 font-light text-xs">
             {filters
               ? `${filters.platform} · ${filters.date_range.start} – ${filters.date_range.end}${filters.user ? ` · ${filters.user.username}` : ""}`
