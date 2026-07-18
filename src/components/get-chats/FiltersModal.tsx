@@ -22,27 +22,23 @@ interface Props {
 }
 
 export default function FiltersModal({ open, onOpenChange, model, telegramId, onBack, onSubmit }: Props) {
-  const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>();
+  const [from, setFrom] = useState<Date | undefined>();
+  const [to, setTo] = useState<Date | undefined>();
   const [user, setUser] = useState<LinkedUser | null>(null);
-  const [calOpen, setCalOpen] = useState(false);
+  const [fromOpen, setFromOpen] = useState(false);
+  const [toOpen, setToOpen] = useState(false);
 
-  const canSubmit = useMemo(() => !!(range?.from && range?.to && model), [range, model]);
-
-  const label = range?.from
-    ? range.to
-      ? `${format(range.from, "d.M.yyyy")} – ${format(range.to, "d.M.yyyy")}`
-      : format(range.from, "d.M.yyyy")
-    : "Zeitraum wählen";
+  const canSubmit = useMemo(() => !!(from && to && model && to >= from), [from, to, model]);
 
   const submit = () => {
-    if (!range?.from || !range?.to || !model) return;
+    if (!from || !to || !model) return;
     onSubmit({
       telegram_id: telegramId,
       platform: model.platform,
       token: PLACEHOLDER_TOKEN,
       date_range: {
-        start: format(range.from, "yyyy-MM-dd"),
-        end: format(range.to, "yyyy-MM-dd"),
+        start: format(from, "yyyy-MM-dd"),
+        end: format(to, "yyyy-MM-dd"),
       },
       user: user ?? undefined,
     });
@@ -69,38 +65,73 @@ export default function FiltersModal({ open, onOpenChange, model, telegramId, on
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-white/40 font-light mb-1.5">
-              Zeitraum *
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-white/40 font-light mb-1.5">
+                Von *
+              </div>
+              <Popover open={fromOpen} onOpenChange={setFromOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-light border-white/10 bg-white/[0.02] hover:bg-white/[0.05]",
+                      !from && "text-white/40",
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
+                    {from ? format(from, "d.M.yyyy") : "Startdatum"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-black/95 border-white/10 backdrop-blur-xl" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={from}
+                    onSelect={(d) => {
+                      setFrom(d);
+                      if (d && to && to < d) setTo(undefined);
+                      setFromOpen(false);
+                    }}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-            <Popover open={calOpen} onOpenChange={setCalOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-light border-white/10 bg-white/[0.02] hover:bg-white/[0.05]",
-                    !range?.from && "text-white/40",
-                  )}
-                >
-                  <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
-                  {label}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-black/95 border-white/10 backdrop-blur-xl" align="start">
-                <Calendar
-                  mode="range"
-                  selected={range as any}
-                  onSelect={(r: any) => {
-                    setRange(r);
-                    if (r?.from && r?.to) setCalOpen(false);
-                  }}
-                  numberOfMonths={1}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-white/40 font-light mb-1.5">
+                Bis *
+              </div>
+              <Popover open={toOpen} onOpenChange={setToOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-light border-white/10 bg-white/[0.02] hover:bg-white/[0.05]",
+                      !to && "text-white/40",
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
+                    {to ? format(to, "d.M.yyyy") : "Enddatum"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-black/95 border-white/10 backdrop-blur-xl" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={to}
+                    onSelect={(d) => {
+                      setTo(d);
+                      setToOpen(false);
+                    }}
+                    disabled={from ? { before: from } : undefined}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
+
 
           <div>
             <div className="text-[10px] uppercase tracking-wider text-white/40 font-light mb-1.5">
