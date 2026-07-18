@@ -30,11 +30,10 @@ export default function GetChatsButton({ telegramId = "" }: { telegramId?: strin
     <>
       <Button
         variant="outline"
-        size="sm"
         onClick={() => setStep("models")}
-        className="h-8 px-3 rounded-full border-white/10 bg-white/[0.03] text-[11px] tracking-wide text-white/75 hover:bg-white/[0.06] hover:text-white"
+        className="w-full h-11 rounded-xl border-primary/30 bg-primary/10 text-sm font-medium tracking-wide text-primary hover:bg-primary/20 hover:text-primary"
       >
-        <MessageSquareText className="h-3.5 w-3.5 mr-1.5 opacity-70" />
+        <MessageSquareText className="h-4 w-4 mr-2" />
         Get-Chats
       </Button>
 
