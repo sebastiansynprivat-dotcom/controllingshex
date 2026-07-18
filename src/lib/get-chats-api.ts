@@ -35,5 +35,17 @@ export async function fetchChats(payload: SubmittedFilters): Promise<FetchedChat
     throw new Error(`fetch-chats ${res.status}: ${text || res.statusText}`);
   }
   const data = await res.json();
-  return Array.isArray(data) ? (data as FetchedChat[]) : [];
+  const raw: any[] = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.chats)
+    ? data.chats
+    : [];
+  return raw.map((c) => {
+    const lm = c?.last_message;
+    const lastText =
+      typeof lm === "string"
+        ? lm
+        : lm?.content?.text ?? (lm?.type && lm.type !== "text" ? `[${lm.type}]` : null);
+    return { ...c, last_message: lastText } as FetchedChat;
+  });
 }
