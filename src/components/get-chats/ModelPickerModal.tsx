@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, ChevronRight } from "lucide-react";
 import type { SelectedModel } from "./GetChatsButton";
-import { supabase } from "@/integrations/supabase/client";
+
+const CONTROLLING_CHATS_URL =
+  "https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats";
 
 interface Props {
   open: boolean;
@@ -25,14 +27,17 @@ export default function ModelPickerModal({ open, onOpenChange, telegramId, onSel
     }
     setLoading(true);
     setError(null);
-    supabase.functions
-      .invoke("controlling-chats-proxy", {
-        body: { telegram_id: telegramId },
+    fetch(CONTROLLING_CHATS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegram_id: telegramId }),
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
       })
-      .then(({ data, error }) => {
-        if (error) throw error;
-        const tokens = (data as { tokens?: Array<{ platform: string; username: string; token: string }> })?.tokens ?? [];
-        setModels(tokens);
+      .then((data: { tokens?: Array<{ platform: string; username: string; token: string }> }) => {
+        setModels(data?.tokens ?? []);
       })
       .catch((e) => setError(e?.message ?? "Konnte Models nicht laden"))
       .finally(() => setLoading(false));
