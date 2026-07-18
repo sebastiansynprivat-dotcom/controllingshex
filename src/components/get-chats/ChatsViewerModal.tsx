@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { SubmittedFilters } from "./GetChatsButton";
 import type { FetchedChat } from "@/lib/get-chats-api";
 
