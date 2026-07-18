@@ -1,32 +1,43 @@
 ## Goal
+After the user picks a date range in `FiltersModal`, POST to `https://api.controlling.shexadmin.ngrok.pro/fetch-chats` and render the real chats (with message bubbles per type) in `ChatsViewerModal`, replacing `MOCK_CHATS`.
 
-Replace the placeholder `get-assigned-models` call with a real POST to `https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats`, fetch tokens per model, and carry each token through the flow so a later backend request can use it.
+## Assumptions
+- Endpoint requires no auth header (none mentioned) → call directly from the browser, no new edge function.
+- Default range: today and yesterday (`start = today - 1d`, `end = today`), pre-filled in `FiltersModal` but still editable.
+- Response is an array of conversations; each has `messages[]` with `type ∈ {text, image, video, ...}` and `sender ∈ {model, user}` (assumption — anything not `model` is rendered as the customer side).
 
 ## Changes
 
-### 1. Resolve real `telegram_id` for the opened chatter
-Currently `ChatterSlideOver` passes `chatterName` as `telegramId` — that's wrong. Look up the chatter's actual `telegram_id` from `chatter_history_live` (unique per chatter_name + platform) once when the slide-over opens, and pass that value into all three `<GetChatsButton>` instances.
+### 1. Default date range
+- `src/components/get-chats/FiltersModal.tsx`
+  - Initialize `from = today - 1d`, `to = today` instead of `undefined`, so the user can submit immediately.
 
-- File: `src/components/ChatterSlideOver.tsx`
-  - Add `telegramId` state, populate via `supabase.from('chatter_history_live').select('telegram_id').eq('chatter_name', chatterName).eq('platform', platform).limit(1)`.
-  - Replace `telegramId={chatterName}` on all three usages with the resolved id (empty string while loading; button stays enabled but Modal will show a clear error if missing).
+### 2. Fetch real chats
+- `src/lib/get-chats-api.ts` (new)
+  - `export async function fetchChats(payload: SubmittedFilters): Promise<FetchedChat[]>` — POSTs to `https://api.controlling.shexadmin.ngrok.pro/fetch-chats` with the exact body shape from `SubmittedFilters` (`{ telegram_id, platform, token, date_range, user? }`).
+  - Export types `FetchedChat` and `FetchedMessage` matching the response shape (`id`, `recipient_username`, `recipient_id`, `messages_count`, `last_message`, `is_unread?`, `messages[]`).
 
-### 2. Call the real controlling-chats endpoint
-- File: `src/components/get-chats/ModelPickerModal.tsx`
-  - Replace `supabase.functions.invoke("get-assigned-models", ...)` with a `fetch('https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ telegram_id: telegramId }) })`.
-  - Parse response `{ telegram_id, tokens: [{ platform, username, token }] }` and render the list (platform + username shown, token kept internally on each item).
-  - Show empty state / error unchanged.
+### 3. Trigger the fetch on submit
+- `src/components/get-chats/GetChatsButton.tsx`
+  - Add `chats` + `loading` + `error` state. In `onSubmit`, call `fetchChats(payload)` and stash results; open viewer only after the promise resolves (or open immediately and let viewer show its own loading — see viewer changes).
+  - Pass `chats`, `loading`, `error` down to `ChatsViewerModal`.
 
-### 3. Carry `token` through the flow
-- File: `src/components/get-chats/GetChatsButton.tsx`
-  - Extend `SelectedModel` to `{ platform, username, token }`.
-  - `SubmittedFilters.token` is now sourced from the selected model (not the hardcoded `PLACEHOLDER_TOKEN`).
-- File: `src/components/get-chats/FiltersModal.tsx`
-  - Remove `PLACEHOLDER_TOKEN`; use `model.token` when building the submit payload.
+### 4. Render real data in the viewer
+- `src/components/get-chats/ChatsViewerModal.tsx`
+  - Drop `MOCK_CHATS`. Accept `chats: FetchedChat[]`, `loading`, `error` as props.
+  - Left list: iterate `chats`, use `recipient_username`, show `messages_count`, show `last_message` as preview (fallback: last item in `messages[]` if present), highlight `is_unread`. Key = `id`.
+  - Right pane: iterate `active.messages`. Right-align when `sender === "model"`, else left. Render by `type`:
+    - `text` → `content.text`
+    - `image` → `<img src={content.url} />` in a rounded container (lazy-loaded, `max-h-80 object-cover`)
+    - `video` → placeholder tile `"🎥 Video · {duration_seconds}s"` (no URL provided in sample, so no `<video>` element).
+    - unknown → small muted `"[type]"` label so nothing crashes.
+  - No `at`/timestamp field in the sample → drop the time footer on bubbles; the sidebar can hide the timestamp too.
+  - Loading state: spinner in the left column. Error state: inline red text. Empty state: keep existing "Keine Chats im Zeitraum."
 
-### 4. Cleanup
-- Delete the now-unused placeholder edge function `supabase/functions/get-assigned-models/`.
+### 5. Cleanup
+- `src/lib/get-chats-mocks.ts`: keep `PLACEHOLDER_LINKED_USERS` and `LinkedUser` (still used by `FiltersModal`); remove `MOCK_CHATS` and `MockChat` types.
 
 ## Out of scope
-- The actual "load chats" backend call (viewer still uses `MOCK_CHATS`). Token is only threaded through, ready for wiring later.
-- No auth/JWT header — endpoint is called anonymously as described. If it needs an api-key header later, add it then.
+- Auth header for the ngrok endpoint (add only if it starts 401'ing).
+- Video playback (no URL in sample).
+- Pagination / infinite scroll of chats.
