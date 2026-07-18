@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import GetChatsButton from "@/components/get-chats/GetChatsButton";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -1574,8 +1575,10 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                 })}
               </div>
 
-
-
+              {/* Get-Chats */}
+              <div className="flex justify-start">
+                <GetChatsButton />
+              </div>
 
               {/* Notes — direkt unter Labels */}
               <div className="space-y-4">

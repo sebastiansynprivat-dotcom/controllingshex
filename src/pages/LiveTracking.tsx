@@ -11,7 +11,7 @@ import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type
 import { loadMismatchMap, type MismatchEntry, type MismatchResult } from "@/lib/effort-potential";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import { onChatterDataUpdated } from "@/lib/data-events";
-import GetChatsButton from "@/components/get-chats/GetChatsButton";
+
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -787,20 +787,17 @@ export default function LiveTracking() {
     <div className="mx-auto w-full max-w-[860px] space-y-8 pb-24">
       {/* ─── HERO ─────────────────────────────────────── */}
       <header className="space-y-6 pt-2">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/70 opacity-75 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
-            <span className="text-[10px] tracking-[0.32em] uppercase text-white/35 font-light">
-              Live · {platform}
-            </span>
-            <span className="text-[10px] text-white/20">
-              {lastSync !== null ? `· ${relTime(lastSync)} ago` : ""}
-            </span>
-          </div>
-          <GetChatsButton />
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/70 opacity-75 animate-ping" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          <span className="text-[10px] tracking-[0.32em] uppercase text-white/35 font-light">
+            Live · {platform}
+          </span>
+          <span className="text-[10px] text-white/20">
+            {lastSync !== null ? `· ${relTime(lastSync)} ago` : ""}
+          </span>
         </div>
 
         {/* Mega-KPI Card — Aktivitäts-Fokus */}
