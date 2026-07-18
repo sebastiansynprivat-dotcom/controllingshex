@@ -1,56 +1,32 @@
-
 ## Goal
 
-Add a "Get-Chats" button to the Live Tracking page (`/live`) that walks the user through a 3-step flow to fetch and view a chatter's chat history. Everything is scaffolded with placeholders now; real API/backend gets wired later.
+Replace the placeholder `get-assigned-models` call with a real POST to `https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats`, fetch tokens per model, and carry each token through the flow so a later backend request can use it.
 
-## Flow
+## Changes
 
-```text
-[Get-Chats button on /live]
-        │ click
-        ▼
-[Modal 1: Model Picker]
-  - Calls placeholder edge function `get-assigned-models`
-  - Renders list of { platform, username }
-        │ click a model
-        ▼
-[Modal 2: Filters]
-  - Mandatory: date range (from / to) via shadcn Calendar (range mode)
-  - Optional : user select from static placeholder list [{username, chatid}]
-  - Submit builds payload:
-      { telegram_id, platform, token, date_range:{start,end}, user?:{username,chatid} }
-        │ submit
-        ▼
-[Modal 3: Chats Viewer — large]
-  - Two-pane: chat list (left) │ messages (right)
-  - Populated from client-side mock array for now
-```
+### 1. Resolve real `telegram_id` for the opened chatter
+Currently `ChatterSlideOver` passes `chatterName` as `telegramId` — that's wrong. Look up the chatter's actual `telegram_id` from `chatter_history_live` (unique per chatter_name + platform) once when the slide-over opens, and pass that value into all three `<GetChatsButton>` instances.
 
-## Files to create
+- File: `src/components/ChatterSlideOver.tsx`
+  - Add `telegramId` state, populate via `supabase.from('chatter_history_live').select('telegram_id').eq('chatter_name', chatterName).eq('platform', platform).limit(1)`.
+  - Replace `telegramId={chatterName}` on all three usages with the resolved id (empty string while loading; button stays enabled but Modal will show a clear error if missing).
 
-- `supabase/functions/get-assigned-models/index.ts` — placeholder edge function. Accepts `{ telegram_id? }`, returns a hardcoded array like `[{ platform: "maloum", username: "modelA" }, ...]`. CORS + basic zod validation.
-- `src/components/get-chats/GetChatsButton.tsx` — trigger button, owns the modal state machine (`"models" | "filters" | "viewer" | null`) and the selected model/filters.
-- `src/components/get-chats/ModelPickerModal.tsx` — invokes `get-assigned-models` via `supabase.functions.invoke`, renders list, click → advances.
-- `src/components/get-chats/FiltersModal.tsx` — date range (shadcn Calendar range, `pointer-events-auto`) + optional user select (Combobox over static placeholder list). Submit disabled until range is set.
-- `src/components/get-chats/ChatsViewerModal.tsx` — large Dialog (`max-w-5xl`), left pane chat list, right pane messages of the selected chat. Uses `MOCK_CHATS` constant defined in the same file.
-- `src/lib/get-chats-mocks.ts` — placeholder users list and mock chats/messages shape, so it's obvious where to swap in real data later.
+### 2. Call the real controlling-chats endpoint
+- File: `src/components/get-chats/ModelPickerModal.tsx`
+  - Replace `supabase.functions.invoke("get-assigned-models", ...)` with a `fetch('https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ telegram_id: telegramId }) })`.
+  - Parse response `{ telegram_id, tokens: [{ platform, username, token }] }` and render the list (platform + username shown, token kept internally on each item).
+  - Show empty state / error unchanged.
 
-## Files to modify
+### 3. Carry `token` through the flow
+- File: `src/components/get-chats/GetChatsButton.tsx`
+  - Extend `SelectedModel` to `{ platform, username, token }`.
+  - `SubmittedFilters.token` is now sourced from the selected model (not the hardcoded `PLACEHOLDER_TOKEN`).
+- File: `src/components/get-chats/FiltersModal.tsx`
+  - Remove `PLACEHOLDER_TOKEN`; use `model.token` when building the submit payload.
 
-- `src/pages/LiveTracking.tsx` — mount `<GetChatsButton />` in the page header row, next to existing controls.
+### 4. Cleanup
+- Delete the now-unused placeholder edge function `supabase/functions/get-assigned-models/`.
 
-## Payload placeholders
-
-- `telegram_id`: read from the currently selected chatter context on Live Tracking if available, else empty string placeholder.
-- `token`: hardcoded `"PLACEHOLDER_TOKEN"` for now with a `// TODO: wire real token` comment.
-
-## Explicitly out of scope (per your answers)
-
-- No real API integration for models, users, or chats/messages — all placeholders.
-- No DB schema changes, no new tables, no auth changes.
-- No changes to Today tab, sidebar, or other pages.
-
-## Notes
-
-- All modals use existing shadcn `Dialog`.
-- Styling matches the current dark/premium look (`border-white/10`, `bg-background`, font-light labels) used across `AnomalyDetailModal` etc.
+## Out of scope
+- The actual "load chats" backend call (viewer still uses `MOCK_CHATS`). Token is only threaded through, ready for wiring later.
+- No auth/JWT header — endpoint is called anonymously as described. If it needs an api-key header later, add it then.
