@@ -20,8 +20,11 @@ interface Props {
 }
 
 export default function FiltersModal({ open, onOpenChange, model, telegramId, onBack, onSubmit }: Props) {
-  const [from, setFrom] = useState<Date | undefined>();
-  const [to, setTo] = useState<Date | undefined>();
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const [from, setFrom] = useState<Date | undefined>(yesterday);
+  const [to, setTo] = useState<Date | undefined>(today);
   const [user, setUser] = useState<LinkedUser | null>(null);
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
