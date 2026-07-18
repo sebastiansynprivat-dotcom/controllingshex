@@ -28,16 +28,26 @@ export default function ModelPickerModal({ open, onOpenChange, telegramId, onSel
     }
     setLoading(true);
     setError(null);
-    supabase.functions
-      .invoke("get-controlling-chats", { body: { telegram_id: telegramId } })
-      .then(({ data, error }) => {
-        if (error) throw error;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (CONTROLLING_CHAT_KEY) headers["x-api-key"] = CONTROLLING_CHAT_KEY;
+    fetch(CONTROLLING_CHATS_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ telegram_id: telegramId }),
+    })
+      .then(async (r) => {
+        const text = await r.text();
+        if (!r.ok) throw new Error(text || `HTTP ${r.status}`);
+        return text ? JSON.parse(text) : {};
+      })
+      .then((data) => {
         const tokens = (data as { tokens?: Array<{ platform: string; username: string; token: string }> })?.tokens ?? [];
         setModels(tokens);
       })
       .catch((e) => setError(e?.message ?? "Konnte Models nicht laden"))
       .finally(() => setLoading(false));
   }, [open, telegramId]);
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
