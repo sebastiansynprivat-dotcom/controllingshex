@@ -29,7 +29,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl bg-background border-white/10 p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/[0.06]">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             <DialogTitle className="text-lg font-semibold tracking-tight">Chats</DialogTitle>
             {onRefresh && (
               <Button
@@ -38,7 +38,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
                 onClick={onRefresh}
                 disabled={loading}
                 title="Aktualisieren"
-                className="h-8 w-8 -mr-2 text-white/60 hover:text-white hover:bg-white/[0.06]"
+                className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/[0.06]"
               >
                 <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               </Button>
