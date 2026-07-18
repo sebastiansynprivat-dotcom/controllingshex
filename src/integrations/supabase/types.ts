@@ -343,6 +343,39 @@ export type Database = {
         }
         Relationships: []
       }
+      chats_preview: {
+        Row: {
+          chat: Json
+          chat_id: string
+          created_at: string
+          id: string
+          model_username: string
+          platform: string
+          recipient_username: string | null
+          updated_at: string
+        }
+        Insert: {
+          chat: Json
+          chat_id: string
+          created_at?: string
+          id?: string
+          model_username: string
+          platform: string
+          recipient_username?: string | null
+          updated_at?: string
+        }
+        Update: {
+          chat?: Json
+          chat_id?: string
+          created_at?: string
+          id?: string
+          model_username?: string
+          platform?: string
+          recipient_username?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chatter_activity_sessions: {
         Row: {
           chatter_name: string
