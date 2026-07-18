@@ -1,30 +1,27 @@
-import { useMemo, useState, useEffect } from "react";
-import { format } from "date-fns";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MOCK_CHATS, type MockChat } from "@/lib/get-chats-mocks";
 import type { SubmittedFilters } from "./GetChatsButton";
+import type { FetchedChat } from "@/lib/get-chats-api";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filters: SubmittedFilters | null;
+  chats: FetchedChat[];
+  loading: boolean;
+  error: string | null;
 }
 
-export default function ChatsViewerModal({ open, onOpenChange, filters }: Props) {
-  // TODO: replace MOCK_CHATS with real POST response using `filters`
-  const chats = useMemo<MockChat[]>(() => {
-    if (!filters?.user) return MOCK_CHATS;
-    return MOCK_CHATS.filter((c) => c.chatid === filters.user!.chatid);
-  }, [filters]);
-
-  const [activeChatId, setActiveChatId] = useState<string | null>(chats[0]?.chatid ?? null);
+export default function ChatsViewerModal({ open, onOpenChange, filters, chats, loading, error }: Props) {
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   useEffect(() => {
-    setActiveChatId(chats[0]?.chatid ?? null);
+    setActiveChatId(chats[0]?.id ?? null);
   }, [chats]);
 
-  const active = chats.find((c) => c.chatid === activeChatId) ?? null;
+  const active = chats.find((c) => c.id === activeChatId) ?? null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,64 +38,84 @@ export default function ChatsViewerModal({ open, onOpenChange, filters }: Props)
         <div className="grid grid-cols-[280px_1fr] h-[560px]">
           {/* Left: chat list */}
           <div className="border-r border-white/[0.06] overflow-y-auto">
-            {chats.length === 0 && (
+            {loading && (
+              <div className="flex items-center justify-center py-10 text-white/50 text-xs font-light">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> lade Chats…
+              </div>
+            )}
+            {!loading && error && (
+              <div className="p-4 text-xs text-red-300/80 font-light">{error}</div>
+            )}
+            {!loading && !error && chats.length === 0 && (
               <div className="p-4 text-xs text-white/45 font-light">Keine Chats im Zeitraum.</div>
             )}
-            {chats.map((c) => (
+            {!loading && chats.map((c) => (
               <button
-                key={c.chatid}
-                onClick={() => setActiveChatId(c.chatid)}
+                key={c.id}
+                onClick={() => setActiveChatId(c.id)}
                 className={cn(
                   "w-full text-left px-4 py-3 border-b border-white/[0.04] transition-colors",
-                  activeChatId === c.chatid
+                  activeChatId === c.id
                     ? "bg-white/[0.05]"
                     : "hover:bg-white/[0.025]",
                 )}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-sm text-white/85 font-medium truncate">{c.username}</span>
+                  <span className={cn("text-sm font-medium truncate", c.is_unread ? "text-primary" : "text-white/85")}>
+                    {c.recipient_username}
+                  </span>
                   <span className="text-[10px] text-white/35 font-light shrink-0">
-                    {format(new Date(c.lastMessageAt), "d.M. HH:mm")}
+                    {c.messages_count} msg
                   </span>
                 </div>
-                <div className="text-xs text-white/45 font-light truncate mt-0.5">{c.preview}</div>
+                <div className="text-xs text-white/45 font-light truncate mt-0.5">
+                  {c.last_message ?? "—"}
+                </div>
               </button>
             ))}
           </div>
 
           {/* Right: messages */}
           <div className="overflow-y-auto p-5 space-y-2">
-            {!active && (
+            {!active && !loading && (
               <div className="text-xs text-white/45 font-light">Wähle einen Chat.</div>
             )}
-            {active?.messages.map((m) => (
-              <div
-                key={m.id}
-                className={cn(
-                  "flex",
-                  m.from === "chatter" ? "justify-end" : "justify-start",
-                )}
-              >
+            {active?.messages.map((m) => {
+              const isModel = m.sender === "model";
+              return (
                 <div
-                  className={cn(
-                    "max-w-[70%] rounded-2xl px-3.5 py-2 text-sm font-light leading-relaxed",
-                    m.from === "chatter"
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-white/[0.06] text-white/85 rounded-bl-sm",
-                  )}
+                  key={m.id}
+                  className={cn("flex", isModel ? "justify-end" : "justify-start")}
                 >
-                  <div>{m.text}</div>
                   <div
                     className={cn(
-                      "text-[9px] mt-1 tracking-wide",
-                      m.from === "chatter" ? "text-primary-foreground/60" : "text-white/35",
+                      "max-w-[70%] rounded-2xl px-3.5 py-2 text-sm font-light leading-relaxed",
+                      isModel
+                        ? "bg-primary text-primary-foreground rounded-br-sm"
+                        : "bg-white/[0.06] text-white/85 rounded-bl-sm",
                     )}
                   >
-                    {format(new Date(m.at), "d.M. HH:mm")}
+                    {m.type === "text" && <div>{m.content.text}</div>}
+                    {m.type === "image" && m.content.url && (
+                      <img
+                        src={m.content.url}
+                        alt=""
+                        loading="lazy"
+                        className="rounded-lg max-h-80 object-cover"
+                      />
+                    )}
+                    {m.type === "video" && (
+                      <div className="flex items-center gap-2 text-xs opacity-80">
+                        🎥 Video{typeof m.content.duration_seconds === "number" ? ` · ${m.content.duration_seconds}s` : ""}
+                      </div>
+                    )}
+                    {m.type !== "text" && m.type !== "image" && m.type !== "video" && (
+                      <div className="text-xs opacity-60">[{m.type}]</div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </DialogContent>
