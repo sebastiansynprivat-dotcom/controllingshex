@@ -28,8 +28,6 @@ Deno.serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'Authorization': `Bearer ${apiKey}`,
-        'apikey': apiKey,
       },
       body: JSON.stringify({ telegram_id }),
     });
