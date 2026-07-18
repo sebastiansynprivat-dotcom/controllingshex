@@ -11,6 +11,7 @@ import { buildProfile, computeStatus, shiftDate, berlinParts, APP_TIMEZONE, type
 import { loadMismatchMap, type MismatchEntry, type MismatchResult } from "@/lib/effort-potential";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
 import { onChatterDataUpdated } from "@/lib/data-events";
+import GetChatsButton from "@/components/get-chats/GetChatsButton";
 
 interface LiveRow extends LiveRowLite {
   id: string;
@@ -799,6 +800,7 @@ export default function LiveTracking() {
               {lastSync !== null ? `· ${relTime(lastSync)} ago` : ""}
             </span>
           </div>
+          <GetChatsButton />
         </div>
 
         {/* Mega-KPI Card — Aktivitäts-Fokus */}
