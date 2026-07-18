@@ -122,7 +122,25 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
           </div>
 
           {/* Right: messages */}
-          <div className="overflow-y-auto p-5 space-y-2">
+          <div className="relative overflow-y-auto p-5 space-y-2">
+            {active && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSave}
+                disabled={savingId === active.id}
+                title={savedIds.has(active.id) ? "Saved" : "Save chat"}
+                className="absolute top-3 right-3 z-10 h-8 w-8 text-white/60 hover:text-white bg-background/70 backdrop-blur border border-white/[0.08] hover:bg-white/[0.08]"
+              >
+                {savingId === active.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : savedIds.has(active.id) ? (
+                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             {!active && !loading && (
               <div className="text-xs text-white/45 font-light">Wähle einen Chat.</div>
             )}
