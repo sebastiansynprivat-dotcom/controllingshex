@@ -604,6 +604,24 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoUrl, setMemoUrl] = useState<string | null>(null);
   const [memoText, setMemoText] = useState<string | null>(null);
+  const [telegramId, setTelegramId] = useState<string>("");
+
+  useEffect(() => {
+    setTelegramId("");
+    if (!chatterName) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("chatter_history_live")
+        .select("telegram_id")
+        .eq("chatter_name", chatterName)
+        .eq("platform", platform)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && data?.telegram_id) setTelegramId(data.telegram_id);
+    })();
+    return () => { cancelled = true; };
+  }, [chatterName, platform]);
 
   const generateMemo = useCallback(async () => {
     setMemoLoading(true);
@@ -1577,7 +1595,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
               {/* Get-Chats */}
               <div className="flex justify-center py-2">
-                <GetChatsButton />
+                <GetChatsButton telegramId={telegramId} />
               </div>
 
               {/* Notes — direkt unter Labels */}
@@ -1836,7 +1854,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
 
             {/* Get-Chats: sichtbar direkt im Header, nicht im scrollbaren Inhalt versteckt */}
             {!inline && !compareWith && (
-              <GetChatsButton telegramId={chatterName} compact />
+              <GetChatsButton telegramId={telegramId} compact />
             )}
 
             {/* Vergleichen-mit Button (nur im non-inline Mode) — icon-only, spart Platz für Name */}
@@ -2032,7 +2050,7 @@ export default function ChatterSlideOver({ open, onClose, chatterName, platform,
                     </div>
 
                     {!compareWith && (
-                      <GetChatsButton telegramId={chatterName} />
+                      <GetChatsButton telegramId={telegramId} />
                     )}
 
 
