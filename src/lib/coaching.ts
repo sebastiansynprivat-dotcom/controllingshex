@@ -136,13 +136,87 @@ export async function listAnalyses(chatter_name: string, platform: string): Prom
   return (data ?? []) as unknown as CoachingAnalysisRow[];
 }
 
+const FETCH_CHATS_ENDPOINT = "https://api.controlling.shexadmin.ngrok.pro/fetch-chats";
+
+async function autoFetchChatsForChatter(input: {
+  chatter_name: string;
+  platform: string;
+  model_username: string | null;
+  date_from: string;
+  date_to: string;
+  onStage?: (stage: string) => void;
+}): Promise<Array<{ chat_id: string; recipient_username: string | null; messages: any[] }>> {
+  const { chatter_name, platform, model_username, date_from, date_to, onStage } = input;
+
+  onStage?.("Chatter-Token laden…");
+  // 1. telegram_id from chatter_history_live
+  const { data: liveRow } = await supabase
+    .from("chatter_history_live")
+    .select("telegram_id")
+    .eq("chatter_name", chatter_name)
+    .eq("platform", platform)
+    .limit(1)
+    .maybeSingle();
+  const telegram_id = liveRow?.telegram_id;
+  if (!telegram_id) {
+    throw new Error(`Keine telegram_id für ${chatter_name} auf ${platform} gefunden.`);
+  }
+
+  // 2. controlling-chats → tokens
+  const { data: ctrl, error: ctrlErr } = await supabase.functions.invoke("get-controlling-chats", {
+    body: { telegram_id },
+  });
+  if (ctrlErr) throw new Error(`Tokens nicht abrufbar: ${ctrlErr.message}`);
+  const tokens: Array<{ platform: string; username: string; token: string }> = ctrl?.tokens ?? [];
+  const match = tokens.find(
+    (t) =>
+      t.platform.toLowerCase() === platform.toLowerCase() &&
+      (!model_username || t.username.toLowerCase() === model_username.toLowerCase()),
+  );
+  if (!match) {
+    throw new Error(`Kein Token für Model ${model_username ?? "?"} auf ${platform} gefunden.`);
+  }
+
+  // 3. fetch-chats
+  onStage?.("Chats werden geladen…");
+  const res = await fetch(FETCH_CHATS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      telegram_id,
+      platform: match.platform,
+      token: match.token,
+      date_range: { start: date_from, end: date_to },
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`fetch-chats ${res.status}: ${txt || res.statusText}`);
+  }
+  const data = await res.json();
+  const raw: any[] = Array.isArray(data) ? data : Array.isArray(data?.chats) ? data.chats : [];
+  return raw
+    .map((c) => ({
+      chat_id: String(c.id ?? c.chat_id ?? crypto.randomUUID()),
+      recipient_username: c.recipient_username ?? null,
+      messages: Array.isArray(c.messages) ? c.messages : [],
+    }))
+    .filter((c) => c.messages.length > 0);
+}
+
 export async function runAnalysis(input: {
   chatter_name: string;
   platform: string;
   model_username: string | null;
   date_from: string;
   date_to: string;
+  onStage?: (stage: string) => void;
 }): Promise<AnalysisResult> {
+  // Auto-fetch fresh chats directly from the source — no chats_preview dependency.
+  const chats = await autoFetchChatsForChatter(input);
+
+  input.onStage?.(`${chats.length} Chats werden analysiert…`);
+
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-coaching-analysis`;
   const { data: { session } } = await supabase.auth.getSession();
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -153,7 +227,14 @@ export async function runAnalysis(input: {
       "Authorization": `Bearer ${session?.access_token ?? anon}`,
       "apikey": anon,
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      chatter_name: input.chatter_name,
+      platform: input.platform,
+      model_username: input.model_username,
+      date_from: input.date_from,
+      date_to: input.date_to,
+      chats,
+    }),
   });
   const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
