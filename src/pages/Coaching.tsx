@@ -382,7 +382,7 @@ function ChatterAnalysisSheet({
                 </div>
                 <Button onClick={handleRun} disabled={running} className="w-full">
                   {running ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> KI analysiert…</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {stage || "KI analysiert…"}</>
                   ) : (
                     <><Sparkles className="h-4 w-4 mr-2" /> Analyse starten</>
                   )}
