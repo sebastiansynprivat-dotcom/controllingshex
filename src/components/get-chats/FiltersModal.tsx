@@ -85,6 +85,7 @@ export default function FiltersModal({ open, onOpenChange, model, telegramId, on
       telegram_id: telegramId,
       platform: model.platform,
       token: model.token,
+      model_username: model.username,
       date_range: {
         start: format(from, "yyyy-MM-dd"),
         end: format(to, "yyyy-MM-dd"),

@@ -25,10 +25,11 @@ export interface FetchedChat {
 }
 
 export async function fetchChats(payload: SubmittedFilters): Promise<FetchedChat[]> {
+  const { model_username: _mu, ...body } = payload;
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

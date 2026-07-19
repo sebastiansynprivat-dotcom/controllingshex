@@ -29,7 +29,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
   }, [chats]);
 
   const active = chats.find((c) => c.id === activeChatId) ?? null;
-  const modelUsername = filters?.user?.username ?? "";
+  const modelUsername = filters?.model_username ?? "";
 
   const handleSave = async () => {
     if (!active || !filters) return;

@@ -20,6 +20,7 @@ export interface SubmittedFilters {
   telegram_id: string;
   platform: string;
   token: string;
+  model_username: string;
   date_range: { start: string; end: string };
   user?: LinkedUser;
 }

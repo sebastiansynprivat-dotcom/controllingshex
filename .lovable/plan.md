@@ -1,50 +1,29 @@
-## Goal
-Replace placeholder customer list in `FiltersModal` with real recipients from `chats_preview`, scoped by `platform` + `model_username`. Add a search input and scrollable list. Selected user changes request payload to `{ username, chat_id }`.
+## Problem
 
-## Request payload shape
+In `ChatsViewerModal.tsx`, `modelUsername` is derived from `filters.user.username` — but `filters.user` is the selected recipient (customer), not the model. So:
+- When no customer is selected, `model_username` is saved as `""`.
+- When a customer is selected, the recipient's username is (wrongly) stored as `model_username`.
 
-When a customer is selected, the POST body to `api.controlling.shexadmin.ngrok.pro/fetch-chats` is:
+That's why `FiltersModal`'s query `.eq("model_username", model.username)` returns nothing — no row was ever saved with the real model username.
 
-```json
-{
-  "telegram_id": "…",
-  "platform": "…",
-  "token": "…",
-  "date_range": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
-  "user": { "username": "<recipient_username>", "chat_id": "<chat_id>" }
-}
-```
+The model picker already knows the correct model username (`SelectedModel.username`), it just isn't threaded into `SubmittedFilters`.
 
-When no customer is selected, `user` is omitted.
-
-## Changes
-
-### `src/lib/get-chats-mocks.ts`
-- Update `LinkedUser` type to `{ username: string; chat_id: string }`.
-- Remove `PLACEHOLDER_LINKED_USERS`.
-
-### `src/components/get-chats/FiltersModal.tsx`
-- Use `model` prop (`platform` + `username`) to query.
-- On modal open, fetch from `chats_preview`:
-  ```
-  supabase.from("chats_preview")
-    .select("chat_id, recipient_username, updated_at")
-    .eq("platform", model.platform)
-    .eq("model_username", model.username)
-    .not("recipient_username", "is", null)
-    .order("updated_at", { ascending: false })
-  ```
-- Dedupe by `recipient_username` (keep most recent `chat_id`).
-- Add a search `Input` above the list, case-insensitive substring match on `recipient_username`. Local `query` state.
-- List container: `max-h-64 overflow-y-auto` (already has similar styling); "Alle Kunden" row stays pinned above the scrollable list (outside the scroll area).
-- States: loading (spinner), empty ("Keine gespeicherten Kunden"), no-match ("Keine Treffer für …").
+## Fix
 
 ### `src/components/get-chats/GetChatsButton.tsx`
-- `SubmittedFilters.user` becomes `{ username: string; chat_id: string }` — flows straight into the fetch payload.
+- Add `model_username: string` to `SubmittedFilters`.
+- Populate it in `FiltersModal.submit()` from the current `model.username`.
+
+### `src/components/get-chats/FiltersModal.tsx`
+- Include `model_username: model.username` in the `onSubmit` payload.
+
+### `src/components/get-chats/ChatsViewerModal.tsx`
+- Replace `const modelUsername = filters?.user?.username ?? ""` with `filters?.model_username ?? ""`.
+- Header string keeps using `modelUsername` (now correct).
 
 ### `src/lib/get-chats-api.ts`
-- No change.
+- Strip `model_username` from the outgoing body to `/fetch-chats` (external API shape unchanged), or leave it in if the endpoint tolerates extra fields. Preferred: strip, to keep the external contract clean.
 
-## Notes
-- `recipient_username` displayed verbatim.
-- No migration needed — `chats_preview` already readable by authenticated users.
+## Backfill note
+
+Existing `chats_preview` rows with empty `model_username` will remain orphaned and won't appear in the picker. No migration proposed unless you want one — say the word and I'll add a one-off UPDATE (would need a reliable mapping from `chat_id` to model, which we don't have server-side, so likely just leave stale rows and let new saves populate correctly).
