@@ -67,7 +67,7 @@ function normalizeMessages(rawMessages: unknown): ChatMessage[] {
   });
 }
 
-function normalizeChatsPayload(payload: any): ChatRow[] {
+function normalizeChatsPayload(payload: any): { chats: ChatRow[]; debug: any } {
   const raw: any[] = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.chats)
@@ -76,17 +76,26 @@ function normalizeChatsPayload(payload: any): ChatRow[] {
         ? payload.data.chats
         : [];
 
-  return raw
-    .map((c: any) => {
-      const messages = normalizeMessages(c?.messages ?? c?.chat?.messages ?? []);
-      return {
-        chat_id: String(c?.chat_id ?? c?.id ?? crypto.randomUUID()),
-        recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? null,
-        updated_at: c?.updated_at ?? new Date().toISOString(),
-        chat: { ...c, messages },
-      };
-    })
-    .filter((c) => Array.isArray(c.chat.messages) && c.chat.messages.length > 0);
+  const mapped = raw.map((c: any) => {
+    const messages = normalizeMessages(c?.messages ?? c?.chat?.messages ?? []);
+    return {
+      chat_id: String(c?.chat_id ?? c?.id ?? crypto.randomUUID()),
+      recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? null,
+      updated_at: c?.updated_at ?? new Date().toISOString(),
+      chat: { ...c, messages },
+    };
+  });
+  const withMessages = mapped.filter((c) => Array.isArray(c.chat.messages) && c.chat.messages.length > 0);
+
+  const debug = {
+    payload_keys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 10) : [],
+    raw_count: raw.length,
+    with_messages_count: withMessages.length,
+    sample_chat_keys: raw[0] && typeof raw[0] === 'object' ? Object.keys(raw[0]).slice(0, 20) : [],
+    sample_messages_len: Array.isArray(raw[0]?.messages) ? raw[0].messages.length : null,
+  };
+
+  return { chats: withMessages, debug };
 }
 
 async function findLiveToken(input: {
@@ -147,7 +156,7 @@ async function fetchFreshChats(input: {
   token: string;
   date_from: string;
   date_to: string;
-}): Promise<ChatRow[]> {
+}): Promise<{ chats: ChatRow[]; debug: any }> {
   const res = await fetch(FETCH_CHATS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -166,7 +175,8 @@ async function fetchFreshChats(input: {
     throw new Error(`fetch-chats ${res.status}: ${text || res.statusText}`);
   }
   const payload = JSON.parse(text || '{}');
-  return normalizeChatsPayload(payload);
+  const normalized = normalizeChatsPayload(payload);
+  return { chats: normalized.chats, debug: { ...normalized.debug, http_status: res.status, response_preview: text.slice(0, 300) } };
 }
 
 function formatChatForAI(row: ChatRow, maxMessages = 200): string {
@@ -272,26 +282,35 @@ Deno.serve(async (req) => {
     // Prefer chats passed directly from the client for backward compatibility.
     // Normal path: fetch fresh chats server-side so the browser never depends on CORS or manual chats_preview saves.
     let chats: ChatRow[] = [];
+    let fetchDebug: any = null;
     if (Array.isArray(incomingChats) && incomingChats.length > 0) {
-      chats = normalizeChatsPayload({ chats: incomingChats });
+      chats = normalizeChatsPayload({ chats: incomingChats }).chats;
     } else {
       const live = await findLiveToken({ supabase, chatter_name, platform, model_username });
-      chats = await fetchFreshChats({
+      const result = await fetchFreshChats({
         telegramId: live.telegramId,
         platform: live.platform,
         token: live.token,
         date_from,
         date_to,
       });
+      chats = result.chats;
+      fetchDebug = { ...result.debug, telegram_id: live.telegramId, platform: live.platform };
     }
 
     if (chats.length === 0) {
+      const dbg = fetchDebug ?? {};
+      const summary = `Keine Chats mit Nachrichten im Zeitraum ${date_from} – ${date_to} gefunden. ` +
+        `fetch-chats gab ${dbg.raw_count ?? 0} Chats zurück, davon ${dbg.with_messages_count ?? 0} mit Nachrichten. ` +
+        (dbg.sample_chat_keys?.length ? `Chat-Felder: ${dbg.sample_chat_keys.join(', ')}. ` : '') +
+        (dbg.response_preview ? `Response: ${dbg.response_preview}` : '');
       return jsonResp(200, {
         overall_score: null,
-        executive_summary: 'Keine Chats im gewählten Zeitraum gefunden.',
+        executive_summary: summary,
         patterns: [],
         chats: [],
         chats_analyzed: 0,
+        debug: fetchDebug,
       });
     }
 
