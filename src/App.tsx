@@ -71,6 +71,7 @@ const AppRoutes = () => (
               <Route path="/tinder" element={<TinderMode />} />
               <Route path="/models" element={<Models />} />
               <Route path="/content-scout" element={<ContentScout />} />
+              <Route path="/coaching" element={<Coaching />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
