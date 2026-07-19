@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
     if (!aiKey) return jsonResp(500, { error: 'LOVABLE_API_KEY missing' });
 
     const body = await req.json().catch(() => ({}));
-    const { chatter_name, platform, model_username, date_from, date_to } = body ?? {};
+    const { chatter_name, platform, model_username, date_from, date_to, chats: incomingChats } = body ?? {};
     if (!chatter_name || !platform || !date_from || !date_to) {
       return jsonResp(400, { error: 'chatter_name, platform, date_from, date_to required' });
     }
@@ -118,20 +118,30 @@ Deno.serve(async (req) => {
       .join('\n\n---\n\n')
       .slice(0, 60000);
 
-    // Load chats for this model+platform in date range (by row updated_at)
-    let query = supabase
-      .from('chats_preview')
-      .select('chat_id, recipient_username, updated_at, chat, model_username, platform')
-      .eq('platform', platform)
-      .gte('updated_at', `${date_from}T00:00:00Z`)
-      .lte('updated_at', `${date_to}T23:59:59Z`);
+    // Prefer chats passed directly from the client (auto-fetched).
+    // Fall back to chats_preview for backward compatibility.
+    let chats: ChatRow[] = [];
+    if (Array.isArray(incomingChats) && incomingChats.length > 0) {
+      chats = incomingChats.map((c: any) => ({
+        chat_id: String(c.chat_id ?? crypto.randomUUID()),
+        recipient_username: c.recipient_username ?? null,
+        updated_at: new Date().toISOString(),
+        chat: { messages: Array.isArray(c.messages) ? c.messages : [] },
+      }));
+    } else {
+      let query = supabase
+        .from('chats_preview')
+        .select('chat_id, recipient_username, updated_at, chat, model_username, platform')
+        .eq('platform', platform)
+        .gte('updated_at', `${date_from}T00:00:00Z`)
+        .lte('updated_at', `${date_to}T23:59:59Z`);
+      if (model_username) query = query.eq('model_username', model_username);
+      const { data, error: chatsErr } = await query.order('updated_at', { ascending: false }).limit(50);
+      if (chatsErr) return jsonResp(500, { error: `Chats-Query fehlgeschlagen: ${chatsErr.message}` });
+      chats = (data ?? []) as ChatRow[];
+    }
 
-    if (model_username) query = query.eq('model_username', model_username);
-
-    const { data: chats, error: chatsErr } = await query.order('updated_at', { ascending: false }).limit(50);
-    if (chatsErr) return jsonResp(500, { error: `Chats-Query fehlgeschlagen: ${chatsErr.message}` });
-
-    if (!chats || chats.length === 0) {
+    if (chats.length === 0) {
       return jsonResp(200, {
         overall_score: null,
         executive_summary: 'Keine Chats im gewählten Zeitraum gefunden.',
