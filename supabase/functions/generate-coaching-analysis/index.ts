@@ -2,7 +2,9 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
-const MODEL = 'google/gemini-3.5-flash';
+const MODEL = 'google/gemini-2.5-flash';
+const CONTROLLING_CHATS_ENDPOINT = 'https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats';
+const FETCH_CHATS_ENDPOINT = 'https://api.controlling.shexadmin.ngrok.pro/fetch-chats';
 
 interface ChatMessage {
   id?: string;
@@ -18,6 +20,152 @@ interface ChatRow {
   chat: any;
 }
 
+function normalizeKey(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFKD')
+    .replace(/[\uFE00-\uFE0F\u200B-\u200D\u2060]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function jsonObjectKeys(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  return Object.keys(value as Record<string, unknown>);
+}
+
+function rowHasModel(row: any, modelUsername: string | null | undefined): boolean {
+  const modelKey = normalizeKey(modelUsername);
+  if (!modelKey) return true;
+  const keys = [
+    ...jsonObjectKeys(row?.stats_details),
+    ...jsonObjectKeys(row?.revenue_details),
+  ].map(normalizeKey);
+  return keys.includes(modelKey);
+}
+
+function messageText(message: any): string {
+  const content = message?.content;
+  if (typeof content === 'string') return content;
+  return content?.text ?? message?.text ?? message?.caption ?? '';
+}
+
+function normalizeMessages(rawMessages: unknown): ChatMessage[] {
+  if (!Array.isArray(rawMessages)) return [];
+  return rawMessages.map((m: any) => {
+    const type = m?.type ?? (m?.content?.url || m?.url ? 'image' : 'text');
+    const text = messageText(m);
+    return {
+      id: String(m?.id ?? crypto.randomUUID()),
+      type,
+      sender: m?.sender ?? m?.from ?? m?.role ?? 'customer',
+      content: {
+        ...(m?.content && typeof m.content === 'object' ? m.content : {}),
+        text,
+        url: m?.content?.url ?? m?.url,
+      },
+    };
+  });
+}
+
+function normalizeChatsPayload(payload: any): ChatRow[] {
+  const raw: any[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.chats)
+      ? payload.chats
+      : Array.isArray(payload?.data?.chats)
+        ? payload.data.chats
+        : [];
+
+  return raw
+    .map((c: any) => {
+      const messages = normalizeMessages(c?.messages ?? c?.chat?.messages ?? []);
+      return {
+        chat_id: String(c?.chat_id ?? c?.id ?? crypto.randomUUID()),
+        recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? null,
+        updated_at: c?.updated_at ?? new Date().toISOString(),
+        chat: { ...c, messages },
+      };
+    })
+    .filter((c) => Array.isArray(c.chat.messages) && c.chat.messages.length > 0);
+}
+
+async function findLiveToken(input: {
+  supabase: any;
+  chatter_name: string;
+  platform: string;
+  model_username: string | null;
+}) {
+  const { supabase, chatter_name, platform, model_username } = input;
+  const { data: liveRows, error } = await supabase
+    .from('chatter_history_live')
+    .select('telegram_id, chatter_name, platform, stats_details, revenue_details, updated_at, date')
+    .eq('platform', platform)
+    .not('telegram_id', 'is', null)
+    .order('updated_at', { ascending: false })
+    .limit(1000);
+
+  if (error) throw new Error(`Live-Daten nicht abrufbar: ${error.message}`);
+
+  const chatterKey = normalizeKey(chatter_name);
+  const exact = (liveRows ?? []).find((row: any) => normalizeKey(row.chatter_name) === chatterKey && rowHasModel(row, model_username));
+  const byModel = (liveRows ?? []).find((row: any) => rowHasModel(row, model_username));
+  const byChatter = (liveRows ?? []).find((row: any) => normalizeKey(row.chatter_name) === chatterKey);
+  const liveRow = exact ?? byModel ?? byChatter;
+  const telegramId = liveRow?.telegram_id;
+
+  if (!telegramId) {
+    throw new Error(`Keine telegram_id für ${chatter_name} / ${model_username ?? '?'} auf ${platform} gefunden.`);
+  }
+
+  const controllingKey = Deno.env.get('CONTROLLING_CHAT_KEY')?.trim();
+  if (!controllingKey) throw new Error('CONTROLLING_CHAT_KEY not configured');
+
+  const ctrlResp = await fetch(CONTROLLING_CHATS_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': controllingKey },
+    body: JSON.stringify({ telegram_id: telegramId }),
+  });
+  const ctrlText = await ctrlResp.text();
+  if (!ctrlResp.ok) {
+    throw new Error(`controlling-chats ${ctrlResp.status}: ${ctrlText || ctrlResp.statusText}`);
+  }
+  const ctrl = JSON.parse(ctrlText || '{}');
+  const tokens: Array<{ platform: string; username: string; token: string }> = Array.isArray(ctrl?.tokens) ? ctrl.tokens : [];
+  const platformKey = normalizeKey(platform);
+  const modelKey = normalizeKey(model_username);
+  const match = tokens.find((t) => normalizeKey(t.platform) === platformKey && (!modelKey || normalizeKey(t.username) === modelKey));
+  if (!match) {
+    throw new Error(`Kein Token für Model ${model_username ?? '?'} auf ${platform} gefunden.`);
+  }
+
+  return { telegramId, token: match.token, platform: match.platform };
+}
+
+async function fetchFreshChats(input: {
+  telegramId: string;
+  platform: string;
+  token: string;
+  date_from: string;
+  date_to: string;
+}): Promise<ChatRow[]> {
+  const res = await fetch(FETCH_CHATS_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      telegram_id: input.telegramId,
+      platform: input.platform,
+      token: input.token,
+      date_range: { start: input.date_from, end: input.date_to },
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`fetch-chats ${res.status}: ${text || res.statusText}`);
+  }
+  const payload = JSON.parse(text || '{}');
+  return normalizeChatsPayload(payload);
+}
+
 function formatChatForAI(row: ChatRow, maxMessages = 200): string {
   const messages: ChatMessage[] = Array.isArray(row.chat?.messages) ? row.chat.messages : [];
   const trimmed = messages.slice(-maxMessages);
@@ -25,7 +173,7 @@ function formatChatForAI(row: ChatRow, maxMessages = 200): string {
     const role = m.sender === 'model' ? 'CHATTER' : 'KUNDE';
     if (m.type === 'image') return `${role}: [BILD verkauft/gesendet]`;
     if (m.type === 'video') return `${role}: [VIDEO verkauft/gesendet]`;
-    const text = m.content?.text ?? '';
+    const text = messageText(m);
     return `${role}: ${text}`;
   });
   return lines.join('\n');
@@ -118,27 +266,20 @@ Deno.serve(async (req) => {
       .join('\n\n---\n\n')
       .slice(0, 60000);
 
-    // Prefer chats passed directly from the client (auto-fetched).
-    // Fall back to chats_preview for backward compatibility.
+    // Prefer chats passed directly from the client for backward compatibility.
+    // Normal path: fetch fresh chats server-side so the browser never depends on CORS or manual chats_preview saves.
     let chats: ChatRow[] = [];
     if (Array.isArray(incomingChats) && incomingChats.length > 0) {
-      chats = incomingChats.map((c: any) => ({
-        chat_id: String(c.chat_id ?? crypto.randomUUID()),
-        recipient_username: c.recipient_username ?? null,
-        updated_at: new Date().toISOString(),
-        chat: { messages: Array.isArray(c.messages) ? c.messages : [] },
-      }));
+      chats = normalizeChatsPayload({ chats: incomingChats });
     } else {
-      let query = supabase
-        .from('chats_preview')
-        .select('chat_id, recipient_username, updated_at, chat, model_username, platform')
-        .eq('platform', platform)
-        .gte('updated_at', `${date_from}T00:00:00Z`)
-        .lte('updated_at', `${date_to}T23:59:59Z`);
-      if (model_username) query = query.eq('model_username', model_username);
-      const { data, error: chatsErr } = await query.order('updated_at', { ascending: false }).limit(50);
-      if (chatsErr) return jsonResp(500, { error: `Chats-Query fehlgeschlagen: ${chatsErr.message}` });
-      chats = (data ?? []) as ChatRow[];
+      const live = await findLiveToken({ supabase, chatter_name, platform, model_username });
+      chats = await fetchFreshChats({
+        telegramId: live.telegramId,
+        platform: live.platform,
+        token: live.token,
+        date_from,
+        date_to,
+      });
     }
 
     if (chats.length === 0) {
