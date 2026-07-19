@@ -28,6 +28,7 @@ const items = [
   { title: "Texts", url: "/notes", icon: StickyNote },
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Model Scout", url: "/content-scout", icon: Sparkles },
+  { title: "Coaching", url: "/coaching", icon: GraduationCap },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
 
