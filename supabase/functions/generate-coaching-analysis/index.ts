@@ -6,6 +6,16 @@ const MODEL = 'google/gemini-2.5-flash';
 const CONTROLLING_CHATS_ENDPOINT = 'https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats';
 const FETCH_CHATS_ENDPOINT = 'https://api.controlling.shexadmin.ngrok.pro/fetch-chats';
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 interface ChatMessage {
   id?: string;
   type?: string;
@@ -17,7 +27,15 @@ interface ChatRow {
   chat_id: string;
   recipient_username: string | null;
   updated_at: string;
+  model_username?: string | null;
   chat: any;
+}
+
+interface LiveToken {
+  telegramId: string;
+  token: string;
+  platform: string;
+  modelUsername: string | null;
 }
 
 function normalizeKey(value: unknown): string {
@@ -41,6 +59,22 @@ function rowHasModel(row: any, modelUsername: string | null | undefined): boolea
     ...jsonObjectKeys(row?.revenue_details),
   ].map(normalizeKey);
   return keys.includes(modelKey);
+}
+
+function modelKeysFromRow(row: any): string[] {
+  const keys = [
+    ...jsonObjectKeys(row?.stats_details),
+    ...jsonObjectKeys(row?.revenue_details),
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const key of keys) {
+    const normalized = normalizeKey(key);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(key);
+  }
+  return out;
 }
 
 function messageText(message: any): string {
@@ -125,7 +159,7 @@ async function findLiveToken(input: {
   chatter_name: string;
   platform: string;
   model_username: string | null;
-}) {
+}): Promise<LiveToken[]> {
   const { supabase, chatter_name, platform, model_username } = input;
   const { data: liveRows, error } = await supabase
     .from('chatter_history_live')
@@ -138,24 +172,31 @@ async function findLiveToken(input: {
   if (error) throw new Error(`Live-Daten nicht abrufbar: ${error.message}`);
 
   const chatterKey = normalizeKey(chatter_name);
-  const exact = (liveRows ?? []).find((row: any) => normalizeKey(row.chatter_name) === chatterKey && rowHasModel(row, model_username));
-  const byModel = (liveRows ?? []).find((row: any) => rowHasModel(row, model_username));
-  const byChatter = (liveRows ?? []).find((row: any) => normalizeKey(row.chatter_name) === chatterKey);
-  const liveRow = exact ?? byModel ?? byChatter;
+  const chatterRows = (liveRows ?? []).filter((row: any) => normalizeKey(row.chatter_name) === chatterKey);
+  const exactRows = chatterRows.filter((row: any) => rowHasModel(row, model_username));
+  const modelRows = (liveRows ?? []).filter((row: any) => rowHasModel(row, model_username));
+  const scopedRows = exactRows.length ? exactRows : chatterRows.length ? chatterRows : modelRows;
+  const liveRow = scopedRows[0] ?? null;
   const telegramId = liveRow?.telegram_id;
 
   if (!telegramId) {
     throw new Error(`Keine telegram_id für ${chatter_name} / ${model_username ?? '?'} auf ${platform} gefunden.`);
   }
 
+  const preferredModelKeys = new Set<string>();
+  if (normalizeKey(model_username)) preferredModelKeys.add(normalizeKey(model_username));
+  for (const row of scopedRows) {
+    for (const key of modelKeysFromRow(row)) preferredModelKeys.add(normalizeKey(key));
+  }
+
   const controllingKey = Deno.env.get('CONTROLLING_CHAT_KEY')?.trim();
   if (!controllingKey) throw new Error('CONTROLLING_CHAT_KEY not configured');
 
-  const ctrlResp = await fetch(CONTROLLING_CHATS_ENDPOINT, {
+  const ctrlResp = await fetchWithTimeout(CONTROLLING_CHATS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': controllingKey },
     body: JSON.stringify({ telegram_id: telegramId }),
-  });
+  }, 10000);
   const ctrlText = await ctrlResp.text();
   if (!ctrlResp.ok) {
     throw new Error(`controlling-chats ${ctrlResp.status}: ${ctrlText || ctrlResp.statusText}`);
@@ -163,23 +204,40 @@ async function findLiveToken(input: {
   const ctrl = JSON.parse(ctrlText || '{}');
   const tokens: Array<{ platform: string; username: string; token: string }> = Array.isArray(ctrl?.tokens) ? ctrl.tokens : [];
   const platformKey = normalizeKey(platform);
-  const modelKey = normalizeKey(model_username);
-  const match = tokens.find((t) => normalizeKey(t.platform) === platformKey && (!modelKey || normalizeKey(t.username) === modelKey));
-  if (!match) {
+  const platformTokens = tokens.filter((t) => normalizeKey(t.platform) === platformKey);
+  const selected: LiveToken[] = [];
+  const seenTokenKeys = new Set<string>();
+  const addToken = (t: { platform: string; username: string; token: string }) => {
+    const tokenKey = `${normalizeKey(t.platform)}:${normalizeKey(t.username)}`;
+    if (seenTokenKeys.has(tokenKey)) return;
+    seenTokenKeys.add(tokenKey);
+    selected.push({ telegramId, token: t.token, platform: t.platform, modelUsername: t.username ?? null });
+  };
+
+  for (const key of preferredModelKeys) {
+    const match = platformTokens.find((t) => normalizeKey(t.username) === key);
+    if (match) addToken(match);
+  }
+  if (selected.length === 0) {
+    for (const t of platformTokens.slice(0, 3)) addToken(t);
+  }
+
+  if (selected.length === 0) {
     throw new Error(`Kein Token für Model ${model_username ?? '?'} auf ${platform} gefunden.`);
   }
 
-  return { telegramId, token: match.token, platform: match.platform };
+  return selected;
 }
 
 async function fetchFreshChats(input: {
   telegramId: string;
   platform: string;
   token: string;
+  model_username?: string | null;
   date_from: string;
   date_to: string;
 }): Promise<{ chats: ChatRow[]; debug: any }> {
-  const res = await fetch(FETCH_CHATS_ENDPOINT, {
+  const res = await fetchWithTimeout(FETCH_CHATS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -188,7 +246,7 @@ async function fetchFreshChats(input: {
       token: input.token,
       date_range: { start: input.date_from, end: input.date_to },
     }),
-  });
+  }, 15000);
   const text = await res.text();
   if (!res.ok) {
     if (text.includes('ERR_NGROK_3200') || text.toLowerCase().includes('endpoint') && text.toLowerCase().includes('offline')) {
@@ -198,7 +256,10 @@ async function fetchFreshChats(input: {
   }
   const payload = JSON.parse(text || '{}');
   const normalized = normalizeChatsPayload(payload);
-  return { chats: normalized.chats, debug: { ...normalized.debug, http_status: res.status, response_preview: text.slice(0, 300) } };
+  return {
+    chats: normalized.chats.map((chat) => ({ ...chat, model_username: input.model_username ?? null })),
+    debug: { ...normalized.debug, http_status: res.status, response_preview: text.slice(0, 300), model_username: input.model_username ?? null },
+  };
 }
 
 function formatChatForAI(row: ChatRow, maxMessages = 200): string {
@@ -224,14 +285,15 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
   };
   if (jsonMode) body.response_format = { type: 'json_object' };
 
-  const res = await fetch(GATEWAY_URL, {
+  const res = await fetchWithTimeout(GATEWAY_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'Lovable-API-Key': apiKey,
+      'X-Lovable-AIG-SDK': 'edge-function',
     },
     body: JSON.stringify(body),
-  });
+  }, 60000);
 
   if (!res.ok) {
     const err = await res.text();
@@ -285,7 +347,7 @@ Deno.serve(async (req) => {
     if (!aiKey) return jsonResp(500, { error: 'LOVABLE_API_KEY missing' });
 
     const body = await req.json().catch(() => ({}));
-    const { chatter_name, platform, model_username, date_from, date_to, chats: incomingChats } = body ?? {};
+    const { chatter_name, platform, model_username, date_from, date_to, chats: incomingChats, fetch_only } = body ?? {};
     if (!chatter_name || !platform || !date_from || !date_to) {
       return jsonResp(400, { error: 'chatter_name, platform, date_from, date_to required' });
     }
@@ -308,30 +370,74 @@ Deno.serve(async (req) => {
     if (Array.isArray(incomingChats) && incomingChats.length > 0) {
       chats = normalizeChatsPayload({ chats: incomingChats }).chats;
     } else {
-      const live = await findLiveToken({ supabase, chatter_name, platform, model_username });
-      const result = await fetchFreshChats({
-        telegramId: live.telegramId,
-        platform: live.platform,
-        token: live.token,
-        date_from,
-        date_to,
+      const liveTokens = await findLiveToken({ supabase, chatter_name, platform, model_username });
+      const fetched = await withConcurrency(liveTokens, 2, async (live) => {
+        try {
+          const result = await fetchFreshChats({
+            telegramId: live.telegramId,
+            platform: live.platform,
+            token: live.token,
+            model_username: live.modelUsername,
+            date_from,
+            date_to,
+          });
+          return { ok: true as const, live, result };
+        } catch (error) {
+          return { ok: false as const, live, error: (error as Error).message };
+        }
       });
-      chats = result.chats;
-      fetchDebug = { ...result.debug, telegram_id: live.telegramId, platform: live.platform };
+
+      const deduped = new Map<string, ChatRow>();
+      for (const item of fetched) {
+        if (!item.ok) continue;
+        for (const chat of item.result.chats) {
+          deduped.set(`${normalizeKey(chat.model_username)}:${chat.chat_id}`, chat);
+        }
+      }
+      chats = Array.from(deduped.values());
+      fetchDebug = {
+        telegram_id: liveTokens[0]?.telegramId,
+        platform,
+        attempted_models: liveTokens.map((t) => t.modelUsername).filter(Boolean),
+        raw_count: fetched.filter((i) => i.ok).reduce((sum, i) => sum + (i.result.debug.raw_count ?? 0), 0),
+        with_messages_count: chats.length,
+        attempts: fetched.map((item) => item.ok
+          ? {
+              model_username: item.live.modelUsername,
+              platform: item.live.platform,
+              raw_count: item.result.debug.raw_count,
+              with_messages_count: item.result.debug.with_messages_count,
+              http_status: item.result.debug.http_status,
+              response_preview: item.result.debug.response_preview,
+            }
+          : {
+              model_username: item.live.modelUsername,
+              platform: item.live.platform,
+              error: item.error,
+            }),
+      };
     }
 
     if (chats.length === 0) {
       const dbg = fetchDebug ?? {};
       const summary = `Keine Chats mit Nachrichten im Zeitraum ${date_from} – ${date_to} gefunden. ` +
         `fetch-chats gab ${dbg.raw_count ?? 0} Chats zurück, davon ${dbg.with_messages_count ?? 0} mit Nachrichten. ` +
+        (dbg.attempted_models?.length ? `Versuchte Models: ${dbg.attempted_models.join(', ')}. ` : '') +
         (dbg.sample_chat_keys?.length ? `Chat-Felder: ${dbg.sample_chat_keys.join(', ')}. ` : '') +
-        (dbg.response_preview ? `Response: ${dbg.response_preview}` : '');
+        (dbg.attempts?.length ? `Details: ${JSON.stringify(dbg.attempts).slice(0, 700)}` : dbg.response_preview ? `Response: ${dbg.response_preview}` : '');
       return jsonResp(200, {
         overall_score: null,
         executive_summary: summary,
         patterns: [],
         chats: [],
         chats_analyzed: 0,
+        debug: fetchDebug,
+      });
+    }
+
+    if (fetch_only === true) {
+      return jsonResp(200, {
+        chats_total: chats.length,
         debug: fetchDebug,
       });
     }
