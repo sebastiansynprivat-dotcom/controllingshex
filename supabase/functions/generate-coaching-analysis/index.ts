@@ -6,6 +6,16 @@ const MODEL = 'google/gemini-2.5-flash';
 const CONTROLLING_CHATS_ENDPOINT = 'https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats';
 const FETCH_CHATS_ENDPOINT = 'https://api.controlling.shexadmin.ngrok.pro/fetch-chats';
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 interface ChatMessage {
   id?: string;
   type?: string;
@@ -182,11 +192,11 @@ async function findLiveToken(input: {
   const controllingKey = Deno.env.get('CONTROLLING_CHAT_KEY')?.trim();
   if (!controllingKey) throw new Error('CONTROLLING_CHAT_KEY not configured');
 
-  const ctrlResp = await fetch(CONTROLLING_CHATS_ENDPOINT, {
+  const ctrlResp = await fetchWithTimeout(CONTROLLING_CHATS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': controllingKey },
     body: JSON.stringify({ telegram_id: telegramId }),
-  });
+  }, 10000);
   const ctrlText = await ctrlResp.text();
   if (!ctrlResp.ok) {
     throw new Error(`controlling-chats ${ctrlResp.status}: ${ctrlText || ctrlResp.statusText}`);
@@ -208,7 +218,9 @@ async function findLiveToken(input: {
     const match = platformTokens.find((t) => normalizeKey(t.username) === key);
     if (match) addToken(match);
   }
-  for (const t of platformTokens) addToken(t);
+  if (selected.length === 0) {
+    for (const t of platformTokens.slice(0, 3)) addToken(t);
+  }
 
   if (selected.length === 0) {
     throw new Error(`Kein Token für Model ${model_username ?? '?'} auf ${platform} gefunden.`);
@@ -225,7 +237,7 @@ async function fetchFreshChats(input: {
   date_from: string;
   date_to: string;
 }): Promise<{ chats: ChatRow[]; debug: any }> {
-  const res = await fetch(FETCH_CHATS_ENDPOINT, {
+  const res = await fetchWithTimeout(FETCH_CHATS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -234,7 +246,7 @@ async function fetchFreshChats(input: {
       token: input.token,
       date_range: { start: input.date_from, end: input.date_to },
     }),
-  });
+  }, 15000);
   const text = await res.text();
   if (!res.ok) {
     if (text.includes('ERR_NGROK_3200') || text.toLowerCase().includes('endpoint') && text.toLowerCase().includes('offline')) {
@@ -273,7 +285,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
   };
   if (jsonMode) body.response_format = { type: 'json_object' };
 
-  const res = await fetch(GATEWAY_URL, {
+  const res = await fetchWithTimeout(GATEWAY_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -281,7 +293,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
       'X-Lovable-AIG-SDK': 'edge-function',
     },
     body: JSON.stringify(body),
-  });
+  }, 60000);
 
   if (!res.ok) {
     const err = await res.text();
