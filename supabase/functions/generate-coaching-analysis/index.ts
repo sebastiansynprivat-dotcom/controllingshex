@@ -17,7 +17,15 @@ interface ChatRow {
   chat_id: string;
   recipient_username: string | null;
   updated_at: string;
+  model_username?: string | null;
   chat: any;
+}
+
+interface LiveToken {
+  telegramId: string;
+  token: string;
+  platform: string;
+  modelUsername: string | null;
 }
 
 function normalizeKey(value: unknown): string {
@@ -41,6 +49,22 @@ function rowHasModel(row: any, modelUsername: string | null | undefined): boolea
     ...jsonObjectKeys(row?.revenue_details),
   ].map(normalizeKey);
   return keys.includes(modelKey);
+}
+
+function modelKeysFromRow(row: any): string[] {
+  const keys = [
+    ...jsonObjectKeys(row?.stats_details),
+    ...jsonObjectKeys(row?.revenue_details),
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const key of keys) {
+    const normalized = normalizeKey(key);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(key);
+  }
+  return out;
 }
 
 function messageText(message: any): string {
