@@ -133,7 +133,7 @@ export async function listAnalyses(chatter_name: string, platform: string): Prom
     .eq("platform", platform)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as CoachingAnalysisRow[];
+  return (data ?? []) as unknown as CoachingAnalysisRow[];
 }
 
 export async function runAnalysis(input: {
@@ -324,7 +324,7 @@ export async function saveAnalysis(input: {
     .select("*")
     .single();
   if (error) throw error;
-  return data as CoachingAnalysisRow;
+  return data as unknown as CoachingAnalysisRow;
 }
 
 export async function downloadAnalysisPDF(pdfPath: string): Promise<Blob> {
