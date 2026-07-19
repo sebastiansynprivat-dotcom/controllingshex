@@ -282,26 +282,35 @@ Deno.serve(async (req) => {
     // Prefer chats passed directly from the client for backward compatibility.
     // Normal path: fetch fresh chats server-side so the browser never depends on CORS or manual chats_preview saves.
     let chats: ChatRow[] = [];
+    let fetchDebug: any = null;
     if (Array.isArray(incomingChats) && incomingChats.length > 0) {
-      chats = normalizeChatsPayload({ chats: incomingChats });
+      chats = normalizeChatsPayload({ chats: incomingChats }).chats;
     } else {
       const live = await findLiveToken({ supabase, chatter_name, platform, model_username });
-      chats = await fetchFreshChats({
+      const result = await fetchFreshChats({
         telegramId: live.telegramId,
         platform: live.platform,
         token: live.token,
         date_from,
         date_to,
       });
+      chats = result.chats;
+      fetchDebug = { ...result.debug, telegram_id: live.telegramId, platform: live.platform };
     }
 
     if (chats.length === 0) {
+      const dbg = fetchDebug ?? {};
+      const summary = `Keine Chats mit Nachrichten im Zeitraum ${date_from} – ${date_to} gefunden. ` +
+        `fetch-chats gab ${dbg.raw_count ?? 0} Chats zurück, davon ${dbg.with_messages_count ?? 0} mit Nachrichten. ` +
+        (dbg.sample_chat_keys?.length ? `Chat-Felder: ${dbg.sample_chat_keys.join(', ')}. ` : '') +
+        (dbg.response_preview ? `Response: ${dbg.response_preview}` : '');
       return jsonResp(200, {
         overall_score: null,
-        executive_summary: 'Keine Chats im gewählten Zeitraum gefunden.',
+        executive_summary: summary,
         patterns: [],
         chats: [],
         chats_analyzed: 0,
+        debug: fetchDebug,
       });
     }
 
