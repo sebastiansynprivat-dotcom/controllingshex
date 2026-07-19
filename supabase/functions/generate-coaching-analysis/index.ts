@@ -67,7 +67,7 @@ function normalizeMessages(rawMessages: unknown): ChatMessage[] {
   });
 }
 
-function normalizeChatsPayload(payload: any): ChatRow[] {
+function normalizeChatsPayload(payload: any): { chats: ChatRow[]; debug: any } {
   const raw: any[] = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.chats)
@@ -76,17 +76,26 @@ function normalizeChatsPayload(payload: any): ChatRow[] {
         ? payload.data.chats
         : [];
 
-  return raw
-    .map((c: any) => {
-      const messages = normalizeMessages(c?.messages ?? c?.chat?.messages ?? []);
-      return {
-        chat_id: String(c?.chat_id ?? c?.id ?? crypto.randomUUID()),
-        recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? null,
-        updated_at: c?.updated_at ?? new Date().toISOString(),
-        chat: { ...c, messages },
-      };
-    })
-    .filter((c) => Array.isArray(c.chat.messages) && c.chat.messages.length > 0);
+  const mapped = raw.map((c: any) => {
+    const messages = normalizeMessages(c?.messages ?? c?.chat?.messages ?? []);
+    return {
+      chat_id: String(c?.chat_id ?? c?.id ?? crypto.randomUUID()),
+      recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? null,
+      updated_at: c?.updated_at ?? new Date().toISOString(),
+      chat: { ...c, messages },
+    };
+  });
+  const withMessages = mapped.filter((c) => Array.isArray(c.chat.messages) && c.chat.messages.length > 0);
+
+  const debug = {
+    payload_keys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 10) : [],
+    raw_count: raw.length,
+    with_messages_count: withMessages.length,
+    sample_chat_keys: raw[0] && typeof raw[0] === 'object' ? Object.keys(raw[0]).slice(0, 20) : [],
+    sample_messages_len: Array.isArray(raw[0]?.messages) ? raw[0].messages.length : null,
+  };
+
+  return { chats: withMessages, debug };
 }
 
 async function findLiveToken(input: {
