@@ -274,9 +274,12 @@ function ChatterAnalysisSheet({
       .finally(() => setLoading(false));
   }, [chatter, platform]);
 
+  const [stage, setStage] = useState<string>("");
+
   const handleRun = async () => {
     if (!chatter) return;
     setRunning(true);
+    setStage("Starte…");
     try {
       const result = await runAnalysis({
         chatter_name: chatter.chatter_name,
@@ -284,11 +287,13 @@ function ChatterAnalysisSheet({
         model_username: chatter.account,
         date_from: dateFrom,
         date_to: dateTo,
+        onStage: setStage,
       });
       if (result.chats_analyzed === 0) {
         toast.warning("Keine analysierbaren Chats im Zeitraum gefunden.");
         return;
       }
+      setStage("PDF wird erstellt…");
       const pdf = renderAnalysisPDF({
         chatter_name: chatter.chatter_name,
         platform,
@@ -314,6 +319,7 @@ function ChatterAnalysisSheet({
       toast.error(e.message ?? "Analyse fehlgeschlagen");
     } finally {
       setRunning(false);
+      setStage("");
     }
   };
 
