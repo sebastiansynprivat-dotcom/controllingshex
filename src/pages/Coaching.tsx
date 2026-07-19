@@ -264,6 +264,7 @@ function ChatterAnalysisSheet({
   const [running, setRunning] = useState(false);
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 7), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!chatter) return;
@@ -280,6 +281,7 @@ function ChatterAnalysisSheet({
     if (!chatter) return;
     setRunning(true);
     setStage("Starte…");
+    setAnalysisNotice(null);
     try {
       const result = await runAnalysis({
         chatter_name: chatter.chatter_name,
@@ -290,6 +292,7 @@ function ChatterAnalysisSheet({
         onStage: setStage,
       });
       if (result.chats_analyzed === 0) {
+        setAnalysisNotice(result.executive_summary || "Keine analysierbaren Chats im Zeitraum gefunden.");
         toast.warning("Keine analysierbaren Chats im Zeitraum gefunden.");
         return;
       }
@@ -316,7 +319,9 @@ function ChatterAnalysisSheet({
       // auto-download
       triggerDownload(pdf, buildFilename(chatter.chatter_name, dateFrom, dateTo));
     } catch (e: any) {
-      toast.error(e.message ?? "Analyse fehlgeschlagen");
+      const message = e.message ?? "Analyse fehlgeschlagen";
+      setAnalysisNotice(message);
+      toast.error(message);
     } finally {
       setRunning(false);
       setStage("");
@@ -387,6 +392,11 @@ function ChatterAnalysisSheet({
                     <><Sparkles className="h-4 w-4 mr-2" /> Analyse starten</>
                   )}
                 </Button>
+                {analysisNotice && (
+                  <div className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-xs leading-relaxed text-amber-100/80 whitespace-pre-wrap">
+                    {analysisNotice}
+                  </div>
+                )}
               </div>
 
               {/* History */}
