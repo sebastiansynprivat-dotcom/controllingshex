@@ -46,7 +46,27 @@ function rowHasModel(row: any, modelUsername: string | null | undefined): boolea
 function messageText(message: any): string {
   const content = message?.content;
   if (typeof content === 'string') return content;
-  return content?.text ?? message?.text ?? message?.caption ?? '';
+  if (typeof content?.text === 'string') return content.text;
+  if (typeof message?.text === 'string') return message.text;
+  if (typeof message?.caption === 'string') return message.caption;
+  if (typeof message?.message === 'string') return message.message;
+  if (typeof message?.body === 'string') return message.body;
+  return '';
+}
+
+function extractMessages(chat: any): any[] {
+  const candidates = [
+    chat?.messages,
+    chat?.chat?.messages,
+    chat?.chat,
+    chat?.data?.messages,
+    chat?.conversation,
+    chat?.history,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return [];
 }
 
 function normalizeMessages(rawMessages: unknown): ChatMessage[] {
@@ -77,10 +97,11 @@ function normalizeChatsPayload(payload: any): { chats: ChatRow[]; debug: any } {
         : [];
 
   const mapped = raw.map((c: any) => {
-    const messages = normalizeMessages(c?.messages ?? c?.chat?.messages ?? []);
+    const rawMessages = extractMessages(c);
+    const messages = normalizeMessages(rawMessages);
     return {
-      chat_id: String(c?.chat_id ?? c?.id ?? crypto.randomUUID()),
-      recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? null,
+      chat_id: String(c?.chat_id ?? c?.id ?? c?.user?.chat_id ?? crypto.randomUUID()),
+      recipient_username: c?.recipient_username ?? c?.user?.username ?? c?.username ?? c?.recipient?.username ?? null,
       updated_at: c?.updated_at ?? new Date().toISOString(),
       chat: { ...c, messages },
     };
@@ -92,7 +113,8 @@ function normalizeChatsPayload(payload: any): { chats: ChatRow[]; debug: any } {
     raw_count: raw.length,
     with_messages_count: withMessages.length,
     sample_chat_keys: raw[0] && typeof raw[0] === 'object' ? Object.keys(raw[0]).slice(0, 20) : [],
-    sample_messages_len: Array.isArray(raw[0]?.messages) ? raw[0].messages.length : null,
+    sample_messages_len: extractMessages(raw[0]).length,
+    sample_chat_type: Array.isArray(raw[0]?.chat) ? 'array' : typeof raw[0]?.chat,
   };
 
   return { chats: withMessages, debug };
