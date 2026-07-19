@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone, Inbox, Sparkles } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone, Inbox, Sparkles, GraduationCap } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ const items = [
   { title: "Texts", url: "/notes", icon: StickyNote },
   { title: "Models & Follower", url: "/models", icon: Users },
   { title: "Model Scout", url: "/content-scout", icon: Sparkles },
+  { title: "Coaching", url: "/coaching", icon: GraduationCap },
   { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
 
