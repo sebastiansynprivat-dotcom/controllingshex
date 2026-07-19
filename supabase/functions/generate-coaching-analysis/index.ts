@@ -221,6 +221,7 @@ async function fetchFreshChats(input: {
   telegramId: string;
   platform: string;
   token: string;
+  model_username?: string | null;
   date_from: string;
   date_to: string;
 }): Promise<{ chats: ChatRow[]; debug: any }> {
@@ -243,7 +244,10 @@ async function fetchFreshChats(input: {
   }
   const payload = JSON.parse(text || '{}');
   const normalized = normalizeChatsPayload(payload);
-  return { chats: normalized.chats, debug: { ...normalized.debug, http_status: res.status, response_preview: text.slice(0, 300) } };
+  return {
+    chats: normalized.chats.map((chat) => ({ ...chat, model_username: input.model_username ?? null })),
+    debug: { ...normalized.debug, http_status: res.status, response_preview: text.slice(0, 300), model_username: input.model_username ?? null },
+  };
 }
 
 function formatChatForAI(row: ChatRow, maxMessages = 200): string {
