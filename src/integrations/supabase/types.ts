@@ -819,6 +819,75 @@ export type Database = {
         }
         Relationships: []
       }
+      coaching_analyses: {
+        Row: {
+          chats_analyzed: number
+          chatter_name: string
+          created_at: string
+          date_from: string
+          date_to: string
+          id: string
+          model_username: string | null
+          pdf_path: string
+          platform: string
+          summary_json: Json
+          user_id: string
+        }
+        Insert: {
+          chats_analyzed?: number
+          chatter_name: string
+          created_at?: string
+          date_from: string
+          date_to: string
+          id?: string
+          model_username?: string | null
+          pdf_path: string
+          platform: string
+          summary_json?: Json
+          user_id: string
+        }
+        Update: {
+          chats_analyzed?: number
+          chatter_name?: string
+          created_at?: string
+          date_from?: string
+          date_to?: string
+          id?: string
+          model_username?: string | null
+          pdf_path?: string
+          platform?: string
+          summary_json?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coaching_materials: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coaching_notes: {
         Row: {
           chatter_name: string
