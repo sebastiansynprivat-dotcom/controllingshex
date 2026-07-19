@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
     if (!aiKey) return jsonResp(500, { error: 'LOVABLE_API_KEY missing' });
 
     const body = await req.json().catch(() => ({}));
-    const { chatter_name, platform, model_username, date_from, date_to, chats: incomingChats } = body ?? {};
+    const { chatter_name, platform, model_username, date_from, date_to, chats: incomingChats, fetch_only } = body ?? {};
     if (!chatter_name || !platform || !date_from || !date_to) {
       return jsonResp(400, { error: 'chatter_name, platform, date_from, date_to required' });
     }
@@ -419,6 +419,13 @@ Deno.serve(async (req) => {
         patterns: [],
         chats: [],
         chats_analyzed: 0,
+        debug: fetchDebug,
+      });
+    }
+
+    if (fetch_only === true) {
+      return jsonResp(200, {
+        chats_total: chats.length,
         debug: fetchDebug,
       });
     }
