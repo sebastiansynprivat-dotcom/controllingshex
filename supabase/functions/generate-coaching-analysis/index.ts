@@ -156,7 +156,7 @@ async function fetchFreshChats(input: {
   token: string;
   date_from: string;
   date_to: string;
-}): Promise<ChatRow[]> {
+}): Promise<{ chats: ChatRow[]; debug: any }> {
   const res = await fetch(FETCH_CHATS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -175,7 +175,8 @@ async function fetchFreshChats(input: {
     throw new Error(`fetch-chats ${res.status}: ${text || res.statusText}`);
   }
   const payload = JSON.parse(text || '{}');
-  return normalizeChatsPayload(payload);
+  const normalized = normalizeChatsPayload(payload);
+  return { chats: normalized.chats, debug: { ...normalized.debug, http_status: res.status, response_preview: text.slice(0, 300) } };
 }
 
 function formatChatForAI(row: ChatRow, maxMessages = 200): string {
