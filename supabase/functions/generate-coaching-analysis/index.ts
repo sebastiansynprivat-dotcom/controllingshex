@@ -149,7 +149,7 @@ async function findLiveToken(input: {
   chatter_name: string;
   platform: string;
   model_username: string | null;
-}) {
+}): Promise<LiveToken[]> {
   const { supabase, chatter_name, platform, model_username } = input;
   const { data: liveRows, error } = await supabase
     .from('chatter_history_live')
@@ -162,14 +162,21 @@ async function findLiveToken(input: {
   if (error) throw new Error(`Live-Daten nicht abrufbar: ${error.message}`);
 
   const chatterKey = normalizeKey(chatter_name);
-  const exact = (liveRows ?? []).find((row: any) => normalizeKey(row.chatter_name) === chatterKey && rowHasModel(row, model_username));
-  const byModel = (liveRows ?? []).find((row: any) => rowHasModel(row, model_username));
-  const byChatter = (liveRows ?? []).find((row: any) => normalizeKey(row.chatter_name) === chatterKey);
-  const liveRow = exact ?? byModel ?? byChatter;
+  const chatterRows = (liveRows ?? []).filter((row: any) => normalizeKey(row.chatter_name) === chatterKey);
+  const exactRows = chatterRows.filter((row: any) => rowHasModel(row, model_username));
+  const modelRows = (liveRows ?? []).filter((row: any) => rowHasModel(row, model_username));
+  const scopedRows = exactRows.length ? exactRows : chatterRows.length ? chatterRows : modelRows;
+  const liveRow = scopedRows[0] ?? null;
   const telegramId = liveRow?.telegram_id;
 
   if (!telegramId) {
     throw new Error(`Keine telegram_id für ${chatter_name} / ${model_username ?? '?'} auf ${platform} gefunden.`);
+  }
+
+  const preferredModelKeys = new Set<string>();
+  if (normalizeKey(model_username)) preferredModelKeys.add(normalizeKey(model_username));
+  for (const row of scopedRows) {
+    for (const key of modelKeysFromRow(row)) preferredModelKeys.add(normalizeKey(key));
   }
 
   const controllingKey = Deno.env.get('CONTROLLING_CHAT_KEY')?.trim();
@@ -187,13 +194,27 @@ async function findLiveToken(input: {
   const ctrl = JSON.parse(ctrlText || '{}');
   const tokens: Array<{ platform: string; username: string; token: string }> = Array.isArray(ctrl?.tokens) ? ctrl.tokens : [];
   const platformKey = normalizeKey(platform);
-  const modelKey = normalizeKey(model_username);
-  const match = tokens.find((t) => normalizeKey(t.platform) === platformKey && (!modelKey || normalizeKey(t.username) === modelKey));
-  if (!match) {
+  const platformTokens = tokens.filter((t) => normalizeKey(t.platform) === platformKey);
+  const selected: LiveToken[] = [];
+  const seenTokenKeys = new Set<string>();
+  const addToken = (t: { platform: string; username: string; token: string }) => {
+    const tokenKey = `${normalizeKey(t.platform)}:${normalizeKey(t.username)}`;
+    if (seenTokenKeys.has(tokenKey)) return;
+    seenTokenKeys.add(tokenKey);
+    selected.push({ telegramId, token: t.token, platform: t.platform, modelUsername: t.username ?? null });
+  };
+
+  for (const key of preferredModelKeys) {
+    const match = platformTokens.find((t) => normalizeKey(t.username) === key);
+    if (match) addToken(match);
+  }
+  for (const t of platformTokens) addToken(t);
+
+  if (selected.length === 0) {
     throw new Error(`Kein Token für Model ${model_username ?? '?'} auf ${platform} gefunden.`);
   }
 
-  return { telegramId, token: match.token, platform: match.platform };
+  return selected;
 }
 
 async function fetchFreshChats(input: {
