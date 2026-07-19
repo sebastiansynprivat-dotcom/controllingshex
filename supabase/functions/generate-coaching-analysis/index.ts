@@ -358,24 +358,61 @@ Deno.serve(async (req) => {
     if (Array.isArray(incomingChats) && incomingChats.length > 0) {
       chats = normalizeChatsPayload({ chats: incomingChats }).chats;
     } else {
-      const live = await findLiveToken({ supabase, chatter_name, platform, model_username });
-      const result = await fetchFreshChats({
-        telegramId: live.telegramId,
-        platform: live.platform,
-        token: live.token,
-        date_from,
-        date_to,
+      const liveTokens = await findLiveToken({ supabase, chatter_name, platform, model_username });
+      const fetched = await withConcurrency(liveTokens, 2, async (live) => {
+        try {
+          const result = await fetchFreshChats({
+            telegramId: live.telegramId,
+            platform: live.platform,
+            token: live.token,
+            model_username: live.modelUsername,
+            date_from,
+            date_to,
+          });
+          return { ok: true as const, live, result };
+        } catch (error) {
+          return { ok: false as const, live, error: (error as Error).message };
+        }
       });
-      chats = result.chats;
-      fetchDebug = { ...result.debug, telegram_id: live.telegramId, platform: live.platform };
+
+      const deduped = new Map<string, ChatRow>();
+      for (const item of fetched) {
+        if (!item.ok) continue;
+        for (const chat of item.result.chats) {
+          deduped.set(`${normalizeKey(chat.model_username)}:${chat.chat_id}`, chat);
+        }
+      }
+      chats = Array.from(deduped.values());
+      fetchDebug = {
+        telegram_id: liveTokens[0]?.telegramId,
+        platform,
+        attempted_models: liveTokens.map((t) => t.modelUsername).filter(Boolean),
+        raw_count: fetched.filter((i) => i.ok).reduce((sum, i) => sum + (i.result.debug.raw_count ?? 0), 0),
+        with_messages_count: chats.length,
+        attempts: fetched.map((item) => item.ok
+          ? {
+              model_username: item.live.modelUsername,
+              platform: item.live.platform,
+              raw_count: item.result.debug.raw_count,
+              with_messages_count: item.result.debug.with_messages_count,
+              http_status: item.result.debug.http_status,
+              response_preview: item.result.debug.response_preview,
+            }
+          : {
+              model_username: item.live.modelUsername,
+              platform: item.live.platform,
+              error: item.error,
+            }),
+      };
     }
 
     if (chats.length === 0) {
       const dbg = fetchDebug ?? {};
       const summary = `Keine Chats mit Nachrichten im Zeitraum ${date_from} – ${date_to} gefunden. ` +
         `fetch-chats gab ${dbg.raw_count ?? 0} Chats zurück, davon ${dbg.with_messages_count ?? 0} mit Nachrichten. ` +
+        (dbg.attempted_models?.length ? `Versuchte Models: ${dbg.attempted_models.join(', ')}. ` : '') +
         (dbg.sample_chat_keys?.length ? `Chat-Felder: ${dbg.sample_chat_keys.join(', ')}. ` : '') +
-        (dbg.response_preview ? `Response: ${dbg.response_preview}` : '');
+        (dbg.attempts?.length ? `Details: ${JSON.stringify(dbg.attempts).slice(0, 700)}` : dbg.response_preview ? `Response: ${dbg.response_preview}` : '');
       return jsonResp(200, {
         overall_score: null,
         executive_summary: summary,
