@@ -277,7 +277,8 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'Lovable-API-Key': apiKey,
+      'X-Lovable-AIG-SDK': 'edge-function',
     },
     body: JSON.stringify(body),
   });
