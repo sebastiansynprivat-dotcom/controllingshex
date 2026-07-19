@@ -160,6 +160,9 @@ async function fetchFreshChats(input: {
   });
   const text = await res.text();
   if (!res.ok) {
+    if (text.includes('ERR_NGROK_3200') || text.toLowerCase().includes('endpoint') && text.toLowerCase().includes('offline')) {
+      throw new Error('Der externe Chat-Endpoint ist gerade offline. Bitte fetch-chats wieder starten und dann die Analyse erneut ausführen.');
+    }
     throw new Error(`fetch-chats ${res.status}: ${text || res.statusText}`);
   }
   const payload = JSON.parse(text || '{}');
