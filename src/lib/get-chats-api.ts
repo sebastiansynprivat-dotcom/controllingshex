@@ -1,9 +1,8 @@
+import { supabase } from "@/integrations/supabase/client";
 import type { SubmittedFilters } from "@/components/get-chats/GetChatsButton";
 
-const ENDPOINT = "https://api.controlling.shexadmin.ngrok.pro/fetch-chats";
-
 export interface FetchedMediaItem {
-  type: string; // "picture" | "video" | ...
+  type: string;
   url: string;
   text?: string;
   [k: string]: unknown;
@@ -11,8 +10,8 @@ export interface FetchedMediaItem {
 
 export interface FetchedMessage {
   id: string;
-  type: string; // "text" | "media" | "chat_product" | "tip" | "unknown" | ...
-  sender: string; // "model" | "user" | ...
+  type: string;
+  sender: string;
   timestamp?: string;
   content: {
     text?: string;
@@ -34,7 +33,7 @@ export interface FetchedChat {
   is_unread?: boolean;
 }
 
-function summarizeMessage(lm: any): string | null {
+export function summarizeMessage(lm: any): string | null {
   if (lm == null) return null;
   if (typeof lm === "string") return lm;
   const t = lm?.type;
@@ -48,22 +47,19 @@ function summarizeMessage(lm: any): string | null {
   return t ? `[${t}]` : null;
 }
 
-export async function fetchChats(payload: SubmittedFilters): Promise<FetchedChat[]> {
-  const { model_username: _mu, ...body } = payload;
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`fetch-chats ${res.status}: ${text || res.statusText}`);
-  }
-  const data = await res.json();
-  const raw: any[] = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.chats)
-    ? data.chats
+export function normalizeChats(raw: any): FetchedChat[] {
+  const arr: any[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.chats)
+    ? raw.chats
     : [];
-  return raw.map((c) => ({ ...c, last_message: summarizeMessage(c?.last_message) } as FetchedChat));
+  return arr.map((c) => ({ ...c, last_message: summarizeMessage(c?.last_message) } as FetchedChat));
+}
+
+export async function requestChats(payload: SubmittedFilters): Promise<{ request_id: string }> {
+  const { model_username: _mu, ...body } = payload;
+  const { data, error } = await supabase.functions.invoke("request-chats", { body });
+  if (error) throw new Error(error.message || "request-chats failed");
+  if (!data?.request_id) throw new Error("No request_id in response");
+  return { request_id: data.request_id as string };
 }
