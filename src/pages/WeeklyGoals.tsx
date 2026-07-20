@@ -1004,7 +1004,9 @@ export default function WeeklyGoals() {
             stretchApplied: stretchFactor,
             stretchBucket,
             lastAchievementPct,
+            lastAchievementDetail: lastAchievementDetailByChatter.get(chatter) ?? null,
           });
+
         }
         sugg.sort((a, b) => b.suggested - a.suggested);
 
