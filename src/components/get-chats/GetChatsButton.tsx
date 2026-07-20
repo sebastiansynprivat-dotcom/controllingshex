@@ -6,7 +6,7 @@ import ModelPickerModal from "./ModelPickerModal";
 import FiltersModal from "./FiltersModal";
 import ChatsViewerModal from "./ChatsViewerModal";
 import type { LinkedUser } from "@/lib/get-chats-mocks";
-import { fetchChats, type FetchedChat } from "@/lib/get-chats-api";
+import { requestChats } from "@/lib/get-chats-api";
 
 type Step = "models" | "filters" | "viewer" | null;
 
@@ -29,22 +29,23 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
   const [step, setStep] = useState<Step>(null);
   const [model, setModel] = useState<SelectedModel | null>(null);
   const [filters, setFilters] = useState<SubmittedFilters | null>(null);
-  const [chats, setChats] = useState<FetchedChat[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const startRequest = async (payload: SubmittedFilters) => {
+    setError(null);
+    setRequestId(null);
+    try {
+      const { request_id } = await requestChats(payload);
+      setRequestId(request_id);
+    } catch (e) {
+      setError((e as Error).message || "Konnte Chats nicht anfordern");
+    }
+  };
 
   const handleRefresh = async () => {
     if (!filters) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchChats(filters);
-      setChats(data);
-    } catch (e) {
-      setError((e as Error).message || "Konnte Chats nicht laden");
-    } finally {
-      setLoading(false);
-    }
+    await startRequest(filters);
   };
 
   return (
@@ -81,17 +82,7 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
         onSubmit={async (payload) => {
           setFilters(payload);
           setStep("viewer");
-          setLoading(true);
-          setError(null);
-          setChats([]);
-          try {
-            const data = await fetchChats(payload);
-            setChats(data);
-          } catch (e) {
-            setError((e as Error).message || "Konnte Chats nicht laden");
-          } finally {
-            setLoading(false);
-          }
+          await startRequest(payload);
         }}
       />
 
@@ -99,8 +90,7 @@ export default function GetChatsButton({ telegramId = "", compact = false }: { t
         open={step === "viewer"}
         onOpenChange={(o) => !o && setStep(null)}
         filters={filters}
-        chats={chats}
-        loading={loading}
+        requestId={requestId}
         error={error}
         onRefresh={handleRefresh}
       />

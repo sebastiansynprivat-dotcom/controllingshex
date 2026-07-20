@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,30 +6,127 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { SubmittedFilters } from "./GetChatsButton";
-import type { FetchedChat } from "@/lib/get-chats-api";
+import { normalizeChats, type FetchedChat } from "@/lib/get-chats-api";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filters: SubmittedFilters | null;
-  chats: FetchedChat[];
-  loading: boolean;
+  requestId: string | null;
   error: string | null;
   onRefresh?: () => void;
 }
 
-export default function ChatsViewerModal({ open, onOpenChange, filters, chats, loading, error, onRefresh }: Props) {
+type Status = "idle" | "pending" | "completed" | "failed";
+
+function SkeletonList() {
+  return (
+    <div className="divide-y divide-white/[0.04]">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="px-4 py-3 animate-pulse">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="h-3.5 w-32 rounded bg-white/[0.08]" />
+            <div className="h-2.5 w-10 rounded bg-white/[0.06]" />
+          </div>
+          <div className="mt-2 h-3 w-48 rounded bg-white/[0.05]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SkeletonMessages() {
+  const rows = [
+    { align: "start", w: "w-40" },
+    { align: "end", w: "w-56" },
+    { align: "start", w: "w-64" },
+    { align: "end", w: "w-32" },
+    { align: "start", w: "w-48" },
+  ] as const;
+  return (
+    <div className="space-y-3 animate-pulse">
+      {rows.map((r, i) => (
+        <div key={i} className={cn("flex", r.align === "end" ? "justify-end" : "justify-start")}>
+          <div
+            className={cn(
+              "h-10 rounded-2xl",
+              r.w,
+              r.align === "end" ? "bg-primary/25 rounded-br-sm" : "bg-white/[0.06] rounded-bl-sm",
+            )}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function ChatsViewerModal({ open, onOpenChange, filters, requestId, error, onRefresh }: Props) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [status, setStatus] = useState<Status>("idle");
+  const [chats, setChats] = useState<FetchedChat[]>([]);
+  const [rowError, setRowError] = useState<string | null>(null);
+  const [tookTooLong, setTookTooLong] = useState(false);
 
+  // Reset + subscribe whenever requestId changes.
   useEffect(() => {
-    setActiveChatId(chats[0]?.id ?? null);
-    setSavedIds(new Set());
-  }, [chats]);
+    if (!requestId || !open) return;
 
-  const active = chats.find((c) => c.id === activeChatId) ?? null;
+    setStatus("pending");
+    setChats([]);
+    setActiveChatId(null);
+    setSavedIds(new Set());
+    setRowError(null);
+    setTookTooLong(false);
+
+    let cancelled = false;
+
+    const apply = (row: any) => {
+      if (cancelled || !row) return;
+      if (row.status === "completed") {
+        const parsed = normalizeChats(row.result_json);
+        setChats(parsed);
+        setActiveChatId(parsed[0]?.id ?? null);
+        setStatus("completed");
+      } else if (row.status === "failed") {
+        setRowError(row.error_message || "Chat-Abruf fehlgeschlagen");
+        setStatus("failed");
+      }
+    };
+
+    // Initial check in case it already completed.
+    supabase
+      .from("chats_fetch_requests")
+      .select("id, status, result_json, error_message")
+      .eq("id", requestId)
+      .maybeSingle()
+      .then(({ data }) => apply(data));
+
+    const channel = supabase
+      .channel(`chats-req-${requestId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chats_fetch_requests", filter: `id=eq.${requestId}` },
+        (payload) => apply(payload.new),
+      )
+      .subscribe();
+
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setTookTooLong(true);
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+      window.clearTimeout(timer);
+    };
+  }, [requestId, open]);
+
+  const active = useMemo(() => chats.find((c) => c.id === activeChatId) ?? null, [chats, activeChatId]);
   const modelUsername = filters?.model_username ?? "";
+  const loading = status === "pending";
+  const shownError = error || rowError;
 
   const handleSave = async () => {
     if (!active || !filters) return;
@@ -84,15 +181,11 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
         <div className="grid grid-cols-[280px_1fr] h-[560px]">
           {/* Left: chat list */}
           <div className="border-r border-white/[0.06] overflow-y-auto">
-            {loading && (
-              <div className="flex items-center justify-center py-10 text-white/50 text-xs font-light">
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> lade Chats…
-              </div>
+            {loading && <SkeletonList />}
+            {!loading && shownError && (
+              <div className="p-4 text-xs text-red-300/80 font-light">{shownError}</div>
             )}
-            {!loading && error && (
-              <div className="p-4 text-xs text-red-300/80 font-light">{error}</div>
-            )}
-            {!loading && !error && chats.length === 0 && (
+            {!loading && !shownError && chats.length === 0 && (
               <div className="p-4 text-xs text-white/45 font-light">Keine Chats im Zeitraum.</div>
             )}
             {!loading && chats.map((c) => (
@@ -123,7 +216,17 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
 
           {/* Right: messages */}
           <div className="relative overflow-y-auto p-5 space-y-2">
-            {active && (
+            {loading && (
+              <div className="space-y-3">
+                {tookTooLong && (
+                  <div className="text-[11px] text-white/45 font-light">
+                    Dauert länger als erwartet… wir warten weiter.
+                  </div>
+                )}
+                <SkeletonMessages />
+              </div>
+            )}
+            {!loading && active && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -141,10 +244,10 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
                 )}
               </Button>
             )}
-            {!active && !loading && (
+            {!loading && !active && (
               <div className="text-xs text-white/45 font-light">Wähle einen Chat.</div>
             )}
-            {active?.messages.map((m) => {
+            {!loading && active?.messages.map((m) => {
               const isModel = m.sender === "model";
               const content: any = m.content ?? {};
               const media: any[] = Array.isArray(content.media) ? content.media : [];

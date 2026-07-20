@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.pull-chatter-live]
 verify_jwt = false
+
+[functions.chats-webhook]
+verify_jwt = false

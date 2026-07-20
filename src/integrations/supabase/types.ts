@@ -343,6 +343,60 @@ export type Database = {
         }
         Relationships: []
       }
+      chats_fetch_requests: {
+        Row: {
+          created_at: string
+          date_range_end: string
+          date_range_start: string
+          error_message: string | null
+          id: string
+          model_username: string | null
+          platform: string
+          recipient_chat_id: string | null
+          recipient_username: string | null
+          result_json: Json | null
+          status: string
+          telegram_id: string
+          token: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_range_end: string
+          date_range_start: string
+          error_message?: string | null
+          id?: string
+          model_username?: string | null
+          platform: string
+          recipient_chat_id?: string | null
+          recipient_username?: string | null
+          result_json?: Json | null
+          status?: string
+          telegram_id: string
+          token?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_range_end?: string
+          date_range_start?: string
+          error_message?: string | null
+          id?: string
+          model_username?: string | null
+          platform?: string
+          recipient_chat_id?: string | null
+          recipient_username?: string | null
+          result_json?: Json | null
+          status?: string
+          telegram_id?: string
+          token?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chats_preview: {
         Row: {
           chat: Json
