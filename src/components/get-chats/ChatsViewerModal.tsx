@@ -357,6 +357,11 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                 );
               }
 
+              const ts = m.timestamp ? new Date(m.timestamp) : null;
+              const tsLabel = ts && !isNaN(ts.getTime())
+                ? ts.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                : null;
+
               return (
                 <div
                   key={m.id}
@@ -371,6 +376,16 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                     )}
                   >
                     {body}
+                    {tsLabel && (
+                      <div
+                        className={cn(
+                          "mt-1 text-[10px] font-light",
+                          isModel ? "text-primary-foreground/60 text-right" : "text-white/40",
+                        )}
+                      >
+                        {tsLabel}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
