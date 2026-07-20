@@ -128,7 +128,9 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
 
   const active = useMemo(() => chats.find((c) => c.id === activeChatId) ?? null, [chats, activeChatId]);
   const modelUsername = filters?.model_username ?? "";
-  const loading = status === "pending";
+  const pending = status === "pending";
+  const loading = pending && chats.length === 0;
+  const streaming = pending && chats.length > 0;
   const shownError = error || rowError;
 
   const handleSave = async () => {
