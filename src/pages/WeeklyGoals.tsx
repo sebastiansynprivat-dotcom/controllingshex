@@ -850,10 +850,35 @@ export default function WeeklyGoals() {
         const currentGoalByChatter = new Map<string, number>();
         for (const [c, g] of goalByChatter) currentGoalByChatter.set(c, g.goal);
 
-        // === Klassifikation letzte Woche: plattformübergreifend pro Chatter ===
-        // Wir aggregieren goal + actual über alle Plattformen für dieselbe Woche,
-        // damit ein Chatter, der auf mehreren Plattformen arbeitet, nur EIN
-        // Feedback bekommt (kein widersprüchliches on/off pro Plattform).
+        // === Klassifikation letzte Woche: LIVE aus chatter_history ===
+        // Wir nehmen goal_eur aus weekly_goal_results (historisch korrekt), aber
+        // rechnen actual_eur NEU aus chatter_history (dedupliziert), damit
+        // Reports die nach dem Snapshot noch nachgelaufen sind, im Status korrekt
+        // berücksichtigt werden. Multi-Account-Chatter werden über die Summe
+        // aller ihrer Accounts pro Tag aggregiert.
+        const prevWeekMondayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        prevWeekMondayDate.setDate(prevWeekMondayDate.getDate() - ((prevWeekMondayDate.getDay() + 6) % 7) - 7);
+        const prevWeekSundayDate = new Date(prevWeekMondayDate);
+        prevWeekSundayDate.setDate(prevWeekMondayDate.getDate() + 6);
+        const prevWeekMondayIso = toIsoDateLocal(prevWeekMondayDate);
+        const prevWeekSundayIso = toIsoDateLocal(prevWeekSundayDate);
+        const { week: prevKwNum, year: prevKwYear } = isoWeekNumber(prevWeekMondayDate);
+        const prevWeekKey = `${prevKwYear}-W${String(prevKwNum).padStart(2, "0")}`;
+
+        // Live actual + per-account breakdown pro Chatter aus dedupedRev
+        const prevActualByChatter = new Map<string, number>();
+        const prevPerAccountByChatter = new Map<string, Map<string, number>>();
+        for (const [k, v] of dedupedRev) {
+          const [chatter, date, account] = k.split("|");
+          if (date < prevWeekMondayIso || date > prevWeekSundayIso) continue;
+          prevActualByChatter.set(chatter, (prevActualByChatter.get(chatter) ?? 0) + v);
+          if (!prevPerAccountByChatter.has(chatter)) prevPerAccountByChatter.set(chatter, new Map());
+          const m = prevPerAccountByChatter.get(chatter)!;
+          const acctKey = account || "(ohne)";
+          m.set(acctKey, (m.get(acctKey) ?? 0) + v);
+        }
+
+        // Ziele der Vorwoche aus weekly_goal_results
         const sixWeeksAgoIso = toIsoDateLocal(
           new Date(today.getFullYear(), today.getMonth(), today.getDate() - 42),
         );
@@ -864,28 +889,37 @@ export default function WeeklyGoals() {
           .gte("week_start", sixWeeksAgoIso)
           .order("week_start", { ascending: false });
 
-        // pro (chatter, week_key) summieren
-        type Agg = { week_start: string; goal: number; actual: number };
-        const perChatterWeek = new Map<string, Map<string, Agg>>();
         const chattersWithHistory = new Set<string>();
+        const prevGoalByChatter = new Map<string, number>();
         for (const r of (wgrRows ?? []) as Array<{ chatter_name: string; week_key: string; week_start: string; goal_eur: number | null; actual_eur: number | null }>) {
           if (!r.chatter_name || !r.week_key) continue;
           chattersWithHistory.add(r.chatter_name);
-          let byWeek = perChatterWeek.get(r.chatter_name);
-          if (!byWeek) { byWeek = new Map(); perChatterWeek.set(r.chatter_name, byWeek); }
-          const prev = byWeek.get(r.week_key);
-          const g = Number(r.goal_eur ?? 0);
-          const a = Number(r.actual_eur ?? 0);
-          if (prev) { prev.goal += g; prev.actual += a; }
-          else byWeek.set(r.week_key, { week_start: r.week_start, goal: g, actual: a });
+          if (r.week_key === prevWeekKey) {
+            const g = Number(r.goal_eur ?? 0);
+            if (g > 0) prevGoalByChatter.set(r.chatter_name, (prevGoalByChatter.get(r.chatter_name) ?? 0) + g);
+          }
         }
+
         const lastAchievementByChatter = new Map<string, number>();
-        for (const [chatter, byWeek] of perChatterWeek) {
-          // jüngste Woche zuerst
-          const sorted = Array.from(byWeek.values()).sort((a, b) => b.week_start.localeCompare(a.week_start));
-          const latest = sorted.find((w) => w.goal > 0);
-          if (latest) lastAchievementByChatter.set(chatter, latest.actual / latest.goal);
+        const lastAchievementDetailByChatter = new Map<string, string>();
+        for (const [chatter, goal] of prevGoalByChatter) {
+          const actualLive = prevActualByChatter.get(chatter) ?? 0;
+          if (goal <= 0) continue;
+          const pct = actualLive / goal;
+          lastAchievementByChatter.set(chatter, pct);
+          const perAcct = prevPerAccountByChatter.get(chatter);
+          const breakdown = perAcct
+            ? Array.from(perAcct.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([a, v]) => `${a}: ${formatEUR(v)}`)
+                .join(" · ")
+            : "";
+          lastAchievementDetailByChatter.set(
+            chatter,
+            `KW ${prevKwNum}: Ziel ${formatEUR(goal)} / Ist ${formatEUR(actualLive)} = ${Math.round(pct * 100)} %${breakdown ? " — " + breakdown : ""}`,
+          );
         }
+
 
 
         const sugg: SuggestionRow[] = [];
