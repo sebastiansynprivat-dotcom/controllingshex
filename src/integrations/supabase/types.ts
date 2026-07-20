@@ -1791,6 +1791,10 @@ export type Database = {
     }
     Functions: {
       _roster_name_key: { Args: { p_name: string }; Returns: string }
+      append_chats_to_request: {
+        Args: { p_chats: Json; p_id: string }
+        Returns: undefined
+      }
       cleanup_stale_live_for_latest_report: {
         Args: { p_platform: string }
         Returns: undefined

@@ -84,10 +84,13 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
 
     const apply = (row: any) => {
       if (cancelled || !row) return;
-      if (row.status === "completed") {
+      // Stream partial results as they arrive, regardless of terminal status.
+      if (row.result_json != null) {
         const parsed = normalizeChats(row.result_json);
         setChats(parsed);
-        setActiveChatId(parsed[0]?.id ?? null);
+        setActiveChatId((cur) => cur ?? parsed[0]?.id ?? null);
+      }
+      if (row.status === "completed") {
         setStatus("completed");
       } else if (row.status === "failed") {
         setRowError(row.error_message || "Chat-Abruf fehlgeschlagen");
@@ -95,7 +98,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
       }
     };
 
-    // Initial check in case it already completed.
+    // Initial check in case rows already exist / it already completed.
     supabase
       .from("chats_fetch_requests")
       .select("id, status, result_json, error_message")
@@ -125,7 +128,9 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
 
   const active = useMemo(() => chats.find((c) => c.id === activeChatId) ?? null, [chats, activeChatId]);
   const modelUsername = filters?.model_username ?? "";
-  const loading = status === "pending";
+  const pending = status === "pending";
+  const loading = pending && chats.length === 0;
+  const streaming = pending && chats.length > 0;
   const shownError = error || rowError;
 
   const handleSave = async () => {
@@ -163,12 +168,17 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                 variant="ghost"
                 size="icon"
                 onClick={onRefresh}
-                disabled={loading}
+                disabled={pending}
                 title="Aktualisieren"
                 className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/[0.06]"
               >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4", pending && "animate-spin")} />
               </Button>
+            )}
+            {streaming && (
+              <span className="text-[10px] text-white/45 font-light">
+                Lädt Chats… {chats.length}
+              </span>
             )}
           </div>
           <DialogDescription className="text-white/55 font-light text-xs">
