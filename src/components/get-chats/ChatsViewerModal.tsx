@@ -146,6 +146,102 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
             )}
             {active?.messages.map((m) => {
               const isModel = m.sender === "model";
+              const content: any = m.content ?? {};
+              const media: any[] = Array.isArray(content.media) ? content.media : [];
+              const price: string | undefined = content.price;
+              const text: string | undefined = content.text;
+
+              const renderMedia = () => {
+                if (media.length === 0) return null;
+                return (
+                  <div className={cn("grid gap-1.5", media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                    {media.map((mi, idx) => {
+                      const url = mi?.url;
+                      const mt = mi?.type;
+                      if (mt === "picture" && url) {
+                        return (
+                          <img
+                            key={idx}
+                            src={url}
+                            alt=""
+                            loading="lazy"
+                            className="rounded-lg max-h-64 w-full object-cover"
+                          />
+                        );
+                      }
+                      if (mt === "video") {
+                        return url ? (
+                          <video key={idx} src={url} controls className="rounded-lg max-h-64 w-full" />
+                        ) : (
+                          <div key={idx} className="text-xs opacity-80 rounded-lg bg-black/20 px-2 py-1">
+                            🎥 Video
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={idx} className="text-xs opacity-60 rounded-lg bg-black/20 px-2 py-1">
+                          [{mt || "media"}]
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              };
+
+              const priceBadge = price ? (
+                <div className="inline-flex items-center rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                  {m.type === "tip" ? "Tip" : "Produkt"} · {price}
+                </div>
+              ) : null;
+
+              let body: React.ReactNode;
+              if (m.type === "text") {
+                body = text ? <div>{text}</div> : <div className="text-xs opacity-60">[leer]</div>;
+              } else if (m.type === "media") {
+                body = (
+                  <div className="space-y-1.5">
+                    {renderMedia()}
+                    {text && <div>{text}</div>}
+                  </div>
+                );
+              } else if (m.type === "chat_product") {
+                body = (
+                  <div className="space-y-1.5">
+                    {priceBadge}
+                    {renderMedia()}
+                    {text && <div>{text}</div>}
+                  </div>
+                );
+              } else if (m.type === "tip") {
+                body = (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span>❤️‍🔥</span>
+                      {priceBadge}
+                    </div>
+                    {text && <div>{text}</div>}
+                  </div>
+                );
+              } else if (m.type === "image" && content.url) {
+                body = (
+                  <img src={content.url} alt="" loading="lazy" className="rounded-lg max-h-80 object-cover" />
+                );
+              } else if (m.type === "video") {
+                body = (
+                  <div className="flex items-center gap-2 text-xs opacity-80">
+                    🎥 Video{typeof content.duration_seconds === "number" ? ` · ${content.duration_seconds}s` : ""}
+                  </div>
+                );
+              } else {
+                body = (
+                  <div className="space-y-1.5">
+                    <div className="text-xs opacity-60">[{m.type || "unbekannt"}]</div>
+                    {text && <div>{text}</div>}
+                    {renderMedia()}
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={m.id}
@@ -159,27 +255,12 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, chats, l
                         : "bg-white/[0.06] text-white/85 rounded-bl-sm",
                     )}
                   >
-                    {m.type === "text" && <div>{m.content.text}</div>}
-                    {m.type === "image" && m.content.url && (
-                      <img
-                        src={m.content.url}
-                        alt=""
-                        loading="lazy"
-                        className="rounded-lg max-h-80 object-cover"
-                      />
-                    )}
-                    {m.type === "video" && (
-                      <div className="flex items-center gap-2 text-xs opacity-80">
-                        🎥 Video{typeof m.content.duration_seconds === "number" ? ` · ${m.content.duration_seconds}s` : ""}
-                      </div>
-                    )}
-                    {m.type !== "text" && m.type !== "image" && m.type !== "video" && (
-                      <div className="text-xs opacity-60">[{m.type}]</div>
-                    )}
+                    {body}
                   </div>
                 </div>
               );
             })}
+
           </div>
         </div>
       </DialogContent>

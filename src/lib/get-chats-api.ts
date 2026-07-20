@@ -2,13 +2,23 @@ import type { SubmittedFilters } from "@/components/get-chats/GetChatsButton";
 
 const ENDPOINT = "https://api.controlling.shexadmin.ngrok.pro/fetch-chats";
 
+export interface FetchedMediaItem {
+  type: string; // "picture" | "video" | ...
+  url: string;
+  text?: string;
+  [k: string]: unknown;
+}
+
 export interface FetchedMessage {
   id: string;
-  type: string; // "text" | "image" | "video" | ...
-  sender: string; // "model" | ...
+  type: string; // "text" | "media" | "chat_product" | "tip" | "unknown" | ...
+  sender: string; // "model" | "user" | ...
+  timestamp?: string;
   content: {
     text?: string;
     url?: string;
+    price?: string;
+    media?: FetchedMediaItem[];
     duration_seconds?: number;
     [k: string]: unknown;
   };
@@ -22,6 +32,20 @@ export interface FetchedChat {
   last_message: string | null;
   messages: FetchedMessage[];
   is_unread?: boolean;
+}
+
+function summarizeMessage(lm: any): string | null {
+  if (lm == null) return null;
+  if (typeof lm === "string") return lm;
+  const t = lm?.type;
+  const text = lm?.content?.text;
+  const price = lm?.content?.price;
+  if (t === "text") return text ?? null;
+  if (t === "media") return text || "[Bilder/Video]";
+  if (t === "chat_product") return `[Produkt${price ? ` ${price}` : ""}]${text ? ` ${text}` : ""}`;
+  if (t === "tip") return `[Tip${price ? ` ${price}` : ""}]${text ? ` ${text}` : ""}`;
+  if (text) return text;
+  return t ? `[${t}]` : null;
 }
 
 export async function fetchChats(payload: SubmittedFilters): Promise<FetchedChat[]> {
@@ -41,12 +65,5 @@ export async function fetchChats(payload: SubmittedFilters): Promise<FetchedChat
     : Array.isArray(data?.chats)
     ? data.chats
     : [];
-  return raw.map((c) => {
-    const lm = c?.last_message;
-    const lastText =
-      typeof lm === "string"
-        ? lm
-        : lm?.content?.text ?? (lm?.type && lm.type !== "text" ? `[${lm.type}]` : null);
-    return { ...c, last_message: lastText } as FetchedChat;
-  });
+  return raw.map((c) => ({ ...c, last_message: summarizeMessage(c?.last_message) } as FetchedChat));
 }
