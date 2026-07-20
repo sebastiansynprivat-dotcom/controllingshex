@@ -224,7 +224,9 @@ interface SuggestionRow {
   stretchApplied: number;              // z.B. 1.15
   stretchBucket: StretchBucket;
   lastAchievementPct: number | null;   // z.B. 1.18 (=118%)
+  lastAchievementDetail: string | null; // Tooltip-Text mit KW/Ziel/Ist/Accounts
 }
+
 
 const BUCKET_LABELS: Record<StretchBucket, string> = {
   star: "Star",
@@ -297,10 +299,12 @@ function SuggestionCard({
             <span
               className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-light border ${bucketClasses(row.stretchBucket)}`}
               title={
-                row.lastAchievementPct != null
+                row.lastAchievementDetail ??
+                (row.lastAchievementPct != null
                   ? `Letzte Woche: ${Math.round(row.lastAchievementPct * 100)} % erreicht`
-                  : "Kein historischer Wochenziel-Wert – behandelt wie On-Track"
+                  : "Kein historischer Wochenziel-Wert – behandelt wie On-Track")
               }
+
             >
               {BUCKET_LABELS[row.stretchBucket]}
               {" ×"}
