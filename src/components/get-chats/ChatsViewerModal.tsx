@@ -225,17 +225,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
           </div>
 
           {/* Right: messages */}
-          <div className="relative overflow-y-auto p-5 space-y-2">
-            {loading && (
-              <div className="space-y-3">
-                {tookTooLong && (
-                  <div className="text-[11px] text-white/45 font-light">
-                    Dauert länger als erwartet… wir warten weiter.
-                  </div>
-                )}
-                <SkeletonMessages />
-              </div>
-            )}
+          <div className="relative">
             {!loading && active && (
               <Button
                 variant="ghost"
@@ -254,9 +244,21 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                 )}
               </Button>
             )}
+            <div className="h-[560px] overflow-y-auto p-5 space-y-2">
+            {loading && (
+              <div className="space-y-3">
+                {tookTooLong && (
+                  <div className="text-[11px] text-white/45 font-light">
+                    Dauert länger als erwartet… wir warten weiter.
+                  </div>
+                )}
+                <SkeletonMessages />
+              </div>
+            )}
             {!loading && !active && (
               <div className="text-xs text-white/45 font-light">Wähle einen Chat.</div>
             )}
+
             {!loading && active?.messages.map((m) => {
               const isModel = m.sender === "model";
               const content: any = m.content ?? {};
@@ -355,6 +357,11 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                 );
               }
 
+              const ts = m.timestamp ? new Date(m.timestamp) : null;
+              const tsLabel = ts && !isNaN(ts.getTime())
+                ? ts.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                : null;
+
               return (
                 <div
                   key={m.id}
@@ -369,13 +376,24 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                     )}
                   >
                     {body}
+                    {tsLabel && (
+                      <div
+                        className={cn(
+                          "mt-1 text-[10px] font-light",
+                          isModel ? "text-primary-foreground/60 text-right" : "text-white/40",
+                        )}
+                      >
+                        {tsLabel}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
-
+            </div>
           </div>
         </div>
+
       </DialogContent>
     </Dialog>
   );
