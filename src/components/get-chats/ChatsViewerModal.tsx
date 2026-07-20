@@ -375,9 +375,10 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                 </div>
               );
             })}
-
+            </div>
           </div>
         </div>
+
       </DialogContent>
     </Dialog>
   );
