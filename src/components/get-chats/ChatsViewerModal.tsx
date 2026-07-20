@@ -168,12 +168,17 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
                 variant="ghost"
                 size="icon"
                 onClick={onRefresh}
-                disabled={loading}
+                disabled={pending}
                 title="Aktualisieren"
                 className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/[0.06]"
               >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4", pending && "animate-spin")} />
               </Button>
+            )}
+            {streaming && (
+              <span className="text-[10px] text-white/45 font-light">
+                Lädt Chats… {chats.length}
+              </span>
             )}
           </div>
           <DialogDescription className="text-white/55 font-light text-xs">
