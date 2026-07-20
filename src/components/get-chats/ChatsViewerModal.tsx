@@ -84,10 +84,13 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
 
     const apply = (row: any) => {
       if (cancelled || !row) return;
-      if (row.status === "completed") {
+      // Stream partial results as they arrive, regardless of terminal status.
+      if (row.result_json != null) {
         const parsed = normalizeChats(row.result_json);
         setChats(parsed);
-        setActiveChatId(parsed[0]?.id ?? null);
+        setActiveChatId((cur) => cur ?? parsed[0]?.id ?? null);
+      }
+      if (row.status === "completed") {
         setStatus("completed");
       } else if (row.status === "failed") {
         setRowError(row.error_message || "Chat-Abruf fehlgeschlagen");
@@ -95,7 +98,7 @@ export default function ChatsViewerModal({ open, onOpenChange, filters, requestI
       }
     };
 
-    // Initial check in case it already completed.
+    // Initial check in case rows already exist / it already completed.
     supabase
       .from("chats_fetch_requests")
       .select("id, status, result_json, error_message")
