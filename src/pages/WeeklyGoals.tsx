@@ -793,18 +793,28 @@ export default function WeeklyGoals() {
         );
         const rosterByChatter = new Map<string, Set<string>>();
         const chattersByModel = new Map<string, Set<string>>();
+
+        // Dedup revenue_today per (chatter, date, account) mit MAX — identisch zu
+        // monthRevMax weiter oben. Damit doppelte Reports pro Tag den Ø nicht aufblähen.
+        const dedupedRev = new Map<string, number>(); // chatter|date|account -> MAX
+        for (const h of histAllRows) {
+          const k = `${h.chatter_name}|${h.analysis_date}|${(h.account ?? "").trim()}`;
+          const v = Number(h.revenue_today ?? 0);
+          const prev = dedupedRev.get(k) ?? 0;
+          if (v > prev) dedupedRev.set(k, v);
+        }
         const sumByChatter = new Map<string, number>();
         const daysByChatter = new Map<string, Set<string>>();
-        for (const h of histAllRows) {
-          // Chatter-Schnitt (Fallback) über 60 Tage
-          sumByChatter.set(
-            h.chatter_name,
-            (sumByChatter.get(h.chatter_name) ?? 0) + Number(h.revenue_today ?? 0),
-          );
-          if (!daysByChatter.has(h.chatter_name)) daysByChatter.set(h.chatter_name, new Set());
-          daysByChatter.get(h.chatter_name)!.add(h.analysis_date);
+        for (const [k, v] of dedupedRev) {
+          const [chatter, date] = k.split("|");
+          sumByChatter.set(chatter, (sumByChatter.get(chatter) ?? 0) + v);
+          if (!daysByChatter.has(chatter)) daysByChatter.set(chatter, new Set());
+          daysByChatter.get(chatter)!.add(date);
+        }
 
-          // Roster + Reverse-Index aus letzten 14 Tagen
+        // Roster + Reverse-Index aus letzten 14 Tagen (rohe Rows reichen — es
+        // geht nur um Zuordnung Chatter↔Model, nicht um Umsatzsummen).
+        for (const h of histAllRows) {
           if (h.analysis_date >= fourteenAgoIso) {
             const models = splitAccounts(h.account);
             if (models.length > 0) {
@@ -818,6 +828,7 @@ export default function WeeklyGoals() {
             }
           }
         }
+
 
         // Neueste Report-Datum bestimmen + Chatter, die dort vorkamen
         let latestReportDate: string | null = null;
