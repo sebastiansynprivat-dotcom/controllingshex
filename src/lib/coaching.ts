@@ -586,22 +586,23 @@ export function renderAnalysisPDF(input: {
   };
 
   const sectionHeading = (kicker: string, title: string) => {
-    ensureSpace(60);
-    y += 6;
+    ensureSpace(90);
+    y += 22; // breathing room above every section
     setText(GOLD);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.text(kicker.toUpperCase(), margin, y);
-    y += 4;
+    y += 6;
     setDraw(GOLD);
     doc.setLineWidth(1);
-    doc.line(margin, y, margin + 24, y);
-    y += 18;
+    doc.line(margin, y, margin + 28, y);
+    y += 20;
     setText(INK);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.text(title, margin, y);
-    y += 22;
+    const titleLines = doc.splitTextToSize(title, contentW) as string[];
+    for (const l of titleLines) { doc.text(l, margin, y); y += 24; }
+    y += 4;
   };
 
   const goldCard = (title: string, body: string) => {
