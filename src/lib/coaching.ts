@@ -445,36 +445,39 @@ export function renderAnalysisPDF(input: {
 
   // SheX wordmark
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(46);
+  doc.setFontSize(44);
   setText(GOLD);
-  doc.text("SheX", margin, margin + 40);
+  doc.text("SheX", margin, margin + 38);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   setText(GOLD_SOFT);
-  doc.text("COACHING · PRIVATE REPORT", margin + 108, margin + 40, { baseline: "alphabetic" });
+  doc.text("COACHING  ·  PERSONAL REPORT", margin, margin + 54);
 
   // Kicker
   setText(GOLD_SOFT);
   doc.setFontSize(9);
-  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 80);
+  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 90);
 
-  // Chatter name — huge
+  // Chatter name — adaptive size so long names never clip
   setText([245, 240, 224]);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(56);
-  const nameLines = doc.splitTextToSize(input.chatter_name, contentW);
-  doc.text(nameLines, margin, pageH / 2 - 30);
+  let nameSize = 56;
+  while (nameSize > 26 && doc.getStringUnitWidth(input.chatter_name) * nameSize > contentW) {
+    nameSize -= 4;
+  }
+  doc.setFontSize(nameSize);
+  doc.text(input.chatter_name, margin, pageH / 2 - 40);
 
   // Gold rule
   setDraw(GOLD);
   doc.setLineWidth(1.2);
-  doc.line(margin, pageH / 2 + 20, margin + 80, pageH / 2 + 20);
+  doc.line(margin, pageH / 2 - 20, margin + 72, pageH / 2 - 20);
 
   // Meta grid
   setText([200, 195, 180]);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  const metaY = pageH / 2 + 50;
+  const metaY = pageH / 2 + 20;
   const col = contentW / 3;
   const metaCell = (label: string, value: string, i: number) => {
     setText(GOLD_SOFT);
@@ -484,33 +487,30 @@ export function renderAnalysisPDF(input: {
     doc.setFontSize(11);
     doc.text(value, margin + col * i, metaY + 16);
   };
-  metaCell("Model", input.model_username ?? "—", 0);
+  metaCell("Model", input.model_username ?? "-", 0);
   metaCell("Plattform", input.platform, 1);
-  metaCell("Zeitraum", `${input.date_from} → ${input.date_to}`, 2);
+  metaCell("Zeitraum", `${input.date_from} bis ${input.date_to}`, 2);
 
   // Radial gauge (score)
   const score = input.result.overall_score;
   if (score !== null && score !== undefined) {
-    const cx = pageW - margin - 70;
-    const cy = pageH - margin - 110;
-    const r = 52;
-    // Track (270° arc from 135° to 45° going clockwise → we use 135° to 405°)
-    drawArc(cx, cy, r, 135, 405, [55, 45, 20], 6);
-    // Progress
+    const cx = pageW / 2;
+    const cy = pageH - margin - 130;
+    const r = 58;
+    drawArc(cx, cy, r, 135, 405, [55, 45, 20], 7);
     const pct = Math.max(0, Math.min(100, score)) / 100;
     const endDeg = 135 + 270 * pct;
-    drawArc(cx, cy, r, 135, endDeg, GOLD, 6);
-    // Center text
+    drawArc(cx, cy, r, 135, endDeg, GOLD, 7);
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(34);
-    doc.text(String(score), cx, cy + 6, { align: "center" });
+    doc.setFontSize(38);
+    doc.text(String(score), cx, cy + 8, { align: "center" });
     setText(GOLD_SOFT);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text("/ 100", cx, cy + 22, { align: "center" });
     doc.setFontSize(8);
-    doc.text("GESAMT-SCORE", cx, cy + 74, { align: "center" });
+    doc.text("von 100", cx, cy + 24, { align: "center" });
+    doc.setFontSize(8);
+    doc.text("GESAMT-SCORE", cx, cy + 82, { align: "center" });
   }
 
   // Footer on cover
