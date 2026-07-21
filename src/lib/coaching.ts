@@ -463,16 +463,17 @@ export function renderAnalysisPDF(input: {
   // Kicker
   setText(GOLD_SOFT);
   doc.setFontSize(9);
-  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 90);
+  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 100);
 
-  // Chatter name — adaptive size so long names never clip
+  // Chatter name — adaptive size using real text width so long names never clip
   setText([245, 240, 224]);
   doc.setFont("helvetica", "bold");
   let nameSize = 56;
-  while (nameSize > 26 && doc.getStringUnitWidth(input.chatter_name) * nameSize > contentW) {
-    nameSize -= 4;
-  }
   doc.setFontSize(nameSize);
+  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW) {
+    nameSize -= 3;
+    doc.setFontSize(nameSize);
+  }
   doc.text(input.chatter_name, margin, pageH / 2 - 40);
 
   // Gold rule
@@ -480,7 +481,7 @@ export function renderAnalysisPDF(input: {
   doc.setLineWidth(1.2);
   doc.line(margin, pageH / 2 - 20, margin + 72, pageH / 2 - 20);
 
-  // Meta grid
+  // Meta grid — values wrapped so long ranges/usernames never overlap
   setText([200, 195, 180]);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -488,11 +489,14 @@ export function renderAnalysisPDF(input: {
   const col = contentW / 3;
   const metaCell = (label: string, value: string, i: number) => {
     setText(GOLD_SOFT);
-    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
     doc.text(label.toUpperCase(), margin + col * i, metaY);
     setText([235, 230, 215]);
-    doc.setFontSize(11);
-    doc.text(value, margin + col * i, metaY + 16);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    const lines = doc.splitTextToSize(value, col - 12) as string[];
+    lines.slice(0, 3).forEach((l, li) => doc.text(l, margin + col * i, metaY + 16 + li * 13));
   };
   metaCell("Model", input.model_username ?? "-", 0);
   metaCell("Plattform", input.platform, 1);
@@ -530,19 +534,19 @@ export function renderAnalysisPDF(input: {
   );
 
   // ---------- Content pages ----------
-  doc.addPage();
-  paintBackground(PAPER);
-
-  let y = margin;
-
-  const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - margin - 20) {
-      // Footer
-      drawContentFooter();
-      doc.addPage();
-      paintBackground(PAPER);
-      y = margin;
-    }
+  const drawPageHeader = () => {
+    setText(GOLD);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("SheX", margin, margin - 22);
+    setText(MUTED);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("COACHING REPORT", margin + 34, margin - 22);
+    doc.text(input.chatter_name, pageW - margin, margin - 22, { align: "right" });
+    setDraw(HAIRLINE);
+    doc.setLineWidth(0.4);
+    doc.line(margin, margin - 14, pageW - margin, margin - 14);
   };
 
   const drawContentFooter = () => {
@@ -559,6 +563,22 @@ export function renderAnalysisPDF(input: {
       pageH - margin + 12,
       { align: "right" },
     );
+  };
+
+  doc.addPage();
+  paintBackground(PAPER);
+  drawPageHeader();
+
+  let y = margin + 4;
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > pageH - margin - 20) {
+      drawContentFooter();
+      doc.addPage();
+      paintBackground(PAPER);
+      drawPageHeader();
+      y = margin + 4;
+    }
   };
 
   const writeText = (
@@ -582,22 +602,23 @@ export function renderAnalysisPDF(input: {
   };
 
   const sectionHeading = (kicker: string, title: string) => {
-    ensureSpace(60);
-    y += 6;
+    ensureSpace(90);
+    y += 22; // breathing room above every section
     setText(GOLD);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.text(kicker.toUpperCase(), margin, y);
-    y += 4;
+    y += 6;
     setDraw(GOLD);
     doc.setLineWidth(1);
-    doc.line(margin, y, margin + 24, y);
-    y += 18;
+    doc.line(margin, y, margin + 28, y);
+    y += 20;
     setText(INK);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.text(title, margin, y);
-    y += 22;
+    const titleLines = doc.splitTextToSize(title, contentW) as string[];
+    for (const l of titleLines) { doc.text(l, margin, y); y += 24; }
+    y += 4;
   };
 
   const goldCard = (title: string, body: string) => {
@@ -633,11 +654,13 @@ export function renderAnalysisPDF(input: {
   const pill = (label: string, color: [number, number, number]) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    const w = doc.getTextWidth(label) + 12;
+    const w = doc.getTextWidth(label) + 14;
+    const h = 14;
     setFill(color);
-    doc.roundedRect(margin, y - 8, w, 12, 2, 2, "F");
+    doc.roundedRect(margin, y, w, h, 3, 3, "F");
     setText([255, 255, 255]);
-    doc.text(label, margin + 6, y);
+    doc.text(label, margin + 7, y + 9.5);
+    y += h + 8;
     return w;
   };
 
@@ -767,9 +790,8 @@ export function renderAnalysisPDF(input: {
 
     // Chart: per-chat scores (horizontal bars)
     if (validChats.length > 0) {
-      const rowH = 18;
-      const chartH = validChats.length * rowH + 40;
-      ensureSpace(chartH + 20);
+      const rowH = 20;
+      ensureSpace(40);
       setText(INK);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
@@ -778,38 +800,39 @@ export function renderAnalysisPDF(input: {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text("0 — 100", pageW - margin, y, { align: "right" });
-      y += 14;
+      y += 16;
 
-      const labelW = 110;
-      const valueW = 32;
+      const labelW = 130;
+      const valueW = 34;
       const barX = margin + labelW;
       const barMaxW = contentW - labelW - valueW - 8;
 
-      // baseline vertical guides at 25/50/75/100
-      setDraw([235, 230, 215]);
-      doc.setLineWidth(0.3);
-      [0.25, 0.5, 0.75, 1].forEach((t) => {
-        const gx = barX + barMaxW * t;
-        doc.line(gx, y, gx, y + validChats.length * rowH);
-      });
-
       validChats.forEach((c) => {
-        const label = (c.customer_username ?? "?").slice(0, 16);
+        ensureSpace(rowH + 2);
+        // per-row baseline guides (redrawn each row so pagination stays clean)
+        setDraw([238, 232, 218]);
+        doc.setLineWidth(0.3);
+        [0.25, 0.5, 0.75, 1].forEach((t) => {
+          const gx = barX + barMaxW * t;
+          doc.line(gx, y, gx, y + rowH - 6);
+        });
+
+        const label = (c.customer_username ?? "?").slice(0, 22);
         setText(INK);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.text(label, margin, y + 10);
+        doc.text(label, margin, y + 11);
         const pct = c.score / 100;
         const fillCol: [number, number, number] =
           c.score >= 75 ? [60, 120, 70] : c.score >= 50 ? GOLD : [180, 90, 60];
-        drawHBar(barX, y + 4, barMaxW, 8, pct, [235, 230, 215], fillCol);
+        drawHBar(barX, y + 5, barMaxW, 8, pct, [235, 230, 215], fillCol);
         setText(INK);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.text(String(c.score), pageW - margin, y + 10, { align: "right" });
+        doc.text(String(c.score), pageW - margin, y + 11, { align: "right" });
         y += rowH;
       });
-      y += 12;
+      y += 14;
     }
 
     // Do vs Don't donut + Score verteilung side-by-side
@@ -936,14 +959,12 @@ export function renderAnalysisPDF(input: {
   if (input.result.patterns?.length) {
     sectionHeading("Muster", "Was sich durch deine Chats zieht");
     for (const p of input.result.patterns) {
-      ensureSpace(80);
+      ensureSpace(120);
       const isPos = p.type === "positive";
       const accent: [number, number, number] = isPos ? [60, 120, 70] : GOLD;
-      y += 4;
       pill(isPos ? "STÄRKE" : "WACHSTUM", accent);
-      y += 12;
       writeText(p.title, { size: 14, bold: true, gapAfter: 4 });
-      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 8 });
+      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 10 });
 
       const moments: QuoteMoment[] =
         p.moments && p.moments.length
@@ -974,23 +995,30 @@ export function renderAnalysisPDF(input: {
   if (input.result.chats?.length) {
     sectionHeading("Chat-für-Chat", "Deep-Dive in deine Gespräche");
     for (const c of input.result.chats) {
-      ensureSpace(110);
-      // Chat header row
+      ensureSpace(140);
+      y += 6;
+      // Hairline separator between chats
       setDraw(HAIRLINE);
       doc.setLineWidth(0.4);
       doc.line(margin, y, pageW - margin, y);
-      y += 18;
+      y += 22;
+      // Customer name (wrap if too long) with score aligned right
       setText(INK);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text(c.customer_username ?? "Kunde", margin, y);
-      if (typeof c.score === "number") {
+      const scoreLabel = typeof c.score === "number" ? `${c.score}/100` : "";
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      const scoreW = scoreLabel ? doc.getTextWidth(scoreLabel) + 12 : 0;
+      doc.setFontSize(14);
+      const nameLines = doc.splitTextToSize(c.customer_username ?? "Kunde", contentW - scoreW) as string[];
+      doc.text(nameLines[0], margin, y);
+      if (scoreLabel) {
         setText(GOLD);
-        doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text(`${c.score}/100`, pageW - margin, y, { align: "right" });
+        doc.text(scoreLabel, pageW - margin, y, { align: "right" });
       }
-      y += 16;
+      y += 20;
 
       if (c.error) {
         writeText(`Hinweis: ${c.error}`, { size: 9, color: MUTED, gapAfter: 10 });
