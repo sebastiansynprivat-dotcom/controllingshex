@@ -286,6 +286,9 @@ export async function runAnalysis(input: {
         counts.set(username, n);
         const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
         input.onStage?.(`Lade Chats… ${total}`);
+      }).catch((e) => {
+        console.warn(`Chat-Fetch für ${username} fehlgeschlagen:`, e);
+        return [] as any[];
       }),
     ),
   );
