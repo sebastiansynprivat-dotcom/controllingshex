@@ -494,24 +494,30 @@ Gib genau dieses JSON zurück:
     // Meta / pattern aggregation
     let patterns: any[] = [];
     let executiveSummary = '';
+    let personalIntro = '';
+    let personalClosing = '';
+    let topFocus: string[] = [];
     if (valid.length > 0) {
-      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen desselben Chatters (${chatter_name}). Identifiziere wiederkehrende Muster über alle Chats und liefere ein präzises Executive-Summary.
+      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das Coaching persönlich, warm und motivierend für ${chatter_name} zusammen — als hätte sein Team-Lead sich extra Zeit für ihn genommen. Framing: mehr Skill = mehr Cash für dich.
 
 EINZEL-ANALYSEN:
 ${JSON.stringify(valid, null, 2).slice(0, 40000)}
 
 Gib genau dieses JSON zurück:
 {
-  "executive_summary": "<3-5 Sätze: was ist die Kern-Story dieses Chatters über alle Chats hinweg>",
+  "personal_intro": "<2-3 warme, persönliche Sätze an ${chatter_name}. Anerkennung + Setup, warum dieses Coaching für ihn wertvoll ist. Direkte Anrede 'du'.>",
+  "executive_summary": "<3-5 Sätze: die Kern-Story über alle Chats hinweg, direkt an ${chatter_name}, ehrlich aber motivierend>",
+  "top_focus": ["<Top-Hebel 1 konkret an ${chatter_name}>", "<Top-Hebel 2>", "<Top-Hebel 3>"],
   "patterns": [
     {
-      "title": "<kurzer Titel des Musters>",
+      "title": "<kurzer Titel>",
       "type": "positive" | "negative",
-      "description": "<was passiert wiederkehrend>",
+      "description": "<was passiert wiederkehrend, direkt an ${chatter_name} adressiert, wertschätzend>",
       "example_quotes": ["<Zitat 1>", "<Zitat 2>"],
-      "better_approach": "<nur bei negative: konkretes Beispiel wie es richtig geht>"
+      "better_approach": "<nur bei negative: konkrete bessere Formulierung>"
     }
-  ]
+  ],
+  "personal_closing": "<2-3 aufbauende Schlusssätze an ${chatter_name}. Fokus: was er als Nächstes umsetzt, warum das seinen Umsatz hebt, Vertrauen. Direkte Anrede 'du'.>"
 }`;
 
       try {
@@ -519,6 +525,9 @@ Gib genau dieses JSON zurück:
         const parsed = safeParseJSON<any>(raw, { executive_summary: '', patterns: [] });
         executiveSummary = parsed.executive_summary ?? '';
         patterns = Array.isArray(parsed.patterns) ? parsed.patterns : [];
+        personalIntro = parsed.personal_intro ?? '';
+        personalClosing = parsed.personal_closing ?? '';
+        topFocus = Array.isArray(parsed.top_focus) ? parsed.top_focus : [];
       } catch (e) {
         executiveSummary = `Aggregation fehlgeschlagen: ${(e as Error).message}`;
       }
@@ -527,6 +536,9 @@ Gib genau dieses JSON zurück:
     return jsonResp(200, {
       overall_score: overallScore,
       executive_summary: executiveSummary,
+      personal_intro: personalIntro,
+      personal_closing: personalClosing,
+      top_focus: topFocus,
       patterns,
       chats: chatAnalyses,
       chats_analyzed: valid.length,
