@@ -32,6 +32,9 @@ export interface Pattern {
 export interface AnalysisResult {
   overall_score: number | null;
   executive_summary: string;
+  personal_intro?: string;
+  personal_closing?: string;
+  top_focus?: string[];
   patterns: Pattern[];
   chats: ChatAnalysis[];
   chats_analyzed: number;
@@ -297,7 +300,14 @@ export async function runAnalysis(input: {
   return json as AnalysisResult;
 }
 
-/* ---------------- PDF rendering ---------------- */
+/* ---------------- PDF rendering — Black & Gold ---------------- */
+
+const GOLD: [number, number, number] = [201, 168, 76];      // #C9A84C
+const GOLD_SOFT: [number, number, number] = [232, 208, 138]; // lighter accent
+const INK: [number, number, number] = [22, 22, 22];          // near-black
+const PAPER: [number, number, number] = [252, 251, 247];     // warm off-white
+const MUTED: [number, number, number] = [110, 110, 110];
+const HAIRLINE: [number, number, number] = [220, 214, 196];
 
 export function renderAnalysisPDF(input: {
   chatter_name: string;
@@ -310,117 +320,342 @@ export function renderAnalysisPDF(input: {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 40;
-  let y = margin;
+  const margin = 56;
+  const contentW = pageW - margin * 2;
 
-  const line = (text: string, opts: { size?: number; bold?: boolean; color?: [number, number, number]; gap?: number; indent?: number } = {}) => {
-    const size = opts.size ?? 10;
-    doc.setFontSize(size);
-    doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-    const [r, g, b] = opts.color ?? [30, 30, 30];
-    doc.setTextColor(r, g, b);
-    const indent = opts.indent ?? 0;
-    const maxWidth = pageW - margin * 2 - indent;
-    const lines = doc.splitTextToSize(text, maxWidth) as string[];
-    for (const l of lines) {
-      if (y > pageH - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(l, margin + indent, y);
-      y += size * 1.25;
-    }
-    y += opts.gap ?? 2;
+  const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
+  const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
+  const setText = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
+
+  const paintBackground = (color: [number, number, number] = PAPER) => {
+    setFill(color);
+    doc.rect(0, 0, pageW, pageH, "F");
   };
 
-  const rule = () => {
-    if (y > pageH - margin - 10) { doc.addPage(); y = margin; }
-    doc.setDrawColor(220);
-    doc.line(margin, y, pageW - margin, y);
-    y += 10;
+  // ---------- Cover Page (black + gold) ----------
+  paintBackground(INK);
+
+  // Gold hairline frame
+  setDraw(GOLD);
+  doc.setLineWidth(0.6);
+  doc.rect(margin - 18, margin - 18, contentW + 36, pageH - (margin - 18) * 2);
+
+  // SheX wordmark
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(46);
+  setText(GOLD);
+  doc.text("SheX", margin, margin + 40);
+  // subscript "coaching"
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  setText(GOLD_SOFT);
+  doc.text("COACHING · PRIVATE REPORT", margin + 108, margin + 40, { baseline: "alphabetic" });
+
+  // Kicker
+  setText(GOLD_SOFT);
+  doc.setFontSize(9);
+  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 80);
+
+  // Chatter name — huge
+  setText([245, 240, 224]);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(56);
+  const nameLines = doc.splitTextToSize(input.chatter_name, contentW);
+  doc.text(nameLines, margin, pageH / 2 - 30);
+
+  // Gold rule
+  setDraw(GOLD);
+  doc.setLineWidth(1.2);
+  doc.line(margin, pageH / 2 + 20, margin + 80, pageH / 2 + 20);
+
+  // Meta grid
+  setText([200, 195, 180]);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const metaY = pageH / 2 + 50;
+  const col = contentW / 3;
+  const metaCell = (label: string, value: string, i: number) => {
+    setText(GOLD_SOFT);
+    doc.setFontSize(8);
+    doc.text(label.toUpperCase(), margin + col * i, metaY);
+    setText([235, 230, 215]);
+    doc.setFontSize(11);
+    doc.text(value, margin + col * i, metaY + 16);
   };
+  metaCell("Model", input.model_username ?? "—", 0);
+  metaCell("Plattform", input.platform, 1);
+  metaCell("Zeitraum", `${input.date_from} → ${input.date_to}`, 2);
 
-  // Header
-  line("Coaching-Analyse", { size: 20, bold: true, color: [20, 20, 20], gap: 4 });
-  line(`Chatter: ${input.chatter_name}`, { size: 11, bold: true, gap: 2 });
-  line(`Model: ${input.model_username ?? "—"}   ·   Plattform: ${input.platform}`, { size: 9, color: [90, 90, 90] });
-  line(`Zeitraum: ${input.date_from}  →  ${input.date_to}`, { size: 9, color: [90, 90, 90], gap: 6 });
-
+  // Score badge
   const score = input.result.overall_score;
   if (score !== null && score !== undefined) {
-    const scoreColor: [number, number, number] = score >= 75 ? [30, 130, 60] : score >= 50 ? [200, 140, 20] : [200, 40, 40];
-    line(`Gesamt-Score: ${score}/100`, { size: 14, bold: true, color: scoreColor, gap: 4 });
+    const cx = pageW - margin - 60;
+    const cy = pageH - margin - 90;
+    setDraw(GOLD);
+    doc.setLineWidth(1.5);
+    doc.circle(cx, cy, 46, "S");
+    setText(GOLD);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.text(String(score), cx, cy + 4, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    setText(GOLD_SOFT);
+    doc.text("/ 100", cx, cy + 22, { align: "center" });
+    doc.setFontSize(8);
+    doc.text("GESAMT-SCORE", cx, cy + 62, { align: "center" });
   }
-  line(`Analysiert: ${input.result.chats_analyzed} von ${input.result.chats_total ?? input.result.chats_analyzed} Chats`, { size: 9, color: [90, 90, 90], gap: 6 });
-  rule();
 
-  // Executive Summary
+  // Footer on cover
+  setText([150, 140, 110]);
+  doc.setFontSize(7);
+  doc.text(
+    `${input.result.chats_analyzed} Chats analysiert · vertraulich · nur für dich`,
+    margin,
+    pageH - margin + 6,
+  );
+
+  // ---------- Content pages ----------
+  doc.addPage();
+  paintBackground(PAPER);
+
+  let y = margin;
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > pageH - margin - 20) {
+      // Footer
+      drawContentFooter();
+      doc.addPage();
+      paintBackground(PAPER);
+      y = margin;
+    }
+  };
+
+  const drawContentFooter = () => {
+    setDraw(HAIRLINE);
+    doc.setLineWidth(0.4);
+    doc.line(margin, pageH - margin, pageW - margin, pageH - margin);
+    setText(MUTED);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text("SheX Coaching", margin, pageH - margin + 12);
+    doc.text(
+      `Für ${input.chatter_name} · ${input.date_from} – ${input.date_to}`,
+      pageW - margin,
+      pageH - margin + 12,
+      { align: "right" },
+    );
+  };
+
+  const writeText = (
+    text: string,
+    opts: { size?: number; bold?: boolean; italic?: boolean; color?: [number, number, number]; indent?: number; gapAfter?: number; lineHeight?: number } = {},
+  ) => {
+    const size = opts.size ?? 10;
+    const style = opts.bold ? (opts.italic ? "bolditalic" : "bold") : opts.italic ? "italic" : "normal";
+    doc.setFont("helvetica", style);
+    doc.setFontSize(size);
+    setText(opts.color ?? INK);
+    const indent = opts.indent ?? 0;
+    const lh = (opts.lineHeight ?? 1.35) * size;
+    const lines = doc.splitTextToSize(text, contentW - indent) as string[];
+    for (const l of lines) {
+      ensureSpace(lh);
+      doc.text(l, margin + indent, y);
+      y += lh;
+    }
+    y += opts.gapAfter ?? 0;
+  };
+
+  const sectionHeading = (kicker: string, title: string) => {
+    ensureSpace(60);
+    y += 6;
+    setText(GOLD);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text(kicker.toUpperCase(), margin, y);
+    y += 4;
+    setDraw(GOLD);
+    doc.setLineWidth(1);
+    doc.line(margin, y, margin + 24, y);
+    y += 18;
+    setText(INK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text(title, margin, y);
+    y += 22;
+  };
+
+  const goldCard = (title: string, body: string) => {
+    ensureSpace(80);
+    const startY = y;
+    // measure body
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const bodyLines = doc.splitTextToSize(body, contentW - 32) as string[];
+    const cardH = 22 + 14 + bodyLines.length * 14 + 18;
+    ensureSpace(cardH);
+    setFill([250, 246, 232]);
+    doc.rect(margin, y, contentW, cardH, "F");
+    setDraw(GOLD);
+    doc.setLineWidth(1.4);
+    doc.line(margin, y, margin, y + cardH); // left gold bar
+    y += 20;
+    setText(GOLD);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text(title.toUpperCase(), margin + 16, y);
+    y += 16;
+    setText(INK);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    for (const l of bodyLines) {
+      doc.text(l, margin + 16, y);
+      y += 14;
+    }
+    y += 12;
+  };
+
+  const pill = (label: string, color: [number, number, number]) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    const w = doc.getTextWidth(label) + 12;
+    setFill(color);
+    doc.roundedRect(margin, y - 8, w, 12, 2, 2, "F");
+    setText([255, 255, 255]);
+    doc.text(label, margin + 6, y);
+    return w;
+  };
+
+  // Personal intro
+  const intro = input.result.personal_intro?.trim();
+  if (intro) {
+    sectionHeading("Persönliche Nachricht", `Hi ${input.chatter_name},`);
+    writeText(intro, { size: 11, lineHeight: 1.5, gapAfter: 10 });
+  }
+
+  // Executive summary
   if (input.result.executive_summary) {
-    line("Executive Summary", { size: 13, bold: true, gap: 4 });
-    line(input.result.executive_summary, { size: 10, gap: 6 });
-    rule();
+    goldCard("Kern der Analyse", input.result.executive_summary);
+  }
+
+  // Top focus
+  if (input.result.top_focus?.length) {
+    sectionHeading("Deine drei Hebel", "Womit du sofort mehr verdienst");
+    input.result.top_focus.forEach((f, i) => {
+      ensureSpace(40);
+      setText(GOLD);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.text(String(i + 1).padStart(2, "0"), margin, y + 4);
+      writeText(f, { size: 11, indent: 40, lineHeight: 1.45, gapAfter: 8 });
+    });
+    y += 6;
   }
 
   // Patterns
   if (input.result.patterns?.length) {
-    line("Wiederkehrende Muster", { size: 13, bold: true, gap: 4 });
+    sectionHeading("Muster", "Was sich durch deine Chats zieht");
     for (const p of input.result.patterns) {
-      const badge = p.type === "positive" ? "✓ STÄRKE" : "✗ SCHWÄCHE";
-      const badgeColor: [number, number, number] = p.type === "positive" ? [30, 130, 60] : [200, 40, 40];
-      line(`${badge} — ${p.title}`, { size: 11, bold: true, color: badgeColor, gap: 2 });
-      line(p.description, { size: 10, gap: 3, indent: 12 });
+      ensureSpace(70);
+      const isPos = p.type === "positive";
+      y += 4;
+      pill(isPos ? "STÄRKE" : "WACHSTUM", isPos ? [60, 120, 70] : GOLD);
+      y += 10;
+      writeText(p.title, { size: 13, bold: true, gapAfter: 4 });
+      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.5, gapAfter: 4 });
       if (p.example_quotes?.length) {
         for (const q of p.example_quotes.slice(0, 3)) {
-          line(`„${q}"`, { size: 9, color: [90, 90, 90], indent: 20, gap: 1 });
+          writeText(`„${q}"`, { size: 9.5, italic: true, color: MUTED, indent: 14, gapAfter: 2 });
         }
       }
-      if (p.type === "negative" && p.better_approach) {
-        line(`Besser: ${p.better_approach}`, { size: 10, color: [30, 100, 30], indent: 12, gap: 4 });
+      if (!isPos && p.better_approach) {
+        y += 4;
+        goldCard("So klingt das nächste Mal noch stärker", p.better_approach);
       }
-      y += 4;
+      y += 8;
     }
-    rule();
   }
 
   // Per-chat
   if (input.result.chats?.length) {
-    line("Chat-für-Chat-Analyse", { size: 13, bold: true, gap: 6 });
+    sectionHeading("Chat-für-Chat", "Deep-Dive in deine Gespräche");
     for (const c of input.result.chats) {
-      if (y > pageH - margin - 80) { doc.addPage(); y = margin; }
-      const scoreTxt = typeof c.score === "number" ? ` — ${c.score}/100` : "";
-      line(`Kunde: ${c.customer_username ?? "?"}${scoreTxt}`, { size: 11, bold: true, gap: 2 });
+      ensureSpace(90);
+      // Chat header row
+      setDraw(HAIRLINE);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y, pageW - margin, y);
+      y += 16;
+      setText(INK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(c.customer_username ?? "Kunde", margin, y);
+      if (typeof c.score === "number") {
+        setText(GOLD);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`${c.score}/100`, pageW - margin, y, { align: "right" });
+      }
+      y += 14;
+
       if (c.error) {
-        line(`Fehler: ${c.error}`, { size: 9, color: [200, 40, 40], gap: 6 });
+        writeText(`Hinweis: ${c.error}`, { size: 9, color: MUTED, gapAfter: 10 });
         continue;
       }
-      if (c.one_line_verdict) line(c.one_line_verdict, { size: 10, color: [60, 60, 60], gap: 3 });
+
+      if (c.one_line_verdict) {
+        writeText(c.one_line_verdict, { size: 10.5, italic: true, color: [70, 70, 70], gapAfter: 8, lineHeight: 1.5 });
+      }
+
       if (c.pricing_check) {
-        line("Pricing", { size: 10, bold: true, gap: 1 });
-        line(c.pricing_check, { size: 10, indent: 12, gap: 3 });
+        writeText("PRICING", { size: 8, bold: true, color: GOLD, gapAfter: 2 });
+        writeText(c.pricing_check, { size: 10, lineHeight: 1.45, gapAfter: 8 });
       }
+
       if (c.dos?.length) {
-        line("Do's", { size: 10, bold: true, color: [30, 130, 60], gap: 1 });
+        writeText("STARK GEMACHT", { size: 8, bold: true, color: [60, 120, 70], gapAfter: 2 });
         for (const d of c.dos) {
-          line(`„${d.quote}"`, { size: 9, color: [90, 90, 90], indent: 12, gap: 1 });
-          line(`→ ${d.why_good}`, { size: 9, indent: 20, gap: 2 });
+          writeText(`„${d.quote}"`, { size: 9.5, italic: true, color: MUTED, indent: 10, gapAfter: 1 });
+          writeText(`→ ${d.why_good}`, { size: 10, indent: 10, gapAfter: 4, lineHeight: 1.45 });
         }
+        y += 2;
       }
+
       if (c.donts?.length) {
-        line("Don'ts", { size: 10, bold: true, color: [200, 40, 40], gap: 1 });
+        writeText("WACHSTUMSPOTENZIAL", { size: 8, bold: true, color: GOLD, gapAfter: 2 });
         for (const d of c.donts) {
-          line(`„${d.quote}"`, { size: 9, color: [90, 90, 90], indent: 12, gap: 1 });
-          line(`Problem: ${d.problem}`, { size: 9, indent: 20, gap: 1 });
-          line(`Besser: ${d.better}`, { size: 9, color: [30, 100, 30], indent: 20, gap: 2 });
+          writeText(`„${d.quote}"`, { size: 9.5, italic: true, color: MUTED, indent: 10, gapAfter: 1 });
+          writeText(`Was hier Cash liegen lässt: ${d.problem}`, { size: 10, indent: 10, gapAfter: 2, lineHeight: 1.45 });
+          writeText(`Beim nächsten Mal so: „${d.better}"`, { size: 10, indent: 10, color: [90, 70, 20], gapAfter: 5, lineHeight: 1.45 });
+        }
+        y += 2;
+      }
+
+      if (c.revenue_levers?.length) {
+        writeText("DEINE HEBEL", { size: 8, bold: true, color: GOLD, gapAfter: 2 });
+        for (const l of c.revenue_levers) {
+          writeText(`• ${l}`, { size: 10, indent: 10, gapAfter: 2, lineHeight: 1.45 });
         }
       }
-      if (c.revenue_levers?.length) {
-        line("Umsatzhebel", { size: 10, bold: true, gap: 1 });
-        for (const l of c.revenue_levers) line(`• ${l}`, { size: 9, indent: 12, gap: 1 });
-      }
-      y += 8;
-      rule();
+      y += 14;
     }
   }
+
+  // Closing
+  const closing = input.result.personal_closing?.trim();
+  if (closing) {
+    sectionHeading("Und jetzt du", "Dein nächster Schritt");
+    writeText(closing, { size: 11, lineHeight: 1.55, gapAfter: 10 });
+    y += 6;
+    setDraw(GOLD);
+    doc.setLineWidth(0.8);
+    doc.line(margin, y, margin + 40, y);
+    y += 18;
+    writeText("— SheX Coaching", { size: 10, italic: true, color: GOLD });
+  }
+
+  drawContentFooter();
 
   return doc.output("blob");
 }

@@ -442,20 +442,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Du bist ein erfahrener Sales-Coach für professionelles Chatting im Adult-Creator-Umfeld.
+    const systemPrompt = `Du bist ein erfahrener, sehr wertschätzender Sales-Coach für professionelles Chatting im Adult-Creator-Umfeld. Du schreibst diese Analyse DIREKT an den Chatter "${chatter_name}" — als persönliches Coaching von seinem Team-Lead. Ton: warm, persönlich, ehrlich, aber IMMER motivierend und aufbauend. Nie herablassend, nie hart. Sprich den Chatter mit "du" an.
 
-Der User (Team-Lead) hat folgendes Coaching-Material erstellt, das für seine Chatter verbindlich ist:
+WICHTIG:
+- Formuliere Kritik IMMER positiv und lösungsorientiert ("Hier liegt richtig Umsatz-Potenzial für dich drin, wenn du…").
+- Framing: jede Verbesserung = mehr Geld für den Chatter selbst (Prozent, Trinkgeld, Bonus).
+- Nutze konkrete Zitate aus dem Chat als Belege — nie abstrakt bleiben.
+- Bei "donts" gib immer eine konkrete bessere Formulierung, die er beim nächsten Mal 1:1 einsetzen kann.
+- Beginne Sätze niemals mit Vorwürfen. Beginne mit Anerkennung oder Möglichkeit.
 
-${coachingText || '(Kein Coaching-Material hinterlegt – bewerte nach Best Practices für Chat-Sales, Rapport-Building, Pricing-Psychologie und Upsells.)'}
+Das Coaching-Material des Team-Leads (verbindliche Basis):
 
-Analysiere Chats gegen dieses Material. Bewerte immer konkret mit Zitaten aus dem Chat. Sei ehrlich und konstruktiv. Gib pro "don't" immer ein "besser so"-Beispiel als konkrete Alternativformulierung.
+${coachingText || '(Kein Coaching-Material hinterlegt – nutze Best Practices für Chat-Sales, Rapport-Building, Pricing-Psychologie und Upsells.)'}
 
-Antworte IMMER als valides JSON gemäß dem angeforderten Schema. Kein Markdown, kein Text drumherum.`;
+Antworte IMMER als valides JSON gemäß Schema. Kein Markdown, kein Text drumherum.`;
 
     // Per-chat analysis
     const chatAnalyses = await withConcurrency(chats as ChatRow[], 3, async (row) => {
       const formatted = formatChatForAI(row);
-      const userPrompt = `Analysiere diesen Chat zwischen dem CHATTER (unser Mitarbeiter) und dem KUNDE ${row.recipient_username ?? 'unbekannt'}.
+      const userPrompt = `Analysiere diesen Chat zwischen ${chatter_name} (CHATTER) und dem Kunden ${row.recipient_username ?? 'unbekannt'}. Schreibe alle Bewertungen so, als würdest du ${chatter_name} persönlich erklären, was gut lief und wo Geld auf dem Tisch liegen bleibt.
 
 CHAT-VERLAUF:
 ${formatted}
@@ -464,11 +469,11 @@ Gib genau dieses JSON zurück:
 {
   "customer_username": "${row.recipient_username ?? 'unbekannt'}",
   "score": <0-100, Gesamtbewertung>,
-  "one_line_verdict": "<ein Satz, was hier gut/schlecht lief>",
-  "pricing_check": "<Bewertung des Pricings in diesem Chat, mit konkreten €-Beträgen aus dem Chat>",
-  "dos": [{"quote": "<Original-Zitat des Chatters>", "why_good": "<warum gut, Bezug zum Coaching>"}],
-  "donts": [{"quote": "<Original-Zitat des Chatters>", "problem": "<was ist falsch>", "better": "<so hätte er es sagen sollen (konkrete Formulierung)>"}],
-  "revenue_levers": ["<konkreter Hebel 1>", "<konkreter Hebel 2>", "..."]
+  "one_line_verdict": "<ein warmer, direkter Satz an dich (${chatter_name}) zu diesem Chat>",
+  "pricing_check": "<Bewertung des Pricings, direkt an dich adressiert, mit €-Beträgen aus dem Chat>",
+  "dos": [{"quote": "<dein Original-Zitat>", "why_good": "<warum das stark war, motivierend, Bezug zum Coaching>"}],
+  "donts": [{"quote": "<dein Original-Zitat>", "problem": "<freundlich erklärt, was hier Umsatz gekostet hat>", "better": "<konkrete bessere Formulierung, die du beim nächsten Mal einsetzen kannst>"}],
+  "revenue_levers": ["<konkreter Hebel für mehr Umsatz beim nächsten Chat wie diesem>", "..."]
 }`;
 
       try {
@@ -489,24 +494,30 @@ Gib genau dieses JSON zurück:
     // Meta / pattern aggregation
     let patterns: any[] = [];
     let executiveSummary = '';
+    let personalIntro = '';
+    let personalClosing = '';
+    let topFocus: string[] = [];
     if (valid.length > 0) {
-      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen desselben Chatters (${chatter_name}). Identifiziere wiederkehrende Muster über alle Chats und liefere ein präzises Executive-Summary.
+      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das Coaching persönlich, warm und motivierend für ${chatter_name} zusammen — als hätte sein Team-Lead sich extra Zeit für ihn genommen. Framing: mehr Skill = mehr Cash für dich.
 
 EINZEL-ANALYSEN:
 ${JSON.stringify(valid, null, 2).slice(0, 40000)}
 
 Gib genau dieses JSON zurück:
 {
-  "executive_summary": "<3-5 Sätze: was ist die Kern-Story dieses Chatters über alle Chats hinweg>",
+  "personal_intro": "<2-3 warme, persönliche Sätze an ${chatter_name}. Anerkennung + Setup, warum dieses Coaching für ihn wertvoll ist. Direkte Anrede 'du'.>",
+  "executive_summary": "<3-5 Sätze: die Kern-Story über alle Chats hinweg, direkt an ${chatter_name}, ehrlich aber motivierend>",
+  "top_focus": ["<Top-Hebel 1 konkret an ${chatter_name}>", "<Top-Hebel 2>", "<Top-Hebel 3>"],
   "patterns": [
     {
-      "title": "<kurzer Titel des Musters>",
+      "title": "<kurzer Titel>",
       "type": "positive" | "negative",
-      "description": "<was passiert wiederkehrend>",
+      "description": "<was passiert wiederkehrend, direkt an ${chatter_name} adressiert, wertschätzend>",
       "example_quotes": ["<Zitat 1>", "<Zitat 2>"],
-      "better_approach": "<nur bei negative: konkretes Beispiel wie es richtig geht>"
+      "better_approach": "<nur bei negative: konkrete bessere Formulierung>"
     }
-  ]
+  ],
+  "personal_closing": "<2-3 aufbauende Schlusssätze an ${chatter_name}. Fokus: was er als Nächstes umsetzt, warum das seinen Umsatz hebt, Vertrauen. Direkte Anrede 'du'.>"
 }`;
 
       try {
@@ -514,6 +525,9 @@ Gib genau dieses JSON zurück:
         const parsed = safeParseJSON<any>(raw, { executive_summary: '', patterns: [] });
         executiveSummary = parsed.executive_summary ?? '';
         patterns = Array.isArray(parsed.patterns) ? parsed.patterns : [];
+        personalIntro = parsed.personal_intro ?? '';
+        personalClosing = parsed.personal_closing ?? '';
+        topFocus = Array.isArray(parsed.top_focus) ? parsed.top_focus : [];
       } catch (e) {
         executiveSummary = `Aggregation fehlgeschlagen: ${(e as Error).message}`;
       }
@@ -522,6 +536,9 @@ Gib genau dieses JSON zurück:
     return jsonResp(200, {
       overall_score: overallScore,
       executive_summary: executiveSummary,
+      personal_intro: personalIntro,
+      personal_closing: personalClosing,
+      top_focus: topFocus,
       patterns,
       chats: chatAnalyses,
       chats_analyzed: valid.length,
