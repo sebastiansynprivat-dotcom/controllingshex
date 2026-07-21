@@ -323,6 +323,28 @@ export function renderAnalysisPDF(input: {
   const margin = 56;
   const contentW = pageW - margin * 2;
 
+  // Sanitize text for jsPDF's WinAnsi encoding — replace glyphs that render as
+  // garbage boxes / random letters ("P") in helvetica.
+  const sanitize = (s: string): string =>
+    (s ?? "")
+      .replace(/[\u2192\u2794\u27A1\u2B95]/g, ">")   // → arrows
+      .replace(/[\u2190\u2B05]/g, "<")               // ← arrows
+      .replace(/[\u2013\u2014]/g, "-")               // – — dashes
+      .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"') // curly / German quotes
+      .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'") // curly single quotes
+      .replace(/[\u2026]/g, "...")                   // ellipsis
+      .replace(/[\u2022\u25CF\u25CB\u25AA\u25AB]/g, "-") // bullets
+      .replace(/[\u00A0]/g, " ");                    // nbsp
+
+  const _text = doc.text.bind(doc);
+  (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
+    if (Array.isArray(text)) return _text(text.map((t) => sanitize(String(t))), x, y, opts);
+    return _text(sanitize(String(text)), x, y, opts);
+  };
+  const _split = doc.splitTextToSize.bind(doc);
+  (doc as any).splitTextToSize = (text: any, w: number, opts?: any) =>
+    _split(sanitize(String(text)), w, opts);
+
   const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
   const setText = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
