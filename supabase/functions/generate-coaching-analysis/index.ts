@@ -470,14 +470,15 @@ Antworte IMMER als valides JSON gemäß Schema. Kein Markdown, kein Text drumher
 CHAT-VERLAUF:
 ${formatted}
 
-Gib genau dieses JSON zurück:
+Gib genau dieses JSON zurück. WICHTIG: Jedes Zitat MUSS einen "situation"-Satz haben, der in einfacher Sprache erklärt, was direkt davor im Chat passiert ist (was der Kunde gefragt/getan hat, in welcher Phase des Gesprächs ihr wart). Ohne Kontext versteht der Chatter später nicht, worauf sich das Feedback bezieht.
 {
   "customer_username": "${row.recipient_username ?? 'unbekannt'}",
   "score": <0-100, Gesamtbewertung>,
   "one_line_verdict": "<ein warmer, direkter Satz an dich (${chatter_name}) zu diesem Chat>",
+  "chat_context": "<2-3 Sätze: worum ging es in diesem Chat insgesamt? Welcher Kunde (neu/Stammi/Whale), welche Stimmung, welches Ziel hattest du?>",
   "pricing_check": "<Bewertung des Pricings, direkt an dich adressiert, mit €-Beträgen aus dem Chat>",
-  "dos": [{"quote": "<dein Original-Zitat>", "why_good": "<warum das stark war, motivierend, Bezug zum Coaching>"}],
-  "donts": [{"quote": "<dein Original-Zitat>", "problem": "<freundlich erklärt, was hier Umsatz gekostet hat>", "better": "<konkrete bessere Formulierung, die du beim nächsten Mal einsetzen kannst>"}],
+  "dos": [{"situation": "<1 Satz: was war direkt vorher im Chat los / worauf hast du reagiert>", "quote": "<dein Original-Zitat>", "why_good": "<warum das stark war, mit Bezug zur Situation>"}],
+  "donts": [{"situation": "<1 Satz: was war direkt vorher im Chat los / worauf hast du reagiert>", "quote": "<dein Original-Zitat>", "problem": "<freundlich erklärt, was hier Umsatz gekostet hat>", "better": "<konkrete bessere Formulierung, die du beim nächsten Mal einsetzen kannst>"}],
   "revenue_levers": ["<konkreter Hebel für mehr Umsatz beim nächsten Chat wie diesem>", "..."]
 }`;
 
