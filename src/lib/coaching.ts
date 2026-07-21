@@ -9,14 +9,20 @@ export interface CoachingMaterial {
   updated_at: string;
 }
 
+export interface QuoteMoment {
+  situation?: string;
+  quote: string;
+}
+
 export interface ChatAnalysis {
   chat_id: string;
   customer_username?: string;
   score?: number;
   one_line_verdict?: string;
+  chat_context?: string;
   pricing_check?: string;
-  dos?: Array<{ quote: string; why_good: string }>;
-  donts?: Array<{ quote: string; problem: string; better: string }>;
+  dos?: Array<{ situation?: string; quote: string; why_good: string }>;
+  donts?: Array<{ situation?: string; quote: string; problem: string; better: string }>;
   revenue_levers?: string[];
   error?: string;
 }
@@ -25,7 +31,8 @@ export interface Pattern {
   title: string;
   type: "positive" | "negative";
   description: string;
-  example_quotes?: string[];
+  moments?: QuoteMoment[];
+  example_quotes?: string[]; // backward compat
   better_approach?: string;
 }
 
