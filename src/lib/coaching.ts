@@ -463,16 +463,17 @@ export function renderAnalysisPDF(input: {
   // Kicker
   setText(GOLD_SOFT);
   doc.setFontSize(9);
-  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 90);
+  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 100);
 
-  // Chatter name — adaptive size so long names never clip
+  // Chatter name — adaptive size using real text width so long names never clip
   setText([245, 240, 224]);
   doc.setFont("helvetica", "bold");
   let nameSize = 56;
-  while (nameSize > 26 && doc.getStringUnitWidth(input.chatter_name) * nameSize > contentW) {
-    nameSize -= 4;
-  }
   doc.setFontSize(nameSize);
+  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW) {
+    nameSize -= 3;
+    doc.setFontSize(nameSize);
+  }
   doc.text(input.chatter_name, margin, pageH / 2 - 40);
 
   // Gold rule
@@ -480,7 +481,7 @@ export function renderAnalysisPDF(input: {
   doc.setLineWidth(1.2);
   doc.line(margin, pageH / 2 - 20, margin + 72, pageH / 2 - 20);
 
-  // Meta grid
+  // Meta grid — values wrapped so long ranges/usernames never overlap
   setText([200, 195, 180]);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -488,11 +489,14 @@ export function renderAnalysisPDF(input: {
   const col = contentW / 3;
   const metaCell = (label: string, value: string, i: number) => {
     setText(GOLD_SOFT);
-    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
     doc.text(label.toUpperCase(), margin + col * i, metaY);
     setText([235, 230, 215]);
-    doc.setFontSize(11);
-    doc.text(value, margin + col * i, metaY + 16);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    const lines = doc.splitTextToSize(value, col - 12) as string[];
+    lines.slice(0, 3).forEach((l, li) => doc.text(l, margin + col * i, metaY + 16 + li * 13));
   };
   metaCell("Model", input.model_username ?? "-", 0);
   metaCell("Plattform", input.platform, 1);
