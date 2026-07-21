@@ -9,14 +9,20 @@ export interface CoachingMaterial {
   updated_at: string;
 }
 
+export interface QuoteMoment {
+  situation?: string;
+  quote: string;
+}
+
 export interface ChatAnalysis {
   chat_id: string;
   customer_username?: string;
   score?: number;
   one_line_verdict?: string;
+  chat_context?: string;
   pricing_check?: string;
-  dos?: Array<{ quote: string; why_good: string }>;
-  donts?: Array<{ quote: string; problem: string; better: string }>;
+  dos?: Array<{ situation?: string; quote: string; why_good: string }>;
+  donts?: Array<{ situation?: string; quote: string; problem: string; better: string }>;
   revenue_levers?: string[];
   error?: string;
 }
@@ -25,7 +31,8 @@ export interface Pattern {
   title: string;
   type: "positive" | "negative";
   description: string;
-  example_quotes?: string[];
+  moments?: QuoteMoment[];
+  example_quotes?: string[]; // backward compat
   better_approach?: string;
 }
 
@@ -634,6 +641,93 @@ export function renderAnalysisPDF(input: {
     return w;
   };
 
+  // Rich quote block — situation kicker + quote + verdict, all in one card.
+  // Renders any moment (Do / Dont / Pattern) with the same visual language so
+  // the reader always sees: WORAUF → WAS GESAGT → WARUM.
+  const quoteBlock = (opts: {
+    situation?: string;
+    quote: string;
+    verdictLabel?: string;
+    verdictText?: string;
+    accent: [number, number, number];
+    extraLabel?: string;
+    extraText?: string;
+    extraAccent?: [number, number, number];
+  }) => {
+    const innerW = contentW - 28;
+    // measure
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    const quoteLines = doc.splitTextToSize(`\u201E${opts.quote}\u201C`, innerW) as string[];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    const sitLines = opts.situation ? (doc.splitTextToSize(opts.situation, innerW) as string[]) : [];
+    doc.setFontSize(10);
+    const verdictLines = opts.verdictText ? (doc.splitTextToSize(opts.verdictText, innerW) as string[]) : [];
+    const extraLines = opts.extraText ? (doc.splitTextToSize(opts.extraText, innerW) as string[]) : [];
+    const cardH =
+      14 + // top pad
+      (sitLines.length ? 10 + sitLines.length * 12 + 6 : 0) +
+      quoteLines.length * 15 + 8 +
+      (verdictLines.length ? 10 + verdictLines.length * 13 : 0) +
+      (extraLines.length ? 10 + extraLines.length * 13 : 0) +
+      14;
+    ensureSpace(cardH + 6);
+    const startY = y;
+    setFill([252, 250, 244]);
+    doc.roundedRect(margin, startY, contentW, cardH, 4, 4, "F");
+    setFill(opts.accent);
+    doc.rect(margin, startY, 3, cardH, "F");
+    let cy = startY + 18;
+    const tx = margin + 18;
+
+    if (sitLines.length) {
+      setText(MUTED);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("SITUATION", tx, cy);
+      cy += 10;
+      setText([70, 70, 70]);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      for (const l of sitLines) { doc.text(l, tx, cy); cy += 12; }
+      cy += 6;
+    }
+
+    setText(INK);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    for (const l of quoteLines) { doc.text(l, tx, cy); cy += 15; }
+    cy += 8;
+
+    if (verdictLines.length) {
+      setText(opts.accent);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text((opts.verdictLabel ?? "WARUM").toUpperCase(), tx, cy);
+      cy += 10;
+      setText(INK);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      for (const l of verdictLines) { doc.text(l, tx, cy); cy += 13; }
+    }
+
+    if (extraLines.length) {
+      const acc = opts.extraAccent ?? GOLD;
+      setText(acc);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text((opts.extraLabel ?? "SO STÄRKER").toUpperCase(), tx, cy);
+      cy += 10;
+      setText(INK);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      for (const l of extraLines) { doc.text(l, tx, cy); cy += 13; }
+    }
+
+    y = startY + cardH + 10;
+  };
+
   // ---------- Zahlen-Dashboard ----------
   const validChats = input.result.chats.filter((c) => typeof c.score === "number") as Array<ChatAnalysis & { score: number }>;
   if (validChats.length > 0 || score !== null) {
@@ -842,23 +936,37 @@ export function renderAnalysisPDF(input: {
   if (input.result.patterns?.length) {
     sectionHeading("Muster", "Was sich durch deine Chats zieht");
     for (const p of input.result.patterns) {
-      ensureSpace(70);
+      ensureSpace(80);
       const isPos = p.type === "positive";
+      const accent: [number, number, number] = isPos ? [60, 120, 70] : GOLD;
       y += 4;
-      pill(isPos ? "STÄRKE" : "WACHSTUM", isPos ? [60, 120, 70] : GOLD);
-      y += 10;
-      writeText(p.title, { size: 13, bold: true, gapAfter: 4 });
-      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.5, gapAfter: 4 });
-      if (p.example_quotes?.length) {
-        for (const q of p.example_quotes.slice(0, 3)) {
-          writeText(`„${q}"`, { size: 9.5, italic: true, color: MUTED, indent: 14, gapAfter: 2 });
-        }
+      pill(isPos ? "STÄRKE" : "WACHSTUM", accent);
+      y += 12;
+      writeText(p.title, { size: 14, bold: true, gapAfter: 4 });
+      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 8 });
+
+      const moments: QuoteMoment[] =
+        p.moments && p.moments.length
+          ? p.moments
+          : (p.example_quotes ?? []).map((q) => ({ quote: q }));
+
+      for (const m of moments.slice(0, 3)) {
+        quoteBlock({
+          situation: m.situation,
+          quote: m.quote,
+          accent,
+          ...(isPos
+            ? {}
+            : p.better_approach
+              ? { extraLabel: "So klingt das nächstes Mal", extraText: p.better_approach, extraAccent: GOLD }
+              : {}),
+        });
       }
-      if (!isPos && p.better_approach) {
-        y += 4;
+      // If no moments but there's a better_approach, still show it once as a card
+      if (!isPos && moments.length === 0 && p.better_approach) {
         goldCard("So klingt das nächste Mal noch stärker", p.better_approach);
       }
-      y += 8;
+      y += 10;
     }
   }
 
@@ -866,15 +974,15 @@ export function renderAnalysisPDF(input: {
   if (input.result.chats?.length) {
     sectionHeading("Chat-für-Chat", "Deep-Dive in deine Gespräche");
     for (const c of input.result.chats) {
-      ensureSpace(90);
+      ensureSpace(110);
       // Chat header row
       setDraw(HAIRLINE);
       doc.setLineWidth(0.4);
       doc.line(margin, y, pageW - margin, y);
-      y += 16;
+      y += 18;
       setText(INK);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
+      doc.setFontSize(14);
       doc.text(c.customer_username ?? "Kunde", margin, y);
       if (typeof c.score === "number") {
         setText(GOLD);
@@ -882,48 +990,79 @@ export function renderAnalysisPDF(input: {
         doc.setFontSize(12);
         doc.text(`${c.score}/100`, pageW - margin, y, { align: "right" });
       }
-      y += 14;
+      y += 16;
 
       if (c.error) {
         writeText(`Hinweis: ${c.error}`, { size: 9, color: MUTED, gapAfter: 10 });
         continue;
       }
 
+      // Chat-Kontext: worum ging es überhaupt in diesem Chat
+      if (c.chat_context) {
+        writeText("WORUM ES GING", { size: 7, bold: true, color: MUTED, gapAfter: 3 });
+        writeText(c.chat_context, { size: 10, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 10 });
+      }
+
       if (c.one_line_verdict) {
-        writeText(c.one_line_verdict, { size: 10.5, italic: true, color: [70, 70, 70], gapAfter: 8, lineHeight: 1.5 });
+        setFill([250, 246, 232]);
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(11);
+        const vLines = doc.splitTextToSize(c.one_line_verdict, contentW - 24) as string[];
+        const vh = vLines.length * 15 + 20;
+        ensureSpace(vh + 4);
+        doc.roundedRect(margin, y, contentW, vh, 4, 4, "F");
+        setFill(GOLD);
+        doc.rect(margin, y, 3, vh, "F");
+        let vy = y + 15;
+        setText(INK);
+        for (const l of vLines) { doc.text(l, margin + 18, vy); vy += 15; }
+        y += vh + 10;
       }
 
       if (c.pricing_check) {
-        writeText("PRICING", { size: 8, bold: true, color: GOLD, gapAfter: 2 });
-        writeText(c.pricing_check, { size: 10, lineHeight: 1.45, gapAfter: 8 });
+        writeText("PRICING", { size: 8, bold: true, color: GOLD, gapAfter: 3 });
+        writeText(c.pricing_check, { size: 10, lineHeight: 1.55, gapAfter: 12 });
       }
 
       if (c.dos?.length) {
-        writeText("STARK GEMACHT", { size: 8, bold: true, color: [60, 120, 70], gapAfter: 2 });
+        writeText("STARK GEMACHT", { size: 8, bold: true, color: [60, 120, 70], gapAfter: 6 });
         for (const d of c.dos) {
-          writeText(`„${d.quote}"`, { size: 9.5, italic: true, color: MUTED, indent: 10, gapAfter: 1 });
-          writeText(`→ ${d.why_good}`, { size: 10, indent: 10, gapAfter: 4, lineHeight: 1.45 });
+          quoteBlock({
+            situation: d.situation,
+            quote: d.quote,
+            accent: [60, 120, 70],
+            verdictLabel: "Warum das stark war",
+            verdictText: d.why_good,
+          });
         }
-        y += 2;
+        y += 4;
       }
 
       if (c.donts?.length) {
-        writeText("WACHSTUMSPOTENZIAL", { size: 8, bold: true, color: GOLD, gapAfter: 2 });
+        writeText("WACHSTUMSPOTENZIAL", { size: 8, bold: true, color: GOLD, gapAfter: 6 });
         for (const d of c.donts) {
-          writeText(`„${d.quote}"`, { size: 9.5, italic: true, color: MUTED, indent: 10, gapAfter: 1 });
-          writeText(`Was hier Cash liegen lässt: ${d.problem}`, { size: 10, indent: 10, gapAfter: 2, lineHeight: 1.45 });
-          writeText(`Beim nächsten Mal so: „${d.better}"`, { size: 10, indent: 10, color: [90, 70, 20], gapAfter: 5, lineHeight: 1.45 });
+          quoteBlock({
+            situation: d.situation,
+            quote: d.quote,
+            accent: GOLD,
+            verdictLabel: "Was hier Cash liegen lässt",
+            verdictText: d.problem,
+            extraLabel: "Beim nächsten Mal so",
+            extraText: `\u201E${d.better}\u201C`,
+            extraAccent: [60, 120, 70],
+          });
         }
-        y += 2;
+        y += 4;
       }
 
       if (c.revenue_levers?.length) {
-        writeText("DEINE HEBEL", { size: 8, bold: true, color: GOLD, gapAfter: 2 });
+        writeText("DEINE HEBEL", { size: 8, bold: true, color: GOLD, gapAfter: 4 });
         for (const l of c.revenue_levers) {
-          writeText(`• ${l}`, { size: 10, indent: 10, gapAfter: 2, lineHeight: 1.45 });
+          writeText(`- ${l}`, { size: 10, indent: 10, gapAfter: 3, lineHeight: 1.5 });
         }
       }
-      y += 14;
+      y += 18;
+
     }
   }
 
