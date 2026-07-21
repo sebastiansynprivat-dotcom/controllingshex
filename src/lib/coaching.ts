@@ -403,17 +403,29 @@ export function renderAnalysisPDF(input: {
   // ---------- Cover Page (black + gold) ----------
   paintBackground(INK);
 
+  // Decorative dot grid, top right
+  drawDotGrid(pageW - margin - 140, margin + 20, 14, 8, 10, 0.8, [90, 75, 30], true);
+  // Bottom-left dot grid (faded)
+  drawDotGrid(margin, pageH - margin - 90, 10, 6, 10, 0.7, [70, 58, 22], true);
+
   // Gold hairline frame
   setDraw(GOLD);
   doc.setLineWidth(0.6);
   doc.rect(margin - 18, margin - 18, contentW + 36, pageH - (margin - 18) * 2);
+
+  // Diagonal gold accent lines (bottom right)
+  setDraw(GOLD);
+  doc.setLineWidth(0.4);
+  for (let i = 0; i < 6; i++) {
+    const off = i * 6;
+    doc.line(pageW - margin - 80 + off, pageH - margin - 20, pageW - margin - 20 + off, pageH - margin - 80);
+  }
 
   // SheX wordmark
   doc.setFont("helvetica", "bold");
   doc.setFontSize(46);
   setText(GOLD);
   doc.text("SheX", margin, margin + 40);
-  // subscript "coaching"
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   setText(GOLD_SOFT);
@@ -454,24 +466,29 @@ export function renderAnalysisPDF(input: {
   metaCell("Plattform", input.platform, 1);
   metaCell("Zeitraum", `${input.date_from} → ${input.date_to}`, 2);
 
-  // Score badge
+  // Radial gauge (score)
   const score = input.result.overall_score;
   if (score !== null && score !== undefined) {
-    const cx = pageW - margin - 60;
-    const cy = pageH - margin - 90;
-    setDraw(GOLD);
-    doc.setLineWidth(1.5);
-    doc.circle(cx, cy, 46, "S");
+    const cx = pageW - margin - 70;
+    const cy = pageH - margin - 110;
+    const r = 52;
+    // Track (270° arc from 135° to 45° going clockwise → we use 135° to 405°)
+    drawArc(cx, cy, r, 135, 405, [55, 45, 20], 6);
+    // Progress
+    const pct = Math.max(0, Math.min(100, score)) / 100;
+    const endDeg = 135 + 270 * pct;
+    drawArc(cx, cy, r, 135, endDeg, GOLD, 6);
+    // Center text
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(30);
-    doc.text(String(score), cx, cy + 4, { align: "center" });
+    doc.setFontSize(34);
+    doc.text(String(score), cx, cy + 6, { align: "center" });
+    setText(GOLD_SOFT);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    setText(GOLD_SOFT);
     doc.text("/ 100", cx, cy + 22, { align: "center" });
     doc.setFontSize(8);
-    doc.text("GESAMT-SCORE", cx, cy + 62, { align: "center" });
+    doc.text("GESAMT-SCORE", cx, cy + 74, { align: "center" });
   }
 
   // Footer on cover
