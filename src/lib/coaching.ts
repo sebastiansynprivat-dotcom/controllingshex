@@ -638,11 +638,13 @@ export function renderAnalysisPDF(input: {
   const pill = (label: string, color: [number, number, number]) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    const w = doc.getTextWidth(label) + 12;
+    const w = doc.getTextWidth(label) + 14;
+    const h = 14;
     setFill(color);
-    doc.roundedRect(margin, y - 8, w, 12, 2, 2, "F");
+    doc.roundedRect(margin, y, w, h, 3, 3, "F");
     setText([255, 255, 255]);
-    doc.text(label, margin + 6, y);
+    doc.text(label, margin + 7, y + 9.5);
+    y += h + 8;
     return w;
   };
 
