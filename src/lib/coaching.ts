@@ -332,20 +332,100 @@ export function renderAnalysisPDF(input: {
     doc.rect(0, 0, pageW, pageH, "F");
   };
 
+  // ---------- Graphics helpers ----------
+  const drawArc = (
+    cx: number,
+    cy: number,
+    r: number,
+    startDeg: number,
+    endDeg: number,
+    stroke: [number, number, number],
+    width: number,
+  ) => {
+    setDraw(stroke);
+    doc.setLineWidth(width);
+    doc.setLineCap("round");
+    const steps = Math.max(24, Math.ceil(Math.abs(endDeg - startDeg) / 4));
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    let px = cx + r * Math.cos(toRad(startDeg));
+    let py = cy + r * Math.sin(toRad(startDeg));
+    for (let i = 1; i <= steps; i++) {
+      const t = startDeg + ((endDeg - startDeg) * i) / steps;
+      const nx = cx + r * Math.cos(toRad(t));
+      const ny = cy + r * Math.sin(toRad(t));
+      doc.line(px, py, nx, ny);
+      px = nx;
+      py = ny;
+    }
+    doc.setLineCap("butt");
+  };
+
+  const drawDotGrid = (
+    x: number,
+    y: number,
+    cols: number,
+    rows: number,
+    gap: number,
+    dot: number,
+    color: [number, number, number],
+    opacityFade = false,
+  ) => {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const fadeFactor = opacityFade ? 1 - r / (rows + 2) : 1;
+        setFill([
+          Math.round(color[0] * fadeFactor + 20 * (1 - fadeFactor)),
+          Math.round(color[1] * fadeFactor + 20 * (1 - fadeFactor)),
+          Math.round(color[2] * fadeFactor + 20 * (1 - fadeFactor)),
+        ]);
+        doc.circle(x + c * gap, y + r * gap, dot, "F");
+      }
+    }
+  };
+
+  const drawHBar = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    pct: number, // 0..1
+    trackColor: [number, number, number],
+    fillColor: [number, number, number],
+  ) => {
+    setFill(trackColor);
+    doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
+    const fillW = Math.max(h, w * Math.max(0, Math.min(1, pct)));
+    setFill(fillColor);
+    doc.roundedRect(x, y, fillW, h, h / 2, h / 2, "F");
+  };
+
+
   // ---------- Cover Page (black + gold) ----------
   paintBackground(INK);
+
+  // Decorative dot grid, top right
+  drawDotGrid(pageW - margin - 140, margin + 20, 14, 8, 10, 0.8, [90, 75, 30], true);
+  // Bottom-left dot grid (faded)
+  drawDotGrid(margin, pageH - margin - 90, 10, 6, 10, 0.7, [70, 58, 22], true);
 
   // Gold hairline frame
   setDraw(GOLD);
   doc.setLineWidth(0.6);
   doc.rect(margin - 18, margin - 18, contentW + 36, pageH - (margin - 18) * 2);
 
+  // Diagonal gold accent lines (bottom right)
+  setDraw(GOLD);
+  doc.setLineWidth(0.4);
+  for (let i = 0; i < 6; i++) {
+    const off = i * 6;
+    doc.line(pageW - margin - 80 + off, pageH - margin - 20, pageW - margin - 20 + off, pageH - margin - 80);
+  }
+
   // SheX wordmark
   doc.setFont("helvetica", "bold");
   doc.setFontSize(46);
   setText(GOLD);
   doc.text("SheX", margin, margin + 40);
-  // subscript "coaching"
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   setText(GOLD_SOFT);
@@ -386,24 +466,29 @@ export function renderAnalysisPDF(input: {
   metaCell("Plattform", input.platform, 1);
   metaCell("Zeitraum", `${input.date_from} → ${input.date_to}`, 2);
 
-  // Score badge
+  // Radial gauge (score)
   const score = input.result.overall_score;
   if (score !== null && score !== undefined) {
-    const cx = pageW - margin - 60;
-    const cy = pageH - margin - 90;
-    setDraw(GOLD);
-    doc.setLineWidth(1.5);
-    doc.circle(cx, cy, 46, "S");
+    const cx = pageW - margin - 70;
+    const cy = pageH - margin - 110;
+    const r = 52;
+    // Track (270° arc from 135° to 45° going clockwise → we use 135° to 405°)
+    drawArc(cx, cy, r, 135, 405, [55, 45, 20], 6);
+    // Progress
+    const pct = Math.max(0, Math.min(100, score)) / 100;
+    const endDeg = 135 + 270 * pct;
+    drawArc(cx, cy, r, 135, endDeg, GOLD, 6);
+    // Center text
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(30);
-    doc.text(String(score), cx, cy + 4, { align: "center" });
+    doc.setFontSize(34);
+    doc.text(String(score), cx, cy + 6, { align: "center" });
+    setText(GOLD_SOFT);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    setText(GOLD_SOFT);
     doc.text("/ 100", cx, cy + 22, { align: "center" });
     doc.setFontSize(8);
-    doc.text("GESAMT-SCORE", cx, cy + 62, { align: "center" });
+    doc.text("GESAMT-SCORE", cx, cy + 74, { align: "center" });
   }
 
   // Footer on cover
@@ -527,12 +612,190 @@ export function renderAnalysisPDF(input: {
     return w;
   };
 
+  // ---------- Zahlen-Dashboard ----------
+  const validChats = input.result.chats.filter((c) => typeof c.score === "number") as Array<ChatAnalysis & { score: number }>;
+  if (validChats.length > 0 || score !== null) {
+    sectionHeading("Zahlen", "Deine Analyse auf einen Blick");
+
+    // KPI row: 3 stat cards
+    const totalDos = input.result.chats.reduce((s, c) => s + (c.dos?.length ?? 0), 0);
+    const totalDonts = input.result.chats.reduce((s, c) => s + (c.donts?.length ?? 0), 0);
+    const totalLevers = input.result.chats.reduce((s, c) => s + (c.revenue_levers?.length ?? 0), 0);
+    const cardH = 62;
+    const gap = 12;
+    const cardW = (contentW - gap * 2) / 3;
+    ensureSpace(cardH + 14);
+    const kpiY = y;
+    const kpis: Array<[string, string | number, [number, number, number]]> = [
+      ["Starke Moves", totalDos, [60, 120, 70]],
+      ["Wachstums-Chancen", totalDonts, GOLD],
+      ["Umsatz-Hebel", totalLevers, INK],
+    ];
+    kpis.forEach(([label, value, accent], i) => {
+      const x = margin + i * (cardW + gap);
+      setFill([250, 247, 238]);
+      doc.roundedRect(x, kpiY, cardW, cardH, 6, 6, "F");
+      // top accent bar
+      setFill(accent);
+      doc.rect(x, kpiY, cardW, 3, "F");
+      setText(accent);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(26);
+      doc.text(String(value), x + 14, kpiY + 36);
+      setText(MUTED);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(label.toUpperCase(), x + 14, kpiY + 52);
+    });
+    y = kpiY + cardH + 18;
+
+    // Chart: per-chat scores (horizontal bars)
+    if (validChats.length > 0) {
+      const rowH = 18;
+      const chartH = validChats.length * rowH + 40;
+      ensureSpace(chartH + 20);
+      setText(INK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Score je Chat", margin, y);
+      setText(MUTED);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("0 — 100", pageW - margin, y, { align: "right" });
+      y += 14;
+
+      const labelW = 110;
+      const valueW = 32;
+      const barX = margin + labelW;
+      const barMaxW = contentW - labelW - valueW - 8;
+
+      // baseline vertical guides at 25/50/75/100
+      setDraw([235, 230, 215]);
+      doc.setLineWidth(0.3);
+      [0.25, 0.5, 0.75, 1].forEach((t) => {
+        const gx = barX + barMaxW * t;
+        doc.line(gx, y, gx, y + validChats.length * rowH);
+      });
+
+      validChats.forEach((c) => {
+        const label = (c.customer_username ?? "?").slice(0, 16);
+        setText(INK);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text(label, margin, y + 10);
+        const pct = c.score / 100;
+        const fillCol: [number, number, number] =
+          c.score >= 75 ? [60, 120, 70] : c.score >= 50 ? GOLD : [180, 90, 60];
+        drawHBar(barX, y + 4, barMaxW, 8, pct, [235, 230, 215], fillCol);
+        setText(INK);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text(String(c.score), pageW - margin, y + 10, { align: "right" });
+        y += rowH;
+      });
+      y += 12;
+    }
+
+    // Do vs Don't donut + Score verteilung side-by-side
+    if (totalDos + totalDonts > 0 || validChats.length > 0) {
+      ensureSpace(180);
+      const boxH = 160;
+      const halfW = (contentW - 16) / 2;
+      const leftX = margin;
+      const rightX = margin + halfW + 16;
+
+      // Left: Do vs Don't donut
+      setFill([250, 247, 238]);
+      doc.roundedRect(leftX, y, halfW, boxH, 6, 6, "F");
+      setText(INK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Balance", leftX + 14, y + 20);
+      setText(MUTED);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Stark vs. Wachstum", leftX + 14, y + 32);
+
+      const total = totalDos + totalDonts || 1;
+      const dosPct = totalDos / total;
+      const donutCX = leftX + halfW - 55;
+      const donutCY = y + boxH / 2 + 6;
+      const donutR = 38;
+      // Track
+      drawArc(donutCX, donutCY, donutR, 0, 360, [230, 224, 205], 10);
+      // Dos slice (green)
+      if (dosPct > 0) drawArc(donutCX, donutCY, donutR, -90, -90 + 360 * dosPct, [60, 120, 70], 10);
+      // Donts slice (gold)
+      if (dosPct < 1) drawArc(donutCX, donutCY, donutR, -90 + 360 * dosPct, 270, GOLD, 10);
+      setText(INK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text(`${Math.round(dosPct * 100)}%`, donutCX, donutCY + 4, { align: "center" });
+      setText(MUTED);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text("stark", donutCX, donutCY + 16, { align: "center" });
+      // Legend
+      setFill([60, 120, 70]);
+      doc.circle(leftX + 18, y + 60, 3, "F");
+      setText(INK);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`Stark  ${totalDos}`, leftX + 28, y + 63);
+      setFill(GOLD);
+      doc.circle(leftX + 18, y + 80, 3, "F");
+      setText(INK);
+      doc.text(`Wachstum  ${totalDonts}`, leftX + 28, y + 83);
+
+      // Right: score distribution buckets
+      setFill([250, 247, 238]);
+      doc.roundedRect(rightX, y, halfW, boxH, 6, 6, "F");
+      setText(INK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Verteilung", rightX + 14, y + 20);
+      setText(MUTED);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Wie deine Chats streuen", rightX + 14, y + 32);
+
+      const buckets = [
+        { label: "0–49", color: [180, 90, 60] as [number, number, number], count: validChats.filter((c) => c.score < 50).length },
+        { label: "50–74", color: GOLD, count: validChats.filter((c) => c.score >= 50 && c.score < 75).length },
+        { label: "75+", color: [60, 120, 70] as [number, number, number], count: validChats.filter((c) => c.score >= 75).length },
+      ];
+      const maxCount = Math.max(1, ...buckets.map((b) => b.count));
+      const chartInnerW = halfW - 28;
+      const barSlot = chartInnerW / 3;
+      const barW = 36;
+      const baseY = y + boxH - 30;
+      const maxBarH = boxH - 70;
+      buckets.forEach((b, i) => {
+        const bx = rightX + 14 + i * barSlot + (barSlot - barW) / 2;
+        const bh = (b.count / maxCount) * maxBarH;
+        setFill(b.color);
+        doc.roundedRect(bx, baseY - bh, barW, bh, 3, 3, "F");
+        setText(INK);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(String(b.count), bx + barW / 2, baseY - bh - 6, { align: "center" });
+        setText(MUTED);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(b.label, bx + barW / 2, baseY + 14, { align: "center" });
+      });
+
+      y += boxH + 16;
+    }
+  }
+
   // Personal intro
   const intro = input.result.personal_intro?.trim();
   if (intro) {
     sectionHeading("Persönliche Nachricht", `Hi ${input.chatter_name},`);
     writeText(intro, { size: 11, lineHeight: 1.5, gapAfter: 10 });
   }
+
 
   // Executive summary
   if (input.result.executive_summary) {
