@@ -979,23 +979,30 @@ export function renderAnalysisPDF(input: {
   if (input.result.chats?.length) {
     sectionHeading("Chat-für-Chat", "Deep-Dive in deine Gespräche");
     for (const c of input.result.chats) {
-      ensureSpace(110);
-      // Chat header row
+      ensureSpace(140);
+      y += 6;
+      // Hairline separator between chats
       setDraw(HAIRLINE);
       doc.setLineWidth(0.4);
       doc.line(margin, y, pageW - margin, y);
-      y += 18;
+      y += 22;
+      // Customer name (wrap if too long) with score aligned right
       setText(INK);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text(c.customer_username ?? "Kunde", margin, y);
-      if (typeof c.score === "number") {
+      const scoreLabel = typeof c.score === "number" ? `${c.score}/100` : "";
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      const scoreW = scoreLabel ? doc.getTextWidth(scoreLabel) + 12 : 0;
+      doc.setFontSize(14);
+      const nameLines = doc.splitTextToSize(c.customer_username ?? "Kunde", contentW - scoreW) as string[];
+      doc.text(nameLines[0], margin, y);
+      if (scoreLabel) {
         setText(GOLD);
-        doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text(`${c.score}/100`, pageW - margin, y, { align: "right" });
+        doc.text(scoreLabel, pageW - margin, y, { align: "right" });
       }
-      y += 16;
+      y += 20;
 
       if (c.error) {
         writeText(`Hinweis: ${c.error}`, { size: 9, color: MUTED, gapAfter: 10 });
