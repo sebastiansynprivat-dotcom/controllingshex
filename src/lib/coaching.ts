@@ -641,6 +641,93 @@ export function renderAnalysisPDF(input: {
     return w;
   };
 
+  // Rich quote block — situation kicker + quote + verdict, all in one card.
+  // Renders any moment (Do / Dont / Pattern) with the same visual language so
+  // the reader always sees: WORAUF → WAS GESAGT → WARUM.
+  const quoteBlock = (opts: {
+    situation?: string;
+    quote: string;
+    verdictLabel?: string;
+    verdictText?: string;
+    accent: [number, number, number];
+    extraLabel?: string;
+    extraText?: string;
+    extraAccent?: [number, number, number];
+  }) => {
+    const innerW = contentW - 28;
+    // measure
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    const quoteLines = doc.splitTextToSize(`\u201E${opts.quote}\u201C`, innerW) as string[];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    const sitLines = opts.situation ? (doc.splitTextToSize(opts.situation, innerW) as string[]) : [];
+    doc.setFontSize(10);
+    const verdictLines = opts.verdictText ? (doc.splitTextToSize(opts.verdictText, innerW) as string[]) : [];
+    const extraLines = opts.extraText ? (doc.splitTextToSize(opts.extraText, innerW) as string[]) : [];
+    const cardH =
+      14 + // top pad
+      (sitLines.length ? 10 + sitLines.length * 12 + 6 : 0) +
+      quoteLines.length * 15 + 8 +
+      (verdictLines.length ? 10 + verdictLines.length * 13 : 0) +
+      (extraLines.length ? 10 + extraLines.length * 13 : 0) +
+      14;
+    ensureSpace(cardH + 6);
+    const startY = y;
+    setFill([252, 250, 244]);
+    doc.roundedRect(margin, startY, contentW, cardH, 4, 4, "F");
+    setFill(opts.accent);
+    doc.rect(margin, startY, 3, cardH, "F");
+    let cy = startY + 18;
+    const tx = margin + 18;
+
+    if (sitLines.length) {
+      setText(MUTED);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("SITUATION", tx, cy);
+      cy += 10;
+      setText([70, 70, 70]);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      for (const l of sitLines) { doc.text(l, tx, cy); cy += 12; }
+      cy += 6;
+    }
+
+    setText(INK);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    for (const l of quoteLines) { doc.text(l, tx, cy); cy += 15; }
+    cy += 8;
+
+    if (verdictLines.length) {
+      setText(opts.accent);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text((opts.verdictLabel ?? "WARUM").toUpperCase(), tx, cy);
+      cy += 10;
+      setText(INK);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      for (const l of verdictLines) { doc.text(l, tx, cy); cy += 13; }
+    }
+
+    if (extraLines.length) {
+      const acc = opts.extraAccent ?? GOLD;
+      setText(acc);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text((opts.extraLabel ?? "SO STÄRKER").toUpperCase(), tx, cy);
+      cy += 10;
+      setText(INK);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      for (const l of extraLines) { doc.text(l, tx, cy); cy += 13; }
+    }
+
+    y = startY + cardH + 10;
+  };
+
   // ---------- Zahlen-Dashboard ----------
   const validChats = input.result.chats.filter((c) => typeof c.score === "number") as Array<ChatAnalysis & { score: number }>;
   if (validChats.length > 0 || score !== null) {
