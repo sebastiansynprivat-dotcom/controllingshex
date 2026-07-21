@@ -136,6 +136,84 @@ export async function listAnalyses(chatter_name: string, platform: string): Prom
   return (data ?? []) as unknown as CoachingAnalysisRow[];
 }
 
+interface ResolvedToken {
+  platform: string;
+  username: string;
+  token: string;
+}
+
+async function resolveTokens(input: {
+  chatter_name: string;
+  platform: string;
+  model_username: string | null;
+}): Promise<{ telegram_id: string; tokens: ResolvedToken[] }> {
+  const { data, error } = await supabase.functions.invoke("resolve-chatter-tokens", {
+    body: {
+      chatter_name: input.chatter_name,
+      platform: input.platform,
+      model_username: input.model_username,
+    },
+  });
+  if (error) throw new Error(error.message || "resolve-chatter-tokens failed");
+  if (!data?.telegram_id || !Array.isArray(data?.tokens) || data.tokens.length === 0) {
+    throw new Error(data?.error || "Keine Tokens gefunden");
+  }
+  return { telegram_id: data.telegram_id as string, tokens: data.tokens as ResolvedToken[] };
+}
+
+function awaitRequestCompletion(
+  requestId: string,
+  onProgress?: (n: number) => void,
+  timeoutMs = 300_000,
+): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      clearInterval(poll);
+      clearTimeout(timer);
+    };
+    const done = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+
+    const handleRow = (row: any) => {
+      if (!row) return;
+      const chats = Array.isArray(row.result_json) ? row.result_json : [];
+      onProgress?.(chats.length);
+      if (row.status === "completed") done(() => resolve(chats));
+      else if (row.status === "failed") done(() => reject(new Error(row.error_message || "Chat-Fetch fehlgeschlagen")));
+    };
+
+    const channel = supabase
+      .channel(`chats_fetch_requests:${requestId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chats_fetch_requests", filter: `id=eq.${requestId}` },
+        (payload) => handleRow(payload.new),
+      )
+      .subscribe();
+
+    const pollOnce = async () => {
+      const { data } = await supabase
+        .from("chats_fetch_requests")
+        .select("status, result_json, error_message")
+        .eq("id", requestId)
+        .maybeSingle();
+      handleRow(data);
+    };
+    const poll = setInterval(pollOnce, 5000);
+    pollOnce();
+
+    const timer = setTimeout(() => {
+      done(() => reject(new Error("Timeout beim Laden der Chats (5 min).")));
+    }, timeoutMs);
+  });
+}
+
 export async function runAnalysis(input: {
   chatter_name: string;
   platform: string;
@@ -144,8 +222,57 @@ export async function runAnalysis(input: {
   date_to: string;
   onStage?: (stage: string) => void;
 }): Promise<AnalysisResult> {
-  input.onStage?.("Chats werden geladen und analysiert…");
+  input.onStage?.("Tokens werden aufgelöst…");
+  const { telegram_id, tokens } = await resolveTokens({
+    chatter_name: input.chatter_name,
+    platform: input.platform,
+    model_username: input.model_username,
+  });
 
+  input.onStage?.(`Fordere Chats für ${tokens.length} Model(s) an…`);
+  const date_range = { start: input.date_from, end: input.date_to };
+
+  const requestIds = await Promise.all(
+    tokens.map(async (t) => {
+      const { data, error } = await supabase.functions.invoke("request-chats", {
+        body: {
+          telegram_id,
+          platform: t.platform,
+          token: t.token,
+          model_username: t.username,
+          date_range,
+        },
+      });
+      if (error) throw new Error(error.message || "request-chats failed");
+      return { request_id: data.request_id as string, username: t.username };
+    }),
+  );
+
+  input.onStage?.("Warte auf Chats vom externen Dienst…");
+  const counts = new Map<string, number>();
+  const chatArrays = await Promise.all(
+    requestIds.map(({ request_id, username }) =>
+      awaitRequestCompletion(request_id, (n) => {
+        counts.set(username, n);
+        const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
+        input.onStage?.(`Lade Chats… ${total}`);
+      }),
+    ),
+  );
+
+  const aggregated: any[] = [];
+  for (let i = 0; i < chatArrays.length; i++) {
+    const username = requestIds[i].username;
+    for (const c of chatArrays[i]) {
+      aggregated.push({ ...c, model_username: (c && c.model_username) || username });
+    }
+  }
+
+  if (aggregated.length === 0) {
+    throw new Error("Keine Chats vom externen Dienst erhalten.");
+  }
+
+  input.onStage?.(`Analysiere ${aggregated.length} Chats mit KI…`);
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-coaching-analysis`;
   const { data: { session } } = await supabase.auth.getSession();
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -162,6 +289,7 @@ export async function runAnalysis(input: {
       model_username: input.model_username,
       date_from: input.date_from,
       date_to: input.date_to,
+      chats: aggregated,
     }),
   });
   const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
