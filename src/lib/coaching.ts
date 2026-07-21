@@ -175,12 +175,16 @@ function awaitRequestCompletion(
   requestId: string,
   onProgress?: (n: number) => void,
   timeoutMs = 300_000,
+  idleMs = 20_000,
 ): Promise<any[]> {
   return new Promise((resolve, reject) => {
     let settled = false;
+    let lastChats: any[] = [];
+    let lastChangeAt = Date.now();
     const cleanup = () => {
       try { channel.unsubscribe(); } catch { /* noop */ }
       clearInterval(poll);
+      clearInterval(idleCheck);
       clearTimeout(timer);
     };
     const done = (fn: () => void) => {
@@ -193,9 +197,17 @@ function awaitRequestCompletion(
     const handleRow = (row: any) => {
       if (!row) return;
       const chats = Array.isArray(row.result_json) ? row.result_json : [];
-      onProgress?.(chats.length);
+      if (chats.length !== lastChats.length) {
+        lastChats = chats;
+        lastChangeAt = Date.now();
+        onProgress?.(chats.length);
+      }
       if (row.status === "completed") done(() => resolve(chats));
-      else if (row.status === "failed") done(() => reject(new Error(row.error_message || "Chat-Fetch fehlgeschlagen")));
+      else if (row.status === "failed") {
+        // If we already have chats, prefer using them rather than failing hard.
+        if (chats.length > 0) done(() => resolve(chats));
+        else done(() => reject(new Error(row.error_message || "Chat-Fetch fehlgeschlagen")));
+      }
     };
 
     const channel = supabase
@@ -218,8 +230,16 @@ function awaitRequestCompletion(
     const poll = setInterval(pollOnce, 5000);
     pollOnce();
 
+    // If chats have arrived but no new chat for `idleMs`, treat stream as complete.
+    const idleCheck = setInterval(() => {
+      if (lastChats.length > 0 && Date.now() - lastChangeAt >= idleMs) {
+        done(() => resolve(lastChats));
+      }
+    }, 2000);
+
     const timer = setTimeout(() => {
-      done(() => reject(new Error("Timeout beim Laden der Chats (5 min).")));
+      if (lastChats.length > 0) done(() => resolve(lastChats));
+      else done(() => reject(new Error("Timeout beim Laden der Chats (5 min).")));
     }, timeoutMs);
   });
 }
@@ -266,6 +286,9 @@ export async function runAnalysis(input: {
         counts.set(username, n);
         const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
         input.onStage?.(`Lade Chats… ${total}`);
+      }).catch((e) => {
+        console.warn(`Chat-Fetch für ${username} fehlgeschlagen:`, e);
+        return [] as any[];
       }),
     ),
   );
