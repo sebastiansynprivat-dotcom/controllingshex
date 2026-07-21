@@ -534,19 +534,19 @@ export function renderAnalysisPDF(input: {
   );
 
   // ---------- Content pages ----------
-  doc.addPage();
-  paintBackground(PAPER);
-
-  let y = margin;
-
-  const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - margin - 20) {
-      // Footer
-      drawContentFooter();
-      doc.addPage();
-      paintBackground(PAPER);
-      y = margin;
-    }
+  const drawPageHeader = () => {
+    setText(GOLD);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("SheX", margin, margin - 22);
+    setText(MUTED);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("COACHING REPORT", margin + 34, margin - 22);
+    doc.text(input.chatter_name, pageW - margin, margin - 22, { align: "right" });
+    setDraw(HAIRLINE);
+    doc.setLineWidth(0.4);
+    doc.line(margin, margin - 14, pageW - margin, margin - 14);
   };
 
   const drawContentFooter = () => {
@@ -563,6 +563,22 @@ export function renderAnalysisPDF(input: {
       pageH - margin + 12,
       { align: "right" },
     );
+  };
+
+  doc.addPage();
+  paintBackground(PAPER);
+  drawPageHeader();
+
+  let y = margin + 4;
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > pageH - margin - 20) {
+      drawContentFooter();
+      doc.addPage();
+      paintBackground(PAPER);
+      drawPageHeader();
+      y = margin + 4;
+    }
   };
 
   const writeText = (
