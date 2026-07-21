@@ -519,7 +519,9 @@ Gib genau dieses JSON zurück:
       "title": "<kurzer Titel>",
       "type": "positive" | "negative",
       "description": "<was passiert wiederkehrend, direkt an ${chatter_name} adressiert, wertschätzend>",
-      "example_quotes": ["<Zitat 1>", "<Zitat 2>"],
+      "moments": [
+        {"situation": "<1 Satz: in welcher Situation kam das vor>", "quote": "<Original-Zitat>"}
+      ],
       "better_approach": "<nur bei negative: konkrete bessere Formulierung>"
     }
   ],
