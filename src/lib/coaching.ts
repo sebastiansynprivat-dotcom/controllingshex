@@ -332,6 +332,74 @@ export function renderAnalysisPDF(input: {
     doc.rect(0, 0, pageW, pageH, "F");
   };
 
+  // ---------- Graphics helpers ----------
+  const drawArc = (
+    cx: number,
+    cy: number,
+    r: number,
+    startDeg: number,
+    endDeg: number,
+    stroke: [number, number, number],
+    width: number,
+  ) => {
+    setDraw(stroke);
+    doc.setLineWidth(width);
+    doc.setLineCap("round");
+    const steps = Math.max(24, Math.ceil(Math.abs(endDeg - startDeg) / 4));
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    let px = cx + r * Math.cos(toRad(startDeg));
+    let py = cy + r * Math.sin(toRad(startDeg));
+    for (let i = 1; i <= steps; i++) {
+      const t = startDeg + ((endDeg - startDeg) * i) / steps;
+      const nx = cx + r * Math.cos(toRad(t));
+      const ny = cy + r * Math.sin(toRad(t));
+      doc.line(px, py, nx, ny);
+      px = nx;
+      py = ny;
+    }
+    doc.setLineCap("butt");
+  };
+
+  const drawDotGrid = (
+    x: number,
+    y: number,
+    cols: number,
+    rows: number,
+    gap: number,
+    dot: number,
+    color: [number, number, number],
+    opacityFade = false,
+  ) => {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const fadeFactor = opacityFade ? 1 - r / (rows + 2) : 1;
+        setFill([
+          Math.round(color[0] * fadeFactor + 20 * (1 - fadeFactor)),
+          Math.round(color[1] * fadeFactor + 20 * (1 - fadeFactor)),
+          Math.round(color[2] * fadeFactor + 20 * (1 - fadeFactor)),
+        ]);
+        doc.circle(x + c * gap, y + r * gap, dot, "F");
+      }
+    }
+  };
+
+  const drawHBar = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    pct: number, // 0..1
+    trackColor: [number, number, number],
+    fillColor: [number, number, number],
+  ) => {
+    setFill(trackColor);
+    doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
+    const fillW = Math.max(h, w * Math.max(0, Math.min(1, pct)));
+    setFill(fillColor);
+    doc.roundedRect(x, y, fillW, h, h / 2, h / 2, "F");
+  };
+
+
   // ---------- Cover Page (black + gold) ----------
   paintBackground(INK);
 
