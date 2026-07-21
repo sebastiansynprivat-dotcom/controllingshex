@@ -32,6 +32,9 @@ export interface Pattern {
 export interface AnalysisResult {
   overall_score: number | null;
   executive_summary: string;
+  personal_intro?: string;
+  personal_closing?: string;
+  top_focus?: string[];
   patterns: Pattern[];
   chats: ChatAnalysis[];
   chats_analyzed: number;
