@@ -774,9 +774,8 @@ export function renderAnalysisPDF(input: {
 
     // Chart: per-chat scores (horizontal bars)
     if (validChats.length > 0) {
-      const rowH = 18;
-      const chartH = validChats.length * rowH + 40;
-      ensureSpace(chartH + 20);
+      const rowH = 20;
+      ensureSpace(40);
       setText(INK);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
@@ -785,38 +784,39 @@ export function renderAnalysisPDF(input: {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text("0 — 100", pageW - margin, y, { align: "right" });
-      y += 14;
+      y += 16;
 
-      const labelW = 110;
-      const valueW = 32;
+      const labelW = 130;
+      const valueW = 34;
       const barX = margin + labelW;
       const barMaxW = contentW - labelW - valueW - 8;
 
-      // baseline vertical guides at 25/50/75/100
-      setDraw([235, 230, 215]);
-      doc.setLineWidth(0.3);
-      [0.25, 0.5, 0.75, 1].forEach((t) => {
-        const gx = barX + barMaxW * t;
-        doc.line(gx, y, gx, y + validChats.length * rowH);
-      });
-
       validChats.forEach((c) => {
-        const label = (c.customer_username ?? "?").slice(0, 16);
+        ensureSpace(rowH + 2);
+        // per-row baseline guides (redrawn each row so pagination stays clean)
+        setDraw([238, 232, 218]);
+        doc.setLineWidth(0.3);
+        [0.25, 0.5, 0.75, 1].forEach((t) => {
+          const gx = barX + barMaxW * t;
+          doc.line(gx, y, gx, y + rowH - 6);
+        });
+
+        const label = (c.customer_username ?? "?").slice(0, 22);
         setText(INK);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.text(label, margin, y + 10);
+        doc.text(label, margin, y + 11);
         const pct = c.score / 100;
         const fillCol: [number, number, number] =
           c.score >= 75 ? [60, 120, 70] : c.score >= 50 ? GOLD : [180, 90, 60];
-        drawHBar(barX, y + 4, barMaxW, 8, pct, [235, 230, 215], fillCol);
+        drawHBar(barX, y + 5, barMaxW, 8, pct, [235, 230, 215], fillCol);
         setText(INK);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.text(String(c.score), pageW - margin, y + 10, { align: "right" });
+        doc.text(String(c.score), pageW - margin, y + 11, { align: "right" });
         y += rowH;
       });
-      y += 12;
+      y += 14;
     }
 
     // Do vs Don't donut + Score verteilung side-by-side
