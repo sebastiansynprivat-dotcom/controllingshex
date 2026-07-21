@@ -943,14 +943,12 @@ export function renderAnalysisPDF(input: {
   if (input.result.patterns?.length) {
     sectionHeading("Muster", "Was sich durch deine Chats zieht");
     for (const p of input.result.patterns) {
-      ensureSpace(80);
+      ensureSpace(120);
       const isPos = p.type === "positive";
       const accent: [number, number, number] = isPos ? [60, 120, 70] : GOLD;
-      y += 4;
       pill(isPos ? "STÄRKE" : "WACHSTUM", accent);
-      y += 12;
       writeText(p.title, { size: 14, bold: true, gapAfter: 4 });
-      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 8 });
+      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 10 });
 
       const moments: QuoteMoment[] =
         p.moments && p.moments.length
