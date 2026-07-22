@@ -18,12 +18,16 @@ async function fetchAsBase64(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Font fetch failed: ${url}`);
   const buf = await res.arrayBuffer();
-  // Chunked base64 to avoid stack overflow on large buffers
   const bytes = new Uint8Array(buf);
+  // Byte-by-byte to avoid "Maximum call stack size exceeded" from
+  // String.fromCharCode.apply(...largeArray) on big font files.
   let bin = "";
-  const CHUNK = 0x8000;
+  const CHUNK = 0x1000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)) as any);
+    const end = Math.min(i + CHUNK, bytes.length);
+    let s = "";
+    for (let j = i; j < end; j++) s += String.fromCharCode(bytes[j]);
+    bin += s;
   }
   return btoa(bin);
 }
