@@ -470,6 +470,7 @@ SPRACHE — HARTE REGELN:
   Falsch: "Rapport-Building (also Beziehung aufbauen)".
   Richtig: "Du musst erst eine Beziehung mit dem Kunden aufbauen."
 - Kurze Sätze. Alltagssprache. "Du"-Ansprache.
+- KEINE Emojis. Kein einziges. Sie werden im PDF zu Müll-Zeichen.
 
 STIL & LÄNGE — WICHTIG:
 - Es soll sich FLÜSSIG lesen. Kein Zerlegen jeder einzelnen Nachricht.
