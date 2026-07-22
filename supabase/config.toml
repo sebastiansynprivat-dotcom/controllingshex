@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.chats-webhook]
 verify_jwt = false
+
+[functions.resolve-chatter-tokens]
+verify_jwt = false
+
+[functions.request-chats]
+verify_jwt = false
+
+[functions.generate-coaching-analysis]
+verify_jwt = false
