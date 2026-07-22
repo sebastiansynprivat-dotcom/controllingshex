@@ -106,8 +106,11 @@ function extractMessages(chat: any): any[] {
 function normalizeMessages(rawMessages: unknown): ChatMessage[] {
   if (!Array.isArray(rawMessages)) return [];
   return rawMessages.map((m: any) => {
-    const type = m?.type ?? (m?.content?.url || m?.url ? 'image' : 'text');
+    const rawType = (m?.type ?? '').toString().toLowerCase();
+    const type = rawType || (m?.content?.url || m?.url ? 'image' : 'text');
     const text = messageText(m);
+    const price = m?.price ?? m?.content?.price ?? m?.amount ?? m?.content?.amount ?? null;
+    const purchased = m?.purchased ?? m?.content?.purchased ?? m?.is_purchased ?? m?.content?.is_purchased ?? null;
     return {
       id: String(m?.id ?? crypto.randomUUID()),
       type,
@@ -116,8 +119,10 @@ function normalizeMessages(rawMessages: unknown): ChatMessage[] {
         ...(m?.content && typeof m.content === 'object' ? m.content : {}),
         text,
         url: m?.content?.url ?? m?.url,
+        price,
+        purchased,
       },
-    };
+    } as any;
   });
 }
 
@@ -262,17 +267,33 @@ async function fetchFreshChats(input: {
   };
 }
 
-function formatChatForAI(row: ChatRow, maxMessages = 200): string {
-  const messages: ChatMessage[] = Array.isArray(row.chat?.messages) ? row.chat.messages : [];
+function formatChatForAI(row: ChatRow, maxMessages = 200): { text: string; revenue: number; purchases: number; sends: number } {
+  const messages: any[] = Array.isArray(row.chat?.messages) ? row.chat.messages : [];
   const trimmed = messages.slice(-maxMessages);
+  let revenue = 0;
+  let purchases = 0;
+  let sends = 0;
   const lines = trimmed.map((m) => {
     const role = m.sender === 'model' ? 'CHATTER' : 'KUNDE';
-    if (m.type === 'image') return `${role}: [BILD verkauft/gesendet]`;
-    if (m.type === 'video') return `${role}: [VIDEO verkauft/gesendet]`;
+    const type = (m.type ?? '').toLowerCase();
+    const price = Number(m?.content?.price ?? m?.price ?? 0) || 0;
+    const purchased = m?.content?.purchased === true || m?.purchased === true || (type === 'tip' && price > 0);
+    if (type === 'chat_product') {
+      sends += 1;
+      if (purchased) { purchases += 1; revenue += price; }
+      return `${role}: [PPV angeboten ${price ? price + '€' : ''}${purchased ? ' — GEKAUFT' : ' — nicht gekauft'}]`;
+    }
+    if (type === 'tip') {
+      if (price > 0) { revenue += price; purchases += 1; }
+      return `${role}: [TRINKGELD ${price}€]`;
+    }
+    if (type === 'media' || type === 'image' || type === 'video') {
+      return `${role}: [${type === 'video' ? 'VIDEO' : 'BILD'} gesendet${price ? ' — ' + price + '€' : ''}]`;
+    }
     const text = messageText(m);
     return `${role}: ${text}`;
   });
-  return lines.join('\n');
+  return { text: lines.join('\n'), revenue, purchases, sends };
 }
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true) {
@@ -442,44 +463,69 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Du bist ein warmer, sehr wertschätzender Sales-Coach für professionelles Chatting im Adult-Creator-Umfeld. Du schreibst diese Analyse DIREKT an den Chatter "${chatter_name}" - als persönliches Coaching von seinem Team-Lead. Ton: warm, persönlich, ehrlich, aufbauend. Nie herablassend, nie streng.
+    const systemPrompt = `Du bist ein warmer, ehrlicher Sales-Coach für Chatting im Adult-Creator-Umfeld. Du schreibst DIREKT an "${chatter_name}" wie sein Team-Lead — freundlich, respektvoll, auf Augenhöhe.
 
-SPRACHE (SEHR WICHTIG):
-- Schreibe für jemanden OHNE jeden Vorwissen. Keine Fachbegriffe, kein Business-Jargon, keine englischen Sales-Vokabeln ohne Übersetzung.
-- Wenn ein Fachbegriff wirklich nötig ist (z.B. Upsell, Rapport, Anchoring, Frame, PPV, Custom), erkläre ihn IMMER sofort in Klammern in einem einfachen Satz - so, dass es auch jemand versteht, der zum ersten Mal chattet. Beispiel: "Rapport (also das Gefühl von echter Nähe zwischen dir und dem Kunden)".
-- Nutze kurze Sätze, alltagsnahe Wörter, keine abstrakten Buzzwords wie "Basic-First-Prinzip", "Funnel-Layer" o.ä. Wenn du solche Konzepte meinst, schreibe direkt was gemeint ist ("erst die kleinen Sachen anbieten, bevor du das Teuerste zeigst").
-- Sprich mit "du".
+SPRACHE — HARTE REGELN:
+- KEINE Fachbegriffe. Nicht "Rapport", nicht "Upsell", nicht "Anchoring", nicht "Frame", nicht "Basic-First". Sag direkt was gemeint ist.
+  Falsch: "Rapport-Building (also Beziehung aufbauen)".
+  Richtig: "Du musst erst eine Beziehung mit dem Kunden aufbauen."
+- Kurze Sätze. Alltagssprache. "Du"-Ansprache.
+
+STIL & LÄNGE — WICHTIG:
+- Es soll sich FLÜSSIG lesen. Kein Zerlegen jeder einzelnen Nachricht.
+- KEINE Wiederholungen. Wenn derselbe Fehler mehrfach vorkommt, nenn ihn EINMAL mit dem stärksten Beispiel.
+- Nur die 1–3 wichtigsten Punkte pro Kategorie. Weniger = mehr.
+- Gute Beispiele nur, wenn sie wirklich etwas Neues zeigen.
+
+VERKÄUFE ZUERST ANSCHAUEN:
+- Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" oder "— nicht gekauft", und "[TRINKGELD Xe]".
+- Wenn Verkäufe passiert sind: ANERKENNE das zuerst. Kein "war schlecht", wenn Geld geflossen ist.
+- Ein Chat mit Umsatz = grundsätzlich guter Chat. Feedback dann als "so wird beim nächsten Mal noch mehr draus".
+- Ein Chat ohne Umsatz trotz Kaufsignalen = da ehrlich zeigen, wo der Deal verloren ging.
 
 INHALT:
-- Formuliere Kritik immer positiv und lösungsorientiert ("Hier liegt richtig Umsatz-Potenzial drin, wenn du...").
-- Jede Verbesserung = mehr Geld für den Chatter (Prozent, Trinkgeld, Bonus).
-- Nutze konkrete Zitate aus dem Chat als Belege.
-- Bei "donts" liefere immer eine konkrete bessere Formulierung, die er 1:1 einsetzen kann.
+- Kritik immer lösungsorientiert und mit konkreter besserer Formulierung, die er 1:1 nutzen kann.
+- Zitate nur einbauen, wenn sie klar den Punkt tragen. Kein Zitat-Spam.
 
-Das Coaching-Material des Team-Leads (verbindliche Basis - aber wenn dort Fachbegriffe vorkommen, übersetze sie für den Chatter):
+Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
 
-${coachingText || '(Kein Coaching-Material hinterlegt - nutze Best Practices für Chat-Sales, Vertrauensaufbau, Preis-Psychologie und Zusatzverkäufe.)'}
+${coachingText || '(Kein Material hinterlegt — nutze gesunden Menschenverstand für Verkauf, Vertrauen und Nähe im Chat.)'}
 
-Antworte IMMER als valides JSON gemäß Schema. Kein Markdown, kein Text drumherum.`;
+Antworte IMMER als valides JSON gemäß Schema. Kein Markdown drumherum.`;
 
     // Per-chat analysis
     const chatAnalyses = await withConcurrency(chats as ChatRow[], 3, async (row) => {
       const formatted = formatChatForAI(row);
-      const userPrompt = `Analysiere diesen Chat zwischen ${chatter_name} (CHATTER) und dem Kunden ${row.recipient_username ?? 'unbekannt'}. Schreibe alle Bewertungen so, als würdest du ${chatter_name} persönlich erklären, was gut lief und wo Geld auf dem Tisch liegen bleibt.
+      const outcomeLine = formatted.revenue > 0
+        ? `VERKAUFS-ERGEBNIS: ${formatted.revenue.toFixed(2)}€ Umsatz aus ${formatted.purchases} Käufen/Trinkgeldern. Der Chat hat GELD GEMACHT — dein Feedback muss das anerkennen.`
+        : formatted.sends > 0
+          ? `VERKAUFS-ERGEBNIS: 0€. Es wurden ${formatted.sends} PPVs angeboten, aber nichts gekauft. Hier darfst du ehrlich zeigen wo der Deal verloren ging.`
+          : `VERKAUFS-ERGEBNIS: 0€ und keine PPVs angeboten. Frag dich ob überhaupt eine Verkaufschance da war.`;
+
+      const userPrompt = `Analysiere diesen Chat zwischen ${chatter_name} und Kunde ${row.recipient_username ?? 'unbekannt'}.
+
+${outcomeLine}
 
 CHAT-VERLAUF:
-${formatted}
+${formatted.text}
 
-Gib genau dieses JSON zurück. WICHTIG: Jedes Zitat MUSS einen "situation"-Satz haben, der in einfacher Sprache erklärt, was direkt davor im Chat passiert ist (was der Kunde gefragt/getan hat, in welcher Phase des Gesprächs ihr wart). Ohne Kontext versteht der Chatter später nicht, worauf sich das Feedback bezieht.
+REGELN FÜR DEINE ANTWORT:
+- MAX 2 "dos" und MAX 2 "donts" — die WICHTIGSTEN. Kein Zerlegen jeder Nachricht.
+- Wenn derselbe Punkt mehrfach vorkommt: nur EINMAL mit dem klarsten Beispiel.
+- Wenn Umsatz gemacht wurde: "one_line_verdict" und "chat_context" müssen das anerkennen.
+- Keine Fachbegriffe. Sag direkt was gemeint ist.
+
+JSON-Schema:
 {
   "customer_username": "${row.recipient_username ?? 'unbekannt'}",
-  "score": <0-100, Gesamtbewertung>,
-  "one_line_verdict": "<ein warmer, direkter Satz an dich (${chatter_name}) zu diesem Chat>",
-  "chat_context": "<2-3 Sätze: worum ging es in diesem Chat insgesamt? Welcher Kunde (neu/Stammi/Whale), welche Stimmung, welches Ziel hattest du?>",
-  "pricing_check": "<Bewertung des Pricings, direkt an dich adressiert, mit €-Beträgen aus dem Chat>",
-  "dos": [{"situation": "<1 Satz: was war direkt vorher im Chat los / worauf hast du reagiert>", "quote": "<dein Original-Zitat>", "why_good": "<warum das stark war, mit Bezug zur Situation>"}],
-  "donts": [{"situation": "<1 Satz: was war direkt vorher im Chat los / worauf hast du reagiert>", "quote": "<dein Original-Zitat>", "problem": "<freundlich erklärt, was hier Umsatz gekostet hat>", "better": "<konkrete bessere Formulierung, die du beim nächsten Mal einsetzen kannst>"}],
-  "revenue_levers": ["<konkreter Hebel für mehr Umsatz beim nächsten Chat wie diesem>", "..."]
+  "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
+  "revenue_eur": ${formatted.revenue.toFixed(2)},
+  "one_line_verdict": "<ein warmer, ehrlicher Satz an dich zu diesem Chat — Umsatz anerkennen wenn da>",
+  "chat_context": "<2-3 Sätze in Alltagssprache: worum ging es, was für ein Kunde, wie lief es kommerziell>",
+  "pricing_check": "<1-2 Sätze zum Pricing mit echten €-Beträgen aus dem Chat, oder leer lassen wenn nichts angeboten wurde>",
+  "dos": [{"situation": "<1 Satz Kontext: was war vorher los>", "quote": "<Original-Zitat>", "why_good": "<1-2 Sätze warum stark>"}],
+  "donts": [{"situation": "<1 Satz Kontext>", "quote": "<Original-Zitat>", "problem": "<1-2 Sätze freundlich>", "better": "<konkrete bessere Formulierung>"}],
+  "revenue_levers": ["<1-2 sehr konkrete Hebel für nächstes Mal — max 3 insgesamt>"]
 }`;
 
       try {
@@ -488,7 +534,7 @@ Gib genau dieses JSON zurück. WICHTIG: Jedes Zitat MUSS einen "situation"-Satz 
         if (!parsed) {
           return { chat_id: row.chat_id, customer_username: row.recipient_username, error: 'AI-Antwort nicht parsbar' };
         }
-        return { chat_id: row.chat_id, ...parsed };
+        return { chat_id: row.chat_id, revenue_eur: formatted.revenue, purchases: formatted.purchases, ppvs_sent: formatted.sends, ...parsed };
       } catch (e) {
         return { chat_id: row.chat_id, customer_username: row.recipient_username, error: (e as Error).message };
       }
@@ -504,28 +550,39 @@ Gib genau dieses JSON zurück. WICHTIG: Jedes Zitat MUSS einen "situation"-Satz 
     let personalClosing = '';
     let topFocus: string[] = [];
     if (valid.length > 0) {
-      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das Coaching persönlich, warm und motivierend für ${chatter_name} zusammen — als hätte sein Team-Lead sich extra Zeit für ihn genommen. Framing: mehr Skill = mehr Cash für dich.
+      const totalRevenue = valid.reduce((s: number, c: any) => s + (Number(c.revenue_eur) || 0), 0);
+      const chatsWithRevenue = valid.filter((c: any) => Number(c.revenue_eur) > 0).length;
+      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das zu einem flüssig lesbaren Gesamt-Coaching zusammen — kurz, warm, ehrlich. KEINE Wiederholungen aus den Einzel-Analysen, sondern die roten Fäden.
+
+VERKAUFS-KONTEXT:
+- Gesamt-Umsatz aus diesen Chats: ${totalRevenue.toFixed(2)}€
+- Chats mit Umsatz: ${chatsWithRevenue} von ${valid.length}
+${totalRevenue > 0 ? '→ Anerkenne den Umsatz zuerst. Der Chatter hat GELIEFERT.' : '→ Ehrlich benennen dass hier Verkäufe fehlen, aber konstruktiv.'}
 
 EINZEL-ANALYSEN:
 ${JSON.stringify(valid, null, 2).slice(0, 40000)}
 
-Gib genau dieses JSON zurück:
+REGELN:
+- KEINE Fachbegriffe. Sag direkt was gemeint ist.
+- MAX 3 Muster (patterns) — nur die wirklich wiederkehrenden. Kein Muster für Einmal-Vorfälle.
+- Pro Muster MAX 2 Momente. Kein Zitat-Spam.
+- top_focus: genau 3 klare Hebel, keine Wiederholungen.
+
+JSON:
 {
-  "personal_intro": "<2-3 warme, persönliche Sätze an ${chatter_name}. Anerkennung + Setup, warum dieses Coaching für ihn wertvoll ist. Direkte Anrede 'du'.>",
-  "executive_summary": "<3-5 Sätze: die Kern-Story über alle Chats hinweg, direkt an ${chatter_name}, ehrlich aber motivierend>",
-  "top_focus": ["<Top-Hebel 1 konkret an ${chatter_name}>", "<Top-Hebel 2>", "<Top-Hebel 3>"],
+  "personal_intro": "<2-3 warme Sätze an ${chatter_name}. Umsatz anerkennen wenn da.>",
+  "executive_summary": "<3-4 Sätze: der rote Faden, ehrlich aber motivierend, in Alltagssprache>",
+  "top_focus": ["<Hebel 1>", "<Hebel 2>", "<Hebel 3>"],
   "patterns": [
     {
-      "title": "<kurzer Titel>",
+      "title": "<kurzer Titel ohne Fachbegriff>",
       "type": "positive" | "negative",
-      "description": "<was passiert wiederkehrend, direkt an ${chatter_name} adressiert, wertschätzend>",
-      "moments": [
-        {"situation": "<1 Satz: in welcher Situation kam das vor>", "quote": "<Original-Zitat>"}
-      ],
+      "description": "<2-3 Sätze — was passiert wiederkehrend, warum wichtig>",
+      "moments": [{"situation": "<1 Satz>", "quote": "<Zitat>"}],
       "better_approach": "<nur bei negative: konkrete bessere Formulierung>"
     }
   ],
-  "personal_closing": "<2-3 aufbauende Schlusssätze an ${chatter_name}. Fokus: was er als Nächstes umsetzt, warum das seinen Umsatz hebt, Vertrauen. Direkte Anrede 'du'.>"
+  "personal_closing": "<2-3 aufbauende Schlusssätze — was jetzt umsetzen, warum das mehr Geld bringt>"
 }`;
 
       try {
