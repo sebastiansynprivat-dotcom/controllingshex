@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { jsPDF } from "jspdf";
+import { ensurePdfFonts, drawRichLine, wrapRich, segmentText } from "./pdf-fonts";
+
 
 export interface CoachingMaterial {
   id: string;
