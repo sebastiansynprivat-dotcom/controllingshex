@@ -106,8 +106,11 @@ function extractMessages(chat: any): any[] {
 function normalizeMessages(rawMessages: unknown): ChatMessage[] {
   if (!Array.isArray(rawMessages)) return [];
   return rawMessages.map((m: any) => {
-    const type = m?.type ?? (m?.content?.url || m?.url ? 'image' : 'text');
+    const rawType = (m?.type ?? '').toString().toLowerCase();
+    const type = rawType || (m?.content?.url || m?.url ? 'image' : 'text');
     const text = messageText(m);
+    const price = m?.price ?? m?.content?.price ?? m?.amount ?? m?.content?.amount ?? null;
+    const purchased = m?.purchased ?? m?.content?.purchased ?? m?.is_purchased ?? m?.content?.is_purchased ?? null;
     return {
       id: String(m?.id ?? crypto.randomUUID()),
       type,
@@ -116,8 +119,10 @@ function normalizeMessages(rawMessages: unknown): ChatMessage[] {
         ...(m?.content && typeof m.content === 'object' ? m.content : {}),
         text,
         url: m?.content?.url ?? m?.url,
+        price,
+        purchased,
       },
-    };
+    } as any;
   });
 }
 
