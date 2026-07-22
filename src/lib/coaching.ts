@@ -658,54 +658,53 @@ export async function renderAnalysisPDF(input: {
   };
 
   const sectionHeading = (kicker: string, title: string) => {
-    ensureSpace(90);
-    y += 22; // breathing room above every section
+    ensureSpace(96);
+    y += 26; // breathing room above every section
+    // Thin gold rule spanning full width, then kicker below
+    setDraw(GOLD);
+    doc.setLineWidth(0.6);
+    doc.line(margin, y, pageW - margin, y);
+    y += 14;
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.text(kicker.toUpperCase(), margin, y);
-    y += 6;
-    setDraw(GOLD);
-    doc.setLineWidth(1);
-    doc.line(margin, y, margin + 28, y);
-    y += 20;
+    y += 18;
     setText(INK);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     const titleLines = doc.splitTextToSize(title, contentW) as string[];
-    for (const l of titleLines) { doc.text(l, margin, y); y += 24; }
-    y += 4;
+    for (const l of titleLines) { doc.text(l, margin, y); y += 22; }
+    y += 6;
   };
 
   const goldCard = (title: string, body: string) => {
-    ensureSpace(80);
-    const startY = y;
-    // measure body
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    const bodyLines = doc.splitTextToSize(body, contentW - 32) as string[];
-    const cardH = 22 + 14 + bodyLines.length * 14 + 18;
-    ensureSpace(cardH);
-    setFill([250, 246, 232]);
-    doc.rect(margin, y, contentW, cardH, "F");
-    setDraw(GOLD);
-    doc.setLineWidth(1.4);
-    doc.line(margin, y, margin, y + cardH); // left gold bar
-    y += 20;
+    const bodyLines = doc.splitTextToSize(body, contentW - 36) as string[];
+    const cardH = 24 + 14 + bodyLines.length * 15 + 18;
+    ensureSpace(cardH + 6);
+    setFill([250, 247, 236]);
+    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "F");
+    setDraw([225, 210, 160]);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "S");
+    let cy = y + 22;
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text(title.toUpperCase(), margin + 16, y);
-    y += 16;
+    doc.setFontSize(7.5);
+    doc.text(title.toUpperCase(), margin + 18, cy);
+    cy += 16;
     setText(INK);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     for (const l of bodyLines) {
-      doc.text(l, margin + 16, y);
-      y += 14;
+      doc.text(l, margin + 18, cy);
+      cy += 15;
     }
-    y += 12;
+    y += cardH + 14;
   };
+
 
   const pill = (label: string, color: [number, number, number]) => {
     doc.setFont("helvetica", "bold");
