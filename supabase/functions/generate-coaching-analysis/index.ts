@@ -550,28 +550,39 @@ JSON-Schema:
     let personalClosing = '';
     let topFocus: string[] = [];
     if (valid.length > 0) {
-      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das Coaching persönlich, warm und motivierend für ${chatter_name} zusammen — als hätte sein Team-Lead sich extra Zeit für ihn genommen. Framing: mehr Skill = mehr Cash für dich.
+      const totalRevenue = valid.reduce((s: number, c: any) => s + (Number(c.revenue_eur) || 0), 0);
+      const chatsWithRevenue = valid.filter((c: any) => Number(c.revenue_eur) > 0).length;
+      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das zu einem flüssig lesbaren Gesamt-Coaching zusammen — kurz, warm, ehrlich. KEINE Wiederholungen aus den Einzel-Analysen, sondern die roten Fäden.
+
+VERKAUFS-KONTEXT:
+- Gesamt-Umsatz aus diesen Chats: ${totalRevenue.toFixed(2)}€
+- Chats mit Umsatz: ${chatsWithRevenue} von ${valid.length}
+${totalRevenue > 0 ? '→ Anerkenne den Umsatz zuerst. Der Chatter hat GELIEFERT.' : '→ Ehrlich benennen dass hier Verkäufe fehlen, aber konstruktiv.'}
 
 EINZEL-ANALYSEN:
 ${JSON.stringify(valid, null, 2).slice(0, 40000)}
 
-Gib genau dieses JSON zurück:
+REGELN:
+- KEINE Fachbegriffe. Sag direkt was gemeint ist.
+- MAX 3 Muster (patterns) — nur die wirklich wiederkehrenden. Kein Muster für Einmal-Vorfälle.
+- Pro Muster MAX 2 Momente. Kein Zitat-Spam.
+- top_focus: genau 3 klare Hebel, keine Wiederholungen.
+
+JSON:
 {
-  "personal_intro": "<2-3 warme, persönliche Sätze an ${chatter_name}. Anerkennung + Setup, warum dieses Coaching für ihn wertvoll ist. Direkte Anrede 'du'.>",
-  "executive_summary": "<3-5 Sätze: die Kern-Story über alle Chats hinweg, direkt an ${chatter_name}, ehrlich aber motivierend>",
-  "top_focus": ["<Top-Hebel 1 konkret an ${chatter_name}>", "<Top-Hebel 2>", "<Top-Hebel 3>"],
+  "personal_intro": "<2-3 warme Sätze an ${chatter_name}. Umsatz anerkennen wenn da.>",
+  "executive_summary": "<3-4 Sätze: der rote Faden, ehrlich aber motivierend, in Alltagssprache>",
+  "top_focus": ["<Hebel 1>", "<Hebel 2>", "<Hebel 3>"],
   "patterns": [
     {
-      "title": "<kurzer Titel>",
+      "title": "<kurzer Titel ohne Fachbegriff>",
       "type": "positive" | "negative",
-      "description": "<was passiert wiederkehrend, direkt an ${chatter_name} adressiert, wertschätzend>",
-      "moments": [
-        {"situation": "<1 Satz: in welcher Situation kam das vor>", "quote": "<Original-Zitat>"}
-      ],
+      "description": "<2-3 Sätze — was passiert wiederkehrend, warum wichtig>",
+      "moments": [{"situation": "<1 Satz>", "quote": "<Zitat>"}],
       "better_approach": "<nur bei negative: konkrete bessere Formulierung>"
     }
   ],
-  "personal_closing": "<2-3 aufbauende Schlusssätze an ${chatter_name}. Fokus: was er als Nächstes umsetzt, warum das seinen Umsatz hebt, Vertrauen. Direkte Anrede 'du'.>"
+  "personal_closing": "<2-3 aufbauende Schlusssätze — was jetzt umsetzen, warum das mehr Geld bringt>"
 }`;
 
       try {
