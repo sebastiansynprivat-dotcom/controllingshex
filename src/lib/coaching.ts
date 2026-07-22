@@ -364,7 +364,15 @@ export function renderAnalysisPDF(input: {
       .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'") // curly single quotes
       .replace(/[\u2026]/g, "...")                   // ellipsis
       .replace(/[\u2022\u25CF\u25CB\u25AA\u25AB]/g, "-") // bullets
-      .replace(/[\u00A0]/g, " ");                    // nbsp
+      .replace(/[\u00A0]/g, " ")                     // nbsp
+      // Strip everything jsPDF's WinAnsi font can't render (emojis, CJK,
+      // symbol pictographs, variation selectors, ZWJ). Otherwise they render
+      // as random letters like "Ø=Þ" or "þþ þþþ".
+      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+      .replace(/[\u2600-\u27BF]/g, "")
+      .replace(/[\uFE00-\uFE0F\u200B-\u200D\u2060\uFEFF]/g, "")
+      // Final safety net: drop any remaining char outside Latin-1.
+      .replace(/[^\x00-\xFF]/g, "");
 
   const _text = doc.text.bind(doc);
   (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
