@@ -515,6 +515,7 @@ REGELN FÜR DEINE ANTWORT:
 - Wenn derselbe Punkt mehrfach vorkommt: nur EINMAL mit dem klarsten Beispiel.
 - Wenn Umsatz gemacht wurde: "one_line_verdict" und "chat_context" müssen das anerkennen.
 - Keine Fachbegriffe. Sag direkt was gemeint ist.
+- KEINE Emojis in irgendeinem Feld.
 
 JSON-Schema:
 {
