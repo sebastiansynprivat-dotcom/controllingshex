@@ -123,10 +123,17 @@ export function drawRichLine(
   // measure
   let total = 0;
   const widths: number[] = [];
-  for (const s of segs) {
-    doc.setFont(s.emoji ? emojiFam : textFam, s.emoji ? "normal" : opts.style);
+  const setSeg = (isEmoji: boolean) => {
+    try {
+      if (isEmoji && emojiAvailable) doc.setFont(emojiFam, "normal");
+      else doc.setFont(textFam, opts.style);
+    } catch { try { doc.setFont(textFam, opts.style); } catch {} }
     doc.setFontSize(opts.size);
-    const w = doc.getTextWidth(s.text);
+  };
+  for (const s of segs) {
+    setSeg(s.emoji);
+    const t = s.emoji && !emojiAvailable ? "" : s.text;
+    const w = t ? doc.getTextWidth(t) : 0;
     widths.push(w);
     total += w;
   }
@@ -134,9 +141,9 @@ export function drawRichLine(
   if (opts.align === "right") cursor = x - total;
   else if (opts.align === "center") cursor = x - total / 2;
   segs.forEach((s, i) => {
-    doc.setFont(s.emoji ? emojiFam : textFam, s.emoji ? "normal" : opts.style);
-    doc.setFontSize(opts.size);
-    doc.text(s.text, cursor, y);
+    setSeg(s.emoji);
+    const t = s.emoji && !emojiAvailable ? "" : s.text;
+    if (t) doc.text(t, cursor, y);
     cursor += widths[i];
   });
   return total;
@@ -155,12 +162,17 @@ export function wrapRich(
     const segs = segmentText(s);
     let w = 0;
     for (const seg of segs) {
-      doc.setFont(seg.emoji ? emojiFam : textFam, seg.emoji ? "normal" : opts.style);
+      try {
+        if (seg.emoji && emojiAvailable) doc.setFont(emojiFam, "normal");
+        else doc.setFont(textFam, opts.style);
+      } catch {}
       doc.setFontSize(opts.size);
-      w += doc.getTextWidth(seg.text);
+      const t = seg.emoji && !emojiAvailable ? "" : seg.text;
+      if (t) w += doc.getTextWidth(t);
     }
     return w;
   };
+
   const paragraphs = String(str ?? "").split(/\r?\n/);
   const out: string[] = [];
   for (const para of paragraphs) {
