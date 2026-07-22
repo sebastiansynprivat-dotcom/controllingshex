@@ -48,25 +48,43 @@ async function loadAll() {
   for (const [k, v] of entries) if (v) cache[k] = v;
 }
 
+let registered: WeakSet<jsPDF> = new WeakSet();
+let emojiAvailable = false;
+let textAvailable = false;
+
 export async function ensurePdfFonts(doc: jsPDF): Promise<{ hasText: boolean; hasEmoji: boolean }> {
   if (!pending) pending = loadAll();
   await pending;
+  if (registered.has(doc)) return { hasText: textAvailable, hasEmoji: emojiAvailable };
   const c = cache!;
-  const register = (name: string, style: string, kind: FontKind) => {
-    if (!c[kind]) return false;
-    doc.addFileToVFS(`${kind}.ttf`, c[kind]!);
-    doc.addFont(`${kind}.ttf`, name, style);
-    return true;
-  };
   const family = "NotoSans";
-  const okR = register(family, "normal", "regular");
-  register(family, "bold", "bold");
-  register(family, "italic", "italic");
-  register(family, "bolditalic", "bolditalic");
-  const okE = register("NotoEmoji", "normal", "emoji");
-  if (okR) doc.setFont(family, "normal");
+  const safeRegister = (name: string, style: string, kind: FontKind): boolean => {
+    if (!c[kind]) return false;
+    try {
+      doc.addFileToVFS(`${kind}.ttf`, c[kind]!);
+      doc.addFont(`${kind}.ttf`, name, style);
+      return true;
+    } catch (e) {
+      console.warn("[pdf-fonts] register failed", kind, e);
+      return false;
+    }
+  };
+  const okR = safeRegister(family, "normal", "regular");
+  safeRegister(family, "bold", "bold");
+  safeRegister(family, "italic", "italic");
+  safeRegister(family, "bolditalic", "bolditalic");
+  const okE = safeRegister("NotoEmoji", "normal", "emoji");
+  if (okR) {
+    try { doc.setFont(family, "normal"); } catch {}
+  }
+  textAvailable = okR;
+  emojiAvailable = okE;
+  registered.add(doc);
   return { hasText: okR, hasEmoji: okE };
 }
+
+function emojiOk(): boolean { return emojiAvailable; }
+
 
 /** Regex matching most emoji + pictographic chars. */
 const EMOJI_RE =
@@ -105,10 +123,17 @@ export function drawRichLine(
   // measure
   let total = 0;
   const widths: number[] = [];
-  for (const s of segs) {
-    doc.setFont(s.emoji ? emojiFam : textFam, s.emoji ? "normal" : opts.style);
+  const setSeg = (isEmoji: boolean) => {
+    try {
+      if (isEmoji && emojiAvailable) doc.setFont(emojiFam, "normal");
+      else doc.setFont(textFam, opts.style);
+    } catch { try { doc.setFont(textFam, opts.style); } catch {} }
     doc.setFontSize(opts.size);
-    const w = doc.getTextWidth(s.text);
+  };
+  for (const s of segs) {
+    setSeg(s.emoji);
+    const t = s.emoji && !emojiAvailable ? "" : s.text;
+    const w = t ? doc.getTextWidth(t) : 0;
     widths.push(w);
     total += w;
   }
@@ -116,9 +141,9 @@ export function drawRichLine(
   if (opts.align === "right") cursor = x - total;
   else if (opts.align === "center") cursor = x - total / 2;
   segs.forEach((s, i) => {
-    doc.setFont(s.emoji ? emojiFam : textFam, s.emoji ? "normal" : opts.style);
-    doc.setFontSize(opts.size);
-    doc.text(s.text, cursor, y);
+    setSeg(s.emoji);
+    const t = s.emoji && !emojiAvailable ? "" : s.text;
+    if (t) doc.text(t, cursor, y);
     cursor += widths[i];
   });
   return total;
@@ -137,12 +162,17 @@ export function wrapRich(
     const segs = segmentText(s);
     let w = 0;
     for (const seg of segs) {
-      doc.setFont(seg.emoji ? emojiFam : textFam, seg.emoji ? "normal" : opts.style);
+      try {
+        if (seg.emoji && emojiAvailable) doc.setFont(emojiFam, "normal");
+        else doc.setFont(textFam, opts.style);
+      } catch {}
       doc.setFontSize(opts.size);
-      w += doc.getTextWidth(seg.text);
+      const t = seg.emoji && !emojiAvailable ? "" : seg.text;
+      if (t) w += doc.getTextWidth(t);
     }
     return w;
   };
+
   const paragraphs = String(str ?? "").split(/\r?\n/);
   const out: string[] = [];
   for (const para of paragraphs) {
