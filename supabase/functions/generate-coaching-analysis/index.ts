@@ -470,6 +470,7 @@ SPRACHE — HARTE REGELN:
   Falsch: "Rapport-Building (also Beziehung aufbauen)".
   Richtig: "Du musst erst eine Beziehung mit dem Kunden aufbauen."
 - Kurze Sätze. Alltagssprache. "Du"-Ansprache.
+- KEINE Emojis. Kein einziges. Sie werden im PDF zu Müll-Zeichen.
 
 STIL & LÄNGE — WICHTIG:
 - Es soll sich FLÜSSIG lesen. Kein Zerlegen jeder einzelnen Nachricht.
@@ -514,6 +515,7 @@ REGELN FÜR DEINE ANTWORT:
 - Wenn derselbe Punkt mehrfach vorkommt: nur EINMAL mit dem klarsten Beispiel.
 - Wenn Umsatz gemacht wurde: "one_line_verdict" und "chat_context" müssen das anerkennen.
 - Keine Fachbegriffe. Sag direkt was gemeint ist.
+- KEINE Emojis in irgendeinem Feld.
 
 JSON-Schema:
 {
