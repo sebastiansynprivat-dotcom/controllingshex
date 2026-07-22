@@ -341,49 +341,77 @@ const PAPER: [number, number, number] = [252, 251, 247];     // warm off-white
 const MUTED: [number, number, number] = [110, 110, 110];
 const HAIRLINE: [number, number, number] = [220, 214, 196];
 
-export function renderAnalysisPDF(input: {
+export async function renderAnalysisPDF(input: {
   chatter_name: string;
   platform: string;
   model_username: string | null;
   date_from: string;
   date_to: string;
   result: AnalysisResult;
-}): Blob {
+}): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 56;
   const contentW = pageW - margin * 2;
 
-  // Sanitize text for jsPDF's WinAnsi encoding — replace glyphs that render as
-  // garbage boxes / random letters ("P") in helvetica.
+  const fonts = await ensurePdfFonts(doc);
+  const TEXT_FAM = fonts.hasText ? "NotoSans" : "helvetica";
+  const EMOJI_FAM = fonts.hasEmoji ? "NotoEmoji" : TEXT_FAM;
+
+  // Light sanitize — normalize dashes/quotes for visual consistency, keep emojis.
   const sanitize = (s: string): string =>
     (s ?? "")
-      .replace(/[\u2192\u2794\u27A1\u2B95]/g, ">")   // → arrows
-      .replace(/[\u2190\u2B05]/g, "<")               // ← arrows
-      .replace(/[\u2013\u2014]/g, "-")               // – — dashes
-      .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"') // curly / German quotes
-      .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'") // curly single quotes
-      .replace(/[\u2026]/g, "...")                   // ellipsis
-      .replace(/[\u2022\u25CF\u25CB\u25AA\u25AB]/g, "-") // bullets
-      .replace(/[\u00A0]/g, " ")                     // nbsp
-      // Strip everything jsPDF's WinAnsi font can't render (emojis, CJK,
-      // symbol pictographs, variation selectors, ZWJ). Otherwise they render
-      // as random letters like "Ø=Þ" or "þþ þþþ".
-      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
-      .replace(/[\u2600-\u27BF]/g, "")
-      .replace(/[\uFE00-\uFE0F\u200B-\u200D\u2060\uFEFF]/g, "")
-      // Final safety net: drop any remaining char outside Latin-1.
-      .replace(/[^\x00-\xFF]/g, "");
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/[\u00A0]/g, " ");
 
-  const _text = doc.text.bind(doc);
-  (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
-    if (Array.isArray(text)) return _text(text.map((t) => sanitize(String(t))), x, y, opts);
-    return _text(sanitize(String(text)), x, y, opts);
+  // Override doc.text and splitTextToSize so every existing layout call
+  // renders emoji-safely via the mixed-font rich text pipeline.
+  const styleOf = (): "normal" | "bold" | "italic" | "bolditalic" => {
+    const s = (doc as any).internal?.getFont?.()?.fontStyle ?? "normal";
+    if (s === "bold" || s === "italic" || s === "bolditalic" || s === "normal") return s;
+    return "normal";
   };
-  const _split = doc.splitTextToSize.bind(doc);
-  (doc as any).splitTextToSize = (text: any, w: number, opts?: any) =>
-    _split(sanitize(String(text)), w, opts);
+  const sizeOf = (): number => doc.getFontSize();
+  (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
+    const lines = Array.isArray(text) ? text : [text];
+    const align = opts?.align as "left" | "right" | "center" | undefined;
+    const lh = sizeOf() * 1.15;
+    lines.forEach((ln: any, i: number) => {
+      drawRichLine(doc, sanitize(String(ln)), x, y + i * lh, {
+        size: sizeOf(),
+        style: styleOf(),
+        textFamily: TEXT_FAM,
+        emojiFamily: EMOJI_FAM,
+        align,
+      });
+    });
+    return doc;
+  };
+  (doc as any).splitTextToSize = (text: any, w: number) =>
+    wrapRich(doc, sanitize(String(text)), w, {
+      size: sizeOf(),
+      style: styleOf(),
+      textFamily: TEXT_FAM,
+      emojiFamily: EMOJI_FAM,
+    });
+  // Also patch getTextWidth to account for emoji glyphs when present.
+  const _getTextWidth = doc.getTextWidth.bind(doc);
+  (doc as any).getTextWidth = (s: string) => {
+    const segs = segmentText(sanitize(String(s)));
+    let total = 0;
+    const style = styleOf();
+    const size = sizeOf();
+    for (const seg of segs) {
+      doc.setFont(seg.emoji ? EMOJI_FAM : TEXT_FAM, seg.emoji ? "normal" : style);
+      doc.setFontSize(size);
+      total += _getTextWidth(seg.text);
+    }
+    doc.setFont(TEXT_FAM, style);
+    doc.setFontSize(size);
+    return total;
+  };
+
 
   const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
