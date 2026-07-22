@@ -267,17 +267,33 @@ async function fetchFreshChats(input: {
   };
 }
 
-function formatChatForAI(row: ChatRow, maxMessages = 200): string {
-  const messages: ChatMessage[] = Array.isArray(row.chat?.messages) ? row.chat.messages : [];
+function formatChatForAI(row: ChatRow, maxMessages = 200): { text: string; revenue: number; purchases: number; sends: number } {
+  const messages: any[] = Array.isArray(row.chat?.messages) ? row.chat.messages : [];
   const trimmed = messages.slice(-maxMessages);
+  let revenue = 0;
+  let purchases = 0;
+  let sends = 0;
   const lines = trimmed.map((m) => {
     const role = m.sender === 'model' ? 'CHATTER' : 'KUNDE';
-    if (m.type === 'image') return `${role}: [BILD verkauft/gesendet]`;
-    if (m.type === 'video') return `${role}: [VIDEO verkauft/gesendet]`;
+    const type = (m.type ?? '').toLowerCase();
+    const price = Number(m?.content?.price ?? m?.price ?? 0) || 0;
+    const purchased = m?.content?.purchased === true || m?.purchased === true || (type === 'tip' && price > 0);
+    if (type === 'chat_product') {
+      sends += 1;
+      if (purchased) { purchases += 1; revenue += price; }
+      return `${role}: [PPV angeboten ${price ? price + '€' : ''}${purchased ? ' — GEKAUFT' : ' — nicht gekauft'}]`;
+    }
+    if (type === 'tip') {
+      if (price > 0) { revenue += price; purchases += 1; }
+      return `${role}: [TRINKGELD ${price}€]`;
+    }
+    if (type === 'media' || type === 'image' || type === 'video') {
+      return `${role}: [${type === 'video' ? 'VIDEO' : 'BILD'} gesendet${price ? ' — ' + price + '€' : ''}]`;
+    }
     const text = messageText(m);
     return `${role}: ${text}`;
   });
-  return lines.join('\n');
+  return { text: lines.join('\n'), revenue, purchases, sends };
 }
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true) {
