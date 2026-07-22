@@ -972,55 +972,32 @@ export function renderAnalysisPDF(input: {
     goldCard("Kern der Analyse", input.result.executive_summary);
   }
 
-  // Top focus
+  // Roadmap — the "Fahrplan"
   if (input.result.top_focus?.length) {
-    sectionHeading("Deine drei Hebel", "Womit du sofort mehr verdienst");
+    sectionHeading("Dein Fahrplan", "Die 3 Schritte, mit denen du sofort mehr verdienst");
     input.result.top_focus.forEach((f, i) => {
-      ensureSpace(40);
-      setText(GOLD);
+      ensureSpace(60);
+      const stepY = y;
+      // Numbered gold disc
+      setFill(GOLD);
+      doc.circle(margin + 14, stepY + 6, 14, "F");
+      setText(PAPER);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.text(String(i + 1).padStart(2, "0"), margin, y + 4);
-      writeText(f, { size: 11, indent: 40, lineHeight: 1.45, gapAfter: 8 });
+      doc.setFontSize(12);
+      doc.text(String(i + 1), margin + 14, stepY + 10, { align: "center" });
+      // Step body
+      writeText(f, { size: 11, indent: 40, lineHeight: 1.5, gapAfter: 14 });
+      // Faint connector line between steps (except last)
+      if (i < (input.result.top_focus?.length ?? 0) - 1) {
+        setDraw(HAIRLINE);
+        doc.setLineWidth(0.4);
+        doc.line(margin + 14, y - 8, margin + 14, y - 2);
+      }
     });
     y += 6;
   }
 
-  // Patterns
-  if (input.result.patterns?.length) {
-    sectionHeading("Muster", "Was sich durch deine Chats zieht");
-    for (const p of input.result.patterns) {
-      ensureSpace(120);
-      const isPos = p.type === "positive";
-      const accent: [number, number, number] = isPos ? [60, 120, 70] : GOLD;
-      pill(isPos ? "STÄRKE" : "WACHSTUM", accent);
-      writeText(p.title, { size: 14, bold: true, gapAfter: 4 });
-      writeText(p.description, { size: 10.5, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 10 });
 
-      const moments: QuoteMoment[] =
-        p.moments && p.moments.length
-          ? p.moments
-          : (p.example_quotes ?? []).map((q) => ({ quote: q }));
-
-      for (const m of moments.slice(0, 3)) {
-        quoteBlock({
-          situation: m.situation,
-          quote: m.quote,
-          accent,
-          ...(isPos
-            ? {}
-            : p.better_approach
-              ? { extraLabel: "So klingt das nächstes Mal", extraText: p.better_approach, extraAccent: GOLD }
-              : {}),
-        });
-      }
-      // If no moments but there's a better_approach, still show it once as a card
-      if (!isPos && moments.length === 0 && p.better_approach) {
-        goldCard("So klingt das nächste Mal noch stärker", p.better_approach);
-      }
-      y += 10;
-    }
-  }
 
   // Per-chat
   if (input.result.chats?.length) {
