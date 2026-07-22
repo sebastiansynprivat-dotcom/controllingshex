@@ -117,6 +117,7 @@ export function drawRichLine(
     style: "normal",
   },
 ): number {
+  const rawText = ((doc as any).__richTextOriginalText as typeof doc.text | undefined) ?? doc.text.bind(doc);
   const textFam = opts.textFamily ?? "NotoSans";
   const emojiFam = opts.emojiFamily ?? "NotoEmoji";
   const segs = segmentText(line);
@@ -143,7 +144,7 @@ export function drawRichLine(
   segs.forEach((s, i) => {
     setSeg(s.emoji);
     const t = s.emoji && !emojiAvailable ? "" : s.text;
-    if (t) doc.text(t, cursor, y);
+    if (t) rawText(t, cursor, y);
     cursor += widths[i];
   });
   return total;

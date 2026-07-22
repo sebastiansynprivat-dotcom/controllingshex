@@ -365,6 +365,9 @@ export async function renderAnalysisPDF(input: {
       .replace(/[\u2013\u2014]/g, "-")
       .replace(/[\u00A0]/g, " ");
 
+  const originalText = doc.text.bind(doc);
+  (doc as any).__richTextOriginalText = originalText;
+
   // Override doc.text and splitTextToSize so every existing layout call
   // renders emoji-safely via the mixed-font rich text pipeline.
   const styleOf = (): "normal" | "bold" | "italic" | "bolditalic" => {
