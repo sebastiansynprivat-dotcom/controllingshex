@@ -297,7 +297,7 @@ function ChatterAnalysisSheet({
         return;
       }
       setStage("PDF wird erstellt…");
-      const pdf = renderAnalysisPDF({
+      const pdf = await renderAnalysisPDF({
         chatter_name: chatter.chatter_name,
         platform,
         model_username: chatter.account,
@@ -305,6 +305,7 @@ function ChatterAnalysisSheet({
         date_to: dateTo,
         result,
       });
+
       const row = await saveAnalysis({
         chatter_name: chatter.chatter_name,
         platform,

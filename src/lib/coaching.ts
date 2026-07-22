@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { jsPDF } from "jspdf";
+import { ensurePdfFonts, drawRichLine, wrapRich, segmentText } from "./pdf-fonts";
+
 
 export interface CoachingMaterial {
   id: string;
@@ -339,49 +341,77 @@ const PAPER: [number, number, number] = [252, 251, 247];     // warm off-white
 const MUTED: [number, number, number] = [110, 110, 110];
 const HAIRLINE: [number, number, number] = [220, 214, 196];
 
-export function renderAnalysisPDF(input: {
+export async function renderAnalysisPDF(input: {
   chatter_name: string;
   platform: string;
   model_username: string | null;
   date_from: string;
   date_to: string;
   result: AnalysisResult;
-}): Blob {
+}): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 56;
   const contentW = pageW - margin * 2;
 
-  // Sanitize text for jsPDF's WinAnsi encoding — replace glyphs that render as
-  // garbage boxes / random letters ("P") in helvetica.
+  const fonts = await ensurePdfFonts(doc);
+  const TEXT_FAM = fonts.hasText ? "NotoSans" : "helvetica";
+  const EMOJI_FAM = fonts.hasEmoji ? "NotoEmoji" : TEXT_FAM;
+
+  // Light sanitize — normalize dashes/quotes for visual consistency, keep emojis.
   const sanitize = (s: string): string =>
     (s ?? "")
-      .replace(/[\u2192\u2794\u27A1\u2B95]/g, ">")   // → arrows
-      .replace(/[\u2190\u2B05]/g, "<")               // ← arrows
-      .replace(/[\u2013\u2014]/g, "-")               // – — dashes
-      .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"') // curly / German quotes
-      .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'") // curly single quotes
-      .replace(/[\u2026]/g, "...")                   // ellipsis
-      .replace(/[\u2022\u25CF\u25CB\u25AA\u25AB]/g, "-") // bullets
-      .replace(/[\u00A0]/g, " ")                     // nbsp
-      // Strip everything jsPDF's WinAnsi font can't render (emojis, CJK,
-      // symbol pictographs, variation selectors, ZWJ). Otherwise they render
-      // as random letters like "Ø=Þ" or "þþ þþþ".
-      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
-      .replace(/[\u2600-\u27BF]/g, "")
-      .replace(/[\uFE00-\uFE0F\u200B-\u200D\u2060\uFEFF]/g, "")
-      // Final safety net: drop any remaining char outside Latin-1.
-      .replace(/[^\x00-\xFF]/g, "");
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/[\u00A0]/g, " ");
 
-  const _text = doc.text.bind(doc);
-  (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
-    if (Array.isArray(text)) return _text(text.map((t) => sanitize(String(t))), x, y, opts);
-    return _text(sanitize(String(text)), x, y, opts);
+  // Override doc.text and splitTextToSize so every existing layout call
+  // renders emoji-safely via the mixed-font rich text pipeline.
+  const styleOf = (): "normal" | "bold" | "italic" | "bolditalic" => {
+    const s = (doc as any).internal?.getFont?.()?.fontStyle ?? "normal";
+    if (s === "bold" || s === "italic" || s === "bolditalic" || s === "normal") return s;
+    return "normal";
   };
-  const _split = doc.splitTextToSize.bind(doc);
-  (doc as any).splitTextToSize = (text: any, w: number, opts?: any) =>
-    _split(sanitize(String(text)), w, opts);
+  const sizeOf = (): number => doc.getFontSize();
+  (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
+    const lines = Array.isArray(text) ? text : [text];
+    const align = opts?.align as "left" | "right" | "center" | undefined;
+    const lh = sizeOf() * 1.15;
+    lines.forEach((ln: any, i: number) => {
+      drawRichLine(doc, sanitize(String(ln)), x, y + i * lh, {
+        size: sizeOf(),
+        style: styleOf(),
+        textFamily: TEXT_FAM,
+        emojiFamily: EMOJI_FAM,
+        align,
+      });
+    });
+    return doc;
+  };
+  (doc as any).splitTextToSize = (text: any, w: number) =>
+    wrapRich(doc, sanitize(String(text)), w, {
+      size: sizeOf(),
+      style: styleOf(),
+      textFamily: TEXT_FAM,
+      emojiFamily: EMOJI_FAM,
+    });
+  // Also patch getTextWidth to account for emoji glyphs when present.
+  const _getTextWidth = doc.getTextWidth.bind(doc);
+  (doc as any).getTextWidth = (s: string) => {
+    const segs = segmentText(sanitize(String(s)));
+    let total = 0;
+    const style = styleOf();
+    const size = sizeOf();
+    for (const seg of segs) {
+      doc.setFont(seg.emoji ? EMOJI_FAM : TEXT_FAM, seg.emoji ? "normal" : style);
+      doc.setFontSize(size);
+      total += _getTextWidth(seg.text);
+    }
+    doc.setFont(TEXT_FAM, style);
+    doc.setFontSize(size);
+    return total;
+  };
+
 
   const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
@@ -460,109 +490,104 @@ export function renderAnalysisPDF(input: {
   };
 
 
-  // ---------- Cover Page (black + gold) ----------
+  // ---------- Cover Page — editorial black & gold ----------
   paintBackground(INK);
 
-  // Decorative dot grid, top right
-  drawDotGrid(pageW - margin - 140, margin + 20, 14, 8, 10, 0.8, [90, 75, 30], true);
-  // Bottom-left dot grid (faded)
-  drawDotGrid(margin, pageH - margin - 90, 10, 6, 10, 0.7, [70, 58, 22], true);
-
-  // Gold hairline frame
+  // Thin gold frame — single crisp border, no noisy diagonals
   setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.rect(margin - 18, margin - 18, contentW + 36, pageH - (margin - 18) * 2);
+  doc.setLineWidth(0.5);
+  doc.rect(margin - 20, margin - 20, contentW + 40, pageH - (margin - 20) * 2);
 
-  // Diagonal gold accent lines (bottom right)
-  setDraw(GOLD);
+  // Top row: SheX wordmark left, kicker right
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(28);
+  setText(GOLD);
+  doc.text("SheX", margin, margin + 20);
+  setText(GOLD_SOFT);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text("COACHING REPORT", pageW - margin, margin + 20, { align: "right" });
+
+  // Hairline under top row
+  setDraw([90, 78, 40]);
   doc.setLineWidth(0.4);
-  for (let i = 0; i < 6; i++) {
-    const off = i * 6;
-    doc.line(pageW - margin - 80 + off, pageH - margin - 20, pageW - margin - 20 + off, pageH - margin - 80);
+  doc.line(margin, margin + 34, pageW - margin, margin + 34);
+
+  // Big score gauge as hero — centered upper third
+  const score = input.result.overall_score;
+  const gaugeCY = margin + 220;
+  if (score !== null && score !== undefined) {
+    const cx = pageW / 2;
+    const r = 82;
+    drawArc(cx, gaugeCY, r, 135, 405, [55, 45, 20], 9);
+    const pct = Math.max(0, Math.min(100, score)) / 100;
+    drawArc(cx, gaugeCY, r, 135, 135 + 270 * pct, GOLD, 9);
+    setText(GOLD);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(58);
+    doc.text(String(score), cx, gaugeCY + 14, { align: "center" });
+    setText(GOLD_SOFT);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("VON 100", cx, gaugeCY + 32, { align: "center" });
   }
 
-  // SheX wordmark
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(44);
-  setText(GOLD);
-  doc.text("SheX", margin, margin + 38);
+  // Kicker + name — quiet, centered below gauge
+  setText(GOLD_SOFT);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  setText(GOLD_SOFT);
-  doc.text("COACHING  ·  PERSONAL REPORT", margin, margin + 54);
+  doc.setFontSize(8.5);
+  doc.text("PERSÖNLICHE ANALYSE FÜR", pageW / 2, gaugeCY + 88, { align: "center" });
 
-  // Kicker
-  setText(GOLD_SOFT);
-  doc.setFontSize(9);
-  doc.text("PERSÖNLICHE ANALYSE FÜR", margin, pageH / 2 - 100);
-
-  // Chatter name — adaptive size using real text width so long names never clip
   setText([245, 240, 224]);
   doc.setFont("helvetica", "bold");
-  let nameSize = 56;
+  let nameSize = 44;
   doc.setFontSize(nameSize);
-  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW) {
-    nameSize -= 3;
+  while (nameSize > 20 && doc.getTextWidth(input.chatter_name) > contentW - 20) {
+    nameSize -= 2;
     doc.setFontSize(nameSize);
   }
-  doc.text(input.chatter_name, margin, pageH / 2 - 40);
+  doc.text(input.chatter_name, pageW / 2, gaugeCY + 128, { align: "center" });
 
-  // Gold rule
+  // Short gold rule below name
   setDraw(GOLD);
-  doc.setLineWidth(1.2);
-  doc.line(margin, pageH / 2 - 20, margin + 72, pageH / 2 - 20);
+  doc.setLineWidth(1);
+  doc.line(pageW / 2 - 24, gaugeCY + 144, pageW / 2 + 24, gaugeCY + 144);
 
-  // Meta grid — values wrapped so long ranges/usernames never overlap
-  setText([200, 195, 180]);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  const metaY = pageH / 2 + 20;
+  // Meta trio — bottom of cover, quiet monospace-ish layout
+  const metaY = pageH - margin - 90;
   const col = contentW / 3;
   const metaCell = (label: string, value: string, i: number) => {
     setText(GOLD_SOFT);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(label.toUpperCase(), margin + col * i, metaY);
+    doc.setFontSize(7);
+    doc.text(label.toUpperCase(), margin + col * i + col / 2, metaY, { align: "center" });
     setText([235, 230, 215]);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10.5);
-    const lines = doc.splitTextToSize(value, col - 12) as string[];
-    lines.slice(0, 3).forEach((l, li) => doc.text(l, margin + col * i, metaY + 16 + li * 13));
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(value, col - 16) as string[];
+    lines.slice(0, 2).forEach((l, li) =>
+      doc.text(l, margin + col * i + col / 2, metaY + 16 + li * 13, { align: "center" }),
+    );
   };
   metaCell("Model", input.model_username ?? "-", 0);
   metaCell("Plattform", input.platform, 1);
-  metaCell("Zeitraum", `${input.date_from} bis ${input.date_to}`, 2);
+  metaCell("Zeitraum", `${input.date_from} — ${input.date_to}`, 2);
 
-  // Radial gauge (score)
-  const score = input.result.overall_score;
-  if (score !== null && score !== undefined) {
-    const cx = pageW / 2;
-    const cy = pageH - margin - 130;
-    const r = 58;
-    drawArc(cx, cy, r, 135, 405, [55, 45, 20], 7);
-    const pct = Math.max(0, Math.min(100, score)) / 100;
-    const endDeg = 135 + 270 * pct;
-    drawArc(cx, cy, r, 135, endDeg, GOLD, 7);
-    setText(GOLD);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(38);
-    doc.text(String(score), cx, cy + 8, { align: "center" });
-    setText(GOLD_SOFT);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("von 100", cx, cy + 24, { align: "center" });
-    doc.setFontSize(8);
-    doc.text("GESAMT-SCORE", cx, cy + 82, { align: "center" });
-  }
+  // Divider between meta and footer note
+  setDraw([90, 78, 40]);
+  doc.setLineWidth(0.3);
+  doc.line(margin, pageH - margin - 30, pageW - margin, pageH - margin - 30);
 
-  // Footer on cover
   setText([150, 140, 110]);
-  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
   doc.text(
     `${input.result.chats_analyzed} Chats analysiert · vertraulich · nur für dich`,
-    margin,
-    pageH - margin + 6,
+    pageW / 2,
+    pageH - margin - 14,
+    { align: "center" },
   );
+
 
   // ---------- Content pages ----------
   const drawPageHeader = () => {
@@ -633,54 +658,53 @@ export function renderAnalysisPDF(input: {
   };
 
   const sectionHeading = (kicker: string, title: string) => {
-    ensureSpace(90);
-    y += 22; // breathing room above every section
+    ensureSpace(96);
+    y += 26; // breathing room above every section
+    // Thin gold rule spanning full width, then kicker below
+    setDraw(GOLD);
+    doc.setLineWidth(0.6);
+    doc.line(margin, y, pageW - margin, y);
+    y += 14;
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.text(kicker.toUpperCase(), margin, y);
-    y += 6;
-    setDraw(GOLD);
-    doc.setLineWidth(1);
-    doc.line(margin, y, margin + 28, y);
-    y += 20;
+    y += 18;
     setText(INK);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     const titleLines = doc.splitTextToSize(title, contentW) as string[];
-    for (const l of titleLines) { doc.text(l, margin, y); y += 24; }
-    y += 4;
+    for (const l of titleLines) { doc.text(l, margin, y); y += 22; }
+    y += 6;
   };
 
   const goldCard = (title: string, body: string) => {
-    ensureSpace(80);
-    const startY = y;
-    // measure body
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    const bodyLines = doc.splitTextToSize(body, contentW - 32) as string[];
-    const cardH = 22 + 14 + bodyLines.length * 14 + 18;
-    ensureSpace(cardH);
-    setFill([250, 246, 232]);
-    doc.rect(margin, y, contentW, cardH, "F");
-    setDraw(GOLD);
-    doc.setLineWidth(1.4);
-    doc.line(margin, y, margin, y + cardH); // left gold bar
-    y += 20;
+    const bodyLines = doc.splitTextToSize(body, contentW - 36) as string[];
+    const cardH = 24 + 14 + bodyLines.length * 15 + 18;
+    ensureSpace(cardH + 6);
+    setFill([250, 247, 236]);
+    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "F");
+    setDraw([225, 210, 160]);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "S");
+    let cy = y + 22;
     setText(GOLD);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text(title.toUpperCase(), margin + 16, y);
-    y += 16;
+    doc.setFontSize(7.5);
+    doc.text(title.toUpperCase(), margin + 18, cy);
+    cy += 16;
     setText(INK);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     for (const l of bodyLines) {
-      doc.text(l, margin + 16, y);
-      y += 14;
+      doc.text(l, margin + 18, cy);
+      cy += 15;
     }
-    y += 12;
+    y += cardH + 14;
   };
+
 
   const pill = (label: string, color: [number, number, number]) => {
     doc.setFont("helvetica", "bold");
