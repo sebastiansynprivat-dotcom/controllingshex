@@ -298,6 +298,7 @@ interface CardProps {
   token: string;
   onGrantXp: (n: number) => void;
   onAdvance: () => void;
+  setCanAdvance: (open: boolean) => void;
   onSaveProgress: (p: CoachingProgress) => void;
   onSaveCommitment: (t: string) => void;
   xp: number;
@@ -311,11 +312,8 @@ function CardRenderer(p: CardProps) {
     case "weekly": return <WeeklyCard {...p} />;
     case "lever_intro": return <LeverIntroCard {...p} />;
     case "customer_card": return <CustomerCardView {...p} />;
-    case "context": return <ContextCard {...p} />;
-    case "situation": return <SituationCard {...p} />;
-    case "chatter_did": return <ChatterDidCard {...p} />;
-    case "money_loss": return <MoneyLossCard {...p} />;
-    case "better": return <BetterCard {...p} />;
+    case "cinema": return <CinemaCard {...p} />;
+    case "cinema_better": return <CinemaBetterCard {...p} />;
     case "drill": return <DrillCard {...p} />;
     case "type_drill": return <TypeDrillCard {...p} />;
     case "boss_anecdote": return <BossAnecdoteCard {...p} />;
