@@ -1,72 +1,77 @@
-## Goal
-Switch chat fetching from synchronous to an async webhook flow:
-1. Frontend triggers a fetch and gets a `request_id` immediately.
-2. External service processes in the background and POSTs the result back to a public Edge Function.
-3. UI subscribes via Supabase Realtime and renders as soon as chats arrive. While waiting, a pulsing skeleton (10 rows) is shown for up to 1 minute.
+# Coaching-PDF Redesign: Kürzer, motivierender, umsetzbarer
 
-## 1. Database: `chats_fetch_requests`
+Basis: Research (Cognitive Load, SDT, Fogg, SBI, Progress Principle, Growth Mindset, Implementation Intentions).
+
+## Kernprinzipien
+- **Max 3–4 neue Konzepte** pro PDF (Arbeitsgedächtnis).
+- **Ein Hebel = eine Seite** — keine Wiederholung, kein Chat-für-Chat-Protokoll.
+- **Worked Examples**: "Falsch → Besser" statt abstrakter Regeln.
+- **Wenn-Dann-Skripte** statt Motivationsfloskeln.
+- **SBI-Feedback** (Situation-Behavior-Impact), kein Sandwich, Growth-Mindset-Framing.
+- **1 Mikro-Aktion** für die nächste Woche, nicht 10.
+
+## Neue PDF-Struktur (6 Seiten)
+
 ```text
-- id                  uuid pk (= request_id)
-- user_id             uuid
-- telegram_id, platform, model_username, token, recipient_username
-- date_range_start, date_range_end (date)
-- status              text  ('pending' | 'completed' | 'failed')
-- result_json         jsonb (array of chats)
-- error_message       text
-- created_at, updated_at
+S.1  Cover + EIN Versprechen + 1 persönliche Kennzahl
+S.2  Die 3 Kernhebel — je Icon, 1 Satz, Falsch|Besser Mini-Beispiel
+S.3  Hebel 1 vertieft: Wenn-Dann-Skript + 1 Beispiel + Retrieval-Frage
+S.4  Hebel 2 + Hebel 3 (je halbe Seite, gleiches Muster)
+S.5  Persönliches Feedback (SBI): 1 Stärke ausbauen + 1 Wachstumsfeld
+S.6  Action Plan: 1 Mikro-Aktion/Woche + Checkbox-Tracker + Reflexionsplatz
 ```
-- RLS: user can select/insert/update own rows; service_role full.
-- GRANTs for `authenticated` + `service_role`.
-- Add table to `supabase_realtime` publication; `REPLICA IDENTITY FULL`.
 
-## 2. Edge Function `request-chats` (JWT-verified in code)
-- Validates session.
-- Inserts a `chats_fetch_requests` row (`status = 'pending'`).
-- POSTs to `https://api.controlling.shexadmin.ngrok.pro/fetch-chats` with the original payload **plus `request_id`** (no `webhook_url` — external service already knows the callback endpoint).
-- Uses `CONTROLLING_CHAT_KEY` as `x-api-key`.
-- Returns `{ request_id }` immediately (does not wait for chats).
+## Was RAUS fliegt
+- Chat-für-Chat-Analyse jeder Nachricht
+- Mehrfach-Do's/Don'ts-Listen (Redundanz)
+- Lange Theorie-Blöcke ohne Beispiel
+- Generische Motivationsfloskeln
+- Wiederholende Zusammenfassungen
+- Zahlen-Dashboard mit 8 Metriken → nur 1–2 relevante KPIs
 
-## 3. Edge Function `chats-webhook` (public, `verify_jwt = false`)
-- Validates incoming `x-api-key` against `CONTROLLING_CHAT_KEY`.
-- Body: `{ request_id, success, chats?, error? }`.
-- Updates the matching row: `status = 'completed'` + `result_json = chats`, or `status = 'failed'` + `error_message`.
-- Returns `{ ok: true }`.
-- Register in `supabase/config.toml`:
-  ```toml
-  [functions.chats-webhook]
-  verify_jwt = false
-  ```
+## AI-Schema (Edge Function `generate-coaching-analysis`)
 
-## 4. Frontend
+Neuer, radikal reduzierter Output:
+```ts
+{
+  personal_intro: string,           // 2 Sätze, warm, mit 1 echter Kennzahl
+  headline_promise: string,          // 1 Satz Cover-Versprechen
+  top_3_levers: [{                   // GENAU 3, nicht mehr
+    icon_hint: string,               // z.B. "connection", "close", "timing"
+    title: string,                   // 3-5 Wörter
+    principle: string,               // 1 Satz Warum
+    wrong_example: string,           // 1 kurzes Zitat aus echten Chats
+    better_example: string,          // Worked Example
+    if_then_script: string           // "Wenn X → sage Y"
+  }],
+  sbi_feedback: {
+    strength: { situation, behavior, impact },   // 1 Stärke
+    growth:   { situation, behavior, impact, alternative_if_then }  // 1 Wachstumsfeld
+  },
+  micro_action: string,              // 1 konkrete Handlung für 7 Tage
+  retrieval_question: string         // "Was würdest du in dieser Situation sagen?"
+}
+```
 
-### `src/lib/get-chats-api.ts`
-- Replace `fetchChats()` with `requestChats(payload)` → calls `supabase.functions.invoke('request-chats')` → returns `{ request_id }`.
-- Keep `FetchedChat` / `FetchedMessage` types and `summarizeMessage()` for rendering the arrived data.
+Prompt-Regeln: Deutsch, per "Du", keine Fachbegriffe (oder sofort in Klammern erklärt), keine Emojis in Prosa, Sales-Kontext berücksichtigen (erfolgreicher Sale = Stärke).
 
-### `GetChatsButton.tsx`
-- On filter submit: `const { request_id } = await requestChats(payload)`, store `requestId`, open viewer.
-- Refresh button creates a fresh request (new `request_id`).
+## PDF-Renderer (`src/lib/coaching.ts`)
 
-### `ChatsViewerModal.tsx`
-- Props: add `requestId?: string`; remove/ignore `chats` + `loading` from parent (state now lives inside modal driven by Realtime).
-- On open, subscribe to `chats_fetch_requests` filtered by `id=eq.<requestId>` via `postgres_changes` (UPDATE + INSERT). Also do one initial `select` to catch a row that already completed.
-- State machine:
-  - `pending` → show **pulsing skeleton with 10 rows** (both left list rows and right message pane placeholders). Start a 60s timer; if still pending after 1 min → show a soft "Dauert länger als erwartet…" message with a manual retry (keeps skeleton or turns into a subtle text state).
-  - `completed` → parse `result_json` into `FetchedChat[]`, run each `last_message` through `summarizeMessage`, render current UI.
-  - `failed` → render `error_message` in the existing error slot.
-- Clean up channel + timer on unmount / close / new `requestId`.
+Komplett neuer Layout-Flow:
+- Cover: Titel, Headline-Versprechen, 1 persönliche Kennzahl, kleine Score-Anzeige (dezent, kein Dashboard)
+- 3-Hebel-Seite: Icon-Karten in Grid (Falsch | Besser)
+- Hebel-Detailseiten: Wenn-Dann-Skript als hervorgehobener Block, Retrieval-Frage als Callout
+- Feedback-Seite: 2 SBI-Karten (Grün=Stärke, Gold=Wachstum) mit klarer Situation→Verhalten→Wirkung-Struktur
+- Action-Seite: Große Mikro-Aktion + 7-Tage-Checkbox-Leiste + leerer Reflexions-Rahmen
 
-### Skeleton
-Small local component inside the modal file — 10 rows in the left list (avatar-line block + short line), each with `animate-pulse bg-white/[0.06]`. Right pane shows 3–4 skeleton bubbles alternating left/right, same pulse.
+Beibehalten: Noto-Font-Pipeline, Black/Gold, SheX-Branding, Emoji-Support wenn stabil.
+Entfernt: Zahlen-Dashboard-Seite, "Fahrplan"-Nummerierung, redundante Muster-Sektion, Score-Chart pro Chat.
 
-## Files touched
-- `supabase/migrations/...` — new table, RLS, grants, realtime publication
-- `supabase/functions/request-chats/index.ts` — new
-- `supabase/functions/chats-webhook/index.ts` — new
-- `supabase/config.toml` — add `chats-webhook` block
-- `src/lib/get-chats-api.ts`
-- `src/components/get-chats/GetChatsButton.tsx`
-- `src/components/get-chats/ChatsViewerModal.tsx`
+## Technische Details
+- Datei 1: `supabase/functions/generate-coaching-analysis/index.ts` — Prompt + Schema komplett ersetzen, `ChatAnalysis`-Typ verschlanken
+- Datei 2: `src/lib/coaching.ts` — `renderAnalysisPDF` neu; alte Sektions-Renderer (dashboard, patterns, chat-cards, fahrplan) entfernen; neue Renderer: `renderCover`, `renderThreeLevers`, `renderLeverDetail`, `renderSBIFeedback`, `renderActionPlan`
+- Datei 3: `src/pages/Coaching.tsx` — nur ggf. Progress-Labels anpassen (Struktur bleibt)
+- Deploy Edge Function
 
-## Assumption
-The external ngrok service already knows the callback URL for `chats-webhook` and will POST results there with `x-api-key: CONTROLLING_CHAT_KEY` and body `{ request_id, success, chats?, error? }`.
+## Ergebnis
+Von 15+ Seiten mit Wiederholungen auf **6 fokussierte Seiten**, die Chatter tatsächlich zu Ende lesen, verstehen und umsetzen — mit einer Mikro-Aktion pro Woche statt Info-Overload.
