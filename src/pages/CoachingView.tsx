@@ -52,14 +52,14 @@ export default function CoachingView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white/40">
+      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-white/40">
         <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
   if (error || !row) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-center px-6">
+      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-center px-6">
         <div>
           <div className="text-white/70 text-lg font-light mb-2">Coaching nicht gefunden</div>
           <div className="text-white/40 text-sm">{error ?? "Der Link ist ungültig oder abgelaufen."}</div>
@@ -85,7 +85,7 @@ export default function CoachingView() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white/90">
+    <div className="fixed inset-0 bg-zinc-950 text-white/90 overflow-y-auto">
       <TopNav
         row={row}
         section={section}
