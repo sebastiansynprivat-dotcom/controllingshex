@@ -265,6 +265,25 @@ function ChatterAnalysisSheet({
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 7), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; filename: string } | null>(null);
+
+  // Revoke object URL when preview closes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview?.url]);
+
+  const openPreview = (blob: Blob, filename: string) => {
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    const url = URL.createObjectURL(blob);
+    setPreview({ url, filename });
+  };
+
+  const closePreview = () => {
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  };
 
   useEffect(() => {
     if (!chatter) return;
