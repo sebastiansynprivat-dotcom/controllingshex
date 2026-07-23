@@ -998,6 +998,44 @@ export async function renderAnalysisPDF(input: {
       });
       y += sh + S.MD;
     }
+
+    // Story — mini narrative that makes it click ("das kenn ich, das will ich auch")
+    if (lev.story) {
+      const storyLines = wrapLines(lev.story, contentW - CARD_PAD * 2, T.BODY_SM, "italic");
+      const storyH = storyLines.length * 14 + 44;
+      setFill([250, 247, 238]);
+      doc.roundedRect(margin, y, contentW, storyH, CARD_RADIUS, CARD_RADIUS, "F");
+      setFill(GOLD);
+      doc.rect(margin, y, CARD_ACCENT_W, storyH, "F");
+      drawText("SO LIEF DAS SCHON MAL", margin + CARD_PAD, y + 20, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let sty = y + 40;
+      storyLines.forEach((l) => {
+        drawText(l, margin + CARD_PAD, sty, { size: T.BODY_SM, style: "italic", color: INK });
+        sty += 14;
+      });
+      y += storyH + S.MD;
+    }
+
+    // Money example — concrete cash potential ("so viel mehr wäre drin gewesen")
+    if (lev.money_example) {
+      const moneyLines = wrapLines(lev.money_example, contentW - CARD_PAD * 2 - 16, T.BODY_SM);
+      const moneyH = moneyLines.length * 14 + 44;
+      setFill([28, 22, 10]);
+      doc.roundedRect(margin, y, contentW, moneyH, CARD_RADIUS, CARD_RADIUS, "F");
+      setFill(GOLD);
+      doc.rect(margin, y, CARD_ACCENT_W, moneyH, "F");
+      drawText("WAS DAS BEDEUTET", margin + CARD_PAD, y + 20, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let my = y + 40;
+      moneyLines.forEach((l) => {
+        drawText(l, margin + CARD_PAD, my, { size: T.BODY_SM, color: [245, 240, 224] });
+        my += 14;
+      });
+      y += moneyH + S.MD;
+    }
   };
 
 
