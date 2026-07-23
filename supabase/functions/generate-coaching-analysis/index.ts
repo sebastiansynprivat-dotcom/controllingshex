@@ -582,6 +582,7 @@ Antworte als JSON:
   "chatter_voice_samples": ["<3 wörtliche, typische Chatter-Sätze aus diesem Chat — NIEMALS den Bot-Opener nehmen. Mit allen Emojis, Kleinschreibung, Tippfehlern. Keine Bearbeitung.>"],
   "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen — NIE der Bot-Opener>"} | null,
   "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen — NIEMALS der Bot-Opener, sondern nur eine tatsächlich vom Chatter getippte Nachricht>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
+  "key_moment": {"customer_said": "<1 wörtliche Kunden-Nachricht die eine Chance war (max 180 Zeichen)>", "chatter_replied": "<wörtliche Chatter-Antwort darauf (max 200 Zeichen)>", "what_could_have_flipped_it": "<1 Satz max 12 Wörter: was hätte den Verkauf/die Bindung gedreht>"} | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
 }`;
       try {
