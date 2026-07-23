@@ -465,28 +465,20 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `Du bist ein warmer, ehrlicher Sales-Coach für Chatting im Adult-Creator-Umfeld. Du schreibst DIREKT an "${chatter_name}" wie sein Team-Lead — freundlich, respektvoll, auf Augenhöhe.
 
+DEIN AUFTRAG (radikal fokussiert):
+Das PDF hat 6 Seiten. Es enthält GENAU 3 Hebel + GENAU 1 Stärke + GENAU 1 Wachstumsfeld + GENAU 1 Mikro-Aktion.
+Keine Chat-für-Chat-Analyse. Keine Do/Dont-Listen. Keine Wiederholungen. Keine Muster-Sektion.
+Weniger ist mehr. Mensch kann sich pro Coaching nur 3–4 Dinge merken.
+
 SPRACHE — HARTE REGELN:
 - KEINE Fachbegriffe. Nicht "Rapport", nicht "Upsell", nicht "Anchoring", nicht "Frame", nicht "Basic-First". Sag direkt was gemeint ist.
-  Falsch: "Rapport-Building (also Beziehung aufbauen)".
-  Richtig: "Du musst erst eine Beziehung mit dem Kunden aufbauen."
 - Kurze Sätze. Alltagssprache. "Du"-Ansprache.
-- KEINE Emojis. Kein einziges. Sie werden im PDF zu Müll-Zeichen.
-
-STIL & LÄNGE — WICHTIG:
-- Es soll sich FLÜSSIG lesen. Kein Zerlegen jeder einzelnen Nachricht.
-- KEINE Wiederholungen. Wenn derselbe Fehler mehrfach vorkommt, nenn ihn EINMAL mit dem stärksten Beispiel.
-- Nur die 1–3 wichtigsten Punkte pro Kategorie. Weniger = mehr.
-- Gute Beispiele nur, wenn sie wirklich etwas Neues zeigen.
+- KEINE Emojis in Prosa-Feldern.
 
 VERKÄUFE ZUERST ANSCHAUEN:
-- Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" oder "— nicht gekauft", und "[TRINKGELD Xe]".
-- Wenn Verkäufe passiert sind: ANERKENNE das zuerst. Kein "war schlecht", wenn Geld geflossen ist.
-- Ein Chat mit Umsatz = grundsätzlich guter Chat. Feedback dann als "so wird beim nächsten Mal noch mehr draus".
-- Ein Chat ohne Umsatz trotz Kaufsignalen = da ehrlich zeigen, wo der Deal verloren ging.
-
-INHALT:
-- Kritik immer lösungsorientiert und mit konkreter besserer Formulierung, die er 1:1 nutzen kann.
-- Zitate nur einbauen, wenn sie klar den Punkt tragen. Kein Zitat-Spam.
+- Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" / "— nicht gekauft" / "[TRINKGELD Xe]".
+- Wenn Verkäufe passiert sind: das ist die Stärke. Nicht kaputtreden.
+- Wenn nichts gekauft wurde trotz Angeboten: da liegt der wichtigste Hebel.
 
 Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
 
@@ -494,122 +486,122 @@ ${coachingText || '(Kein Material hinterlegt — nutze gesunden Menschenverstand
 
 Antworte IMMER als valides JSON gemäß Schema. Kein Markdown drumherum.`;
 
-    // Per-chat analysis
-    const chatAnalyses = await withConcurrency(chats as ChatRow[], 3, async (row) => {
+    // Lightweight per-chat pass — nur um Rohmaterial (Zitate + Ergebnis) zu sammeln.
+    // KEINE ausführliche Analyse pro Chat mehr — nur Datenpunkte für den Meta-Pass.
+    const chatDigests = await withConcurrency(chats as ChatRow[], 3, async (row) => {
       const formatted = formatChatForAI(row);
-      const outcomeLine = formatted.revenue > 0
-        ? `VERKAUFS-ERGEBNIS: ${formatted.revenue.toFixed(2)}€ Umsatz aus ${formatted.purchases} Käufen/Trinkgeldern. Der Chat hat GELD GEMACHT — dein Feedback muss das anerkennen.`
-        : formatted.sends > 0
-          ? `VERKAUFS-ERGEBNIS: 0€. Es wurden ${formatted.sends} PPVs angeboten, aber nichts gekauft. Hier darfst du ehrlich zeigen wo der Deal verloren ging.`
-          : `VERKAUFS-ERGEBNIS: 0€ und keine PPVs angeboten. Frag dich ob überhaupt eine Verkaufschance da war.`;
+      const digestPrompt = `Kurz-Zusammenfassung dieses Chats für die spätere Gesamt-Analyse.
+Kunde: ${row.recipient_username ?? 'unbekannt'}
+Umsatz: ${formatted.revenue.toFixed(2)}€, PPVs angeboten: ${formatted.sends}, Käufe/Tips: ${formatted.purchases}
 
-      const userPrompt = `Analysiere diesen Chat zwischen ${chatter_name} und Kunde ${row.recipient_username ?? 'unbekannt'}.
-
-${outcomeLine}
-
-CHAT-VERLAUF:
+CHAT:
 ${formatted.text}
 
-REGELN FÜR DEINE ANTWORT:
-- MAX 2 "dos" und MAX 2 "donts" — die WICHTIGSTEN. Kein Zerlegen jeder Nachricht.
-- Wenn derselbe Punkt mehrfach vorkommt: nur EINMAL mit dem klarsten Beispiel.
-- Wenn Umsatz gemacht wurde: "one_line_verdict" und "chat_context" müssen das anerkennen.
-- Keine Fachbegriffe. Sag direkt was gemeint ist.
-- KEINE Emojis in irgendeinem Feld.
-
-JSON-Schema:
+Antworte als JSON:
 {
-  "customer_username": "${row.recipient_username ?? 'unbekannt'}",
-  "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
+  "customer": "${row.recipient_username ?? 'unbekannt'}",
   "revenue_eur": ${formatted.revenue.toFixed(2)},
-  "one_line_verdict": "<ein warmer, ehrlicher Satz an dich zu diesem Chat — Umsatz anerkennen wenn da>",
-  "chat_context": "<2-3 Sätze in Alltagssprache: worum ging es, was für ein Kunde, wie lief es kommerziell>",
-  "pricing_check": "<1-2 Sätze zum Pricing mit echten €-Beträgen aus dem Chat, oder leer lassen wenn nichts angeboten wurde>",
-  "dos": [{"situation": "<1 Satz Kontext: was war vorher los>", "quote": "<Original-Zitat>", "why_good": "<1-2 Sätze warum stark>"}],
-  "donts": [{"situation": "<1 Satz Kontext>", "quote": "<Original-Zitat>", "problem": "<1-2 Sätze freundlich>", "better": "<konkrete bessere Formulierung>"}],
-  "revenue_levers": ["<1-2 sehr konkrete Hebel für nächstes Mal — max 3 insgesamt>"]
+  "outcome": "sale" | "attempt_no_sale" | "no_attempt",
+  "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
+  "strongest_moment": {"situation": "<1 Satz was vorher lief>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
+  "weakest_moment": {"situation": "<1 Satz>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
+  "one_liner": "<1 Satz was in diesem Chat besonders war>"
 }`;
-
       try {
-        const raw = await callGemini(aiKey, systemPrompt, userPrompt);
+        const raw = await callGemini(aiKey, systemPrompt, digestPrompt);
         const parsed = safeParseJSON<any>(raw, null);
-        if (!parsed) {
-          return { chat_id: row.chat_id, customer_username: row.recipient_username, error: 'AI-Antwort nicht parsbar' };
-        }
+        if (!parsed) return { chat_id: row.chat_id, customer: row.recipient_username, error: 'parse fail' };
         return { chat_id: row.chat_id, revenue_eur: formatted.revenue, purchases: formatted.purchases, ppvs_sent: formatted.sends, ...parsed };
       } catch (e) {
-        return { chat_id: row.chat_id, customer_username: row.recipient_username, error: (e as Error).message };
+        return { chat_id: row.chat_id, customer: row.recipient_username, error: (e as Error).message };
       }
     });
 
-    const valid = chatAnalyses.filter((c: any) => !c.error && typeof c.score === 'number');
-    const overallScore = valid.length ? Math.round(valid.reduce((s: number, c: any) => s + c.score, 0) / valid.length) : null;
+    const validDigests = chatDigests.filter((c: any) => !c.error && typeof c.score === 'number');
+    const overallScore = validDigests.length
+      ? Math.round(validDigests.reduce((s: number, c: any) => s + c.score, 0) / validDigests.length)
+      : null;
 
-    // Meta / pattern aggregation
-    let patterns: any[] = [];
-    let executiveSummary = '';
-    let personalIntro = '';
-    let personalClosing = '';
-    let topFocus: string[] = [];
-    if (valid.length > 0) {
-      const totalRevenue = valid.reduce((s: number, c: any) => s + (Number(c.revenue_eur) || 0), 0);
-      const chatsWithRevenue = valid.filter((c: any) => Number(c.revenue_eur) > 0).length;
-      const metaPrompt = `Hier sind ${valid.length} Chat-Analysen von ${chatter_name}. Fasse das zu einem flüssig lesbaren Gesamt-Coaching zusammen — kurz, warm, ehrlich. KEINE Wiederholungen aus den Einzel-Analysen, sondern die roten Fäden.
+    // Meta pass — der EINZIGE Analyse-Pass der zählt. Erzeugt genau das schlanke 6-Seiten-Schema.
+    let focusedResult: any = null;
+    if (validDigests.length > 0) {
+      const totalRevenue = validDigests.reduce((s: number, c: any) => s + (Number(c.revenue_eur) || 0), 0);
+      const chatsWithRevenue = validDigests.filter((c: any) => Number(c.revenue_eur) > 0).length;
+      const bestChat = [...validDigests].sort((a: any, b: any) => (b.revenue_eur || 0) - (a.revenue_eur || 0))[0];
+      const bestKpi = totalRevenue > 0
+        ? `${totalRevenue.toFixed(0)}€ Umsatz aus ${validDigests.length} Chats (${chatsWithRevenue} mit Verkauf)`
+        : `${validDigests.length} Chats analysiert, 0€ Umsatz`;
 
-VERKAUFS-KONTEXT:
-- Gesamt-Umsatz aus diesen Chats: ${totalRevenue.toFixed(2)}€
-- Chats mit Umsatz: ${chatsWithRevenue} von ${valid.length}
-${totalRevenue > 0 ? '→ Anerkenne den Umsatz zuerst. Der Chatter hat GELIEFERT.' : '→ Ehrlich benennen dass hier Verkäufe fehlen, aber konstruktiv.'}
+      const metaPrompt = `Du hast ${validDigests.length} Chats von ${chatter_name} gesehen. Baue daraus das FINALE 6-Seiten-Coaching.
+Regeln:
+- GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
+- GENAU 1 Stärke (sbi_feedback.strength) und GENAU 1 Wachstumsfeld (sbi_feedback.growth). Nimm die stärksten Beispiele aus den Digests.
+- GENAU 1 Mikro-Aktion (micro_action) — konkret, in 7 Tagen umsetzbar, an eine bestehende Routine gekoppelt.
+- KEINE Fachbegriffe. Alltagssprache.
+- Zitate NUR aus den Digests, wortwörtlich, nichts erfinden.
 
-EINZEL-ANALYSEN:
-${JSON.stringify(valid, null, 2).slice(0, 40000)}
+VERKAUFS-KONTEXT: ${bestKpi}
+${totalRevenue > 0 ? `Bester Chat: ${bestChat?.customer} mit ${Number(bestChat?.revenue_eur).toFixed(0)}€.` : ''}
 
-REGELN:
-- KEINE Fachbegriffe. Sag direkt was gemeint ist.
-- MAX 3 Muster (patterns) — nur die wirklich wiederkehrenden. Kein Muster für Einmal-Vorfälle.
-- Pro Muster MAX 2 Momente. Kein Zitat-Spam.
-- top_focus: genau 3 klare Hebel, keine Wiederholungen.
+CHAT-DIGESTS:
+${JSON.stringify(validDigests, null, 2).slice(0, 30000)}
 
-JSON:
+JSON-Schema (EXAKT einhalten):
 {
-  "personal_intro": "<2-3 warme Sätze an ${chatter_name}. Umsatz anerkennen wenn da.>",
-  "executive_summary": "<3-4 Sätze: der rote Faden, ehrlich aber motivierend, in Alltagssprache>",
-  "top_focus": ["<Hebel 1>", "<Hebel 2>", "<Hebel 3>"],
-  "patterns": [
+  "personal_intro": "<2 warme Sätze an ${chatter_name}. Nenne die eine wichtigste Kennzahl (Umsatz oder Anzahl Chats). Anerkennend wenn Umsatz da.>",
+  "headline_promise": "<EIN Satz Versprechen für die Cover-Seite, z.B. 'Diese 3 Moves bringen dir nächste Woche mehr Verkäufe.'>",
+  "top_3_levers": [
     {
-      "title": "<kurzer Titel ohne Fachbegriff>",
-      "type": "positive" | "negative",
-      "description": "<2-3 Sätze — was passiert wiederkehrend, warum wichtig>",
-      "moments": [{"situation": "<1 Satz>", "quote": "<Zitat>"}],
-      "better_approach": "<nur bei negative: konkrete bessere Formulierung>"
+      "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
+      "title": "<3-5 Wörter, kein Fachbegriff>",
+      "principle": "<1 Satz warum dieser Hebel Geld bringt>",
+      "wrong_example": "<echtes kurzes Zitat aus den Digests, max 140 Zeichen>",
+      "better_example": "<konkrete bessere Formulierung, die er 1:1 nutzen kann, max 200 Zeichen>",
+      "if_then_script": "<Wenn X passiert, dann sage Y. Konkreter Satz zum auswendig lernen.>"
     }
   ],
-  "personal_closing": "<2-3 aufbauende Schlusssätze — was jetzt umsetzen, warum das mehr Geld bringt>"
+  "sbi_feedback": {
+    "strength": {
+      "situation": "<Situation: welcher Chat, was war los>",
+      "behavior": "<Was ${chatter_name} konkret getan/gesagt hat — mit Zitat wenn möglich>",
+      "impact": "<Was das bewirkt hat — Umsatz, Reaktion des Kunden>"
+    },
+    "growth": {
+      "situation": "<Situation: welcher Chat, was war los>",
+      "behavior": "<Was passiert ist, freundlich beschrieben — mit Zitat>",
+      "impact": "<Welche Chance liegen geblieben ist>",
+      "alternative_if_then": "<Wenn dieselbe Situation nochmal kommt: sage stattdessen dies (konkret)>"
+    }
+  },
+  "micro_action": "<EINE konkrete Handlung für die nächsten 7 Tage. An bestehende Routine koppeln, z.B. 'Vor jedem PPV-Angebot: erst 2 Fragen zum Kunden stellen.'>",
+  "retrieval_question": "<Eine Frage, die den Chatter zwingt selbst nachzudenken, z.B. 'Was würdest du beim nächsten Kunden anders machen, der 'zu teuer' schreibt?'>"
 }`;
 
       try {
         const raw = await callGemini(aiKey, systemPrompt, metaPrompt);
-        const parsed = safeParseJSON<any>(raw, { executive_summary: '', patterns: [] });
-        executiveSummary = parsed.executive_summary ?? '';
-        patterns = Array.isArray(parsed.patterns) ? parsed.patterns : [];
-        personalIntro = parsed.personal_intro ?? '';
-        personalClosing = parsed.personal_closing ?? '';
-        topFocus = Array.isArray(parsed.top_focus) ? parsed.top_focus : [];
+        focusedResult = safeParseJSON<any>(raw, null);
       } catch (e) {
-        executiveSummary = `Aggregation fehlgeschlagen: ${(e as Error).message}`;
+        focusedResult = { error: (e as Error).message };
       }
     }
 
     return jsonResp(200, {
       overall_score: overallScore,
-      executive_summary: executiveSummary,
-      personal_intro: personalIntro,
-      personal_closing: personalClosing,
-      top_focus: topFocus,
-      patterns,
-      chats: chatAnalyses,
-      chats_analyzed: valid.length,
+      chats_analyzed: validDigests.length,
       chats_total: chats.length,
+      // New focused schema
+      personal_intro: focusedResult?.personal_intro ?? '',
+      headline_promise: focusedResult?.headline_promise ?? '',
+      top_3_levers: Array.isArray(focusedResult?.top_3_levers) ? focusedResult.top_3_levers.slice(0, 3) : [],
+      sbi_feedback: focusedResult?.sbi_feedback ?? null,
+      micro_action: focusedResult?.micro_action ?? '',
+      retrieval_question: focusedResult?.retrieval_question ?? '',
+      // Kept for backward-compat with older readers, but no longer used by the PDF
+      chats: [],
+      patterns: [],
+      executive_summary: '',
+      top_focus: [],
+      personal_closing: '',
     });
   } catch (e) {
     return jsonResp(500, { error: (e as Error).message });
