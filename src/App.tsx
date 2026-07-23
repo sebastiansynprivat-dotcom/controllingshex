@@ -29,6 +29,7 @@ import Push from "@/pages/Push";
 import Messages from "@/pages/Messages";
 import ContentScout from "@/pages/ContentScout";
 import Coaching from "@/pages/Coaching";
+import CoachingView from "@/pages/CoachingView";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<Auth />} />
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/c/:token" element={<CoachingView />} />
     <Route
       path="/*"
       element={

@@ -686,29 +686,41 @@ JSON-Schema (EXAKT einhalten):
       "title": "<3-5 Wörter, kein Fachbegriff>",
       "one_liner": "<1 Satz max 12 Wörter, B1, was ändert sich konkret. Beispiel: 'Nicht direkt schicken. Erst ihn heiß machen.'>",
       "money_line": "<1 Satz max 12 Wörter mit konkreter Zahl als Motivation. Beispiel: 'Ein guter Aufbau bringt 40-80€ mehr pro Fan.' KEINE Zahl in Nachrichten-Vorschlägen — nur hier.>",
+      "situation_summary": "<PFLICHT. 2-3 Sätze max 45 Wörter, B1. Beschreibt die typische Kunden-Situation in der dieser Hebel greift. Konkret, wie ein Freund erklärt: 'Es gibt diese Momente, in denen ein Kunde X macht. Genau da entscheidet sich, ob …'>",
+      "customer_profile": "<PFLICHT. 1-2 Sätze max 30 Wörter. Wer ist der Kunde in dieser Situation? Neuer Fan / Stammkunde / Whale / Sparfuchs? Was will er wirklich? Damit der Chatter das Gegenüber vor Augen hat.>",
       "storyboard": [
         {
           "round": 1,
-          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter gesamt, B1. Setzt die Szene: welcher Kunden-Typ, was war vorher im Chat los, warum ist genau DIESE Nachricht wichtig. Beispiel: 'Ein Stammkunde meldet sich nach 3 Tagen Pause. Er hat vorher gute PPVs gekauft. Jetzt öffnet er so:'>",
-          "customer": "<echte Kunden-Zeile aus den Digests (key_moment.customer_said oder ähnlich). Max 180 Zeichen. Wortwörtlich, nichts erfinden.>",
-          "chatter_did": "<was der Chatter wirklich geantwortet hat (aus key_moment.chatter_replied / weakest_moment.quote). Max 200 Zeichen. Wortwörtlich.>",
-          "verdict": "<max 8 Wörter: kurzer Einordner. Beispiel: 'ok, aber Chance liegen gelassen' oder 'zu schnell zum Verkauf'.>"
+          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter, B1. Setzt die Szene: welcher Kunden-Typ, was war vorher im Chat los, warum ist genau DIESE Nachricht wichtig.>",
+          "customer": "<echte Kunden-Zeile aus den Digests. Max 180 Zeichen. Wortwörtlich.>",
+          "chatter_did": "<was der Chatter wirklich geantwortet hat. Max 200 Zeichen. Wortwörtlich.>",
+          "verdict": "<max 8 Wörter: kurzer Einordner.>"
         },
         {
           "round": 2,
-          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Setzt die Szene der zweiten Situation: welche Stimmung hatte der Kunde, was hat der Chatter zuvor geschickt, damit der Chatter versteht warum die bessere Antwort passt.>",
+          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Setzt die Szene der zweiten Situation.>",
           "customer": "<gleiche/ähnliche Situation nochmal — echte Kunden-Zeile>",
-          "chatter_did": "<was der Chatter tat (echtes Zitat oder aus Digests rekonstruiert)>",
-          "better_version": "<Bessere Antwort auf DIESELBE Kunden-Zeile, im STIL DES CHATTERS (siehe writing_style_notes + chatter_voice_samples). Klein-/Groß, Emojis, Anrede wie der Chatter. Max 200 Zeichen. NIEMALS Preis/Geldbetrag im Satz. NIEMALS den Kunden nach Preis fragen.>",
+          "chatter_did": "<was der Chatter tat>",
+          "better_version": "<Bessere Antwort im STIL DES CHATTERS. Max 200 Zeichen. NIEMALS Preis/Geldbetrag.>",
           "why_one_line": "<1 Satz max 12 Wörter: warum das besser wäre. B1.>"
         },
         {
           "round": 3,
-          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Beschreibt WANN genau dieser Merksatz eingesetzt werden soll — welche Kunden-Situation triggert ihn. Beispiel: 'Immer wenn ein neuer Fan im ersten Chat direkt fragt was du gerade machst. Antworte so:'>",
-          "customer": "<typische Kunden-Situation die im Alltag oft wiederkommt (kann verallgemeinert sein, muss aber plausibel zum Chatter-Alltag passen). Max 180 Zeichen.>",
-          "say_this": "<EXAKT dieser eine Satz zum auswendig lernen — im Stil des Chatters. Kurz, natürlich, so wie der Chatter tippt. Max 200 Zeichen. NIEMALS Preis/Geldbetrag im Satz.>"
+          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Beschreibt WANN dieser Merksatz eingesetzt werden soll.>",
+          "customer": "<typische Kunden-Situation. Max 180 Zeichen.>",
+          "say_this": "<EXAKT dieser eine Satz zum auswendig lernen — im Stil des Chatters. Max 200 Zeichen. NIEMALS Preis/Geldbetrag.>"
         }
-      ]
+      ],
+      "quiz": {
+        "question": "<PFLICHT. Eine Multiple-Choice-Frage zum Verständnis dieses Hebels. Max 20 Wörter, B1. Praktisch, nicht theoretisch. Beispiel: 'Ein neuer Fan schreibt sofort: was machst du gerade? Was ist der beste erste Schritt?'>",
+        "options": ["<Option A, max 15 Wörter, konkrete Handlung>", "<Option B>", "<Option C>", "<Option D>"],
+        "correct_index": 0,
+        "explanation": "<1-2 Sätze max 30 Wörter warum diese Antwort richtig ist. Verbindet zurück zum Hebel-Prinzip. Freundlich, motivierend.>"
+      },
+      "simulation_prompt": {
+        "customer_message": "<Eine realistische Kunden-Nachricht die genau diesen Hebel triggert. So wie ein echter Fan schreiben würde. Max 200 Zeichen.>",
+        "evaluation_criteria": "<Kurze Beschreibung was eine gute Antwort ausmacht (für den KI-Bewerter, nicht für den Chatter). 1-2 Sätze.>"
+      }
     }
   ],
   "sbi_feedback": {

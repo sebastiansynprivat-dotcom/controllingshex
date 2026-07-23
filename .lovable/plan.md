@@ -1,124 +1,104 @@
+# Interaktive Coaching-Seite statt PDF
 
-# Plan: Coaching-PDF für "nicht super schlaue" Chatter optimieren
+Die statische PDF wird komplett ersetzt durch eine interaktive, per Share-Link zugängliche Coaching-Seite pro Chatter/Analyse. Kontext wird nicht mehr in Fließtext gequetscht, sondern schrittweise aufgebaut: Situation → Was passiert ist → Bessere Version → Quiz-Check → Merksatz.
 
-Leitprinzip: **Der Chatter soll das PDF einmal lesen und danach im Chat sofort etwas anders tippen können — ohne nachdenken zu müssen.**
+## User Flow
 
-Drei Änderungs-Ebenen: (1) was die AI generiert, (2) wie es im PDF layoutet ist, (3) wie die Kernbotschaft wiederholt wird.
+1. Du klickst im Coaching-Sheet auf „Analyse starten" (wie heute).
+2. Statt PDF-Download bekommst du einen **Share-Link** (`/c/<token>`) + Kopier-Button + „Öffnen"-Vorschau.
+3. Chatter öffnet den Link (kein Login) und sieht seine personalisierte Coaching-Seite.
+4. Chatter arbeitet die Hebel Schritt für Schritt durch, macht Quiz, hakt Mikro-Aktionen ab.
+5. Du siehst im Sheet-Historie-Eintrag: „Gelesen · Quiz 3/3 · Aktion ✓" pro Analyse.
 
----
+## Aufbau der Coaching-Seite
 
-## 1. Neues Content-Modell aus der AI (`generate-coaching-analysis`)
+**Cover-Sektion**
+- Chatter-Name + Zeitraum + Model
+- Vorperiode-Vergleich (Umsatz-Delta wie heute) — bleibt als sofortiger Kontext
+- Eine große Karte: „Dein Fokus diese Woche: [Hebel 1 Titel]" mit Scroll-Prompt
 
-Aktuell liefert die AI pro Hebel: `principle`, `wrong_example`, `better_example`, `story`, `money_example`, `if_then_script`. Das ist zu viel Prinzip, zu wenig Chat.
+**Pro Hebel (3 Stück, als Sektionen untereinander scrollbar oder Step-Navigation)**
+- **Situations-Karte** oben: „Worum geht's" — 2–3 Sätze Kontext + Kunden-Typ/Energie in eigener Zeile („Der Kunde war: fordernd, sexuell direkt")
+- **Story-Block**: Mini-Narrativ („Stell dir vor: …") + Money-Example als Motivations-Badge
+- **Storyboard-Runden** (aufklappbar oder Tabs pro Runde):
+  - Kontext-Zeile (was ist bis hierhin passiert)
+  - Chat-Bubbles: Kunde → deine Antwort (mit Verdict-Badge) → bessere Version (grün)
+  - Warum-Zeile (1 Satz)
+  - „Sag das nächste Mal" Merksatz (groß, kopierbar)
+- **Quiz-Check** am Ende jedes Hebels: 1 Multiple-Choice-Frage („Was war hier der bessere Move?") mit 3 realen Chat-Antwort-Optionen. Sofort-Feedback mit Erklärung, warum die richtige Antwort passt.
+- **Mikro-Aktion abhaken**: „Diese Woche mache ich: [Aktion]" mit Checkbox
 
-**Neu pro Hebel → ein Mini-Storyboard mit 3 Sprechblasen-Runden:**
+**Übungsrunde (optional, am Ende)**
+- 1–2 freie Szenarien: „Kunde schreibt: [X]. Was antwortest du?"
+- Chatter tippt eigene Antwort in ein Textfeld
+- AI bewertet gegen den Hebel und gibt Score + kurzes Feedback
+- Optional/skippbar — nicht Pflicht für „abgeschlossen"
 
-```text
-lever = {
-  name: "3 Wörter, max.",                    // z.B. "Erst neugierig machen"
-  one_liner: "1 Satz, B1, was ändert sich",  // z.B. "Nicht direkt schicken. Erst ihn heiß machen."
-  money_line: "1 Zeile: das bringt Cash",    // Zahl bleibt, wie heute
-  storyboard: [
-    { round: 1, customer: "…echte Kundenzeile…", chatter_did: "…was er wirklich schrieb…", verdict: "ok | schwach" },
-    { round: 2, customer: "…", chatter_did: "…", better_version: "…so hätte es mehr gebracht…", why_one_line: "kurz warum" },
-    { round: 3, customer: "…nächste Situation, die im Alltag wiederkommt…", say_this: "…exakt dieser Satz…" }
-  ]
-}
+**Abschluss-Sektion**
+- Fortschritt: „Hebel 1 ✓ · Hebel 2 ✓ · Hebel 3 · Quiz 3/3 · Aktion ✓"
+- „Ich hab's verstanden"-Button markiert die Analyse als komplett durchgearbeitet
+
+## Datenmodell
+
+- **`coaching_analyses`**: bekommt `share_token` (unique, random), `progress_json` (welche Hebel gelesen, Quiz-Antworten, Aktionen abgehakt, Simulation-Antworten), `completed_at`. `pdf_path` bleibt vorerst als nullable — neue Analysen setzen es nicht mehr.
+- **Keine neue Tabelle** — alles was der Chatter tut, landet in `progress_json` derselben Zeile.
+
+## Neuer Public-Route + Edge Functions
+
+- Route `/c/:token` (öffentlich, kein Login-Check) lädt Analyse via neue Edge Function `get-coaching-by-token` (Service-Role, nur diese eine Zeile per Token).
+- Edge Function `update-coaching-progress` (Token-authentifiziert) für Quiz-Antworten, Aktions-Häkchen, Simulation-Bewertungen.
+- Simulation nutzt bestehende `generate-coaching-analysis`-Infra mit einem neuen Endpunkt/Modus für Einzel-Antwort-Bewertung.
+
+## AI-Schema Ergänzungen (`generate-coaching-analysis`)
+
+Pro Hebel zusätzlich:
+- `situation_summary` (2–3 Sätze — was war die Situation, was für ein Kunde)
+- `customer_profile` (kurzes Label: „fordernd/sexuell direkt", „unsicher/schüchtern" etc.)
+- `quiz`: `{ question, options: [3 chat-bubble-strings], correct_index, explanation }`
+- `simulation_prompt` (optional pro Hebel): `{ customer_message, evaluation_criteria }`
+
+## PDF-Entfernung
+
+- PDF-Generator in `src/lib/coaching.ts` (`renderAnalysisPDF`, jsPDF-Layout-Code, Layout-Validator) wird entfernt.
+- Storage-Bucket `coaching-pdfs` bleibt bestehen (alte Analysen), aber keine Neu-Uploads.
+- Historie-Einträge im Sheet zeigen für neue Analysen „Öffnen" statt Download/Vorschau; alte Einträge mit `pdf_path` behalten weiterhin die PDF-Buttons als Legacy-Support.
+- Automatischer Layout-Retry-Loop entfällt (kein Layout mehr → keine Layout-Fehler).
+
+## Coaching-Sheet (`src/pages/Coaching.tsx`) Änderungen
+
+- Nach `analyzeChats` + `saveAnalysis`: statt PDF-Preview zeigt es Toast mit „Analyse fertig" + Kopier-Feld für Share-Link.
+- Historie-Row bekommt: „Öffnen"-Button (öffnet `/c/<token>` in neuem Tab), „Link kopieren", „Löschen", Progress-Badge („✓ komplett" / „2/3 Hebel").
+
+## Technische Details
+
+**Neue Files**
+- `src/pages/CoachingView.tsx` — die öffentliche Chatter-Seite (Route `/c/:token`)
+- `src/components/coaching/HebelSection.tsx`, `Storyboard.tsx`, `QuizCheck.tsx`, `SimulationRunner.tsx`
+- `supabase/functions/get-coaching-by-token/index.ts`
+- `supabase/functions/update-coaching-progress/index.ts`
+- `supabase/functions/evaluate-coaching-simulation/index.ts`
+
+**Geänderte Files**
+- `src/lib/coaching.ts`: PDF-Code raus, `renderAnalysisPDF` + Layout-Validator entfernt, `saveAnalysis` schreibt keinen PDF mehr sondern generiert `share_token`, neue Helper `getShareUrl`, `loadAnalysisByToken`, `updateProgress`
+- `src/pages/Coaching.tsx`: Retry-Loop vereinfacht (nur AI-Failures), Preview-Dialog raus, Share-Link-UI rein
+- `supabase/functions/generate-coaching-analysis/index.ts`: Schema erweitert um `situation_summary`, `customer_profile`, `quiz`, `simulation_prompt`
+- `src/App.tsx`: Public Route `/c/:token` (außerhalb Auth-Guard)
+
+**Migration**
+```sql
+ALTER TABLE public.coaching_analyses
+  ADD COLUMN share_token text UNIQUE,
+  ADD COLUMN progress_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN completed_at timestamptz,
+  ALTER COLUMN pdf_path DROP NOT NULL;
+
+UPDATE public.coaching_analyses SET share_token = encode(gen_random_bytes(16), 'hex') WHERE share_token IS NULL;
 ```
 
-Rekonstruktion aus echten Chat-Digests, nicht erfunden. `better_version` und `say_this` bleiben unter 200 Zeichen, in der Stimme des Chatters (Stil-Mimikry-Regeln bleiben). Keine Preise, keine Coach-Sprache — bestehende Tabus bleiben.
+Keine neue RLS-Policy nötig — der öffentliche Zugriff läuft ausschließlich über die Service-Role in der Edge Function nach Token-Match.
 
-**Digest-Phase erweitern:** pro Chat zusätzlich `key_moment` (die eine Zeile, die kippen sollte) extrahieren, damit der Meta-Pass genug Rohmaterial für die Storyboards hat.
+## Was bleibt gleich
 
-**Sprach-Regel (neu, hart im Prompt):**
-- Max. 12 Wörter pro Satz in allen Erklärfeldern.
-- Keine Fremdwörter außer PPV, DM, Fan.
-- Kein "sozusagen", "grundsätzlich", "im Kern", "Prinzip", "Dynamik", "Framework".
-- Wenn ein Satz länger als 12 Wörter wird → in zwei kurze splitten.
-
-## 2. PDF-Layout: Chat-Bubbles statt Fließtext (`src/lib/coaching.ts`)
-
-Neue Zeichnen-Primitive:
-- `drawCustomerBubble(text)` — linksbündig, grau, "Kunde" darüber.
-- `drawChatterBubble(text, variant)` — rechtsbündig, `variant = "was_du_geschrieben_hast" | "besser_so" | "sag_das"`. Farbcodes:
-  - was_du_geschrieben_hast: neutral
-  - besser_so: Akzentfarbe + kleines "✓" links
-  - sag_das: Akzent stark + "Merke dir diesen Satz" als Mini-Label
-- `drawRoundLabel(nr)` — "Runde 1 / Runde 2 / Runde 3".
-
-**Neue Seitenstruktur (weiterhin 6 Seiten):**
-
-```text
-Seite 1 — Cover
-  Name, Vorperioden-Vergleich (bleibt), 1 großer Satz: "Diese Woche geht es um: <lever[0].name>"
-Seite 2 — Hebel 1 (der wichtigste) als Storyboard
-Seite 3 — Hebel 2 als Storyboard
-Seite 4 — Hebel 3 als Storyboard
-Seite 5 — "Deine Stärke diese Woche" (1 Bubble-Beispiel wo er's gut gemacht hat) + "Ein Ding zum Aufpassen"
-Seite 6 — Fahrplan: der EINE Satz aus Hebel 1 groß + Mikro-Aktion + Selbstfrage
-```
-
-Jede Hebel-Seite:
-```text
-[Header: HEBEL 1 · Erst neugierig machen]
-[one_liner in großer Schrift]
-[money_line als kleine Akzent-Zeile]
-
-Runde 1
-  🗨 Kunde: "…"
-  🗨 Du: "…"                        (neutral)
-  ↳ verdict-chip
-
-Runde 2
-  🗨 Kunde: "…"
-  🗨 Du: "…"                        (neutral)
-  🗨 Besser so: "…"                 (Akzent + ✓)
-  why_one_line (klein, unter Bubble)
-
-Runde 3 — nächstes Mal
-  🗨 Kunde: "…"
-  🗨 Sag genau das: "…"             (Akzent stark)
-```
-
-Kein Fließtext-Absatz mehr auf Hebel-Seiten. Bubble-Layout mit fester Bubble-Breite (ca. 70% Contentbreite), auto-wrap, Emoji-safe (bestehende `drawRichLine` weiterverwenden).
-
-Layout-Validator bleibt an — die neuen Bubble-Zeichner müssen Höhen sauber zurückgeben, damit Overflow-Retries wie bisher funktionieren.
-
-## 3. Wiederholung: die 3x-Regel für den Kern-Hebel
-
-`lever[0]` (höchster Impact) taucht in drei unterschiedlichen Formen auf:
-
-1. **Cover (Seite 1):** als Überschrift-Satz "Diese Woche geht es um: <lever[0].name>."
-2. **Hebel-Seite 1 (Seite 2):** volles Storyboard.
-3. **Fahrplan (Seite 6):** der `say_this`-Satz aus Runde 3 nochmal groß + als Mikro-Aktion formuliert.
-
-Hebel 2 und 3 stehen nur je einmal — bewusst weniger Gewicht, damit die Kernbotschaft nicht verwässert.
-
-## 4. Kleinere Aufräum-Punkte im gleichen Turn
-
-- Alte Felder `principle`, `story`, `if_then_script`, `alternative_if_then` aus Schema und Renderer entfernen (werden durch Storyboard ersetzt).
-- Fallback-Rendering für alte Analysen: falls ein alter Datensatz noch ohne `storyboard` kommt, weiter mit dem bisherigen Renderer laufen lassen (Weiche in `src/lib/coaching.ts`).
-- Automatischer Retry-Loop (bis 3x) bleibt unverändert.
-- Kosten: die neuen Storyboards machen den Meta-Prompt eher kürzer, nicht länger — bleibt bei `gemini-3.1-pro-preview`.
-
----
-
-## Technische Änderungen (kompakt)
-
-- `supabase/functions/generate-coaching-analysis/index.ts`
-  - Digest-Schema: `+ key_moment`
-  - Meta-Schema: `top_3_levers[].storyboard[]`, entfernt: `principle`, `story`, `if_then_script`, `alternative_if_then`
-  - Neuer harter Sprach-Block (12-Wörter-Regel, verbotene Wörter)
-- `src/lib/coaching.ts`
-  - Neue Renderer: `drawCustomerBubble`, `drawChatterBubble`, `drawRoundLabel`, `drawLeverStoryboardPage`
-  - Cover: großer "Diese Woche geht es um"-Satz
-  - Fahrplan: nutzt `lever[0].storyboard[2].say_this`
-  - Alt-Fallback-Weiche
-- Keine DB-Änderungen. Keine neuen Secrets.
-
-## Was nicht geändert wird
-
-- Vorperioden-Vergleich auf dem Cover.
-- Layout-Validator + Auto-Retry.
-- Bot-DM-Regel, Preis-Tabu, Singular-Ansprache, Stil-Mimikry, Kontext-Pflicht — alles bleibt und wird zusätzlich mit den neuen Storyboards verwoben.
-- Modell (`gemini-3.1-pro-preview` für Meta, Flash für Digests).
+- AI-Modell (`gemini-3.1-pro-preview` für Meta-Pass), Stil-Mimikry-Regeln, Bot-DM-Erkennung, Preis-Tabu, Kontext-Pflicht, alle inhaltlichen Coaching-Regeln.
+- Fetch-Chats-Flow (Webhook, `chats_preview`, Historie).
+- Materials-Verwaltung.
