@@ -20,3 +20,12 @@ verify_jwt = false
 
 [functions.generate-coaching-analysis]
 verify_jwt = false
+
+[functions.get-coaching-by-token]
+verify_jwt = false
+
+[functions.update-coaching-progress]
+verify_jwt = false
+
+[functions.evaluate-coaching-simulation]
+verify_jwt = false
