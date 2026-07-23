@@ -384,6 +384,50 @@ Deno.serve(async (req) => {
       .join('\n\n---\n\n')
       .slice(0, 60000);
 
+    // === Chatter-Gesamtperformance (alle Models) im Zeitraum vs. Vorperiode ===
+    // Wichtig um korrekt zu unterscheiden zwischen
+    //   "keine Verkäufe in den analysierten Chats" vs "gar keine Verkäufe insgesamt".
+    async function loadChatterTotals(from: string, to: string) {
+      const { data, error } = await supabase
+        .from('chatter_history')
+        .select('account, revenue_today, mass_dms, analysis_date')
+        .eq('platform', platform)
+        .eq('chatter_name', chatter_name)
+        .gte('analysis_date', from)
+        .lte('analysis_date', to);
+      if (error) return { revenue: 0, mass_dms: 0, days: 0, per_model: {} as Record<string, number> };
+      let revenue = 0;
+      let mass_dms = 0;
+      const daySet = new Set<string>();
+      const per_model: Record<string, number> = {};
+      for (const r of data ?? []) {
+        const rev = Number((r as any).revenue_today) || 0;
+        revenue += rev;
+        mass_dms += Number((r as any).mass_dms) || 0;
+        if ((r as any).analysis_date) daySet.add(String((r as any).analysis_date));
+        const acc = String((r as any).account ?? '').trim();
+        if (acc) per_model[acc] = (per_model[acc] ?? 0) + rev;
+      }
+      return { revenue, mass_dms, days: daySet.size, per_model };
+    }
+    function shiftDate(d: string, days: number): string {
+      const dt = new Date(d + 'T00:00:00Z');
+      dt.setUTCDate(dt.getUTCDate() + days);
+      return dt.toISOString().slice(0, 10);
+    }
+    const rangeDays = Math.max(1, Math.round(
+      (new Date(date_to + 'T00:00:00Z').getTime() - new Date(date_from + 'T00:00:00Z').getTime()) / 86400000
+    ) + 1);
+    const prevFrom = shiftDate(date_from, -rangeDays);
+    const prevTo = shiftDate(date_from, -1);
+    const [currentTotals, previousTotals] = await Promise.all([
+      loadChatterTotals(date_from, date_to),
+      loadChatterTotals(prevFrom, prevTo),
+    ]);
+    const deltaPct = previousTotals.revenue > 0
+      ? Math.round(((currentTotals.revenue - previousTotals.revenue) / previousTotals.revenue) * 100)
+      : null;
+
     // Prefer chats passed directly from the client for backward compatibility.
     // Normal path: fetch fresh chats server-side so the browser never depends on CORS or manual chats_preview saves.
     let chats: ChatRow[] = [];
