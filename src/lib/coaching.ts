@@ -37,6 +37,13 @@ export interface AnalysisResult {
   // New focused schema
   personal_intro?: string;
   headline_promise?: string;
+  weekly_comparison?: {
+    current_revenue_eur?: number;
+    previous_revenue_eur?: number;
+    delta_pct?: number | null;
+    headline?: string;
+    summary?: string;
+  } | null;
   top_3_levers?: Lever[];
   sbi_feedback?: { strength: SBIStrength; growth: SBIGrowth } | null;
   micro_action?: string;
