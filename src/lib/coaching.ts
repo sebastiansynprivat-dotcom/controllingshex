@@ -13,6 +13,7 @@ export interface CoachingMaterial {
 
 export interface StoryboardRound {
   round?: number;
+  context?: string;
   customer?: string;
   chatter_did?: string;
   verdict?: string;
