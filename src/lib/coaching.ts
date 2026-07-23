@@ -1127,19 +1127,26 @@ export async function renderAnalysisPDF(input: {
 
   // Big micro-action card
   const action = (result.micro_action ?? "").trim() || "Vor jedem PPV-Angebot: erst 2 echte Fragen zum Kunden stellen.";
-  const actionLines = wrapLines(action, contentW - 40, 15, "bold");
-  const actionH = actionLines.length * 20 + 44;
+  const actionLines = wrapLines(action, contentW - CARD_PAD * 2, T.CARD_TITLE, "bold");
+  const actionH = actionLines.length * 20 + 50;
   setFill(INK);
-  doc.roundedRect(margin, y, contentW, actionH, 8, 8, "F");
+  doc.roundedRect(margin, y, contentW, actionH, CARD_RADIUS, CARD_RADIUS, "F");
   setFill(GOLD);
-  doc.rect(margin, y, 4, actionH, "F");
-  drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + 22, y + 22, { size: 8, style: "bold", color: GOLD });
-  let ay = y + 44;
-  actionLines.forEach((l) => { drawText(l, margin + 22, ay, { size: 15, style: "bold", color: [245, 240, 224] }); ay += 20; });
-  y += actionH + 22;
+  doc.rect(margin, y, CARD_ACCENT_W, actionH, "F");
+  drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + CARD_PAD, y + 22, {
+    size: T.META, style: "bold", color: GOLD,
+  });
+  let ay = y + 46;
+  actionLines.forEach((l) => {
+    drawText(l, margin + CARD_PAD, ay, { size: T.CARD_TITLE, style: "bold", color: [245, 240, 224] });
+    ay += 20;
+  });
+  y += actionH + S.LG;
 
   // 7-day tracker
-  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
+  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, {
+    size: T.META, style: "bold", color: MUTED,
+  });
   y += 14;
   const days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
   const boxSize = 42;
@@ -1148,32 +1155,39 @@ export async function renderAnalysisPDF(input: {
     const bx = margin + i * (boxSize + gapX);
     setDraw(GOLD);
     doc.setLineWidth(0.8);
-    doc.roundedRect(bx, y, boxSize, boxSize, 5, 5, "S");
+    doc.roundedRect(bx, y, boxSize, boxSize, CARD_RADIUS - 2, CARD_RADIUS - 2, "S");
     drawText(d, bx + boxSize / 2, y + boxSize + 12, { size: 9, color: MUTED, align: "center" });
   });
-  y += boxSize + 30;
+  y += boxSize + S.XL;
 
   // Retrieval question
   if (result.retrieval_question) {
     setFill([250, 247, 238]);
-    const qLines = wrapLines(result.retrieval_question, contentW - 40, 12, "italic");
-    const qH = qLines.length * 18 + 44;
-    doc.roundedRect(margin, y, contentW, qH, 6, 6, "F");
+    const qLines = wrapLines(result.retrieval_question, contentW - CARD_PAD * 2, T.LEAD, "italic");
+    const qH = qLines.length * 18 + 48;
+    doc.roundedRect(margin, y, contentW, qH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill(GOLD);
-    doc.rect(margin, y, 3, qH, "F");
-    drawText("FRAG DICH SELBST", margin + 22, y + 20, { size: 8, style: "bold", color: GOLD });
-    let qy = y + 38;
-    qLines.forEach((l) => { drawText(l, margin + 22, qy, { size: 12, style: "italic", color: INK }); qy += 18; });
-    y += qH + 18;
+    doc.rect(margin, y, CARD_ACCENT_W, qH, "F");
+    drawText("FRAG DICH SELBST", margin + CARD_PAD, y + 22, {
+      size: T.META, style: "bold", color: GOLD,
+    });
+    let qy = y + 42;
+    qLines.forEach((l) => {
+      drawText(l, margin + CARD_PAD, qy, { size: T.LEAD, style: "italic", color: INK });
+      qy += 18;
+    });
+    y += qH + S.MD;
   }
 
   // Reflection frame
-  drawText("PLATZ FÜR DEINE GEDANKEN", margin, y, { size: 8, style: "bold", color: MUTED });
-  y += 10;
+  drawText("PLATZ FÜR DEINE GEDANKEN", margin, y, {
+    size: T.META, style: "bold", color: MUTED,
+  });
+  y += 12;
   const reflectH = Math.max(60, pageH - margin - 30 - y);
   setDraw(HAIRLINE);
   doc.setLineWidth(0.5);
-  doc.roundedRect(margin, y, contentW, reflectH, 6, 6, "S");
+  doc.roundedRect(margin, y, contentW, reflectH, CARD_RADIUS, CARD_RADIUS, "S");
   // faint ruled lines
   const lineGap = 22;
   for (let ly = y + lineGap; ly < y + reflectH - 8; ly += lineGap) {
@@ -1181,6 +1195,7 @@ export async function renderAnalysisPDF(input: {
     doc.setLineWidth(0.3);
     doc.line(margin + 14, ly, pageW - margin - 14, ly);
   }
+
 
   drawContentFooter("Seite 6 · Dein Fahrplan");
 
