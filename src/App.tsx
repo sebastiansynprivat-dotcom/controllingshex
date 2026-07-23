@@ -50,6 +50,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<Auth />} />
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/c/:token" element={<CoachingView />} />
     <Route
       path="/*"
       element={
