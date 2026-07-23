@@ -564,6 +564,26 @@ export async function renderAnalysisPDF(input: {
     doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
   };
 
+  // Draws one line and auto-shrinks font size so it fits maxWidth (never overflows).
+  const drawFitText = (
+    text: string,
+    x: number,
+    yy: number,
+    maxWidth: number,
+    opts: { size: number; minSize?: number; style?: "normal" | "bold" | "italic"; color?: [number, number, number]; align?: "left" | "right" | "center" },
+  ) => {
+    const minSize = opts.minSize ?? Math.max(9, Math.floor(opts.size * 0.6));
+    let size = opts.size;
+    doc.setFont("helvetica", opts.style ?? "normal");
+    doc.setFontSize(size);
+    while (size > minSize && doc.getTextWidth(text) > maxWidth) {
+      size -= 1;
+      doc.setFontSize(size);
+    }
+    setText(opts.color ?? INK);
+    doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
+  };
+
   // ========== PAGE 1 — Cover ==========
   paintBackground(INK);
   setDraw(GOLD);
