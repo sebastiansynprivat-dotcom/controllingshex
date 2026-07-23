@@ -887,31 +887,32 @@ export async function renderAnalysisPDF(input: {
     drawText("Noch keine Hebel gefunden. Prüfe ob genug Chats geladen wurden.", margin, y, { size: 11, color: MUTED });
   } else {
     // 3 compact cards stacked
-    const cardH = 82;
+    const cardH = 88;
     levers.forEach((lev, i) => {
       const cardY = y;
-      // background
       setFill([250, 247, 238]);
-      doc.roundedRect(margin, cardY, contentW, cardH, 6, 6, "F");
-      // gold left accent
+      doc.roundedRect(margin, cardY, contentW, cardH, CARD_RADIUS, CARD_RADIUS, "F");
       setFill(GOLD);
-      doc.rect(margin, cardY, 3, cardH, "F");
+      doc.rect(margin, cardY, CARD_ACCENT_W, cardH, "F");
       // Number disc
       setFill(INK);
-      doc.circle(margin + 26, cardY + 24, 12, "F");
-      drawText(String(i + 1), margin + 26, cardY + 28, { size: 12, style: "bold", color: GOLD, align: "center" });
+      doc.circle(margin + 28, cardY + 26, 13, "F");
+      drawText(String(i + 1), margin + 28, cardY + 30, { size: T.LEAD, style: "bold", color: GOLD, align: "center" });
       // Title
-      drawFitText(lev.title ?? "-", margin + 48, cardY + 22, contentW - 60, { size: 13, style: "bold", color: INK });
-      // Principle
-      const principleLines = wrapLines(lev.principle ?? "", contentW - 60, 10);
-      let py = cardY + 40;
-      principleLines.slice(0, 3).forEach((l) => {
-        drawText(l, margin + 48, py, { size: 10, color: [55, 55, 55] });
-        py += 13;
+      drawFitText(lev.title ?? "-", margin + 52, cardY + 24, contentW - 68, {
+        size: T.CARD_TITLE, style: "bold", color: INK,
       });
-      y = cardY + cardH + 12;
+      // Principle
+      const principleLines = wrapLines(lev.principle ?? "", contentW - 68, T.BODY_SM);
+      let py = cardY + 46;
+      principleLines.slice(0, 3).forEach((l) => {
+        drawText(l, margin + 52, py, { size: T.BODY_SM, color: [70, 70, 70] });
+        py += 14;
+      });
+      y = cardY + cardH + S.MD;
     });
   }
+
 
   drawContentFooter("Seite 2 · Deine 3 Hebel");
 
