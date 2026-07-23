@@ -715,28 +715,28 @@ export async function renderAnalysisPDF(input: {
   doc.line(margin, margin + 34, pageW - margin, margin + 34);
 
   // Kicker
-  drawText("PERSÖNLICHE ANALYSE FÜR", pageW / 2, margin + 100, { size: 9, color: GOLD_SOFT, align: "center" });
+  drawText("PERSÖNLICHE ANALYSE FÜR", pageW / 2, margin + 110, { size: 9, color: GOLD_SOFT, align: "center" });
 
   // Chatter name — adaptive size
   doc.setFont("helvetica", "bold");
-  let nameSize = 46;
+  let nameSize = 42;
   doc.setFontSize(nameSize);
-  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW - 20) {
+  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW - 40) {
     nameSize -= 2;
     doc.setFontSize(nameSize);
   }
   setText([245, 240, 224]);
-  doc.text(input.chatter_name, pageW / 2, margin + 138, { align: "center" });
+  doc.text(input.chatter_name, pageW / 2, margin + 150, { align: "center" });
 
-  // Gold rule
+  // Gold rule — clear separation below descenders
   setDraw(GOLD);
   doc.setLineWidth(1);
-  doc.line(pageW / 2 - 30, margin + 152, pageW / 2 + 30, margin + 152);
+  doc.line(pageW / 2 - 32, margin + 172, pageW / 2 + 32, margin + 172);
 
   // Headline promise — the ONE promise
   const promise = (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
   const promiseLines = wrapLines(promise, contentW - 40, 15, "italic");
-  let promiseY = margin + 190;
+  let promiseY = margin + 210;
   promiseLines.slice(0, 3).forEach((l) => {
     drawText(l, pageW / 2, promiseY, { size: 15, style: "italic", color: [235, 230, 215], align: "center" });
     promiseY += 22;
