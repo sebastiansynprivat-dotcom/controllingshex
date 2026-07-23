@@ -1082,20 +1082,13 @@ export async function renderAnalysisPDF(input: {
   newContentPage();
   y = margin + 4;
 
-  setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y);
-  y += 14;
-  drawText("DEIN NÄCHSTER SCHRITT", margin, y, { size: 7.5, style: "bold", color: GOLD });
-  y += 18;
-  drawText("Eine Sache. Sieben Tage.", margin, y, { size: 20, style: "bold", color: INK });
-  y += 28;
-
-  drawText(
+  y = pageIntro(
+    y,
+    "Dein nächster Schritt",
+    "Eine Sache. Sieben Tage.",
     "Alles andere kommt später. Nur diese eine Handlung, jeden Tag.",
-    margin, y, { size: 10, color: MUTED, style: "italic" },
   );
-  y += 24;
+
 
   // Big micro-action card
   const action = (result.micro_action ?? "").trim() || "Vor jedem PPV-Angebot: erst 2 echte Fragen zum Kunden stellen.";
