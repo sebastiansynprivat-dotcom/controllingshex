@@ -1189,7 +1189,7 @@ export async function renderAnalysisPDF(input: {
   for (let i = 0; i < levers.length && i < 3; i++) {
     newContentPage();
     y = margin + 4;
-    renderLeverDetail(levers[i], i, false);
+    renderLeverDetail(levers[i], i);
     drawContentFooter(`Seite ${leverPageNum} · Hebel ${i + 1}`);
     leverPageNum++;
   }
