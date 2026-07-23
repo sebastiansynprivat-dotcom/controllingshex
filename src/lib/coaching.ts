@@ -1229,7 +1229,7 @@ export async function renderAnalysisPDF(input: {
   }
 
 
-  drawContentFooter("Seite 6 · Dein Fahrplan");
+  drawContentFooter(`Seite ${leverPageNum + 1} · Dein Fahrplan`);
 
   // --------- Automatische PDF-Validierung ---------
   // Blockiert den Download, wenn Text über den Rand ragt oder abgeschnitten ist.
