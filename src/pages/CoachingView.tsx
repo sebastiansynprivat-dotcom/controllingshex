@@ -91,12 +91,13 @@ export default function CoachingView() {
     levers.forEach((lv, i) => {
       list.push({ kind: "lever_intro", leverIndex: i });
       if (lv.customer_card) list.push({ kind: "customer_card", leverIndex: i });
-      if (lv.context_messages && lv.context_messages.length) list.push({ kind: "context", leverIndex: i });
-      if (lv.situation_summary) list.push({ kind: "situation", leverIndex: i });
       const sb = lv.storyboard ?? [];
-      if (sb[0]?.chatter_did) list.push({ kind: "chatter_did", leverIndex: i, roundIndex: 0 });
-      if (lv.money_line) list.push({ kind: "money_loss", leverIndex: i });
-      if (sb[1]?.better_version) list.push({ kind: "better", leverIndex: i, roundIndex: 1 });
+      const hasContext =
+        (lv.context_messages && lv.context_messages.length > 0) ||
+        !!sb[0]?.customer ||
+        !!lv.situation_summary;
+      if (hasContext && sb[0]?.chatter_did) list.push({ kind: "cinema", leverIndex: i });
+      if (sb[1]?.better_version) list.push({ kind: "cinema_better", leverIndex: i });
       if (lv.drill) list.push({ kind: "drill", leverIndex: i });
       if (lv.drill) list.push({ kind: "type_drill", leverIndex: i });
       if (lv.boss_anecdote) list.push({ kind: "boss_anecdote", leverIndex: i });
