@@ -357,6 +357,15 @@ function ChatterAnalysisSheet({
     }
   };
 
+  const handlePreview = async (row: CoachingAnalysisRow) => {
+    try {
+      const blob = await downloadAnalysisPDF(row.pdf_path);
+      openPreview(blob, buildFilename(row.chatter_name, row.date_from, row.date_to));
+    } catch (e: any) {
+      toast.error(e.message ?? "Vorschau fehlgeschlagen");
+    }
+  };
+
   const handleDelete = async (row: CoachingAnalysisRow) => {
     if (!confirm("Analyse wirklich löschen?")) return;
     try {
