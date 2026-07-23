@@ -684,12 +684,28 @@ JSON-Schema (EXAKT einhalten):
     {
       "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
       "title": "<3-5 Wörter, kein Fachbegriff>",
-      "principle": "<1 Satz warum dieser Hebel Geld bringt>",
-      "wrong_example": "<echtes kurzes Zitat des CHATTERS aus den Digests (nicht des Kunden), das man besser formulieren kann, max 140 Zeichen>",
-      "better_example": "<Bessere Formulierung DIESES Chatter-Satzes, die er 1:1 statt der wrong_example sagen kann. NIEMALS den Kunden nach dem Preis fragen. NIEMALS einen Preis/Geldbetrag im Satz nennen (kein '5€', 'für X Euro' etc.) — der Preis wird auf der Plattform hinterlegt. Max 200 Zeichen.>",
-      "if_then_script": "<Wenn X vom Kunden kommt, dann sage Y. Konkreter Satz des Chatters zum auswendig lernen. Kein Preis-Frage-Skript. KEIN Geldbetrag/Preis im Nachrichten-Text.>",
-      "story": "<2-3 Sätze Mini-Story im Ton eines erfahrenen Kollegen: 'Ich hatte mal einen Fan, der... — als ich dann X gemacht habe, hat er Y gekauft.' Konkret, bildhaft, motivierend. Zeigt dem Chatter: 'Krass, das will ich auch.' Nutze plausible Situationen aus dem OnlyFans/Fansly-Alltag. Max 320 Zeichen.>",
-      "money_example": "<1-2 Sätze mit KONKRETER Zahl, was dieser Hebel bringen kann. Beispiel: 'Ein guter Kennenlern-Chat bringt im Schnitt 40-80€ mehr pro Woche pro Fan — bei 10 Fans sind das schnell 500-800€ extra im Monat.' Manipulativ im Sinne von: das Geld liegt auf der Straße. Diese Zahlen sind NUR Motivation für den Chatter — NIE Bestandteil eines Nachrichten-Vorschlags. Max 260 Zeichen.>"
+      "one_liner": "<1 Satz max 12 Wörter, B1, was ändert sich konkret. Beispiel: 'Nicht direkt schicken. Erst ihn heiß machen.'>",
+      "money_line": "<1 Satz max 12 Wörter mit konkreter Zahl als Motivation. Beispiel: 'Ein guter Aufbau bringt 40-80€ mehr pro Fan.' KEINE Zahl in Nachrichten-Vorschlägen — nur hier.>",
+      "storyboard": [
+        {
+          "round": 1,
+          "customer": "<echte Kunden-Zeile aus den Digests (key_moment.customer_said oder ähnlich). Max 180 Zeichen. Wortwörtlich, nichts erfinden.>",
+          "chatter_did": "<was der Chatter wirklich geantwortet hat (aus key_moment.chatter_replied / weakest_moment.quote). Max 200 Zeichen. Wortwörtlich.>",
+          "verdict": "<max 8 Wörter: kurzer Einordner. Beispiel: 'ok, aber Chance liegen gelassen' oder 'zu schnell zum Verkauf'.>"
+        },
+        {
+          "round": 2,
+          "customer": "<gleiche/ähnliche Situation nochmal — echte Kunden-Zeile>",
+          "chatter_did": "<was der Chatter tat (echtes Zitat oder aus Digests rekonstruiert)>",
+          "better_version": "<Bessere Antwort auf DIESELBE Kunden-Zeile, im STIL DES CHATTERS (siehe writing_style_notes + chatter_voice_samples). Klein-/Groß, Emojis, Anrede wie der Chatter. Max 200 Zeichen. NIEMALS Preis/Geldbetrag im Satz. NIEMALS den Kunden nach Preis fragen.>",
+          "why_one_line": "<1 Satz max 12 Wörter: warum das besser wäre. B1.>"
+        },
+        {
+          "round": 3,
+          "customer": "<typische Kunden-Situation die im Alltag oft wiederkommt (kann verallgemeinert sein, muss aber plausibel zum Chatter-Alltag passen). Max 180 Zeichen.>",
+          "say_this": "<EXAKT dieser eine Satz zum auswendig lernen — im Stil des Chatters. Kurz, natürlich, so wie der Chatter tippt. Max 200 Zeichen. NIEMALS Preis/Geldbetrag im Satz.>"
+        }
+      ]
     }
   ],
   "sbi_feedback": {
