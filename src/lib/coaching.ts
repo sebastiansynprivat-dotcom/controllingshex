@@ -997,14 +997,8 @@ export async function renderAnalysisPDF(input: {
   newContentPage();
   y = margin + 4;
 
-  setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y);
-  y += 14;
-  drawText("PERSÖNLICH", margin, y, { size: 7.5, style: "bold", color: GOLD });
-  y += 18;
-  drawText("Was besonders auffiel", margin, y, { size: 20, style: "bold", color: INK });
-  y += 28;
+  y = pageIntro(y, "Persönlich", "Was besonders auffiel");
+
 
   const sbiCard = (opts: {
     kicker: string;
