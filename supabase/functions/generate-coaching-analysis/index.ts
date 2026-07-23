@@ -642,9 +642,9 @@ JSON-Schema (EXAKT einhalten):
       "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
       "title": "<3-5 Wörter, kein Fachbegriff>",
       "principle": "<1 Satz warum dieser Hebel Geld bringt>",
-      "wrong_example": "<echtes kurzes Zitat aus den Digests, max 140 Zeichen>",
-      "better_example": "<konkrete bessere Formulierung, die er 1:1 nutzen kann, max 200 Zeichen>",
-      "if_then_script": "<Wenn X passiert, dann sage Y. Konkreter Satz zum auswendig lernen.>"
+      "wrong_example": "<echtes kurzes Zitat des CHATTERS aus den Digests (nicht des Kunden), das man besser formulieren kann, max 140 Zeichen>",
+      "better_example": "<Bessere Formulierung DIESES Chatter-Satzes, die er 1:1 statt der wrong_example sagen kann. NIEMALS den Kunden nach dem Preis fragen. Max 200 Zeichen.>",
+      "if_then_script": "<Wenn X vom Kunden kommt, dann sage Y. Konkreter Satz des Chatters zum auswendig lernen. Kein Preis-Frage-Skript.>"
     }
   ],
   "sbi_feedback": {
