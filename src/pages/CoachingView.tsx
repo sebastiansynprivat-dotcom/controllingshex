@@ -59,7 +59,7 @@ export default function CoachingView() {
   }
   if (error || !row) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-center px-6">
+      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-center px-6">
         <div>
           <div className="text-white/70 text-lg font-light mb-2">Coaching nicht gefunden</div>
           <div className="text-white/40 text-sm">{error ?? "Der Link ist ungültig oder abgelaufen."}</div>
