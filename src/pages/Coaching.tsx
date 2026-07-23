@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { GraduationCap, Loader2, Sparkles, FileText, Download, Trash2, Plus, Save, X, Search } from "lucide-react";
+import { GraduationCap, Loader2, Sparkles, FileText, Download, Trash2, Plus, Save, X, Search, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
 import { usePlatform } from "@/contexts/PlatformContext";
