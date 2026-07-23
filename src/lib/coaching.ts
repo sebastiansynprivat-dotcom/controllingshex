@@ -1143,7 +1143,7 @@ export async function renderAnalysisPDF(input: {
     drawText("Kein Feedback verfügbar.", margin, y, { size: 11, color: MUTED });
   }
 
-  drawContentFooter("Seite 5 · Dein Feedback");
+  drawContentFooter(`Seite ${leverPageNum} · Dein Feedback`);
 
   // ========== PAGE 6 — Action Plan + Tracker ==========
   newContentPage();
