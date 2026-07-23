@@ -680,18 +680,32 @@ export async function renderAnalysisPDF(input: {
   // Weekly comparison card — Cover
   const wc = result.weekly_comparison;
   if (wc && (wc.summary || typeof wc.current_revenue_eur === "number")) {
-    const cardW = Math.min(360, contentW - 40);
-    const cardH = 78;
+    const cardW = Math.min(420, contentW - 20);
+    const cardH = 140;
     const cardX = (pageW - cardW) / 2;
-    const cardY = margin + 280;
+    const cardY = margin + 265;
     setDraw(GOLD);
     doc.setLineWidth(0.5);
     setFill([28, 22, 10]);
-    doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, "FD");
+    doc.roundedRect(cardX, cardY, cardW, cardH, 8, 8, "FD");
 
-    drawText("VS. VORPERIODE", cardX + cardW / 2, cardY + 14, {
-      size: 7, style: "bold", color: GOLD_SOFT, align: "center",
+    drawText("VERGLEICH ZUR VORPERIODE", cardX + cardW / 2, cardY + 15, {
+      size: 7.5, style: "bold", color: GOLD_SOFT, align: "center",
     });
+
+    const rangeDays = Math.max(
+      1,
+      Math.round(
+        (new Date(input.date_to).getTime() - new Date(input.date_from).getTime()) /
+          (1000 * 60 * 60 * 24),
+      ) + 1,
+    );
+    drawText(
+      `(die ${rangeDays} Tage direkt davor, gleiche Länge)`,
+      cardX + cardW / 2,
+      cardY + 26,
+      { size: 6.5, style: "italic", color: [150, 140, 110], align: "center" },
+    );
 
     const delta = wc.delta_pct;
     const deltaLabel = delta === null || delta === undefined
@@ -700,21 +714,46 @@ export async function renderAnalysisPDF(input: {
     const deltaColor: [number, number, number] = delta === null || delta === undefined
       ? [200, 190, 160]
       : delta >= 0 ? [140, 220, 160] : [235, 150, 120];
-    drawText(deltaLabel, cardX + cardW / 2, cardY + 38, {
-      size: 22, style: "bold", color: deltaColor, align: "center",
+    drawText(deltaLabel, cardX + cardW / 2, cardY + 56, {
+      size: 26, style: "bold", color: deltaColor, align: "center",
     });
 
     const head = (wc.headline ?? "").trim();
     if (head) {
-      drawText(head, cardX + cardW / 2, cardY + 54, {
-        size: 9, style: "bold", color: [235, 230, 215], align: "center",
+      drawText(head, cardX + cardW / 2, cardY + 74, {
+        size: 9.5, style: "bold", color: [235, 230, 215], align: "center",
       });
     }
+
+    const cur = typeof wc.current_revenue_eur === "number" ? Math.round(wc.current_revenue_eur) : null;
+    const prev = typeof wc.previous_revenue_eur === "number" ? Math.round(wc.previous_revenue_eur) : null;
+    const colY = cardY + 92;
+    const leftCx = cardX + cardW * 0.28;
+    const rightCx = cardX + cardW * 0.72;
+
+    drawText("DIESE PERIODE", leftCx, colY, {
+      size: 6.5, style: "bold", color: GOLD_SOFT, align: "center",
+    });
+    drawText(cur === null ? "—" : `${cur.toLocaleString("de-DE")}€`, leftCx, colY + 14, {
+      size: 13, style: "bold", color: [235, 230, 215], align: "center",
+    });
+
+    setDraw([90, 78, 40]);
+    doc.setLineWidth(0.3);
+    doc.line(cardX + cardW / 2, colY - 4, cardX + cardW / 2, colY + 22);
+
+    drawText("VORPERIODE", rightCx, colY, {
+      size: 6.5, style: "bold", color: GOLD_SOFT, align: "center",
+    });
+    drawText(prev === null ? "—" : `${prev.toLocaleString("de-DE")}€`, rightCx, colY + 14, {
+      size: 13, style: "bold", color: [200, 190, 160], align: "center",
+    });
+
     const sum = (wc.summary ?? "").trim();
     if (sum) {
-      const sumLines = wrapLines(sum, cardW - 24, 8);
-      drawText(sumLines[0] ?? "", cardX + cardW / 2, cardY + 68, {
-        size: 8, color: [200, 190, 160], align: "center",
+      const sumLines = wrapLines(sum, cardW - 28, 8);
+      drawText(sumLines[0] ?? "", cardX + cardW / 2, cardY + cardH - 8, {
+        size: 8, style: "italic", color: [200, 190, 160], align: "center",
       });
     }
   }
