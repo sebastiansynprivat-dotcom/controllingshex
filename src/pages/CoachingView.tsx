@@ -237,6 +237,7 @@ export default function CoachingView() {
                   token={token!}
                   onGrantXp={grantXp}
                   onAdvance={goNext}
+                  setCanAdvance={setCardGateOpen}
                   onSaveProgress={(p) => {
                     setProgress(p);
                     persist({ progress: p });
