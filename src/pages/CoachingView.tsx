@@ -118,6 +118,9 @@ export default function CoachingView() {
   const overallProgress = totalCards ? (safeCardIdx + 1) / totalCards : 0;
   const level = levelFromXp(xp);
 
+  useEffect(() => { setCardGateOpen(true); }, [safeCardIdx]);
+
+
   const persist = useCallback((patch: Parameters<typeof updateProgress>[1]) => {
     if (!token) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
