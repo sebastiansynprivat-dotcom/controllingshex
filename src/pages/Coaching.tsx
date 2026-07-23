@@ -19,6 +19,8 @@ import {
   listChattersForPlatform,
   listAnalyses,
   runAnalysis,
+  fetchChatsForAnalysis,
+  analyzeChats,
   renderAnalysisPDF,
   saveAnalysis,
   downloadAnalysisPDF,
@@ -302,7 +304,8 @@ function ChatterAnalysisSheet({
     setStage("Starte…");
     setAnalysisNotice(null);
     try {
-      const result = await runAnalysis({
+      // 1) Chats einmalig holen (kein Re-Fetch bei Retry — spart Requests an Maloum)
+      const chats = await fetchChatsForAnalysis({
         chatter_name: chatter.chatter_name,
         platform,
         model_username: chatter.account,
@@ -310,20 +313,57 @@ function ChatterAnalysisSheet({
         date_to: dateTo,
         onStage: setStage,
       });
-      if (result.chats_analyzed === 0) {
-        setAnalysisNotice(result.executive_summary || "Keine analysierbaren Chats im Zeitraum gefunden.");
-        toast.warning("Keine analysierbaren Chats im Zeitraum gefunden.");
-        return;
+
+      // 2) Analyse + PDF-Render mit Auto-Retry bei Layout-Validierungsfehlern
+      const MAX_ATTEMPTS = 3;
+      let result: Awaited<ReturnType<typeof analyzeChats>> | null = null;
+      let pdf: Blob | null = null;
+      let lastLayoutError: any = null;
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const attemptLabel = attempt > 1 ? ` (Versuch ${attempt}/${MAX_ATTEMPTS})` : "";
+        result = await analyzeChats({
+          chatter_name: chatter.chatter_name,
+          platform,
+          model_username: chatter.account,
+          date_from: dateFrom,
+          date_to: dateTo,
+          chats,
+          onStage: (s) => setStage(`${s}${attemptLabel}`),
+        });
+
+        if (result.chats_analyzed === 0) {
+          setAnalysisNotice(result.executive_summary || "Keine analysierbaren Chats im Zeitraum gefunden.");
+          toast.warning("Keine analysierbaren Chats im Zeitraum gefunden.");
+          return;
+        }
+
+        setStage(`PDF wird erstellt…${attemptLabel}`);
+        try {
+          pdf = await renderAnalysisPDF({
+            chatter_name: chatter.chatter_name,
+            platform,
+            model_username: chatter.account,
+            date_from: dateFrom,
+            date_to: dateTo,
+            result,
+          });
+          lastLayoutError = null;
+          break; // Erfolg
+        } catch (e: any) {
+          if (e?.layoutIssues && attempt < MAX_ATTEMPTS) {
+            lastLayoutError = e;
+            console.warn(`[coaching] Layout fehlgeschlagen, regeneriere (${attempt}/${MAX_ATTEMPTS})`, e.layoutIssues);
+            setStage(`Layout fehlerhaft — generiere neu…`);
+            continue;
+          }
+          throw e;
+        }
       }
-      setStage("PDF wird erstellt…");
-      const pdf = await renderAnalysisPDF({
-        chatter_name: chatter.chatter_name,
-        platform,
-        model_username: chatter.account,
-        date_from: dateFrom,
-        date_to: dateTo,
-        result,
-      });
+
+      if (!result || !pdf) {
+        throw lastLayoutError ?? new Error("PDF konnte nicht erstellt werden.");
+      }
 
       const row = await saveAnalysis({
         chatter_name: chatter.chatter_name,
