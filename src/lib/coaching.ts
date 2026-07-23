@@ -772,7 +772,7 @@ export async function renderAnalysisPDF(input: {
 
     // If-Then script — highlighted
     if (lev.if_then_script) {
-      const scriptLines = wrapLines(lev.if_then_script, contentW - 32, 11, "bold");
+      const scriptLines = wrapLines(lev.if_then_script, contentW - 36, 11, "bold");
       const sh = scriptLines.length * 16 + 34;
       setFill(INK);
       doc.roundedRect(margin, y, contentW, sh, 6, 6, "F");
