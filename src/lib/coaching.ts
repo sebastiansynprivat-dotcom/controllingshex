@@ -523,7 +523,8 @@ export async function renderAnalysisPDF(input: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.text("COACHING REPORT", margin + 34, margin - 22);
-    doc.text(input.chatter_name, pageW - margin, margin - 22, { align: "right" });
+    const headerName = doc.splitTextToSize(input.chatter_name, contentW / 2)[0] ?? input.chatter_name;
+    doc.text(headerName, pageW - margin, margin - 22, { align: "right" });
     setDraw(HAIRLINE);
     doc.setLineWidth(0.4);
     doc.line(margin, margin - 14, pageW - margin, margin - 14);
