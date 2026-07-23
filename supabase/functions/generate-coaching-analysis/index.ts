@@ -536,6 +536,11 @@ KONTEXT VOR KRITIK (sehr wichtig):
 - Wenn eine Situation dem Chatter kaum Handlungsspielraum ließ (z.B. Kunde eskaliert sofort sexuell, Kunde will nur Sexting), erwähne das im Feedback ausdrücklich, bevor du Verbesserungen vorschlägst. Sonst wirkt es kontextlos und unfair.
 - Formuliere Feedback in dieser Struktur: erst kurz "die Situation war X" → dann "in dem Rahmen hast du Y gemacht" → dann "hier hättest du noch Z rausholen können, ohne den Kunden zu verlieren".
 
+BOT-DM / AUTO-ANSCHRIFT (sehr wichtig — nie dem Chatter anlasten):
+- Die allerersten Nachrichten im Chat kommen bei uns oft von einer automatisierten Bot-DM (Auto-Anschrift), nicht vom Chatter selbst. Erkennungsmerkmal: die allererste Nachricht im Chat ist vom Model/Chatter-Account UND direkt sexuell/anmachend UND es gab davor keine andere Chatter-Nachricht. Dann ist das mit hoher Wahrscheinlichkeit die Bot-Anschrift.
+- Behandle solche Bot-Openings NIEMALS als Fehler oder Schwäche des Chatters. Sie dürfen NICHT als weakest_moment, wrong_example oder Kritikpunkt auftauchen.
+- Wenn der Kunde daraufhin sexuell antwortet, ist das der Startpunkt, den der Chatter vorgesetzt bekommen hat — bewerte den Chatter erst ab seiner ersten eigenen, tatsächlich getippten Antwort.
+
 VERKÄUFE ZUERST ANSCHAUEN:
 - Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" / "— nicht gekauft" / "[TRINKGELD Xe]".
 - Wenn Verkäufe passiert sind: das ist die Stärke. Nicht kaputtreden.
@@ -555,6 +560,9 @@ Antworte IMMER als valides JSON gemäß Schema. Kein Markdown drumherum.`;
 Kunde: ${row.recipient_username ?? 'unbekannt'}
 Umsatz: ${formatted.revenue.toFixed(2)}€, PPVs angeboten: ${formatted.sends}, Käufe/Tips: ${formatted.purchases}
 
+WICHTIG — BOT-DM-ERKENNUNG:
+Die allererste Nachricht im Chat kommt bei uns oft von einer automatisierten Bot-Anschrift (nicht vom Chatter getippt). Prüfe: Ist die ALLERERSTE Nachricht im Chat vom Model/Chatter-Account, direkt sexuell/anmachend, und gab es davor keine andere Chatter-Nachricht? Dann ist das mit hoher Wahrscheinlichkeit ein Bot-Opener. Solche Openings dürfen NIE als weakest_moment oder als Zitat vom Chatter verwendet werden.
+
 CHAT:
 ${formatted.text}
 
@@ -564,12 +572,13 @@ Antworte als JSON:
   "revenue_eur": ${formatted.revenue.toFixed(2)},
   "outcome": "sale" | "attempt_no_sale" | "no_attempt",
   "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
-  "customer_energy": "<1 kurzer Satz: Wie ist der Kunde in den Chat reingegangen? z.B. 'sofort hart sexuell', 'zurückhaltend, viel Smalltalk', 'nur auf Preis fixiert', 'sucht Nähe und Gespräch'>",
-  "chatter_style_in_this_chat": "<1 Satz: Wie hat der Chatter reagiert? z.B. 'ist bei Nähe geblieben und hat langsam aufgebaut', 'ist sofort mitgegangen ins Sexting'>",
-  "writing_style_notes": "<1-2 Sätze über die konkrete Schreibweise des CHATTERS: Groß-/Kleinschreibung, Satzlänge, Emoji-Nutzung (welche, wie oft), typische Wörter/Slang, Punkt-/Kommasetzung, Tippfehler, Anrede (Baby/Schatz/Süßer/...). So genau wie möglich beobachtet.>",
-  "chatter_voice_samples": ["<3 wörtliche, typische Chatter-Sätze aus diesem Chat, so wie sie geschrieben wurden — mit allen Emojis, Kleinschreibung, Tippfehlern. Keine Bearbeitung.>"],
-  "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
-  "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
+  "opener_was_bot_dm": <true wenn die allererste Chatter-Nachricht mit hoher Wahrscheinlichkeit eine automatisierte Bot-Anschrift war (sexuell, ohne vorherigen Kontext), sonst false>,
+  "customer_energy": "<1 kurzer Satz: Wie ist der Kunde in den Chat reingegangen? Wenn ein Bot-Opener davor lief, beschreibe wie der Kunde AUF den Bot-Opener reagiert hat.>",
+  "chatter_style_in_this_chat": "<1 Satz: Wie hat der Chatter (ab seiner ersten selbst getippten Antwort, NICHT der Bot-Opener) reagiert?>",
+  "writing_style_notes": "<1-2 Sätze über die konkrete Schreibweise des CHATTERS (nur echte Chatter-Nachrichten, nicht den Bot-Opener): Groß-/Kleinschreibung, Satzlänge, Emoji-Nutzung, typische Wörter/Slang, Anrede.>",
+  "chatter_voice_samples": ["<3 wörtliche, typische Chatter-Sätze aus diesem Chat — NIEMALS den Bot-Opener nehmen. Mit allen Emojis, Kleinschreibung, Tippfehlern. Keine Bearbeitung.>"],
+  "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen — NIE der Bot-Opener>"} | null,
+  "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen — NIEMALS der Bot-Opener, sondern nur eine tatsächlich vom Chatter getippte Nachricht>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
 }`;
       try {
