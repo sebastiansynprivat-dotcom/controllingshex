@@ -37,6 +37,13 @@ export interface AnalysisResult {
   // New focused schema
   personal_intro?: string;
   headline_promise?: string;
+  weekly_comparison?: {
+    current_revenue_eur?: number;
+    previous_revenue_eur?: number;
+    delta_pct?: number | null;
+    headline?: string;
+    summary?: string;
+  } | null;
   top_3_levers?: Lever[];
   sbi_feedback?: { strength: SBIStrength; growth: SBIGrowth } | null;
   micro_action?: string;
@@ -666,6 +673,48 @@ export async function renderAnalysisPDF(input: {
     drawText(l, pageW / 2, promiseY, { size: 15, style: "italic", color: [235, 230, 215], align: "center" });
     promiseY += 22;
   });
+
+  // Weekly comparison card — Cover
+  const wc = result.weekly_comparison;
+  if (wc && (wc.summary || typeof wc.current_revenue_eur === "number")) {
+    const cardW = Math.min(360, contentW - 40);
+    const cardH = 78;
+    const cardX = (pageW - cardW) / 2;
+    const cardY = margin + 280;
+    setDraw(GOLD);
+    doc.setLineWidth(0.5);
+    setFill([28, 22, 10]);
+    doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, "FD");
+
+    drawText("VS. VORPERIODE", cardX + cardW / 2, cardY + 14, {
+      size: 7, style: "bold", color: GOLD_SOFT, align: "center",
+    });
+
+    const delta = wc.delta_pct;
+    const deltaLabel = delta === null || delta === undefined
+      ? "—"
+      : `${delta > 0 ? "+" : ""}${delta}%`;
+    const deltaColor: [number, number, number] = delta === null || delta === undefined
+      ? [200, 190, 160]
+      : delta >= 0 ? [140, 220, 160] : [235, 150, 120];
+    drawText(deltaLabel, cardX + cardW / 2, cardY + 38, {
+      size: 22, style: "bold", color: deltaColor, align: "center",
+    });
+
+    const head = (wc.headline ?? "").trim();
+    if (head) {
+      drawText(head, cardX + cardW / 2, cardY + 54, {
+        size: 9, style: "bold", color: [235, 230, 215], align: "center",
+      });
+    }
+    const sum = (wc.summary ?? "").trim();
+    if (sum) {
+      const sumLines = wrapLines(sum, cardW - 24, 8);
+      drawText(sumLines[0] ?? "", cardX + cardW / 2, cardY + 68, {
+        size: 8, color: [200, 190, 160], align: "center",
+      });
+    }
+  }
 
   // Small dezent gauge — lower, smaller than before
   if (score !== null && score !== undefined) {

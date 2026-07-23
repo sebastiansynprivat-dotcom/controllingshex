@@ -384,6 +384,50 @@ Deno.serve(async (req) => {
       .join('\n\n---\n\n')
       .slice(0, 60000);
 
+    // === Chatter-Gesamtperformance (alle Models) im Zeitraum vs. Vorperiode ===
+    // Wichtig um korrekt zu unterscheiden zwischen
+    //   "keine Verkäufe in den analysierten Chats" vs "gar keine Verkäufe insgesamt".
+    async function loadChatterTotals(from: string, to: string) {
+      const { data, error } = await supabase
+        .from('chatter_history')
+        .select('account, revenue_today, mass_dms, analysis_date')
+        .eq('platform', platform)
+        .eq('chatter_name', chatter_name)
+        .gte('analysis_date', from)
+        .lte('analysis_date', to);
+      if (error) return { revenue: 0, mass_dms: 0, days: 0, per_model: {} as Record<string, number> };
+      let revenue = 0;
+      let mass_dms = 0;
+      const daySet = new Set<string>();
+      const per_model: Record<string, number> = {};
+      for (const r of data ?? []) {
+        const rev = Number((r as any).revenue_today) || 0;
+        revenue += rev;
+        mass_dms += Number((r as any).mass_dms) || 0;
+        if ((r as any).analysis_date) daySet.add(String((r as any).analysis_date));
+        const acc = String((r as any).account ?? '').trim();
+        if (acc) per_model[acc] = (per_model[acc] ?? 0) + rev;
+      }
+      return { revenue, mass_dms, days: daySet.size, per_model };
+    }
+    function shiftDate(d: string, days: number): string {
+      const dt = new Date(d + 'T00:00:00Z');
+      dt.setUTCDate(dt.getUTCDate() + days);
+      return dt.toISOString().slice(0, 10);
+    }
+    const rangeDays = Math.max(1, Math.round(
+      (new Date(date_to + 'T00:00:00Z').getTime() - new Date(date_from + 'T00:00:00Z').getTime()) / 86400000
+    ) + 1);
+    const prevFrom = shiftDate(date_from, -rangeDays);
+    const prevTo = shiftDate(date_from, -1);
+    const [currentTotals, previousTotals] = await Promise.all([
+      loadChatterTotals(date_from, date_to),
+      loadChatterTotals(prevFrom, prevTo),
+    ]);
+    const deltaPct = previousTotals.revenue > 0
+      ? Math.round(((currentTotals.revenue - previousTotals.revenue) / previousTotals.revenue) * 100)
+      : null;
+
     // Prefer chats passed directly from the client for backward compatibility.
     // Normal path: fetch fresh chats server-side so the browser never depends on CORS or manual chats_preview saves.
     let chats: ChatRow[] = [];
@@ -532,6 +576,34 @@ Antworte als JSON:
         ? `${totalRevenue.toFixed(0)}€ Umsatz aus ${validDigests.length} Chats (${chatsWithRevenue} mit Verkauf)`
         : `${validDigests.length} Chats analysiert, 0€ Umsatz`;
 
+      const analyzedModelKey = normalizeKey(model_username);
+      const overallRevenue = currentTotals.revenue;
+      const overallHasSales = overallRevenue > 0;
+      const analyzedHasSales = totalRevenue > 0;
+      const perModelList = Object.entries(currentTotals.per_model)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([m, r]) => `${m}: ${r.toFixed(0)}€`)
+        .join(', ') || '—';
+      const analyzedModelRevenue = analyzedModelKey
+        ? (Object.entries(currentTotals.per_model)
+            .find(([m]) => normalizeKey(m) === analyzedModelKey)?.[1] ?? 0)
+        : null;
+
+      const salesContextBlock = `VERKAUFS-KONTEXT (WICHTIG — bestimmt den Ton des Intros):
+- Analysierte Chats: ${bestKpi}${totalRevenue > 0 ? `. Bester analysierter Chat: ${bestChat?.customer} mit ${Number(bestChat?.revenue_eur).toFixed(0)}€.` : ''}
+- Gesamtperformance ${chatter_name} auf ${platform} im Zeitraum ${date_from}—${date_to} (ALLE Models): ${overallRevenue.toFixed(0)}€ Umsatz an ${currentTotals.days} Tagen, ${currentTotals.mass_dms} MassDMs.
+- Aufteilung nach Model: ${perModelList}
+${analyzedModelKey ? `- Analysiertes Model "${model_username}" hat im Zeitraum insgesamt ${Number(analyzedModelRevenue ?? 0).toFixed(0)}€ gemacht.` : ''}
+- Vorperiode (${prevFrom}—${prevTo}): ${previousTotals.revenue.toFixed(0)}€, ${previousTotals.mass_dms} MassDMs.
+- Umsatz-Delta vs. Vorperiode: ${deltaPct === null ? 'keine Vergleichsdaten' : (deltaPct > 0 ? '+' : '') + deltaPct + '%'}.
+
+REGEL für personal_intro:
+- Sag NIE "leider keine Verkäufe" pauschal, wenn die Gesamt-Umsätze > 0 sind.
+- Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in den analysierten Chats war noch kein Abschluss dabei, insgesamt aber X€ auf ${platform}".
+- Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag.
+- Nur wenn Analysiert=0 UND Gesamt=0: dann darfst du sagen, dass in dem Zeitraum insgesamt noch nichts verkauft wurde.`;
+
       const metaPrompt = `Du hast ${validDigests.length} Chats von ${chatter_name} gesehen. Baue daraus das FINALE 6-Seiten-Coaching.
 Regeln:
 - GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
@@ -540,16 +612,22 @@ Regeln:
 - KEINE Fachbegriffe. Alltagssprache.
 - Zitate NUR aus den Digests, wortwörtlich, nichts erfinden.
 
-VERKAUFS-KONTEXT: ${bestKpi}
-${totalRevenue > 0 ? `Bester Chat: ${bestChat?.customer} mit ${Number(bestChat?.revenue_eur).toFixed(0)}€.` : ''}
+${salesContextBlock}
 
 CHAT-DIGESTS:
 ${JSON.stringify(validDigests, null, 2).slice(0, 30000)}
 
 JSON-Schema (EXAKT einhalten):
 {
-  "personal_intro": "<2 warme Sätze an ${chatter_name}. Nenne die eine wichtigste Kennzahl (Umsatz oder Anzahl Chats). Anerkennend wenn Umsatz da.>",
+  "personal_intro": "<2 warme Sätze an ${chatter_name}. Beziehe dich präzise auf den VERKAUFS-KONTEXT oben. Analysierte Chats vs. Gesamtperformance klar trennen.>",
   "headline_promise": "<EIN Satz Versprechen für die Cover-Seite, z.B. 'Diese 3 Moves bringen dir nächste Woche mehr Verkäufe.'>",
+  "weekly_comparison": {
+    "current_revenue_eur": ${overallRevenue.toFixed(0)},
+    "previous_revenue_eur": ${previousTotals.revenue.toFixed(0)},
+    "delta_pct": ${deltaPct === null ? 'null' : deltaPct},
+    "headline": "<Sehr kurzer Titel, max 5 Wörter, z.B. 'Stark verbessert', 'Leichter Rückgang', 'Erste Woche mit Daten'>",
+    "summary": "<1 Satz, konkret mit Zahlen, z.B. 'Diese Periode 1.240€, Vorperiode 890€ — +39%.' Wenn keine Vorperiode: sag das ehrlich.>"
+  },
   "top_3_levers": [
     {
       "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
@@ -592,6 +670,19 @@ JSON-Schema (EXAKT einhalten):
       // New focused schema
       personal_intro: focusedResult?.personal_intro ?? '',
       headline_promise: focusedResult?.headline_promise ?? '',
+      weekly_comparison: focusedResult?.weekly_comparison ?? {
+        current_revenue_eur: Math.round(currentTotals.revenue),
+        previous_revenue_eur: Math.round(previousTotals.revenue),
+        delta_pct: deltaPct,
+        headline: deltaPct === null ? 'Keine Vergleichsdaten' : (deltaPct >= 0 ? 'Verbesserung' : 'Rückgang'),
+        summary: deltaPct === null
+          ? `Zeitraum: ${Math.round(currentTotals.revenue)}€. Keine Vorperiode zum Vergleich.`
+          : `Zeitraum: ${Math.round(currentTotals.revenue)}€, Vorperiode: ${Math.round(previousTotals.revenue)}€ (${deltaPct > 0 ? '+' : ''}${deltaPct}%).`,
+      },
+      period_totals: {
+        current: { revenue_eur: Math.round(currentTotals.revenue), mass_dms: currentTotals.mass_dms, days: currentTotals.days, per_model: currentTotals.per_model },
+        previous: { revenue_eur: Math.round(previousTotals.revenue), mass_dms: previousTotals.mass_dms, days: previousTotals.days, from: prevFrom, to: prevTo },
+      },
       top_3_levers: Array.isArray(focusedResult?.top_3_levers) ? focusedResult.top_3_levers.slice(0, 3) : [],
       sbi_feedback: focusedResult?.sbi_feedback ?? null,
       micro_action: focusedResult?.micro_action ?? '',
