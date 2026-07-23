@@ -518,6 +518,13 @@ SPRACHE — HARTE REGELN:
 - KEINE Fachbegriffe. Nicht "Rapport", nicht "Upsell", nicht "Anchoring", nicht "Frame", nicht "Basic-First". Sag direkt was gemeint ist.
 - Kurze Sätze. Alltagssprache. "Du"-Ansprache.
 - KEINE Emojis in Prosa-Feldern.
+- IMMER SINGULAR über den analysierten Chat/die Arbeit reden ("ich habe mir deine Arbeit auf ${platform} angeschaut", "habt ihr auf ${platform} diese Woche…"). NIE Zahlen wie "28 Chats" oder "ich habe X Chats gelesen" nennen — halt es allgemein.
+- NIEMALS "wir" für den Chatter, immer "du" / "ihr" (Team auf der Plattform).
+
+COACHING-TABU (absolute Regeln):
+- Bring dem Chatter NIEMALS bei, den Kunden nach dem Preis zu fragen ("Was wärst du bereit zu zahlen?", "Was ist dir das wert?" usw.). Das ist verboten und widerspricht dem Coaching.
+- Der Chatter setzt den Preis, nicht der Kunde.
+- Wenn du einen besseren Vorschlag machst: korrigiere die konkrete Formulierung, die der CHATTER selbst gesagt hat. Zeig, wie er es besser formulieren würde — nicht, was er den Kunden fragen soll.
 
 VERKÄUFE ZUERST ANSCHAUEN:
 - Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" / "— nicht gekauft" / "[TRINKGELD Xe]".
@@ -599,12 +606,14 @@ ${analyzedModelKey ? `- Analysiertes Model "${model_username}" hat im Zeitraum i
 - Umsatz-Delta vs. Vorperiode: ${deltaPct === null ? 'keine Vergleichsdaten' : (deltaPct > 0 ? '+' : '') + deltaPct + '%'}.
 
 REGEL für personal_intro:
+- Formuliere allgemein — NIE eine Chat-Anzahl nennen ("28 Chats", "deine X Chats" o.ä. verboten). Sag stattdessen "ich habe mir deine Arbeit auf ${platform} angeschaut".
+- Immer Singular / kollektiv: "habt ihr auf ${platform} diese Woche…", nicht "in deinen Chats".
 - Sag NIE "leider keine Verkäufe" pauschal, wenn die Gesamt-Umsätze > 0 sind.
-- Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in den analysierten Chats war noch kein Abschluss dabei, insgesamt aber X€ auf ${platform}".
-- Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag.
+- Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in dem, was ich gesehen habe, war noch kein Abschluss dabei — insgesamt aber X€ auf ${platform}".
+- Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag, ohne Chat-Anzahlen zu erwähnen.
 - Nur wenn Analysiert=0 UND Gesamt=0: dann darfst du sagen, dass in dem Zeitraum insgesamt noch nichts verkauft wurde.`;
 
-      const metaPrompt = `Du hast ${validDigests.length} Chats von ${chatter_name} gesehen. Baue daraus das FINALE 6-Seiten-Coaching.
+      const metaPrompt = `Du hast dir die Arbeit von ${chatter_name} angeschaut. Baue daraus das FINALE 6-Seiten-Coaching. Nenne dabei NIE die Anzahl der Chats.
 Regeln:
 - GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
 - GENAU 1 Stärke (sbi_feedback.strength) und GENAU 1 Wachstumsfeld (sbi_feedback.growth). Nimm die stärksten Beispiele aus den Digests.
@@ -633,9 +642,9 @@ JSON-Schema (EXAKT einhalten):
       "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
       "title": "<3-5 Wörter, kein Fachbegriff>",
       "principle": "<1 Satz warum dieser Hebel Geld bringt>",
-      "wrong_example": "<echtes kurzes Zitat aus den Digests, max 140 Zeichen>",
-      "better_example": "<konkrete bessere Formulierung, die er 1:1 nutzen kann, max 200 Zeichen>",
-      "if_then_script": "<Wenn X passiert, dann sage Y. Konkreter Satz zum auswendig lernen.>"
+      "wrong_example": "<echtes kurzes Zitat des CHATTERS aus den Digests (nicht des Kunden), das man besser formulieren kann, max 140 Zeichen>",
+      "better_example": "<Bessere Formulierung DIESES Chatter-Satzes, die er 1:1 statt der wrong_example sagen kann. NIEMALS den Kunden nach dem Preis fragen. Max 200 Zeichen.>",
+      "if_then_script": "<Wenn X vom Kunden kommt, dann sage Y. Konkreter Satz des Chatters zum auswendig lernen. Kein Preis-Frage-Skript.>"
     }
   ],
   "sbi_feedback": {
@@ -648,11 +657,11 @@ JSON-Schema (EXAKT einhalten):
       "situation": "<Situation: welcher Chat, was war los>",
       "behavior": "<Was passiert ist, freundlich beschrieben — mit Zitat>",
       "impact": "<Welche Chance liegen geblieben ist>",
-      "alternative_if_then": "<Wenn dieselbe Situation nochmal kommt: sage stattdessen dies (konkret)>"
+      "alternative_if_then": "<Wenn dieselbe Situation nochmal kommt: sage stattdessen dies (konkret, vom Chatter formuliert). NIEMALS den Kunden nach dem Preis fragen.>"
     }
   },
-  "micro_action": "<EINE konkrete Handlung für die nächsten 7 Tage. An bestehende Routine koppeln, z.B. 'Vor jedem PPV-Angebot: erst 2 Fragen zum Kunden stellen.'>",
-  "retrieval_question": "<Eine Frage, die den Chatter zwingt selbst nachzudenken, z.B. 'Was würdest du beim nächsten Kunden anders machen, der 'zu teuer' schreibt?'>"
+  "micro_action": "<EINE konkrete Handlung für die nächsten 7 Tage. An bestehende Routine koppeln, z.B. 'Vor jedem PPV-Angebot: erst 2 Fragen zum Kunden stellen.' NIEMALS eine Handlung wie 'frag den Kunden nach dem Preis'.>",
+  "retrieval_question": "<Eine Frage, die den Chatter zwingt selbst nachzudenken, z.B. 'Wie formulierst du beim nächsten Kunden anders, der 'zu teuer' schreibt?'>"
 }`;
 
       try {
