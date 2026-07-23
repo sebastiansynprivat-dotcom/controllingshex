@@ -877,39 +877,48 @@ export type Database = {
         Row: {
           chats_analyzed: number
           chatter_name: string
+          completed_at: string | null
           created_at: string
           date_from: string
           date_to: string
           id: string
           model_username: string | null
-          pdf_path: string
+          pdf_path: string | null
           platform: string
+          progress_json: Json
+          share_token: string
           summary_json: Json
           user_id: string
         }
         Insert: {
           chats_analyzed?: number
           chatter_name: string
+          completed_at?: string | null
           created_at?: string
           date_from: string
           date_to: string
           id?: string
           model_username?: string | null
-          pdf_path: string
+          pdf_path?: string | null
           platform: string
+          progress_json?: Json
+          share_token: string
           summary_json?: Json
           user_id: string
         }
         Update: {
           chats_analyzed?: number
           chatter_name?: string
+          completed_at?: string | null
           created_at?: string
           date_from?: string
           date_to?: string
           id?: string
           model_username?: string | null
-          pdf_path?: string
+          pdf_path?: string | null
           platform?: string
+          progress_json?: Json
+          share_token?: string
           summary_json?: Json
           user_id?: string
         }
