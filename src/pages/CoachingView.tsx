@@ -62,6 +62,7 @@ export default function CoachingView() {
   const [error, setError] = useState<string | null>(null);
   const [direction, setDirection] = useState<1 | -1>(1);
   const saveTimer = useRef<any>(null);
+  const [cardGateOpen, setCardGateOpen] = useState(true);
 
   useEffect(() => {
     if (!token) return;
