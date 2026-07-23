@@ -350,6 +350,37 @@ const PAPER: [number, number, number] = [252, 251, 247];     // warm off-white
 const MUTED: [number, number, number] = [110, 110, 110];
 const HAIRLINE: [number, number, number] = [220, 214, 196];
 
+// --- Typographic scale (points) — used across the whole document ---
+const T = {
+  MICRO: 7.5,        // footer, tiny meta
+  META: 8,           // in-card labels, meta trio labels
+  CAPTION: 9,        // eyebrow / kicker (uppercase, tracked bold gold)
+  BODY_SM: 10,       // secondary body
+  BODY: 11,          // default body
+  LEAD: 13,          // intro paragraph, script emphasis
+  CARD_TITLE: 15,    // lever card title
+  H3: 18,            // in-page section subheads
+  H2: 22,            // page primary heading
+  H1: 30,            // large heading
+  DISPLAY: 46,       // cover name
+};
+
+// --- Spacing scale (points) — vertical rhythm ---
+const S = {
+  XS: 6,
+  SM: 10,
+  MD: 16,
+  LG: 24,
+  XL: 32,
+};
+
+// --- Card style constants ---
+const CARD_RADIUS = 8;
+const CARD_PAD = 20;
+const CARD_ACCENT_W = 3;
+
+
+
 export async function renderAnalysisPDF(input: {
   chatter_name: string;
   platform: string;
