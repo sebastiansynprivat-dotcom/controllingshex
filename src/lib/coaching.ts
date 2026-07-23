@@ -310,7 +310,10 @@ export async function runAnalysis(input: {
   }
 
   if (aggregated.length === 0) {
-    throw new Error("Keine Chats vom externen Dienst erhalten.");
+    const modelList = requestIds.map((r) => r.username).join(", ");
+    throw new Error(
+      `Für ${modelList} wurden im Zeitraum ${input.date_from} – ${input.date_to} keine Chats gefunden. Bitte Zeitraum vergrößern oder anderes Model wählen.`,
+    );
   }
 
   input.onStage?.(`Analysiere ${aggregated.length} Chats mit KI…`);
