@@ -670,6 +670,19 @@ JSON-Schema (EXAKT einhalten):
       // New focused schema
       personal_intro: focusedResult?.personal_intro ?? '',
       headline_promise: focusedResult?.headline_promise ?? '',
+      weekly_comparison: focusedResult?.weekly_comparison ?? {
+        current_revenue_eur: Math.round(currentTotals.revenue),
+        previous_revenue_eur: Math.round(previousTotals.revenue),
+        delta_pct: deltaPct,
+        headline: deltaPct === null ? 'Keine Vergleichsdaten' : (deltaPct >= 0 ? 'Verbesserung' : 'Rückgang'),
+        summary: deltaPct === null
+          ? `Zeitraum: ${Math.round(currentTotals.revenue)}€. Keine Vorperiode zum Vergleich.`
+          : `Zeitraum: ${Math.round(currentTotals.revenue)}€, Vorperiode: ${Math.round(previousTotals.revenue)}€ (${deltaPct > 0 ? '+' : ''}${deltaPct}%).`,
+      },
+      period_totals: {
+        current: { revenue_eur: Math.round(currentTotals.revenue), mass_dms: currentTotals.mass_dms, days: currentTotals.days, per_model: currentTotals.per_model },
+        previous: { revenue_eur: Math.round(previousTotals.revenue), mass_dms: previousTotals.mass_dms, days: previousTotals.days, from: prevFrom, to: prevTo },
+      },
       top_3_levers: Array.isArray(focusedResult?.top_3_levers) ? focusedResult.top_3_levers.slice(0, 3) : [],
       sbi_feedback: focusedResult?.sbi_feedback ?? null,
       micro_action: focusedResult?.micro_action ?? '',
