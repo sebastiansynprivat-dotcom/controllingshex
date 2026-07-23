@@ -938,7 +938,7 @@ export async function renderAnalysisPDF(input: {
         size: T.CARD_TITLE, style: "bold", color: INK,
       });
       // Principle
-      const principleLines = wrapLines(lev.principle ?? "", contentW - 68, T.BODY_SM);
+      const principleLines = wrapLines(lev.one_liner ?? lev.principle ?? "", contentW - 68, T.BODY_SM);
       let py = cardY + 46;
       principleLines.slice(0, 3).forEach((l) => {
         drawText(l, margin + 52, py, { size: T.BODY_SM, color: [70, 70, 70] });
