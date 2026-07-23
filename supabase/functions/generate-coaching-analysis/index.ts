@@ -644,7 +644,9 @@ JSON-Schema (EXAKT einhalten):
       "principle": "<1 Satz warum dieser Hebel Geld bringt>",
       "wrong_example": "<echtes kurzes Zitat des CHATTERS aus den Digests (nicht des Kunden), das man besser formulieren kann, max 140 Zeichen>",
       "better_example": "<Bessere Formulierung DIESES Chatter-Satzes, die er 1:1 statt der wrong_example sagen kann. NIEMALS den Kunden nach dem Preis fragen. Max 200 Zeichen.>",
-      "if_then_script": "<Wenn X vom Kunden kommt, dann sage Y. Konkreter Satz des Chatters zum auswendig lernen. Kein Preis-Frage-Skript.>"
+      "if_then_script": "<Wenn X vom Kunden kommt, dann sage Y. Konkreter Satz des Chatters zum auswendig lernen. Kein Preis-Frage-Skript.>",
+      "story": "<2-3 Sätze Mini-Story im Ton eines erfahrenen Kollegen: 'Ich hatte mal einen Fan, der... — als ich dann X gemacht habe, hat er Y gekauft.' Konkret, bildhaft, motivierend. Zeigt dem Chatter: 'Krass, das will ich auch.' Nutze plausible Situationen aus dem OnlyFans/Fansly-Alltag. Max 320 Zeichen.>",
+      "money_example": "<1-2 Sätze mit KONKRETER Zahl, was dieser Hebel bringen kann. Beispiel: 'Ein guter Kennenlern-Chat bringt im Schnitt 40-80€ mehr pro Woche pro Fan — bei 10 Fans sind das schnell 500-800€ extra im Monat.' Manipulativ im Sinne von: das Geld liegt auf der Straße. Max 260 Zeichen.>"
     }
   ],
   "sbi_feedback": {
