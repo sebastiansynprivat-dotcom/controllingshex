@@ -709,7 +709,7 @@ export async function renderAnalysisPDF(input: {
       doc.circle(margin + 26, cardY + 24, 12, "F");
       drawText(String(i + 1), margin + 26, cardY + 28, { size: 12, style: "bold", color: GOLD, align: "center" });
       // Title
-      drawText(lev.title ?? "-", margin + 48, cardY + 22, { size: 13, style: "bold", color: INK });
+      drawFitText(lev.title ?? "-", margin + 48, cardY + 22, contentW - 60, { size: 13, style: "bold", color: INK });
       // Principle
       const principleLines = wrapLines(lev.principle ?? "", contentW - 60, 10);
       let py = cardY + 40;
