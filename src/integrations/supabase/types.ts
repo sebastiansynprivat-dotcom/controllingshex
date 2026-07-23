@@ -875,10 +875,13 @@ export type Database = {
       }
       coaching_analyses: {
         Row: {
+          boss_fight_result: Json | null
           chats_analyzed: number
           chatter_name: string
+          commitment_text: string | null
           completed_at: string | null
           created_at: string
+          current_card_index: number
           date_from: string
           date_to: string
           id: string
@@ -889,12 +892,16 @@ export type Database = {
           share_token: string
           summary_json: Json
           user_id: string
+          xp_earned: number
         }
         Insert: {
+          boss_fight_result?: Json | null
           chats_analyzed?: number
           chatter_name: string
+          commitment_text?: string | null
           completed_at?: string | null
           created_at?: string
+          current_card_index?: number
           date_from: string
           date_to: string
           id?: string
@@ -905,12 +912,16 @@ export type Database = {
           share_token: string
           summary_json?: Json
           user_id: string
+          xp_earned?: number
         }
         Update: {
+          boss_fight_result?: Json | null
           chats_analyzed?: number
           chatter_name?: string
+          commitment_text?: string | null
           completed_at?: string | null
           created_at?: string
+          current_card_index?: number
           date_from?: string
           date_to?: string
           id?: string
@@ -921,6 +932,7 @@ export type Database = {
           share_token?: string
           summary_json?: Json
           user_id?: string
+          xp_earned?: number
         }
         Relationships: []
       }

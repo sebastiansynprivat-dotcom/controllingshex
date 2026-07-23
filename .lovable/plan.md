@@ -1,104 +1,145 @@
-# Interaktive Coaching-Seite statt PDF
 
-Die statische PDF wird komplett ersetzt durch eine interaktive, per Share-Link zugängliche Coaching-Seite pro Chatter/Analyse. Kontext wird nicht mehr in Fließtext gequetscht, sondern schrittweise aufgebaut: Situation → Was passiert ist → Bessere Version → Quiz-Check → Merksatz.
+# Coaching v3 — Story-Feed für Chatter
 
-## User Flow
+Ziel: Chatter versteht sofort *worum* es geht, *warum* ihn das Geld kostet und *wie* er es besser macht. Aufgebaut wie ein Instagram-Story-Feed: eine Karte nach der anderen, Vollbild, swipen/tappen. B1-Sprache, viele Bilder/Emojis, wenig Text pro Screen.
 
-1. Du klickst im Coaching-Sheet auf „Analyse starten" (wie heute).
-2. Statt PDF-Download bekommst du einen **Share-Link** (`/c/<token>`) + Kopier-Button + „Öffnen"-Vorschau.
-3. Chatter öffnet den Link (kein Login) und sieht seine personalisierte Coaching-Seite.
-4. Chatter arbeitet die Hebel Schritt für Schritt durch, macht Quiz, hakt Mikro-Aktionen ab.
-5. Du siehst im Sheet-Historie-Eintrag: „Gelesen · Quiz 3/3 · Aktion ✓" pro Analyse.
+---
 
-## Aufbau der Coaching-Seite
+## 1. Neue Story-Feed Architektur (`/c/:token`)
 
-**Cover-Sektion**
-- Chatter-Name + Zeitraum + Model
-- Vorperiode-Vergleich (Umsatz-Delta wie heute) — bleibt als sofortiger Kontext
-- Eine große Karte: „Dein Fokus diese Woche: [Hebel 1 Titel]" mit Scroll-Prompt
+Ersetzt die aktuelle scrollende Seite durch einen **Vollbild-Karten-Reader** (wie Stories):
+- Untere Progress-Bar zeigt Fortschritt durch alle Karten
+- Tap rechts = weiter, tap links = zurück, swipe hoch = Details
+- „Weiter"-Button unten, nie mehr als 1 Karte pro Screen
+- Fortschritt wird pro Karte in `progress_json` gespeichert → beim Reopen springt er zurück wo er war
+- Am Ende: Abschluss-Screen mit XP, Level-Up, Share-Button
 
-**Pro Hebel (3 Stück, als Sektionen untereinander scrollbar oder Step-Navigation)**
-- **Situations-Karte** oben: „Worum geht's" — 2–3 Sätze Kontext + Kunden-Typ/Energie in eigener Zeile („Der Kunde war: fordernd, sexuell direkt")
-- **Story-Block**: Mini-Narrativ („Stell dir vor: …") + Money-Example als Motivations-Badge
-- **Storyboard-Runden** (aufklappbar oder Tabs pro Runde):
-  - Kontext-Zeile (was ist bis hierhin passiert)
-  - Chat-Bubbles: Kunde → deine Antwort (mit Verdict-Badge) → bessere Version (grün)
-  - Warum-Zeile (1 Satz)
-  - „Sag das nächste Mal" Merksatz (groß, kopierbar)
-- **Quiz-Check** am Ende jedes Hebels: 1 Multiple-Choice-Frage („Was war hier der bessere Move?") mit 3 realen Chat-Antwort-Optionen. Sofort-Feedback mit Erklärung, warum die richtige Antwort passt.
-- **Mikro-Aktion abhaken**: „Diese Woche mache ich: [Aktion]" mit Checkbox
+### Kartentypen (in dieser Reihenfolge pro Hebel)
 
-**Übungsrunde (optional, am Ende)**
-- 1–2 freie Szenarien: „Kunde schreibt: [X]. Was antwortest du?"
-- Chatter tippt eigene Antwort in ein Textfeld
-- AI bewertet gegen den Hebel und gibt Score + kurzes Feedback
-- Optional/skippbar — nicht Pflicht für „abgeschlossen"
+1. **Cover** — „Hey Jeanette, das hier bringt dir diese Woche +340 €"
+2. **Vorwochen-Vergleich** — nur einmal am Anfang, groß & emotional
+3. **Kunden-Karteikarte** (pro Hebel) — Alias, Ausgaben bisher, Kink, Stimmung, letzte Aktion. Als Trading-Card designed.
+4. **Original-Verlauf** — aufklappbare Chat-Bubbles der 5-10 vorigen Nachrichten (echter Kontext)
+5. **Situation-Story** — 2-3 Sätze: „Der Kunde war grade heiß, hat X geschrieben, du hattest die Chance auf Y"
+6. **„Was du gemacht hast"** — Original-Antwort des Chatters als Bubble
+7. **„Was es dich gekostet hat"** — Geld-Rechner-Karte („Dieser eine Move = -85 €. Bei 20x diese Woche = -1.700 €")
+8. **„So macht's ein Top-Chatter"** — Musterantwort im **Stil des Chatters** (Mimikry bleibt)
+9. **Mini-Drill** — kurze Übung: 2 Antworten, Chatter tippt „welche ist besser?" → Feedback
+10. **Tipp-Übung** — Chatter tippt selbst eine Antwort auf gleiche Situation, KI bewertet (1 Runde)
+11. **Story vom Boss** — „Ich hatte mal genau die Situation. Kunde X, hab Y gemacht, +2.400 € an einem Abend." (Anekdote als Autorität)
+12. **Take-away-Karte** — 1 Satz zum Merken, groß, screenshot-bar
 
-**Abschluss-Sektion**
-- Fortschritt: „Hebel 1 ✓ · Hebel 2 ✓ · Hebel 3 · Quiz 3/3 · Aktion ✓"
-- „Ich hab's verstanden"-Button markiert die Analyse als komplett durchgearbeitet
+Am Ende aller Hebel:
+13. **Boss-Fight Simulator** — Multi-Turn (3-5 Nachrichten). KI spielt Kunden, Chatter navigiert bis zum Sale. Score am Ende.
+14. **Ranking-Karte** — „Du bist grade Platz X im Team. Wenn du diese Hebel fixst → Platz Y."
+15. **Commitment** — Chatter tippt eine Zeile: „Ich verspreche diese Woche ___". Wird gespeichert und bei Reopen gezeigt.
 
-## Datenmodell
+---
 
-- **`coaching_analyses`**: bekommt `share_token` (unique, random), `progress_json` (welche Hebel gelesen, Quiz-Antworten, Aktionen abgehakt, Simulation-Antworten), `completed_at`. `pdf_path` bleibt vorerst als nullable — neue Analysen setzen es nicht mehr.
-- **Keine neue Tabelle** — alles was der Chatter tut, landet in `progress_json` derselben Zeile.
+## 2. Gamification-Layer
 
-## Neuer Public-Route + Edge Functions
+- **XP pro Karte** (Weiter = +10, Drill richtig = +25, Sim bestanden = +100)
+- **Level & Titel** — „Rookie / Closer / Shark / Legende" — sichtbar oben rechts
+- **Streak** — Tage in Folge mit abgeschlossenem Coaching
+- **Badges** — „Erstes Coaching", „Alle Drills 100 %", „Boss-Fight Sieger"
+- **Progress-Bar** unten, immer sichtbar
+- Speicherung in `progress_json` (bereits vorhanden) + neuer Spalte `xp_earned int`
 
-- Route `/c/:token` (öffentlich, kein Login-Check) lädt Analyse via neue Edge Function `get-coaching-by-token` (Service-Role, nur diese eine Zeile per Token).
-- Edge Function `update-coaching-progress` (Token-authentifiziert) für Quiz-Antworten, Aktions-Häkchen, Simulation-Bewertungen.
-- Simulation nutzt bestehende `generate-coaching-analysis`-Infra mit einem neuen Endpunkt/Modus für Einzel-Antwort-Bewertung.
+---
 
-## AI-Schema Ergänzungen (`generate-coaching-analysis`)
+## 3. Manipulativer Push
 
-Pro Hebel zusätzlich:
-- `situation_summary` (2–3 Sätze — was war die Situation, was für ein Kunde)
-- `customer_profile` (kurzes Label: „fordernd/sexuell direkt", „unsicher/schüchtern" etc.)
-- `quiz`: `{ question, options: [3 chat-bubble-strings], correct_index, explanation }`
-- `simulation_prompt` (optional pro Hebel): `{ customer_message, evaluation_criteria }`
+Bewusst emotional geladene Karten zwischen die Hebel gestreut:
+- **Geld-Rechner** in Rot: „Dieser Fehler kostet dich pro Woche X €, pro Jahr Y €" (Loss-Aversion)
+- **Whale-Warnung**: „63 % deines Umsatzes kamen von 1 Kunden. Wenn der weg ist…"
+- **Team-Vergleich**: „Anna hat aus der gleichen Situation +180 € rausgeholt. Du 0 €."
+- **Persönliche Ansprache** in jeder Karte („du", nie „ihr", Vorname)
+- **Story-Anekdoten des Bosses** als soziale Bewahrheit
+- **Countdown**: „Diese Woche noch 4 Tage — schaffst du +500 €?"
 
-## PDF-Entfernung
+---
 
-- PDF-Generator in `src/lib/coaching.ts` (`renderAnalysisPDF`, jsPDF-Layout-Code, Layout-Validator) wird entfernt.
-- Storage-Bucket `coaching-pdfs` bleibt bestehen (alte Analysen), aber keine Neu-Uploads.
-- Historie-Einträge im Sheet zeigen für neue Analysen „Öffnen" statt Download/Vorschau; alte Einträge mit `pdf_path` behalten weiterhin die PDF-Buttons als Legacy-Support.
-- Automatischer Layout-Retry-Loop entfällt (kein Layout mehr → keine Layout-Fehler).
+## 4. Interaktive Übungen (beide Modi)
 
-## Coaching-Sheet (`src/pages/Coaching.tsx`) Änderungen
+**Pro Hebel (Soft/1-Runde):**
+- Multiple-Choice: „welche der 2 Antworten ist besser?" + Erklärung
+- Tipp-Feld: Chatter tippt Antwort → KI-Feedback via neuer Edge Function `evaluate-coaching-drill`
 
-- Nach `analyzeChats` + `saveAnalysis`: statt PDF-Preview zeigt es Toast mit „Analyse fertig" + Kopier-Feld für Share-Link.
-- Historie-Row bekommt: „Öffnen"-Button (öffnet `/c/<token>` in neuem Tab), „Link kopieren", „Löschen", Progress-Badge („✓ komplett" / „2/3 Hebel").
+**Am Ende (Boss-Fight/Multi-Turn):**
+- KI simuliert Kunden über 3-5 Turns
+- State-machine im Frontend, jeder Turn → `evaluate-coaching-simulation` (existiert bereits, wird erweitert für Multi-Turn Context)
+- Am Ende: Score, „Umsatz erzielt: X €", Sterne
+
+---
+
+## 5. Kontext-Tiefe (Karteikarte + voller Verlauf)
+
+**Kunden-Karteikarte** als eigene Karte vor jeder Analyse:
+```
+┌─────────────────────┐
+│ 🎭 „BigSpender_92"   │
+│ Ausgegeben: 340 €   │
+│ Kink: Feet, Domina  │
+│ Stimmung: heiß 🔥   │
+│ Letzte Aktion:      │
+│ „Zeig mir mehr..."  │
+└─────────────────────┘
+```
+
+**Voller Verlauf** als aufklappbare Karte darunter — Original-Chat-Bubbles der letzten 5-10 Nachrichten (aus `chats_preview.chat`).
+
+AI-Prompt wird erweitert: pro Hebel muss `customer_card` (Alias, spend, kink, mood, last_action) + `context_messages` (Array der Vor-Nachrichten) im Schema.
+
+---
+
+## 6. Datenbank-Änderungen
+
+Migration auf `coaching_analyses`:
+- `xp_earned int default 0`
+- `current_card_index int default 0` (für Resume)
+- `commitment_text text` (Chatter's Versprechen)
+- `boss_fight_result jsonb` (Multi-Turn Sim Ergebnis)
+
+`generate-coaching-analysis` Schema erweitert um:
+- `customer_card` pro Hebel
+- `context_messages` (Vor-Nachrichten) pro Hebel
+- `drill` (2-Antworten-Vergleich) pro Hebel
+- `boss_scenario` (Multi-Turn Kunden-Persona) einmal pro Analyse
+- `boss_anecdote` (Story vom Chef) pro Hebel
+
+Neue Edge Function `evaluate-coaching-drill` für Tipp-Übungen.
+`evaluate-coaching-simulation` wird erweitert um Multi-Turn Context (Turn-Historie im Body).
+
+---
 
 ## Technische Details
 
-**Neue Files**
-- `src/pages/CoachingView.tsx` — die öffentliche Chatter-Seite (Route `/c/:token`)
-- `src/components/coaching/HebelSection.tsx`, `Storyboard.tsx`, `QuizCheck.tsx`, `SimulationRunner.tsx`
-- `supabase/functions/get-coaching-by-token/index.ts`
-- `supabase/functions/update-coaching-progress/index.ts`
-- `supabase/functions/evaluate-coaching-simulation/index.ts`
+**Frontend:**
+- `src/pages/CoachingView.tsx` komplett neu als Story-Reader
+- Neuer State-Machine Hook `useCoachingReader` (currentCard, cards[], next(), prev(), completeCard())
+- Cards als eigene Komponenten: `CoverCard`, `CustomerCard`, `ChatHistoryCard`, `SituationCard`, `MessageBubbleCard`, `MoneyLossCard`, `BetterAnswerCard`, `DrillCard`, `TypeAnswerCard`, `BossAnecdoteCard`, `TakeawayCard`, `BossFightCard`, `RankingCard`, `CommitmentCard`, `FinalCard`
+- Framer Motion für Karten-Übergänge (slide + fade)
+- Untere Progress-Bar + XP-Counter oben
+- Speicherung `current_card_index` bei jedem `next()`
 
-**Geänderte Files**
-- `src/lib/coaching.ts`: PDF-Code raus, `renderAnalysisPDF` + Layout-Validator entfernt, `saveAnalysis` schreibt keinen PDF mehr sondern generiert `share_token`, neue Helper `getShareUrl`, `loadAnalysisByToken`, `updateProgress`
-- `src/pages/Coaching.tsx`: Retry-Loop vereinfacht (nur AI-Failures), Preview-Dialog raus, Share-Link-UI rein
-- `supabase/functions/generate-coaching-analysis/index.ts`: Schema erweitert um `situation_summary`, `customer_profile`, `quiz`, `simulation_prompt`
-- `src/App.tsx`: Public Route `/c/:token` (außerhalb Auth-Guard)
+**Edge Functions:**
+- `generate-coaching-analysis`: Schema erweitern (customer_card, context_messages, drill, boss_scenario, boss_anecdote), Prompt anpassen für B1-Sprache und Mimikry
+- `evaluate-coaching-simulation`: Multi-Turn Support (turn_history[] im Body, KI antwortet als Kunde ODER bewertet je nach Modus)
+- neu `evaluate-coaching-drill`: bewertet freie Tipp-Antworten
+- neu `update-coaching-xp`: schreibt XP/Card-Index
 
-**Migration**
-```sql
-ALTER TABLE public.coaching_analyses
-  ADD COLUMN share_token text UNIQUE,
-  ADD COLUMN progress_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN completed_at timestamptz,
-  ALTER COLUMN pdf_path DROP NOT NULL;
+**Migration:** 4 neue Spalten auf `coaching_analyses` (`xp_earned`, `current_card_index`, `commitment_text`, `boss_fight_result`).
 
-UPDATE public.coaching_analyses SET share_token = encode(gen_random_bytes(16), 'hex') WHERE share_token IS NULL;
-```
+**Nicht angefasst:** `Coaching.tsx` (Admin-Übersicht bleibt, zeigt neu XP und Fortschritt); PDF-Generierung ist bereits raus.
 
-Keine neue RLS-Policy nötig — der öffentliche Zugriff läuft ausschließlich über die Service-Role in der Edge Function nach Token-Match.
+---
 
-## Was bleibt gleich
+## Umsetzungs-Reihenfolge
 
-- AI-Modell (`gemini-3.1-pro-preview` für Meta-Pass), Stil-Mimikry-Regeln, Bot-DM-Erkennung, Preis-Tabu, Kontext-Pflicht, alle inhaltlichen Coaching-Regeln.
-- Fetch-Chats-Flow (Webhook, `chats_preview`, Historie).
-- Materials-Verwaltung.
+1. Migration (4 Spalten)
+2. Edge Functions: `generate-coaching-analysis` Schema + Prompt, `evaluate-coaching-simulation` Multi-Turn, neu `evaluate-coaching-drill`, neu `update-coaching-xp`
+3. `src/lib/coaching.ts` — Helper für XP, Card-Index, Drill-Evaluation
+4. Kartenkomponenten in `src/components/coaching/cards/`
+5. `useCoachingReader` Hook
+6. `CoachingView.tsx` neu als Story-Reader
+7. `Coaching.tsx` Admin: XP/Fortschritt Spalte

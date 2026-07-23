@@ -688,27 +688,18 @@ JSON-Schema (EXAKT einhalten):
       "money_line": "<1 Satz max 12 Wörter mit konkreter Zahl als Motivation. Beispiel: 'Ein guter Aufbau bringt 40-80€ mehr pro Fan.' KEINE Zahl in Nachrichten-Vorschlägen — nur hier.>",
       "situation_summary": "<PFLICHT. 2-3 Sätze max 45 Wörter, B1. Beschreibt die typische Kunden-Situation in der dieser Hebel greift. Konkret, wie ein Freund erklärt: 'Es gibt diese Momente, in denen ein Kunde X macht. Genau da entscheidet sich, ob …'>",
       "customer_profile": "<PFLICHT. 1-2 Sätze max 30 Wörter. Wer ist der Kunde in dieser Situation? Neuer Fan / Stammkunde / Whale / Sparfuchs? Was will er wirklich? Damit der Chatter das Gegenüber vor Augen hat.>",
+      "customer_card": {
+        "alias": "<PFLICHT. Kurzer Alias/Spitzname für den konkreten Beispiel-Kunden aus den Digests, z.B. 'BigSpender_92' oder aus recipient_username. Wenn unbekannt: erfundener Alias der zum Typ passt (max 20 Zeichen).>",
+        "spend_estimate": "<Kurz-String: 'Neuling (0€)' | 'Kleinspender (~50€)' | 'Stammkunde (200€+)' | 'Whale (500€+)'>",
+        "kink_hint": "<Was steht auf ihn? 2-4 Wörter aus dem echten Chat, z.B. 'Feet, Domina' oder 'Sanftes Sexting'. Wenn unklar: 'noch unbekannt'>",
+        "mood": "<1 Wort + Emoji: 'heiß 🔥' | 'neugierig 👀' | 'kalt ❄️' | 'zögernd 🤔' | 'gehetzt ⏱️'>",
+        "last_action": "<Max 60 Zeichen: was der Kunde ZULETZT gemacht hat, was diese Situation ausgelöst hat.>"
+      },
+      "context_messages": [
+        "<PFLICHT: 4-6 wortwörtliche Nachrichten VOR dem Chatter-Move aus dem echten Chat. Format je Zeile: 'KUNDE: text' oder 'CHATTER: text'. Zeigt Kontext-Verlauf, damit klar wird woraus die Situation entstand. Wenn Bot-Opener davor: mit einbinden aber als 'BOT-DM: text' markieren.>"
+      ],
       "storyboard": [
-        {
-          "round": 1,
-          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter, B1. Setzt die Szene: welcher Kunden-Typ, was war vorher im Chat los, warum ist genau DIESE Nachricht wichtig.>",
-          "customer": "<echte Kunden-Zeile aus den Digests. Max 180 Zeichen. Wortwörtlich.>",
-          "chatter_did": "<was der Chatter wirklich geantwortet hat. Max 200 Zeichen. Wortwörtlich.>",
-          "verdict": "<max 8 Wörter: kurzer Einordner.>"
-        },
-        {
-          "round": 2,
-          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Setzt die Szene der zweiten Situation.>",
-          "customer": "<gleiche/ähnliche Situation nochmal — echte Kunden-Zeile>",
-          "chatter_did": "<was der Chatter tat>",
-          "better_version": "<Bessere Antwort im STIL DES CHATTERS. Max 200 Zeichen. NIEMALS Preis/Geldbetrag.>",
-          "why_one_line": "<1 Satz max 12 Wörter: warum das besser wäre. B1.>"
-        },
-        {
-          "round": 3,
-          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Beschreibt WANN dieser Merksatz eingesetzt werden soll.>",
-          "customer": "<typische Kunden-Situation. Max 180 Zeichen.>",
-          "say_this": "<EXAKT dieser eine Satz zum auswendig lernen — im Stil des Chatters. Max 200 Zeichen. NIEMALS Preis/Geldbetrag.>"
+...
         }
       ],
       "quiz": {
@@ -717,12 +708,30 @@ JSON-Schema (EXAKT einhalten):
         "correct_index": 0,
         "explanation": "<1-2 Sätze max 30 Wörter warum diese Antwort richtig ist. Verbindet zurück zum Hebel-Prinzip. Freundlich, motivierend.>"
       },
+      "drill": {
+        "prompt": "<PFLICHT. Sehr kurze Situations-Beschreibung (max 25 Wörter): 'Kunde schreibt X. Was antwortest du?' — als Setup für den A/B Vergleich unten.>",
+        "option_a": "<Antwort A im STIL des Chatters. Max 150 Zeichen. Kein Preis.>",
+        "option_b": "<Antwort B im STIL des Chatters. Max 150 Zeichen. Kein Preis.>",
+        "better_option": "a",
+        "why": "<1 Satz max 15 Wörter warum die bessere Option besser ist. B1.>"
+      },
+      "boss_anecdote": {
+        "hook": "<PFLICHT. Kurze Hook, max 8 Wörter, z.B. 'Ich hatte mal genau die Situation.'>",
+        "story": "<2-3 Sätze max 55 Wörter. Erzählt eine erfundene aber glaubwürdige Anekdote vom Boss/Team-Lead, in der genau dieser Hebel angewandt wurde und ein großes Ergebnis brachte. Ich-Perspektive. Konkret mit Zahl am Ende (z.B. '+840€ an einem Abend'). Motiviert durch soziale Bewahrheit.>"
+      },
       "simulation_prompt": {
         "customer_message": "<Eine realistische Kunden-Nachricht die genau diesen Hebel triggert. So wie ein echter Fan schreiben würde. Max 200 Zeichen.>",
         "evaluation_criteria": "<Kurze Beschreibung was eine gute Antwort ausmacht (für den KI-Bewerter, nicht für den Chatter). 1-2 Sätze.>"
       }
     }
   ],
+  "boss_scenario": {
+    "customer_alias": "<PFLICHT. Alias des Kunden für den Boss-Fight Multi-Turn Simulator, z.B. 'Marc_39'.>",
+    "customer_profile": "<2 Sätze max 30 Wörter: wer ist der Fan, was will er, wie tickt er.>",
+    "opening_message": "<Die erste Kunden-Nachricht die den Chat startet. Max 200 Zeichen. Realistisch, im Ton eines echten Fans.>",
+    "goal": "<1 Satz max 12 Wörter: was der Chatter in diesem Boss-Fight erreichen soll (z.B. 'Verkauf eines PPV nach Bindung aufbauen').>",
+    "max_turns": 4
+  },
   "sbi_feedback": {
     "strength": {
       "situation": "<Situation: welcher Chat, was war los>",
@@ -769,6 +778,7 @@ JSON-Schema (EXAKT einhalten):
         previous: { revenue_eur: Math.round(previousTotals.revenue), mass_dms: previousTotals.mass_dms, days: previousTotals.days, from: prevFrom, to: prevTo },
       },
       top_3_levers: Array.isArray(focusedResult?.top_3_levers) ? focusedResult.top_3_levers.slice(0, 3) : [],
+      boss_scenario: focusedResult?.boss_scenario ?? null,
       sbi_feedback: focusedResult?.sbi_feedback ?? null,
       micro_action: focusedResult?.micro_action ?? '',
       retrieval_question: focusedResult?.retrieval_question ?? '',

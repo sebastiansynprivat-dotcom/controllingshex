@@ -1,29 +1,70 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Sparkles, CheckCircle2, Circle, ChevronRight, ChevronLeft, ArrowRight, MessageCircle, Target, Trophy, HelpCircle, PlayCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Loader2, ArrowRight, ArrowLeft, Trophy, Flame, Sparkles, Target,
+  MessageCircle, TrendingDown, TrendingUp, Star, Crown, Send, Check, X,
+  ChevronDown, Zap, Heart, DollarSign,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   CoachingAnalysisRow,
   CoachingProgress,
   Lever,
-  StoryboardRound,
+  BossFightTurn,
   loadAnalysisByToken,
   updateProgress,
-  evaluateSimulation,
+  evaluateDrill,
+  bossFightCustomerReply,
+  bossFightFinalScore,
+  levelFromXp,
 } from "@/lib/coaching";
 
-type Section = "cover" | "lever" | "sbi" | "action" | "done";
+/* ----------------------------- Card model ----------------------------- */
+
+type CardKind =
+  | "cover"
+  | "weekly"
+  | "lever_intro"
+  | "customer_card"
+  | "context"
+  | "situation"
+  | "chatter_did"
+  | "money_loss"
+  | "better"
+  | "drill"
+  | "type_drill"
+  | "boss_anecdote"
+  | "takeaway"
+  | "quiz"
+  | "sbi_strength"
+  | "sbi_growth"
+  | "boss_fight"
+  | "commitment"
+  | "final";
+
+interface StoryCard {
+  kind: CardKind;
+  leverIndex?: number;
+  roundIndex?: number;
+}
+
+/* ----------------------------- Component ----------------------------- */
 
 export default function CoachingView() {
   const { token } = useParams<{ token: string }>();
   const [row, setRow] = useState<CoachingAnalysisRow | null>(null);
   const [progress, setProgress] = useState<CoachingProgress>({});
+  const [xp, setXp] = useState(0);
+  const [cardIdx, setCardIdx] = useState(0);
+  const [commitment, setCommitment] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [section, setSection] = useState<Section>("cover");
-  const [leverIdx, setLeverIdx] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const saveTimer = useRef<any>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -32,23 +73,99 @@ export default function CoachingView() {
       .then((r) => {
         setRow(r);
         setProgress(r.progress_json ?? {});
+        setXp(r.xp_earned ?? 0);
+        setCardIdx(Math.max(0, r.current_card_index ?? 0));
+        setCommitment(r.commitment_text ?? "");
       })
       .catch((e) => setError(e.message ?? "Fehler beim Laden"))
       .finally(() => setLoading(false));
   }, [token]);
 
-  const saveProgress = useCallback(
-    async (next: CoachingProgress) => {
-      if (!token) return;
-      setProgress(next);
-      try {
-        await updateProgress(token, next);
-      } catch (e: any) {
-        console.warn("progress save failed", e);
+  const result = row?.summary_json ?? ({} as any);
+  const levers: Lever[] = Array.isArray(result.top_3_levers) ? result.top_3_levers : [];
+  const bossScenario = result.boss_scenario ?? null;
+  const chatterFirstName = (row?.chatter_name ?? "").split(/\s+/)[0] || "Champ";
+
+  const cards = useMemo<StoryCard[]>(() => {
+    if (!row) return [];
+    const list: StoryCard[] = [{ kind: "cover" }];
+    if (result.weekly_comparison) list.push({ kind: "weekly" });
+    levers.forEach((lv, i) => {
+      list.push({ kind: "lever_intro", leverIndex: i });
+      if (lv.customer_card) list.push({ kind: "customer_card", leverIndex: i });
+      if (lv.context_messages && lv.context_messages.length) list.push({ kind: "context", leverIndex: i });
+      if (lv.situation_summary) list.push({ kind: "situation", leverIndex: i });
+      const sb = lv.storyboard ?? [];
+      if (sb[0]?.chatter_did) list.push({ kind: "chatter_did", leverIndex: i, roundIndex: 0 });
+      if (lv.money_line) list.push({ kind: "money_loss", leverIndex: i });
+      if (sb[1]?.better_version) list.push({ kind: "better", leverIndex: i, roundIndex: 1 });
+      if (lv.drill) list.push({ kind: "drill", leverIndex: i });
+      if (lv.drill) list.push({ kind: "type_drill", leverIndex: i });
+      if (lv.boss_anecdote) list.push({ kind: "boss_anecdote", leverIndex: i });
+      if (sb[2]?.say_this) list.push({ kind: "takeaway", leverIndex: i, roundIndex: 2 });
+      if (lv.quiz) list.push({ kind: "quiz", leverIndex: i });
+    });
+    if (result.sbi_feedback?.strength) list.push({ kind: "sbi_strength" });
+    if (result.sbi_feedback?.growth) list.push({ kind: "sbi_growth" });
+    if (bossScenario) list.push({ kind: "boss_fight" });
+    list.push({ kind: "commitment" });
+    list.push({ kind: "final" });
+    return list;
+  }, [row, result, levers, bossScenario]);
+
+  const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
+  const currentCard = cards[safeCardIdx];
+  const totalCards = cards.length;
+  const overallProgress = totalCards ? (safeCardIdx + 1) / totalCards : 0;
+  const level = levelFromXp(xp);
+
+  const persist = useCallback((patch: Parameters<typeof updateProgress>[1]) => {
+    if (!token) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      updateProgress(token, patch).catch((e) => console.warn("save failed", e));
+    }, 400);
+  }, [token]);
+
+  const grantXp = useCallback((amount: number) => {
+    setXp((v) => {
+      const nv = v + amount;
+      persist({ xp_earned: nv });
+      return nv;
+    });
+    if (amount >= 25) toast.success(`+${amount} XP`, { duration: 1500 });
+  }, [persist]);
+
+  const goNext = useCallback(() => {
+    setDirection(1);
+    setCardIdx((i) => {
+      const next = Math.min(cards.length - 1, i + 1);
+      if (next !== i) {
+        const seen = new Set(progress.cards_seen ?? []);
+        if (!seen.has(i)) {
+          seen.add(i);
+          const newProgress = { ...progress, cards_seen: Array.from(seen) };
+          setProgress(newProgress);
+          persist({ progress: newProgress, current_card_index: next, xp_earned: xp + 10 });
+          setXp((v) => v + 10);
+        } else {
+          persist({ current_card_index: next });
+        }
       }
-    },
-    [token],
-  );
+      return next;
+    });
+  }, [cards.length, progress, persist, xp]);
+
+  const goPrev = useCallback(() => {
+    setDirection(-1);
+    setCardIdx((i) => {
+      const next = Math.max(0, i - 1);
+      if (next !== i) persist({ current_card_index: next });
+      return next;
+    });
+  }, [persist]);
+
+  /* ----------------------------- Loading / error ----------------------------- */
 
   if (loading) {
     return (
@@ -61,667 +178,883 @@ export default function CoachingView() {
     return (
       <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-center px-6">
         <div>
-          <div className="text-white/70 text-lg font-light mb-2">Coaching nicht gefunden</div>
+          <div className="text-white/80 text-lg font-light mb-2">Coaching nicht gefunden</div>
           <div className="text-white/40 text-sm">{error ?? "Der Link ist ungültig oder abgelaufen."}</div>
         </div>
       </div>
     );
   }
 
-  const result = row.summary_json ?? ({} as any);
-  const levers: Lever[] = Array.isArray(result.top_3_levers) ? result.top_3_levers : [];
+  const lever = currentCard?.leverIndex != null ? levers[currentCard.leverIndex] : undefined;
 
-  const readSet = new Set(progress.levers_read ?? []);
-  const markLeverRead = (i: number) => {
-    if (readSet.has(i)) return;
-    readSet.add(i);
-    saveProgress({ ...progress, levers_read: Array.from(readSet) });
-  };
-
-  const goToLever = (i: number) => {
-    setLeverIdx(i);
-    setSection("lever");
-    markLeverRead(i);
-  };
+  /* ----------------------------- Render ----------------------------- */
 
   return (
-    <div className="fixed inset-0 bg-zinc-950 text-white/90 overflow-y-auto">
-      <TopNav
-        row={row}
-        section={section}
-        leverIdx={leverIdx}
-        levers={levers}
-        onGoCover={() => setSection("cover")}
-        onGoLever={goToLever}
-        onGoSbi={() => setSection("sbi")}
-        onGoAction={() => setSection("action")}
-        progress={progress}
-      />
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-8 pb-24 pt-6">
-        {section === "cover" && (
-          <CoverSection row={row} levers={levers} onStart={() => goToLever(0)} />
-        )}
-        {section === "lever" && levers[leverIdx] && (
-          <LeverSection
-            key={leverIdx}
-            lever={levers[leverIdx]}
-            index={leverIdx}
-            total={levers.length}
-            token={token!}
-            progress={progress}
-            onSaveProgress={saveProgress}
-            onNext={() => {
-              if (leverIdx + 1 < levers.length) goToLever(leverIdx + 1);
-              else setSection("sbi");
-            }}
-            onPrev={() => {
-              if (leverIdx > 0) goToLever(leverIdx - 1);
-              else setSection("cover");
-            }}
+    <div className="fixed inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-4 pt-3 pb-2 shrink-0">
+        <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-amber-400 to-rose-500 transition-all duration-300"
+            style={{ width: `${overallProgress * 100}%` }}
           />
-        )}
-        {section === "sbi" && (
-          <SbiSection
-            row={row}
-            onNext={() => setSection("action")}
-            onPrev={() => goToLever(Math.max(0, levers.length - 1))}
-          />
-        )}
-        {section === "action" && (
-          <ActionSection
-            row={row}
-            progress={progress}
-            onSaveProgress={saveProgress}
-            onDone={async () => {
-              await saveProgress({ ...progress, completed: true });
-              setSection("done");
-            }}
-            onPrev={() => setSection("sbi")}
-          />
-        )}
-        {section === "done" && <DoneSection row={row} />}
+        </div>
+        <div className="text-[10px] tabular-nums text-white/50 shrink-0">{safeCardIdx + 1}/{totalCards}</div>
+        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 shrink-0">
+          <Crown className="h-3 w-3 text-amber-400" />
+          <span className="text-[10px] font-medium text-amber-200">{level.title}</span>
+          <span className="text-[10px] text-white/50">·</span>
+          <span className="text-[10px] tabular-nums text-white/70">{xp} XP</span>
+        </div>
       </div>
-    </div>
-  );
-}
 
-/* ---------- Nav ---------- */
-
-function TopNav({
-  row, section, leverIdx, levers, progress,
-  onGoCover, onGoLever, onGoSbi, onGoAction,
-}: {
-  row: CoachingAnalysisRow;
-  section: Section;
-  leverIdx: number;
-  levers: Lever[];
-  progress: CoachingProgress;
-  onGoCover: () => void;
-  onGoLever: (i: number) => void;
-  onGoSbi: () => void;
-  onGoAction: () => void;
-}) {
-  const readSet = new Set(progress.levers_read ?? []);
-  const total = levers.length + 3; // cover + levers + sbi + action
-  const doneCount =
-    (section !== "cover" || readSet.size > 0 ? 1 : 0) +
-    readSet.size +
-    (section === "sbi" || section === "action" || section === "done" ? 1 : 0) +
-    (progress.completed ? 1 : 0);
-  const pct = Math.min(100, Math.round((doneCount / total) * 100));
-
-  return (
-    <div className="sticky top-0 z-20 bg-zinc-950/85 backdrop-blur-xl border-b border-white/[0.06]">
-      <div className="max-w-3xl mx-auto px-4 sm:px-8 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-primary/80" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">{row.chatter_name} · Coaching</div>
-            <div className="text-[11px] text-white/40 font-light">
-              {row.date_from} → {row.date_to} · {row.chats_analyzed} Chats
+      {/* Card area */}
+      <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence initial={false} mode="wait" custom={direction}>
+          <motion.div
+            key={safeCardIdx}
+            custom={direction}
+            initial={{ opacity: 0, x: direction * 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction * -30 }}
+            transition={{ duration: 0.25 }}
+            className="absolute inset-0 overflow-y-auto"
+          >
+            <div className="min-h-full flex flex-col justify-center px-5 py-6 max-w-lg mx-auto">
+              {currentCard && (
+                <CardRenderer
+                  card={currentCard}
+                  lever={lever}
+                  levers={levers}
+                  result={result}
+                  chatterFirstName={chatterFirstName}
+                  bossScenario={bossScenario}
+                  progress={progress}
+                  commitment={commitment}
+                  setCommitment={setCommitment}
+                  token={token!}
+                  onGrantXp={grantXp}
+                  onAdvance={goNext}
+                  onSaveProgress={(p) => {
+                    setProgress(p);
+                    persist({ progress: p });
+                  }}
+                  onSaveCommitment={(t) => {
+                    setCommitment(t);
+                    persist({ commitment_text: t });
+                  }}
+                  xp={xp}
+                  level={level}
+                  row={row}
+                />
+              )}
             </div>
-          </div>
-          <div className="text-xs text-white/50 tabular-nums">{pct}%</div>
-        </div>
-        <div className="mt-3 h-1 bg-white/[0.05] rounded-full overflow-hidden">
-          <div className="h-full bg-primary/70 transition-all" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <NavChip label="Start" active={section === "cover"} onClick={onGoCover} />
-          {levers.map((_, i) => (
-            <NavChip
-              key={i}
-              label={`Hebel ${i + 1}`}
-              active={section === "lever" && leverIdx === i}
-              done={readSet.has(i)}
-              onClick={() => onGoLever(i)}
-            />
-          ))}
-          <NavChip label="Feedback" active={section === "sbi"} onClick={onGoSbi} />
-          <NavChip label="Aktion" active={section === "action" || section === "done"} done={!!progress.completed} onClick={onGoAction} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NavChip({ label, active, done, onClick }: { label: string; active?: boolean; done?: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border transition-colors ${
-        active
-          ? "bg-primary/15 border-primary/40 text-primary-foreground/95"
-          : done
-            ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-200/90"
-            : "bg-white/[0.03] border-white/[0.06] text-white/60 hover:bg-white/[0.06]"
-      }`}
-    >
-      {done && !active && <CheckCircle2 className="h-3 w-3 inline mr-1 -mt-0.5" />}
-      {label}
-    </button>
-  );
-}
-
-/* ---------- Cover ---------- */
-
-function CoverSection({ row, levers, onStart }: { row: CoachingAnalysisRow; levers: Lever[]; onStart: () => void }) {
-  const result = row.summary_json ?? ({} as any);
-  const wc = result.weekly_comparison;
-  return (
-    <div className="space-y-8 py-6">
-      <div>
-        <div className="text-xs uppercase tracking-widest text-primary/70 mb-2">Dein persönliches Coaching</div>
-        <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-white leading-tight">
-          Hey {row.chatter_name}
-        </h1>
-        {result.headline_promise && (
-          <p className="mt-4 text-lg sm:text-xl text-white/70 font-light leading-relaxed">
-            {result.headline_promise}
-          </p>
-        )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {result.personal_intro && (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-[15px] leading-relaxed text-white/80">
-          {result.personal_intro}
-        </div>
-      )}
-
-      {wc && (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-          <div className="text-[11px] uppercase tracking-widest text-white/40 mb-3">Vs. Vorperiode</div>
-          <div className="text-lg font-medium text-white/90 mb-2">{wc.headline}</div>
-          <div className="text-sm text-white/60 leading-relaxed">{wc.summary}</div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <MiniStat label="Diese Periode" value={`${Math.round(wc.current_revenue_eur ?? 0)}€`} />
-            <MiniStat label="Vorperiode" value={`${Math.round(wc.previous_revenue_eur ?? 0)}€`} />
-          </div>
-        </div>
-      )}
-
-      <div>
-        <div className="text-[11px] uppercase tracking-widest text-white/40 mb-3">Deine 3 Hebel</div>
-        <div className="space-y-2">
-          {levers.map((l, i) => (
-            <div key={i} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 flex items-center gap-3">
-              <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-xs font-medium text-primary-foreground/90">
-                {i + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white/90 truncate">{l.title}</div>
-                {l.one_liner && <div className="text-[12px] text-white/50 truncate">{l.one_liner}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Button onClick={onStart} className="w-full h-12 text-base">
-        Los geht's <ArrowRight className="h-4 w-4 ml-2" />
-      </Button>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2.5">
-      <div className="text-[10px] uppercase tracking-widest text-white/40">{label}</div>
-      <div className="text-lg font-medium text-white/90 tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-/* ---------- Lever ---------- */
-
-function LeverSection({
-  lever, index, total, token, progress, onSaveProgress, onNext, onPrev,
-}: {
-  lever: Lever;
-  index: number;
-  total: number;
-  token: string;
-  progress: CoachingProgress;
-  onSaveProgress: (p: CoachingProgress) => void;
-  onNext: () => void;
-  onPrev: () => void;
-}) {
-  const storyboard: StoryboardRound[] = Array.isArray(lever.storyboard) ? lever.storyboard : [];
-  return (
-    <div className="space-y-6 py-6">
-      <div>
-        <div className="text-xs uppercase tracking-widest text-primary/70 mb-2">Hebel {index + 1} von {total}</div>
-        <h2 className="text-2xl sm:text-3xl font-light text-white leading-tight">{lever.title}</h2>
-        {lever.one_liner && (
-          <p className="mt-3 text-lg text-white/70 font-light">{lever.one_liner}</p>
-        )}
-        {lever.money_line && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-400/10 border border-amber-400/25 px-3 py-1.5 text-[12px] text-amber-100/90">
-            💰 {lever.money_line}
-          </div>
-        )}
-      </div>
-
-      {(lever.situation_summary || lever.customer_profile) && (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-3">
-          <div className="text-[11px] uppercase tracking-widest text-white/40">Der Kontext</div>
-          {lever.situation_summary && (
-            <p className="text-[15px] leading-relaxed text-white/80">{lever.situation_summary}</p>
-          )}
-          {lever.customer_profile && (
-            <div className="pt-2 border-t border-white/[0.05] text-sm text-white/60 leading-relaxed">
-              <span className="text-white/50 font-medium">Wer ist der Kunde: </span>
-              {lever.customer_profile}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {storyboard.map((r, i) => (
-          <RoundCard key={i} round={r} index={i} />
-        ))}
-      </div>
-
-      {lever.quiz && (
-        <QuizCard
-          quiz={lever.quiz}
-          answered={progress.quiz_answers?.[index]}
-          onAnswer={(selected) => {
-            const correct = selected === lever.quiz!.correct_index;
-            const next = {
-              ...progress,
-              quiz_answers: {
-                ...(progress.quiz_answers ?? {}),
-                [index]: { selected, correct, at: new Date().toISOString() },
-              },
-            };
-            onSaveProgress(next);
-          }}
-        />
-      )}
-
-      {lever.simulation_prompt && (
-        <SimulationCard
-          prompt={lever.simulation_prompt}
-          token={token}
-          leverIndex={index}
-          result={progress.simulation_results?.[index]}
-          onResult={(res) => {
-            onSaveProgress({
-              ...progress,
-              simulation_results: {
-                ...(progress.simulation_results ?? {}),
-                [index]: { ...res, at: new Date().toISOString() },
-              },
-            });
-          }}
-        />
-      )}
-
-      <div className="flex gap-2 pt-2">
-        <Button variant="ghost" onClick={onPrev} className="flex-1">
-          <ChevronLeft className="h-4 w-4 mr-1" /> Zurück
-        </Button>
-        <Button onClick={onNext} className="flex-1">
-          Weiter <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function RoundCard({ round, index }: { round: StoryboardRound; index: number }) {
-  const labels = ["So lief es", "So wäre es besser", "Sag genau das"];
-  const label = labels[index] ?? `Runde ${index + 1}`;
-  return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-[11px] font-medium text-primary-foreground/90">
-          {index + 1}
-        </div>
-        <div className="text-[11px] uppercase tracking-widest text-white/50 font-medium">{label}</div>
-      </div>
-      {round.context && (
-        <div className="text-sm text-white/60 leading-relaxed italic border-l-2 border-primary/25 pl-3">
-          {round.context}
-        </div>
-      )}
-      {round.customer && (
-        <Bubble side="left" label="Kunde" text={round.customer} />
-      )}
-      {round.chatter_did && (
-        <Bubble side="right" label="Du hast geschrieben" text={round.chatter_did} muted />
-      )}
-      {round.verdict && (
-        <div className="text-[12px] text-amber-200/80 pl-2">→ {round.verdict}</div>
-      )}
-      {round.better_version && (
-        <Bubble side="right" label="So besser" text={round.better_version} accent />
-      )}
-      {round.why_one_line && (
-        <div className="text-[12px] text-emerald-200/80 pl-2">Warum: {round.why_one_line}</div>
-      )}
-      {round.say_this && (
-        <Bubble side="right" label="Merksatz" text={round.say_this} accent big />
-      )}
-    </div>
-  );
-}
-
-function Bubble({
-  side, label, text, muted, accent, big,
-}: { side: "left" | "right"; label: string; text: string; muted?: boolean; accent?: boolean; big?: boolean }) {
-  const isRight = side === "right";
-  return (
-    <div className={`flex ${isRight ? "justify-end" : "justify-start"}`}>
-      <div className="max-w-[85%] space-y-1">
-        <div className={`text-[10px] uppercase tracking-widest ${isRight ? "text-right" : "text-left"} ${accent ? "text-primary/80" : "text-white/40"}`}>
-          {label}
-        </div>
-        <div
-          className={`px-4 py-3 rounded-2xl text-[15px] leading-relaxed whitespace-pre-wrap ${
-            accent
-              ? "bg-primary text-primary-foreground rounded-tr-sm"
-              : muted
-                ? "bg-white/[0.05] text-white/70 rounded-tr-sm"
-                : "bg-white/[0.08] text-white/90 rounded-tl-sm"
-          } ${big ? "text-base sm:text-lg font-medium" : ""}`}
+      {/* Bottom nav */}
+      <div className="flex items-center gap-3 px-4 py-3 border-t border-white/5 shrink-0 bg-black/40 backdrop-blur">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={goPrev}
+          disabled={safeCardIdx === 0}
+          className="text-white/70 hover:text-white hover:bg-white/5"
         >
-          {text}
+          <ArrowLeft className="h-4 w-4 mr-1" /> Zurück
+        </Button>
+        <div className="flex-1" />
+        <Button
+          onClick={goNext}
+          disabled={safeCardIdx >= cards.length - 1}
+          size="sm"
+          className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold"
+        >
+          Weiter <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Card renderers
+   ============================================================================ */
+
+interface CardProps {
+  card: StoryCard;
+  lever?: Lever;
+  levers: Lever[];
+  result: any;
+  chatterFirstName: string;
+  bossScenario: any;
+  progress: CoachingProgress;
+  commitment: string;
+  setCommitment: (t: string) => void;
+  token: string;
+  onGrantXp: (n: number) => void;
+  onAdvance: () => void;
+  onSaveProgress: (p: CoachingProgress) => void;
+  onSaveCommitment: (t: string) => void;
+  xp: number;
+  level: ReturnType<typeof levelFromXp>;
+  row: CoachingAnalysisRow;
+}
+
+function CardRenderer(p: CardProps) {
+  switch (p.card.kind) {
+    case "cover": return <CoverCard {...p} />;
+    case "weekly": return <WeeklyCard {...p} />;
+    case "lever_intro": return <LeverIntroCard {...p} />;
+    case "customer_card": return <CustomerCardView {...p} />;
+    case "context": return <ContextCard {...p} />;
+    case "situation": return <SituationCard {...p} />;
+    case "chatter_did": return <ChatterDidCard {...p} />;
+    case "money_loss": return <MoneyLossCard {...p} />;
+    case "better": return <BetterCard {...p} />;
+    case "drill": return <DrillCard {...p} />;
+    case "type_drill": return <TypeDrillCard {...p} />;
+    case "boss_anecdote": return <BossAnecdoteCard {...p} />;
+    case "takeaway": return <TakeawayCard {...p} />;
+    case "quiz": return <QuizCard {...p} />;
+    case "sbi_strength": return <StrengthCard {...p} />;
+    case "sbi_growth": return <GrowthCard {...p} />;
+    case "boss_fight": return <BossFightCard {...p} />;
+    case "commitment": return <CommitmentCard {...p} />;
+    case "final": return <FinalCard {...p} />;
+    default: return null;
+  }
+}
+
+/* ============================== Simple cards ============================== */
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] tracking-[0.2em] uppercase text-amber-400/80 mb-3">{children}</div>;
+}
+
+function CoverCard({ chatterFirstName, result, row }: CardProps) {
+  return (
+    <div className="text-center">
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6">
+        <Sparkles className="h-3 w-3 text-amber-400" />
+        <span className="text-[10px] tracking-widest uppercase text-white/70">Dein Coaching</span>
+      </div>
+      <h1 className="text-4xl font-serif font-light mb-3 leading-tight">
+        Hey <span className="italic text-amber-400">{chatterFirstName}</span>
+      </h1>
+      <p className="text-white/70 text-lg leading-relaxed mb-6">
+        {result.headline_promise || "Diese Karten bringen dich diese Woche auf das nächste Level."}
+      </p>
+      {result.personal_intro && (
+        <p className="text-white/50 text-sm leading-relaxed italic">"{result.personal_intro}"</p>
+      )}
+      <div className="mt-8 text-xs text-white/30">
+        Tippe unten auf „Weiter", um zu starten
+      </div>
+    </div>
+  );
+}
+
+function WeeklyCard({ result }: CardProps) {
+  const wc = result.weekly_comparison ?? {};
+  const delta = wc.delta_pct;
+  const positive = typeof delta === "number" && delta >= 0;
+  return (
+    <div>
+      <Eyebrow>Vs. Vorperiode</Eyebrow>
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+        <div className="flex items-center gap-2 mb-4">
+          {positive ? <TrendingUp className="h-5 w-5 text-emerald-400" /> : <TrendingDown className="h-5 w-5 text-rose-400" />}
+          <div className="text-lg font-semibold">{wc.headline || (positive ? "Aufwärtstrend" : "Rückgang")}</div>
+        </div>
+        <div className="flex items-baseline gap-4 mb-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Diese Periode</div>
+            <div className="text-2xl font-serif">{Math.round(wc.current_revenue_eur ?? 0)}€</div>
+          </div>
+          <div className="text-white/30">vs.</div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Davor</div>
+            <div className="text-2xl font-serif text-white/50">{Math.round(wc.previous_revenue_eur ?? 0)}€</div>
+          </div>
+          {typeof delta === "number" && (
+            <div className={`ml-auto text-2xl font-semibold ${positive ? "text-emerald-400" : "text-rose-400"}`}>
+              {positive ? "+" : ""}{delta}%
+            </div>
+          )}
+        </div>
+        <p className="text-white/60 text-sm leading-relaxed">{wc.summary}</p>
+      </div>
+    </div>
+  );
+}
+
+function LeverIntroCard({ lever, card }: CardProps) {
+  if (!lever) return null;
+  const num = (card.leverIndex ?? 0) + 1;
+  return (
+    <div className="text-center">
+      <div className="text-8xl font-serif italic text-amber-400/20 mb-4">{num}</div>
+      <Eyebrow>Hebel {num} von 3</Eyebrow>
+      <h2 className="text-3xl font-serif font-light mb-4">{lever.title}</h2>
+      <p className="text-white/80 text-lg leading-relaxed mb-6">{lever.one_liner}</p>
+      {lever.money_line && (
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+          <DollarSign className="h-4 w-4 text-emerald-400" />
+          <span className="text-emerald-300 text-sm font-medium">{lever.money_line}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomerCardView({ lever }: CardProps) {
+  const cc = lever?.customer_card;
+  if (!cc) return null;
+  return (
+    <div>
+      <Eyebrow>Der Kunde in dieser Situation</Eyebrow>
+      <div className="rounded-3xl bg-gradient-to-br from-fuchsia-500/10 via-purple-500/10 to-indigo-500/10 border border-white/10 p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Alias</div>
+            <div className="text-2xl font-serif">{cc.alias}</div>
+          </div>
+          <div className="text-3xl">{extractEmoji(cc.mood) || "🎭"}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <Stat label="Ausgegeben" value={cc.spend_estimate} />
+          <Stat label="Steht auf" value={cc.kink_hint} />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Zuletzt</div>
+          <div className="text-white/85 italic">„{cc.last_action}"</div>
         </div>
       </div>
     </div>
   );
 }
 
-function QuizCard({
-  quiz, answered, onAnswer,
-}: {
-  quiz: NonNullable<Lever["quiz"]>;
-  answered?: { selected: number; correct: boolean };
-  onAnswer: (i: number) => void;
-}) {
-  const done = !!answered;
+function Stat({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5 space-y-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-primary/80">
-        <HelpCircle className="h-3.5 w-3.5" /> Quick-Check
-      </div>
-      <div className="text-[15px] font-medium text-white/90 leading-relaxed">{quiz.question}</div>
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">{label}</div>
+      <div className="text-white/90 text-sm">{value || "—"}</div>
+    </div>
+  );
+}
+
+function extractEmoji(s?: string): string | null {
+  if (!s) return null;
+  const m = s.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u);
+  return m ? m[0] : null;
+}
+
+function ContextCard({ lever }: CardProps) {
+  const msgs = lever?.context_messages ?? [];
+  if (!msgs.length) return null;
+  return (
+    <div>
+      <Eyebrow>So lief der Chat davor</Eyebrow>
       <div className="space-y-2">
-        {quiz.options.map((opt, i) => {
-          const isSelected = answered?.selected === i;
-          const isCorrect = i === quiz.correct_index;
-          const showColor = done && (isSelected || isCorrect);
+        {msgs.map((line, i) => {
+          const parsed = parseChatLine(line);
+          const isChatter = parsed.role === "CHATTER";
+          const isBot = parsed.role === "BOT-DM";
+          return (
+            <div key={i} className={`flex ${isChatter || isBot ? "justify-end" : "justify-start"}`}>
+              <div className={[
+                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-snug",
+                isChatter ? "bg-amber-500/20 text-amber-50 border border-amber-500/30 rounded-br-sm"
+                  : isBot ? "bg-white/5 text-white/50 italic border border-white/10 rounded-br-sm"
+                    : "bg-white/10 text-white/90 border border-white/10 rounded-bl-sm",
+              ].join(" ")}>
+                {isBot && <div className="text-[9px] uppercase tracking-widest text-white/40 mb-1">Bot-Anschrift</div>}
+                {parsed.text}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-center mt-6 text-xs text-white/40">
+        <ChevronDown className="h-4 w-4 inline mr-1" />
+        Jetzt kam DEINE Antwort
+      </div>
+    </div>
+  );
+}
+
+function parseChatLine(line: string): { role: string; text: string } {
+  const m = line.match(/^(KUNDE|CHATTER|BOT-DM):\s*(.*)$/);
+  if (m) return { role: m[1], text: m[2] };
+  return { role: "KUNDE", text: line };
+}
+
+function SituationCard({ lever }: CardProps) {
+  if (!lever?.situation_summary) return null;
+  return (
+    <div>
+      <Eyebrow>Die Situation</Eyebrow>
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <MessageCircle className="h-6 w-6 text-amber-400 mb-4" />
+        <p className="text-white/90 text-lg leading-relaxed">{lever.situation_summary}</p>
+      </div>
+    </div>
+  );
+}
+
+function ChatterDidCard({ lever, chatterFirstName }: CardProps) {
+  const round = lever?.storyboard?.[0];
+  if (!round) return null;
+  return (
+    <div>
+      <Eyebrow>Das ist passiert</Eyebrow>
+      {round.customer && (
+        <div className="flex justify-start mb-2">
+          <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5 bg-white/10 text-white/90 text-sm border border-white/10">
+            {round.customer}
+          </div>
+        </div>
+      )}
+      <div className="flex justify-end mb-3">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 bg-amber-500/20 text-amber-50 text-sm border border-amber-500/30">
+          {round.chatter_did}
+        </div>
+      </div>
+      <div className="text-xs text-white/50 text-right mb-4">— was du gesagt hast, {chatterFirstName}</div>
+      {round.verdict && (
+        <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-sm text-center">
+          {round.verdict}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MoneyLossCard({ lever }: CardProps) {
+  return (
+    <div className="text-center">
+      <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/20 border border-rose-500/40 mb-4">
+        <TrendingDown className="h-8 w-8 text-rose-400" />
+      </div>
+      <Eyebrow>Was es dich kostet</Eyebrow>
+      <div className="text-3xl font-serif font-light leading-tight text-rose-100 mb-4">
+        {lever?.money_line}
+      </div>
+      <p className="text-white/50 text-sm">
+        Jedes Mal wenn diese Situation kommt und du sie liegen lässt — verlierst du Geld, das schon in Reichweite war.
+      </p>
+    </div>
+  );
+}
+
+function BetterCard({ lever, chatterFirstName }: CardProps) {
+  const round = lever?.storyboard?.[1];
+  if (!round) return null;
+  return (
+    <div>
+      <Eyebrow>So macht's ein Top-Chatter</Eyebrow>
+      {round.context && <p className="text-white/60 text-sm mb-3">{round.context}</p>}
+      {round.customer && (
+        <div className="flex justify-start mb-2">
+          <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5 bg-white/10 text-white/90 text-sm border border-white/10">
+            {round.customer}
+          </div>
+        </div>
+      )}
+      <div className="flex justify-end mb-3">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/40 shadow-lg">
+          {round.better_version}
+        </div>
+      </div>
+      <div className="text-xs text-emerald-400/70 text-right mb-4">— so würdest du klingen, {chatterFirstName}, nur besser</div>
+      {round.why_one_line && (
+        <div className="mt-4 flex items-start gap-2 text-white/70 text-sm">
+          <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <span>{round.why_one_line}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProps) {
+  const drill = lever?.drill;
+  const idx = card.leverIndex!;
+  const existing = progress.drill_answers?.[idx];
+  const [picked, setPicked] = useState<"a" | "b" | null>(existing?.picked ?? null);
+  if (!drill) return null;
+  const correct = drill.better_option;
+  const answered = picked !== null;
+
+  const choose = (opt: "a" | "b") => {
+    if (answered) return;
+    setPicked(opt);
+    const isRight = opt === correct;
+    const prev = progress.drill_answers ?? {};
+    onSaveProgress({
+      ...progress,
+      drill_answers: {
+        ...prev,
+        [idx]: { ...(prev[idx] ?? {} as any), picked: opt, correct: isRight, at: new Date().toISOString() },
+      },
+    });
+    if (isRight) onGrantXp(25);
+    else onGrantXp(5);
+  };
+
+  return (
+    <div>
+      <Eyebrow>Drill · Welche ist besser?</Eyebrow>
+      <p className="text-white/80 mb-4 leading-relaxed">{drill.prompt}</p>
+      <div className="space-y-3">
+        {(["a", "b"] as const).map((opt) => {
+          const text = opt === "a" ? drill.option_a : drill.option_b;
+          const isPicked = picked === opt;
+          const isCorrect = opt === correct;
           return (
             <button
-              key={i}
-              disabled={done}
-              onClick={() => onAnswer(i)}
-              className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition-colors ${
-                showColor && isCorrect
-                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-100"
-                  : showColor && isSelected && !isCorrect
-                    ? "bg-red-500/15 border-red-500/40 text-red-100"
-                    : "bg-white/[0.03] border-white/[0.06] text-white/80 hover:bg-white/[0.06]"
-              } ${done ? "cursor-default" : "cursor-pointer"}`}
+              key={opt}
+              onClick={() => choose(opt)}
+              disabled={answered}
+              className={[
+                "w-full text-left p-4 rounded-2xl border transition-all",
+                !answered && "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20",
+                answered && isCorrect && "border-emerald-500/50 bg-emerald-500/15",
+                answered && isPicked && !isCorrect && "border-rose-500/50 bg-rose-500/15",
+                answered && !isPicked && !isCorrect && "border-white/5 bg-white/5 opacity-40",
+              ].filter(Boolean).join(" ")}
             >
-              <div className="flex items-center gap-2">
-                {done && isCorrect ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <Circle className="h-4 w-4 text-white/30 shrink-0" />
-                )}
-                <span>{opt}</span>
+              <div className="flex items-start gap-3">
+                <div className={[
+                  "shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold",
+                  !answered && "bg-white/10 text-white/70",
+                  answered && isCorrect && "bg-emerald-500 text-black",
+                  answered && isPicked && !isCorrect && "bg-rose-500 text-white",
+                  answered && !isPicked && !isCorrect && "bg-white/10 text-white/40",
+                ].filter(Boolean).join(" ")}>
+                  {answered && isCorrect ? <Check className="h-3 w-3" /> : answered && isPicked && !isCorrect ? <X className="h-3 w-3" /> : opt.toUpperCase()}
+                </div>
+                <div className="text-sm text-white/90 leading-snug">{text}</div>
               </div>
             </button>
           );
         })}
       </div>
-      {done && (
-        <div className={`rounded-xl px-4 py-3 text-sm ${answered!.correct ? "bg-emerald-500/10 text-emerald-100/90" : "bg-white/[0.04] text-white/75"}`}>
-          <div className="font-medium mb-1">{answered!.correct ? "Genau richtig 🎯" : "Nah dran — merk dir das:"}</div>
-          <div className="text-[13px] leading-relaxed">{quiz.explanation}</div>
+      {answered && (
+        <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
+          <span className="font-medium text-amber-400">Warum: </span>{drill.why}
         </div>
       )}
     </div>
   );
 }
 
-function SimulationCard({
-  prompt, token, leverIndex, result, onResult,
-}: {
-  prompt: NonNullable<Lever["simulation_prompt"]>;
-  token: string;
-  leverIndex: number;
-  result?: { answer: string; score: number; feedback: string };
-  onResult: (r: { answer: string; score: number; feedback: string }) => void;
-}) {
-  const [answer, setAnswer] = useState(result?.answer ?? "");
+function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp }: CardProps) {
+  const drill = lever?.drill;
+  const idx = card.leverIndex!;
+  const existing = progress.drill_answers?.[idx];
+  const [text, setText] = useState(existing?.typed ?? "");
   const [busy, setBusy] = useState(false);
+  const [score, setScore] = useState<number | null>(existing?.score ?? null);
+  const [feedback, setFeedback] = useState<string | null>(existing?.feedback ?? null);
+  const [polished, setPolished] = useState<string | null>(existing?.polished ?? null);
+  if (!drill) return null;
 
   const submit = async () => {
-    if (!answer.trim()) {
-      toast.error("Schreib erst eine Antwort.");
-      return;
-    }
+    if (!text.trim() || busy) return;
     setBusy(true);
     try {
-      const res = await evaluateSimulation({ token, lever_index: leverIndex, answer });
-      onResult({ answer, ...res });
+      const res = await evaluateDrill({ token, lever_index: idx, answer: text.trim() });
+      setScore(res.score);
+      setFeedback(res.feedback);
+      setPolished(res.polished ?? null);
+      const prev = progress.drill_answers ?? {};
+      onSaveProgress({
+        ...progress,
+        drill_answers: {
+          ...prev,
+          [idx]: { ...(prev[idx] ?? { picked: "a", correct: false } as any), typed: text.trim(), score: res.score, feedback: res.feedback, polished: res.polished, at: new Date().toISOString() },
+        },
+      });
+      onGrantXp(Math.max(10, res.score * 3));
     } catch (e: any) {
-      toast.error(e.message ?? "Auswertung fehlgeschlagen");
+      toast.error(e.message ?? "Bewertung fehlgeschlagen");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/60">
-        <PlayCircle className="h-3.5 w-3.5" /> Simulation — was schreibst du?
-      </div>
-      <Bubble side="left" label="Kunde" text={prompt.customer_message} />
+    <div>
+      <Eyebrow>Jetzt du · Tipp deine Antwort</Eyebrow>
+      <p className="text-white/70 mb-3 text-sm">{drill.prompt}</p>
       <Textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        placeholder="Tipp deine Antwort so, wie du sie wirklich schicken würdest…"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Wie würdest DU antworten?"
         rows={4}
-        className="bg-white/[0.03] border-white/[0.06]"
-        disabled={busy}
+        disabled={score !== null}
+        className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
       />
-      <Button onClick={submit} disabled={busy || !answer.trim()} className="w-full">
-        {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> KI bewertet…</> : <>Antwort einreichen</>}
-      </Button>
-      {result && (
-        <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-amber-300" />
-            <span className="text-sm font-medium">Feedback · {result.score}/10</span>
+      {score === null ? (
+        <Button
+          onClick={submit}
+          disabled={!text.trim() || busy}
+          className="w-full mt-3 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
+        >
+          {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Bewerte…</> : <>Bewertung holen <Send className="h-4 w-4 ml-2" /></>}
+        </Button>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+            <div className={`h-12 w-12 rounded-full flex items-center justify-center font-serif text-lg ${score >= 7 ? "bg-emerald-500/20 text-emerald-300" : score >= 4 ? "bg-amber-500/20 text-amber-300" : "bg-rose-500/20 text-rose-300"}`}>
+              {score}
+            </div>
+            <div className="text-white/80 text-sm leading-relaxed">{feedback}</div>
           </div>
-          <div className="text-[13px] leading-relaxed text-white/75 whitespace-pre-wrap">{result.feedback}</div>
+          {polished && (
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+              <div className="text-[10px] uppercase tracking-widest text-emerald-400/80 mb-1">Polierte Version</div>
+              <div className="text-emerald-50 text-sm italic">"{polished}"</div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-/* ---------- SBI ---------- */
-
-function SbiSection({ row, onNext, onPrev }: { row: CoachingAnalysisRow; onNext: () => void; onPrev: () => void }) {
-  const sbi = row.summary_json?.sbi_feedback;
-  return (
-    <div className="space-y-6 py-6">
-      <div>
-        <div className="text-xs uppercase tracking-widest text-primary/70 mb-2">Persönliches Feedback</div>
-        <h2 className="text-2xl sm:text-3xl font-light text-white leading-tight">Was besonders auffiel</h2>
-      </div>
-      {sbi?.strength && (
-        <SbiBlock
-          title="Deine Stärke"
-          tone="strength"
-          situation={sbi.strength.situation}
-          behavior={sbi.strength.behavior}
-          impact={sbi.strength.impact}
-        />
-      )}
-      {sbi?.growth && (
-        <SbiBlock
-          title="Deine Wachstums-Chance"
-          tone="growth"
-          situation={sbi.growth.situation}
-          behavior={sbi.growth.behavior}
-          impact={sbi.growth.impact}
-          alternative={sbi.growth.alternative_if_then}
-        />
-      )}
-      {!sbi && <div className="text-white/40 text-sm">Kein Feedback verfügbar.</div>}
-      <div className="flex gap-2 pt-2">
-        <Button variant="ghost" onClick={onPrev} className="flex-1"><ChevronLeft className="h-4 w-4 mr-1" /> Zurück</Button>
-        <Button onClick={onNext} className="flex-1">Weiter <ChevronRight className="h-4 w-4 ml-1" /></Button>
-      </div>
-    </div>
-  );
-}
-
-function SbiBlock({
-  title, tone, situation, behavior, impact, alternative,
-}: { title: string; tone: "strength" | "growth"; situation: string; behavior: string; impact: string; alternative?: string }) {
-  const accent = tone === "strength" ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-100" : "bg-amber-500/10 border-amber-500/25 text-amber-100";
-  return (
-    <div className={`rounded-2xl border ${tone === "strength" ? "border-emerald-500/20" : "border-amber-500/20"} bg-white/[0.02] p-5 space-y-3`}>
-      <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium ${accent}`}>
-        {tone === "strength" ? <Trophy className="h-3.5 w-3.5" /> : <Target className="h-3.5 w-3.5" />}
-        {title}
-      </div>
-      <SbiRow label="Situation" text={situation} />
-      <SbiRow label="Was du getan hast" text={behavior} />
-      <SbiRow label="Was das bewirkt hat" text={impact} />
-      {alternative && (
-        <div className="rounded-xl bg-primary/10 border border-primary/25 p-4">
-          <div className="text-[10px] uppercase tracking-widest text-primary/80 mb-1">So beim nächsten Mal</div>
-          <div className="text-[15px] font-medium text-white/95 leading-relaxed">„{alternative}"</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SbiRow({ label, text }: { label: string; text: string }) {
+function BossAnecdoteCard({ lever }: CardProps) {
+  const a = lever?.boss_anecdote;
+  if (!a) return null;
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-1">{label}</div>
-      <div className="text-[14px] leading-relaxed text-white/80">{text}</div>
+      <Eyebrow>Aus dem Nähkästchen</Eyebrow>
+      <div className="relative rounded-3xl bg-gradient-to-br from-amber-500/10 to-rose-500/10 border border-amber-500/20 p-6">
+        <div className="absolute -top-3 -left-3 h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
+          <Crown className="h-5 w-5 text-black" />
+        </div>
+        <div className="text-amber-300 font-serif italic text-lg mb-3 mt-2">{a.hook}</div>
+        <p className="text-white/85 leading-relaxed">{a.story}</p>
+      </div>
     </div>
   );
 }
 
-/* ---------- Action ---------- */
+function TakeawayCard({ lever }: CardProps) {
+  const round = lever?.storyboard?.[2];
+  if (!round?.say_this) return null;
+  return (
+    <div className="text-center">
+      <Eyebrow>Merk dir das</Eyebrow>
+      <div className="rounded-3xl border-2 border-amber-400/40 bg-gradient-to-br from-amber-500/10 to-transparent p-8">
+        <Star className="h-8 w-8 text-amber-400 mx-auto mb-4" />
+        {round.context && <p className="text-white/50 text-xs mb-4">{round.context}</p>}
+        <div className="text-2xl font-serif italic leading-snug text-amber-50">"{round.say_this}"</div>
+      </div>
+      <p className="text-white/40 text-xs mt-4">Screenshot machen · beim nächsten Chat rausholen</p>
+    </div>
+  );
+}
 
-function ActionSection({
-  row, progress, onSaveProgress, onDone, onPrev,
-}: {
-  row: CoachingAnalysisRow;
-  progress: CoachingProgress;
-  onSaveProgress: (p: CoachingProgress) => void;
-  onDone: () => void;
-  onPrev: () => void;
-}) {
-  const r = row.summary_json ?? ({} as any);
-  const levers: Lever[] = Array.isArray(r.top_3_levers) ? r.top_3_levers : [];
-  const sayThis = levers[0]?.storyboard?.[2]?.say_this?.trim();
+function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProps) {
+  const quiz = lever?.quiz;
+  const idx = card.leverIndex!;
+  const existing = progress.quiz_answers?.[idx];
+  const [picked, setPicked] = useState<number | null>(existing?.selected ?? null);
+  if (!quiz) return null;
+  const answered = picked !== null;
+  const correct = quiz.correct_index;
 
-  const done = !!progress.actions_done?.[0];
-  const toggleAction = () => {
+  const choose = (i: number) => {
+    if (answered) return;
+    setPicked(i);
+    const isRight = i === correct;
     onSaveProgress({
       ...progress,
-      actions_done: { ...(progress.actions_done ?? {}), 0: !done },
+      quiz_answers: {
+        ...(progress.quiz_answers ?? {}),
+        [idx]: { selected: i, correct: isRight, at: new Date().toISOString() },
+      },
     });
+    onGrantXp(isRight ? 30 : 5);
   };
 
   return (
-    <div className="space-y-6 py-6">
-      <div>
-        <div className="text-xs uppercase tracking-widest text-primary/70 mb-2">Dein nächster Schritt</div>
-        <h2 className="text-2xl sm:text-3xl font-light text-white leading-tight">Eine Sache. Sieben Tage.</h2>
-        <p className="mt-3 text-white/60 leading-relaxed">Alles andere kommt später. Nur diese eine Handlung, jeden Tag.</p>
+    <div>
+      <Eyebrow>Quick-Check</Eyebrow>
+      <p className="text-white/90 text-lg leading-relaxed mb-5">{quiz.question}</p>
+      <div className="space-y-2">
+        {quiz.options.map((opt, i) => {
+          const isPicked = picked === i;
+          const isCorrect = i === correct;
+          return (
+            <button
+              key={i}
+              disabled={answered}
+              onClick={() => choose(i)}
+              className={[
+                "w-full text-left p-3 rounded-xl border text-sm transition-all",
+                !answered && "border-white/10 bg-white/5 hover:bg-white/10",
+                answered && isCorrect && "border-emerald-500/50 bg-emerald-500/15 text-emerald-50",
+                answered && isPicked && !isCorrect && "border-rose-500/50 bg-rose-500/15 text-rose-50",
+                answered && !isPicked && !isCorrect && "border-white/5 bg-white/5 opacity-40",
+              ].filter(Boolean).join(" ")}
+            >
+              {opt}
+            </button>
+          );
+        })}
       </div>
-
-      {sayThis && (
-        <div className="rounded-2xl bg-zinc-900 border border-primary/30 p-6">
-          <div className="text-[10px] uppercase tracking-widest text-primary/80 mb-3">Der eine Satz für diese Woche</div>
-          <div className="text-xl sm:text-2xl font-medium text-white leading-snug">„{sayThis}"</div>
+      {answered && (
+        <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm">
+          {picked === correct ? <span className="text-emerald-400 font-semibold">Richtig. </span> : <span className="text-rose-400 font-semibold">Nicht ganz. </span>}
+          {quiz.explanation}
         </div>
       )}
+    </div>
+  );
+}
 
-      {r.micro_action && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-3">
-          <div className="text-[11px] uppercase tracking-widest text-white/50">Mikro-Aktion diese Woche</div>
-          <div className="text-[16px] font-medium text-white/95 leading-relaxed">{r.micro_action}</div>
-          <button
-            onClick={toggleAction}
-            className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
-              done ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-100" : "bg-white/[0.03] border-white/[0.06] text-white/70 hover:bg-white/[0.05]"
-            }`}
-          >
-            {done ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-            <span className="text-sm font-medium">{done ? "Ich mache das diese Woche" : "Ich verpflichte mich"}</span>
-          </button>
-        </div>
-      )}
-
-      {r.retrieval_question && (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-          <div className="text-[11px] uppercase tracking-widest text-white/50 mb-2 flex items-center gap-2">
-            <MessageCircle className="h-3.5 w-3.5" /> Frag dich selbst
-          </div>
-          <div className="text-[15px] italic text-white/80 leading-relaxed">{r.retrieval_question}</div>
-        </div>
-      )}
-
-      <div className="flex gap-2 pt-2">
-        <Button variant="ghost" onClick={onPrev} className="flex-1"><ChevronLeft className="h-4 w-4 mr-1" /> Zurück</Button>
-        <Button onClick={onDone} className="flex-1">Coaching abschließen <CheckCircle2 className="h-4 w-4 ml-2" /></Button>
+function StrengthCard({ result }: CardProps) {
+  const s = result.sbi_feedback?.strength;
+  if (!s) return null;
+  return (
+    <div>
+      <Eyebrow>Deine Stärke</Eyebrow>
+      <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6">
+        <Heart className="h-6 w-6 text-emerald-400 mb-4" />
+        <p className="text-emerald-50/80 text-sm mb-3"><span className="font-semibold">Situation: </span>{s.situation}</p>
+        <p className="text-emerald-50 mb-3 leading-relaxed"><span className="font-semibold">Was du gemacht hast: </span>{s.behavior}</p>
+        <p className="text-emerald-200/90 text-sm leading-relaxed italic">Wirkung: {s.impact}</p>
       </div>
     </div>
   );
 }
 
-function DoneSection({ row }: { row: CoachingAnalysisRow }) {
+function GrowthCard({ result }: CardProps) {
+  const g = result.sbi_feedback?.growth;
+  if (!g) return null;
   return (
-    <div className="py-12 text-center space-y-4">
-      <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 mx-auto flex items-center justify-center">
-        <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+    <div>
+      <Eyebrow>Dein Wachstumsfeld</Eyebrow>
+      <div className="rounded-3xl border border-amber-500/30 bg-amber-500/5 p-6">
+        <Target className="h-6 w-6 text-amber-400 mb-4" />
+        <p className="text-white/70 text-sm mb-3"><span className="font-semibold text-amber-300">Situation: </span>{g.situation}</p>
+        <p className="text-white/90 mb-3 leading-relaxed"><span className="font-semibold text-amber-300">Was passiert ist: </span>{g.behavior}</p>
+        <p className="text-white/70 text-sm mb-4 leading-relaxed"><span className="font-semibold text-amber-300">Was liegen blieb: </span>{g.impact}</p>
+        {g.alternative_if_then && (
+          <div className="mt-4 p-4 rounded-2xl bg-black/30 border border-amber-500/20">
+            <div className="text-[10px] uppercase tracking-widest text-amber-400/80 mb-2">Nächstes Mal sag stattdessen</div>
+            <div className="text-amber-50 italic leading-relaxed">"{g.alternative_if_then}"</div>
+          </div>
+        )}
       </div>
-      <h2 className="text-2xl font-light text-white">Stark gemacht, {row.chatter_name}.</h2>
-      <p className="text-white/60 max-w-md mx-auto leading-relaxed">
-        Nächste Woche schauen wir, wie viel dir der eine Satz gebracht hat.
+    </div>
+  );
+}
+
+/* ============================== Boss Fight ============================== */
+
+function BossFightCard({ bossScenario, token, row, onGrantXp }: CardProps) {
+  const [turns, setTurns] = useState<BossFightTurn[]>(row.boss_fight_result?.turns ?? []);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [finalScore, setFinalScore] = useState<{ score: number; verdict: string; revenue_potential_eur: number; feedback: string } | null>(
+    row.boss_fight_result?.score != null
+      ? { score: row.boss_fight_result.score!, verdict: row.boss_fight_result.verdict ?? "", revenue_potential_eur: row.boss_fight_result.revenue_potential_eur ?? 0, feedback: row.boss_fight_result.feedback ?? "" }
+      : null,
+  );
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (turns.length === 0 && bossScenario?.opening_message) {
+      setTurns([{ role: "customer", text: bossScenario.opening_message, at: new Date().toISOString() }]);
+    }
+  }, [bossScenario, turns.length]);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [turns.length]);
+
+  if (!bossScenario) return null;
+  const maxTurns = bossScenario.max_turns ?? 4;
+  const chatterTurns = turns.filter((t) => t.role === "chatter").length;
+  const done = chatterTurns >= maxTurns || finalScore !== null;
+
+  const persistTurns = (nextTurns: BossFightTurn[], score?: typeof finalScore) => {
+    updateProgress(token, {
+      boss_fight_result: {
+        turns: nextTurns,
+        ...(score ? { score: score.score, verdict: score.verdict, revenue_potential_eur: score.revenue_potential_eur, feedback: score.feedback, completed_at: new Date().toISOString() } : {}),
+      },
+    }).catch(() => {});
+  };
+
+  const send = async () => {
+    if (!input.trim() || busy) return;
+    const my: BossFightTurn = { role: "chatter", text: input.trim(), at: new Date().toISOString() };
+    const nextTurns = [...turns, my];
+    setTurns(nextTurns);
+    setInput("");
+    setBusy(true);
+    try {
+      if (chatterTurns + 1 >= maxTurns) {
+        const score = await bossFightFinalScore({ token, turn_history: nextTurns });
+        setFinalScore(score);
+        persistTurns(nextTurns, score);
+        onGrantXp(Math.max(20, score.score));
+      } else {
+        const reply = await bossFightCustomerReply({ token, turn_history: nextTurns });
+        const withReply = [...nextTurns, { role: "customer" as const, text: reply.reply, at: new Date().toISOString() }];
+        setTurns(withReply);
+        persistTurns(withReply);
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "Simulator-Fehler");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="w-full">
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/40">
+          <Flame className="h-3.5 w-3.5 text-rose-400" />
+          <span className="text-[10px] tracking-widest uppercase text-rose-200 font-semibold">Boss-Fight</span>
+        </div>
+        <h2 className="text-2xl font-serif font-light mt-3">{bossScenario.customer_alias}</h2>
+        <p className="text-white/60 text-sm mt-1">{bossScenario.customer_profile}</p>
+        <p className="text-amber-400/80 text-xs mt-2 italic">Ziel: {bossScenario.goal}</p>
+      </div>
+
+      <div ref={listRef} className="max-h-[45vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-3 space-y-2 mb-3">
+        {turns.map((t, i) => {
+          const isMe = t.role === "chatter";
+          return (
+            <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+              <div className={[
+                "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
+                isMe ? "bg-amber-500/20 text-amber-50 border border-amber-500/30 rounded-br-sm"
+                  : "bg-white/10 text-white/90 border border-white/10 rounded-bl-sm",
+              ].join(" ")}>
+                {t.text}
+              </div>
+            </div>
+          );
+        })}
+        {busy && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl px-3.5 py-2 bg-white/5 border border-white/10 text-white/50 text-xs">tippt…</div>
+          </div>
+        )}
+      </div>
+
+      {!done && (
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Deine Antwort…"
+            disabled={busy}
+            onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+          />
+          <Button onClick={send} disabled={busy || !input.trim()} className="bg-amber-500 hover:bg-amber-400 text-black font-semibold">
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+      <div className="mt-2 text-center text-[10px] text-white/40">
+        Runde {chatterTurns} / {maxTurns}
+      </div>
+
+      {finalScore && (
+        <div className="mt-4 rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-rose-500/10 p-5 text-center">
+          <Trophy className="h-8 w-8 text-amber-400 mx-auto mb-2" />
+          <div className="text-3xl font-serif">{finalScore.score}<span className="text-white/40 text-lg">/100</span></div>
+          <div className="text-amber-300 font-medium mt-1">{finalScore.verdict}</div>
+          <div className="text-white/60 text-sm mt-2">Potenzial: ~{Math.round(finalScore.revenue_potential_eur)}€</div>
+          <p className="text-white/80 text-sm mt-3 leading-relaxed">{finalScore.feedback}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================== Commitment + Final ============================== */
+
+function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFirstName }: CardProps) {
+  const [text, setText] = useState(commitment);
+  return (
+    <div>
+      <Eyebrow>Dein Versprechen</Eyebrow>
+      <p className="text-white/80 text-lg leading-relaxed mb-4">
+        Wenn du diese Woche EINE Sache anders machst — welche wird es?
       </p>
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => { setCommitment(text); onSaveCommitment(text); }}
+        placeholder={`Ich, ${chatterFirstName}, verspreche diese Woche …`}
+        rows={4}
+        className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+      />
+      <div className="mt-3 text-xs text-white/40 italic">
+        Wird gespeichert. Beim nächsten Login siehst du es wieder.
+      </div>
+    </div>
+  );
+}
+
+function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSaveProgress }: CardProps) {
+  const stats = useMemo(() => ({
+    quiz: Object.values(progress.quiz_answers ?? {}).filter((a) => a?.correct).length,
+    drills: Object.values(progress.drill_answers ?? {}).filter((a) => a?.correct).length,
+  }), [progress]);
+
+  useEffect(() => {
+    if (!progress.completed) {
+      const next = { ...progress, completed: true };
+      onSaveProgress(next);
+      updateProgress(token, { progress: next }).catch(() => {});
+    }
+  }, []); // eslint-disable-line
+
+  return (
+    <div className="text-center">
+      <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 mb-4 shadow-2xl shadow-amber-500/30">
+        <Trophy className="h-10 w-10 text-black" />
+      </div>
+      <h2 className="text-3xl font-serif font-light mb-2">Bam, {chatterFirstName}.</h2>
+      <p className="text-white/70 mb-6">Du hast dein Coaching durchgezogen.</p>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="text-[10px] uppercase tracking-widest text-white/40">XP</div>
+          <div className="text-2xl font-serif mt-1">{xp}</div>
+        </div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="text-[10px] uppercase tracking-widest text-white/40">Level</div>
+          <div className="text-2xl font-serif mt-1">{level.title}</div>
+        </div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="text-[10px] uppercase tracking-widest text-white/40">Quiz richtig</div>
+          <div className="text-2xl font-serif mt-1">{stats.quiz}</div>
+        </div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="text-[10px] uppercase tracking-widest text-white/40">Drills</div>
+          <div className="text-2xl font-serif mt-1">{stats.drills}</div>
+        </div>
+      </div>
+      {result.micro_action && (
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-5 text-left">
+          <div className="text-[10px] uppercase tracking-widest text-amber-400/80 mb-2">Deine Mikro-Aktion diese Woche</div>
+          <div className="text-amber-50 leading-relaxed">{result.micro_action}</div>
+        </div>
+      )}
     </div>
   );
 }
