@@ -1,77 +1,124 @@
-# Coaching-PDF Redesign: Kürzer, motivierender, umsetzbarer
 
-Basis: Research (Cognitive Load, SDT, Fogg, SBI, Progress Principle, Growth Mindset, Implementation Intentions).
+# Plan: Coaching-PDF für "nicht super schlaue" Chatter optimieren
 
-## Kernprinzipien
-- **Max 3–4 neue Konzepte** pro PDF (Arbeitsgedächtnis).
-- **Ein Hebel = eine Seite** — keine Wiederholung, kein Chat-für-Chat-Protokoll.
-- **Worked Examples**: "Falsch → Besser" statt abstrakter Regeln.
-- **Wenn-Dann-Skripte** statt Motivationsfloskeln.
-- **SBI-Feedback** (Situation-Behavior-Impact), kein Sandwich, Growth-Mindset-Framing.
-- **1 Mikro-Aktion** für die nächste Woche, nicht 10.
+Leitprinzip: **Der Chatter soll das PDF einmal lesen und danach im Chat sofort etwas anders tippen können — ohne nachdenken zu müssen.**
 
-## Neue PDF-Struktur (6 Seiten)
+Drei Änderungs-Ebenen: (1) was die AI generiert, (2) wie es im PDF layoutet ist, (3) wie die Kernbotschaft wiederholt wird.
+
+---
+
+## 1. Neues Content-Modell aus der AI (`generate-coaching-analysis`)
+
+Aktuell liefert die AI pro Hebel: `principle`, `wrong_example`, `better_example`, `story`, `money_example`, `if_then_script`. Das ist zu viel Prinzip, zu wenig Chat.
+
+**Neu pro Hebel → ein Mini-Storyboard mit 3 Sprechblasen-Runden:**
 
 ```text
-S.1  Cover + EIN Versprechen + 1 persönliche Kennzahl
-S.2  Die 3 Kernhebel — je Icon, 1 Satz, Falsch|Besser Mini-Beispiel
-S.3  Hebel 1 vertieft: Wenn-Dann-Skript + 1 Beispiel + Retrieval-Frage
-S.4  Hebel 2 + Hebel 3 (je halbe Seite, gleiches Muster)
-S.5  Persönliches Feedback (SBI): 1 Stärke ausbauen + 1 Wachstumsfeld
-S.6  Action Plan: 1 Mikro-Aktion/Woche + Checkbox-Tracker + Reflexionsplatz
-```
-
-## Was RAUS fliegt
-- Chat-für-Chat-Analyse jeder Nachricht
-- Mehrfach-Do's/Don'ts-Listen (Redundanz)
-- Lange Theorie-Blöcke ohne Beispiel
-- Generische Motivationsfloskeln
-- Wiederholende Zusammenfassungen
-- Zahlen-Dashboard mit 8 Metriken → nur 1–2 relevante KPIs
-
-## AI-Schema (Edge Function `generate-coaching-analysis`)
-
-Neuer, radikal reduzierter Output:
-```ts
-{
-  personal_intro: string,           // 2 Sätze, warm, mit 1 echter Kennzahl
-  headline_promise: string,          // 1 Satz Cover-Versprechen
-  top_3_levers: [{                   // GENAU 3, nicht mehr
-    icon_hint: string,               // z.B. "connection", "close", "timing"
-    title: string,                   // 3-5 Wörter
-    principle: string,               // 1 Satz Warum
-    wrong_example: string,           // 1 kurzes Zitat aus echten Chats
-    better_example: string,          // Worked Example
-    if_then_script: string           // "Wenn X → sage Y"
-  }],
-  sbi_feedback: {
-    strength: { situation, behavior, impact },   // 1 Stärke
-    growth:   { situation, behavior, impact, alternative_if_then }  // 1 Wachstumsfeld
-  },
-  micro_action: string,              // 1 konkrete Handlung für 7 Tage
-  retrieval_question: string         // "Was würdest du in dieser Situation sagen?"
+lever = {
+  name: "3 Wörter, max.",                    // z.B. "Erst neugierig machen"
+  one_liner: "1 Satz, B1, was ändert sich",  // z.B. "Nicht direkt schicken. Erst ihn heiß machen."
+  money_line: "1 Zeile: das bringt Cash",    // Zahl bleibt, wie heute
+  storyboard: [
+    { round: 1, customer: "…echte Kundenzeile…", chatter_did: "…was er wirklich schrieb…", verdict: "ok | schwach" },
+    { round: 2, customer: "…", chatter_did: "…", better_version: "…so hätte es mehr gebracht…", why_one_line: "kurz warum" },
+    { round: 3, customer: "…nächste Situation, die im Alltag wiederkommt…", say_this: "…exakt dieser Satz…" }
+  ]
 }
 ```
 
-Prompt-Regeln: Deutsch, per "Du", keine Fachbegriffe (oder sofort in Klammern erklärt), keine Emojis in Prosa, Sales-Kontext berücksichtigen (erfolgreicher Sale = Stärke).
+Rekonstruktion aus echten Chat-Digests, nicht erfunden. `better_version` und `say_this` bleiben unter 200 Zeichen, in der Stimme des Chatters (Stil-Mimikry-Regeln bleiben). Keine Preise, keine Coach-Sprache — bestehende Tabus bleiben.
 
-## PDF-Renderer (`src/lib/coaching.ts`)
+**Digest-Phase erweitern:** pro Chat zusätzlich `key_moment` (die eine Zeile, die kippen sollte) extrahieren, damit der Meta-Pass genug Rohmaterial für die Storyboards hat.
 
-Komplett neuer Layout-Flow:
-- Cover: Titel, Headline-Versprechen, 1 persönliche Kennzahl, kleine Score-Anzeige (dezent, kein Dashboard)
-- 3-Hebel-Seite: Icon-Karten in Grid (Falsch | Besser)
-- Hebel-Detailseiten: Wenn-Dann-Skript als hervorgehobener Block, Retrieval-Frage als Callout
-- Feedback-Seite: 2 SBI-Karten (Grün=Stärke, Gold=Wachstum) mit klarer Situation→Verhalten→Wirkung-Struktur
-- Action-Seite: Große Mikro-Aktion + 7-Tage-Checkbox-Leiste + leerer Reflexions-Rahmen
+**Sprach-Regel (neu, hart im Prompt):**
+- Max. 12 Wörter pro Satz in allen Erklärfeldern.
+- Keine Fremdwörter außer PPV, DM, Fan.
+- Kein "sozusagen", "grundsätzlich", "im Kern", "Prinzip", "Dynamik", "Framework".
+- Wenn ein Satz länger als 12 Wörter wird → in zwei kurze splitten.
 
-Beibehalten: Noto-Font-Pipeline, Black/Gold, SheX-Branding, Emoji-Support wenn stabil.
-Entfernt: Zahlen-Dashboard-Seite, "Fahrplan"-Nummerierung, redundante Muster-Sektion, Score-Chart pro Chat.
+## 2. PDF-Layout: Chat-Bubbles statt Fließtext (`src/lib/coaching.ts`)
 
-## Technische Details
-- Datei 1: `supabase/functions/generate-coaching-analysis/index.ts` — Prompt + Schema komplett ersetzen, `ChatAnalysis`-Typ verschlanken
-- Datei 2: `src/lib/coaching.ts` — `renderAnalysisPDF` neu; alte Sektions-Renderer (dashboard, patterns, chat-cards, fahrplan) entfernen; neue Renderer: `renderCover`, `renderThreeLevers`, `renderLeverDetail`, `renderSBIFeedback`, `renderActionPlan`
-- Datei 3: `src/pages/Coaching.tsx` — nur ggf. Progress-Labels anpassen (Struktur bleibt)
-- Deploy Edge Function
+Neue Zeichnen-Primitive:
+- `drawCustomerBubble(text)` — linksbündig, grau, "Kunde" darüber.
+- `drawChatterBubble(text, variant)` — rechtsbündig, `variant = "was_du_geschrieben_hast" | "besser_so" | "sag_das"`. Farbcodes:
+  - was_du_geschrieben_hast: neutral
+  - besser_so: Akzentfarbe + kleines "✓" links
+  - sag_das: Akzent stark + "Merke dir diesen Satz" als Mini-Label
+- `drawRoundLabel(nr)` — "Runde 1 / Runde 2 / Runde 3".
 
-## Ergebnis
-Von 15+ Seiten mit Wiederholungen auf **6 fokussierte Seiten**, die Chatter tatsächlich zu Ende lesen, verstehen und umsetzen — mit einer Mikro-Aktion pro Woche statt Info-Overload.
+**Neue Seitenstruktur (weiterhin 6 Seiten):**
+
+```text
+Seite 1 — Cover
+  Name, Vorperioden-Vergleich (bleibt), 1 großer Satz: "Diese Woche geht es um: <lever[0].name>"
+Seite 2 — Hebel 1 (der wichtigste) als Storyboard
+Seite 3 — Hebel 2 als Storyboard
+Seite 4 — Hebel 3 als Storyboard
+Seite 5 — "Deine Stärke diese Woche" (1 Bubble-Beispiel wo er's gut gemacht hat) + "Ein Ding zum Aufpassen"
+Seite 6 — Fahrplan: der EINE Satz aus Hebel 1 groß + Mikro-Aktion + Selbstfrage
+```
+
+Jede Hebel-Seite:
+```text
+[Header: HEBEL 1 · Erst neugierig machen]
+[one_liner in großer Schrift]
+[money_line als kleine Akzent-Zeile]
+
+Runde 1
+  🗨 Kunde: "…"
+  🗨 Du: "…"                        (neutral)
+  ↳ verdict-chip
+
+Runde 2
+  🗨 Kunde: "…"
+  🗨 Du: "…"                        (neutral)
+  🗨 Besser so: "…"                 (Akzent + ✓)
+  why_one_line (klein, unter Bubble)
+
+Runde 3 — nächstes Mal
+  🗨 Kunde: "…"
+  🗨 Sag genau das: "…"             (Akzent stark)
+```
+
+Kein Fließtext-Absatz mehr auf Hebel-Seiten. Bubble-Layout mit fester Bubble-Breite (ca. 70% Contentbreite), auto-wrap, Emoji-safe (bestehende `drawRichLine` weiterverwenden).
+
+Layout-Validator bleibt an — die neuen Bubble-Zeichner müssen Höhen sauber zurückgeben, damit Overflow-Retries wie bisher funktionieren.
+
+## 3. Wiederholung: die 3x-Regel für den Kern-Hebel
+
+`lever[0]` (höchster Impact) taucht in drei unterschiedlichen Formen auf:
+
+1. **Cover (Seite 1):** als Überschrift-Satz "Diese Woche geht es um: <lever[0].name>."
+2. **Hebel-Seite 1 (Seite 2):** volles Storyboard.
+3. **Fahrplan (Seite 6):** der `say_this`-Satz aus Runde 3 nochmal groß + als Mikro-Aktion formuliert.
+
+Hebel 2 und 3 stehen nur je einmal — bewusst weniger Gewicht, damit die Kernbotschaft nicht verwässert.
+
+## 4. Kleinere Aufräum-Punkte im gleichen Turn
+
+- Alte Felder `principle`, `story`, `if_then_script`, `alternative_if_then` aus Schema und Renderer entfernen (werden durch Storyboard ersetzt).
+- Fallback-Rendering für alte Analysen: falls ein alter Datensatz noch ohne `storyboard` kommt, weiter mit dem bisherigen Renderer laufen lassen (Weiche in `src/lib/coaching.ts`).
+- Automatischer Retry-Loop (bis 3x) bleibt unverändert.
+- Kosten: die neuen Storyboards machen den Meta-Prompt eher kürzer, nicht länger — bleibt bei `gemini-3.1-pro-preview`.
+
+---
+
+## Technische Änderungen (kompakt)
+
+- `supabase/functions/generate-coaching-analysis/index.ts`
+  - Digest-Schema: `+ key_moment`
+  - Meta-Schema: `top_3_levers[].storyboard[]`, entfernt: `principle`, `story`, `if_then_script`, `alternative_if_then`
+  - Neuer harter Sprach-Block (12-Wörter-Regel, verbotene Wörter)
+- `src/lib/coaching.ts`
+  - Neue Renderer: `drawCustomerBubble`, `drawChatterBubble`, `drawRoundLabel`, `drawLeverStoryboardPage`
+  - Cover: großer "Diese Woche geht es um"-Satz
+  - Fahrplan: nutzt `lever[0].storyboard[2].say_this`
+  - Alt-Fallback-Weiche
+- Keine DB-Änderungen. Keine neuen Secrets.
+
+## Was nicht geändert wird
+
+- Vorperioden-Vergleich auf dem Cover.
+- Layout-Validator + Auto-Retry.
+- Bot-DM-Regel, Preis-Tabu, Singular-Ansprache, Stil-Mimikry, Kontext-Pflicht — alles bleibt und wird zusätzlich mit den neuen Storyboards verwoben.
+- Modell (`gemini-3.1-pro-preview` für Meta, Flash für Digests).

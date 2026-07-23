@@ -11,13 +11,28 @@ export interface CoachingMaterial {
   updated_at: string;
 }
 
+export interface StoryboardRound {
+  round?: number;
+  customer?: string;
+  chatter_did?: string;
+  verdict?: string;
+  better_version?: string;
+  why_one_line?: string;
+  say_this?: string;
+}
+
 export interface Lever {
   icon_hint?: string;
   title: string;
-  principle: string;
-  wrong_example: string;
-  better_example: string;
-  if_then_script: string;
+  // New storyboard schema
+  one_liner?: string;
+  money_line?: string;
+  storyboard?: StoryboardRound[];
+  // Legacy fields (kept for old saved analyses)
+  principle?: string;
+  wrong_example?: string;
+  better_example?: string;
+  if_then_script?: string;
   story?: string;
   money_example?: string;
 }
@@ -757,8 +772,11 @@ export async function renderAnalysisPDF(input: {
   doc.setLineWidth(1);
   doc.line(pageW / 2 - 32, margin + 172, pageW / 2 + 32, margin + 172);
 
-  // Headline promise — the ONE promise
-  const promise = (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
+  // Headline promise — der EINE Fokus der Woche = Hebel 1 (3x-Regel: Cover → Hebel-Seite → Fahrplan)
+  const weekFocus = levers[0]?.title?.trim();
+  const promise = weekFocus
+    ? `Diese Woche geht es um: ${weekFocus}.`
+    : (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
   const promiseLines = wrapLines(promise, contentW - 40, 15, "italic");
   let promiseY = margin + 210;
   promiseLines.slice(0, 3).forEach((l) => {
@@ -920,7 +938,7 @@ export async function renderAnalysisPDF(input: {
         size: T.CARD_TITLE, style: "bold", color: INK,
       });
       // Principle
-      const principleLines = wrapLines(lev.principle ?? "", contentW - 68, T.BODY_SM);
+      const principleLines = wrapLines(lev.one_liner ?? lev.principle ?? "", contentW - 68, T.BODY_SM);
       let py = cardY + 46;
       principleLines.slice(0, 3).forEach((l) => {
         drawText(l, margin + 52, py, { size: T.BODY_SM, color: [70, 70, 70] });
@@ -934,9 +952,86 @@ export async function renderAnalysisPDF(input: {
   drawContentFooter("Seite 2 · Deine 3 Hebel");
 
   // ========== PAGES 3+ — one page per lever (Hebel 1 full, Hebel 2+3 combined) ==========
-  const renderLeverDetail = (lev: Lever, index: number, compact = false) => {
+  // -------- Chat-Bubble Renderer --------
+  const BUBBLE_MAX_W = contentW * 0.74;
+  const BUBBLE_PAD_X = 12;
+  const BUBBLE_PAD_Y = 9;
+  const BUBBLE_RADIUS = 10;
+
+  // Colors for bubble variants
+  const BUBBLE_CUSTOMER: [number, number, number] = [238, 234, 224];
+  const BUBBLE_CHATTER_NEUTRAL: [number, number, number] = [246, 242, 232];
+  const BUBBLE_BETTER: [number, number, number] = [232, 246, 235];
+  const BUBBLE_BETTER_BORDER: [number, number, number] = [90, 160, 105];
+  const BUBBLE_SAY: [number, number, number] = INK;
+
+  const drawBubble = (opts: {
+    text: string;
+    y: number;
+    side: "left" | "right";
+    fill: [number, number, number];
+    border?: [number, number, number];
+    textColor: [number, number, number];
+    labelAbove?: string;
+    labelColor?: [number, number, number];
+    size?: number;
+    style?: "normal" | "bold" | "italic";
+  }): number => {
+    const size = opts.size ?? T.BODY_SM;
+    const style = opts.style ?? "normal";
+    const innerW = BUBBLE_MAX_W - BUBBLE_PAD_X * 2;
+    const lines = wrapLines(opts.text || "—", innerW, size, style);
+    const rowH = Math.round(size * 1.32);
+    const bubbleH = lines.length * rowH + BUBBLE_PAD_Y * 2;
+    const bubbleW = BUBBLE_MAX_W;
+    const x = opts.side === "left" ? margin : margin + contentW - bubbleW;
+    let cy = opts.y;
+    if (opts.labelAbove) {
+      drawText(opts.labelAbove.toUpperCase(), x + 2, cy + 8, {
+        size: T.MICRO, style: "bold", color: opts.labelColor ?? MUTED,
+      });
+      cy += 12;
+    }
+    setFill(opts.fill);
+    if (opts.border) {
+      setDraw(opts.border);
+      doc.setLineWidth(0.6);
+      doc.roundedRect(x, cy, bubbleW, bubbleH, BUBBLE_RADIUS, BUBBLE_RADIUS, "FD");
+    } else {
+      doc.roundedRect(x, cy, bubbleW, bubbleH, BUBBLE_RADIUS, BUBBLE_RADIUS, "F");
+    }
+    let ty = cy + BUBBLE_PAD_Y + size * 0.9;
+    for (const l of lines) {
+      drawText(l, x + BUBBLE_PAD_X, ty, { size, style, color: opts.textColor });
+      ty += rowH;
+    }
+    return cy + bubbleH;
+  };
+
+  const drawRoundLabel = (label: string, yy: number): number => {
+    drawText(label, margin, yy, { size: T.META, style: "bold", color: GOLD });
+    setDraw(HAIRLINE);
+    doc.setLineWidth(0.4);
+    const tw = doc.getTextWidth(label);
+    doc.line(margin + tw + 8, yy - 3, margin + contentW, yy - 3);
+    return yy + 10;
+  };
+
+  const drawCaption = (text: string, yy: number, side: "left" | "right"): number => {
+    const size = T.MICRO;
+    const lines = wrapLines(text, BUBBLE_MAX_W - 4, size, "italic");
+    const x = side === "left" ? margin + 4 : margin + contentW - 4;
+    let cy = yy + 4;
+    for (const l of lines) {
+      drawText(l, x, cy, { size, style: "italic", color: MUTED, align: side === "right" ? "right" : "left" });
+      cy += 11;
+    }
+    return cy + 2;
+  };
+
+  const renderLeverDetail = (lev: Lever, index: number) => {
     const startY = y;
-    // Kicker + title (matches pageIntro rhythm)
+    // Kicker + title
     setDraw(GOLD);
     doc.setLineWidth(0.7);
     doc.line(margin, startY, margin + 44, startY);
@@ -944,20 +1039,111 @@ export async function renderAnalysisPDF(input: {
     drawText(`HEBEL ${index + 1}`, margin, y, { size: T.CAPTION, style: "bold", color: GOLD });
     y += 22;
     drawFitText(lev.title ?? "-", margin, y, contentW, {
-      size: compact ? T.H3 : T.H2, style: "bold", color: INK,
+      size: T.H2, style: "bold", color: INK,
     });
-    y += compact ? 24 : 28;
+    y += 26;
 
-    // Principle
-    const principleSize = compact ? T.BODY_SM : T.BODY;
-    const pLines = wrapLines(lev.principle ?? "", contentW, principleSize);
-    for (const l of pLines) {
-      drawText(l, margin, y, { size: principleSize, color: [60, 60, 60] });
-      y += compact ? 14 : 16;
+    // one_liner (new) or principle (legacy)
+    const oneLiner = (lev.one_liner ?? lev.principle ?? "").trim();
+    if (oneLiner) {
+      const olLines = wrapLines(oneLiner, contentW, T.LEAD);
+      for (const l of olLines.slice(0, 3)) {
+        drawText(l, margin, y, { size: T.LEAD, color: INK });
+        y += 17;
+      }
+      y += 4;
     }
-    y += S.SM;
 
-    // Wrong → Better side-by-side (equal padding, uniform radius/kicker)
+    // money_line (new) or money_example (legacy) — small gold caption
+    const moneyLine = (lev.money_line ?? lev.money_example ?? "").trim();
+    if (moneyLine) {
+      const mLines = wrapLines(moneyLine, contentW, T.BODY_SM, "italic");
+      for (const l of mLines.slice(0, 2)) {
+        drawText(l, margin, y, { size: T.BODY_SM, style: "italic", color: GOLD });
+        y += 13;
+      }
+      y += S.SM;
+    } else {
+      y += S.XS;
+    }
+
+    // Storyboard (new) — chat-bubble rounds
+    if (Array.isArray(lev.storyboard) && lev.storyboard.length > 0) {
+      lev.storyboard.slice(0, 3).forEach((r, ri) => {
+        const roundNum = r.round ?? ri + 1;
+        const roundLabel = roundNum === 3 ? "RUNDE 3 — NÄCHSTES MAL SAG DAS:" : `RUNDE ${roundNum}`;
+        y = drawRoundLabel(roundLabel, y);
+
+        if (r.customer) {
+          y = drawBubble({
+            text: `„${r.customer}"`,
+            y,
+            side: "left",
+            fill: BUBBLE_CUSTOMER,
+            textColor: INK,
+            labelAbove: "Kunde",
+            labelColor: MUTED,
+            style: "italic",
+          }) + 6;
+        }
+
+        if (r.chatter_did) {
+          y = drawBubble({
+            text: `„${r.chatter_did}"`,
+            y,
+            side: "right",
+            fill: BUBBLE_CHATTER_NEUTRAL,
+            textColor: INK,
+            labelAbove: "Du hast geschrieben",
+            labelColor: MUTED,
+            style: "italic",
+          }) + 4;
+        }
+
+        if (r.verdict) {
+          y = drawCaption(r.verdict, y, "right");
+        }
+
+        if (r.better_version) {
+          y += 4;
+          y = drawBubble({
+            text: `✓ „${r.better_version}"`,
+            y,
+            side: "right",
+            fill: BUBBLE_BETTER,
+            border: BUBBLE_BETTER_BORDER,
+            textColor: INK,
+            labelAbove: "Besser so",
+            labelColor: [60, 120, 70],
+            style: "bold",
+          }) + 4;
+        }
+
+        if (r.why_one_line) {
+          y = drawCaption(r.why_one_line, y, "right");
+        }
+
+        if (r.say_this) {
+          y += 4;
+          y = drawBubble({
+            text: `„${r.say_this}"`,
+            y,
+            side: "right",
+            fill: BUBBLE_SAY,
+            textColor: [245, 240, 224],
+            labelAbove: "Merk dir diesen Satz",
+            labelColor: GOLD,
+            style: "bold",
+            size: T.BODY,
+          }) + 6;
+        }
+
+        y += S.SM;
+      });
+      return;
+    }
+
+    // -------- LEGACY FALLBACK (old saved analyses without storyboard) --------
     const gap = 14;
     const halfW = (contentW - gap) / 2;
     const innerPad = 16;
@@ -966,90 +1152,34 @@ export async function renderAnalysisPDF(input: {
     const rowH = 14;
     const boxH = Math.max(wrongLines.length, betterLines.length) * rowH + 46;
 
-    // Wrong box
     setFill([250, 244, 240]);
     doc.roundedRect(margin, y, halfW, boxH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill([180, 90, 60]);
     doc.rect(margin, y, CARD_ACCENT_W, boxH, "F");
-    drawText("STATT SO", margin + innerPad, y + 18, {
-      size: T.META, style: "bold", color: [180, 90, 60],
-    });
+    drawText("STATT SO", margin + innerPad, y + 18, { size: T.META, style: "bold", color: [180, 90, 60] });
     let wy = y + 36;
-    wrongLines.forEach((l) => {
-      drawText(l, margin + innerPad, wy, { size: T.BODY_SM, style: "italic", color: INK });
-      wy += rowH;
-    });
+    wrongLines.forEach((l) => { drawText(l, margin + innerPad, wy, { size: T.BODY_SM, style: "italic", color: INK }); wy += rowH; });
 
-    // Better box
     const bx = margin + halfW + gap;
     setFill([242, 250, 244]);
     doc.roundedRect(bx, y, halfW, boxH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill([60, 120, 70]);
     doc.rect(bx, y, CARD_ACCENT_W, boxH, "F");
-    drawText("BESSER SO", bx + innerPad, y + 18, {
-      size: T.META, style: "bold", color: [60, 120, 70],
-    });
+    drawText("BESSER SO", bx + innerPad, y + 18, { size: T.META, style: "bold", color: [60, 120, 70] });
     let by = y + 36;
-    betterLines.forEach((l) => {
-      drawText(l, bx + innerPad, by, { size: T.BODY_SM, style: "italic", color: INK });
-      by += rowH;
-    });
+    betterLines.forEach((l) => { drawText(l, bx + innerPad, by, { size: T.BODY_SM, style: "italic", color: INK }); by += rowH; });
 
     y += boxH + S.MD;
 
-    // If-Then script — highlighted
     if (lev.if_then_script) {
       const scriptLines = wrapLines(lev.if_then_script, contentW - CARD_PAD * 2, T.BODY, "bold");
       const sh = scriptLines.length * 16 + 40;
       setFill(INK);
       doc.roundedRect(margin, y, contentW, sh, CARD_RADIUS, CARD_RADIUS, "F");
-      drawText("DEIN SKRIPT ZUM MERKEN", margin + CARD_PAD, y + 20, {
-        size: T.META, style: "bold", color: GOLD,
-      });
+      drawText("DEIN SKRIPT ZUM MERKEN", margin + CARD_PAD, y + 20, { size: T.META, style: "bold", color: GOLD });
       let sy = y + 40;
-      scriptLines.forEach((l) => {
-        drawText(l, margin + CARD_PAD, sy, { size: T.BODY, style: "bold", color: [245, 240, 224] });
-        sy += 16;
-      });
+      scriptLines.forEach((l) => { drawText(l, margin + CARD_PAD, sy, { size: T.BODY, style: "bold", color: [245, 240, 224] }); sy += 16; });
       y += sh + S.MD;
-    }
-
-    // Story — mini narrative that makes it click ("das kenn ich, das will ich auch")
-    if (lev.story) {
-      const storyLines = wrapLines(lev.story, contentW - CARD_PAD * 2, T.BODY_SM, "italic");
-      const storyH = storyLines.length * 14 + 44;
-      setFill([250, 247, 238]);
-      doc.roundedRect(margin, y, contentW, storyH, CARD_RADIUS, CARD_RADIUS, "F");
-      setFill(GOLD);
-      doc.rect(margin, y, CARD_ACCENT_W, storyH, "F");
-      drawText("SO LIEF DAS SCHON MAL", margin + CARD_PAD, y + 20, {
-        size: T.META, style: "bold", color: GOLD,
-      });
-      let sty = y + 40;
-      storyLines.forEach((l) => {
-        drawText(l, margin + CARD_PAD, sty, { size: T.BODY_SM, style: "italic", color: INK });
-        sty += 14;
-      });
-      y += storyH + S.MD;
-    }
-
-    // Money example — concrete cash potential ("so viel mehr wäre drin gewesen")
-    if (lev.money_example) {
-      const moneyLines = wrapLines(lev.money_example, contentW - CARD_PAD * 2 - 16, T.BODY_SM);
-      const moneyH = moneyLines.length * 14 + 44;
-      setFill([28, 22, 10]);
-      doc.roundedRect(margin, y, contentW, moneyH, CARD_RADIUS, CARD_RADIUS, "F");
-      setFill(GOLD);
-      doc.rect(margin, y, CARD_ACCENT_W, moneyH, "F");
-      drawText("WAS DAS BEDEUTET", margin + CARD_PAD, y + 20, {
-        size: T.META, style: "bold", color: GOLD,
-      });
-      let my = y + 40;
-      moneyLines.forEach((l) => {
-        drawText(l, margin + CARD_PAD, my, { size: T.BODY_SM, color: [245, 240, 224] });
-        my += 14;
-      });
-      y += moneyH + S.MD;
     }
   };
 
@@ -1059,7 +1189,7 @@ export async function renderAnalysisPDF(input: {
   for (let i = 0; i < levers.length && i < 3; i++) {
     newContentPage();
     y = margin + 4;
-    renderLeverDetail(levers[i], i, false);
+    renderLeverDetail(levers[i], i);
     drawContentFooter(`Seite ${leverPageNum} · Hebel ${i + 1}`);
     leverPageNum++;
   }
@@ -1172,23 +1302,43 @@ export async function renderAnalysisPDF(input: {
   );
 
 
-  // Big micro-action card
+  // Big "sag das"-card — 3x-Regel: der Satz aus Hebel 1, Runde 3, jetzt nochmal groß
+  const sayThis = levers[0]?.storyboard?.[2]?.say_this?.trim();
+  if (sayThis) {
+    const sayLines = wrapLines(`„${sayThis}"`, contentW - CARD_PAD * 2, T.CARD_TITLE, "bold");
+    const sayH = sayLines.length * 22 + 54;
+    setFill(INK);
+    doc.roundedRect(margin, y, contentW, sayH, CARD_RADIUS, CARD_RADIUS, "F");
+    setFill(GOLD);
+    doc.rect(margin, y, CARD_ACCENT_W, sayH, "F");
+    drawText("DER EINE SATZ FÜR DIESE WOCHE", margin + CARD_PAD, y + 22, {
+      size: T.META, style: "bold", color: GOLD,
+    });
+    let sy = y + 50;
+    sayLines.forEach((l) => {
+      drawText(l, margin + CARD_PAD, sy, { size: T.CARD_TITLE, style: "bold", color: [245, 240, 224] });
+      sy += 22;
+    });
+    y += sayH + S.MD;
+  }
+
+  // Micro-action card
   const action = (result.micro_action ?? "").trim() || "Vor jedem PPV-Angebot: erst 2 echte Fragen zum Kunden stellen.";
-  const actionLines = wrapLines(action, contentW - CARD_PAD * 2, T.CARD_TITLE, "bold");
-  const actionH = actionLines.length * 20 + 50;
-  setFill(INK);
+  const actionLines = wrapLines(action, contentW - CARD_PAD * 2, T.BODY, "bold");
+  const actionH = actionLines.length * 18 + 46;
+  setFill([250, 247, 238]);
   doc.roundedRect(margin, y, contentW, actionH, CARD_RADIUS, CARD_RADIUS, "F");
   setFill(GOLD);
   doc.rect(margin, y, CARD_ACCENT_W, actionH, "F");
   drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + CARD_PAD, y + 22, {
     size: T.META, style: "bold", color: GOLD,
   });
-  let ay = y + 46;
+  let ay = y + 42;
   actionLines.forEach((l) => {
-    drawText(l, margin + CARD_PAD, ay, { size: T.CARD_TITLE, style: "bold", color: [245, 240, 224] });
-    ay += 20;
+    drawText(l, margin + CARD_PAD, ay, { size: T.BODY, style: "bold", color: INK });
+    ay += 18;
   });
-  y += actionH + S.LG;
+  y += actionH + S.MD;
 
   // Retrieval question
   if (result.retrieval_question) {
