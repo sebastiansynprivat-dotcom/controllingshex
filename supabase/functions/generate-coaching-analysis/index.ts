@@ -621,13 +621,16 @@ REGEL für personal_intro:
 - Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag, ohne Chat-Anzahlen zu erwähnen.
 - Nur wenn Analysiert=0 UND Gesamt=0: dann darfst du sagen, dass in dem Zeitraum insgesamt noch nichts verkauft wurde.`;
 
-      const metaPrompt = `Du hast dir die Arbeit von ${chatter_name} angeschaut. Baue daraus das FINALE 6-Seiten-Coaching. Nenne dabei NIE die Anzahl der Chats.
+      const metaPrompt = `Du hast dir die Arbeit von ${chatter_name} angeschaut. Baue daraus das FINALE 6-Seiten-Coaching. Nenne dabei NIE die Anzahl der Chats. Sprich IMMER direkt in der Einzahl mit ${chatter_name} ("du"), niemals "ihr"/"habt ihr".
 Regeln:
 - GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
 - GENAU 1 Stärke (sbi_feedback.strength) und GENAU 1 Wachstumsfeld (sbi_feedback.growth). Nimm die stärksten Beispiele aus den Digests.
 - GENAU 1 Mikro-Aktion (micro_action) — konkret, in 7 Tagen umsetzbar, an eine bestehende Routine gekoppelt.
 - KEINE Fachbegriffe. Alltagssprache.
 - Zitate NUR aus den Digests, wortwörtlich, nichts erfinden.
+- KONTEXT-PFLICHT: Lies für jedes Zitat, was der KUNDE davor gemacht hat. Wenn der Kunde sofort sexuell eskaliert und ${chatter_name} normalerweise viel Bindung aufbaut, ist "mitgehen" oft die richtige Wahl — NICHT als Fehler framen. Erwähne den Kundenkontext im wrong_example / growth.situation ausdrücklich.
+- STIL RESPEKTIEREN: Erkenne aus den Digests den natürlichen Stil (Bindung/tief, Sexting, spielerisch, dominant, schnell auf den Verkauf) und wähle Hebel, die diesen Stil verstärken — nicht umbiegen.
+- Jedes wrong_example / growth.situation MUSS mit einem 1-Satz-Kontext beginnen ("Der Kunde hatte gerade X geschrieben — daraufhin hast du gesagt: …"). Ohne Kontext keine Kritik.
 
 ${salesContextBlock}
 
