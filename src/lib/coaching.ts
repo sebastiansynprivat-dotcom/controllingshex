@@ -11,43 +11,42 @@ export interface CoachingMaterial {
   updated_at: string;
 }
 
-export interface QuoteMoment {
-  situation?: string;
-  quote: string;
-}
-
-export interface ChatAnalysis {
-  chat_id: string;
-  customer_username?: string;
-  score?: number;
-  one_line_verdict?: string;
-  chat_context?: string;
-  pricing_check?: string;
-  dos?: Array<{ situation?: string; quote: string; why_good: string }>;
-  donts?: Array<{ situation?: string; quote: string; problem: string; better: string }>;
-  revenue_levers?: string[];
-  error?: string;
-}
-
-export interface Pattern {
+export interface Lever {
+  icon_hint?: string;
   title: string;
-  type: "positive" | "negative";
-  description: string;
-  moments?: QuoteMoment[];
-  example_quotes?: string[]; // backward compat
-  better_approach?: string;
+  principle: string;
+  wrong_example: string;
+  better_example: string;
+  if_then_script: string;
+}
+
+export interface SBIStrength {
+  situation: string;
+  behavior: string;
+  impact: string;
+}
+
+export interface SBIGrowth extends SBIStrength {
+  alternative_if_then: string;
 }
 
 export interface AnalysisResult {
   overall_score: number | null;
-  executive_summary: string;
-  personal_intro?: string;
-  personal_closing?: string;
-  top_focus?: string[];
-  patterns: Pattern[];
-  chats: ChatAnalysis[];
   chats_analyzed: number;
   chats_total?: number;
+  // New focused schema
+  personal_intro?: string;
+  headline_promise?: string;
+  top_3_levers?: Lever[];
+  sbi_feedback?: { strength: SBIStrength; growth: SBIGrowth } | null;
+  micro_action?: string;
+  retrieval_question?: string;
+  // Legacy fields kept optional for old saved analyses
+  executive_summary?: string;
+  personal_closing?: string;
+  top_focus?: string[];
+  patterns?: any[];
+  chats?: any[];
 }
 
 export interface CoachingAnalysisRow {
