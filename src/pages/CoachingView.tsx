@@ -490,9 +490,9 @@ function parseChatLine(line: string): { role: string; text: string } {
 /* ============================== Cinema Card ============================== */
 /**
  * The Chatter's core learning moment. Plays the real chat log message-by-message
- * with typing indicators (Netflix-style). Locks the "Weiter" gate until the
- * chatter has scrolled through the full history AND submitted a guess (or
- * explicitly skipped). Then reveals what they actually wrote + verdict + €-loss.
+ * with typing indicators (Netflix-style). Locks the "Weiter" gate until the full
+ * context is visible, then reveals what actually went wrong. No guess comes here:
+ * first verstehen, then verbessern.
  */
 
 interface CinemaMsg { role: string; text: string; }
@@ -508,11 +508,12 @@ function TypingDots() {
 }
 
 function CinemaCard({
-  lever, card, chatterFirstName, progress, onSaveProgress, onGrantXp, setCanAdvance, token,
+  lever, card, chatterFirstName, progress, onSaveProgress, onGrantXp, setCanAdvance,
 }: CardProps) {
   const leverIndex = card.leverIndex!;
   const round0 = lever?.storyboard?.[0];
   const existing = progress.cinema_progress?.[leverIndex];
+  const hasTeachingMoment = !!round0?.chatter_did;
 
   // Build the "before" message list: context_messages first, else fall back to
   // the storyboard's own customer line, else the situation_summary.
@@ -527,28 +528,25 @@ function CinemaCard({
   const totalBefore = beforeMessages.length;
   const wasCompleted = !!existing?.completed;
 
-  // Phases: playing -> guess -> reveal
-  type Phase = "playing" | "guess" | "reveal";
+  // Phases: playing -> reveal
+  type Phase = "playing" | "reveal";
   const [revealed, setRevealed] = useState<number>(wasCompleted ? totalBefore : 0);
   const [showTyping, setShowTyping] = useState(false);
   const [phase, setPhase] = useState<Phase>(wasCompleted ? "reveal" : "playing");
-  const [guess, setGuess] = useState<string>(existing?.guess ?? "");
-  const [guessScore, setGuessScore] = useState<number | null>(existing?.guess_score ?? null);
-  const [guessFeedback, setGuessFeedback] = useState<string | null>(existing?.guess_feedback ?? null);
-  const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<any>(null);
 
   // Gate control: closed until phase === "reveal"
   useEffect(() => {
-    setCanAdvance(phase === "reveal");
-  }, [phase, setCanAdvance]);
+    setCanAdvance(!hasTeachingMoment || phase === "reveal");
+  }, [hasTeachingMoment, phase, setCanAdvance]);
 
   // Auto-play the next message
   useEffect(() => {
     if (phase !== "playing") return;
     if (revealed >= totalBefore) {
-      setPhase("guess");
+      setPhase("reveal");
+      persistCinema({ messages_revealed: totalBefore, completed: true });
       return;
     }
     // Show typing indicator, then reveal next message
@@ -571,7 +569,8 @@ function CinemaCard({
     if (timerRef.current) clearTimeout(timerRef.current);
     setShowTyping(false);
     setRevealed(totalBefore);
-    setPhase("guess");
+    persistCinema({ messages_revealed: totalBefore, completed: true });
+    setPhase("reveal");
   };
 
   const persistCinema = (patch: Partial<import("@/lib/coaching").CinemaProgress>) => {
@@ -583,36 +582,7 @@ function CinemaCard({
     });
   };
 
-  const submitGuess = async () => {
-    if (!guess.trim() || submitting) return;
-    setSubmitting(true);
-    let score: number | null = null;
-    let feedback: string | null = null;
-    // Best-effort AI grading via the existing drill evaluator; falls back gracefully.
-    if (lever?.drill) {
-      try {
-        const res = await evaluateDrill({ token, lever_index: leverIndex, answer: guess.trim() });
-        score = res.score;
-        feedback = res.feedback;
-      } catch { /* soft-fail — we still reveal */ }
-    }
-    setGuessScore(score);
-    setGuessFeedback(feedback);
-    persistCinema({ guess: guess.trim(), guess_score: score ?? undefined, guess_feedback: feedback ?? undefined, skipped: false, completed: true });
-    onGrantXp(score != null && score >= 6 ? 30 : 15);
-    setPhase("reveal");
-    setSubmitting(false);
-  };
-
-  const skipGuess = () => {
-    persistCinema({ skipped: true, completed: true });
-    onGrantXp(5);
-    setPhase("reveal");
-  };
-
-  if (!round0?.chatter_did) {
-    // Nothing to teach — auto-open gate.
-    useEffect(() => { setCanAdvance(true); }, [setCanAdvance]);
+  if (!hasTeachingMoment) {
     return null;
   }
 
@@ -623,10 +593,10 @@ function CinemaCard({
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 mb-2">
           <Play className="h-3 w-3 text-rose-400 fill-rose-400" />
-          <span className="text-[10px] tracking-widest uppercase text-rose-200">So lief euer Chat wirklich</span>
+          <span className="text-[10px] tracking-widest uppercase text-rose-200">Erst Kontext, dann Fehler</span>
         </div>
         <div className="text-[10px] text-white/40">
-          Nur 12% der Chatter lesen den ganzen Verlauf — sei einer davon.
+          Lies erst, was davor passiert ist — sonst wirkt die Antwort unfair.
         </div>
       </div>
 
@@ -673,7 +643,7 @@ function CinemaCard({
           </motion.div>
         )}
 
-        {/* Guess phase: show real bubble AFTER guess submitted */}
+        {/* Reveal phase: show real bubble AFTER context is understood */}
         {phase === "reveal" && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <ChatBubble role="CHATTER" text={round0.chatter_did} />
@@ -694,67 +664,11 @@ function CinemaCard({
         </div>
       )}
 
-      {/* Guess phase UI */}
-      {phase === "guess" && (
-        <div className="mt-4 rounded-2xl border-2 border-amber-400/40 bg-amber-500/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-6 w-6 rounded-full bg-amber-500 flex items-center justify-center">
-              <Zap className="h-3.5 w-3.5 text-black" />
-            </div>
-            <div className="text-amber-300 text-sm font-semibold">STOP — dein Moment</div>
-          </div>
-          <p className="text-white/85 text-sm mb-3 leading-snug">
-            Der Kunde hat gerade das oben geschickt. <span className="text-amber-300 font-semibold">Was hättest DU jetzt geantwortet, {chatterFirstName}?</span>
-          </p>
-          <Textarea
-            value={guess}
-            onChange={(e) => setGuess(e.target.value)}
-            placeholder="Tipp deine Antwort — wie im echten Chat…"
-            rows={3}
-            className="bg-black/40 border-white/10 text-white placeholder:text-white/30"
-          />
-          <div className="flex gap-2 mt-3">
-            <Button
-              onClick={submitGuess}
-              disabled={!guess.trim() || submitting}
-              className="flex-1 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
-            >
-              {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Bewerte…</> : <>Abschicken & aufdecken <Send className="h-4 w-4 ml-2" /></>}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={skipGuess}
-              className="text-white/50 hover:text-white/80 hover:bg-white/5"
-              title="Weniger XP — direkt aufdecken"
-            >
-              <Eye className="h-4 w-4 mr-1" /> Skip
-            </Button>
-          </div>
-          <div className="mt-2 text-[10px] text-white/40 text-center">
-            +30 XP wenn dein Guess gut ist · +5 XP fürs Skippen
-          </div>
-        </div>
-      )}
-
       {/* Reveal phase: verdict + money loss */}
       {phase === "reveal" && (
         <div className="mt-4 space-y-3">
-          {guess.trim() && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Was du getippt hast</div>
-              <div className="text-white/80 text-sm italic">„{guess.trim()}"</div>
-              {guessScore != null && (
-                <div className="mt-2 flex items-center gap-2 pt-2 border-t border-white/5">
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${guessScore >= 7 ? "bg-emerald-500/30 text-emerald-200" : guessScore >= 4 ? "bg-amber-500/30 text-amber-200" : "bg-rose-500/30 text-rose-200"}`}>
-                    {guessScore}
-                  </div>
-                  {guessFeedback && <div className="text-white/70 text-xs leading-snug flex-1">{guessFeedback}</div>}
-                </div>
-              )}
-            </div>
-          )}
           <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
-            <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Was du wirklich geschickt hast ↑</div>
+            <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Warum das nicht sauber war ↑</div>
             {round0.verdict && (
               <p className="text-rose-100 text-sm leading-relaxed">{round0.verdict}</p>
             )}
