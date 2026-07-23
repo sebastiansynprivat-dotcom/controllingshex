@@ -536,6 +536,11 @@ KONTEXT VOR KRITIK (sehr wichtig):
 - Wenn eine Situation dem Chatter kaum Handlungsspielraum ließ (z.B. Kunde eskaliert sofort sexuell, Kunde will nur Sexting), erwähne das im Feedback ausdrücklich, bevor du Verbesserungen vorschlägst. Sonst wirkt es kontextlos und unfair.
 - Formuliere Feedback in dieser Struktur: erst kurz "die Situation war X" → dann "in dem Rahmen hast du Y gemacht" → dann "hier hättest du noch Z rausholen können, ohne den Kunden zu verlieren".
 
+BOT-DM / AUTO-ANSCHRIFT (sehr wichtig — nie dem Chatter anlasten):
+- Die allerersten Nachrichten im Chat kommen bei uns oft von einer automatisierten Bot-DM (Auto-Anschrift), nicht vom Chatter selbst. Erkennungsmerkmal: die allererste Nachricht im Chat ist vom Model/Chatter-Account UND direkt sexuell/anmachend UND es gab davor keine andere Chatter-Nachricht. Dann ist das mit hoher Wahrscheinlichkeit die Bot-Anschrift.
+- Behandle solche Bot-Openings NIEMALS als Fehler oder Schwäche des Chatters. Sie dürfen NICHT als weakest_moment, wrong_example oder Kritikpunkt auftauchen.
+- Wenn der Kunde daraufhin sexuell antwortet, ist das der Startpunkt, den der Chatter vorgesetzt bekommen hat — bewerte den Chatter erst ab seiner ersten eigenen, tatsächlich getippten Antwort.
+
 VERKÄUFE ZUERST ANSCHAUEN:
 - Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" / "— nicht gekauft" / "[TRINKGELD Xe]".
 - Wenn Verkäufe passiert sind: das ist die Stärke. Nicht kaputtreden.
