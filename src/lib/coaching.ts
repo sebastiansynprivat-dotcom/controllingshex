@@ -667,6 +667,38 @@ export async function renderAnalysisPDF(input: {
     doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
   };
 
+  // Standardized page intro: gold rule → CAPTION kicker → H2 title → optional italic subtitle.
+  // Guarantees the same visual rhythm and hierarchy on every content page.
+  const pageIntro = (
+    startY: number,
+    kicker: string,
+    title: string,
+    subtitle?: string,
+  ): number => {
+    let cy = startY;
+    setDraw(GOLD);
+    doc.setLineWidth(0.7);
+    doc.line(margin, cy, margin + 44, cy);
+    cy += 20;
+    drawText(kicker.toUpperCase(), margin, cy, {
+      size: T.CAPTION, style: "bold", color: GOLD,
+    });
+    cy += 22;
+    drawText(title, margin, cy, { size: T.H2, style: "bold", color: INK });
+    cy += subtitle ? 24 : 28;
+    if (subtitle) {
+      const lines = wrapLines(subtitle, contentW, T.BODY, "italic");
+      lines.slice(0, 2).forEach((l) => {
+        drawText(l, margin, cy, { size: T.BODY, style: "italic", color: MUTED });
+        cy += 16;
+      });
+      cy += S.SM;
+    }
+    return cy;
+  };
+
+
+
   // ========== PAGE 1 — Cover ==========
   paintBackground(INK);
   setDraw(GOLD);
