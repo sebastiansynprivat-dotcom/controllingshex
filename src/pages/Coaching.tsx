@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { GraduationCap, Loader2, Sparkles, FileText, Download, Trash2, Plus, Save, X, Search } from "lucide-react";
+import { GraduationCap, Loader2, Sparkles, FileText, Download, Trash2, Plus, Save, X, Search, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -265,6 +265,25 @@ function ChatterAnalysisSheet({
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 7), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; filename: string } | null>(null);
+
+  // Revoke object URL when preview closes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview?.url]);
+
+  const openPreview = (blob: Blob, filename: string) => {
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    const url = URL.createObjectURL(blob);
+    setPreview({ url, filename });
+  };
+
+  const closePreview = () => {
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  };
 
   useEffect(() => {
     if (!chatter) return;
@@ -317,8 +336,8 @@ function ChatterAnalysisSheet({
       });
       toast.success(`Analyse fertig — ${result.chats_analyzed} Chats`);
       setHistory((h) => [row, ...h]);
-      // auto-download
-      triggerDownload(pdf, buildFilename(chatter.chatter_name, dateFrom, dateTo));
+      // Zeige PDF direkt in der Vorschau (kein Auto-Download mehr)
+      openPreview(pdf, buildFilename(chatter.chatter_name, dateFrom, dateTo));
     } catch (e: any) {
       const message = e.message ?? "Analyse fehlgeschlagen";
       setAnalysisNotice(message);
@@ -335,6 +354,15 @@ function ChatterAnalysisSheet({
       triggerDownload(blob, buildFilename(row.chatter_name, row.date_from, row.date_to));
     } catch (e: any) {
       toast.error(e.message ?? "Download fehlgeschlagen");
+    }
+  };
+
+  const handlePreview = async (row: CoachingAnalysisRow) => {
+    try {
+      const blob = await downloadAnalysisPDF(row.pdf_path);
+      openPreview(blob, buildFilename(row.chatter_name, row.date_from, row.date_to));
+    } catch (e: any) {
+      toast.error(e.message ?? "Vorschau fehlgeschlagen");
     }
   };
 
@@ -426,7 +454,10 @@ function ChatterAnalysisSheet({
                             {row.chats_analyzed} Chats · Score {row.summary_json?.overall_score ?? "?"} · {format(new Date(row.created_at), "dd.MM.yy HH:mm")}
                           </div>
                         </div>
-                        <Button size="sm" variant="ghost" onClick={() => handleDownload(row)} title="PDF laden">
+                        <Button size="sm" variant="ghost" onClick={() => handlePreview(row)} title="Vorschau anzeigen">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDownload(row)} title="PDF herunterladen">
                           <Download className="h-4 w-4" />
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDelete(row)}>
@@ -441,6 +472,46 @@ function ChatterAnalysisSheet({
           </>
         )}
       </SheetContent>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!preview} onOpenChange={(o) => !o && closePreview()}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 bg-zinc-950 border-white/[0.06] flex flex-col gap-0">
+          <DialogHeader className="px-4 py-3 border-b border-white/[0.06] flex-row items-center justify-between space-y-0">
+            <DialogTitle className="text-sm font-light text-foreground/90 truncate">
+              {preview?.filename ?? "Vorschau"}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (!preview) return;
+                  fetch(preview.url)
+                    .then((r) => r.blob())
+                    .then((b) => triggerDownload(b, preview.filename))
+                    .catch(() => toast.error("Download fehlgeschlagen"));
+                }}
+                title="Herunterladen"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={closePreview} title="Schließen">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 bg-zinc-900">
+            {preview && (
+              <iframe
+                key={preview.url}
+                src={`${preview.url}#toolbar=1&view=FitH`}
+                title="PDF Vorschau"
+                className="w-full h-full border-0"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
