@@ -919,62 +919,85 @@ export async function renderAnalysisPDF(input: {
   // ========== PAGES 3+ — one page per lever (Hebel 1 full, Hebel 2+3 combined) ==========
   const renderLeverDetail = (lev: Lever, index: number, compact = false) => {
     const startY = y;
-    // Kicker + title
+    // Kicker + title (matches pageIntro rhythm)
     setDraw(GOLD);
-    doc.setLineWidth(0.6);
-    doc.line(margin, startY, margin + 60, startY);
-    y = startY + 12;
-    drawText(`HEBEL ${index + 1}`, margin, y, { size: 7.5, style: "bold", color: GOLD });
-    y += 18;
-    drawFitText(lev.title ?? "-", margin, y, contentW, { size: compact ? 16 : 20, style: "bold", color: INK });
-    y += compact ? 22 : 28;
+    doc.setLineWidth(0.7);
+    doc.line(margin, startY, margin + 44, startY);
+    y = startY + 20;
+    drawText(`HEBEL ${index + 1}`, margin, y, { size: T.CAPTION, style: "bold", color: GOLD });
+    y += 22;
+    drawFitText(lev.title ?? "-", margin, y, contentW, {
+      size: compact ? T.H3 : T.H2, style: "bold", color: INK,
+    });
+    y += compact ? 24 : 28;
 
     // Principle
-    const pLines = wrapLines(lev.principle ?? "", contentW, compact ? 10 : 11);
+    const principleSize = compact ? T.BODY_SM : T.BODY;
+    const pLines = wrapLines(lev.principle ?? "", contentW, principleSize);
     for (const l of pLines) {
-      drawText(l, margin, y, { size: compact ? 10 : 11, color: [55, 55, 55] });
+      drawText(l, margin, y, { size: principleSize, color: [60, 60, 60] });
       y += compact ? 14 : 16;
     }
-    y += compact ? 8 : 12;
+    y += S.SM;
 
-    // Wrong → Better side-by-side
-    const halfW = (contentW - 12) / 2;
-    const wrongLines = wrapLines(`„${lev.wrong_example ?? ""}"`, halfW - 24, 10, "italic");
-    const betterLines = wrapLines(`„${lev.better_example ?? ""}"`, halfW - 24, 10, "italic");
-    const boxH = Math.max(wrongLines.length, betterLines.length) * 14 + 40;
+    // Wrong → Better side-by-side (equal padding, uniform radius/kicker)
+    const gap = 14;
+    const halfW = (contentW - gap) / 2;
+    const innerPad = 16;
+    const wrongLines = wrapLines(`„${lev.wrong_example ?? ""}"`, halfW - innerPad * 2, T.BODY_SM, "italic");
+    const betterLines = wrapLines(`„${lev.better_example ?? ""}"`, halfW - innerPad * 2, T.BODY_SM, "italic");
+    const rowH = 14;
+    const boxH = Math.max(wrongLines.length, betterLines.length) * rowH + 46;
 
     // Wrong box
     setFill([250, 244, 240]);
-    doc.roundedRect(margin, y, halfW, boxH, 5, 5, "F");
+    doc.roundedRect(margin, y, halfW, boxH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill([180, 90, 60]);
-    doc.rect(margin, y, 3, boxH, "F");
-    drawText("STATT SO", margin + 14, y + 16, { size: 7, style: "bold", color: [180, 90, 60] });
-    let wy = y + 32;
-    wrongLines.forEach((l) => { drawText(l, margin + 14, wy, { size: 10, style: "italic", color: INK }); wy += 14; });
+    doc.rect(margin, y, CARD_ACCENT_W, boxH, "F");
+    drawText("STATT SO", margin + innerPad, y + 18, {
+      size: T.META, style: "bold", color: [180, 90, 60],
+    });
+    let wy = y + 36;
+    wrongLines.forEach((l) => {
+      drawText(l, margin + innerPad, wy, { size: T.BODY_SM, style: "italic", color: INK });
+      wy += rowH;
+    });
 
     // Better box
+    const bx = margin + halfW + gap;
     setFill([242, 250, 244]);
-    doc.roundedRect(margin + halfW + 12, y, halfW, boxH, 5, 5, "F");
+    doc.roundedRect(bx, y, halfW, boxH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill([60, 120, 70]);
-    doc.rect(margin + halfW + 12, y, 3, boxH, "F");
-    drawText("BESSER SO", margin + halfW + 26, y + 16, { size: 7, style: "bold", color: [60, 120, 70] });
-    let by = y + 32;
-    betterLines.forEach((l) => { drawText(l, margin + halfW + 26, by, { size: 10, style: "italic", color: INK }); by += 14; });
+    doc.rect(bx, y, CARD_ACCENT_W, boxH, "F");
+    drawText("BESSER SO", bx + innerPad, y + 18, {
+      size: T.META, style: "bold", color: [60, 120, 70],
+    });
+    let by = y + 36;
+    betterLines.forEach((l) => {
+      drawText(l, bx + innerPad, by, { size: T.BODY_SM, style: "italic", color: INK });
+      by += rowH;
+    });
 
-    y += boxH + 14;
+    y += boxH + S.MD;
 
     // If-Then script — highlighted
     if (lev.if_then_script) {
-      const scriptLines = wrapLines(lev.if_then_script, contentW - 36, 11, "bold");
-      const sh = scriptLines.length * 16 + 34;
+      const scriptLines = wrapLines(lev.if_then_script, contentW - CARD_PAD * 2, T.BODY, "bold");
+      const sh = scriptLines.length * 16 + 40;
       setFill(INK);
-      doc.roundedRect(margin, y, contentW, sh, 6, 6, "F");
-      drawText("DEIN SKRIPT ZUM MERKEN", margin + 18, y + 18, { size: 7.5, style: "bold", color: GOLD });
-      let sy = y + 38;
-      scriptLines.forEach((l) => { drawText(l, margin + 18, sy, { size: 11, style: "bold", color: [245, 240, 224] }); sy += 16; });
-      y += sh + 12;
+      doc.roundedRect(margin, y, contentW, sh, CARD_RADIUS, CARD_RADIUS, "F");
+      drawText("DEIN SKRIPT ZUM MERKEN", margin + CARD_PAD, y + 20, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let sy = y + 40;
+      scriptLines.forEach((l) => {
+        drawText(l, margin + CARD_PAD, sy, { size: T.BODY, style: "bold", color: [245, 240, 224] });
+        sy += 16;
+      });
+      y += sh + S.MD;
     }
   };
+
 
   // Page 3 — Hebel 1 full
   if (levers[0]) {
