@@ -562,8 +562,10 @@ Antworte als JSON:
   "revenue_eur": ${formatted.revenue.toFixed(2)},
   "outcome": "sale" | "attempt_no_sale" | "no_attempt",
   "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
-  "strongest_moment": {"situation": "<1 Satz was vorher lief>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
-  "weakest_moment": {"situation": "<1 Satz>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
+  "customer_energy": "<1 kurzer Satz: Wie ist der Kunde in den Chat reingegangen? z.B. 'sofort hart sexuell', 'zurückhaltend, viel Smalltalk', 'nur auf Preis fixiert', 'sucht Nähe und Gespräch'>",
+  "chatter_style_in_this_chat": "<1 Satz: Wie hat der Chatter reagiert? z.B. 'ist bei Nähe geblieben und hat langsam aufgebaut', 'ist sofort mitgegangen ins Sexting'>",
+  "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
+  "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
 }`;
       try {
