@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { GraduationCap, Loader2, Sparkles, FileText, Download, Trash2, Plus, Save, X, Search, Eye } from "lucide-react";
+import { GraduationCap, Loader2, Sparkles, FileText, Trash2, Plus, Save, Search, ExternalLink, Copy, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -18,13 +18,12 @@ import {
   deleteMaterial,
   listChattersForPlatform,
   listAnalyses,
-  runAnalysis,
   fetchChatsForAnalysis,
   analyzeChats,
-  renderAnalysisPDF,
   saveAnalysis,
-  downloadAnalysisPDF,
   deleteAnalysis,
+  getShareUrl,
+  computeProgressStats,
 } from "@/lib/coaching";
 
 export default function CoachingPage() {
@@ -92,7 +91,7 @@ export default function CoachingPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-light tracking-tight text-foreground/90">Coaching</h1>
             <p className="text-xs text-white/40 font-light truncate">
-              KI-gestützte Chat-Analyse gegen dein Coaching-Material · {activeMaterialsCount} aktiv
+              Interaktive Coaching-Seiten für deine Chatter · {activeMaterialsCount} Materialien aktiv
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setMaterialsOpen(true)} className="rounded-xl">
@@ -248,10 +247,6 @@ export default function CoachingPage() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Chatter Sheet — history + run new analysis                         */
-/* ------------------------------------------------------------------ */
-
 function ChatterAnalysisSheet({
   chatter,
   platform,
@@ -267,28 +262,11 @@ function ChatterAnalysisSheet({
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 7), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; filename: string } | null>(null);
-
-  // Revoke object URL when preview closes or component unmounts
-  useEffect(() => {
-    return () => {
-      if (preview?.url) URL.revokeObjectURL(preview.url);
-    };
-  }, [preview?.url]);
-
-  const openPreview = (blob: Blob, filename: string) => {
-    if (preview?.url) URL.revokeObjectURL(preview.url);
-    const url = URL.createObjectURL(blob);
-    setPreview({ url, filename });
-  };
-
-  const closePreview = () => {
-    if (preview?.url) URL.revokeObjectURL(preview.url);
-    setPreview(null);
-  };
+  const [freshShare, setFreshShare] = useState<{ url: string; row: CoachingAnalysisRow } | null>(null);
 
   useEffect(() => {
     if (!chatter) return;
+    setFreshShare(null);
     setLoading(true);
     listAnalyses(chatter.chatter_name, platform)
       .then(setHistory)
@@ -304,7 +282,6 @@ function ChatterAnalysisSheet({
     setStage("Starte…");
     setAnalysisNotice(null);
     try {
-      // 1) Chats einmalig holen (kein Re-Fetch bei Retry — spart Requests an Maloum)
       const chats = await fetchChatsForAnalysis({
         chatter_name: chatter.chatter_name,
         platform,
@@ -314,55 +291,20 @@ function ChatterAnalysisSheet({
         onStage: setStage,
       });
 
-      // 2) Analyse + PDF-Render mit Auto-Retry bei Layout-Validierungsfehlern
-      const MAX_ATTEMPTS = 3;
-      let result: Awaited<ReturnType<typeof analyzeChats>> | null = null;
-      let pdf: Blob | null = null;
-      let lastLayoutError: any = null;
+      const result = await analyzeChats({
+        chatter_name: chatter.chatter_name,
+        platform,
+        model_username: chatter.account,
+        date_from: dateFrom,
+        date_to: dateTo,
+        chats,
+        onStage: setStage,
+      });
 
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        const attemptLabel = attempt > 1 ? ` (Versuch ${attempt}/${MAX_ATTEMPTS})` : "";
-        result = await analyzeChats({
-          chatter_name: chatter.chatter_name,
-          platform,
-          model_username: chatter.account,
-          date_from: dateFrom,
-          date_to: dateTo,
-          chats,
-          onStage: (s) => setStage(`${s}${attemptLabel}`),
-        });
-
-        if (result.chats_analyzed === 0) {
-          setAnalysisNotice(result.executive_summary || "Keine analysierbaren Chats im Zeitraum gefunden.");
-          toast.warning("Keine analysierbaren Chats im Zeitraum gefunden.");
-          return;
-        }
-
-        setStage(`PDF wird erstellt…${attemptLabel}`);
-        try {
-          pdf = await renderAnalysisPDF({
-            chatter_name: chatter.chatter_name,
-            platform,
-            model_username: chatter.account,
-            date_from: dateFrom,
-            date_to: dateTo,
-            result,
-          });
-          lastLayoutError = null;
-          break; // Erfolg
-        } catch (e: any) {
-          if (e?.layoutIssues && attempt < MAX_ATTEMPTS) {
-            lastLayoutError = e;
-            console.warn(`[coaching] Layout fehlgeschlagen, regeneriere (${attempt}/${MAX_ATTEMPTS})`, e.layoutIssues);
-            setStage(`Layout fehlerhaft — generiere neu…`);
-            continue;
-          }
-          throw e;
-        }
-      }
-
-      if (!result || !pdf) {
-        throw lastLayoutError ?? new Error("PDF konnte nicht erstellt werden.");
+      if (result.chats_analyzed === 0) {
+        setAnalysisNotice(result.executive_summary || "Keine analysierbaren Chats im Zeitraum gefunden.");
+        toast.warning("Keine analysierbaren Chats im Zeitraum gefunden.");
+        return;
       }
 
       const row = await saveAnalysis({
@@ -372,12 +314,11 @@ function ChatterAnalysisSheet({
         date_from: dateFrom,
         date_to: dateTo,
         result,
-        pdf,
       });
-      toast.success(`Analyse fertig — ${result.chats_analyzed} Chats`);
+      const url = getShareUrl(row.share_token);
       setHistory((h) => [row, ...h]);
-      // Zeige PDF direkt in der Vorschau (kein Auto-Download mehr)
-      openPreview(pdf, buildFilename(chatter.chatter_name, dateFrom, dateTo));
+      setFreshShare({ url, row });
+      toast.success(`Coaching-Link erstellt — ${result.chats_analyzed} Chats`);
     } catch (e: any) {
       const message = e.message ?? "Analyse fehlgeschlagen";
       setAnalysisNotice(message);
@@ -388,21 +329,12 @@ function ChatterAnalysisSheet({
     }
   };
 
-  const handleDownload = async (row: CoachingAnalysisRow) => {
+  const copyLink = async (url: string) => {
     try {
-      const blob = await downloadAnalysisPDF(row.pdf_path);
-      triggerDownload(blob, buildFilename(row.chatter_name, row.date_from, row.date_to));
-    } catch (e: any) {
-      toast.error(e.message ?? "Download fehlgeschlagen");
-    }
-  };
-
-  const handlePreview = async (row: CoachingAnalysisRow) => {
-    try {
-      const blob = await downloadAnalysisPDF(row.pdf_path);
-      openPreview(blob, buildFilename(row.chatter_name, row.date_from, row.date_to));
-    } catch (e: any) {
-      toast.error(e.message ?? "Vorschau fehlgeschlagen");
+      await navigator.clipboard.writeText(url);
+      toast.success("Link kopiert");
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
     }
   };
 
@@ -411,6 +343,7 @@ function ChatterAnalysisSheet({
     try {
       await deleteAnalysis(row);
       setHistory((h) => h.filter((r) => r.id !== row.id));
+      if (freshShare?.row.id === row.id) setFreshShare(null);
     } catch (e: any) {
       toast.error(e.message ?? "Löschen fehlgeschlagen");
     }
@@ -431,7 +364,6 @@ function ChatterAnalysisSheet({
             </SheetHeader>
 
             <div className="mt-6 space-y-6">
-              {/* Run new analysis */}
               <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 space-y-3">
                 <h3 className="text-sm font-medium text-foreground/90">Neue Analyse</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -466,9 +398,29 @@ function ChatterAnalysisSheet({
                     {analysisNotice}
                   </div>
                 )}
+                {freshShare && (
+                  <div className="rounded-lg border border-emerald-400/25 bg-emerald-400/[0.05] p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-medium text-emerald-200/90">
+                      <CheckCircle2 className="h-4 w-4" /> Coaching bereit — teile den Link
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={freshShare.url}
+                        className="bg-white/[0.04] border-white/[0.06] text-xs font-mono"
+                        onFocus={(e) => e.currentTarget.select()}
+                      />
+                      <Button size="sm" variant="ghost" onClick={() => copyLink(freshShare.url)} title="Kopieren">
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => window.open(freshShare.url, "_blank")} title="Öffnen">
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* History */}
               <div>
                 <h3 className="text-sm font-medium text-foreground/90 mb-3">Historie</h3>
                 {loading ? (
@@ -481,30 +433,44 @@ function ChatterAnalysisSheet({
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {history.map((row) => (
-                      <div
-                        key={row.id}
-                        className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 flex items-center gap-3"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground/90 truncate">
-                            {row.date_from} → {row.date_to}
-                          </div>
-                          <div className="text-[11px] text-white/40 font-light">
-                            {row.chats_analyzed} Chats · Score {row.summary_json?.overall_score ?? "?"} · {format(new Date(row.created_at), "dd.MM.yy HH:mm")}
+                    {history.map((row) => {
+                      const stats = computeProgressStats(row.summary_json, row.progress_json);
+                      const url = row.share_token ? getShareUrl(row.share_token) : null;
+                      return (
+                        <div
+                          key={row.id}
+                          className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 space-y-2"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-foreground/90 truncate">
+                                {row.date_from} → {row.date_to}
+                              </div>
+                              <div className="text-[11px] text-white/40 font-light">
+                                {row.chats_analyzed} Chats · {format(new Date(row.created_at), "dd.MM.yy HH:mm")}
+                                {stats.total > 0 && (
+                                  <> · gelesen {stats.read}/{stats.total} · Quiz {stats.quizCorrect}/{stats.quizAnswered || 0}</>
+                                )}
+                                {row.completed_at && <> · ✓ abgeschlossen</>}
+                              </div>
+                            </div>
+                            {url && (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={() => copyLink(url)} title="Link kopieren">
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => window.open(url, "_blank")} title="Öffnen">
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => handleDelete(row)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <Button size="sm" variant="ghost" onClick={() => handlePreview(row)} title="Vorschau anzeigen">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDownload(row)} title="PDF herunterladen">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDelete(row)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -512,62 +478,6 @@ function ChatterAnalysisSheet({
           </>
         )}
       </SheetContent>
-
-      {/* PDF Preview Dialog */}
-      <Dialog open={!!preview} onOpenChange={(o) => !o && closePreview()}>
-        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 bg-zinc-950 border-white/[0.06] flex flex-col gap-0">
-          <DialogHeader className="px-4 py-3 border-b border-white/[0.06] flex-row items-center justify-between space-y-0">
-            <DialogTitle className="text-sm font-light text-foreground/90 truncate">
-              {preview?.filename ?? "Vorschau"}
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  if (!preview) return;
-                  fetch(preview.url)
-                    .then((r) => r.blob())
-                    .then((b) => triggerDownload(b, preview.filename))
-                    .catch(() => toast.error("Download fehlgeschlagen"));
-                }}
-                title="Herunterladen"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="ghost" onClick={closePreview} title="Schließen">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 bg-zinc-900">
-            {preview && (
-              <iframe
-                key={preview.url}
-                src={`${preview.url}#toolbar=1&view=FitH`}
-                title="PDF Vorschau"
-                className="w-full h-full border-0"
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </Sheet>
   );
-}
-
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function buildFilename(chatter: string, from: string, to: string) {
-  const safe = chatter.replace(/[^a-zA-Z0-9-_]/g, "_");
-  return `Coaching_${safe}_${from}_${to}.pdf`;
 }
