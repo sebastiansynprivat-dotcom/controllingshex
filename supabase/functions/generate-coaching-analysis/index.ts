@@ -778,6 +778,7 @@ JSON-Schema (EXAKT einhalten):
         previous: { revenue_eur: Math.round(previousTotals.revenue), mass_dms: previousTotals.mass_dms, days: previousTotals.days, from: prevFrom, to: prevTo },
       },
       top_3_levers: Array.isArray(focusedResult?.top_3_levers) ? focusedResult.top_3_levers.slice(0, 3) : [],
+      boss_scenario: focusedResult?.boss_scenario ?? null,
       sbi_feedback: focusedResult?.sbi_feedback ?? null,
       micro_action: focusedResult?.micro_action ?? '',
       retrieval_question: focusedResult?.retrieval_question ?? '',
