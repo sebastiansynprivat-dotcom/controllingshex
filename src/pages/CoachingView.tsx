@@ -17,7 +17,6 @@ import {
   BossFightTurn,
   loadAnalysisByToken,
   updateProgress,
-  evaluateSimulation,
   evaluateDrill,
   bossFightCustomerReply,
   bossFightFinalScore,
