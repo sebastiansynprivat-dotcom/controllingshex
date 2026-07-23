@@ -565,14 +565,6 @@ function CinemaCard({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [revealed, showTyping, phase]);
 
-  const skipToGuess = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setShowTyping(false);
-    setRevealed(totalBefore);
-    persistCinema({ messages_revealed: totalBefore, completed: true });
-    setPhase("reveal");
-  };
-
   const persistCinema = (patch: Partial<import("@/lib/coaching").CinemaProgress>) => {
     const prev = progress.cinema_progress ?? {};
     const cur = prev[leverIndex] ?? {};
@@ -652,15 +644,8 @@ function CinemaCard({
       </div>
 
       {phase === "playing" && (
-        <div className="mt-3 text-center text-[10px] text-white/40 flex items-center justify-center gap-1.5">
-          <span>Tippen zum Überspringen</span>
-          <span className="text-white/20">·</span>
-          <button
-            onClick={skipToGuess}
-            className="underline hover:text-white/70 transition"
-          >
-            direkt zum Moment springen
-          </button>
+        <div className="mt-3 text-center text-[10px] text-white/40">
+          Tippen zeigt die nächste Nachricht schneller
         </div>
       )}
 
