@@ -472,6 +472,46 @@ function ChatterAnalysisSheet({
           </>
         )}
       </SheetContent>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!preview} onOpenChange={(o) => !o && closePreview()}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 bg-zinc-950 border-white/[0.06] flex flex-col gap-0">
+          <DialogHeader className="px-4 py-3 border-b border-white/[0.06] flex-row items-center justify-between space-y-0">
+            <DialogTitle className="text-sm font-light text-foreground/90 truncate">
+              {preview?.filename ?? "Vorschau"}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (!preview) return;
+                  fetch(preview.url)
+                    .then((r) => r.blob())
+                    .then((b) => triggerDownload(b, preview.filename))
+                    .catch(() => toast.error("Download fehlgeschlagen"));
+                }}
+                title="Herunterladen"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={closePreview} title="Schließen">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 bg-zinc-900">
+            {preview && (
+              <iframe
+                key={preview.url}
+                src={`${preview.url}#toolbar=1&view=FitH`}
+                title="PDF Vorschau"
+                className="w-full h-full border-0"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
