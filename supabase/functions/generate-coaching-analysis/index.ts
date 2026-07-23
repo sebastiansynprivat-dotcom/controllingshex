@@ -576,6 +576,34 @@ Antworte als JSON:
         ? `${totalRevenue.toFixed(0)}€ Umsatz aus ${validDigests.length} Chats (${chatsWithRevenue} mit Verkauf)`
         : `${validDigests.length} Chats analysiert, 0€ Umsatz`;
 
+      const analyzedModelKey = normalizeKey(model_username);
+      const overallRevenue = currentTotals.revenue;
+      const overallHasSales = overallRevenue > 0;
+      const analyzedHasSales = totalRevenue > 0;
+      const perModelList = Object.entries(currentTotals.per_model)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([m, r]) => `${m}: ${r.toFixed(0)}€`)
+        .join(', ') || '—';
+      const analyzedModelRevenue = analyzedModelKey
+        ? (Object.entries(currentTotals.per_model)
+            .find(([m]) => normalizeKey(m) === analyzedModelKey)?.[1] ?? 0)
+        : null;
+
+      const salesContextBlock = `VERKAUFS-KONTEXT (WICHTIG — bestimmt den Ton des Intros):
+- Analysierte Chats: ${bestKpi}${totalRevenue > 0 ? `. Bester analysierter Chat: ${bestChat?.customer} mit ${Number(bestChat?.revenue_eur).toFixed(0)}€.` : ''}
+- Gesamtperformance ${chatter_name} auf ${platform} im Zeitraum ${date_from}—${date_to} (ALLE Models): ${overallRevenue.toFixed(0)}€ Umsatz an ${currentTotals.days} Tagen, ${currentTotals.mass_dms} MassDMs.
+- Aufteilung nach Model: ${perModelList}
+${analyzedModelKey ? `- Analysiertes Model "${model_username}" hat im Zeitraum insgesamt ${Number(analyzedModelRevenue ?? 0).toFixed(0)}€ gemacht.` : ''}
+- Vorperiode (${prevFrom}—${prevTo}): ${previousTotals.revenue.toFixed(0)}€, ${previousTotals.mass_dms} MassDMs.
+- Umsatz-Delta vs. Vorperiode: ${deltaPct === null ? 'keine Vergleichsdaten' : (deltaPct > 0 ? '+' : '') + deltaPct + '%'}.
+
+REGEL für personal_intro:
+- Sag NIE "leider keine Verkäufe" pauschal, wenn die Gesamt-Umsätze > 0 sind.
+- Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in den analysierten Chats war noch kein Abschluss dabei, insgesamt aber X€ auf ${platform}".
+- Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag.
+- Nur wenn Analysiert=0 UND Gesamt=0: dann darfst du sagen, dass in dem Zeitraum insgesamt noch nichts verkauft wurde.`;
+
       const metaPrompt = `Du hast ${validDigests.length} Chats von ${chatter_name} gesehen. Baue daraus das FINALE 6-Seiten-Coaching.
 Regeln:
 - GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
@@ -584,16 +612,22 @@ Regeln:
 - KEINE Fachbegriffe. Alltagssprache.
 - Zitate NUR aus den Digests, wortwörtlich, nichts erfinden.
 
-VERKAUFS-KONTEXT: ${bestKpi}
-${totalRevenue > 0 ? `Bester Chat: ${bestChat?.customer} mit ${Number(bestChat?.revenue_eur).toFixed(0)}€.` : ''}
+${salesContextBlock}
 
 CHAT-DIGESTS:
 ${JSON.stringify(validDigests, null, 2).slice(0, 30000)}
 
 JSON-Schema (EXAKT einhalten):
 {
-  "personal_intro": "<2 warme Sätze an ${chatter_name}. Nenne die eine wichtigste Kennzahl (Umsatz oder Anzahl Chats). Anerkennend wenn Umsatz da.>",
+  "personal_intro": "<2 warme Sätze an ${chatter_name}. Beziehe dich präzise auf den VERKAUFS-KONTEXT oben. Analysierte Chats vs. Gesamtperformance klar trennen.>",
   "headline_promise": "<EIN Satz Versprechen für die Cover-Seite, z.B. 'Diese 3 Moves bringen dir nächste Woche mehr Verkäufe.'>",
+  "weekly_comparison": {
+    "current_revenue_eur": ${overallRevenue.toFixed(0)},
+    "previous_revenue_eur": ${previousTotals.revenue.toFixed(0)},
+    "delta_pct": ${deltaPct === null ? 'null' : deltaPct},
+    "headline": "<Sehr kurzer Titel, max 5 Wörter, z.B. 'Stark verbessert', 'Leichter Rückgang', 'Erste Woche mit Daten'>",
+    "summary": "<1 Satz, konkret mit Zahlen, z.B. 'Diese Periode 1.240€, Vorperiode 890€ — +39%.' Wenn keine Vorperiode: sag das ehrlich.>"
+  },
   "top_3_levers": [
     {
       "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
