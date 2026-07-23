@@ -18,6 +18,8 @@ export interface Lever {
   wrong_example: string;
   better_example: string;
   if_then_script: string;
+  story?: string;
+  money_example?: string;
 }
 
 export interface SBIStrength {
