@@ -11,13 +11,28 @@ export interface CoachingMaterial {
   updated_at: string;
 }
 
+export interface StoryboardRound {
+  round?: number;
+  customer?: string;
+  chatter_did?: string;
+  verdict?: string;
+  better_version?: string;
+  why_one_line?: string;
+  say_this?: string;
+}
+
 export interface Lever {
   icon_hint?: string;
   title: string;
-  principle: string;
-  wrong_example: string;
-  better_example: string;
-  if_then_script: string;
+  // New storyboard schema
+  one_liner?: string;
+  money_line?: string;
+  storyboard?: StoryboardRound[];
+  // Legacy fields (kept for old saved analyses)
+  principle?: string;
+  wrong_example?: string;
+  better_example?: string;
+  if_then_script?: string;
   story?: string;
   money_example?: string;
 }
