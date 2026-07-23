@@ -1199,23 +1199,6 @@ export async function renderAnalysisPDF(input: {
   });
   y += actionH + S.LG;
 
-  // 7-day tracker
-  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, {
-    size: T.META, style: "bold", color: MUTED,
-  });
-  y += 14;
-  const days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-  const boxSize = 42;
-  const gapX = (contentW - boxSize * 7) / 6;
-  days.forEach((d, i) => {
-    const bx = margin + i * (boxSize + gapX);
-    setDraw(GOLD);
-    doc.setLineWidth(0.8);
-    doc.roundedRect(bx, y, boxSize, boxSize, CARD_RADIUS - 2, CARD_RADIUS - 2, "S");
-    drawText(d, bx + boxSize / 2, y + boxSize + 12, { size: 9, color: MUTED, align: "center" });
-  });
-  y += boxSize + S.XL;
-
   // Retrieval question
   if (result.retrieval_question) {
     setFill([250, 247, 238]);
@@ -1235,25 +1218,8 @@ export async function renderAnalysisPDF(input: {
     y += qH + S.MD;
   }
 
-  // Reflection frame
-  drawText("PLATZ FÜR DEINE GEDANKEN", margin, y, {
-    size: T.META, style: "bold", color: MUTED,
-  });
-  y += 12;
-  const reflectH = Math.max(60, pageH - margin - 30 - y);
-  setDraw(HAIRLINE);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(margin, y, contentW, reflectH, CARD_RADIUS, CARD_RADIUS, "S");
-  // faint ruled lines
-  const lineGap = 22;
-  for (let ly = y + lineGap; ly < y + reflectH - 8; ly += lineGap) {
-    setDraw([240, 236, 224]);
-    doc.setLineWidth(0.3);
-    doc.line(margin + 14, ly, pageW - margin - 14, ly);
-  }
-
-
   drawContentFooter(`Seite ${leverPageNum + 1} · Dein Fahrplan`);
+
 
   // --------- Automatische PDF-Validierung ---------
   // Blockiert den Download, wenn Text über den Rand ragt oder abgeschnitten ist.
