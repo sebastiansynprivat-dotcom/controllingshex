@@ -566,6 +566,8 @@ Antworte als JSON:
   "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
   "customer_energy": "<1 kurzer Satz: Wie ist der Kunde in den Chat reingegangen? z.B. 'sofort hart sexuell', 'zurückhaltend, viel Smalltalk', 'nur auf Preis fixiert', 'sucht Nähe und Gespräch'>",
   "chatter_style_in_this_chat": "<1 Satz: Wie hat der Chatter reagiert? z.B. 'ist bei Nähe geblieben und hat langsam aufgebaut', 'ist sofort mitgegangen ins Sexting'>",
+  "writing_style_notes": "<1-2 Sätze über die konkrete Schreibweise des CHATTERS: Groß-/Kleinschreibung, Satzlänge, Emoji-Nutzung (welche, wie oft), typische Wörter/Slang, Punkt-/Kommasetzung, Tippfehler, Anrede (Baby/Schatz/Süßer/...). So genau wie möglich beobachtet.>",
+  "chatter_voice_samples": ["<3 wörtliche, typische Chatter-Sätze aus diesem Chat, so wie sie geschrieben wurden — mit allen Emojis, Kleinschreibung, Tippfehlern. Keine Bearbeitung.>"],
   "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
   "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
