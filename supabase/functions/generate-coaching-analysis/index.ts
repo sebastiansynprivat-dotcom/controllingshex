@@ -297,9 +297,9 @@ function formatChatForAI(row: ChatRow, maxMessages = 200): { text: string; reven
   return { text: lines.join('\n'), revenue, purchases, sends };
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true) {
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true, modelOverride?: string) {
   const body: any = {
-    model: MODEL,
+    model: modelOverride || MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
