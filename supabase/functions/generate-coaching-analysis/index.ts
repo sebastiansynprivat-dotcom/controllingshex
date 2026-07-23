@@ -583,6 +583,12 @@ Antworte als JSON:
   "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen — NIE der Bot-Opener>"} | null,
   "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen — NIEMALS der Bot-Opener, sondern nur eine tatsächlich vom Chatter getippte Nachricht>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
   "key_moment": {"customer_said": "<1 wörtliche Kunden-Nachricht die eine Chance war (max 180 Zeichen)>", "chatter_replied": "<wörtliche Chatter-Antwort darauf (max 200 Zeichen)>", "what_could_have_flipped_it": "<1 Satz max 12 Wörter: was hätte den Verkauf/die Bindung gedreht>"} | null,
+  "teaching_moment": {
+    "context_messages": ["<6-10 wortwörtliche Chat-Zeilen DIREKT VOR der kritisierten Chatter-Antwort. Format exakt wie im CHAT: 'KUNDE: ...', 'CHATTER: ...' oder 'BOT-DM: ...'. Muss die Nachricht enthalten, auf die der Chatter reagiert. Wenn der Moment mit 'Ja, sehr sogar' o.ä. beginnt, MUSS die Frage davor enthalten sein. Wenn du den Verlauf davor nicht siehst: null statt raten.>"],
+    "chatter_replied": "<die kritisierte echte Chatter-Antwort, wortwörtlich>",
+    "why_wrong": "<1 kurzer Satz: warum diese Antwort nach diesem Kontext Geld/Spannung verliert>",
+    "better_reply": "<bessere Antwort im Stil des Chatters, ohne Preis/Geldbetrag>"
+  } | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
 }`;
       try {
@@ -650,6 +656,10 @@ Regeln:
 - KONTEXT-PFLICHT: Lies für jedes Zitat, was der KUNDE davor gemacht hat. Wenn der Kunde sofort sexuell eskaliert und ${chatter_name} normalerweise viel Bindung aufbaut, ist "mitgehen" oft die richtige Wahl — NICHT als Fehler framen. Erwähne den Kundenkontext im wrong_example / growth.situation ausdrücklich.
 - STIL RESPEKTIEREN: Erkenne aus den Digests den natürlichen Stil (Bindung/tief, Sexting, spielerisch, dominant, schnell auf den Verkauf) und wähle Hebel, die diesen Stil verstärken — nicht umbiegen.
 - Jedes wrong_example / growth.situation MUSS mit einem 1-Satz-Kontext beginnen ("Der Kunde hatte gerade X geschrieben — daraufhin hast du gesagt: …"). Ohne Kontext keine Kritik.
+- LERNKETTE: Erst vollständigen Verlauf zeigen. Dann erklären, warum die echte Antwort schwach war. Erst danach darf der Chatter selbst üben. Niemals zuerst fragen "Was hättest du geantwortet?".
+- Für top_3_levers.context_messages MUSST du teaching_moment.context_messages aus den Digests verwenden. Keine Zusammenfassung, keine erfundenen Zeilen.
+- context_messages dürfen NIE mit einer Antwort wie "Ja", "Ja, sehr sogar", "Okay" oder einer anderen Reaktion beginnen, wenn die auslösende Nachricht davor fehlt. Wenn der Vorlauf fehlt: nimm diesen Moment NICHT.
+- context_messages brauchen 6-10 Zeilen, außer der ganze Chat ist kürzer. Die letzte Zeile davor muss klar machen, worauf chatter_did reagiert.
 
 STIL-MIMIKRY — ABSOLUT KRITISCH FÜR better_example / if_then_script / alternative_if_then / micro_action:
 - Diese Vorschläge müssen so klingen, als hätte ${chatter_name} sie selbst getippt. Nicht wie ein Coach, nicht wie ein Werbetexter.
@@ -696,10 +706,26 @@ JSON-Schema (EXAKT einhalten):
         "last_action": "<Max 60 Zeichen: was der Kunde ZULETZT gemacht hat, was diese Situation ausgelöst hat.>"
       },
       "context_messages": [
-        "<PFLICHT: 4-6 wortwörtliche Nachrichten VOR dem Chatter-Move aus dem echten Chat. Format je Zeile: 'KUNDE: text' oder 'CHATTER: text'. Zeigt Kontext-Verlauf, damit klar wird woraus die Situation entstand. Wenn Bot-Opener davor: mit einbinden aber als 'BOT-DM: text' markieren.>"
+        "<PFLICHT: 6-10 wortwörtliche Nachrichten DIREKT VOR dem kritisierten Chatter-Move. Nur aus teaching_moment.context_messages übernehmen. Format: 'KUNDE: text', 'CHATTER: text' oder 'BOT-DM: text'. Muss die auslösende Frage/Aussage enthalten. Darf nicht kontextlos mit 'Ja, sehr sogar' o.ä. starten.>"
       ],
       "storyboard": [
-...
+        {
+          "round": 1,
+          "context": "<1 kurzer Satz: was im Verlauf gerade passiert ist>",
+          "customer": "<letzte relevante Kundennachricht vor der schlechten Antwort>",
+          "chatter_did": "<ECHTE kritisierte Antwort des Chatters aus teaching_moment.chatter_replied>",
+          "verdict": "<Erst Kontext anerkennen. Dann klar sagen: was war daran falsch und warum kostet es Spannung/Geld. Max 2 kurze Sätze.>"
+        },
+        {
+          "round": 2,
+          "context": "<Jetzt erst: gleiche Situation, aber richtig>",
+          "customer": "<dieselbe letzte relevante Kundennachricht>",
+          "better_version": "<Bessere Antwort im echten Stil des Chatters. Kein Preis/Geldbetrag.>",
+          "why_one_line": "<1 kurzer Satz, warum diese Antwort besser verkauft>"
+        },
+        {
+          "round": 3,
+          "say_this": "<Merksatz für ähnliche Chats. Max 12 Wörter.>"
         }
       ],
       "quiz": {
