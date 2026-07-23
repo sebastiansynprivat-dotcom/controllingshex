@@ -13,6 +13,7 @@ export interface CoachingMaterial {
 
 export interface StoryboardRound {
   round?: number;
+  context?: string;
   customer?: string;
   chatter_did?: string;
   verdict?: string;
@@ -1073,6 +1074,16 @@ export async function renderAnalysisPDF(input: {
         const roundNum = r.round ?? ri + 1;
         const roundLabel = roundNum === 3 ? "RUNDE 3 — NÄCHSTES MAL SAG DAS:" : `RUNDE ${roundNum}`;
         y = drawRoundLabel(roundLabel, y);
+
+        if (r.context) {
+          const ctxLines = wrapLines(r.context, contentW, T.BODY_SM, "normal");
+          for (const l of ctxLines.slice(0, 3)) {
+            drawText(l, margin, y, { size: T.BODY_SM, color: MUTED });
+            y += 12;
+          }
+          y += 4;
+        }
+
 
         if (r.customer) {
           y = drawBubble({

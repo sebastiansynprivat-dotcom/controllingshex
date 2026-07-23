@@ -689,12 +689,14 @@ JSON-Schema (EXAKT einhalten):
       "storyboard": [
         {
           "round": 1,
+          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter gesamt, B1. Setzt die Szene: welcher Kunden-Typ, was war vorher im Chat los, warum ist genau DIESE Nachricht wichtig. Beispiel: 'Ein Stammkunde meldet sich nach 3 Tagen Pause. Er hat vorher gute PPVs gekauft. Jetzt öffnet er so:'>",
           "customer": "<echte Kunden-Zeile aus den Digests (key_moment.customer_said oder ähnlich). Max 180 Zeichen. Wortwörtlich, nichts erfinden.>",
           "chatter_did": "<was der Chatter wirklich geantwortet hat (aus key_moment.chatter_replied / weakest_moment.quote). Max 200 Zeichen. Wortwörtlich.>",
           "verdict": "<max 8 Wörter: kurzer Einordner. Beispiel: 'ok, aber Chance liegen gelassen' oder 'zu schnell zum Verkauf'.>"
         },
         {
           "round": 2,
+          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Setzt die Szene der zweiten Situation: welche Stimmung hatte der Kunde, was hat der Chatter zuvor geschickt, damit der Chatter versteht warum die bessere Antwort passt.>",
           "customer": "<gleiche/ähnliche Situation nochmal — echte Kunden-Zeile>",
           "chatter_did": "<was der Chatter tat (echtes Zitat oder aus Digests rekonstruiert)>",
           "better_version": "<Bessere Antwort auf DIESELBE Kunden-Zeile, im STIL DES CHATTERS (siehe writing_style_notes + chatter_voice_samples). Klein-/Groß, Emojis, Anrede wie der Chatter. Max 200 Zeichen. NIEMALS Preis/Geldbetrag im Satz. NIEMALS den Kunden nach Preis fragen.>",
@@ -702,6 +704,7 @@ JSON-Schema (EXAKT einhalten):
         },
         {
           "round": 3,
+          "context": "<PFLICHT. 1-2 Sätze max 25 Wörter. Beschreibt WANN genau dieser Merksatz eingesetzt werden soll — welche Kunden-Situation triggert ihn. Beispiel: 'Immer wenn ein neuer Fan im ersten Chat direkt fragt was du gerade machst. Antworte so:'>",
           "customer": "<typische Kunden-Situation die im Alltag oft wiederkommt (kann verallgemeinert sein, muss aber plausibel zum Chatter-Alltag passen). Max 180 Zeichen.>",
           "say_this": "<EXAKT dieser eine Satz zum auswendig lernen — im Stil des Chatters. Kurz, natürlich, so wie der Chatter tippt. Max 200 Zeichen. NIEMALS Preis/Geldbetrag im Satz.>"
         }
