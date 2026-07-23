@@ -19,6 +19,8 @@ import {
   listChattersForPlatform,
   listAnalyses,
   runAnalysis,
+  fetchChatsForAnalysis,
+  analyzeChats,
   renderAnalysisPDF,
   saveAnalysis,
   downloadAnalysisPDF,
