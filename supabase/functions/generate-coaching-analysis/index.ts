@@ -615,7 +615,7 @@ ${analyzedModelKey ? `- Analysiertes Model "${model_username}" hat im Zeitraum i
 
 REGEL für personal_intro:
 - Formuliere allgemein — NIE eine Chat-Anzahl nennen ("28 Chats", "deine X Chats" o.ä. verboten). Sag stattdessen "ich habe mir deine Arbeit auf ${platform} angeschaut".
-- Immer Singular / kollektiv: "habt ihr auf ${platform} diese Woche…", nicht "in deinen Chats".
+- STRIKT Singular / direkt an ${chatter_name}: "diese Woche hast du auf ${platform} …". NIE "habt ihr", "ihr auf ${platform}", "euer Team".
 - Sag NIE "leider keine Verkäufe" pauschal, wenn die Gesamt-Umsätze > 0 sind.
 - Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in dem, was ich gesehen habe, war noch kein Abschluss dabei — insgesamt aber X€ auf ${platform}".
 - Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag, ohne Chat-Anzahlen zu erwähnen.
