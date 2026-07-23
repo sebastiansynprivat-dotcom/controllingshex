@@ -383,18 +383,59 @@ export async function renderAnalysisPDF(input: {
     return "normal";
   };
   const sizeOf = (): number => doc.getFontSize();
+  // Validation: any rendered text that leaves the safe content box gets recorded.
+  // safe box = [margin - 4, pageW - margin + 4] horizontally,
+  //            [margin - 30, pageH - margin + 12] vertically (small tolerance for headers/footers).
+  const layoutIssues: { page: number; kind: string; detail: string }[] = [];
+  const RIGHT_LIMIT = pageW - margin + 4;
+  const LEFT_LIMIT = margin - 6;
+  const BOTTOM_LIMIT = pageH - margin + 14;
+  const measureLine = (s: string): number => (doc as any).getTextWidth(s);
+
   (doc as any).text = (text: any, x: number, y: number, opts?: any) => {
     const lines = Array.isArray(text) ? text : [text];
     const align = opts?.align as "left" | "right" | "center" | undefined;
     const lh = sizeOf() * 1.15;
     lines.forEach((ln: any, i: number) => {
-      drawRichLine(doc, sanitize(String(ln)), x, y + i * lh, {
+      const safe = sanitize(String(ln));
+      const yy = y + i * lh;
+      drawRichLine(doc, safe, x, yy, {
         size: sizeOf(),
         style: styleOf(),
         textFamily: TEXT_FAM,
         emojiFamily: EMOJI_FAM,
         align,
       });
+      // Overflow check (skip empty strings and cover-page decor above margin)
+      if (safe && yy > margin - 30) {
+        const w = measureLine(safe);
+        let left = x;
+        if (align === "right") left = x - w;
+        else if (align === "center") left = x - w / 2;
+        const right = left + w;
+        const pageNum = (doc as any).internal?.getCurrentPageInfo?.()?.pageNumber ?? 0;
+        if (right > RIGHT_LIMIT) {
+          layoutIssues.push({
+            page: pageNum,
+            kind: "right-overflow",
+            detail: `"${safe.slice(0, 60)}" ragt ${(right - RIGHT_LIMIT).toFixed(1)}pt über den rechten Rand.`,
+          });
+        }
+        if (left < LEFT_LIMIT) {
+          layoutIssues.push({
+            page: pageNum,
+            kind: "left-overflow",
+            detail: `"${safe.slice(0, 60)}" ragt ${(LEFT_LIMIT - left).toFixed(1)}pt über den linken Rand.`,
+          });
+        }
+        if (yy > BOTTOM_LIMIT) {
+          layoutIssues.push({
+            page: pageNum,
+            kind: "bottom-overflow",
+            detail: `"${safe.slice(0, 60)}" liegt ${(yy - BOTTOM_LIMIT).toFixed(1)}pt unterhalb des Content-Bereichs (abgeschnitten).`,
+          });
+        }
+      }
     });
     return doc;
   };
@@ -969,6 +1010,26 @@ export async function renderAnalysisPDF(input: {
   }
 
   drawContentFooter("Seite 6 · Dein Fahrplan");
+
+  // --------- Automatische PDF-Validierung ---------
+  // Blockiert den Download, wenn Text über den Rand ragt oder abgeschnitten ist.
+  if (layoutIssues.length > 0) {
+    const grouped = new Map<number, string[]>();
+    for (const iss of layoutIssues) {
+      if (!grouped.has(iss.page)) grouped.set(iss.page, []);
+      grouped.get(iss.page)!.push(`  · [${iss.kind}] ${iss.detail}`);
+    }
+    const summary = Array.from(grouped.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([p, arr]) => `Seite ${p}:\n${arr.slice(0, 4).join("\n")}${arr.length > 4 ? `\n  · … +${arr.length - 4} weitere` : ""}`)
+      .join("\n");
+    console.warn("[coaching-pdf] Layout-Validierung fehlgeschlagen:", layoutIssues);
+    const err = new Error(
+      `PDF-Validierung fehlgeschlagen — ${layoutIssues.length} Layout-Problem(e). Datei wurde NICHT freigegeben.\n${summary}`,
+    );
+    (err as any).layoutIssues = layoutIssues;
+    throw err;
+  }
 
   return doc.output("blob");
 }
