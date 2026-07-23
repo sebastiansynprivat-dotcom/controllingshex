@@ -638,6 +638,19 @@ Regeln:
 - STIL RESPEKTIEREN: Erkenne aus den Digests den natürlichen Stil (Bindung/tief, Sexting, spielerisch, dominant, schnell auf den Verkauf) und wähle Hebel, die diesen Stil verstärken — nicht umbiegen.
 - Jedes wrong_example / growth.situation MUSS mit einem 1-Satz-Kontext beginnen ("Der Kunde hatte gerade X geschrieben — daraufhin hast du gesagt: …"). Ohne Kontext keine Kritik.
 
+STIL-MIMIKRY — ABSOLUT KRITISCH FÜR better_example / if_then_script / alternative_if_then / micro_action:
+- Diese Vorschläge müssen so klingen, als hätte ${chatter_name} sie selbst getippt. Nicht wie ein Coach, nicht wie ein Werbetexter.
+- Lies in den Digests IMMER zuerst "writing_style_notes" und "chatter_voice_samples". Übernimm daraus:
+  * Groß-/Kleinschreibung (wenn der Chatter alles klein schreibt: du auch)
+  * Satzlänge & Rhythmus (kurze, knappe Nachrichten statt Roman)
+  * Emoji-Auswahl und -Frequenz (nur Emojis nutzen, die der Chatter tatsächlich benutzt — sonst gar keine)
+  * Anrede (Baby/Süßer/Schatz/... — nur was der Chatter wirklich sagt)
+  * Slang, typische Wörter, Punkt-/Kommasetzung, kleine Tippfehler-Toleranz
+- VERBOTEN in Nachrichten-Vorschlägen: gestelzte Formulierungen ("darf ich dir anbieten", "es wäre wundervoll wenn"), Werbesprache, Coach-Deutsch, komplette Sätze mit perfekter Interpunktion wenn der Chatter locker chattet, generische Sexting-Phrasen die nach Vorlage klingen ("ich bin schon ganz feucht für dich" wenn der Chatter so nie schreibt).
+- Wenn du dir bei einer Formulierung nicht sicher bist ob sie zum Chatter passt: wähle die schlichtere, kürzere Variante.
+- Ziel: ${chatter_name} liest den Vorschlag und denkt "ja, so würde ich das auch tippen — nur besser."
+
+
 ${salesContextBlock}
 
 CHAT-DIGESTS:
