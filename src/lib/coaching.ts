@@ -31,6 +31,35 @@ export interface SimulationPrompt {
   evaluation_criteria: string;
 }
 
+export interface CustomerCard {
+  alias?: string;
+  spend_estimate?: string;
+  kink_hint?: string;
+  mood?: string;
+  last_action?: string;
+}
+
+export interface DrillPrompt {
+  prompt: string;
+  option_a: string;
+  option_b: string;
+  better_option: "a" | "b";
+  why: string;
+}
+
+export interface BossAnecdote {
+  hook: string;
+  story: string;
+}
+
+export interface BossScenario {
+  customer_alias: string;
+  customer_profile: string;
+  opening_message: string;
+  goal: string;
+  max_turns?: number;
+}
+
 export interface Lever {
   icon_hint?: string;
   title: string;
@@ -38,8 +67,12 @@ export interface Lever {
   money_line?: string;
   situation_summary?: string;
   customer_profile?: string;
+  customer_card?: CustomerCard;
+  context_messages?: string[];
   storyboard?: StoryboardRound[];
   quiz?: QuizQuestion;
+  drill?: DrillPrompt;
+  boss_anecdote?: BossAnecdote;
   simulation_prompt?: SimulationPrompt;
   // Legacy fields
   principle?: string;
@@ -74,6 +107,7 @@ export interface AnalysisResult {
     summary?: string;
   } | null;
   top_3_levers?: Lever[];
+  boss_scenario?: BossScenario | null;
   sbi_feedback?: { strength: SBIStrength; growth: SBIGrowth } | null;
   micro_action?: string;
   retrieval_question?: string;
@@ -84,11 +118,28 @@ export interface AnalysisResult {
   chats?: any[];
 }
 
+export interface BossFightTurn {
+  role: "customer" | "chatter";
+  text: string;
+  at?: string;
+}
+
+export interface BossFightResult {
+  turns: BossFightTurn[];
+  score?: number;
+  verdict?: string;
+  revenue_potential_eur?: number;
+  feedback?: string;
+  completed_at?: string;
+}
+
 export interface CoachingProgress {
-  levers_read?: number[]; // indices of read levers
+  cards_seen?: number[]; // indexes of visited story-cards
   quiz_answers?: Record<number, { selected: number; correct: boolean; at: string }>;
+  drill_answers?: Record<number, { picked: "a" | "b"; correct: boolean; typed?: string; score?: number; feedback?: string; polished?: string; at: string }>;
+  simulation_results?: Record<number, { answer: string; score: number; feedback: string; improved_reply?: string; at: string }>;
   actions_done?: Record<number, boolean>;
-  simulation_results?: Record<number, { answer: string; score: number; feedback: string; at: string }>;
+  levers_read?: number[]; // legacy
   completed?: boolean;
 }
 
@@ -106,7 +157,12 @@ export interface CoachingAnalysisRow {
   share_token: string;
   progress_json: CoachingProgress;
   completed_at: string | null;
+  xp_earned?: number;
+  current_card_index?: number;
+  commitment_text?: string | null;
+  boss_fight_result?: BossFightResult | null;
 }
+
 
 /* ---------------- Materials ---------------- */
 
@@ -470,13 +526,22 @@ export async function loadAnalysisByToken(token: string): Promise<CoachingAnalys
   return json as CoachingAnalysisRow;
 }
 
-export async function updateProgress(token: string, progress: CoachingProgress): Promise<void> {
+export async function updateProgress(
+  token: string,
+  patch: {
+    progress?: CoachingProgress;
+    xp_earned?: number;
+    current_card_index?: number;
+    commitment_text?: string;
+    boss_fight_result?: BossFightResult;
+  },
+): Promise<void> {
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/update-coaching-progress`;
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": anon, "Authorization": `Bearer ${anon}` },
-    body: JSON.stringify({ token, progress }),
+    body: JSON.stringify({ token, ...patch }),
   });
   if (!res.ok) {
     const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -488,8 +553,25 @@ export async function evaluateSimulation(input: {
   token: string;
   lever_index: number;
   answer: string;
-}): Promise<{ score: number; feedback: string }> {
+}): Promise<{ score: number; feedback: string; improved_reply?: string }> {
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/evaluate-coaching-simulation`;
+  const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": anon, "Authorization": `Bearer ${anon}` },
+    body: JSON.stringify({ ...input, mode: "evaluate_single" }),
+  });
+  const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+export async function evaluateDrill(input: {
+  token: string;
+  lever_index: number;
+  answer: string;
+}): Promise<{ score: number; feedback: string; polished?: string }> {
+  const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/evaluate-coaching-drill`;
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const res = await fetch(url, {
     method: "POST",
@@ -498,7 +580,61 @@ export async function evaluateSimulation(input: {
   });
   const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json as { score: number; feedback: string };
+  return json;
+}
+
+export async function bossFightCustomerReply(input: {
+  token: string;
+  turn_history: BossFightTurn[];
+}): Promise<{ reply: string; engagement_delta: number }> {
+  const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/evaluate-coaching-simulation`;
+  const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": anon, "Authorization": `Bearer ${anon}` },
+    body: JSON.stringify({ ...input, mode: "customer_reply" }),
+  });
+  const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+export async function bossFightFinalScore(input: {
+  token: string;
+  turn_history: BossFightTurn[];
+}): Promise<{ score: number; verdict: string; revenue_potential_eur: number; feedback: string }> {
+  const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/evaluate-coaching-simulation`;
+  const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": anon, "Authorization": `Bearer ${anon}` },
+    body: JSON.stringify({ ...input, mode: "boss_final" }),
+  });
+  const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+/* ---------------- Level / XP helpers ---------------- */
+
+export function levelFromXp(xp: number): { level: number; title: string; nextAt: number; progress: number } {
+  const tiers: Array<{ min: number; title: string }> = [
+    { min: 0, title: "Rookie" },
+    { min: 100, title: "Closer" },
+    { min: 250, title: "Shark" },
+    { min: 500, title: "Legende" },
+  ];
+  let level = 1;
+  let title = tiers[0].title;
+  for (let i = 0; i < tiers.length; i++) {
+    if (xp >= tiers[i].min) { level = i + 1; title = tiers[i].title; }
+  }
+  const next = tiers[level] ?? tiers[tiers.length - 1];
+  const prev = tiers[level - 1];
+  const nextAt = next?.min ?? prev.min;
+  const span = Math.max(1, nextAt - prev.min);
+  const progress = level >= tiers.length ? 1 : Math.min(1, (xp - prev.min) / span);
+  return { level, title, nextAt, progress };
 }
 
 /* ---------------- Progress helpers ---------------- */
@@ -506,9 +642,10 @@ export async function evaluateSimulation(input: {
 export function computeProgressStats(result: AnalysisResult | null | undefined, progress: CoachingProgress | null | undefined) {
   const levers = result?.top_3_levers ?? [];
   const total = levers.length;
-  const read = new Set(progress?.levers_read ?? []).size;
+  const read = new Set(progress?.levers_read ?? progress?.cards_seen ?? []).size;
   const quizAnswered = Object.keys(progress?.quiz_answers ?? {}).length;
   const quizCorrect = Object.values(progress?.quiz_answers ?? {}).filter((a) => a?.correct).length;
   const actions = Object.values(progress?.actions_done ?? {}).filter(Boolean).length;
   return { total, read, quizAnswered, quizCorrect, actions, completed: !!progress?.completed };
 }
+
