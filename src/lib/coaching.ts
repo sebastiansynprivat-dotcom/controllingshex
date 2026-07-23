@@ -772,8 +772,11 @@ export async function renderAnalysisPDF(input: {
   doc.setLineWidth(1);
   doc.line(pageW / 2 - 32, margin + 172, pageW / 2 + 32, margin + 172);
 
-  // Headline promise — the ONE promise
-  const promise = (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
+  // Headline promise — der EINE Fokus der Woche = Hebel 1 (3x-Regel: Cover → Hebel-Seite → Fahrplan)
+  const weekFocus = levers[0]?.title?.trim();
+  const promise = weekFocus
+    ? `Diese Woche geht es um: ${weekFocus}.`
+    : (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
   const promiseLines = wrapLines(promise, contentW - 40, 15, "italic");
   let promiseY = margin + 210;
   promiseLines.slice(0, 3).forEach((l) => {
