@@ -673,10 +673,10 @@ JSON-Schema (EXAKT einhalten):
       "situation": "<Situation: welcher Chat, was war los>",
       "behavior": "<Was passiert ist, freundlich beschrieben — mit Zitat>",
       "impact": "<Welche Chance liegen geblieben ist>",
-      "alternative_if_then": "<Wenn dieselbe Situation nochmal kommt: sage stattdessen dies (konkret, vom Chatter formuliert). NIEMALS den Kunden nach dem Preis fragen.>"
+      "alternative_if_then": "<Wenn dieselbe Situation nochmal kommt: sage stattdessen dies (konkret, vom Chatter formuliert). NIEMALS den Kunden nach dem Preis fragen. NIEMALS einen Preis/Geldbetrag im Satz nennen — der Preis wird auf der Plattform hinterlegt.>"
     }
   },
-  "micro_action": "<EINE konkrete Handlung für die nächsten 7 Tage. An bestehende Routine koppeln, z.B. 'Vor jedem PPV-Angebot: erst 2 Fragen zum Kunden stellen.' NIEMALS eine Handlung wie 'frag den Kunden nach dem Preis'.>",
+  "micro_action": "<EINE konkrete Handlung für die nächsten 7 Tage. An bestehende Routine koppeln, z.B. 'Vor jedem PPV-Angebot: erst 2 Fragen zum Kunden stellen.' NIEMALS eine Handlung wie 'frag den Kunden nach dem Preis' oder 'biete es für X€ an'.>",
   "retrieval_question": "<Eine Frage, die den Chatter zwingt selbst nachzudenken, z.B. 'Wie formulierst du beim nächsten Kunden anders, der 'zu teuer' schreibt?'>"
 }`;
 
