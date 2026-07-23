@@ -1302,23 +1302,43 @@ export async function renderAnalysisPDF(input: {
   );
 
 
-  // Big micro-action card
+  // Big "sag das"-card — 3x-Regel: der Satz aus Hebel 1, Runde 3, jetzt nochmal groß
+  const sayThis = levers[0]?.storyboard?.[2]?.say_this?.trim();
+  if (sayThis) {
+    const sayLines = wrapLines(`„${sayThis}"`, contentW - CARD_PAD * 2, T.CARD_TITLE, "bold");
+    const sayH = sayLines.length * 22 + 54;
+    setFill(INK);
+    doc.roundedRect(margin, y, contentW, sayH, CARD_RADIUS, CARD_RADIUS, "F");
+    setFill(GOLD);
+    doc.rect(margin, y, CARD_ACCENT_W, sayH, "F");
+    drawText("DER EINE SATZ FÜR DIESE WOCHE", margin + CARD_PAD, y + 22, {
+      size: T.META, style: "bold", color: GOLD,
+    });
+    let sy = y + 50;
+    sayLines.forEach((l) => {
+      drawText(l, margin + CARD_PAD, sy, { size: T.CARD_TITLE, style: "bold", color: [245, 240, 224] });
+      sy += 22;
+    });
+    y += sayH + S.MD;
+  }
+
+  // Micro-action card
   const action = (result.micro_action ?? "").trim() || "Vor jedem PPV-Angebot: erst 2 echte Fragen zum Kunden stellen.";
-  const actionLines = wrapLines(action, contentW - CARD_PAD * 2, T.CARD_TITLE, "bold");
-  const actionH = actionLines.length * 20 + 50;
-  setFill(INK);
+  const actionLines = wrapLines(action, contentW - CARD_PAD * 2, T.BODY, "bold");
+  const actionH = actionLines.length * 18 + 46;
+  setFill([250, 247, 238]);
   doc.roundedRect(margin, y, contentW, actionH, CARD_RADIUS, CARD_RADIUS, "F");
   setFill(GOLD);
   doc.rect(margin, y, CARD_ACCENT_W, actionH, "F");
   drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + CARD_PAD, y + 22, {
     size: T.META, style: "bold", color: GOLD,
   });
-  let ay = y + 46;
+  let ay = y + 42;
   actionLines.forEach((l) => {
-    drawText(l, margin + CARD_PAD, ay, { size: T.CARD_TITLE, style: "bold", color: [245, 240, 224] });
-    ay += 20;
+    drawText(l, margin + CARD_PAD, ay, { size: T.BODY, style: "bold", color: INK });
+    ay += 18;
   });
-  y += actionH + S.LG;
+  y += actionH + S.MD;
 
   // Retrieval question
   if (result.retrieval_question) {
