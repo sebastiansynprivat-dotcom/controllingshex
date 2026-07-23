@@ -492,106 +492,20 @@ export async function renderAnalysisPDF(input: {
   };
 
 
-  // ---------- Cover Page — editorial black & gold ----------
-  paintBackground(INK);
+  // ==============================================================
+  // NEW 6-PAGE FOCUSED LAYOUT
+  // Cover → 3 Levers overview → Lever 1 deep dive → Lever 2+3 →
+  // SBI Feedback → Action Plan
+  // ==============================================================
 
-  // Thin gold frame — single crisp border, no noisy diagonals
-  setDraw(GOLD);
-  doc.setLineWidth(0.5);
-  doc.rect(margin - 20, margin - 20, contentW + 40, pageH - (margin - 20) * 2);
+  const result = input.result;
+  const levers: Lever[] = Array.isArray(result.top_3_levers) ? result.top_3_levers.slice(0, 3) : [];
+  const sbi = result.sbi_feedback ?? null;
+  const score = result.overall_score;
 
-  // Top row: SheX wordmark left, kicker right
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(28);
-  setText(GOLD);
-  doc.text("SheX", margin, margin + 20);
-  setText(GOLD_SOFT);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.text("COACHING REPORT", pageW - margin, margin + 20, { align: "right" });
+  // ---------- helpers reused across pages ----------
+  const paintPaper = () => paintBackground(PAPER);
 
-  // Hairline under top row
-  setDraw([90, 78, 40]);
-  doc.setLineWidth(0.4);
-  doc.line(margin, margin + 34, pageW - margin, margin + 34);
-
-  // Big score gauge as hero — centered upper third
-  const score = input.result.overall_score;
-  const gaugeCY = margin + 220;
-  if (score !== null && score !== undefined) {
-    const cx = pageW / 2;
-    const r = 82;
-    drawArc(cx, gaugeCY, r, 135, 405, [55, 45, 20], 9);
-    const pct = Math.max(0, Math.min(100, score)) / 100;
-    drawArc(cx, gaugeCY, r, 135, 135 + 270 * pct, GOLD, 9);
-    setText(GOLD);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(58);
-    doc.text(String(score), cx, gaugeCY + 14, { align: "center" });
-    setText(GOLD_SOFT);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("VON 100", cx, gaugeCY + 32, { align: "center" });
-  }
-
-  // Kicker + name — quiet, centered below gauge
-  setText(GOLD_SOFT);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text("PERSÖNLICHE ANALYSE FÜR", pageW / 2, gaugeCY + 88, { align: "center" });
-
-  setText([245, 240, 224]);
-  doc.setFont("helvetica", "bold");
-  let nameSize = 44;
-  doc.setFontSize(nameSize);
-  while (nameSize > 20 && doc.getTextWidth(input.chatter_name) > contentW - 20) {
-    nameSize -= 2;
-    doc.setFontSize(nameSize);
-  }
-  doc.text(input.chatter_name, pageW / 2, gaugeCY + 128, { align: "center" });
-
-  // Short gold rule below name
-  setDraw(GOLD);
-  doc.setLineWidth(1);
-  doc.line(pageW / 2 - 24, gaugeCY + 144, pageW / 2 + 24, gaugeCY + 144);
-
-  // Meta trio — bottom of cover, quiet monospace-ish layout
-  const metaY = pageH - margin - 90;
-  const col = contentW / 3;
-  const metaCell = (label: string, value: string, i: number) => {
-    setText(GOLD_SOFT);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.text(label.toUpperCase(), margin + col * i + col / 2, metaY, { align: "center" });
-    setText([235, 230, 215]);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(value, col - 16) as string[];
-    lines.slice(0, 2).forEach((l, li) =>
-      doc.text(l, margin + col * i + col / 2, metaY + 16 + li * 13, { align: "center" }),
-    );
-  };
-  metaCell("Model", input.model_username ?? "-", 0);
-  metaCell("Plattform", input.platform, 1);
-  metaCell("Zeitraum", `${input.date_from} — ${input.date_to}`, 2);
-
-  // Divider between meta and footer note
-  setDraw([90, 78, 40]);
-  doc.setLineWidth(0.3);
-  doc.line(margin, pageH - margin - 30, pageW - margin, pageH - margin - 30);
-
-  setText([150, 140, 110]);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.text(
-    `${input.result.chats_analyzed} Chats analysiert · vertraulich · nur für dich`,
-    pageW / 2,
-    pageH - margin - 14,
-    { align: "center" },
-  );
-
-
-  // ---------- Content pages ----------
   const drawPageHeader = () => {
     setText(GOLD);
     doc.setFont("helvetica", "bold");
@@ -607,7 +521,7 @@ export async function renderAnalysisPDF(input: {
     doc.line(margin, margin - 14, pageW - margin, margin - 14);
   };
 
-  const drawContentFooter = () => {
+  const drawContentFooter = (pageLabel: string) => {
     setDraw(HAIRLINE);
     doc.setLineWidth(0.4);
     doc.line(margin, pageH - margin, pageW - margin, pageH - margin);
@@ -615,536 +529,421 @@ export async function renderAnalysisPDF(input: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.text("SheX Coaching", margin, pageH - margin + 12);
-    doc.text(
-      `Für ${input.chatter_name} · ${input.date_from} – ${input.date_to}`,
-      pageW - margin,
-      pageH - margin + 12,
-      { align: "right" },
-    );
+    doc.text(pageLabel, pageW - margin, pageH - margin + 12, { align: "right" });
   };
 
-  doc.addPage();
-  paintBackground(PAPER);
-  drawPageHeader();
-
-  let y = margin + 4;
-
-  const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - margin - 20) {
-      drawContentFooter();
-      doc.addPage();
-      paintBackground(PAPER);
-      drawPageHeader();
-      y = margin + 4;
-    }
+  const newContentPage = () => {
+    doc.addPage();
+    paintPaper();
+    drawPageHeader();
   };
 
-  const writeText = (
-    text: string,
-    opts: { size?: number; bold?: boolean; italic?: boolean; color?: [number, number, number]; indent?: number; gapAfter?: number; lineHeight?: number } = {},
-  ) => {
-    const size = opts.size ?? 10;
-    const style = opts.bold ? (opts.italic ? "bolditalic" : "bold") : opts.italic ? "italic" : "normal";
+  const wrapLines = (text: string, w: number, size: number, style: "normal" | "bold" | "italic" = "normal") => {
     doc.setFont("helvetica", style);
     doc.setFontSize(size);
-    setText(opts.color ?? INK);
-    const indent = opts.indent ?? 0;
-    const lh = (opts.lineHeight ?? 1.35) * size;
-    const lines = doc.splitTextToSize(text, contentW - indent) as string[];
-    for (const l of lines) {
-      ensureSpace(lh);
-      doc.text(l, margin + indent, y);
-      y += lh;
-    }
-    y += opts.gapAfter ?? 0;
+    return doc.splitTextToSize(text ?? "", w) as string[];
   };
 
-  const sectionHeading = (kicker: string, title: string) => {
-    ensureSpace(96);
-    y += 26; // breathing room above every section
-    // Thin gold rule spanning full width, then kicker below
+  const drawText = (
+    text: string,
+    x: number,
+    yy: number,
+    opts: { size?: number; style?: "normal" | "bold" | "italic"; color?: [number, number, number]; align?: "left" | "right" | "center" } = {},
+  ) => {
+    doc.setFont("helvetica", opts.style ?? "normal");
+    doc.setFontSize(opts.size ?? 10);
+    setText(opts.color ?? INK);
+    doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
+  };
+
+  // ========== PAGE 1 — Cover ==========
+  paintBackground(INK);
+  setDraw(GOLD);
+  doc.setLineWidth(0.5);
+  doc.rect(margin - 20, margin - 20, contentW + 40, pageH - (margin - 20) * 2);
+
+  // Wordmark
+  drawText("SheX", margin, margin + 20, { size: 28, style: "bold", color: GOLD });
+  drawText("COACHING REPORT", pageW - margin, margin + 20, { size: 7.5, color: GOLD_SOFT, align: "right" });
+  setDraw([90, 78, 40]);
+  doc.setLineWidth(0.4);
+  doc.line(margin, margin + 34, pageW - margin, margin + 34);
+
+  // Kicker
+  drawText("PERSÖNLICHE ANALYSE FÜR", pageW / 2, margin + 100, { size: 9, color: GOLD_SOFT, align: "center" });
+
+  // Chatter name — adaptive size
+  doc.setFont("helvetica", "bold");
+  let nameSize = 46;
+  doc.setFontSize(nameSize);
+  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW - 20) {
+    nameSize -= 2;
+    doc.setFontSize(nameSize);
+  }
+  setText([245, 240, 224]);
+  doc.text(input.chatter_name, pageW / 2, margin + 138, { align: "center" });
+
+  // Gold rule
+  setDraw(GOLD);
+  doc.setLineWidth(1);
+  doc.line(pageW / 2 - 30, margin + 152, pageW / 2 + 30, margin + 152);
+
+  // Headline promise — the ONE promise
+  const promise = (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
+  const promiseLines = wrapLines(promise, contentW - 40, 15, "italic");
+  let promiseY = margin + 190;
+  promiseLines.slice(0, 3).forEach((l) => {
+    drawText(l, pageW / 2, promiseY, { size: 15, style: "italic", color: [235, 230, 215], align: "center" });
+    promiseY += 22;
+  });
+
+  // Small dezent gauge — lower, smaller than before
+  if (score !== null && score !== undefined) {
+    const cx = pageW / 2;
+    const gCy = pageH - margin - 180;
+    const r = 46;
+    drawArc(cx, gCy, r, 135, 405, [55, 45, 20], 6);
+    const pct = Math.max(0, Math.min(100, score)) / 100;
+    drawArc(cx, gCy, r, 135, 135 + 270 * pct, GOLD, 6);
+    drawText(String(score), cx, gCy + 8, { size: 30, style: "bold", color: GOLD, align: "center" });
+    drawText("SCORE VON 100", cx, gCy + 24, { size: 7, color: GOLD_SOFT, align: "center" });
+  }
+
+  // Meta trio
+  const metaY = pageH - margin - 80;
+  const col = contentW / 3;
+  const metaCell = (label: string, value: string, i: number) => {
+    drawText(label.toUpperCase(), margin + col * i + col / 2, metaY, { size: 7, style: "bold", color: GOLD_SOFT, align: "center" });
+    const lines = wrapLines(value, col - 16, 10);
+    lines.slice(0, 2).forEach((l, li) =>
+      drawText(l, margin + col * i + col / 2, metaY + 16 + li * 13, { size: 10, color: [235, 230, 215], align: "center" }),
+    );
+  };
+  metaCell("Model", input.model_username ?? "-", 0);
+  metaCell("Plattform", input.platform, 1);
+  metaCell("Zeitraum", `${input.date_from} — ${input.date_to}`, 2);
+
+  setDraw([90, 78, 40]);
+  doc.setLineWidth(0.3);
+  doc.line(margin, pageH - margin - 30, pageW - margin, pageH - margin - 30);
+  drawText(
+    `${result.chats_analyzed} Chats analysiert · vertraulich · nur für dich`,
+    pageW / 2,
+    pageH - margin - 14,
+    { size: 7.5, color: [150, 140, 110], align: "center" },
+  );
+
+  // ========== PAGE 2 — Persönliche Nachricht + 3 Hebel Übersicht ==========
+  newContentPage();
+  let y = margin + 4;
+
+  // Personal intro
+  const intro = (result.personal_intro ?? "").trim();
+  if (intro) {
+    drawText("HI " + input.chatter_name.toUpperCase() + ",", margin, y + 8, { size: 8, style: "bold", color: GOLD });
+    y += 22;
+    const introLines = wrapLines(intro, contentW, 12);
+    for (const l of introLines) {
+      drawText(l, margin, y, { size: 12, color: INK });
+      y += 18;
+    }
+    y += 14;
+  }
+
+  // Section: "Deine 3 Hebel"
+  setDraw(GOLD);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, pageW - margin, y);
+  y += 14;
+  drawText("DEIN FOKUS", margin, y, { size: 7.5, style: "bold", color: GOLD });
+  y += 18;
+  drawText("Diese 3 Hebel bringen dir am meisten", margin, y, { size: 18, style: "bold", color: INK });
+  y += 26;
+  drawText("Alles andere ist Bonus. Fang mit Hebel 1 an — der bringt am meisten Cash.", margin, y, { size: 10, color: MUTED, style: "italic" });
+  y += 24;
+
+  if (levers.length === 0) {
+    drawText("Noch keine Hebel gefunden. Prüfe ob genug Chats geladen wurden.", margin, y, { size: 11, color: MUTED });
+  } else {
+    // 3 compact cards stacked
+    const cardH = 82;
+    levers.forEach((lev, i) => {
+      const cardY = y;
+      // background
+      setFill([250, 247, 238]);
+      doc.roundedRect(margin, cardY, contentW, cardH, 6, 6, "F");
+      // gold left accent
+      setFill(GOLD);
+      doc.rect(margin, cardY, 3, cardH, "F");
+      // Number disc
+      setFill(INK);
+      doc.circle(margin + 26, cardY + 24, 12, "F");
+      drawText(String(i + 1), margin + 26, cardY + 28, { size: 12, style: "bold", color: GOLD, align: "center" });
+      // Title
+      drawText(lev.title ?? "-", margin + 48, cardY + 22, { size: 13, style: "bold", color: INK });
+      // Principle
+      const principleLines = wrapLines(lev.principle ?? "", contentW - 60, 10);
+      let py = cardY + 40;
+      principleLines.slice(0, 3).forEach((l) => {
+        drawText(l, margin + 48, py, { size: 10, color: [55, 55, 55] });
+        py += 13;
+      });
+      y = cardY + cardH + 12;
+    });
+  }
+
+  drawContentFooter("Seite 2 · Deine 3 Hebel");
+
+  // ========== PAGES 3+ — one page per lever (Hebel 1 full, Hebel 2+3 combined) ==========
+  const renderLeverDetail = (lev: Lever, index: number, compact = false) => {
+    const startY = y;
+    // Kicker + title
     setDraw(GOLD);
     doc.setLineWidth(0.6);
-    doc.line(margin, y, pageW - margin, y);
-    y += 14;
-    setText(GOLD);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(kicker.toUpperCase(), margin, y);
+    doc.line(margin, startY, margin + 60, startY);
+    y = startY + 12;
+    drawText(`HEBEL ${index + 1}`, margin, y, { size: 7.5, style: "bold", color: GOLD });
     y += 18;
-    setText(INK);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    const titleLines = doc.splitTextToSize(title, contentW) as string[];
-    for (const l of titleLines) { doc.text(l, margin, y); y += 22; }
-    y += 6;
+    drawText(lev.title ?? "-", margin, y, { size: compact ? 16 : 20, style: "bold", color: INK });
+    y += compact ? 22 : 28;
+
+    // Principle
+    const pLines = wrapLines(lev.principle ?? "", contentW, compact ? 10 : 11);
+    for (const l of pLines) {
+      drawText(l, margin, y, { size: compact ? 10 : 11, color: [55, 55, 55] });
+      y += compact ? 14 : 16;
+    }
+    y += compact ? 8 : 12;
+
+    // Wrong → Better side-by-side
+    const halfW = (contentW - 12) / 2;
+    const wrongLines = wrapLines(`„${lev.wrong_example ?? ""}"`, halfW - 24, 10, "italic");
+    const betterLines = wrapLines(`„${lev.better_example ?? ""}"`, halfW - 24, 10, "italic");
+    const boxH = Math.max(wrongLines.length, betterLines.length) * 14 + 40;
+
+    // Wrong box
+    setFill([250, 244, 240]);
+    doc.roundedRect(margin, y, halfW, boxH, 5, 5, "F");
+    setFill([180, 90, 60]);
+    doc.rect(margin, y, 3, boxH, "F");
+    drawText("STATT SO", margin + 14, y + 16, { size: 7, style: "bold", color: [180, 90, 60] });
+    let wy = y + 32;
+    wrongLines.forEach((l) => { drawText(l, margin + 14, wy, { size: 10, style: "italic", color: INK }); wy += 14; });
+
+    // Better box
+    setFill([242, 250, 244]);
+    doc.roundedRect(margin + halfW + 12, y, halfW, boxH, 5, 5, "F");
+    setFill([60, 120, 70]);
+    doc.rect(margin + halfW + 12, y, 3, boxH, "F");
+    drawText("BESSER SO", margin + halfW + 26, y + 16, { size: 7, style: "bold", color: [60, 120, 70] });
+    let by = y + 32;
+    betterLines.forEach((l) => { drawText(l, margin + halfW + 26, by, { size: 10, style: "italic", color: INK }); by += 14; });
+
+    y += boxH + 14;
+
+    // If-Then script — highlighted
+    if (lev.if_then_script) {
+      const scriptLines = wrapLines(lev.if_then_script, contentW - 32, 11, "bold");
+      const sh = scriptLines.length * 16 + 34;
+      setFill(INK);
+      doc.roundedRect(margin, y, contentW, sh, 6, 6, "F");
+      drawText("DEIN SKRIPT ZUM MERKEN", margin + 18, y + 18, { size: 7.5, style: "bold", color: GOLD });
+      let sy = y + 38;
+      scriptLines.forEach((l) => { drawText(l, margin + 18, sy, { size: 11, style: "bold", color: [245, 240, 224] }); sy += 16; });
+      y += sh + 12;
+    }
   };
 
-  const goldCard = (title: string, body: string) => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    const bodyLines = doc.splitTextToSize(body, contentW - 36) as string[];
-    const cardH = 24 + 14 + bodyLines.length * 15 + 18;
-    ensureSpace(cardH + 6);
-    setFill([250, 247, 236]);
+  // Page 3 — Hebel 1 full
+  if (levers[0]) {
+    newContentPage();
+    y = margin + 4;
+    renderLeverDetail(levers[0], 0, false);
+    drawContentFooter(`Seite 3 · Hebel 1`);
+  }
+
+  // Page 4 — Hebel 2 + 3 side by side vertically (compact)
+  if (levers[1] || levers[2]) {
+    newContentPage();
+    y = margin + 4;
+    if (levers[1]) renderLeverDetail(levers[1], 1, true);
+    y += 8;
+    if (levers[2]) renderLeverDetail(levers[2], 2, true);
+    drawContentFooter(`Seite 4 · Hebel 2 & 3`);
+  }
+
+  // ========== PAGE 5 — SBI Feedback ==========
+  newContentPage();
+  y = margin + 4;
+
+  setDraw(GOLD);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, pageW - margin, y);
+  y += 14;
+  drawText("PERSÖNLICH", margin, y, { size: 7.5, style: "bold", color: GOLD });
+  y += 18;
+  drawText("Was besonders auffiel", margin, y, { size: 20, style: "bold", color: INK });
+  y += 28;
+
+  const sbiCard = (opts: {
+    kicker: string;
+    kickerColor: [number, number, number];
+    situation: string;
+    behavior: string;
+    impact: string;
+    ifThen?: string;
+  }) => {
+    const innerW = contentW - 36;
+    const sitLines = wrapLines(opts.situation, innerW, 10);
+    const behLines = wrapLines(opts.behavior, innerW, 10);
+    const impLines = wrapLines(opts.impact, innerW, 10);
+    const ifLines = opts.ifThen ? wrapLines(opts.ifThen, innerW - 12, 10, "bold") : [];
+    const rowH = 12;
+    const labelH = 14;
+    const gap = 8;
+    const ifBlockH = ifLines.length ? ifLines.length * 14 + 30 : 0;
+    const cardH =
+      18 + // top pad
+      labelH + sitLines.length * rowH + gap +
+      labelH + behLines.length * rowH + gap +
+      labelH + impLines.length * rowH + gap +
+      (ifBlockH ? ifBlockH + 4 : 0) +
+      14;
+
+    setFill([250, 247, 238]);
     doc.roundedRect(margin, y, contentW, cardH, 6, 6, "F");
-    setDraw([225, 210, 160]);
-    doc.setLineWidth(0.4);
-    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "S");
-    let cy = y + 22;
-    setText(GOLD);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(title.toUpperCase(), margin + 18, cy);
-    cy += 16;
-    setText(INK);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    for (const l of bodyLines) {
-      doc.text(l, margin + 18, cy);
-      cy += 15;
+    setFill(opts.kickerColor);
+    doc.rect(margin, y, 3, cardH, "F");
+    drawText(opts.kicker.toUpperCase(), margin + 18, y + 20, { size: 8, style: "bold", color: opts.kickerColor });
+
+    let cy = y + 38;
+    const writeLabelled = (label: string, lines: string[]) => {
+      drawText(label, margin + 18, cy, { size: 7, style: "bold", color: MUTED });
+      cy += 12;
+      for (const l of lines) { drawText(l, margin + 18, cy, { size: 10, color: INK }); cy += rowH; }
+      cy += gap;
+    };
+    writeLabelled("SITUATION", sitLines);
+    writeLabelled("WAS DU GETAN HAST", behLines);
+    writeLabelled("WAS DAS BEWIRKT HAT", impLines);
+
+    if (ifLines.length) {
+      setFill(INK);
+      doc.roundedRect(margin + 12, cy - 2, contentW - 24, ifBlockH - 4, 5, 5, "F");
+      drawText("SO BEIM NÄCHSTEN MAL", margin + 26, cy + 14, { size: 7, style: "bold", color: GOLD });
+      let ify = cy + 30;
+      ifLines.forEach((l) => { drawText(l, margin + 26, ify, { size: 10, style: "bold", color: [245, 240, 224] }); ify += 14; });
     }
+
     y += cardH + 14;
   };
 
-
-  const pill = (label: string, color: [number, number, number]) => {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    const w = doc.getTextWidth(label) + 14;
-    const h = 14;
-    setFill(color);
-    doc.roundedRect(margin, y, w, h, 3, 3, "F");
-    setText([255, 255, 255]);
-    doc.text(label, margin + 7, y + 9.5);
-    y += h + 8;
-    return w;
-  };
-
-  // Rich quote block — situation kicker + quote + verdict, all in one card.
-  // Renders any moment (Do / Dont / Pattern) with the same visual language so
-  // the reader always sees: WORAUF → WAS GESAGT → WARUM.
-  const quoteBlock = (opts: {
-    situation?: string;
-    quote: string;
-    verdictLabel?: string;
-    verdictText?: string;
-    accent: [number, number, number];
-    extraLabel?: string;
-    extraText?: string;
-    extraAccent?: [number, number, number];
-  }) => {
-    const innerW = contentW - 28;
-    // measure
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(11);
-    const quoteLines = doc.splitTextToSize(`\u201E${opts.quote}\u201C`, innerW) as string[];
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    const sitLines = opts.situation ? (doc.splitTextToSize(opts.situation, innerW) as string[]) : [];
-    doc.setFontSize(10);
-    const verdictLines = opts.verdictText ? (doc.splitTextToSize(opts.verdictText, innerW) as string[]) : [];
-    const extraLines = opts.extraText ? (doc.splitTextToSize(opts.extraText, innerW) as string[]) : [];
-    const cardH =
-      14 + // top pad
-      (sitLines.length ? 10 + sitLines.length * 12 + 6 : 0) +
-      quoteLines.length * 15 + 8 +
-      (verdictLines.length ? 10 + verdictLines.length * 13 : 0) +
-      (extraLines.length ? 10 + extraLines.length * 13 : 0) +
-      14;
-    ensureSpace(cardH + 6);
-    const startY = y;
-    setFill([252, 250, 244]);
-    doc.roundedRect(margin, startY, contentW, cardH, 4, 4, "F");
-    setFill(opts.accent);
-    doc.rect(margin, startY, 3, cardH, "F");
-    let cy = startY + 18;
-    const tx = margin + 18;
-
-    if (sitLines.length) {
-      setText(MUTED);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.text("SITUATION", tx, cy);
-      cy += 10;
-      setText([70, 70, 70]);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      for (const l of sitLines) { doc.text(l, tx, cy); cy += 12; }
-      cy += 6;
-    }
-
-    setText(INK);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(11);
-    for (const l of quoteLines) { doc.text(l, tx, cy); cy += 15; }
-    cy += 8;
-
-    if (verdictLines.length) {
-      setText(opts.accent);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.text((opts.verdictLabel ?? "WARUM").toUpperCase(), tx, cy);
-      cy += 10;
-      setText(INK);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      for (const l of verdictLines) { doc.text(l, tx, cy); cy += 13; }
-    }
-
-    if (extraLines.length) {
-      const acc = opts.extraAccent ?? GOLD;
-      setText(acc);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.text((opts.extraLabel ?? "SO STÄRKER").toUpperCase(), tx, cy);
-      cy += 10;
-      setText(INK);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      for (const l of extraLines) { doc.text(l, tx, cy); cy += 13; }
-    }
-
-    y = startY + cardH + 10;
-  };
-
-  // ---------- Zahlen-Dashboard ----------
-  const validChats = input.result.chats.filter((c) => typeof c.score === "number") as Array<ChatAnalysis & { score: number }>;
-  if (validChats.length > 0 || score !== null) {
-    sectionHeading("Zahlen", "Deine Analyse auf einen Blick");
-
-    // KPI row: 3 stat cards
-    const totalDos = input.result.chats.reduce((s, c) => s + (c.dos?.length ?? 0), 0);
-    const totalDonts = input.result.chats.reduce((s, c) => s + (c.donts?.length ?? 0), 0);
-    const totalLevers = input.result.chats.reduce((s, c) => s + (c.revenue_levers?.length ?? 0), 0);
-    const cardH = 62;
-    const gap = 12;
-    const cardW = (contentW - gap * 2) / 3;
-    ensureSpace(cardH + 14);
-    const kpiY = y;
-    const kpis: Array<[string, string | number, [number, number, number]]> = [
-      ["Starke Moves", totalDos, [60, 120, 70]],
-      ["Wachstums-Chancen", totalDonts, GOLD],
-      ["Umsatz-Hebel", totalLevers, INK],
-    ];
-    kpis.forEach(([label, value, accent], i) => {
-      const x = margin + i * (cardW + gap);
-      setFill([250, 247, 238]);
-      doc.roundedRect(x, kpiY, cardW, cardH, 6, 6, "F");
-      // top accent bar
-      setFill(accent);
-      doc.rect(x, kpiY, cardW, 3, "F");
-      setText(accent);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(26);
-      doc.text(String(value), x + 14, kpiY + 36);
-      setText(MUTED);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text(label.toUpperCase(), x + 14, kpiY + 52);
+  if (sbi?.strength) {
+    sbiCard({
+      kicker: "Deine Stärke",
+      kickerColor: [60, 120, 70],
+      situation: sbi.strength.situation,
+      behavior: sbi.strength.behavior,
+      impact: sbi.strength.impact,
     });
-    y = kpiY + cardH + 18;
-
-    // Chart: per-chat scores (horizontal bars)
-    if (validChats.length > 0) {
-      const rowH = 20;
-      ensureSpace(40);
-      setText(INK);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text("Score je Chat", margin, y);
-      setText(MUTED);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("0 — 100", pageW - margin, y, { align: "right" });
-      y += 16;
-
-      const labelW = 130;
-      const valueW = 34;
-      const barX = margin + labelW;
-      const barMaxW = contentW - labelW - valueW - 8;
-
-      validChats.forEach((c) => {
-        ensureSpace(rowH + 2);
-        // per-row baseline guides (redrawn each row so pagination stays clean)
-        setDraw([238, 232, 218]);
-        doc.setLineWidth(0.3);
-        [0.25, 0.5, 0.75, 1].forEach((t) => {
-          const gx = barX + barMaxW * t;
-          doc.line(gx, y, gx, y + rowH - 6);
-        });
-
-        const label = (c.customer_username ?? "?").slice(0, 22);
-        setText(INK);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.text(label, margin, y + 11);
-        const pct = c.score / 100;
-        const fillCol: [number, number, number] =
-          c.score >= 75 ? [60, 120, 70] : c.score >= 50 ? GOLD : [180, 90, 60];
-        drawHBar(barX, y + 5, barMaxW, 8, pct, [235, 230, 215], fillCol);
-        setText(INK);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.text(String(c.score), pageW - margin, y + 11, { align: "right" });
-        y += rowH;
-      });
-      y += 14;
-    }
-
-    // Do vs Don't donut + Score verteilung side-by-side
-    if (totalDos + totalDonts > 0 || validChats.length > 0) {
-      ensureSpace(180);
-      const boxH = 160;
-      const halfW = (contentW - 16) / 2;
-      const leftX = margin;
-      const rightX = margin + halfW + 16;
-
-      // Left: Do vs Don't donut
-      setFill([250, 247, 238]);
-      doc.roundedRect(leftX, y, halfW, boxH, 6, 6, "F");
-      setText(INK);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("Balance", leftX + 14, y + 20);
-      setText(MUTED);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("Stark vs. Wachstum", leftX + 14, y + 32);
-
-      const total = totalDos + totalDonts || 1;
-      const dosPct = totalDos / total;
-      const donutCX = leftX + halfW - 55;
-      const donutCY = y + boxH / 2 + 6;
-      const donutR = 38;
-      // Track
-      drawArc(donutCX, donutCY, donutR, 0, 360, [230, 224, 205], 10);
-      // Dos slice (green)
-      if (dosPct > 0) drawArc(donutCX, donutCY, donutR, -90, -90 + 360 * dosPct, [60, 120, 70], 10);
-      // Donts slice (gold)
-      if (dosPct < 1) drawArc(donutCX, donutCY, donutR, -90 + 360 * dosPct, 270, GOLD, 10);
-      setText(INK);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text(`${Math.round(dosPct * 100)}%`, donutCX, donutCY + 4, { align: "center" });
-      setText(MUTED);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.text("stark", donutCX, donutCY + 16, { align: "center" });
-      // Legend
-      setFill([60, 120, 70]);
-      doc.circle(leftX + 18, y + 60, 3, "F");
-      setText(INK);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(`Stark  ${totalDos}`, leftX + 28, y + 63);
-      setFill(GOLD);
-      doc.circle(leftX + 18, y + 80, 3, "F");
-      setText(INK);
-      doc.text(`Wachstum  ${totalDonts}`, leftX + 28, y + 83);
-
-      // Right: score distribution buckets
-      setFill([250, 247, 238]);
-      doc.roundedRect(rightX, y, halfW, boxH, 6, 6, "F");
-      setText(INK);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("Verteilung", rightX + 14, y + 20);
-      setText(MUTED);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("Wie deine Chats streuen", rightX + 14, y + 32);
-
-      const buckets = [
-        { label: "0–49", color: [180, 90, 60] as [number, number, number], count: validChats.filter((c) => c.score < 50).length },
-        { label: "50–74", color: GOLD, count: validChats.filter((c) => c.score >= 50 && c.score < 75).length },
-        { label: "75+", color: [60, 120, 70] as [number, number, number], count: validChats.filter((c) => c.score >= 75).length },
-      ];
-      const maxCount = Math.max(1, ...buckets.map((b) => b.count));
-      const chartInnerW = halfW - 28;
-      const barSlot = chartInnerW / 3;
-      const barW = 36;
-      const baseY = y + boxH - 30;
-      const maxBarH = boxH - 70;
-      buckets.forEach((b, i) => {
-        const bx = rightX + 14 + i * barSlot + (barSlot - barW) / 2;
-        const bh = (b.count / maxCount) * maxBarH;
-        setFill(b.color);
-        doc.roundedRect(bx, baseY - bh, barW, bh, 3, 3, "F");
-        setText(INK);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text(String(b.count), bx + barW / 2, baseY - bh - 6, { align: "center" });
-        setText(MUTED);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.text(b.label, bx + barW / 2, baseY + 14, { align: "center" });
-      });
-
-      y += boxH + 16;
-    }
   }
-
-  // Personal intro
-  const intro = input.result.personal_intro?.trim();
-  if (intro) {
-    sectionHeading("Persönliche Nachricht", `Hi ${input.chatter_name},`);
-    writeText(intro, { size: 11, lineHeight: 1.5, gapAfter: 10 });
-  }
-
-
-  // Executive summary
-  if (input.result.executive_summary) {
-    goldCard("Kern der Analyse", input.result.executive_summary);
-  }
-
-  // Roadmap — the "Fahrplan"
-  if (input.result.top_focus?.length) {
-    sectionHeading("Dein Fahrplan", "Die 3 Schritte, mit denen du sofort mehr verdienst");
-    input.result.top_focus.forEach((f, i) => {
-      ensureSpace(60);
-      const stepY = y;
-      // Numbered gold disc
-      setFill(GOLD);
-      doc.circle(margin + 14, stepY + 6, 14, "F");
-      setText(PAPER);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text(String(i + 1), margin + 14, stepY + 10, { align: "center" });
-      // Step body
-      writeText(f, { size: 11, indent: 40, lineHeight: 1.5, gapAfter: 14 });
-      // Faint connector line between steps (except last)
-      if (i < (input.result.top_focus?.length ?? 0) - 1) {
-        setDraw(HAIRLINE);
-        doc.setLineWidth(0.4);
-        doc.line(margin + 14, y - 8, margin + 14, y - 2);
-      }
+  if (sbi?.growth) {
+    sbiCard({
+      kicker: "Deine Wachstums-Chance",
+      kickerColor: GOLD,
+      situation: sbi.growth.situation,
+      behavior: sbi.growth.behavior,
+      impact: sbi.growth.impact,
+      ifThen: sbi.growth.alternative_if_then,
     });
-    y += 6;
+  }
+  if (!sbi) {
+    drawText("Kein Feedback verfügbar.", margin, y, { size: 11, color: MUTED });
   }
 
+  drawContentFooter("Seite 5 · Dein Feedback");
 
+  // ========== PAGE 6 — Action Plan + Tracker ==========
+  newContentPage();
+  y = margin + 4;
 
-  // Per-chat
-  if (input.result.chats?.length) {
-    sectionHeading("Chat-für-Chat", "Deep-Dive in deine Gespräche");
-    for (const c of input.result.chats) {
-      ensureSpace(140);
-      y += 6;
-      // Hairline separator between chats
-      setDraw(HAIRLINE);
-      doc.setLineWidth(0.4);
-      doc.line(margin, y, pageW - margin, y);
-      y += 22;
-      // Customer name (wrap if too long) with score aligned right
-      setText(INK);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      const scoreLabel = typeof c.score === "number" ? `${c.score}/100` : "";
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      const scoreW = scoreLabel ? doc.getTextWidth(scoreLabel) + 12 : 0;
-      doc.setFontSize(14);
-      const nameLines = doc.splitTextToSize(c.customer_username ?? "Kunde", contentW - scoreW) as string[];
-      doc.text(nameLines[0], margin, y);
-      if (scoreLabel) {
-        setText(GOLD);
-        doc.setFontSize(12);
-        doc.text(scoreLabel, pageW - margin, y, { align: "right" });
-      }
-      y += 20;
+  setDraw(GOLD);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, pageW - margin, y);
+  y += 14;
+  drawText("DEIN NÄCHSTER SCHRITT", margin, y, { size: 7.5, style: "bold", color: GOLD });
+  y += 18;
+  drawText("Eine Sache. Sieben Tage.", margin, y, { size: 20, style: "bold", color: INK });
+  y += 28;
 
-      if (c.error) {
-        writeText(`Hinweis: ${c.error}`, { size: 9, color: MUTED, gapAfter: 10 });
-        continue;
-      }
+  drawText(
+    "Alles andere kommt später. Nur diese eine Handlung, jeden Tag.",
+    margin, y, { size: 10, color: MUTED, style: "italic" },
+  );
+  y += 24;
 
-      // Chat-Kontext: worum ging es überhaupt in diesem Chat
-      if (c.chat_context) {
-        writeText("WORUM ES GING", { size: 7, bold: true, color: MUTED, gapAfter: 3 });
-        writeText(c.chat_context, { size: 10, color: [55, 55, 55], lineHeight: 1.55, gapAfter: 10 });
-      }
+  // Big micro-action card
+  const action = (result.micro_action ?? "").trim() || "Vor jedem PPV-Angebot: erst 2 echte Fragen zum Kunden stellen.";
+  const actionLines = wrapLines(action, contentW - 40, 15, "bold");
+  const actionH = actionLines.length * 20 + 44;
+  setFill(INK);
+  doc.roundedRect(margin, y, contentW, actionH, 8, 8, "F");
+  setFill(GOLD);
+  doc.rect(margin, y, 4, actionH, "F");
+  drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + 22, y + 22, { size: 8, style: "bold", color: GOLD });
+  let ay = y + 44;
+  actionLines.forEach((l) => { drawText(l, margin + 22, ay, { size: 15, style: "bold", color: [245, 240, 224] }); ay += 20; });
+  y += actionH + 22;
 
-      if (c.one_line_verdict) {
-        setFill([250, 246, 232]);
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(11);
-        const vLines = doc.splitTextToSize(c.one_line_verdict, contentW - 24) as string[];
-        const vh = vLines.length * 15 + 20;
-        ensureSpace(vh + 4);
-        doc.roundedRect(margin, y, contentW, vh, 4, 4, "F");
-        setFill(GOLD);
-        doc.rect(margin, y, 3, vh, "F");
-        let vy = y + 15;
-        setText(INK);
-        for (const l of vLines) { doc.text(l, margin + 18, vy); vy += 15; }
-        y += vh + 10;
-      }
-
-      if (c.pricing_check) {
-        writeText("PRICING", { size: 8, bold: true, color: GOLD, gapAfter: 3 });
-        writeText(c.pricing_check, { size: 10, lineHeight: 1.55, gapAfter: 12 });
-      }
-
-      if (c.dos?.length) {
-        writeText("STARK GEMACHT", { size: 8, bold: true, color: [60, 120, 70], gapAfter: 6 });
-        for (const d of c.dos) {
-          quoteBlock({
-            situation: d.situation,
-            quote: d.quote,
-            accent: [60, 120, 70],
-            verdictLabel: "Warum das stark war",
-            verdictText: d.why_good,
-          });
-        }
-        y += 4;
-      }
-
-      if (c.donts?.length) {
-        writeText("WACHSTUMSPOTENZIAL", { size: 8, bold: true, color: GOLD, gapAfter: 6 });
-        for (const d of c.donts) {
-          quoteBlock({
-            situation: d.situation,
-            quote: d.quote,
-            accent: GOLD,
-            verdictLabel: "Was hier Cash liegen lässt",
-            verdictText: d.problem,
-            extraLabel: "Beim nächsten Mal so",
-            extraText: `\u201E${d.better}\u201C`,
-            extraAccent: [60, 120, 70],
-          });
-        }
-        y += 4;
-      }
-
-      if (c.revenue_levers?.length) {
-        writeText("DEINE HEBEL", { size: 8, bold: true, color: GOLD, gapAfter: 4 });
-        for (const l of c.revenue_levers) {
-          writeText(`- ${l}`, { size: 10, indent: 10, gapAfter: 3, lineHeight: 1.5 });
-        }
-      }
-      y += 18;
-
-    }
-  }
-
-  // Closing
-  const closing = input.result.personal_closing?.trim();
-  if (closing) {
-    sectionHeading("Und jetzt du", "Dein nächster Schritt");
-    writeText(closing, { size: 11, lineHeight: 1.55, gapAfter: 10 });
-    y += 6;
+  // 7-day tracker
+  drawText("HAK EN JEDEN TAG WENN DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
+  y += 14;
+  const days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+  const boxSize = 42;
+  const gapX = (contentW - boxSize * 7) / 6;
+  days.forEach((d, i) => {
+    const bx = margin + i * (boxSize + gapX);
     setDraw(GOLD);
     doc.setLineWidth(0.8);
-    doc.line(margin, y, margin + 40, y);
-    y += 18;
-    writeText("— SheX Coaching", { size: 10, italic: true, color: GOLD });
+    doc.roundedRect(bx, y, boxSize, boxSize, 5, 5, "S");
+    drawText(d, bx + boxSize / 2, y + boxSize + 12, { size: 9, color: MUTED, align: "center" });
+  });
+  y += boxSize + 30;
+
+  // Retrieval question
+  if (result.retrieval_question) {
+    setFill([250, 247, 238]);
+    const qLines = wrapLines(result.retrieval_question, contentW - 40, 12, "italic");
+    const qH = qLines.length * 18 + 44;
+    doc.roundedRect(margin, y, contentW, qH, 6, 6, "F");
+    setFill(GOLD);
+    doc.rect(margin, y, 3, qH, "F");
+    drawText("FRAG DICH SELBST", margin + 22, y + 20, { size: 8, style: "bold", color: GOLD });
+    let qy = y + 38;
+    qLines.forEach((l) => { drawText(l, margin + 22, qy, { size: 12, style: "italic", color: INK }); qy += 18; });
+    y += qH + 18;
   }
 
-  drawContentFooter();
+  // Reflection frame
+  drawText("PLATZ FÜR DEINE GEDANKEN", margin, y, { size: 8, style: "bold", color: MUTED });
+  y += 10;
+  const reflectH = Math.max(60, pageH - margin - 30 - y);
+  setDraw(HAIRLINE);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(margin, y, contentW, reflectH, 6, 6, "S");
+  // faint ruled lines
+  const lineGap = 22;
+  for (let ly = y + lineGap; ly < y + reflectH - 8; ly += lineGap) {
+    setDraw([240, 236, 224]);
+    doc.setLineWidth(0.3);
+    doc.line(margin + 14, ly, pageW - margin - 14, ly);
+  }
+
+  drawContentFooter("Seite 6 · Dein Fahrplan");
 
   return doc.output("blob");
 }
+
 
 export async function saveAnalysis(input: {
   chatter_name: string;
