@@ -847,17 +847,8 @@ export async function renderAnalysisPDF(input: {
     }
   }
 
-  // Small dezent gauge — lower, smaller than before
-  if (score !== null && score !== undefined) {
-    const cx = pageW / 2;
-    const gCy = pageH - margin - 180;
-    const r = 46;
-    drawArc(cx, gCy, r, 135, 405, [55, 45, 20], 6);
-    const pct = Math.max(0, Math.min(100, score)) / 100;
-    drawArc(cx, gCy, r, 135, 135 + 270 * pct, GOLD, 6);
-    drawText(String(score), cx, gCy + 8, { size: 30, style: "bold", color: GOLD, align: "center" });
-    drawText("SCORE VON 100", cx, gCy + 24, { size: 7, color: GOLD_SOFT, align: "center" });
-  }
+  // Score gauge intentionally removed — der Vorperioden-Vergleich ist der ehrlichere Fortschrittsindikator.
+
 
   // Meta trio
   const metaY = pageH - margin - 80;
