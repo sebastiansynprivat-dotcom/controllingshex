@@ -516,20 +516,28 @@ Weniger ist mehr. Mensch kann sich pro Coaching nur 3–4 Dinge merken.
 
 SPRACHE — HARTE REGELN:
 - KEINE Fachbegriffe. Nicht "Rapport", nicht "Upsell", nicht "Anchoring", nicht "Frame", nicht "Basic-First". Sag direkt was gemeint ist.
-- Kurze Sätze. Alltagssprache. "Du"-Ansprache.
+- Kurze Sätze. Alltagssprache. "Du"-Ansprache — IMMER Einzahl, direkt an ${chatter_name}.
 - KEINE Emojis in Prosa-Feldern.
-- IMMER SINGULAR über den analysierten Chat/die Arbeit reden ("ich habe mir deine Arbeit auf ${platform} angeschaut", "habt ihr auf ${platform} diese Woche…"). NIE Zahlen wie "28 Chats" oder "ich habe X Chats gelesen" nennen — halt es allgemein.
-- NIEMALS "wir" für den Chatter, immer "du" / "ihr" (Team auf der Plattform).
+- VERBOTEN: jede Mehrzahl-/Kollektiv-Formulierung wie "habt ihr", "ihr auf ${platform}", "in euren Chats", "euer Team". Immer strikt Singular: "hast du", "deine Arbeit auf ${platform}", "in deinen Chats" (allgemein, ohne Zahl).
+- NIE eine Chat-Anzahl nennen ("28 Chats", "X Chats gelesen" o.ä.). Halt es allgemein: "ich habe mir deine Arbeit auf ${platform} angeschaut".
+- NIEMALS "wir" für den Chatter.
 
 COACHING-TABU (absolute Regeln):
 - Bring dem Chatter NIEMALS bei, den Kunden nach dem Preis zu fragen ("Was wärst du bereit zu zahlen?", "Was ist dir das wert?" usw.). Das ist verboten und widerspricht dem Coaching.
 - Der Chatter setzt den Preis, nicht der Kunde.
 - Wenn du einen besseren Vorschlag machst: korrigiere die konkrete Formulierung, die der CHATTER selbst gesagt hat. Zeig, wie er es besser formulieren würde — nicht, was er den Kunden fragen soll.
 
+KONTEXT VOR KRITIK (sehr wichtig):
+- Bewerte JEDEN Chatter-Move IMMER im Kontext, in dem er gefallen ist. Schau dir an, was der KUNDE davor gemacht hat.
+- Wenn der Kunde selbst hart sexuell reingeht, ist es oft die richtige Entscheidung des Chatters, mitzugehen — sonst bricht die Spannung und der Kunde ist weg. Das darfst du NICHT als Schwäche framen.
+- Erkenne den natürlichen Stil des Chatters aus den Digests (baut viel Bindung auf? geht tief? eher schnell auf den Verkauf? spielerisch? dominant?) und respektiere ihn. Hebel und Kritik dürfen dem Stil nicht widersprechen — sie sollen ihn schärfen.
+- Wenn eine Situation dem Chatter kaum Handlungsspielraum ließ (z.B. Kunde eskaliert sofort sexuell, Kunde will nur Sexting), erwähne das im Feedback ausdrücklich, bevor du Verbesserungen vorschlägst. Sonst wirkt es kontextlos und unfair.
+- Formuliere Feedback in dieser Struktur: erst kurz "die Situation war X" → dann "in dem Rahmen hast du Y gemacht" → dann "hier hättest du noch Z rausholen können, ohne den Kunden zu verlieren".
+
 VERKÄUFE ZUERST ANSCHAUEN:
 - Im Chat siehst du "[PPV angeboten Xe — GEKAUFT]" / "— nicht gekauft" / "[TRINKGELD Xe]".
 - Wenn Verkäufe passiert sind: das ist die Stärke. Nicht kaputtreden.
-- Wenn nichts gekauft wurde trotz Angeboten: da liegt der wichtigste Hebel.
+- Wenn nichts gekauft wurde trotz Angeboten: da liegt der wichtigste Hebel — aber nur, wenn der Kontext einen Verkauf überhaupt zugelassen hätte.
 
 Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
 
@@ -554,8 +562,10 @@ Antworte als JSON:
   "revenue_eur": ${formatted.revenue.toFixed(2)},
   "outcome": "sale" | "attempt_no_sale" | "no_attempt",
   "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
-  "strongest_moment": {"situation": "<1 Satz was vorher lief>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
-  "weakest_moment": {"situation": "<1 Satz>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
+  "customer_energy": "<1 kurzer Satz: Wie ist der Kunde in den Chat reingegangen? z.B. 'sofort hart sexuell', 'zurückhaltend, viel Smalltalk', 'nur auf Preis fixiert', 'sucht Nähe und Gespräch'>",
+  "chatter_style_in_this_chat": "<1 Satz: Wie hat der Chatter reagiert? z.B. 'ist bei Nähe geblieben und hat langsam aufgebaut', 'ist sofort mitgegangen ins Sexting'>",
+  "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
+  "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
 }`;
       try {
@@ -607,19 +617,22 @@ ${analyzedModelKey ? `- Analysiertes Model "${model_username}" hat im Zeitraum i
 
 REGEL für personal_intro:
 - Formuliere allgemein — NIE eine Chat-Anzahl nennen ("28 Chats", "deine X Chats" o.ä. verboten). Sag stattdessen "ich habe mir deine Arbeit auf ${platform} angeschaut".
-- Immer Singular / kollektiv: "habt ihr auf ${platform} diese Woche…", nicht "in deinen Chats".
+- STRIKT Singular / direkt an ${chatter_name}: "diese Woche hast du auf ${platform} …". NIE "habt ihr", "ihr auf ${platform}", "euer Team".
 - Sag NIE "leider keine Verkäufe" pauschal, wenn die Gesamt-Umsätze > 0 sind.
 - Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in dem, was ich gesehen habe, war noch kein Abschluss dabei — insgesamt aber X€ auf ${platform}".
 - Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag, ohne Chat-Anzahlen zu erwähnen.
 - Nur wenn Analysiert=0 UND Gesamt=0: dann darfst du sagen, dass in dem Zeitraum insgesamt noch nichts verkauft wurde.`;
 
-      const metaPrompt = `Du hast dir die Arbeit von ${chatter_name} angeschaut. Baue daraus das FINALE 6-Seiten-Coaching. Nenne dabei NIE die Anzahl der Chats.
+      const metaPrompt = `Du hast dir die Arbeit von ${chatter_name} angeschaut. Baue daraus das FINALE 6-Seiten-Coaching. Nenne dabei NIE die Anzahl der Chats. Sprich IMMER direkt in der Einzahl mit ${chatter_name} ("du"), niemals "ihr"/"habt ihr".
 Regeln:
 - GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
 - GENAU 1 Stärke (sbi_feedback.strength) und GENAU 1 Wachstumsfeld (sbi_feedback.growth). Nimm die stärksten Beispiele aus den Digests.
 - GENAU 1 Mikro-Aktion (micro_action) — konkret, in 7 Tagen umsetzbar, an eine bestehende Routine gekoppelt.
 - KEINE Fachbegriffe. Alltagssprache.
 - Zitate NUR aus den Digests, wortwörtlich, nichts erfinden.
+- KONTEXT-PFLICHT: Lies für jedes Zitat, was der KUNDE davor gemacht hat. Wenn der Kunde sofort sexuell eskaliert und ${chatter_name} normalerweise viel Bindung aufbaut, ist "mitgehen" oft die richtige Wahl — NICHT als Fehler framen. Erwähne den Kundenkontext im wrong_example / growth.situation ausdrücklich.
+- STIL RESPEKTIEREN: Erkenne aus den Digests den natürlichen Stil (Bindung/tief, Sexting, spielerisch, dominant, schnell auf den Verkauf) und wähle Hebel, die diesen Stil verstärken — nicht umbiegen.
+- Jedes wrong_example / growth.situation MUSS mit einem 1-Satz-Kontext beginnen ("Der Kunde hatte gerade X geschrieben — daraufhin hast du gesagt: …"). Ohne Kontext keine Kritik.
 
 ${salesContextBlock}
 
