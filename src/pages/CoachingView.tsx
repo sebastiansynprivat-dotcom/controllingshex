@@ -451,35 +451,96 @@ function extractEmoji(s?: string): string | null {
   return m ? m[0] : null;
 }
 
+function roleLabel(role: string): string {
+  if (role === "CHATTER") return "Du";
+  if (role === "BOT-DM") return "Auto-DM";
+  return "Kunde";
+}
+
+function ChatBubble({ role, text }: { role: string; text: string }) {
+  const isChatter = role === "CHATTER";
+  const isBot = role === "BOT-DM";
+  const alignRight = isChatter || isBot;
+  return (
+    <div className={`flex flex-col ${alignRight ? "items-end" : "items-start"}`}>
+      <div className={`text-[10px] uppercase tracking-widest mb-1 px-1 ${
+        isChatter ? "text-amber-400/80" : isBot ? "text-white/30" : "text-white/40"
+      }`}>
+        {roleLabel(role)}
+      </div>
+      <div className={[
+        "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-snug",
+        isChatter ? "bg-amber-500/20 text-amber-50 border border-amber-500/30 rounded-br-sm"
+          : isBot ? "bg-white/5 text-white/50 italic border border-white/10 rounded-br-sm"
+            : "bg-white/10 text-white/90 border border-white/10 rounded-bl-sm",
+      ].join(" ")}>
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function FullChatHistory({ lever, highlightRound }: { lever?: Lever; highlightRound?: number }) {
+  const [open, setOpen] = useState(false);
+  const msgs = lever?.context_messages ?? [];
+  const storyboard = lever?.storyboard ?? [];
+  const parsedContext = msgs.map(parseChatLine);
+  if (!msgs.length && !storyboard.length) return null;
+
+  return (
+    <div className="mt-5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs transition-all"
+      >
+        <MessageCircle className="h-3.5 w-3.5" />
+        {open ? "Verlauf ausblenden" : "Kompletten Chatverlauf ansehen"}
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
+          <div className="text-[10px] uppercase tracking-widest text-white/40 text-center pb-2 border-b border-white/5">
+            Wie es begann
+          </div>
+          {parsedContext.map((p, i) => (
+            <ChatBubble key={`ctx-${i}`} role={p.role} text={p.text} />
+          ))}
+          {storyboard.length > 0 && (
+            <div className="text-[10px] uppercase tracking-widest text-white/40 text-center pt-2 pb-1 border-t border-white/5">
+              Der Moment im Chat
+            </div>
+          )}
+          {storyboard.map((r, i) => {
+            const isHighlight = highlightRound === i;
+            return (
+              <div key={`sb-${i}`} className={`space-y-3 ${isHighlight ? "ring-2 ring-amber-400/40 rounded-2xl p-2 -m-1" : ""}`}>
+                {r.customer && <ChatBubble role="KUNDE" text={r.customer} />}
+                {r.chatter_did && <ChatBubble role="CHATTER" text={r.chatter_did} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ContextCard({ lever }: CardProps) {
   const msgs = lever?.context_messages ?? [];
   if (!msgs.length) return null;
   return (
     <div>
       <Eyebrow>So lief der Chat davor</Eyebrow>
-      <div className="space-y-2">
+      <p className="text-white/60 text-sm mb-4">Lies mit — so hat der Kunde geschrieben, bevor du geantwortet hast:</p>
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
         {msgs.map((line, i) => {
           const parsed = parseChatLine(line);
-          const isChatter = parsed.role === "CHATTER";
-          const isBot = parsed.role === "BOT-DM";
-          return (
-            <div key={i} className={`flex ${isChatter || isBot ? "justify-end" : "justify-start"}`}>
-              <div className={[
-                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-snug",
-                isChatter ? "bg-amber-500/20 text-amber-50 border border-amber-500/30 rounded-br-sm"
-                  : isBot ? "bg-white/5 text-white/50 italic border border-white/10 rounded-br-sm"
-                    : "bg-white/10 text-white/90 border border-white/10 rounded-bl-sm",
-              ].join(" ")}>
-                {isBot && <div className="text-[9px] uppercase tracking-widest text-white/40 mb-1">Bot-Anschrift</div>}
-                {parsed.text}
-              </div>
-            </div>
-          );
+          return <ChatBubble key={i} role={parsed.role} text={parsed.text} />;
         })}
       </div>
-      <div className="text-center mt-6 text-xs text-white/40">
-        <ChevronDown className="h-4 w-4 inline mr-1" />
-        Jetzt kam DEINE Antwort
+      <div className="text-center mt-6 text-xs text-white/50 flex items-center justify-center gap-1.5">
+        <ChevronDown className="h-4 w-4 animate-bounce" />
+        Und dann kam DEINE Antwort…
       </div>
     </div>
   );
@@ -510,24 +571,17 @@ function ChatterDidCard({ lever, chatterFirstName }: CardProps) {
   return (
     <div>
       <Eyebrow>Das ist passiert</Eyebrow>
-      {round.customer && (
-        <div className="flex justify-start mb-2">
-          <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5 bg-white/10 text-white/90 text-sm border border-white/10">
-            {round.customer}
-          </div>
-        </div>
-      )}
-      <div className="flex justify-end mb-3">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 bg-amber-500/20 text-amber-50 text-sm border border-amber-500/30">
-          {round.chatter_did}
-        </div>
+      <div className="space-y-3">
+        {round.customer && <ChatBubble role="KUNDE" text={round.customer} />}
+        {round.chatter_did && <ChatBubble role="CHATTER" text={round.chatter_did} />}
       </div>
-      <div className="text-xs text-white/50 text-right mb-4">— was du gesagt hast, {chatterFirstName}</div>
+      <div className="text-xs text-white/50 text-right mt-2">— was du gesagt hast, {chatterFirstName}</div>
       {round.verdict && (
         <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-sm text-center">
           {round.verdict}
         </div>
       )}
+      <FullChatHistory lever={lever} highlightRound={0} />
     </div>
   );
 }
@@ -555,26 +609,26 @@ function BetterCard({ lever, chatterFirstName }: CardProps) {
   return (
     <div>
       <Eyebrow>So macht's ein Top-Chatter</Eyebrow>
-      {round.context && <p className="text-white/60 text-sm mb-3">{round.context}</p>}
-      {round.customer && (
-        <div className="flex justify-start mb-2">
-          <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5 bg-white/10 text-white/90 text-sm border border-white/10">
-            {round.customer}
+      {round.context && <p className="text-white/60 text-sm mb-4">{round.context}</p>}
+      <div className="space-y-3">
+        {round.customer && <ChatBubble role="KUNDE" text={round.customer} />}
+        {round.better_version && (
+          <div className="flex flex-col items-end">
+            <div className="text-[10px] uppercase tracking-widest mb-1 px-1 text-emerald-400/80">Du (besser)</div>
+            <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/40 shadow-lg leading-snug">
+              {round.better_version}
+            </div>
           </div>
-        </div>
-      )}
-      <div className="flex justify-end mb-3">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/40 shadow-lg">
-          {round.better_version}
-        </div>
+        )}
       </div>
-      <div className="text-xs text-emerald-400/70 text-right mb-4">— so würdest du klingen, {chatterFirstName}, nur besser</div>
+      <div className="text-xs text-emerald-400/70 text-right mt-2">— so würdest du klingen, {chatterFirstName}, nur besser</div>
       {round.why_one_line && (
         <div className="mt-4 flex items-start gap-2 text-white/70 text-sm">
           <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
           <span>{round.why_one_line}</span>
         </div>
       )}
+      <FullChatHistory lever={lever} highlightRound={1} />
     </div>
   );
 }
