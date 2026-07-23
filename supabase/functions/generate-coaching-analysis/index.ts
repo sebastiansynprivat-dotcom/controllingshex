@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
+const META_MODEL = 'google/gemini-3.1-pro-preview';
 const CONTROLLING_CHATS_ENDPOINT = 'https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats';
 const FETCH_CHATS_ENDPOINT = 'https://api.controlling.shexadmin.ngrok.pro/fetch-chats';
 
@@ -296,9 +297,9 @@ function formatChatForAI(row: ChatRow, maxMessages = 200): { text: string; reven
   return { text: lines.join('\n'), revenue, purchases, sends };
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true) {
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true, modelOverride?: string) {
   const body: any = {
-    model: MODEL,
+    model: modelOverride || MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -314,7 +315,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
       'X-Lovable-AIG-SDK': 'edge-function',
     },
     body: JSON.stringify(body),
-  }, 60000);
+  }, modelOverride ? 120000 : 60000);
 
   if (!res.ok) {
     const err = await res.text();
@@ -565,6 +566,8 @@ Antworte als JSON:
   "score": <0-100 — bei Umsatz mindestens 65, bei starkem Umsatz 80+>,
   "customer_energy": "<1 kurzer Satz: Wie ist der Kunde in den Chat reingegangen? z.B. 'sofort hart sexuell', 'zurückhaltend, viel Smalltalk', 'nur auf Preis fixiert', 'sucht Nähe und Gespräch'>",
   "chatter_style_in_this_chat": "<1 Satz: Wie hat der Chatter reagiert? z.B. 'ist bei Nähe geblieben und hat langsam aufgebaut', 'ist sofort mitgegangen ins Sexting'>",
+  "writing_style_notes": "<1-2 Sätze über die konkrete Schreibweise des CHATTERS: Groß-/Kleinschreibung, Satzlänge, Emoji-Nutzung (welche, wie oft), typische Wörter/Slang, Punkt-/Kommasetzung, Tippfehler, Anrede (Baby/Schatz/Süßer/...). So genau wie möglich beobachtet.>",
+  "chatter_voice_samples": ["<3 wörtliche, typische Chatter-Sätze aus diesem Chat, so wie sie geschrieben wurden — mit allen Emojis, Kleinschreibung, Tippfehlern. Keine Bearbeitung.>"],
   "strongest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>"} | null,
   "weakest_moment": {"situation": "<1 Satz Kontext: was der KUNDE davor gesagt hat>", "quote": "<Original-Zitat vom Chatter, max 200 Zeichen>", "constrained_by_customer": <true wenn der Kunde dem Chatter kaum Alternativen gelassen hat, sonst false>} | null,
   "one_liner": "<1 Satz was in diesem Chat besonders war>"
@@ -635,6 +638,19 @@ Regeln:
 - STIL RESPEKTIEREN: Erkenne aus den Digests den natürlichen Stil (Bindung/tief, Sexting, spielerisch, dominant, schnell auf den Verkauf) und wähle Hebel, die diesen Stil verstärken — nicht umbiegen.
 - Jedes wrong_example / growth.situation MUSS mit einem 1-Satz-Kontext beginnen ("Der Kunde hatte gerade X geschrieben — daraufhin hast du gesagt: …"). Ohne Kontext keine Kritik.
 
+STIL-MIMIKRY — ABSOLUT KRITISCH FÜR better_example / if_then_script / alternative_if_then / micro_action:
+- Diese Vorschläge müssen so klingen, als hätte ${chatter_name} sie selbst getippt. Nicht wie ein Coach, nicht wie ein Werbetexter.
+- Lies in den Digests IMMER zuerst "writing_style_notes" und "chatter_voice_samples". Übernimm daraus:
+  * Groß-/Kleinschreibung (wenn der Chatter alles klein schreibt: du auch)
+  * Satzlänge & Rhythmus (kurze, knappe Nachrichten statt Roman)
+  * Emoji-Auswahl und -Frequenz (nur Emojis nutzen, die der Chatter tatsächlich benutzt — sonst gar keine)
+  * Anrede (Baby/Süßer/Schatz/... — nur was der Chatter wirklich sagt)
+  * Slang, typische Wörter, Punkt-/Kommasetzung, kleine Tippfehler-Toleranz
+- VERBOTEN in Nachrichten-Vorschlägen: gestelzte Formulierungen ("darf ich dir anbieten", "es wäre wundervoll wenn"), Werbesprache, Coach-Deutsch, komplette Sätze mit perfekter Interpunktion wenn der Chatter locker chattet, generische Sexting-Phrasen die nach Vorlage klingen ("ich bin schon ganz feucht für dich" wenn der Chatter so nie schreibt).
+- Wenn du dir bei einer Formulierung nicht sicher bist ob sie zum Chatter passt: wähle die schlichtere, kürzere Variante.
+- Ziel: ${chatter_name} liest den Vorschlag und denkt "ja, so würde ich das auch tippen — nur besser."
+
+
 ${salesContextBlock}
 
 CHAT-DIGESTS:
@@ -681,7 +697,7 @@ JSON-Schema (EXAKT einhalten):
 }`;
 
       try {
-        const raw = await callGemini(aiKey, systemPrompt, metaPrompt);
+        const raw = await callGemini(aiKey, systemPrompt, metaPrompt, true, META_MODEL);
         focusedResult = safeParseJSON<any>(raw, null);
       } catch (e) {
         focusedResult = { error: (e as Error).message };
