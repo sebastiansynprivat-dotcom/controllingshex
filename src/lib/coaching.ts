@@ -1032,34 +1032,39 @@ export async function renderAnalysisPDF(input: {
     impact: string;
     ifThen?: string;
   }) => {
-    const innerW = contentW - 36;
-    const sitLines = wrapLines(opts.situation, innerW, 10);
-    const behLines = wrapLines(opts.behavior, innerW, 10);
-    const impLines = wrapLines(opts.impact, innerW, 10);
-    const ifLines = opts.ifThen ? wrapLines(opts.ifThen, innerW - 12, 10, "bold") : [];
-    const rowH = 12;
+    const innerW = contentW - CARD_PAD * 2;
+    const sitLines = wrapLines(opts.situation, innerW, T.BODY_SM);
+    const behLines = wrapLines(opts.behavior, innerW, T.BODY_SM);
+    const impLines = wrapLines(opts.impact, innerW, T.BODY_SM);
+    const ifLines = opts.ifThen ? wrapLines(opts.ifThen, innerW - 12, T.BODY_SM, "bold") : [];
+    const rowH = 13;
     const labelH = 14;
-    const gap = 8;
-    const ifBlockH = ifLines.length ? ifLines.length * 14 + 30 : 0;
+    const gap = S.SM;
+    const ifBlockH = ifLines.length ? ifLines.length * 14 + 34 : 0;
     const cardH =
-      18 + // top pad
+      22 + // top pad (kicker)
       labelH + sitLines.length * rowH + gap +
       labelH + behLines.length * rowH + gap +
       labelH + impLines.length * rowH + gap +
-      (ifBlockH ? ifBlockH + 4 : 0) +
-      14;
+      (ifBlockH ? ifBlockH + 6 : 0) +
+      16;
 
     setFill([250, 247, 238]);
-    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "F");
+    doc.roundedRect(margin, y, contentW, cardH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill(opts.kickerColor);
-    doc.rect(margin, y, 3, cardH, "F");
-    drawText(opts.kicker.toUpperCase(), margin + 18, y + 20, { size: 8, style: "bold", color: opts.kickerColor });
+    doc.rect(margin, y, CARD_ACCENT_W, cardH, "F");
+    drawText(opts.kicker.toUpperCase(), margin + CARD_PAD, y + 22, {
+      size: T.META, style: "bold", color: opts.kickerColor,
+    });
 
-    let cy = y + 38;
+    let cy = y + 44;
     const writeLabelled = (label: string, lines: string[]) => {
-      drawText(label, margin + 18, cy, { size: 7, style: "bold", color: MUTED });
+      drawText(label, margin + CARD_PAD, cy, { size: T.MICRO, style: "bold", color: MUTED });
       cy += 12;
-      for (const l of lines) { drawText(l, margin + 18, cy, { size: 10, color: INK }); cy += rowH; }
+      for (const l of lines) {
+        drawText(l, margin + CARD_PAD, cy, { size: T.BODY_SM, color: INK });
+        cy += rowH;
+      }
       cy += gap;
     };
     writeLabelled("SITUATION", sitLines);
@@ -1068,14 +1073,20 @@ export async function renderAnalysisPDF(input: {
 
     if (ifLines.length) {
       setFill(INK);
-      doc.roundedRect(margin + 12, cy - 2, contentW - 24, ifBlockH - 4, 5, 5, "F");
-      drawText("SO BEIM NÄCHSTEN MAL", margin + 26, cy + 14, { size: 7, style: "bold", color: GOLD });
-      let ify = cy + 30;
-      ifLines.forEach((l) => { drawText(l, margin + 26, ify, { size: 10, style: "bold", color: [245, 240, 224] }); ify += 14; });
+      doc.roundedRect(margin + 12, cy - 2, contentW - 24, ifBlockH - 6, CARD_RADIUS - 2, CARD_RADIUS - 2, "F");
+      drawText("SO BEIM NÄCHSTEN MAL", margin + 26, cy + 16, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let ify = cy + 34;
+      ifLines.forEach((l) => {
+        drawText(l, margin + 26, ify, { size: T.BODY_SM, style: "bold", color: [245, 240, 224] });
+        ify += 14;
+      });
     }
 
-    y += cardH + 14;
+    y += cardH + S.MD;
   };
+
 
   if (sbi?.strength) {
     sbiCard({
