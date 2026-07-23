@@ -454,7 +454,10 @@ function ChatterAnalysisSheet({
                             {row.chats_analyzed} Chats · Score {row.summary_json?.overall_score ?? "?"} · {format(new Date(row.created_at), "dd.MM.yy HH:mm")}
                           </div>
                         </div>
-                        <Button size="sm" variant="ghost" onClick={() => handleDownload(row)} title="PDF laden">
+                        <Button size="sm" variant="ghost" onClick={() => handlePreview(row)} title="Vorschau anzeigen">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDownload(row)} title="PDF herunterladen">
                           <Download className="h-4 w-4" />
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDelete(row)}>
