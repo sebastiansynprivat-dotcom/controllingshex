@@ -875,16 +875,13 @@ export async function renderAnalysisPDF(input: {
   }
 
   // Section: "Deine 3 Hebel"
-  setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y);
-  y += 14;
-  drawText("DEIN FOKUS", margin, y, { size: 7.5, style: "bold", color: GOLD });
-  y += 18;
-  drawText("Diese 3 Hebel bringen dir am meisten", margin, y, { size: 18, style: "bold", color: INK });
-  y += 26;
-  drawText("Alles andere ist Bonus. Fang mit Hebel 1 an — der bringt am meisten Cash.", margin, y, { size: 10, color: MUTED, style: "italic" });
-  y += 24;
+  y = pageIntro(
+    y,
+    "Dein Fokus",
+    "Diese 3 Hebel bringen dir am meisten",
+    "Alles andere ist Bonus. Fang mit Hebel 1 an — der bringt am meisten Cash.",
+  );
+
 
   if (levers.length === 0) {
     drawText("Noch keine Hebel gefunden. Prüfe ob genug Chats geladen wurden.", margin, y, { size: 11, color: MUTED });
