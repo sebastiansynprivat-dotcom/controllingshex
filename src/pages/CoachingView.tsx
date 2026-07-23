@@ -609,26 +609,26 @@ function BetterCard({ lever, chatterFirstName }: CardProps) {
   return (
     <div>
       <Eyebrow>So macht's ein Top-Chatter</Eyebrow>
-      {round.context && <p className="text-white/60 text-sm mb-3">{round.context}</p>}
-      {round.customer && (
-        <div className="flex justify-start mb-2">
-          <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5 bg-white/10 text-white/90 text-sm border border-white/10">
-            {round.customer}
+      {round.context && <p className="text-white/60 text-sm mb-4">{round.context}</p>}
+      <div className="space-y-3">
+        {round.customer && <ChatBubble role="KUNDE" text={round.customer} />}
+        {round.better_version && (
+          <div className="flex flex-col items-end">
+            <div className="text-[10px] uppercase tracking-widest mb-1 px-1 text-emerald-400/80">Du (besser)</div>
+            <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/40 shadow-lg leading-snug">
+              {round.better_version}
+            </div>
           </div>
-        </div>
-      )}
-      <div className="flex justify-end mb-3">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/40 shadow-lg">
-          {round.better_version}
-        </div>
+        )}
       </div>
-      <div className="text-xs text-emerald-400/70 text-right mb-4">— so würdest du klingen, {chatterFirstName}, nur besser</div>
+      <div className="text-xs text-emerald-400/70 text-right mt-2">— so würdest du klingen, {chatterFirstName}, nur besser</div>
       {round.why_one_line && (
         <div className="mt-4 flex items-start gap-2 text-white/70 text-sm">
           <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
           <span>{round.why_one_line}</span>
         </div>
       )}
+      <FullChatHistory lever={lever} highlightRound={1} />
     </div>
   );
 }
