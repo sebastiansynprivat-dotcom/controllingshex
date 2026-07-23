@@ -358,11 +358,19 @@ export async function renderAnalysisPDF(input: {
   const TEXT_FAM = fonts.hasText ? "NotoSans" : "helvetica";
   const EMOJI_FAM = fonts.hasEmoji ? "NotoEmoji" : TEXT_FAM;
 
-  // Light sanitize — normalize dashes/quotes for visual consistency, keep emojis.
+  // Sanitize — normalize dashes/nbsp AND strip all emoji/pictographic sequences.
+  // Noto Emoji (monochrome TTF) does not shape ZWJ/VS16 compound emoji correctly
+  // in jsPDF, which produced the "komisches Spiel" of stray glyphs. Safer to drop.
+  const EMOJI_STRIP =
+    /(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)+/gu;
   const sanitize = (s: string): string =>
     (s ?? "")
+      .replace(EMOJI_STRIP, "")
       .replace(/[\u2013\u2014]/g, "-")
-      .replace(/[\u00A0]/g, " ");
+      .replace(/[\u00A0]/g, " ")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .trim();
 
   const originalText = doc.text.bind(doc);
   (doc as any).__richTextOriginalText = originalText;
