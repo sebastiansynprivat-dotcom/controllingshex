@@ -350,6 +350,37 @@ const PAPER: [number, number, number] = [252, 251, 247];     // warm off-white
 const MUTED: [number, number, number] = [110, 110, 110];
 const HAIRLINE: [number, number, number] = [220, 214, 196];
 
+// --- Typographic scale (points) — used across the whole document ---
+const T = {
+  MICRO: 7.5,        // footer, tiny meta
+  META: 8,           // in-card labels, meta trio labels
+  CAPTION: 9,        // eyebrow / kicker (uppercase, tracked bold gold)
+  BODY_SM: 10,       // secondary body
+  BODY: 11,          // default body
+  LEAD: 13,          // intro paragraph, script emphasis
+  CARD_TITLE: 15,    // lever card title
+  H3: 18,            // in-page section subheads
+  H2: 22,            // page primary heading
+  H1: 30,            // large heading
+  DISPLAY: 46,       // cover name
+};
+
+// --- Spacing scale (points) — vertical rhythm ---
+const S = {
+  XS: 6,
+  SM: 10,
+  MD: 16,
+  LG: 24,
+  XL: 32,
+};
+
+// --- Card style constants ---
+const CARD_RADIUS = 8;
+const CARD_PAD = 20;
+const CARD_ACCENT_W = 3;
+
+
+
 export async function renderAnalysisPDF(input: {
   chatter_name: string;
   platform: string;
@@ -636,6 +667,38 @@ export async function renderAnalysisPDF(input: {
     doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
   };
 
+  // Standardized page intro: gold rule → CAPTION kicker → H2 title → optional italic subtitle.
+  // Guarantees the same visual rhythm and hierarchy on every content page.
+  const pageIntro = (
+    startY: number,
+    kicker: string,
+    title: string,
+    subtitle?: string,
+  ): number => {
+    let cy = startY;
+    setDraw(GOLD);
+    doc.setLineWidth(0.7);
+    doc.line(margin, cy, margin + 44, cy);
+    cy += 20;
+    drawText(kicker.toUpperCase(), margin, cy, {
+      size: T.CAPTION, style: "bold", color: GOLD,
+    });
+    cy += 22;
+    drawText(title, margin, cy, { size: T.H2, style: "bold", color: INK });
+    cy += subtitle ? 24 : 28;
+    if (subtitle) {
+      const lines = wrapLines(subtitle, contentW, T.BODY, "italic");
+      lines.slice(0, 2).forEach((l) => {
+        drawText(l, margin, cy, { size: T.BODY, style: "italic", color: MUTED });
+        cy += 16;
+      });
+      cy += S.SM;
+    }
+    return cy;
+  };
+
+
+
   // ========== PAGE 1 — Cover ==========
   paintBackground(INK);
   setDraw(GOLD);
@@ -812,108 +875,129 @@ export async function renderAnalysisPDF(input: {
   }
 
   // Section: "Deine 3 Hebel"
-  setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y);
-  y += 14;
-  drawText("DEIN FOKUS", margin, y, { size: 7.5, style: "bold", color: GOLD });
-  y += 18;
-  drawText("Diese 3 Hebel bringen dir am meisten", margin, y, { size: 18, style: "bold", color: INK });
-  y += 26;
-  drawText("Alles andere ist Bonus. Fang mit Hebel 1 an — der bringt am meisten Cash.", margin, y, { size: 10, color: MUTED, style: "italic" });
-  y += 24;
+  y = pageIntro(
+    y,
+    "Dein Fokus",
+    "Diese 3 Hebel bringen dir am meisten",
+    "Alles andere ist Bonus. Fang mit Hebel 1 an — der bringt am meisten Cash.",
+  );
+
 
   if (levers.length === 0) {
     drawText("Noch keine Hebel gefunden. Prüfe ob genug Chats geladen wurden.", margin, y, { size: 11, color: MUTED });
   } else {
     // 3 compact cards stacked
-    const cardH = 82;
+    const cardH = 88;
     levers.forEach((lev, i) => {
       const cardY = y;
-      // background
       setFill([250, 247, 238]);
-      doc.roundedRect(margin, cardY, contentW, cardH, 6, 6, "F");
-      // gold left accent
+      doc.roundedRect(margin, cardY, contentW, cardH, CARD_RADIUS, CARD_RADIUS, "F");
       setFill(GOLD);
-      doc.rect(margin, cardY, 3, cardH, "F");
+      doc.rect(margin, cardY, CARD_ACCENT_W, cardH, "F");
       // Number disc
       setFill(INK);
-      doc.circle(margin + 26, cardY + 24, 12, "F");
-      drawText(String(i + 1), margin + 26, cardY + 28, { size: 12, style: "bold", color: GOLD, align: "center" });
+      doc.circle(margin + 28, cardY + 26, 13, "F");
+      drawText(String(i + 1), margin + 28, cardY + 30, { size: T.LEAD, style: "bold", color: GOLD, align: "center" });
       // Title
-      drawFitText(lev.title ?? "-", margin + 48, cardY + 22, contentW - 60, { size: 13, style: "bold", color: INK });
-      // Principle
-      const principleLines = wrapLines(lev.principle ?? "", contentW - 60, 10);
-      let py = cardY + 40;
-      principleLines.slice(0, 3).forEach((l) => {
-        drawText(l, margin + 48, py, { size: 10, color: [55, 55, 55] });
-        py += 13;
+      drawFitText(lev.title ?? "-", margin + 52, cardY + 24, contentW - 68, {
+        size: T.CARD_TITLE, style: "bold", color: INK,
       });
-      y = cardY + cardH + 12;
+      // Principle
+      const principleLines = wrapLines(lev.principle ?? "", contentW - 68, T.BODY_SM);
+      let py = cardY + 46;
+      principleLines.slice(0, 3).forEach((l) => {
+        drawText(l, margin + 52, py, { size: T.BODY_SM, color: [70, 70, 70] });
+        py += 14;
+      });
+      y = cardY + cardH + S.MD;
     });
   }
+
 
   drawContentFooter("Seite 2 · Deine 3 Hebel");
 
   // ========== PAGES 3+ — one page per lever (Hebel 1 full, Hebel 2+3 combined) ==========
   const renderLeverDetail = (lev: Lever, index: number, compact = false) => {
     const startY = y;
-    // Kicker + title
+    // Kicker + title (matches pageIntro rhythm)
     setDraw(GOLD);
-    doc.setLineWidth(0.6);
-    doc.line(margin, startY, margin + 60, startY);
-    y = startY + 12;
-    drawText(`HEBEL ${index + 1}`, margin, y, { size: 7.5, style: "bold", color: GOLD });
-    y += 18;
-    drawFitText(lev.title ?? "-", margin, y, contentW, { size: compact ? 16 : 20, style: "bold", color: INK });
-    y += compact ? 22 : 28;
+    doc.setLineWidth(0.7);
+    doc.line(margin, startY, margin + 44, startY);
+    y = startY + 20;
+    drawText(`HEBEL ${index + 1}`, margin, y, { size: T.CAPTION, style: "bold", color: GOLD });
+    y += 22;
+    drawFitText(lev.title ?? "-", margin, y, contentW, {
+      size: compact ? T.H3 : T.H2, style: "bold", color: INK,
+    });
+    y += compact ? 24 : 28;
 
     // Principle
-    const pLines = wrapLines(lev.principle ?? "", contentW, compact ? 10 : 11);
+    const principleSize = compact ? T.BODY_SM : T.BODY;
+    const pLines = wrapLines(lev.principle ?? "", contentW, principleSize);
     for (const l of pLines) {
-      drawText(l, margin, y, { size: compact ? 10 : 11, color: [55, 55, 55] });
+      drawText(l, margin, y, { size: principleSize, color: [60, 60, 60] });
       y += compact ? 14 : 16;
     }
-    y += compact ? 8 : 12;
+    y += S.SM;
 
-    // Wrong → Better side-by-side
-    const halfW = (contentW - 12) / 2;
-    const wrongLines = wrapLines(`„${lev.wrong_example ?? ""}"`, halfW - 24, 10, "italic");
-    const betterLines = wrapLines(`„${lev.better_example ?? ""}"`, halfW - 24, 10, "italic");
-    const boxH = Math.max(wrongLines.length, betterLines.length) * 14 + 40;
+    // Wrong → Better side-by-side (equal padding, uniform radius/kicker)
+    const gap = 14;
+    const halfW = (contentW - gap) / 2;
+    const innerPad = 16;
+    const wrongLines = wrapLines(`„${lev.wrong_example ?? ""}"`, halfW - innerPad * 2, T.BODY_SM, "italic");
+    const betterLines = wrapLines(`„${lev.better_example ?? ""}"`, halfW - innerPad * 2, T.BODY_SM, "italic");
+    const rowH = 14;
+    const boxH = Math.max(wrongLines.length, betterLines.length) * rowH + 46;
 
     // Wrong box
     setFill([250, 244, 240]);
-    doc.roundedRect(margin, y, halfW, boxH, 5, 5, "F");
+    doc.roundedRect(margin, y, halfW, boxH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill([180, 90, 60]);
-    doc.rect(margin, y, 3, boxH, "F");
-    drawText("STATT SO", margin + 14, y + 16, { size: 7, style: "bold", color: [180, 90, 60] });
-    let wy = y + 32;
-    wrongLines.forEach((l) => { drawText(l, margin + 14, wy, { size: 10, style: "italic", color: INK }); wy += 14; });
+    doc.rect(margin, y, CARD_ACCENT_W, boxH, "F");
+    drawText("STATT SO", margin + innerPad, y + 18, {
+      size: T.META, style: "bold", color: [180, 90, 60],
+    });
+    let wy = y + 36;
+    wrongLines.forEach((l) => {
+      drawText(l, margin + innerPad, wy, { size: T.BODY_SM, style: "italic", color: INK });
+      wy += rowH;
+    });
 
     // Better box
+    const bx = margin + halfW + gap;
     setFill([242, 250, 244]);
-    doc.roundedRect(margin + halfW + 12, y, halfW, boxH, 5, 5, "F");
+    doc.roundedRect(bx, y, halfW, boxH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill([60, 120, 70]);
-    doc.rect(margin + halfW + 12, y, 3, boxH, "F");
-    drawText("BESSER SO", margin + halfW + 26, y + 16, { size: 7, style: "bold", color: [60, 120, 70] });
-    let by = y + 32;
-    betterLines.forEach((l) => { drawText(l, margin + halfW + 26, by, { size: 10, style: "italic", color: INK }); by += 14; });
+    doc.rect(bx, y, CARD_ACCENT_W, boxH, "F");
+    drawText("BESSER SO", bx + innerPad, y + 18, {
+      size: T.META, style: "bold", color: [60, 120, 70],
+    });
+    let by = y + 36;
+    betterLines.forEach((l) => {
+      drawText(l, bx + innerPad, by, { size: T.BODY_SM, style: "italic", color: INK });
+      by += rowH;
+    });
 
-    y += boxH + 14;
+    y += boxH + S.MD;
 
     // If-Then script — highlighted
     if (lev.if_then_script) {
-      const scriptLines = wrapLines(lev.if_then_script, contentW - 36, 11, "bold");
-      const sh = scriptLines.length * 16 + 34;
+      const scriptLines = wrapLines(lev.if_then_script, contentW - CARD_PAD * 2, T.BODY, "bold");
+      const sh = scriptLines.length * 16 + 40;
       setFill(INK);
-      doc.roundedRect(margin, y, contentW, sh, 6, 6, "F");
-      drawText("DEIN SKRIPT ZUM MERKEN", margin + 18, y + 18, { size: 7.5, style: "bold", color: GOLD });
-      let sy = y + 38;
-      scriptLines.forEach((l) => { drawText(l, margin + 18, sy, { size: 11, style: "bold", color: [245, 240, 224] }); sy += 16; });
-      y += sh + 12;
+      doc.roundedRect(margin, y, contentW, sh, CARD_RADIUS, CARD_RADIUS, "F");
+      drawText("DEIN SKRIPT ZUM MERKEN", margin + CARD_PAD, y + 20, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let sy = y + 40;
+      scriptLines.forEach((l) => {
+        drawText(l, margin + CARD_PAD, sy, { size: T.BODY, style: "bold", color: [245, 240, 224] });
+        sy += 16;
+      });
+      y += sh + S.MD;
     }
   };
+
 
   // Page 3 — Hebel 1 full
   if (levers[0]) {
@@ -937,14 +1021,8 @@ export async function renderAnalysisPDF(input: {
   newContentPage();
   y = margin + 4;
 
-  setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y);
-  y += 14;
-  drawText("PERSÖNLICH", margin, y, { size: 7.5, style: "bold", color: GOLD });
-  y += 18;
-  drawText("Was besonders auffiel", margin, y, { size: 20, style: "bold", color: INK });
-  y += 28;
+  y = pageIntro(y, "Persönlich", "Was besonders auffiel");
+
 
   const sbiCard = (opts: {
     kicker: string;
@@ -954,34 +1032,39 @@ export async function renderAnalysisPDF(input: {
     impact: string;
     ifThen?: string;
   }) => {
-    const innerW = contentW - 36;
-    const sitLines = wrapLines(opts.situation, innerW, 10);
-    const behLines = wrapLines(opts.behavior, innerW, 10);
-    const impLines = wrapLines(opts.impact, innerW, 10);
-    const ifLines = opts.ifThen ? wrapLines(opts.ifThen, innerW - 12, 10, "bold") : [];
-    const rowH = 12;
+    const innerW = contentW - CARD_PAD * 2;
+    const sitLines = wrapLines(opts.situation, innerW, T.BODY_SM);
+    const behLines = wrapLines(opts.behavior, innerW, T.BODY_SM);
+    const impLines = wrapLines(opts.impact, innerW, T.BODY_SM);
+    const ifLines = opts.ifThen ? wrapLines(opts.ifThen, innerW - 12, T.BODY_SM, "bold") : [];
+    const rowH = 13;
     const labelH = 14;
-    const gap = 8;
-    const ifBlockH = ifLines.length ? ifLines.length * 14 + 30 : 0;
+    const gap = S.SM;
+    const ifBlockH = ifLines.length ? ifLines.length * 14 + 34 : 0;
     const cardH =
-      18 + // top pad
+      22 + // top pad (kicker)
       labelH + sitLines.length * rowH + gap +
       labelH + behLines.length * rowH + gap +
       labelH + impLines.length * rowH + gap +
-      (ifBlockH ? ifBlockH + 4 : 0) +
-      14;
+      (ifBlockH ? ifBlockH + 6 : 0) +
+      16;
 
     setFill([250, 247, 238]);
-    doc.roundedRect(margin, y, contentW, cardH, 6, 6, "F");
+    doc.roundedRect(margin, y, contentW, cardH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill(opts.kickerColor);
-    doc.rect(margin, y, 3, cardH, "F");
-    drawText(opts.kicker.toUpperCase(), margin + 18, y + 20, { size: 8, style: "bold", color: opts.kickerColor });
+    doc.rect(margin, y, CARD_ACCENT_W, cardH, "F");
+    drawText(opts.kicker.toUpperCase(), margin + CARD_PAD, y + 22, {
+      size: T.META, style: "bold", color: opts.kickerColor,
+    });
 
-    let cy = y + 38;
+    let cy = y + 44;
     const writeLabelled = (label: string, lines: string[]) => {
-      drawText(label, margin + 18, cy, { size: 7, style: "bold", color: MUTED });
+      drawText(label, margin + CARD_PAD, cy, { size: T.MICRO, style: "bold", color: MUTED });
       cy += 12;
-      for (const l of lines) { drawText(l, margin + 18, cy, { size: 10, color: INK }); cy += rowH; }
+      for (const l of lines) {
+        drawText(l, margin + CARD_PAD, cy, { size: T.BODY_SM, color: INK });
+        cy += rowH;
+      }
       cy += gap;
     };
     writeLabelled("SITUATION", sitLines);
@@ -990,14 +1073,20 @@ export async function renderAnalysisPDF(input: {
 
     if (ifLines.length) {
       setFill(INK);
-      doc.roundedRect(margin + 12, cy - 2, contentW - 24, ifBlockH - 4, 5, 5, "F");
-      drawText("SO BEIM NÄCHSTEN MAL", margin + 26, cy + 14, { size: 7, style: "bold", color: GOLD });
-      let ify = cy + 30;
-      ifLines.forEach((l) => { drawText(l, margin + 26, ify, { size: 10, style: "bold", color: [245, 240, 224] }); ify += 14; });
+      doc.roundedRect(margin + 12, cy - 2, contentW - 24, ifBlockH - 6, CARD_RADIUS - 2, CARD_RADIUS - 2, "F");
+      drawText("SO BEIM NÄCHSTEN MAL", margin + 26, cy + 16, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let ify = cy + 34;
+      ifLines.forEach((l) => {
+        drawText(l, margin + 26, ify, { size: T.BODY_SM, style: "bold", color: [245, 240, 224] });
+        ify += 14;
+      });
     }
 
-    y += cardH + 14;
+    y += cardH + S.MD;
   };
+
 
   if (sbi?.strength) {
     sbiCard({
@@ -1028,36 +1117,36 @@ export async function renderAnalysisPDF(input: {
   newContentPage();
   y = margin + 4;
 
-  setDraw(GOLD);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y);
-  y += 14;
-  drawText("DEIN NÄCHSTER SCHRITT", margin, y, { size: 7.5, style: "bold", color: GOLD });
-  y += 18;
-  drawText("Eine Sache. Sieben Tage.", margin, y, { size: 20, style: "bold", color: INK });
-  y += 28;
-
-  drawText(
+  y = pageIntro(
+    y,
+    "Dein nächster Schritt",
+    "Eine Sache. Sieben Tage.",
     "Alles andere kommt später. Nur diese eine Handlung, jeden Tag.",
-    margin, y, { size: 10, color: MUTED, style: "italic" },
   );
-  y += 24;
+
 
   // Big micro-action card
   const action = (result.micro_action ?? "").trim() || "Vor jedem PPV-Angebot: erst 2 echte Fragen zum Kunden stellen.";
-  const actionLines = wrapLines(action, contentW - 40, 15, "bold");
-  const actionH = actionLines.length * 20 + 44;
+  const actionLines = wrapLines(action, contentW - CARD_PAD * 2, T.CARD_TITLE, "bold");
+  const actionH = actionLines.length * 20 + 50;
   setFill(INK);
-  doc.roundedRect(margin, y, contentW, actionH, 8, 8, "F");
+  doc.roundedRect(margin, y, contentW, actionH, CARD_RADIUS, CARD_RADIUS, "F");
   setFill(GOLD);
-  doc.rect(margin, y, 4, actionH, "F");
-  drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + 22, y + 22, { size: 8, style: "bold", color: GOLD });
-  let ay = y + 44;
-  actionLines.forEach((l) => { drawText(l, margin + 22, ay, { size: 15, style: "bold", color: [245, 240, 224] }); ay += 20; });
-  y += actionH + 22;
+  doc.rect(margin, y, CARD_ACCENT_W, actionH, "F");
+  drawText("MIKRO-AKTION FÜR DIESE WOCHE", margin + CARD_PAD, y + 22, {
+    size: T.META, style: "bold", color: GOLD,
+  });
+  let ay = y + 46;
+  actionLines.forEach((l) => {
+    drawText(l, margin + CARD_PAD, ay, { size: T.CARD_TITLE, style: "bold", color: [245, 240, 224] });
+    ay += 20;
+  });
+  y += actionH + S.LG;
 
   // 7-day tracker
-  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
+  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, {
+    size: T.META, style: "bold", color: MUTED,
+  });
   y += 14;
   const days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
   const boxSize = 42;
@@ -1066,32 +1155,39 @@ export async function renderAnalysisPDF(input: {
     const bx = margin + i * (boxSize + gapX);
     setDraw(GOLD);
     doc.setLineWidth(0.8);
-    doc.roundedRect(bx, y, boxSize, boxSize, 5, 5, "S");
+    doc.roundedRect(bx, y, boxSize, boxSize, CARD_RADIUS - 2, CARD_RADIUS - 2, "S");
     drawText(d, bx + boxSize / 2, y + boxSize + 12, { size: 9, color: MUTED, align: "center" });
   });
-  y += boxSize + 30;
+  y += boxSize + S.XL;
 
   // Retrieval question
   if (result.retrieval_question) {
     setFill([250, 247, 238]);
-    const qLines = wrapLines(result.retrieval_question, contentW - 40, 12, "italic");
-    const qH = qLines.length * 18 + 44;
-    doc.roundedRect(margin, y, contentW, qH, 6, 6, "F");
+    const qLines = wrapLines(result.retrieval_question, contentW - CARD_PAD * 2, T.LEAD, "italic");
+    const qH = qLines.length * 18 + 48;
+    doc.roundedRect(margin, y, contentW, qH, CARD_RADIUS, CARD_RADIUS, "F");
     setFill(GOLD);
-    doc.rect(margin, y, 3, qH, "F");
-    drawText("FRAG DICH SELBST", margin + 22, y + 20, { size: 8, style: "bold", color: GOLD });
-    let qy = y + 38;
-    qLines.forEach((l) => { drawText(l, margin + 22, qy, { size: 12, style: "italic", color: INK }); qy += 18; });
-    y += qH + 18;
+    doc.rect(margin, y, CARD_ACCENT_W, qH, "F");
+    drawText("FRAG DICH SELBST", margin + CARD_PAD, y + 22, {
+      size: T.META, style: "bold", color: GOLD,
+    });
+    let qy = y + 42;
+    qLines.forEach((l) => {
+      drawText(l, margin + CARD_PAD, qy, { size: T.LEAD, style: "italic", color: INK });
+      qy += 18;
+    });
+    y += qH + S.MD;
   }
 
   // Reflection frame
-  drawText("PLATZ FÜR DEINE GEDANKEN", margin, y, { size: 8, style: "bold", color: MUTED });
-  y += 10;
+  drawText("PLATZ FÜR DEINE GEDANKEN", margin, y, {
+    size: T.META, style: "bold", color: MUTED,
+  });
+  y += 12;
   const reflectH = Math.max(60, pageH - margin - 30 - y);
   setDraw(HAIRLINE);
   doc.setLineWidth(0.5);
-  doc.roundedRect(margin, y, contentW, reflectH, 6, 6, "S");
+  doc.roundedRect(margin, y, contentW, reflectH, CARD_RADIUS, CARD_RADIUS, "S");
   // faint ruled lines
   const lineGap = 22;
   for (let ly = y + lineGap; ly < y + reflectH - 8; ly += lineGap) {
@@ -1099,6 +1195,7 @@ export async function renderAnalysisPDF(input: {
     doc.setLineWidth(0.3);
     doc.line(margin + 14, ly, pageW - margin - 14, ly);
   }
+
 
   drawContentFooter("Seite 6 · Dein Fahrplan");
 
