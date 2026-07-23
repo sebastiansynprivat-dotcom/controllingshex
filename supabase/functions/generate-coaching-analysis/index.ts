@@ -606,12 +606,14 @@ ${analyzedModelKey ? `- Analysiertes Model "${model_username}" hat im Zeitraum i
 - Umsatz-Delta vs. Vorperiode: ${deltaPct === null ? 'keine Vergleichsdaten' : (deltaPct > 0 ? '+' : '') + deltaPct + '%'}.
 
 REGEL für personal_intro:
+- Formuliere allgemein — NIE eine Chat-Anzahl nennen ("28 Chats", "deine X Chats" o.ä. verboten). Sag stattdessen "ich habe mir deine Arbeit auf ${platform} angeschaut".
+- Immer Singular / kollektiv: "habt ihr auf ${platform} diese Woche…", nicht "in deinen Chats".
 - Sag NIE "leider keine Verkäufe" pauschal, wenn die Gesamt-Umsätze > 0 sind.
-- Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in den analysierten Chats war noch kein Abschluss dabei, insgesamt aber X€ auf ${platform}".
-- Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag.
+- Wenn analysierte Chats 0€ hatten ABER Gesamt-Umsatz > 0: sag ehrlich "in dem, was ich gesehen habe, war noch kein Abschluss dabei — insgesamt aber X€ auf ${platform}".
+- Wenn analysierte Chats Umsatz hatten: würdige den konkreten Betrag, ohne Chat-Anzahlen zu erwähnen.
 - Nur wenn Analysiert=0 UND Gesamt=0: dann darfst du sagen, dass in dem Zeitraum insgesamt noch nichts verkauft wurde.`;
 
-      const metaPrompt = `Du hast ${validDigests.length} Chats von ${chatter_name} gesehen. Baue daraus das FINALE 6-Seiten-Coaching.
+      const metaPrompt = `Du hast dir die Arbeit von ${chatter_name} angeschaut. Baue daraus das FINALE 6-Seiten-Coaching. Nenne dabei NIE die Anzahl der Chats.
 Regeln:
 - GENAU 3 Hebel (top_3_levers). Nicht mehr, nicht weniger. Priorisiere den Hebel mit dem größten Cash-Impact zuerst.
 - GENAU 1 Stärke (sbi_feedback.strength) und GENAU 1 Wachstumsfeld (sbi_feedback.growth). Nimm die stärksten Beispiele aus den Digests.
