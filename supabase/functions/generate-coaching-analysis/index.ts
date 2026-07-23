@@ -697,7 +697,7 @@ JSON-Schema (EXAKT einhalten):
 }`;
 
       try {
-        const raw = await callGemini(aiKey, systemPrompt, metaPrompt);
+        const raw = await callGemini(aiKey, systemPrompt, metaPrompt, true, META_MODEL);
         focusedResult = safeParseJSON<any>(raw, null);
       } catch (e) {
         focusedResult = { error: (e as Error).message };
