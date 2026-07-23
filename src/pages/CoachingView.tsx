@@ -85,7 +85,7 @@ export default function CoachingView() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white/90">
+    <div className="fixed inset-0 bg-zinc-950 text-white/90 overflow-y-auto">
       <TopNav
         row={row}
         section={section}
