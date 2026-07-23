@@ -1011,6 +1011,26 @@ export async function renderAnalysisPDF(input: {
 
   drawContentFooter("Seite 6 · Dein Fahrplan");
 
+  // --------- Automatische PDF-Validierung ---------
+  // Blockiert den Download, wenn Text über den Rand ragt oder abgeschnitten ist.
+  if (layoutIssues.length > 0) {
+    const grouped = new Map<number, string[]>();
+    for (const iss of layoutIssues) {
+      if (!grouped.has(iss.page)) grouped.set(iss.page, []);
+      grouped.get(iss.page)!.push(`  · [${iss.kind}] ${iss.detail}`);
+    }
+    const summary = Array.from(grouped.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([p, arr]) => `Seite ${p}:\n${arr.slice(0, 4).join("\n")}${arr.length > 4 ? `\n  · … +${arr.length - 4} weitere` : ""}`)
+      .join("\n");
+    console.warn("[coaching-pdf] Layout-Validierung fehlgeschlagen:", layoutIssues);
+    const err = new Error(
+      `PDF-Validierung fehlgeschlagen — ${layoutIssues.length} Layout-Problem(e). Datei wurde NICHT freigegeben.\n${summary}`,
+    );
+    (err as any).layoutIssues = layoutIssues;
+    throw err;
+  }
+
   return doc.output("blob");
 }
 
