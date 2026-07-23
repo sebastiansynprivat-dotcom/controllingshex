@@ -133,11 +133,22 @@ export interface BossFightResult {
   completed_at?: string;
 }
 
+export interface CinemaProgress {
+  messages_revealed?: number;
+  guess?: string;
+  guess_score?: number;
+  guess_feedback?: string;
+  skipped?: boolean;
+  completed?: boolean;
+  at?: string;
+}
+
 export interface CoachingProgress {
   cards_seen?: number[]; // indexes of visited story-cards
   quiz_answers?: Record<number, { selected: number; correct: boolean; at: string }>;
   drill_answers?: Record<number, { picked: "a" | "b"; correct: boolean; typed?: string; score?: number; feedback?: string; polished?: string; at: string }>;
   simulation_results?: Record<number, { answer: string; score: number; feedback: string; improved_reply?: string; at: string }>;
+  cinema_progress?: Record<number, CinemaProgress>;
   actions_done?: Record<number, boolean>;
   levers_read?: number[]; // legacy
   completed?: boolean;

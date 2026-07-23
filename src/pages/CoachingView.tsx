@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Loader2, ArrowRight, ArrowLeft, Trophy, Flame, Sparkles, Target,
   MessageCircle, TrendingDown, TrendingUp, Star, Crown, Send, Check, X,
-  ChevronDown, Zap, Heart, DollarSign,
+  ChevronDown, Zap, Heart, DollarSign, Play, Lock, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,11 +30,8 @@ type CardKind =
   | "weekly"
   | "lever_intro"
   | "customer_card"
-  | "context"
-  | "situation"
-  | "chatter_did"
-  | "money_loss"
-  | "better"
+  | "cinema"
+  | "cinema_better"
   | "drill"
   | "type_drill"
   | "boss_anecdote"
@@ -65,6 +62,7 @@ export default function CoachingView() {
   const [error, setError] = useState<string | null>(null);
   const [direction, setDirection] = useState<1 | -1>(1);
   const saveTimer = useRef<any>(null);
+  const [cardGateOpen, setCardGateOpen] = useState(true);
 
   useEffect(() => {
     if (!token) return;
@@ -93,12 +91,13 @@ export default function CoachingView() {
     levers.forEach((lv, i) => {
       list.push({ kind: "lever_intro", leverIndex: i });
       if (lv.customer_card) list.push({ kind: "customer_card", leverIndex: i });
-      if (lv.context_messages && lv.context_messages.length) list.push({ kind: "context", leverIndex: i });
-      if (lv.situation_summary) list.push({ kind: "situation", leverIndex: i });
       const sb = lv.storyboard ?? [];
-      if (sb[0]?.chatter_did) list.push({ kind: "chatter_did", leverIndex: i, roundIndex: 0 });
-      if (lv.money_line) list.push({ kind: "money_loss", leverIndex: i });
-      if (sb[1]?.better_version) list.push({ kind: "better", leverIndex: i, roundIndex: 1 });
+      const hasContext =
+        (lv.context_messages && lv.context_messages.length > 0) ||
+        !!sb[0]?.customer ||
+        !!lv.situation_summary;
+      if (hasContext && sb[0]?.chatter_did) list.push({ kind: "cinema", leverIndex: i });
+      if (sb[1]?.better_version) list.push({ kind: "cinema_better", leverIndex: i });
       if (lv.drill) list.push({ kind: "drill", leverIndex: i });
       if (lv.drill) list.push({ kind: "type_drill", leverIndex: i });
       if (lv.boss_anecdote) list.push({ kind: "boss_anecdote", leverIndex: i });
@@ -118,6 +117,9 @@ export default function CoachingView() {
   const totalCards = cards.length;
   const overallProgress = totalCards ? (safeCardIdx + 1) / totalCards : 0;
   const level = levelFromXp(xp);
+
+  useEffect(() => { setCardGateOpen(true); }, [safeCardIdx]);
+
 
   const persist = useCallback((patch: Parameters<typeof updateProgress>[1]) => {
     if (!token) return;
@@ -235,6 +237,7 @@ export default function CoachingView() {
                   token={token!}
                   onGrantXp={grantXp}
                   onAdvance={goNext}
+                  setCanAdvance={setCardGateOpen}
                   onSaveProgress={(p) => {
                     setProgress(p);
                     persist({ progress: p });
@@ -267,11 +270,11 @@ export default function CoachingView() {
         <div className="flex-1" />
         <Button
           onClick={goNext}
-          disabled={safeCardIdx >= cards.length - 1}
+          disabled={safeCardIdx >= cards.length - 1 || !cardGateOpen}
           size="sm"
-          className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold"
+          className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold disabled:opacity-40"
         >
-          Weiter <ArrowRight className="h-4 w-4 ml-1" />
+          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
         </Button>
       </div>
     </div>
@@ -295,6 +298,7 @@ interface CardProps {
   token: string;
   onGrantXp: (n: number) => void;
   onAdvance: () => void;
+  setCanAdvance: (open: boolean) => void;
   onSaveProgress: (p: CoachingProgress) => void;
   onSaveCommitment: (t: string) => void;
   xp: number;
@@ -308,11 +312,8 @@ function CardRenderer(p: CardProps) {
     case "weekly": return <WeeklyCard {...p} />;
     case "lever_intro": return <LeverIntroCard {...p} />;
     case "customer_card": return <CustomerCardView {...p} />;
-    case "context": return <ContextCard {...p} />;
-    case "situation": return <SituationCard {...p} />;
-    case "chatter_did": return <ChatterDidCard {...p} />;
-    case "money_loss": return <MoneyLossCard {...p} />;
-    case "better": return <BetterCard {...p} />;
+    case "cinema": return <CinemaCard {...p} />;
+    case "cinema_better": return <CinemaBetterCard {...p} />;
     case "drill": return <DrillCard {...p} />;
     case "type_drill": return <TypeDrillCard {...p} />;
     case "boss_anecdote": return <BossAnecdoteCard {...p} />;
@@ -480,158 +481,389 @@ function ChatBubble({ role, text }: { role: string; text: string }) {
   );
 }
 
-function FullChatHistory({ lever, highlightRound }: { lever?: Lever; highlightRound?: number }) {
-  const [open, setOpen] = useState(false);
-  const msgs = lever?.context_messages ?? [];
-  const storyboard = lever?.storyboard ?? [];
-  const parsedContext = msgs.map(parseChatLine);
-  if (!msgs.length && !storyboard.length) return null;
-
-  return (
-    <div className="mt-5">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs transition-all"
-      >
-        <MessageCircle className="h-3.5 w-3.5" />
-        {open ? "Verlauf ausblenden" : "Kompletten Chatverlauf ansehen"}
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
-          <div className="text-[10px] uppercase tracking-widest text-white/40 text-center pb-2 border-b border-white/5">
-            Wie es begann
-          </div>
-          {parsedContext.map((p, i) => (
-            <ChatBubble key={`ctx-${i}`} role={p.role} text={p.text} />
-          ))}
-          {storyboard.length > 0 && (
-            <div className="text-[10px] uppercase tracking-widest text-white/40 text-center pt-2 pb-1 border-t border-white/5">
-              Der Moment im Chat
-            </div>
-          )}
-          {storyboard.map((r, i) => {
-            const isHighlight = highlightRound === i;
-            return (
-              <div key={`sb-${i}`} className={`space-y-3 ${isHighlight ? "ring-2 ring-amber-400/40 rounded-2xl p-2 -m-1" : ""}`}>
-                {r.customer && <ChatBubble role="KUNDE" text={r.customer} />}
-                {r.chatter_did && <ChatBubble role="CHATTER" text={r.chatter_did} />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ContextCard({ lever }: CardProps) {
-  const msgs = lever?.context_messages ?? [];
-  if (!msgs.length) return null;
-  return (
-    <div>
-      <Eyebrow>So lief der Chat davor</Eyebrow>
-      <p className="text-white/60 text-sm mb-4">Lies mit — so hat der Kunde geschrieben, bevor du geantwortet hast:</p>
-      <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-        {msgs.map((line, i) => {
-          const parsed = parseChatLine(line);
-          return <ChatBubble key={i} role={parsed.role} text={parsed.text} />;
-        })}
-      </div>
-      <div className="text-center mt-6 text-xs text-white/50 flex items-center justify-center gap-1.5">
-        <ChevronDown className="h-4 w-4 animate-bounce" />
-        Und dann kam DEINE Antwort…
-      </div>
-    </div>
-  );
-}
-
 function parseChatLine(line: string): { role: string; text: string } {
   const m = line.match(/^(KUNDE|CHATTER|BOT-DM):\s*(.*)$/);
   if (m) return { role: m[1], text: m[2] };
   return { role: "KUNDE", text: line };
 }
 
-function SituationCard({ lever }: CardProps) {
-  if (!lever?.situation_summary) return null;
+/* ============================== Cinema Card ============================== */
+/**
+ * The Chatter's core learning moment. Plays the real chat log message-by-message
+ * with typing indicators (Netflix-style). Locks the "Weiter" gate until the
+ * chatter has scrolled through the full history AND submitted a guess (or
+ * explicitly skipped). Then reveals what they actually wrote + verdict + €-loss.
+ */
+
+interface CinemaMsg { role: string; text: string; }
+
+function TypingDots() {
   return (
-    <div>
-      <Eyebrow>Die Situation</Eyebrow>
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-        <MessageCircle className="h-6 w-6 text-amber-400 mb-4" />
-        <p className="text-white/90 text-lg leading-relaxed">{lever.situation_summary}</p>
-      </div>
+    <div className="flex items-center gap-1 px-3 py-2 rounded-2xl bg-white/10 border border-white/10 w-fit">
+      <span className="h-1.5 w-1.5 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: "0ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: "150ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: "300ms" }} />
     </div>
   );
 }
 
-function ChatterDidCard({ lever, chatterFirstName }: CardProps) {
-  const round = lever?.storyboard?.[0];
-  if (!round) return null;
+function CinemaCard({
+  lever, card, chatterFirstName, progress, onSaveProgress, onGrantXp, setCanAdvance, token,
+}: CardProps) {
+  const leverIndex = card.leverIndex!;
+  const round0 = lever?.storyboard?.[0];
+  const existing = progress.cinema_progress?.[leverIndex];
+
+  // Build the "before" message list: context_messages first, else fall back to
+  // the storyboard's own customer line, else the situation_summary.
+  const beforeMessages: CinemaMsg[] = useMemo(() => {
+    const ctx = lever?.context_messages ?? [];
+    if (ctx.length > 0) return ctx.map(parseChatLine);
+    if (round0?.customer) return [{ role: "KUNDE", text: round0.customer }];
+    if (lever?.situation_summary) return [{ role: "KUNDE", text: lever.situation_summary }];
+    return [];
+  }, [lever, round0]);
+
+  const totalBefore = beforeMessages.length;
+  const wasCompleted = !!existing?.completed;
+
+  // Phases: playing -> guess -> reveal
+  type Phase = "playing" | "guess" | "reveal";
+  const [revealed, setRevealed] = useState<number>(wasCompleted ? totalBefore : 0);
+  const [showTyping, setShowTyping] = useState(false);
+  const [phase, setPhase] = useState<Phase>(wasCompleted ? "reveal" : "playing");
+  const [guess, setGuess] = useState<string>(existing?.guess ?? "");
+  const [guessScore, setGuessScore] = useState<number | null>(existing?.guess_score ?? null);
+  const [guessFeedback, setGuessFeedback] = useState<string | null>(existing?.guess_feedback ?? null);
+  const [submitting, setSubmitting] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<any>(null);
+
+  // Gate control: closed until phase === "reveal"
+  useEffect(() => {
+    setCanAdvance(phase === "reveal");
+  }, [phase, setCanAdvance]);
+
+  // Auto-play the next message
+  useEffect(() => {
+    if (phase !== "playing") return;
+    if (revealed >= totalBefore) {
+      setPhase("guess");
+      return;
+    }
+    // Show typing indicator, then reveal next message
+    setShowTyping(true);
+    const typingDelay = 600 + Math.random() * 400;
+    timerRef.current = setTimeout(() => {
+      setShowTyping(false);
+      setRevealed((n) => n + 1);
+      onGrantXp(2);
+    }, typingDelay);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [phase, revealed, totalBefore, onGrantXp]);
+
+  // Auto-scroll to bottom as messages come in
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [revealed, showTyping, phase]);
+
+  const skipToGuess = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setShowTyping(false);
+    setRevealed(totalBefore);
+    setPhase("guess");
+  };
+
+  const persistCinema = (patch: Partial<import("@/lib/coaching").CinemaProgress>) => {
+    const prev = progress.cinema_progress ?? {};
+    const cur = prev[leverIndex] ?? {};
+    onSaveProgress({
+      ...progress,
+      cinema_progress: { ...prev, [leverIndex]: { ...cur, ...patch, at: new Date().toISOString() } },
+    });
+  };
+
+  const submitGuess = async () => {
+    if (!guess.trim() || submitting) return;
+    setSubmitting(true);
+    let score: number | null = null;
+    let feedback: string | null = null;
+    // Best-effort AI grading via the existing drill evaluator; falls back gracefully.
+    if (lever?.drill) {
+      try {
+        const res = await evaluateDrill({ token, lever_index: leverIndex, answer: guess.trim() });
+        score = res.score;
+        feedback = res.feedback;
+      } catch { /* soft-fail — we still reveal */ }
+    }
+    setGuessScore(score);
+    setGuessFeedback(feedback);
+    persistCinema({ guess: guess.trim(), guess_score: score ?? undefined, guess_feedback: feedback ?? undefined, skipped: false, completed: true });
+    onGrantXp(score != null && score >= 6 ? 30 : 15);
+    setPhase("reveal");
+    setSubmitting(false);
+  };
+
+  const skipGuess = () => {
+    persistCinema({ skipped: true, completed: true });
+    onGrantXp(5);
+    setPhase("reveal");
+  };
+
+  if (!round0?.chatter_did) {
+    // Nothing to teach — auto-open gate.
+    useEffect(() => { setCanAdvance(true); }, [setCanAdvance]);
+    return null;
+  }
+
+  const shown = beforeMessages.slice(0, revealed);
+
   return (
-    <div>
-      <Eyebrow>Das ist passiert</Eyebrow>
-      <div className="space-y-3">
-        {round.customer && <ChatBubble role="KUNDE" text={round.customer} />}
-        {round.chatter_did && <ChatBubble role="CHATTER" text={round.chatter_did} />}
+    <div className="w-full">
+      <div className="text-center mb-3">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 mb-2">
+          <Play className="h-3 w-3 text-rose-400 fill-rose-400" />
+          <span className="text-[10px] tracking-widest uppercase text-rose-200">So lief euer Chat wirklich</span>
+        </div>
+        <div className="text-[10px] text-white/40">
+          Nur 12% der Chatter lesen den ganzen Verlauf — sei einer davon.
+        </div>
       </div>
-      <div className="text-xs text-white/50 text-right mt-2">— was du gesagt hast, {chatterFirstName}</div>
-      {round.verdict && (
-        <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-sm text-center">
-          {round.verdict}
+
+      {/* Progress line inside the card */}
+      {phase === "playing" && totalBefore > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1 h-0.5 rounded-full bg-white/5 overflow-hidden">
+            <div
+              className="h-full bg-rose-400/70 transition-all duration-300"
+              style={{ width: `${(revealed / totalBefore) * 100}%` }}
+            />
+          </div>
+          <div className="text-[10px] tabular-nums text-white/40">{revealed}/{totalBefore}</div>
         </div>
       )}
-      <FullChatHistory lever={lever} highlightRound={0} />
-    </div>
-  );
-}
 
-function MoneyLossCard({ lever }: CardProps) {
-  return (
-    <div className="text-center">
-      <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/20 border border-rose-500/40 mb-4">
-        <TrendingDown className="h-8 w-8 text-rose-400" />
-      </div>
-      <Eyebrow>Was es dich kostet</Eyebrow>
-      <div className="text-3xl font-serif font-light leading-tight text-rose-100 mb-4">
-        {lever?.money_line}
-      </div>
-      <p className="text-white/50 text-sm">
-        Jedes Mal wenn diese Situation kommt und du sie liegen lässt — verlierst du Geld, das schon in Reichweite war.
-      </p>
-    </div>
-  );
-}
+      {/* Chat window */}
+      <div
+        ref={scrollRef}
+        onClick={phase === "playing" ? () => {
+          // Tap-to-advance: skip typing, reveal next immediately
+          if (timerRef.current) clearTimeout(timerRef.current);
+          setShowTyping(false);
+          if (revealed < totalBefore) {
+            setRevealed((n) => n + 1);
+            onGrantXp(2);
+          }
+        } : undefined}
+        className={`max-h-[45vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3 ${phase === "playing" ? "cursor-pointer" : ""}`}
+      >
+        {shown.map((m, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <ChatBubble role={m.role} text={m.text} />
+          </motion.div>
+        ))}
+        {showTyping && phase === "playing" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+            <TypingDots />
+          </motion.div>
+        )}
 
-function BetterCard({ lever, chatterFirstName }: CardProps) {
-  const round = lever?.storyboard?.[1];
-  if (!round) return null;
-  return (
-    <div>
-      <Eyebrow>So macht's ein Top-Chatter</Eyebrow>
-      {round.context && <p className="text-white/60 text-sm mb-4">{round.context}</p>}
-      <div className="space-y-3">
-        {round.customer && <ChatBubble role="KUNDE" text={round.customer} />}
-        {round.better_version && (
-          <div className="flex flex-col items-end">
-            <div className="text-[10px] uppercase tracking-widest mb-1 px-1 text-emerald-400/80">Du (besser)</div>
-            <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/40 shadow-lg leading-snug">
-              {round.better_version}
-            </div>
-          </div>
+        {/* Guess phase: show real bubble AFTER guess submitted */}
+        {phase === "reveal" && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <ChatBubble role="CHATTER" text={round0.chatter_did} />
+          </motion.div>
         )}
       </div>
-      <div className="text-xs text-emerald-400/70 text-right mt-2">— so würdest du klingen, {chatterFirstName}, nur besser</div>
-      {round.why_one_line && (
-        <div className="mt-4 flex items-start gap-2 text-white/70 text-sm">
-          <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-          <span>{round.why_one_line}</span>
+
+      {phase === "playing" && (
+        <div className="mt-3 text-center text-[10px] text-white/40 flex items-center justify-center gap-1.5">
+          <span>Tippen zum Überspringen</span>
+          <span className="text-white/20">·</span>
+          <button
+            onClick={skipToGuess}
+            className="underline hover:text-white/70 transition"
+          >
+            direkt zum Moment springen
+          </button>
         </div>
       )}
-      <FullChatHistory lever={lever} highlightRound={1} />
+
+      {/* Guess phase UI */}
+      {phase === "guess" && (
+        <div className="mt-4 rounded-2xl border-2 border-amber-400/40 bg-amber-500/5 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-6 w-6 rounded-full bg-amber-500 flex items-center justify-center">
+              <Zap className="h-3.5 w-3.5 text-black" />
+            </div>
+            <div className="text-amber-300 text-sm font-semibold">STOP — dein Moment</div>
+          </div>
+          <p className="text-white/85 text-sm mb-3 leading-snug">
+            Der Kunde hat gerade das oben geschickt. <span className="text-amber-300 font-semibold">Was hättest DU jetzt geantwortet, {chatterFirstName}?</span>
+          </p>
+          <Textarea
+            value={guess}
+            onChange={(e) => setGuess(e.target.value)}
+            placeholder="Tipp deine Antwort — wie im echten Chat…"
+            rows={3}
+            className="bg-black/40 border-white/10 text-white placeholder:text-white/30"
+          />
+          <div className="flex gap-2 mt-3">
+            <Button
+              onClick={submitGuess}
+              disabled={!guess.trim() || submitting}
+              className="flex-1 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
+            >
+              {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Bewerte…</> : <>Abschicken & aufdecken <Send className="h-4 w-4 ml-2" /></>}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={skipGuess}
+              className="text-white/50 hover:text-white/80 hover:bg-white/5"
+              title="Weniger XP — direkt aufdecken"
+            >
+              <Eye className="h-4 w-4 mr-1" /> Skip
+            </Button>
+          </div>
+          <div className="mt-2 text-[10px] text-white/40 text-center">
+            +30 XP wenn dein Guess gut ist · +5 XP fürs Skippen
+          </div>
+        </div>
+      )}
+
+      {/* Reveal phase: verdict + money loss */}
+      {phase === "reveal" && (
+        <div className="mt-4 space-y-3">
+          {guess.trim() && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Was du getippt hast</div>
+              <div className="text-white/80 text-sm italic">„{guess.trim()}"</div>
+              {guessScore != null && (
+                <div className="mt-2 flex items-center gap-2 pt-2 border-t border-white/5">
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${guessScore >= 7 ? "bg-emerald-500/30 text-emerald-200" : guessScore >= 4 ? "bg-amber-500/30 text-amber-200" : "bg-rose-500/30 text-rose-200"}`}>
+                    {guessScore}
+                  </div>
+                  {guessFeedback && <div className="text-white/70 text-xs leading-snug flex-1">{guessFeedback}</div>}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
+            <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Was du wirklich geschickt hast ↑</div>
+            {round0.verdict && (
+              <p className="text-rose-100 text-sm leading-relaxed">{round0.verdict}</p>
+            )}
+          </div>
+          {lever?.money_line && (
+            <div className="rounded-2xl bg-gradient-to-br from-rose-500/10 to-transparent border border-rose-500/30 p-4 flex items-start gap-3">
+              <div className="shrink-0 h-10 w-10 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
+                <TrendingDown className="h-5 w-5 text-rose-400" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Was es dich kostet</div>
+                <div className="text-rose-50 font-serif text-lg leading-tight">{lever.money_line}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+/* ============================== Cinema Better ============================== */
+/**
+ * The "how a top chatter would have done it" reveal. Shows the same context
+ * statically (already familiar), then dramatically reveals the better version.
+ */
+function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps) {
+  const round1 = lever?.storyboard?.[1];
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    // Gate closes until the chatter has tapped to reveal the better version
+    setCanAdvance(revealed);
+  }, [revealed, setCanAdvance]);
+
+  const contextMsgs: CinemaMsg[] = useMemo(() => {
+    const ctx = lever?.context_messages ?? [];
+    if (ctx.length > 0) return ctx.map(parseChatLine);
+    if (round1?.customer) return [{ role: "KUNDE", text: round1.customer }];
+    return [];
+  }, [lever, round1]);
+
+  if (!round1?.better_version) {
+    useEffect(() => { setCanAdvance(true); }, [setCanAdvance]);
+    return null;
+  }
+
+  return (
+    <div>
+      <div className="text-center mb-3">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
+          <Crown className="h-3 w-3 text-emerald-400" />
+          <span className="text-[10px] tracking-widest uppercase text-emerald-200">So macht's ein Top-Chatter</span>
+        </div>
+      </div>
+
+      {round1.context && (
+        <p className="text-white/60 text-sm mb-3 text-center italic">{round1.context}</p>
+      )}
+
+      <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3">
+        {contextMsgs.map((m, i) => (
+          <ChatBubble key={i} role={m.role} text={m.text} />
+        ))}
+
+        {!revealed ? (
+          <button
+            onClick={() => setRevealed(true)}
+            className="w-full mt-2 py-3 rounded-2xl border-2 border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-300 text-sm font-medium transition-all flex items-center justify-center gap-2"
+          >
+            <Eye className="h-4 w-4" /> Antippen — bessere Antwort aufdecken
+          </button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.4, type: "spring" }}
+            className="flex flex-col items-end"
+          >
+            <div className="text-[10px] uppercase tracking-widest mb-1 px-1 text-emerald-400/80">Du (Top-Version)</div>
+            <div className="max-w-[90%] rounded-2xl rounded-br-sm px-4 py-3 bg-gradient-to-br from-emerald-500/30 to-teal-500/20 text-emerald-50 text-sm border border-emerald-500/50 shadow-2xl shadow-emerald-500/20 leading-snug">
+              {round1.better_version}
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {revealed && round1.why_one_line && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mt-4 flex items-start gap-2 text-white/80 text-sm rounded-2xl bg-amber-500/5 border border-amber-500/20 p-3"
+        >
+          <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <span>{round1.why_one_line}</span>
+        </motion.div>
+      )}
+
+      {revealed && (
+        <div className="text-xs text-emerald-400/70 text-center mt-3">
+          — so klingst du, {chatterFirstName}, wenn du es voll ausspielst
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProps) {
   const drill = lever?.drill;
