@@ -336,8 +336,8 @@ function ChatterAnalysisSheet({
       });
       toast.success(`Analyse fertig — ${result.chats_analyzed} Chats`);
       setHistory((h) => [row, ...h]);
-      // auto-download
-      triggerDownload(pdf, buildFilename(chatter.chatter_name, dateFrom, dateTo));
+      // Zeige PDF direkt in der Vorschau (kein Auto-Download mehr)
+      openPreview(pdf, buildFilename(chatter.chatter_name, dateFrom, dateTo));
     } catch (e: any) {
       const message = e.message ?? "Analyse fehlgeschlagen";
       setAnalysisNotice(message);
