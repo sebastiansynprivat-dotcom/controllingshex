@@ -358,11 +358,19 @@ export async function renderAnalysisPDF(input: {
   const TEXT_FAM = fonts.hasText ? "NotoSans" : "helvetica";
   const EMOJI_FAM = fonts.hasEmoji ? "NotoEmoji" : TEXT_FAM;
 
-  // Light sanitize — normalize dashes/quotes for visual consistency, keep emojis.
+  // Sanitize — normalize dashes/nbsp AND strip all emoji/pictographic sequences.
+  // Noto Emoji (monochrome TTF) does not shape ZWJ/VS16 compound emoji correctly
+  // in jsPDF, which produced the "komisches Spiel" of stray glyphs. Safer to drop.
+  const EMOJI_STRIP =
+    /(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)+/gu;
   const sanitize = (s: string): string =>
     (s ?? "")
+      .replace(EMOJI_STRIP, "")
       .replace(/[\u2013\u2014]/g, "-")
-      .replace(/[\u00A0]/g, " ");
+      .replace(/[\u00A0]/g, " ")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .trim();
 
   const originalText = doc.text.bind(doc);
   (doc as any).__richTextOriginalText = originalText;
@@ -515,7 +523,8 @@ export async function renderAnalysisPDF(input: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.text("COACHING REPORT", margin + 34, margin - 22);
-    doc.text(input.chatter_name, pageW - margin, margin - 22, { align: "right" });
+    const headerName = doc.splitTextToSize(input.chatter_name, contentW / 2)[0] ?? input.chatter_name;
+    doc.text(headerName, pageW - margin, margin - 22, { align: "right" });
     setDraw(HAIRLINE);
     doc.setLineWidth(0.4);
     doc.line(margin, margin - 14, pageW - margin, margin - 14);
@@ -552,6 +561,26 @@ export async function renderAnalysisPDF(input: {
   ) => {
     doc.setFont("helvetica", opts.style ?? "normal");
     doc.setFontSize(opts.size ?? 10);
+    setText(opts.color ?? INK);
+    doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
+  };
+
+  // Draws one line and auto-shrinks font size so it fits maxWidth (never overflows).
+  const drawFitText = (
+    text: string,
+    x: number,
+    yy: number,
+    maxWidth: number,
+    opts: { size: number; minSize?: number; style?: "normal" | "bold" | "italic"; color?: [number, number, number]; align?: "left" | "right" | "center" },
+  ) => {
+    const minSize = opts.minSize ?? Math.max(9, Math.floor(opts.size * 0.6));
+    let size = opts.size;
+    doc.setFont("helvetica", opts.style ?? "normal");
+    doc.setFontSize(size);
+    while (size > minSize && doc.getTextWidth(text) > maxWidth) {
+      size -= 1;
+      doc.setFontSize(size);
+    }
     setText(opts.color ?? INK);
     doc.text(text, x, yy, opts.align ? { align: opts.align } : undefined);
   };
@@ -680,7 +709,7 @@ export async function renderAnalysisPDF(input: {
       doc.circle(margin + 26, cardY + 24, 12, "F");
       drawText(String(i + 1), margin + 26, cardY + 28, { size: 12, style: "bold", color: GOLD, align: "center" });
       // Title
-      drawText(lev.title ?? "-", margin + 48, cardY + 22, { size: 13, style: "bold", color: INK });
+      drawFitText(lev.title ?? "-", margin + 48, cardY + 22, contentW - 60, { size: 13, style: "bold", color: INK });
       // Principle
       const principleLines = wrapLines(lev.principle ?? "", contentW - 60, 10);
       let py = cardY + 40;
@@ -704,7 +733,7 @@ export async function renderAnalysisPDF(input: {
     y = startY + 12;
     drawText(`HEBEL ${index + 1}`, margin, y, { size: 7.5, style: "bold", color: GOLD });
     y += 18;
-    drawText(lev.title ?? "-", margin, y, { size: compact ? 16 : 20, style: "bold", color: INK });
+    drawFitText(lev.title ?? "-", margin, y, contentW, { size: compact ? 16 : 20, style: "bold", color: INK });
     y += compact ? 22 : 28;
 
     // Principle
@@ -743,7 +772,7 @@ export async function renderAnalysisPDF(input: {
 
     // If-Then script — highlighted
     if (lev.if_then_script) {
-      const scriptLines = wrapLines(lev.if_then_script, contentW - 32, 11, "bold");
+      const scriptLines = wrapLines(lev.if_then_script, contentW - 36, 11, "bold");
       const sh = scriptLines.length * 16 + 34;
       setFill(INK);
       doc.roundedRect(margin, y, contentW, sh, 6, 6, "F");
@@ -896,7 +925,7 @@ export async function renderAnalysisPDF(input: {
   y += actionH + 22;
 
   // 7-day tracker
-  drawText("HAK EN JEDEN TAG WENN DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
+  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
   y += 14;
   const days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
   const boxSize = 42;
