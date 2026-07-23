@@ -18,6 +18,8 @@ export interface Lever {
   wrong_example: string;
   better_example: string;
   if_then_script: string;
+  story?: string;
+  money_example?: string;
 }
 
 export interface SBIStrength {
@@ -713,28 +715,28 @@ export async function renderAnalysisPDF(input: {
   doc.line(margin, margin + 34, pageW - margin, margin + 34);
 
   // Kicker
-  drawText("PERSÖNLICHE ANALYSE FÜR", pageW / 2, margin + 100, { size: 9, color: GOLD_SOFT, align: "center" });
+  drawText("PERSÖNLICHE ANALYSE FÜR", pageW / 2, margin + 110, { size: 9, color: GOLD_SOFT, align: "center" });
 
   // Chatter name — adaptive size
   doc.setFont("helvetica", "bold");
-  let nameSize = 46;
+  let nameSize = 42;
   doc.setFontSize(nameSize);
-  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW - 20) {
+  while (nameSize > 22 && doc.getTextWidth(input.chatter_name) > contentW - 40) {
     nameSize -= 2;
     doc.setFontSize(nameSize);
   }
   setText([245, 240, 224]);
-  doc.text(input.chatter_name, pageW / 2, margin + 138, { align: "center" });
+  doc.text(input.chatter_name, pageW / 2, margin + 150, { align: "center" });
 
-  // Gold rule
+  // Gold rule — clear separation below descenders
   setDraw(GOLD);
   doc.setLineWidth(1);
-  doc.line(pageW / 2 - 30, margin + 152, pageW / 2 + 30, margin + 152);
+  doc.line(pageW / 2 - 32, margin + 172, pageW / 2 + 32, margin + 172);
 
   // Headline promise — the ONE promise
   const promise = (result.headline_promise ?? "Diese 3 Moves bringen dir mehr Verkäufe.").trim();
   const promiseLines = wrapLines(promise, contentW - 40, 15, "italic");
-  let promiseY = margin + 190;
+  let promiseY = margin + 210;
   promiseLines.slice(0, 3).forEach((l) => {
     drawText(l, pageW / 2, promiseY, { size: 15, style: "italic", color: [235, 230, 215], align: "center" });
     promiseY += 22;
@@ -995,6 +997,44 @@ export async function renderAnalysisPDF(input: {
         sy += 16;
       });
       y += sh + S.MD;
+    }
+
+    // Story — mini narrative that makes it click ("das kenn ich, das will ich auch")
+    if (lev.story) {
+      const storyLines = wrapLines(lev.story, contentW - CARD_PAD * 2, T.BODY_SM, "italic");
+      const storyH = storyLines.length * 14 + 44;
+      setFill([250, 247, 238]);
+      doc.roundedRect(margin, y, contentW, storyH, CARD_RADIUS, CARD_RADIUS, "F");
+      setFill(GOLD);
+      doc.rect(margin, y, CARD_ACCENT_W, storyH, "F");
+      drawText("SO LIEF DAS SCHON MAL", margin + CARD_PAD, y + 20, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let sty = y + 40;
+      storyLines.forEach((l) => {
+        drawText(l, margin + CARD_PAD, sty, { size: T.BODY_SM, style: "italic", color: INK });
+        sty += 14;
+      });
+      y += storyH + S.MD;
+    }
+
+    // Money example — concrete cash potential ("so viel mehr wäre drin gewesen")
+    if (lev.money_example) {
+      const moneyLines = wrapLines(lev.money_example, contentW - CARD_PAD * 2 - 16, T.BODY_SM);
+      const moneyH = moneyLines.length * 14 + 44;
+      setFill([28, 22, 10]);
+      doc.roundedRect(margin, y, contentW, moneyH, CARD_RADIUS, CARD_RADIUS, "F");
+      setFill(GOLD);
+      doc.rect(margin, y, CARD_ACCENT_W, moneyH, "F");
+      drawText("WAS DAS BEDEUTET", margin + CARD_PAD, y + 20, {
+        size: T.META, style: "bold", color: GOLD,
+      });
+      let my = y + 40;
+      moneyLines.forEach((l) => {
+        drawText(l, margin + CARD_PAD, my, { size: T.BODY_SM, color: [245, 240, 224] });
+        my += 14;
+      });
+      y += moneyH + S.MD;
     }
   };
 
