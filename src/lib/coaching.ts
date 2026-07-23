@@ -925,7 +925,7 @@ export async function renderAnalysisPDF(input: {
   y += actionH + 22;
 
   // 7-day tracker
-  drawText("HAK EN JEDEN TAG WENN DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
+  drawText("HAKE JEDEN TAG AB, AN DEM DU ES GEMACHT HAST", margin, y, { size: 8, style: "bold", color: MUTED });
   y += 14;
   const days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
   const boxSize = 42;
