@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Loader2, ArrowRight, ArrowLeft, Trophy, Flame, Sparkles, Target,
   MessageCircle, TrendingDown, TrendingUp, Star, Crown, Send, Check, X,
-  ChevronDown, Zap, Heart, DollarSign,
+  ChevronDown, Zap, Heart, DollarSign, Play, Lock, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
