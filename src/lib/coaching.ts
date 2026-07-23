@@ -733,7 +733,7 @@ export async function renderAnalysisPDF(input: {
     y = startY + 12;
     drawText(`HEBEL ${index + 1}`, margin, y, { size: 7.5, style: "bold", color: GOLD });
     y += 18;
-    drawText(lev.title ?? "-", margin, y, { size: compact ? 16 : 20, style: "bold", color: INK });
+    drawFitText(lev.title ?? "-", margin, y, contentW, { size: compact ? 16 : 20, style: "bold", color: INK });
     y += compact ? 22 : 28;
 
     // Principle
