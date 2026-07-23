@@ -254,14 +254,14 @@ function awaitRequestCompletion(
   });
 }
 
-export async function runAnalysis(input: {
+export async function fetchChatsForAnalysis(input: {
   chatter_name: string;
   platform: string;
   model_username: string | null;
   date_from: string;
   date_to: string;
   onStage?: (stage: string) => void;
-}): Promise<AnalysisResult> {
+}): Promise<any[]> {
   input.onStage?.("Tokens werden aufgelöst…");
   const { telegram_id, tokens } = await resolveTokens({
     chatter_name: input.chatter_name,
@@ -318,7 +318,19 @@ export async function runAnalysis(input: {
     );
   }
 
-  input.onStage?.(`Analysiere ${aggregated.length} Chats mit KI…`);
+  return aggregated;
+}
+
+export async function analyzeChats(input: {
+  chatter_name: string;
+  platform: string;
+  model_username: string | null;
+  date_from: string;
+  date_to: string;
+  chats: any[];
+  onStage?: (stage: string) => void;
+}): Promise<AnalysisResult> {
+  input.onStage?.(`Analysiere ${input.chats.length} Chats mit KI…`);
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-coaching-analysis`;
   const { data: { session } } = await supabase.auth.getSession();
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -335,12 +347,24 @@ export async function runAnalysis(input: {
       model_username: input.model_username,
       date_from: input.date_from,
       date_to: input.date_to,
-      chats: aggregated,
+      chats: input.chats,
     }),
   });
   const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json as AnalysisResult;
+}
+
+export async function runAnalysis(input: {
+  chatter_name: string;
+  platform: string;
+  model_username: string | null;
+  date_from: string;
+  date_to: string;
+  onStage?: (stage: string) => void;
+}): Promise<AnalysisResult> {
+  const chats = await fetchChatsForAnalysis(input);
+  return analyzeChats({ ...input, chats });
 }
 
 /* ---------------- PDF rendering — Black & Gold ---------------- */
