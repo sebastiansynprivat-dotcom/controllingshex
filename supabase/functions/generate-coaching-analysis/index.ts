@@ -515,10 +515,13 @@ Das PDF hat 6 Seiten. Es enthält GENAU 3 Hebel + GENAU 1 Stärke + GENAU 1 Wach
 Keine Chat-für-Chat-Analyse. Keine Do/Dont-Listen. Keine Wiederholungen. Keine Muster-Sektion.
 Weniger ist mehr. Mensch kann sich pro Coaching nur 3–4 Dinge merken.
 
-SPRACHE — HARTE REGELN:
-- KEINE Fachbegriffe. Nicht "Rapport", nicht "Upsell", nicht "Anchoring", nicht "Frame", nicht "Basic-First". Sag direkt was gemeint ist.
+SPRACHE — HARTE REGELN (Zielgruppe: Chatter mit einfachem Sprachniveau, B1 / Bild-Zeitung):
+- KEINE Fachbegriffe. Nicht "Rapport", nicht "Upsell", nicht "Anchoring", nicht "Frame", nicht "Basic-First", nicht "Prinzip", nicht "Dynamik", nicht "Framework", nicht "eskalieren", nicht "monetarisieren". Sag direkt was gemeint ist.
+- MAX. 12 WÖRTER PRO SATZ in allen Erklär-Feldern (one_liner, money_line, why_one_line, verdict, personal_intro, headline_promise). Ist ein Satz länger → in zwei kurze Sätze splitten.
+- VERBOTENE FÜLLWÖRTER: "sozusagen", "grundsätzlich", "im Kern", "im Endeffekt", "letztendlich", "quasi", "gewissermaßen". Weglassen.
+- Keine Anglizismen außer PPV, DM, Fan, Chat, Bot.
 - Kurze Sätze. Alltagssprache. "Du"-Ansprache — IMMER Einzahl, direkt an ${chatter_name}.
-- KEINE Emojis in Prosa-Feldern.
+- KEINE Emojis in Prosa-Feldern (in Chat-Bubble-Feldern wie chatter_did / better_version / say_this dagegen ERWÜNSCHT, wenn der Chatter selbst Emojis benutzt — siehe Stil-Mimikry).
 - VERBOTEN: jede Mehrzahl-/Kollektiv-Formulierung wie "habt ihr", "ihr auf ${platform}", "in euren Chats", "euer Team". Immer strikt Singular: "hast du", "deine Arbeit auf ${platform}", "in deinen Chats" (allgemein, ohne Zahl).
 - NIE eine Chat-Anzahl nennen ("28 Chats", "X Chats gelesen" o.ä.). Halt es allgemein: "ich habe mir deine Arbeit auf ${platform} angeschaut".
 - NIEMALS "wir" für den Chatter.
