@@ -1039,22 +1039,14 @@ export async function renderAnalysisPDF(input: {
   };
 
 
-  // Page 3 — Hebel 1 full
-  if (levers[0]) {
+  // Pages 3+ — one full page per Hebel (prevents overflow of script/story/money blocks)
+  let leverPageNum = 3;
+  for (let i = 0; i < levers.length && i < 3; i++) {
     newContentPage();
     y = margin + 4;
-    renderLeverDetail(levers[0], 0, false);
-    drawContentFooter(`Seite 3 · Hebel 1`);
-  }
-
-  // Page 4 — Hebel 2 + 3 side by side vertically (compact)
-  if (levers[1] || levers[2]) {
-    newContentPage();
-    y = margin + 4;
-    if (levers[1]) renderLeverDetail(levers[1], 1, true);
-    y += 8;
-    if (levers[2]) renderLeverDetail(levers[2], 2, true);
-    drawContentFooter(`Seite 4 · Hebel 2 & 3`);
+    renderLeverDetail(levers[i], i, false);
+    drawContentFooter(`Seite ${leverPageNum} · Hebel ${i + 1}`);
+    leverPageNum++;
   }
 
   // ========== PAGE 5 — SBI Feedback ==========
@@ -1151,7 +1143,7 @@ export async function renderAnalysisPDF(input: {
     drawText("Kein Feedback verfügbar.", margin, y, { size: 11, color: MUTED });
   }
 
-  drawContentFooter("Seite 5 · Dein Feedback");
+  drawContentFooter(`Seite ${leverPageNum} · Dein Feedback`);
 
   // ========== PAGE 6 — Action Plan + Tracker ==========
   newContentPage();
@@ -1237,7 +1229,7 @@ export async function renderAnalysisPDF(input: {
   }
 
 
-  drawContentFooter("Seite 6 · Dein Fahrplan");
+  drawContentFooter(`Seite ${leverPageNum + 1} · Dein Fahrplan`);
 
   // --------- Automatische PDF-Validierung ---------
   // Blockiert den Download, wenn Text über den Rand ragt oder abgeschnitten ist.
