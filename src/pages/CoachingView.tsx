@@ -118,6 +118,8 @@ export default function CoachingView() {
   const [direction, setDirection] = useState<1 | -1>(1);
   const saveTimer = useRef<any>(null);
   const [cardGateOpen, setCardGateOpen] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
+  const [memos, setMemos] = useState<CoachingMemo[]>([]);
 
   useEffect(() => {
     if (!token) return;
