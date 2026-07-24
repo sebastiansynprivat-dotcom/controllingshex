@@ -1284,27 +1284,43 @@ function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFi
   );
 }
 
-function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSaveProgress }: CardProps) {
+function FinalCard({ xp, level, result, chatterFirstName, token, progress, commitment, onSaveProgress, levers }: CardProps) {
   const stats = useMemo(() => ({
     quiz: Object.values(progress.quiz_answers ?? {}).filter((a) => a?.correct).length,
     drills: Object.values(progress.drill_answers ?? {}).filter((a) => a?.correct).length,
   }), [progress]);
 
+  const takeaways = useMemo(
+    () => (levers ?? [])
+      .map((lv) => lv.storyboard?.[2]?.say_this || lv.one_liner)
+      .filter(Boolean)
+      .slice(0, 3) as string[],
+    [levers],
+  );
+
+  const confetti = useConfetti();
   useEffect(() => {
     if (!progress.completed) {
-      const next = { ...progress, completed: true };
+      const nextStreak = (progress.session_streak ?? 0) + 1;
+      const next = { ...progress, completed: true, session_streak: nextStreak };
       onSaveProgress(next);
       updateProgress(token, { progress: next }).catch(() => {});
+      confetti.fire();
     }
-  }, []); // eslint-disable-line
+    // eslint-disable-next-line
+  }, []);
 
   return (
     <div className="text-center">
+      <ConfettiBurst show={confetti.on} />
       <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 mb-4 shadow-2xl shadow-amber-500/30">
         <Trophy className="h-10 w-10 text-black" />
       </div>
       <h2 className="text-3xl font-serif font-light mb-2">Bam, {chatterFirstName}.</h2>
-      <p className="text-white/70 mb-6">Du hast dein Coaching durchgezogen.</p>
+      <p className="text-white/70 mb-6">
+        Du hast dein Coaching durchgezogen — und jedes Mal, wenn du das machst, wirst du besser lesbar für die Fans.
+      </p>
+
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
           <div className="text-[10px] uppercase tracking-widest text-white/40">Level</div>
@@ -1319,6 +1335,37 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
           <div className="text-2xl font-serif mt-1">{stats.drills}</div>
         </div>
       </div>
+
+      {(progress.session_streak ?? 0) > 1 && (
+        <div className="mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30">
+          <Flame className="h-4 w-4 text-rose-400" />
+          <span className="text-sm text-rose-100">
+            {progress.session_streak} Coachings in Folge — die Kurve zeigt nach oben.
+          </span>
+        </div>
+      )}
+
+      {takeaways.length > 0 && (
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-5 text-left mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3">Was du mitnimmst</div>
+          <ul className="space-y-2">
+            {takeaways.map((t, i) => (
+              <li key={i} className="flex items-start gap-2 text-white/85 text-sm leading-snug">
+                <span className="text-amber-400 mt-0.5">·</span>
+                <span className="italic">„{t}"</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {commitment && commitment.trim() && (
+        <div className="rounded-2xl bg-gradient-to-br from-amber-500/15 to-rose-500/10 border border-amber-500/40 p-5 text-left mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-amber-400/80 mb-2">Dein Versprechen an dich selbst</div>
+          <div className="text-amber-50 font-serif text-lg italic leading-snug">„{commitment}"</div>
+        </div>
+      )}
+
       {result.micro_action && (
         <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-5 text-left">
           <div className="text-[10px] uppercase tracking-widest text-amber-400/80 mb-2">Deine Mikro-Aktion diese Woche</div>
@@ -1328,3 +1375,4 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
     </div>
   );
 }
+
