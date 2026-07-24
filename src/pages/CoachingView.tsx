@@ -135,7 +135,7 @@ export default function CoachingView() {
       persist({ xp_earned: nv });
       return nv;
     });
-    if (amount >= 25) toast.success(`+${amount} XP`, { duration: 1500 });
+    
   }, [persist]);
 
   const goNext = useCallback(() => {
@@ -205,10 +205,9 @@ export default function CoachingView() {
         <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 shrink-0">
           <Crown className="h-3 w-3 text-amber-400" />
           <span className="text-[10px] font-medium text-amber-200">{level.title}</span>
-          <span className="text-[10px] text-white/50">·</span>
-          <span className="text-[10px] tabular-nums text-white/70">{xp} XP</span>
         </div>
       </div>
+
 
       {/* Card area */}
       <div className="flex-1 relative overflow-hidden">
@@ -1216,11 +1215,7 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
       </div>
       <h2 className="text-3xl font-serif font-light mb-2">Bam, {chatterFirstName}.</h2>
       <p className="text-white/70 mb-6">Du hast dein Coaching durchgezogen.</p>
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/40">XP</div>
-          <div className="text-2xl font-serif mt-1">{xp}</div>
-        </div>
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
           <div className="text-[10px] uppercase tracking-widest text-white/40">Level</div>
           <div className="text-2xl font-serif mt-1">{level.title}</div>
