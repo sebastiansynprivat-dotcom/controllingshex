@@ -256,6 +256,15 @@ export default function CoachingView() {
         </AnimatePresence>
       </div>
 
+      {/* Sticky Boss-Line (micro action reminder) */}
+      {result?.micro_action && safeCardIdx > 0 && safeCardIdx < cards.length - 1 && (
+        <div className="px-4 pb-1 shrink-0">
+          <div className="max-w-lg mx-auto text-[10px] text-amber-300/70 truncate italic text-center">
+            Diese Woche: {result.micro_action}
+          </div>
+        </div>
+      )}
+
       {/* Bottom nav */}
       <div className="flex items-center gap-3 px-4 py-3 border-t border-white/5 shrink-0 bg-black/40 backdrop-blur">
         <Button
@@ -273,8 +282,9 @@ export default function CoachingView() {
           disabled={safeCardIdx >= cards.length - 1 || !cardGateOpen}
           size="sm"
           className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold disabled:opacity-40"
+          title={!cardGateOpen ? "Nicht wegdrehen. Zu Ende sehen." : undefined}
         >
-          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
+          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Zu Ende sehen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
         </Button>
       </div>
     </div>
