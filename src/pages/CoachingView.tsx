@@ -290,7 +290,20 @@ export default function CoachingView() {
             className="absolute inset-0 overflow-y-auto"
           >
             <div className="min-h-full flex flex-col justify-center px-5 py-6 max-w-lg mx-auto">
-              {currentCard && (
+              {currentCard && row && (
+                <>
+                  <CoachingMemoBar
+                    coachingId={row.id}
+                    cardKey={cardKey}
+                    isOwner={isOwner}
+                    memo={currentMemo}
+                    onChange={(m) => {
+                      setMemos((list) => {
+                        const rest = list.filter((x) => x.card_key !== cardKey);
+                        return m ? [...rest, m] : rest;
+                      });
+                    }}
+                  />
                 <CardRenderer
                   card={currentCard}
                   lever={lever}
