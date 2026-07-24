@@ -299,16 +299,13 @@ function formatChatForAI(row: ChatRow, maxMessages = 200): { text: string; reven
 }
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, jsonMode = true, modelOverride?: string) {
-  const isMeta = !!modelOverride;
   const body: any = {
     model: modelOverride || MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    // Großzügiges Token-Budget, damit lange JSON-Antworten nicht abgeschnitten werden.
-    // Meta-Pass (Pro-Modell) braucht deutlich mehr Headroom für internes Reasoning + JSON-Output.
-    max_tokens: isMeta ? 32000 : 8000,
+    // Bewusst KEIN max_tokens — damit lange JSON-Antworten nie durch ein Limit abgeschnitten werden.
   };
   if (jsonMode) body.response_format = { type: 'json_object' };
 
