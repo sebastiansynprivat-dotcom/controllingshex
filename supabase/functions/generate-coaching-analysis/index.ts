@@ -697,7 +697,7 @@ JSON-Schema (EXAKT einhalten):
       "icon_hint": "connection" | "close" | "timing" | "pricing" | "followup" | "listening",
       "title": "<3-5 Wörter, kein Fachbegriff>",
       "one_liner": "<1 Satz max 12 Wörter, B1, was ändert sich konkret. Beispiel: 'Nicht direkt schicken. Erst ihn heiß machen.'>",
-      "money_line": "<1 Satz max 12 Wörter mit konkreter Zahl als Motivation. Beispiel: 'Ein guter Aufbau bringt 40-80€ mehr pro Fan.' KEINE Zahl in Nachrichten-Vorschlägen — nur hier.>",
+      "money_line": "<1 Satz max 14 Wörter mit konkreter, SPÜRBARER Zahl als Motivation. MUSS ein echter Hebel sein — NIEMALS Kleinbeträge wie 10€/20€/30€. Denk in Fan-Lifetime oder Monatsimpact: 'Diese Führung macht aus einem Nein oft ein Ja — 150-300€ pro Whale.' oder 'Konsequent angewandt: locker 800-1.500€ mehr im Monat.' Nutze Ranges (X-Y€). KEINE Zahl in Nachrichten-Vorschlägen — nur hier.>",
       "situation_summary": "<PFLICHT. 2-3 Sätze max 45 Wörter, B1. Beschreibt die typische Kunden-Situation in der dieser Hebel greift. Konkret, wie ein Freund erklärt: 'Es gibt diese Momente, in denen ein Kunde X macht. Genau da entscheidet sich, ob …'>",
       "customer_profile": "<PFLICHT. 1-2 Sätze max 30 Wörter. Wer ist der Kunde in dieser Situation? Neuer Fan / Stammkunde / Whale / Sparfuchs? Was will er wirklich? Damit der Chatter das Gegenüber vor Augen hat.>",
       "customer_card": {
