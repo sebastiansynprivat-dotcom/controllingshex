@@ -841,8 +841,15 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
         })}
       </div>
       {answered && (
-        <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
-          <span className="font-medium text-amber-400">Warum: </span>{drill.why}
+        <div className="mt-4 space-y-2">
+          {picked !== correct && (
+            <div className="p-3 rounded-2xl bg-rose-500/5 border border-rose-500/20 text-rose-200/90 text-sm">
+              Nicht falsch. Nur teurer.
+            </div>
+          )}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
+            <span className="font-medium text-amber-400">Warum: </span>{drill.why}
+          </div>
         </div>
       )}
     </div>
