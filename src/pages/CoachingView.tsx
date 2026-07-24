@@ -425,6 +425,7 @@ function CardRenderer(p: CardProps) {
     case "customer_card": return <CustomerCardView {...p} />;
     case "cinema": return <CinemaCard {...p} />;
     case "cinema_better": return <CinemaBetterCard {...p} />;
+    case "cinema_follow_up": return <CinemaFollowUpCard {...p} />;
     case "drill": return <DrillCard {...p} />;
     case "type_drill": return <TypeDrillCard {...p} />;
     case "boss_anecdote": return <BossAnecdoteCard {...p} />;
