@@ -963,6 +963,47 @@ export type Database = {
         }
         Relationships: []
       }
+      coaching_memos: {
+        Row: {
+          audio_path: string
+          card_key: string
+          coaching_id: string
+          created_at: string
+          duration_ms: number | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_path: string
+          card_key: string
+          coaching_id: string
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_path?: string
+          card_key?: string
+          coaching_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_memos_coaching_id_fkey"
+            columns: ["coaching_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaching_notes: {
         Row: {
           chatter_name: string

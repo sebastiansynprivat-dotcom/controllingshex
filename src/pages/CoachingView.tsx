@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   CoachingAnalysisRow,
   CoachingProgress,
+  CoachingMemo,
   Lever,
   BossFightTurn,
   loadAnalysisByToken,
@@ -23,6 +24,8 @@ import {
   bossFightFinalScore,
   levelFromXp,
 } from "@/lib/coaching";
+import { supabase } from "@/integrations/supabase/client";
+import CoachingMemoBar from "@/components/CoachingMemoBar";
 
 /* ----------------------------- Dopamin helpers ----------------------------- */
 
@@ -115,17 +118,24 @@ export default function CoachingView() {
   const [direction, setDirection] = useState<1 | -1>(1);
   const saveTimer = useRef<any>(null);
   const [cardGateOpen, setCardGateOpen] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
+  const [memos, setMemos] = useState<CoachingMemo[]>([]);
 
   useEffect(() => {
     if (!token) return;
     setLoading(true);
     loadAnalysisByToken(token)
-      .then((r) => {
+      .then(async (r) => {
         setRow(r);
         setProgress(r.progress_json ?? {});
         setXp(r.xp_earned ?? 0);
         setCardIdx(Math.max(0, r.current_card_index ?? 0));
         setCommitment(r.commitment_text ?? "");
+        setMemos(r.memos ?? []);
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && r.user_id && user.id === r.user_id) setIsOwner(true);
+        } catch { /* noop */ }
       })
       .catch((e) => setError(e.message ?? "Fehler beim Laden"))
       .finally(() => setLoading(false));
@@ -240,6 +250,10 @@ export default function CoachingView() {
   }
 
   const lever = currentCard?.leverIndex != null ? levers[currentCard.leverIndex] : undefined;
+  const cardKey = currentCard
+    ? `${currentCard.kind}:${currentCard.leverIndex ?? ""}:${currentCard.roundIndex ?? ""}`
+    : "";
+  const currentMemo = memos.find((m) => m.card_key === cardKey) ?? null;
 
   /* ----------------------------- Render ----------------------------- */
 
@@ -276,7 +290,20 @@ export default function CoachingView() {
             className="absolute inset-0 overflow-y-auto"
           >
             <div className="min-h-full flex flex-col justify-center px-5 py-6 max-w-lg mx-auto">
-              {currentCard && (
+              {currentCard && row && (
+                <>
+                  <CoachingMemoBar
+                    coachingId={row.id}
+                    cardKey={cardKey}
+                    isOwner={isOwner}
+                    memo={currentMemo}
+                    onChange={(m) => {
+                      setMemos((list) => {
+                        const rest = list.filter((x) => x.card_key !== cardKey);
+                        return m ? [...rest, m] : rest;
+                      });
+                    }}
+                  />
                 <CardRenderer
                   card={currentCard}
                   lever={lever}
@@ -303,6 +330,7 @@ export default function CoachingView() {
                   level={level}
                   row={row}
                 />
+                </>
               )}
             </div>
           </motion.div>
