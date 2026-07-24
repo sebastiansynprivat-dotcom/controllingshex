@@ -317,7 +317,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
       'X-Lovable-AIG-SDK': 'edge-function',
     },
     body: JSON.stringify(body),
-  }, modelOverride ? 120000 : 60000);
+  }, modelOverride ? 180000 : 60000);
 
   if (!res.ok) {
     const err = await res.text();
