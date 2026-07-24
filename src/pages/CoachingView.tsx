@@ -893,12 +893,12 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
 
   return (
     <div>
-      <Eyebrow>Jetzt du · Tipp deine Antwort</Eyebrow>
+      <Eyebrow>Jetzt du · schreib die Antwort</Eyebrow>
       <p className="text-white/70 mb-3 text-sm">{drill.prompt}</p>
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Wie würdest DU antworten?"
+        placeholder="Schreib es so, wie du es wirklich schicken würdest."
         rows={4}
         disabled={score !== null}
         className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
