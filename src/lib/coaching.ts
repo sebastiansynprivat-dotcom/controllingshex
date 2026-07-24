@@ -806,7 +806,7 @@ export async function uploadPendingWeeklyMemo(input: {
 
   const ext = input.blob.type.includes("mp4") ? "m4a" : "webm";
   const uuid = crypto.randomUUID();
-  const path = `pending/${user.id}/${uuid}.${ext}`;
+  const path = `${user.id}/pending/${uuid}.${ext}`;
   const { error: upErr } = await supabase.storage
     .from("coaching-memos")
     .upload(path, input.blob, { contentType: input.blob.type || "audio/webm", upsert: false });
