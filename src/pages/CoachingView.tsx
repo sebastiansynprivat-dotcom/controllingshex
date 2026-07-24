@@ -926,7 +926,7 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
           </div>
           {polished && (
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-              <div className="text-[10px] uppercase tracking-widest text-emerald-400/80 mb-1">Polierte Version</div>
+              <div className="text-[10px] uppercase tracking-widest text-emerald-400/80 mb-1">So klingt's, wenn's sitzt</div>
               <div className="text-emerald-50 text-sm italic">"{polished}"</div>
             </div>
           )}
