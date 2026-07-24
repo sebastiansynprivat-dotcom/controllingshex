@@ -819,23 +819,30 @@ JSON-Schema (EXAKT einhalten):
         return { raw, parsed };
       };
 
-      try {
-        let attempt = await runMeta(META_MODEL);
-        if (!attempt.parsed || !Array.isArray(attempt.parsed?.top_3_levers) || attempt.parsed.top_3_levers.length === 0) {
-          console.warn('[coaching] Meta-Pass primary model returned empty/invalid JSON, retrying with fallback', {
-            primary: META_MODEL,
-            fallback: META_MODEL_FALLBACK,
-            raw_preview: (attempt.raw ?? '').slice(0, 400),
-          });
-          attempt = await runMeta(META_MODEL_FALLBACK);
+      const tryMetaSafe = async (modelId: string) => {
+        try {
+          return await runMeta(modelId);
+        } catch (e) {
+          console.error('[coaching] Meta-Pass exception', { model: modelId, err: (e as Error).message });
+          return { raw: '', parsed: null, error: (e as Error).message };
         }
-        focusedResult = attempt.parsed;
-        if (!focusedResult) {
-          console.error('[coaching] Meta-Pass fallback also failed to parse', { raw_preview: (attempt.raw ?? '').slice(0, 400) });
-        }
-      } catch (e) {
-        console.error('[coaching] Meta-Pass exception', e);
-        focusedResult = { error: (e as Error).message };
+      };
+
+      let attempt = await tryMetaSafe(META_MODEL);
+      const primaryValid = attempt.parsed && Array.isArray(attempt.parsed?.top_3_levers) && attempt.parsed.top_3_levers.length > 0;
+      if (!primaryValid) {
+        console.warn('[coaching] Meta-Pass primary failed/empty, retrying with fallback', {
+          primary: META_MODEL,
+          fallback: META_MODEL_FALLBACK,
+          had_error: !!(attempt as any).error,
+          raw_preview: (attempt.raw ?? '').slice(0, 400),
+        });
+        attempt = await tryMetaSafe(META_MODEL_FALLBACK);
+      }
+      focusedResult = attempt.parsed;
+      if (!focusedResult) {
+        console.error('[coaching] Meta-Pass fallback also failed', { raw_preview: (attempt.raw ?? '').slice(0, 400) });
+        focusedResult = { error: (attempt as any).error ?? 'meta_pass_failed' };
       }
     }
 
