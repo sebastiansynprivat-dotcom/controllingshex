@@ -151,6 +151,9 @@ export default function CoachingView() {
   const cards = useMemo<StoryCard[]>(() => {
     if (!row) return [];
     const list: StoryCard[] = [{ kind: "cover" }];
+    // Wochen-Intro-Memo vom Boss (direkt nach Cover, wenn vorhanden)
+    const hasWeeklyIntroMemo = (row.memos ?? []).some((m) => m.card_key === "weekly_intro");
+    if (hasWeeklyIntroMemo) list.push({ kind: "weekly_intro" });
     if (result.weekly_comparison) list.push({ kind: "weekly" });
     levers.forEach((lv, i) => {
       list.push({ kind: "lever_intro", leverIndex: i });
@@ -175,6 +178,7 @@ export default function CoachingView() {
     list.push({ kind: "final" });
     return list;
   }, [row, result, levers, bossScenario]);
+
 
   const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
   const currentCard = cards[safeCardIdx];
