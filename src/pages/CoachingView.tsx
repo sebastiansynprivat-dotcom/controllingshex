@@ -1213,24 +1213,49 @@ function BossFightCard({ bossScenario, token, row, onGrantXp }: CardProps) {
 
 /* ============================== Commitment + Final ============================== */
 
-function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFirstName }: CardProps) {
+function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFirstName, row }: CardProps) {
   const [text, setText] = useState(commitment);
+  const [signed, setSigned] = useState(commitment.trim().length > 0);
+  const today = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
   return (
     <div>
-      <Eyebrow>Dein Versprechen</Eyebrow>
-      <p className="text-white/80 text-lg leading-relaxed mb-4">
-        Wenn du diese Woche EINE Sache anders machst — welche wird es?
-      </p>
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => { setCommitment(text); onSaveCommitment(text); }}
-        placeholder={`Ich, ${chatterFirstName}, verspreche diese Woche …`}
-        rows={4}
-        className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-      />
-      <div className="mt-3 text-xs text-white/40 italic">
-        Wird gespeichert. Beim nächsten Login siehst du es wieder.
+      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3 text-center">Dein Wort</div>
+      <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-br from-zinc-900/80 to-black/60 p-6 shadow-2xl">
+        <div className="flex items-baseline justify-between mb-5 border-b border-white/10 pb-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-white/40">Zwischen</div>
+            <div className="text-white/90 font-serif">{row.chatter_name} &amp; Boss</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-widest text-white/40">Datum</div>
+            <div className="text-white/70 text-sm tabular-nums">{today}</div>
+          </div>
+        </div>
+        <p className="text-white/85 leading-relaxed mb-4">
+          Was machst du diese Woche <span className="italic text-amber-300">anders</span>? Ein Satz. Schreib ihn so, dass du ihn dir selbst glaubst.
+        </p>
+        <Textarea
+          value={text}
+          onChange={(e) => { setText(e.target.value); setSigned(false); }}
+          onBlur={() => { setCommitment(text); onSaveCommitment(text); if (text.trim()) setSigned(true); }}
+          placeholder={`Ich, ${chatterFirstName}, …`}
+          rows={4}
+          className="bg-black/40 border-white/10 text-white placeholder:text-white/30"
+        />
+        {signed && text.trim() && (
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-end justify-between">
+            <div className="text-[10px] uppercase tracking-widest text-white/40">Unterschrift</div>
+            <div
+              className="text-amber-300 text-xl font-serif italic"
+              style={{ transform: "rotate(-3deg)", fontFamily: "'Brush Script MT', cursive" }}
+            >
+              {chatterFirstName}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="mt-3 text-xs text-white/40 italic text-center">
+        Ich seh's beim nächsten Coaching wieder. Halt dich dran.
       </div>
     </div>
   );
