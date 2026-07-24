@@ -261,11 +261,14 @@ function ChatterAnalysisSheet({
   chatter,
   platform,
   onClose,
+  onReportGenerated,
 }: {
   chatter: ChatterCandidate | null;
   platform: string;
   onClose: () => void;
+  onReportGenerated?: () => void;
 }) {
+
   const [history, setHistory] = useState<CoachingAnalysisRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
