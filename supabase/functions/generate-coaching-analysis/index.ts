@@ -3,7 +3,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
-const META_MODEL = 'google/gemini-3.1-pro-preview';
+const META_MODEL = 'google/gemini-2.5-pro';
+const META_MODEL_FALLBACK = 'google/gemini-3.6-flash';
 const CONTROLLING_CHATS_ENDPOINT = 'https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats';
 const FETCH_CHATS_ENDPOINT = 'https://api.controlling.shexadmin.ngrok.pro/fetch-chats';
 
