@@ -658,7 +658,7 @@ function CinemaCard({
 
       {phase === "playing" && (
         <div className="mt-3 text-center text-[10px] text-white/40">
-          Tippen zeigt die nächste Nachricht schneller
+          Antippen = nächste Zeile. Nicht wegdrehen.
         </div>
       )}
 
