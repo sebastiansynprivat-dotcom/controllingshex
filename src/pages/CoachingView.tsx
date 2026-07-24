@@ -691,7 +691,7 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
 
   const contextMsgs: CinemaMsg[] = useMemo(() => {
     const ctx = lever?.context_messages ?? [];
-    if (ctx.length > 0) return ctx.map(parseChatLine);
+    if (ctx.length > 0) return ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM");
     if (round1?.customer) return [{ role: "KUNDE", text: round1.customer }];
     return [];
   }, [lever, round1]);
