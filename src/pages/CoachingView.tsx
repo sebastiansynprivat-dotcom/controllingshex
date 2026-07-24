@@ -171,8 +171,9 @@ export default function CoachingView() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-white/40">
-        <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center gap-3 text-white/60">
+        <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+        <div className="text-sm tracking-wide">Boss denkt nach<span className="inline-block animate-pulse">…</span></div>
       </div>
     );
   }
@@ -180,8 +181,8 @@ export default function CoachingView() {
     return (
       <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-center px-6">
         <div>
-          <div className="text-white/80 text-lg font-light mb-2">Coaching nicht gefunden</div>
-          <div className="text-white/40 text-sm">{error ?? "Der Link ist ungültig oder abgelaufen."}</div>
+          <div className="text-white/80 text-lg font-light mb-2">Kurz verloren.</div>
+          <div className="text-white/40 text-sm">{error ?? "Der Link stimmt nicht — nochmal antippen oder beim Boss melden."}</div>
         </div>
       </div>
     );
@@ -255,6 +256,15 @@ export default function CoachingView() {
         </AnimatePresence>
       </div>
 
+      {/* Sticky Boss-Line (micro action reminder) */}
+      {result?.micro_action && safeCardIdx > 0 && safeCardIdx < cards.length - 1 && (
+        <div className="px-4 pb-1 shrink-0">
+          <div className="max-w-lg mx-auto text-[10px] text-amber-300/70 truncate italic text-center">
+            Diese Woche: {result.micro_action}
+          </div>
+        </div>
+      )}
+
       {/* Bottom nav */}
       <div className="flex items-center gap-3 px-4 py-3 border-t border-white/5 shrink-0 bg-black/40 backdrop-blur">
         <Button
@@ -272,8 +282,9 @@ export default function CoachingView() {
           disabled={safeCardIdx >= cards.length - 1 || !cardGateOpen}
           size="sm"
           className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold disabled:opacity-40"
+          title={!cardGateOpen ? "Nicht wegdrehen. Zu Ende sehen." : undefined}
         >
-          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
+          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Zu Ende sehen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
         </Button>
       </div>
     </div>
@@ -334,23 +345,26 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 function CoverCard({ chatterFirstName, result, row }: CardProps) {
+  const chats = row.chats_analyzed;
   return (
     <div className="text-center">
       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6">
         <Sparkles className="h-3 w-3 text-amber-400" />
-        <span className="text-[10px] tracking-widest uppercase text-white/70">Dein Coaching</span>
+        <span className="text-[10px] tracking-widest uppercase text-white/70">Nur für dich, {chatterFirstName}</span>
       </div>
       <h1 className="text-4xl font-serif font-light mb-3 leading-tight">
-        Hey <span className="italic text-amber-400">{chatterFirstName}</span>
+        Hey <span className="italic text-amber-400">{chatterFirstName}</span>.
       </h1>
       <p className="text-white/70 text-lg leading-relaxed mb-6">
-        {result.headline_promise || "Diese Karten bringen dich diese Woche auf das nächste Level."}
+        {result.headline_promise || `Ich habe deine letzten ${chats} Chats durch. Wir gehen jetzt zusammen durch, was Geld gekostet hat — und wie du es nächstes Mal holst.`}
       </p>
       {result.personal_intro && (
-        <p className="text-white/50 text-sm leading-relaxed italic">"{result.personal_intro}"</p>
+        <p className="text-white/60 text-sm leading-relaxed italic border-l-2 border-amber-500/40 pl-4 text-left">
+          {result.personal_intro}
+        </p>
       )}
-      <div className="mt-8 text-xs text-white/30">
-        Tippe unten auf „Weiter", um zu starten
+      <div className="mt-8 text-xs text-white/40">
+        Kein Skip. Ein Durchlauf, dann bist du besser als 90% der anderen.
       </div>
     </div>
   );
@@ -584,7 +598,7 @@ function CinemaCard({
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 mb-2">
           <Play className="h-3 w-3 text-rose-400 fill-rose-400" />
-          <span className="text-[10px] tracking-widest uppercase text-rose-200">Erst Kontext, dann Fehler</span>
+          <span className="text-[10px] tracking-widest uppercase text-rose-200">Was davor lief</span>
         </div>
         <div className="text-[10px] text-white/40">
           Lies erst, was davor passiert ist, damit du den Kontext von dem Fehler erkennst.
@@ -644,7 +658,7 @@ function CinemaCard({
 
       {phase === "playing" && (
         <div className="mt-3 text-center text-[10px] text-white/40">
-          Tippen zeigt die nächste Nachricht schneller
+          Antippen = nächste Zeile. Nicht wegdrehen.
         </div>
       )}
 
@@ -705,7 +719,7 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
           <Crown className="h-3 w-3 text-emerald-400" />
-          <span className="text-[10px] tracking-widest uppercase text-emerald-200">So macht's ein Top-Chatter</span>
+          <span className="text-[10px] tracking-widest uppercase text-emerald-200">Spul zurück · so hätte es laufen können</span>
         </div>
       </div>
 
@@ -790,7 +804,7 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
 
   return (
     <div>
-      <Eyebrow>Mini-Übung · Welche ist besser?</Eyebrow>
+      <Eyebrow>Zwei Antworten · eine bringt Geld</Eyebrow>
       <p className="text-white/80 mb-4 leading-relaxed">{drill.prompt}</p>
       <div className="space-y-3">
         {(["a", "b"] as const).map((opt) => {
@@ -827,8 +841,15 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
         })}
       </div>
       {answered && (
-        <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
-          <span className="font-medium text-amber-400">Warum: </span>{drill.why}
+        <div className="mt-4 space-y-2">
+          {picked !== correct && (
+            <div className="p-3 rounded-2xl bg-rose-500/5 border border-rose-500/20 text-rose-200/90 text-sm">
+              Nicht falsch. Nur teurer.
+            </div>
+          )}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
+            <span className="font-medium text-amber-400">Warum: </span>{drill.why}
+          </div>
         </div>
       )}
     </div>
@@ -872,24 +893,29 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
 
   return (
     <div>
-      <Eyebrow>Jetzt du · Tipp deine Antwort</Eyebrow>
+      <Eyebrow>Jetzt du · schreib die Antwort</Eyebrow>
       <p className="text-white/70 mb-3 text-sm">{drill.prompt}</p>
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Wie würdest DU antworten?"
+        placeholder="Schreib es so, wie du es wirklich schicken würdest."
         rows={4}
         disabled={score !== null}
         className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
       />
       {score === null ? (
-        <Button
-          onClick={submit}
-          disabled={!text.trim() || busy}
-          className="w-full mt-3 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
-        >
-          {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Bewerte…</> : <>Bewertung holen <Send className="h-4 w-4 ml-2" /></>}
-        </Button>
+        <>
+          {text.trim() && (
+            <div className="mt-2 text-[10px] text-white/40 italic">Der Boss liest mit …</div>
+          )}
+          <Button
+            onClick={submit}
+            disabled={!text.trim() || busy}
+            className="w-full mt-3 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
+          >
+            {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Boss liest …</> : <>Abschicken <Send className="h-4 w-4 ml-2" /></>}
+          </Button>
+        </>
       ) : (
         <div className="mt-4 space-y-3">
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
@@ -900,7 +926,7 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
           </div>
           {polished && (
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-              <div className="text-[10px] uppercase tracking-widest text-emerald-400/80 mb-1">Polierte Version</div>
+              <div className="text-[10px] uppercase tracking-widest text-emerald-400/80 mb-1">So klingt's, wenn's sitzt</div>
               <div className="text-emerald-50 text-sm italic">"{polished}"</div>
             </div>
           )}
@@ -913,15 +939,26 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
 function BossAnecdoteCard({ lever }: CardProps) {
   const a = lever?.boss_anecdote;
   if (!a) return null;
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
   return (
     <div>
-      <Eyebrow>Aus dem Nähkästchen</Eyebrow>
-      <div className="relative rounded-3xl bg-gradient-to-br from-amber-500/10 to-rose-500/10 border border-amber-500/20 p-6">
-        <div className="absolute -top-3 -left-3 h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
+      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3 text-center">Direkt vom Boss</div>
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center shadow-lg">
           <Crown className="h-5 w-5 text-black" />
         </div>
-        <div className="text-amber-300 font-serif italic text-lg mb-3 mt-2">{a.hook}</div>
-        <p className="text-white/85 leading-relaxed">{a.story}</p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-white/90 text-sm font-semibold">Boss</span>
+            <span className="text-white/30 text-[10px] tabular-nums">{time}</span>
+          </div>
+          <div className="rounded-2xl rounded-tl-sm bg-gradient-to-br from-amber-500/15 to-rose-500/10 border border-amber-500/20 p-4">
+            <div className="text-amber-200 font-medium text-base mb-2 leading-snug">{a.hook}</div>
+            <p className="text-white/85 text-sm leading-relaxed">{a.story}</p>
+            <div className="text-white/40 text-[10px] mt-3 italic">— nicht weitersagen.</div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -968,7 +1005,7 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
 
   return (
     <div>
-      <Eyebrow>Quick-Check</Eyebrow>
+      <Eyebrow>Kurz-Check · sitzt es?</Eyebrow>
       <p className="text-white/90 text-lg leading-relaxed mb-5">{quiz.question}</p>
       <div className="space-y-2">
         {quiz.options.map((opt, i) => {
@@ -994,8 +1031,13 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
       </div>
       {answered && (
         <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm">
-          {picked === correct ? <span className="text-emerald-400 font-semibold">Richtig. </span> : <span className="text-rose-400 font-semibold">Nicht ganz. </span>}
+          {picked === correct
+            ? <span className="text-emerald-400 font-semibold">Sitzt. </span>
+            : <span className="text-amber-400 font-semibold">Lies die Karte davor nochmal. Ich warte. </span>}
           {quiz.explanation}
+          {picked === correct && (
+            <div className="mt-2 text-emerald-300/70 text-xs italic">— genau so denkt ein Closer.</div>
+          )}
         </div>
       )}
     </div>
@@ -1171,24 +1213,49 @@ function BossFightCard({ bossScenario, token, row, onGrantXp }: CardProps) {
 
 /* ============================== Commitment + Final ============================== */
 
-function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFirstName }: CardProps) {
+function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFirstName, row }: CardProps) {
   const [text, setText] = useState(commitment);
+  const [signed, setSigned] = useState(commitment.trim().length > 0);
+  const today = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
   return (
     <div>
-      <Eyebrow>Dein Versprechen</Eyebrow>
-      <p className="text-white/80 text-lg leading-relaxed mb-4">
-        Wenn du diese Woche EINE Sache anders machst — welche wird es?
-      </p>
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => { setCommitment(text); onSaveCommitment(text); }}
-        placeholder={`Ich, ${chatterFirstName}, verspreche diese Woche …`}
-        rows={4}
-        className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-      />
-      <div className="mt-3 text-xs text-white/40 italic">
-        Wird gespeichert. Beim nächsten Login siehst du es wieder.
+      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3 text-center">Dein Wort</div>
+      <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-br from-zinc-900/80 to-black/60 p-6 shadow-2xl">
+        <div className="flex items-baseline justify-between mb-5 border-b border-white/10 pb-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-white/40">Zwischen</div>
+            <div className="text-white/90 font-serif">{row.chatter_name} &amp; Boss</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-widest text-white/40">Datum</div>
+            <div className="text-white/70 text-sm tabular-nums">{today}</div>
+          </div>
+        </div>
+        <p className="text-white/85 leading-relaxed mb-4">
+          Was machst du diese Woche <span className="italic text-amber-300">anders</span>? Ein Satz. Schreib ihn so, dass du ihn dir selbst glaubst.
+        </p>
+        <Textarea
+          value={text}
+          onChange={(e) => { setText(e.target.value); setSigned(false); }}
+          onBlur={() => { setCommitment(text); onSaveCommitment(text); if (text.trim()) setSigned(true); }}
+          placeholder={`Ich, ${chatterFirstName}, …`}
+          rows={4}
+          className="bg-black/40 border-white/10 text-white placeholder:text-white/30"
+        />
+        {signed && text.trim() && (
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-end justify-between">
+            <div className="text-[10px] uppercase tracking-widest text-white/40">Unterschrift</div>
+            <div
+              className="text-amber-300 text-xl font-serif italic"
+              style={{ transform: "rotate(-3deg)", fontFamily: "'Brush Script MT', cursive" }}
+            >
+              {chatterFirstName}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="mt-3 text-xs text-white/40 italic text-center">
+        Ich seh's beim nächsten Coaching wieder. Halt dich dran.
       </div>
     </div>
   );
