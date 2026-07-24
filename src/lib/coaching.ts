@@ -518,25 +518,58 @@ export async function analyzeChats(input: {
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-coaching-analysis`;
   const { data: { session } } = await supabase.auth.getSession();
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${session?.access_token ?? anon}`,
-      "apikey": anon,
-    },
-    body: JSON.stringify({
-      chatter_name: input.chatter_name,
-      platform: input.platform,
-      model_username: input.model_username,
-      date_from: input.date_from,
-      date_to: input.date_to,
-      chats: input.chats,
-    }),
+  const body = JSON.stringify({
+    chatter_name: input.chatter_name,
+    platform: input.platform,
+    model_username: input.model_username,
+    date_from: input.date_from,
+    date_to: input.date_to,
+    chats: input.chats,
   });
-  const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json as AnalysisResult;
+
+  return withRetry(
+    "generate-coaching-analysis",
+    async (attempt) => {
+      if (attempt > 0) input.onStage?.(`KI-Analyse: Retry ${attempt}…`);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 240_000);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token ?? anon}`,
+            "apikey": anon,
+          },
+          body,
+          signal: ctrl.signal,
+        });
+        const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        if (!res.ok) {
+          const err: any = new Error(json.error || `HTTP ${res.status}`);
+          err.status = res.status;
+          // 4xx (außer 408/429) sind Client-Fehler → nicht retryen
+          if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+            (err as any).noRetry = true;
+          }
+          throw err;
+        }
+        // Leere / offensichtlich unvollständige Analyse → Retry
+        const cards = Array.isArray((json as any)?.story_cards) ? (json as any).story_cards.length : 0;
+        const levers = Array.isArray((json as any)?.top_3_levers) ? (json as any).top_3_levers.length : 0;
+        if (cards <= 2 && levers === 0) {
+          throw new Error("Analyse leer zurückgekommen – Retry");
+        }
+        return json as AnalysisResult;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    { retries: 2, baseDelayMs: 3000 },
+  ).catch((e) => {
+    if ((e as any)?.noRetry) throw e;
+    throw e;
+  });
 }
 
 export async function runAnalysis(input: {
