@@ -560,6 +560,16 @@ export default function Models() {
                 onChange={(e) => setNewProfileUrl(e.target.value)}
                 className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
               />
+              <div>
+                <label className="block text-[10px] uppercase tracking-[0.18em] text-white/40 mb-1.5 font-light">Bot-/Auto-DMs (eine pro Zeile)</label>
+                <textarea
+                  placeholder="z.B. Hey Baby, ich bin so heiß gerade 🔥 — jede automatische Opener-Nachricht in eigene Zeile. Wird bei der Coaching-Analyse ignoriert und nicht dem Chatter angelastet."
+                  value={newBotDms}
+                  onChange={(e) => setNewBotDms(e.target.value)}
+                  rows={3}
+                  className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md text-foreground placeholder:text-white/20 font-light text-sm px-3 py-2 resize-y focus:outline-none focus:border-primary/30"
+                />
+              </div>
               <div className="flex justify-end">
                 <Button
                   onClick={addModel}
