@@ -310,6 +310,8 @@ export default function CoachingView() {
                     cardKey={cardKey}
                     isOwner={isOwner}
                     memo={currentMemo}
+                    suggested={memoSuggestion.suggested}
+                    suggestedReason={memoSuggestion.reason}
                     onChange={(m) => {
                       setMemos((list) => {
                         const rest = list.filter((x) => x.card_key !== cardKey);
