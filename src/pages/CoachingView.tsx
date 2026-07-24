@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   CoachingAnalysisRow,
   CoachingProgress,
+  CoachingMemo,
   Lever,
   BossFightTurn,
   loadAnalysisByToken,
@@ -23,6 +24,8 @@ import {
   bossFightFinalScore,
   levelFromXp,
 } from "@/lib/coaching";
+import { supabase } from "@/integrations/supabase/client";
+import CoachingMemoBar from "@/components/CoachingMemoBar";
 
 /* ----------------------------- Dopamin helpers ----------------------------- */
 
