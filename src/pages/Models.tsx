@@ -257,6 +257,7 @@ export default function Models() {
       email: newEmail.trim() || null,
       password: newPassword.trim() || null,
       profile_url: newProfileUrl.trim() || null,
+      bot_dms: newBotDms.trim() || null,
     });
     if (error) {
       console.error("[addModel] insert error:", error);
@@ -269,6 +270,7 @@ export default function Models() {
     setNewEmail("");
     setNewPassword("");
     setNewProfileUrl("");
+    setNewBotDms("");
     setShowAddForm(false);
     fetchModels();
   };
@@ -280,6 +282,7 @@ export default function Models() {
     setEditEmail(m.email || "");
     setEditPassword(m.password || "");
     setEditProfileUrl(m.profile_url || "");
+    setEditBotDms(m.bot_dms || "");
   };
 
   const saveEdit = async () => {
@@ -290,6 +293,7 @@ export default function Models() {
       email: editEmail.trim() || null,
       password: editPassword.trim() || null,
       profile_url: editProfileUrl.trim() || null,
+      bot_dms: editBotDms.trim() || null,
     }).eq("id", editId);
     if (error) { toast.error("Fehler beim Speichern"); return; }
     toast.success("Aktualisiert");
