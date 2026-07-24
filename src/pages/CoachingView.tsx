@@ -125,12 +125,17 @@ export default function CoachingView() {
     if (!token) return;
     setLoading(true);
     loadAnalysisByToken(token)
-      .then((r) => {
+      .then(async (r) => {
         setRow(r);
         setProgress(r.progress_json ?? {});
         setXp(r.xp_earned ?? 0);
         setCardIdx(Math.max(0, r.current_card_index ?? 0));
         setCommitment(r.commitment_text ?? "");
+        setMemos(r.memos ?? []);
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && r.user_id && user.id === r.user_id) setIsOwner(true);
+        } catch { /* noop */ }
       })
       .catch((e) => setError(e.message ?? "Fehler beim Laden"))
       .finally(() => setLoading(false));
