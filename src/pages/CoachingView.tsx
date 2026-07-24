@@ -726,10 +726,36 @@ function CinemaCard({
   // the storyboard's own customer line, else the situation_summary.
   const beforeMessages: CinemaMsg[] = useMemo(() => {
     const ctx = lever?.context_messages ?? [];
-    if (ctx.length > 0) return ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM");
-    if (round0?.customer) return [{ role: "KUNDE", text: round0.customer }];
-    if (lever?.situation_summary) return [{ role: "KUNDE", text: lever.situation_summary }];
-    return [];
+    let msgs: CinemaMsg[] =
+      ctx.length > 0
+        ? ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM")
+        : round0?.customer
+        ? [{ role: "KUNDE" as const, text: round0.customer }]
+        : lever?.situation_summary
+        ? [{ role: "KUNDE" as const, text: lever.situation_summary }]
+        : [];
+
+    // Dedupe consecutive identical bubbles (same role + same text) — the AI
+    // sometimes emits the same line twice in context_messages.
+    const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+    msgs = msgs.filter((m, i, arr) => {
+      if (i === 0) return true;
+      const prev = arr[i - 1];
+      return !(prev.role === m.role && norm(prev.text) === norm(m.text));
+    });
+
+    // Strip trailing CHATTER line if it equals chatter_did — the reveal phase
+    // will show that same bubble, so we must not render it twice.
+    const chatterDid = round0?.chatter_did ? norm(round0.chatter_did) : null;
+    while (
+      chatterDid &&
+      msgs.length > 0 &&
+      msgs[msgs.length - 1].role === "CHATTER" &&
+      norm(msgs[msgs.length - 1].text) === chatterDid
+    ) {
+      msgs = msgs.slice(0, -1);
+    }
+    return msgs;
   }, [lever, round0]);
 
   const totalBefore = beforeMessages.length;
