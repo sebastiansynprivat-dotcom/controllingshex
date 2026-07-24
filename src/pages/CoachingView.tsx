@@ -274,8 +274,9 @@ export default function CoachingView() {
           size="sm"
           className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold disabled:opacity-40"
         >
-          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
+          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Nächste Szene <ArrowRight className="h-4 w-4 ml-1" /></>}
         </Button>
+
       </div>
     </div>
   );
