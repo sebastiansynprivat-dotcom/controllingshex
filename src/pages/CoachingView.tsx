@@ -1005,7 +1005,7 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
 
   return (
     <div>
-      <Eyebrow>Quick-Check</Eyebrow>
+      <Eyebrow>Kurz-Check · sitzt es?</Eyebrow>
       <p className="text-white/90 text-lg leading-relaxed mb-5">{quiz.question}</p>
       <div className="space-y-2">
         {quiz.options.map((opt, i) => {
