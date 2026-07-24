@@ -699,6 +699,11 @@ Regeln:
 - context_messages dürfen NIE mit einer Antwort wie "Ja", "Ja, sehr sogar", "Okay" oder einer anderen Reaktion beginnen, wenn die auslösende Nachricht davor fehlt. Wenn der Vorlauf fehlt: nimm diesen Moment NICHT.
 - context_messages brauchen 6-10 Zeilen, außer der ganze Chat ist kürzer. Die letzte Zeile davor muss klar machen, worauf chatter_did reagiert.
 
+FOLLOW-UP (Kauf-Verlauf nach der besseren Antwort):
+- Für jede Szene MUSST du entscheiden: hätte diese Situation realistisch in einen Kauf laufen können? Wenn ja → follow_up.expected_outcome="sale" und liefere messages + sale_marker + reflex_line. Wenn nein (z.B. reines Zuhören, Empathie, Bindung ohne Kaufsignal) → expected_outcome="rapport" und lass messages leer.
+- follow_up.messages sind KEINE Fantasie. Sie müssen so plausibel sein, dass der Chatter sie glaubt: leichtes Zögern beim Kunden zwischendrin, Chatter setzt subtil nach (kein Preisdruck), dann Kauf-Signal ("okay ich will es sehen" / "schick"). NIEMALS: "hier hast du 200€".
+- Stil-Mimikry gilt auch hier: Emojis/Groß-Klein wie der Chatter tippt. Kein konkreter Preis in Chatter-Bubbles.
+
 STIL-MIMIKRY — ABSOLUT KRITISCH FÜR better_example / if_then_script / alternative_if_then / micro_action:
 - Diese Vorschläge müssen so klingen, als hätte ${chatter_name} sie selbst getippt. Nicht wie ein Coach, nicht wie ein Werbetexter.
 - Lies in den Digests IMMER zuerst "writing_style_notes" und "chatter_voice_samples". Übernimm daraus:
