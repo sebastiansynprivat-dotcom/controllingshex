@@ -151,9 +151,7 @@ export default function CoachingView() {
   const cards = useMemo<StoryCard[]>(() => {
     if (!row) return [];
     const list: StoryCard[] = [{ kind: "cover" }];
-    // Wochen-Intro-Memo vom Boss (direkt nach Cover, wenn vorhanden)
-    const hasWeeklyIntroMemo = (row.memos ?? []).some((m) => m.card_key === "weekly_intro");
-    if (hasWeeklyIntroMemo) list.push({ kind: "weekly_intro" });
+    // Wochen-Intro-Memo von Sebastian wird direkt auf der Cover-Karte gerendert (kein eigener Slide mehr)
     if (result.weekly_comparison) list.push({ kind: "weekly" });
     levers.forEach((lv, i) => {
       list.push({ kind: "lever_intro", leverIndex: i });
