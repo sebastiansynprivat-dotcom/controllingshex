@@ -415,6 +415,8 @@ interface CardProps {
 function CardRenderer(p: CardProps) {
   switch (p.card.kind) {
     case "cover": return <CoverCard {...p} />;
+    case "weekly_intro": return <WeeklyIntroMemoCardView {...p} />;
+
     case "weekly": return <WeeklyCard {...p} />;
     case "lever_intro": return <LeverIntroCard {...p} />;
     case "customer_card": return <CustomerCardView {...p} />;
