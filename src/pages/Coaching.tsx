@@ -250,7 +250,9 @@ export default function CoachingPage() {
         chatter={selectedChatter}
         platform={platform}
         onClose={() => setSelectedChatter(null)}
+        onReportGenerated={() => setWeeklyMemoReload((v) => v + 1)}
       />
+
     </div>
   );
 }
