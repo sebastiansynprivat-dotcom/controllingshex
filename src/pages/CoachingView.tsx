@@ -151,9 +151,7 @@ export default function CoachingView() {
   const cards = useMemo<StoryCard[]>(() => {
     if (!row) return [];
     const list: StoryCard[] = [{ kind: "cover" }];
-    // Wochen-Intro-Memo vom Boss (direkt nach Cover, wenn vorhanden)
-    const hasWeeklyIntroMemo = (row.memos ?? []).some((m) => m.card_key === "weekly_intro");
-    if (hasWeeklyIntroMemo) list.push({ kind: "weekly_intro" });
+    // Wochen-Intro-Memo von Sebastian wird direkt auf der Cover-Karte gerendert (kein eigener Slide mehr)
     if (result.weekly_comparison) list.push({ kind: "weekly" });
     levers.forEach((lv, i) => {
       list.push({ kind: "lever_intro", leverIndex: i });
@@ -443,6 +441,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 function CoverCard({ chatterFirstName, result, row }: CardProps) {
+  const memo = (row.memos ?? []).find((m) => m.card_key === "weekly_intro");
   return (
     <div className="text-center">
       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6">
@@ -458,6 +457,13 @@ function CoverCard({ chatterFirstName, result, row }: CardProps) {
       {result.personal_intro && (
         <p className="text-white/50 text-sm leading-relaxed italic">"{result.personal_intro}"</p>
       )}
+
+      {memo?.audio_url && (
+        <div className="mt-8">
+          <PremiumMemoPlayer src={memo.audio_url} durationMs={memo.duration_ms ?? null} />
+        </div>
+      )}
+
       <div className="mt-8 text-xs text-white/30">
         Tippe unten auf „Weiter", um zu starten
       </div>
@@ -465,27 +471,96 @@ function CoverCard({ chatterFirstName, result, row }: CardProps) {
   );
 }
 
-function WeeklyIntroMemoCardView({ chatterFirstName, row }: CardProps) {
-  const memo = (row.memos ?? []).find((m) => m.card_key === "weekly_intro");
-  if (!memo?.audio_url) return null;
+function WeeklyIntroMemoCardView(_: CardProps) {
+  // Deprecated: Memo wird jetzt direkt auf der Cover-Karte gerendert.
+  return null;
+}
+
+function fmtSec(s: number) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+function PremiumMemoPlayer({ src, durationMs }: { src: string; durationMs: number | null }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState<number>(durationMs ? durationMs / 1000 : 0);
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) el.play().catch(() => { /* noop */ });
+    else el.pause();
+  };
+
+  const pct = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
+  const bars = 42;
+
   return (
-    <div className="text-center">
-      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 mb-6">
-        <Sparkles className="h-3 w-3 text-amber-400" />
-        <span className="text-[10px] tracking-widest uppercase text-amber-200/90">Wochen-Memo vom Boss</span>
+    <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/[0.10] via-amber-500/[0.04] to-transparent p-5 text-left shadow-[0_20px_60px_-20px_rgba(245,158,11,0.35)]">
+      <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-400/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-rose-400/10 blur-3xl" />
+
+      <div className="relative flex items-center gap-4">
+        <button
+          onClick={toggle}
+          className="group relative shrink-0 h-14 w-14 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-black flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(245,158,11,0.7)] transition-transform active:scale-95 hover:scale-105"
+          aria-label={playing ? "Pause" : "Abspielen"}
+        >
+          {!playing && (
+            <span className="absolute inset-0 rounded-full bg-amber-400/40 animate-ping" />
+          )}
+          {playing
+            ? <span className="flex gap-1"><span className="h-4 w-1 bg-black rounded-sm" /><span className="h-4 w-1 bg-black rounded-sm" /></span>
+            : <Play className="h-5 w-5 fill-black ml-0.5" />}
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[9px] tracking-[0.2em] uppercase text-amber-300/90 font-semibold">Memo von Sebastian</span>
+            <span className="h-1 w-1 rounded-full bg-amber-400/50" />
+            <span className="text-[10px] text-white/40">persönlich für dich</span>
+          </div>
+          <div className="flex items-end gap-[3px] h-8">
+            {Array.from({ length: bars }).map((_, i) => {
+              const activeBar = (i / bars) * 100 <= pct;
+              const h = 20 + Math.abs(Math.sin(i * 1.3)) * 60 + Math.abs(Math.cos(i * 0.7)) * 20;
+              return (
+                <span
+                  key={i}
+                  className={"w-[3px] rounded-full transition-colors " + (activeBar ? "bg-amber-300" : "bg-white/15")}
+                  style={{ height: `${Math.min(100, h)}%` }}
+                />
+              );
+            })}
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-[10px] tabular-nums text-white/50">
+            <span>{fmtSec(current)}</span>
+            <span>{fmtSec(duration)}</span>
+          </div>
+        </div>
       </div>
-      <h2 className="text-3xl font-serif font-light mb-3 leading-tight">
-        Kurze Nachricht für dich, <span className="italic text-amber-400">{chatterFirstName}</span>
-      </h2>
-      <p className="text-white/60 text-sm leading-relaxed mb-8">
-        Hör dir das kurz an, bevor du in die Szenen einsteigst.
-      </p>
-      <div className="rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.08] to-amber-500/[0.02] p-6">
-        <audio src={memo.audio_url} controls preload="metadata" className="w-full" />
-      </div>
+
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setCurrent(0); }}
+        onTimeUpdate={(e) => setCurrent((e.target as HTMLAudioElement).currentTime)}
+        onLoadedMetadata={(e) => {
+          const d = (e.target as HTMLAudioElement).duration;
+          if (isFinite(d) && d > 0) setDuration(d);
+        }}
+      />
     </div>
   );
 }
+
 
 
 function WeeklyCard({ result }: CardProps) {
