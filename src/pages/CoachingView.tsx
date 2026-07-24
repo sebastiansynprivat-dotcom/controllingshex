@@ -1031,8 +1031,13 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
       </div>
       {answered && (
         <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm">
-          {picked === correct ? <span className="text-emerald-400 font-semibold">Richtig. </span> : <span className="text-rose-400 font-semibold">Nicht ganz. </span>}
+          {picked === correct
+            ? <span className="text-emerald-400 font-semibold">Sitzt. </span>
+            : <span className="text-amber-400 font-semibold">Lies die Karte davor nochmal. Ich warte. </span>}
           {quiz.explanation}
+          {picked === correct && (
+            <div className="mt-2 text-emerald-300/70 text-xs italic">— genau so denkt ein Closer.</div>
+          )}
         </div>
       )}
     </div>
