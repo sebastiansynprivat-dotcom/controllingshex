@@ -260,10 +260,10 @@ export default function CoachingView() {
     if (!currentCard) return { suggested: false };
     switch (currentCard.kind) {
       case "cinema": return { suggested: true, reason: "Kontext & Aha-Moment" };
-      case "simulation": return { suggested: true, reason: "Boss-Fight" };
-      case "principle": return { suggested: true, reason: "Prinzip vertiefen" };
+      case "cinema_better": return { suggested: true, reason: "Tonalität zeigen" };
+      case "boss_fight": return { suggested: true, reason: "Boss-Fight" };
       case "lever_intro": return { suggested: true, reason: "Szene einordnen" };
-      case "micro_script": return { suggested: true, reason: "Tonalität zeigen" };
+      case "boss_anecdote": return { suggested: true, reason: "Persönlicher Kontext" };
       default: return { suggested: false };
     }
   })();
