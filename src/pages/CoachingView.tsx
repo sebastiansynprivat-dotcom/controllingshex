@@ -1021,6 +1021,7 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
   const idx = card.leverIndex!;
   const existing = progress.quiz_answers?.[idx];
   const [picked, setPicked] = useState<number | null>(existing?.selected ?? null);
+  const confetti = useConfetti();
   if (!quiz) return null;
   const answered = picked !== null;
   const correct = quiz.correct_index;
@@ -1029,18 +1030,23 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
     if (answered) return;
     setPicked(i);
     const isRight = i === correct;
+    const prevStreak = progress.answer_streak ?? 0;
     onSaveProgress({
       ...progress,
       quiz_answers: {
         ...(progress.quiz_answers ?? {}),
         [idx]: { selected: i, correct: isRight, at: new Date().toISOString() },
       },
+      answer_streak: isRight ? prevStreak + 1 : 0,
     });
     onGrantXp(isRight ? 30 : 5);
+    if (isRight) confetti.fire();
+    else { try { navigator.vibrate?.(15); } catch { /* noop */ } }
   };
 
   return (
     <div>
+      <ConfettiBurst show={confetti.on} />
       <Eyebrow>Quick-Check</Eyebrow>
       <p className="text-white/90 text-lg leading-relaxed mb-5">{quiz.question}</p>
       <div className="space-y-2">
@@ -1048,10 +1054,13 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
           const isPicked = picked === i;
           const isCorrect = i === correct;
           return (
-            <button
+            <motion.button
               key={i}
               disabled={answered}
               onClick={() => choose(i)}
+              whileTap={{ scale: 0.98 }}
+              animate={answered && isCorrect ? { scale: [1, 1.03, 1] } : {}}
+              transition={{ duration: 0.35 }}
               className={[
                 "w-full text-left p-3 rounded-xl border text-sm transition-all",
                 !answered && "border-white/10 bg-white/5 hover:bg-white/10",
@@ -1061,19 +1070,27 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
               ].filter(Boolean).join(" ")}
             >
               {opt}
-            </button>
+            </motion.button>
           );
         })}
       </div>
       {answered && (
-        <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm">
-          {picked === correct ? <span className="text-emerald-400 font-semibold">Richtig. </span> : <span className="text-rose-400 font-semibold">Nicht ganz. </span>}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm"
+        >
+          {picked === correct
+            ? <span className="text-emerald-400 font-semibold">Sitzt. </span>
+            : <span className="text-amber-400 font-semibold">Fast. </span>}
           {quiz.explanation}
-        </div>
+        </motion.div>
       )}
     </div>
   );
 }
+
 
 function StrengthCard({ result }: CardProps) {
   const s = result.sbi_feedback?.strength;
