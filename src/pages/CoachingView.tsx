@@ -454,9 +454,9 @@ function extractEmoji(s?: string): string | null {
 
 function roleLabel(role: string): string {
   if (role === "CHATTER") return "Du";
-  if (role === "BOT-DM") return "Auto-DM";
   return "Kunde";
 }
+
 
 function ChatBubble({ role, text }: { role: string; text: string }) {
   const isChatter = role === "CHATTER";
@@ -519,7 +519,7 @@ function CinemaCard({
   // the storyboard's own customer line, else the situation_summary.
   const beforeMessages: CinemaMsg[] = useMemo(() => {
     const ctx = lever?.context_messages ?? [];
-    if (ctx.length > 0) return ctx.map(parseChatLine);
+    if (ctx.length > 0) return ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM");
     if (round0?.customer) return [{ role: "KUNDE", text: round0.customer }];
     if (lever?.situation_summary) return [{ role: "KUNDE", text: lever.situation_summary }];
     return [];
@@ -691,7 +691,7 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
 
   const contextMsgs: CinemaMsg[] = useMemo(() => {
     const ctx = lever?.context_messages ?? [];
-    if (ctx.length > 0) return ctx.map(parseChatLine);
+    if (ctx.length > 0) return ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM");
     if (round1?.customer) return [{ role: "KUNDE", text: round1.customer }];
     return [];
   }, [lever, round1]);
