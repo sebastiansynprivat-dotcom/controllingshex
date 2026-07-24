@@ -598,7 +598,7 @@ function CinemaCard({
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 mb-2">
           <Play className="h-3 w-3 text-rose-400 fill-rose-400" />
-          <span className="text-[10px] tracking-widest uppercase text-rose-200">Erst Kontext, dann Fehler</span>
+          <span className="text-[10px] tracking-widest uppercase text-rose-200">Was davor lief</span>
         </div>
         <div className="text-[10px] text-white/40">
           Lies erst, was davor passiert ist, damit du den Kontext von dem Fehler erkennst.
