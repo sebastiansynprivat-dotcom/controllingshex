@@ -780,8 +780,8 @@ JSON-Schema (EXAKT einhalten):
         "why": "<1 Satz max 15 Wörter warum die bessere Option besser ist. B1.>"
       },
       "boss_anecdote": {
-        "hook": "<PFLICHT. Kurze Hook, max 8 Wörter, z.B. 'Ich hatte mal genau die Situation.'>",
-        "story": "<2-3 Sätze max 55 Wörter. Erzählt eine erfundene aber glaubwürdige Anekdote vom Boss/Team-Lead, in der genau dieser Hebel angewandt wurde und ein großes Ergebnis brachte. Ich-Perspektive. Konkret mit Zahl am Ende (z.B. '+840€ an einem Abend'). Motiviert durch soziale Bewahrheit.>"
+        "hook": "<PFLICHT. Kurze, KONKRETE Hook max 8 Wörter, die zur Story passt. VERBOTEN: generische Floskeln wie 'Ich hatte genau die Situation', 'Kenne ich', 'Das kenne ich zu gut'. Stattdessen: konkreter Aufhänger, z.B. 'Ein Whale, drei Wochen Funkstille.', 'Freitag 23 Uhr, letzte Chance.', 'Tom, 400€-Fan, wollte cancel.'. Muss pro Hebel UNTERSCHIEDLICH sein.>",
+        "story": "<2-3 Sätze max 55 Wörter. Erfundene aber glaubwürdige Anekdote vom Boss/Team-Lead, in der genau dieser Hebel angewandt wurde und ein großes Ergebnis brachte. Ich-Perspektive. Konkret mit Zahl am Ende (z.B. '+840€ an einem Abend'). Starte NICHT mit 'Ich hatte genau die Situation' o.ä. — steig direkt in die Szene ein.>"
       },
       "simulation_prompt": {
         "customer_message": "<Eine realistische Kunden-Nachricht die genau diesen Hebel triggert. So wie ein echter Fan schreiben würde. Max 200 Zeichen.>",
