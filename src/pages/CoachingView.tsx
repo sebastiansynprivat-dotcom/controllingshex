@@ -135,7 +135,7 @@ export default function CoachingView() {
       persist({ xp_earned: nv });
       return nv;
     });
-    if (amount >= 25) toast.success(`+${amount} XP`, { duration: 1500 });
+    
   }, [persist]);
 
   const goNext = useCallback(() => {
