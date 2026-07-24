@@ -454,9 +454,9 @@ function extractEmoji(s?: string): string | null {
 
 function roleLabel(role: string): string {
   if (role === "CHATTER") return "Du";
-  if (role === "BOT-DM") return "Auto-DM";
   return "Kunde";
 }
+
 
 function ChatBubble({ role, text }: { role: string; text: string }) {
   const isChatter = role === "CHATTER";
