@@ -692,3 +692,70 @@ export function computeProgressStats(result: AnalysisResult | null | undefined, 
   return { total, read, quizAnswered, quizCorrect, actions, completed: !!progress?.completed };
 }
 
+
+/* ---------------- Memos (Owner voice notes per card) ---------------- */
+
+export async function uploadCoachingMemo(input: {
+  coachingId: string;
+  cardKey: string;
+  blob: Blob;
+  durationMs?: number;
+}): Promise<CoachingMemo> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Nicht eingeloggt");
+  const ext = input.blob.type.includes("mp4") ? "m4a" : "webm";
+  const safeKey = input.cardKey.replace(/[^a-z0-9_-]+/gi, "_");
+  const path = `${user.id}/${input.coachingId}/${safeKey}-${Date.now()}.${ext}`;
+  const { error: upErr } = await supabase.storage
+    .from("coaching-memos")
+    .upload(path, input.blob, { contentType: input.blob.type || "audio/webm", upsert: true });
+  if (upErr) throw upErr;
+
+  const { data: existing } = await supabase
+    .from("coaching_memos")
+    .select("id, audio_path")
+    .eq("coaching_id", input.coachingId)
+    .eq("card_key", input.cardKey)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.audio_path && existing.audio_path !== path) {
+      try { await supabase.storage.from("coaching-memos").remove([existing.audio_path]); } catch { /* noop */ }
+    }
+    const { data, error } = await supabase
+      .from("coaching_memos")
+      .update({ audio_path: path, duration_ms: input.durationMs ?? null })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data as unknown as CoachingMemo;
+  }
+
+  const { data, error } = await supabase
+    .from("coaching_memos")
+    .insert({
+      coaching_id: input.coachingId,
+      user_id: user.id,
+      card_key: input.cardKey,
+      audio_path: path,
+      duration_ms: input.durationMs ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as unknown as CoachingMemo;
+}
+
+export async function deleteCoachingMemo(memo: CoachingMemo): Promise<void> {
+  if (memo.audio_path) {
+    try { await supabase.storage.from("coaching-memos").remove([memo.audio_path]); } catch { /* noop */ }
+  }
+  const { error } = await supabase.from("coaching_memos").delete().eq("id", memo.id);
+  if (error) throw error;
+}
+
+export async function getMemoSignedUrl(audio_path: string): Promise<string | null> {
+  const { data } = await supabase.storage.from("coaching-memos").createSignedUrl(audio_path, 60 * 60 * 6);
+  return data?.signedUrl ?? null;
+}
