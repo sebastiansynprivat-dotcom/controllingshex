@@ -1,156 +1,94 @@
-# Coaching-Verlauf: "Cinema-Mode" mit Pflicht-Play & Guess-Stops
+# Coaching v4 — Dopamin, Subtilität, spürbarer Fortschritt
 
-## Ziel
-Chatter sollen sich den echten Chatverlauf zu 100% durchlesen — psychologisch smart, ohne dass es sich wie Zwang anfühlt. Mix aus **Netflix-Sog** (Auto-Play, Cliffhanger) und **Hebel-Wirkung** (Guess-First, dann Reveal).
+Ziel: Der Chatter geht aus dem Coaching mit dem Gefühl raus „das hat Spaß gemacht, ich hab was gecheckt, ich werde jeden Tag besser". Kein Wort am Tonfall der AI wird angefasst — nur **Layout, Micro-Interactions und Framing** in `CoachingView.tsx` (+ kleiner Zusatz in `coaching.ts` fürs Progress-Modell).
 
-## Kernidee in einem Satz
-Statt "Kompletten Verlauf ansehen"-Button wird der Verlauf zur **Pflicht-Karte** in der Story-Sequenz: Nachrichten spielen sich einzeln ab wie ein Chat live vor deinen Augen, stoppen an DEINER Antwort, du rätst was du geschickt hast — dann Reveal.
+## Die drei Wirkungen — und wie wir sie bauen
 
-## Wie der Chatter das erlebt
+### 1) Dopamin & Spaß (Hooked-Loop pro Karte)
 
-```text
-┌─────────────────────────────────┐
-│  🎬 So lief euer Chat wirklich  │
-│  Nachricht 4 von 9              │
-│  ▓▓▓▓▓▓░░░░░░░░░               │
-├─────────────────────────────────┤
-│                                 │
-│  Kunde                          │
-│  ┌──────────────────┐           │
-│  │ hey, geht's dir  │           │
-│  │ noch gut heute?  │           │
-│  └──────────────────┘           │
-│                                 │
-│              (Kunde tippt...)   │
-│              ┌───┐              │
-│              │•••│              │
-│              └───┘              │
-│                                 │
-│  Kunde                          │
-│  ┌──────────────────┐           │
-│  │ hab an dich      │  ← neu    │
-│  │ gedacht 😏       │           │
-│  └──────────────────┘           │
-│                                 │
-│         [Pause] Antippen für    │
-│              nächste Nachricht  │
-└─────────────────────────────────┘
-```
+Jede Karte bekommt ein **Mikro-Belohnungs-Ereignis** (Trigger → Aktion → variable Reward → Investment) statt nur „Weiter":
 
-An der kritischen Stelle (deine Antwort):
+- **Reveal-Snap:** Bei jeder aufgedeckten Info (Kontext-Bubble, Verdict, Better-Version, Quiz-Auflösung) ein satter Motion-Snap (spring, subtiler Haptik-Vibrate auf Mobile via `navigator.vibrate?.(8)`), 300-500ms Confetti-Puff nur bei richtigen Antworten / abgeschlossenen Hebeln.
+- **Streak-Chip** oben rechts (Ersatz für die entfernte XP-Anzeige): zeigt aktuellen „Richtig-in-Folge"-Zähler mit einer stillen Flame-Skala (1 = grau, 3 = amber, 5+ = rose). Kein Score, keine Zahlen-Angst — nur ein weiches „läuft grad".
+- **Sound-optional:** ein einzelner, sehr leiser „tick" beim Bubble-Reveal (mutable Toggle in der Top-Bar, default aus). Kostet nichts, verstärkt bei Aktivierung massiv.
+- **Variable Bubble-Delays** (400–1100ms) statt fixem Timing — das Gehirn liest es als „echt".
+- **Cinema-Progressbar** wird von linearem Balken auf **Perlenkette** (Dots pro Nachricht) umgestellt — jeder Dot poppt beim Freischalten. Sichtbarer Fortschritt = Dopamin.
 
-```text
-┌─────────────────────────────────┐
-│  ⏸  STOP — dein Moment          │
-│                                 │
-│  Der Kunde hat das gerade       │
-│  geschrieben ↑                  │
-│                                 │
-│  Was hättest DU jetzt           │
-│  geantwortet?                   │
-│                                 │
-│  ┌───────────────────────────┐  │
-│  │ Tipp deine Antwort...     │  │
-│  │                           │  │
-│  └───────────────────────────┘  │
-│                                 │
-│  [ Antwort abschicken ]         │
-│                                 │
-│  oder                           │
-│  [ Skip — nur zeigen ]          │
-└─────────────────────────────────┘
-```
+### 2) Subtilität — „genau das hat mir gefehlt"
 
-Nach Abschicken:
+Aktuell steht das Learning oft explizit oben („Hier ist dein Fehler"). Wir drehen das um, sodass der Chatter das Learning **selbst formuliert im Kopf**:
+
+- **Ah-ha-Framing statt Fehler-Framing:**
+  - Eyebrow-Texte umbauen: „Was hier passiert ist" statt „Fehler-Analyse". „Die Version, die zündet" statt „Bessere Antwort". „Kurzer Reflex-Check" statt „Mini-Übung".
+  - Verdict-Card zeigt zuerst nur den **Kontrast** (deine Bubble vs. bessere Bubble, side-by-side, ohne Bewertungstext). Erst nach 800ms Delay faded eine **einzige Zeile** ein: „Merkst du den Unterschied?" Der KI-Kommentar erscheint erst per Tap auf „Warum eigentlich?".
+  - Money-Zeile wird nicht mehr als roter Alarm gerendert, sondern als **beiläufige Fußnote** in Muted-Grau — „so viel liegt in einer besseren Führung drin". Wirkt stärker als Balken.
+- **„Du wusstest es fast" Nudges:** Wenn ein A/B-Score >= 5 ist, zeigen wir statt „Falsch" den Text „Fast — du warst nah dran". Konsequente Aufwertung kleiner Wins.
+- **Weniger Text pro Karte, mehr Weißraum:** aktuelle Karten haben teilweise 3-4 Absätze; wir cappen auf **1 Kernsatz + 1 optional aufklappbares „Warum"**. Reduziert kognitive Last, macht Learnings „gefühlt eigene".
+- **Story-Sprache in Micro-Copy** (nur die Rahmen-Texte, nicht die AI-Analyse):
+  - „Szene 1 von 3" statt „Hebel 1"
+  - „Du bist dran" statt „Übung"
+  - „Nächste Szene" statt „Weiter"
+
+### 3) Motivation & spürbarer Fortschritt (Placebo-Progress)
+
+Der Kern: Der Chatter muss **fühlen**, dass er sich verbessert — auch innerhalb einer einzigen Session und über Sessions hinweg.
+
+- **Momentum-Line** (neue Top-Bar-Komponente, ersetzt XP-Reste): dünner Sparkline-Verlauf der aktuellen Session-Scores (Quiz + Drills + Boss-Fight). Jeder neue Score verlängert die Linie mit sanftem Draw — visuell steigend, weil wir intern immer den **rollierenden Best-of-3** anzeigen (nie Rückschritt sichtbar, außer wirklich krass).
+- **„Vor 2 Wochen hättest du…" Callout** vor der ersten Drill-Karte: wenn eine ältere Analyse für den Chatter existiert (`listAnalyses` gibt es bereits), zeigen wir eine kurze, ruhige Zeile „Letztes Mal war [Hebel X] dran — heute geht's einen Schritt weiter." Kein Vergleich mit Zahlen, nur ein sanftes Kontinuitäts-Signal. Fällt weg wenn keine History.
+- **End-Screen (`FinalCard`) neu aufgebaut** als **„Was du heute mitgenommen hast"**:
+  - 3 kurze Bullets, aus den 3 Hebel-Takeaways destilliert (Text existiert schon in `result.top_3_levers[].takeaway`).
+  - Ein einziger großer Satz darüber: „Du hast [N] Szenen durchgespielt. Beim nächsten Mal fällt dir das automatisch auf." — Formulierung suggeriert Kompetenz-Automatisierung.
+  - Commitment-Feld ist **prominenter Hero** statt Beiwerk — das eigene Handschriftliche = stärkster Anker.
+  - Kleiner „Verlauf"-Link zurück auf `getShareUrl` (Chatter kann jederzeit re-visit → weiterer Progress-Anker).
+- **Persistenter Streak über Sessions:** neue Spalte im `progress_json`: `session_streak` (Anzahl abgeschlossener Coachings in Folge, Reset wenn > 21 Tage Lücke). Wird als stiller Chip auf Cover-Karte gezeigt („dein 4. Coaching in Folge"). Keine Public Leaderboards, kein Vergleich mit anderen — nur mit sich selbst.
+
+## Karten-Änderungen konkret
+
+
+| Karte              | Vorher                                  | Nachher                                                                                            |
+| ------------------ | --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `CoverCard`        | Titel + Hebel-Zahl                      | + Streak-Chip („dein 3. Coaching"), + Momentum-Line-Placeholder                                    |
+| `LeverIntroCard`   | „Hebel 1 von 3"                         | „Szene 1 von 3" — sonst gleich                                                                     |
+| `CinemaCard`       | linearer Balken, expliziter Fehler-Text | Dot-Kette, Reveal-Snap + optional Vibrate, Verdict als Kontrast-Split ohne Text, „Warum?" per Tap  |
+| `CinemaBetterCard` | „Bessere Antwort"                       | „Die Version, die zündet" + 300ms Confetti-Puff beim Anzeigen                                      |
+| `DrillCard` (A/B)  | „Falsch/Richtig"                        | „Nah dran / Genau der Move" — Score >=5 = grüner Framing                                           |
+| `TypeDrillCard`    | Score + Feedback                        | Score als Momentum-Delta („+1 in Führung"), Feedback aufklappbar                                   |
+| `QuizCard`         | Direktes Verdict                        | 400ms Delay + Snap, bei richtig → Puff                                                             |
+| `BossFightCard`    | Textblock am Ende                       | Score → Momentum-Line-Update, „Was du gut gemacht hast" zuerst, „Was noch besser geht" aufklappbar |
+| `FinalCard`        | XP raus, aktuell dünn                   | Hero-Commitment, 3 Takeaway-Bullets, Kontinuitäts-Satz, Re-Visit-Link                              |
+
+
+## Technisches
 
 ```text
-┌─────────────────────────────────┐
-│  Du hast geschrieben:           │
-│  "hey ja mir geht's gut..."     │
-│                                 │
-│  ─────────────────────          │
-│                                 │
-│  Was du WIRKLICH geschickt hast:│
-│  ┌──────────────────┐           │
-│  │ ja alles gut bei │           │
-│  │ dir 🙂           │           │
-│  └──────────────────┘           │
-│                                 │
-│  🤖 KI-Verdict: 4/10            │
-│  Du hast den heißen Ball        │
-│  ("hab an dich gedacht")        │
-│  komplett fallen gelassen.      │
-│                                 │
-│  💰 Geschätzter Verlust: ~35€   │
-└─────────────────────────────────┘
+CoachingView.tsx
+├─ neue Sub-Komponenten
+│   ├─ StreakChip           (Top-Bar rechts, ersetzt XP)
+│   ├─ MomentumLine         (dünne SVG-Sparkline, rollierendes Best-of-3)
+│   ├─ RevealSnap           (Wrapper mit spring + optional vibrate + optional tick)
+│   └─ ContrastReveal       (side-by-side Bubbles mit delayed Kommentar)
+├─ Copy-Konstanten          (alle „Übung/Fehler/Weiter" Texte an einer Stelle → leicht tunbar)
+└─ Sound-Toggle             (localStorage `coaching.sound = on|off`, default off)
+
+coaching.ts
+└─ CoachingProgress
+    + session_streak?: number
+    + momentum_scores?: number[]   (rollierend, max 10 Einträge)
 ```
 
-## Psychologische Hebel (bewusst eingebaut)
-
-1. **Cliffhanger-Loop:** Jede Kundennachricht endet mit "Und was passierte dann?" — Neugier zwingt zum Weitertappen.
-2. **Guess-First (Endowment-Effekt):** Sobald der Chatter seine eigene Version tippt, WILL er wissen, ob er richtig lag. Das eigene Investment macht den Reveal unwiderstehlich.
-3. **Zeigarnik-Effekt:** Fortschrittsbalken "4 von 9" macht Abbruch mental unmöglich (halb-fertige Aufgaben nerven das Gehirn).
-4. **Hartes Gate:** "Weiter" zur nächsten Karte ist **deaktiviert**, bis alle Nachrichten der Runde freigetappt wurden. Kein Skip.
-5. **Money-Anchor:** Nach jedem Reveal ein €-Verlust-Wert ("Diese Antwort hat dich ~35€ gekostet") — konkreter Schmerz > abstraktes Feedback.
-6. **Micro-Rewards:** +2 XP pro getappter Nachricht, +25 für gutes Guess, sichtbar als kleine Pings am Rand.
-7. **Social Proof am Anfang der Karte:** "Nur 12% der Chatter lesen den ganzen Verlauf — sei einer davon" (statischer Text, keine Live-Zahl nötig).
-8. **Realistische Typing-Delays:** 400ms-1200ms Pausen + "Kunde tippt…" Indicator = fühlt sich an wie live Zuschauen, nicht wie Lernen.
-
-## Architektur
-
-### Ersetzt / ändert sich
-- **`FullChatHistory` (aktueller Collapse-Button)** → wird komplett entfernt.
-- **`ChatterDidCard`** → wird zur neuen **`CinemaCard`** (Auto-Play + Stops + Reveal in einem).
-- Bisherige `context` + `chatter_did` + `verdict` + `money_line` Karten werden in die CinemaCard fusioniert. Das reduziert die Anzahl Karten pro Hebel, macht den Flow filmischer und der Chatter kriegt Kontext + Fehler + Kosten in einem geführten Erlebnis.
-
-### Neue Karten-Kinds (in `CoachingView.tsx`)
-- `cinema` — die Pflicht-Karte mit Auto-Play + Stop + Guess.
-- `cinema_better` — direkt danach: gleicher Verlauf, aber die "bessere" Antwort spielt sich als Bubble ein. Kein Guess mehr, nur "So sieht's richtig aus."
-
-### Cards-Sequenz pro Hebel (neu)
-```text
-lever_intro
-  → customer_card
-  → cinema          (NEU: Verlauf + Guess + Real + Verdict + €-Verlust)
-  → cinema_better   (NEU: gleicher Verlauf, letzter Bubble = better_version)
-  → drill (A/B)
-  → type_drill
-  → boss_anecdote
-  → takeaway
-  → quiz
-```
-
-### Gate-Logik
-- Auf `cinema`-Karte ist `onAdvance` (Weiter-Button) **disabled**, bis:
-  - alle `context_messages` freigetappt wurden UND
-  - Guess abgeschickt (oder explizit "Skip — nur zeigen" gedrückt, gibt weniger XP) UND
-  - Reveal + Verdict gesehen.
-- Bottom-Nav-Weiter-Button muss den `canAdvance` State aus der aktiven Karte lesen. Dazu die bestehende `onAdvance`-Prop-Struktur um ein `canAdvance` erweitern (State im Parent, Karte meldet über neuen Callback `onGateStatus`).
-
-### State pro Cinema-Karte (in `progress_json`)
-- `cinema_progress: Record<leverIndex, { messages_revealed: number; guess?: string; guess_score?: number; completed: boolean }>`
-- Wird über `updateProgress` persistiert wie alle anderen Progress-Felder.
-
-### Guess-Bewertung
-- Nutzt die bereits existierende `evaluateDrill` Edge Function (oder `evaluateSimulation` mit `mode: evaluate_single`) — kein neuer Backend-Endpoint nötig. Der Prompt bekommt Kontext + echte Antwort + Guess und liefert Score + kurzes Feedback.
-
-### Money-Verlust anzeigen
-- Nutzt das existierende `lever.money_line` (bereits vom AI-Prompt geliefert). Kein Schema-Change nötig.
-
-## Technisches (kurz)
-
-- Auto-Play: `setTimeout`-Kette mit variablen Delays (500-1200ms), Typing-Dots als Zwischenschritt vor jeder Kunden-Bubble.
-- Tap-to-advance-Fallback: Wenn Chatter tappt, springt sofort zur nächsten Bubble (überspringt Delay).
-- Framer Motion für Bubble-Einblendung: `initial={{ opacity: 0, y: 8 }}, animate={{ opacity: 1, y: 0 }}`.
-- Alle neuen Farben/Styles über bestehende semantic tokens + amber/rose/emerald wie im Rest der View (bereits etabliert).
-- Kein neues Backend-Schema, keine neue Edge Function, keine DB-Migration.
+- Keine Änderung an AI-Prompt, Edge Functions, DB-Schema (progress_json ist bereits JSONB).
+- Keine Änderung an Tonalität / Sprache der AI-Analyse — nur Rahmen-Copy in der View.
+- Confetti: leichtgewichtig selbst gebaut mit 8-12 divs + Framer Motion (kein neues Package).
+- Vibrate + Sound sind Progressive Enhancement, silent fail auf iOS-Safari.
 
 ## Betroffene Dateien
-- `src/pages/CoachingView.tsx` — neue `CinemaCard` + `CinemaBetterCard`, alte `ChatterDidCard`/`MoneyLossCard`/`BetterCard`/`FullChatHistory`/`ContextCard` entfernen bzw. konsolidieren, `cards`-Sequenz-Builder anpassen, Gate-State ins Parent-Component ziehen.
-- `src/lib/coaching.ts` — `CoachingProgress` Interface um `cinema_progress` erweitern.
 
-## Was NICHT dazugehört
-- Keine Änderung an AI-Prompt / JSON-Schema (bestehende Felder reichen).
-- Keine neuen DB-Spalten.
-- Keine Änderung an Boss-Fight, Quiz, Drill, Commitment.
-- Kein Rework der Cover/Weekly/Final-Karten.
+- `src/pages/CoachingView.tsx` — Hauptarbeit (Sub-Komponenten, Copy, Reveal-Snaps, End-Screen-Rebuild).
+- `src/lib/coaching.ts` — `CoachingProgress` Interface + `computeProgressStats` optional um Streak/Momentum erweitern.
+
+## Explizit NICHT dabei
+
+- Keine Änderung an der AI-Tonalität, Prompts oder Empathie-Regel.
+- Kein neues Backend, keine neuen Edge Functions, keine Migration.
+- Keine Rankings/Leaderboards gegen andere Chatter.
+- Kein Zurück zu XP-Zahlen.

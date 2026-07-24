@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+
 import {
   CoachingAnalysisRow,
   CoachingProgress,
@@ -23,7 +24,58 @@ import {
   levelFromXp,
 } from "@/lib/coaching";
 
+/* ----------------------------- Dopamin helpers ----------------------------- */
+
+function ConfettiBurst({ show }: { show: boolean }) {
+  if (!show) return null;
+  const bits = Array.from({ length: 18 });
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
+      {bits.map((_, i) => {
+        const angle = (i / bits.length) * Math.PI * 2;
+        const dist = 120 + Math.random() * 160;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const colors = ["#f59e0b", "#f43f5e", "#10b981", "#fde68a", "#f472b6"];
+        const c = colors[i % colors.length];
+        return (
+          <motion.span
+            key={i}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{ x: dx, y: dy, opacity: 0, scale: 0.4, rotate: Math.random() * 360 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            style={{ background: c }}
+            className="absolute h-2 w-2 rounded-sm"
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function useConfetti() {
+  const [on, setOn] = useState(false);
+  const fire = useCallback(() => {
+    setOn(true);
+    try { navigator.vibrate?.(20); } catch { /* noop */ }
+    window.setTimeout(() => setOn(false), 950);
+  }, []);
+  return { on, fire };
+}
+
+function StreakChip({ streak }: { streak: number }) {
+  if (!streak || streak < 1) return null;
+  return (
+    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 shrink-0">
+      <Flame className="h-3 w-3 text-rose-400" />
+      <span className="text-[10px] font-medium text-rose-200 tabular-nums">{streak}</span>
+    </div>
+  );
+}
+
 /* ----------------------------- Card model ----------------------------- */
+
+
 
 type CardKind =
   | "cover"
@@ -202,10 +254,12 @@ export default function CoachingView() {
           />
         </div>
         <div className="text-[10px] tabular-nums text-white/50 shrink-0">{safeCardIdx + 1}/{totalCards}</div>
+        <StreakChip streak={progress.answer_streak ?? 0} />
         <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 shrink-0">
           <Crown className="h-3 w-3 text-amber-400" />
           <span className="text-[10px] font-medium text-amber-200">{level.title}</span>
         </div>
+
       </div>
 
 
@@ -273,8 +327,9 @@ export default function CoachingView() {
           size="sm"
           className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold disabled:opacity-40"
         >
-          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Weiter <ArrowRight className="h-4 w-4 ml-1" /></>}
+          {!cardGateOpen ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Erst durchlesen</> : <>Nächste Szene <ArrowRight className="h-4 w-4 ml-1" /></>}
         </Button>
+
       </div>
     </div>
   );
@@ -396,7 +451,7 @@ function LeverIntroCard({ lever, card }: CardProps) {
   return (
     <div className="text-center">
       <div className="text-8xl font-serif italic text-amber-400/20 mb-4">{num}</div>
-      <Eyebrow>Hebel {num} von 3</Eyebrow>
+      <Eyebrow>Szene {num} von 3</Eyebrow>
       <h2 className="text-3xl font-serif font-light mb-4">{lever.title}</h2>
       <p className="text-white/80 text-lg leading-relaxed mb-6">{lever.one_liner}</p>
       {lever.money_line && (
@@ -408,6 +463,7 @@ function LeverIntroCard({ lever, card }: CardProps) {
     </div>
   );
 }
+
 
 function CustomerCardView({ lever }: CardProps) {
   const cc = lever?.customer_card;
@@ -584,12 +640,13 @@ function CinemaCard({
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 mb-2">
           <Play className="h-3 w-3 text-rose-400 fill-rose-400" />
-          <span className="text-[10px] tracking-widest uppercase text-rose-200">Erst Kontext, dann Fehler</span>
+          <span className="text-[10px] tracking-widest uppercase text-rose-200">Erst die Szene, dann der Aha-Moment</span>
         </div>
         <div className="text-[10px] text-white/40">
           Lies erst, was davor passiert ist, damit du den Kontext von dem Fehler erkennst.
         </div>
       </div>
+
 
       {/* Progress line inside the card */}
       {phase === "playing" && totalBefore > 0 && (
@@ -651,25 +708,20 @@ function CinemaCard({
       {/* Reveal phase: verdict + money loss */}
       {phase === "reveal" && (
         <div className="mt-4 space-y-3">
-          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
-            <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Warum das nicht sauber war ↑</div>
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="text-[10px] uppercase tracking-widest text-amber-300/80 mb-1">Der Aha-Moment ↑</div>
             {round0.verdict && (
-              <p className="text-rose-100 text-sm leading-relaxed">{round0.verdict}</p>
+              <p className="text-amber-50 text-sm leading-relaxed">{round0.verdict}</p>
             )}
           </div>
           {lever?.money_line && (
-            <div className="rounded-2xl bg-gradient-to-br from-rose-500/10 to-transparent border border-rose-500/30 p-4 flex items-start gap-3">
-              <div className="shrink-0 h-10 w-10 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
-                <TrendingDown className="h-5 w-5 text-rose-400" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Was es dich kostet</div>
-                <div className="text-rose-50 font-serif text-lg leading-tight">{lever.money_line}</div>
-              </div>
+            <div className="text-[11px] text-white/40 italic px-1 leading-relaxed">
+              Kleiner Reminder: {lever.money_line}
             </div>
           )}
         </div>
       )}
+
     </div>
   );
 }
@@ -705,9 +757,10 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
           <Crown className="h-3 w-3 text-emerald-400" />
-          <span className="text-[10px] tracking-widest uppercase text-emerald-200">So macht's ein Top-Chatter</span>
+          <span className="text-[10px] tracking-widest uppercase text-emerald-200">Die Version, die zündet</span>
         </div>
       </div>
+
 
       {round1.context && (
         <p className="text-white/60 text-sm mb-3 text-center italic">{round1.context}</p>
@@ -768,6 +821,7 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
   const idx = card.leverIndex!;
   const existing = progress.drill_answers?.[idx];
   const [picked, setPicked] = useState<"a" | "b" | null>(existing?.picked ?? null);
+  const confetti = useConfetti();
   if (!drill) return null;
   const correct = drill.better_option;
   const answered = picked !== null;
@@ -777,20 +831,28 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
     setPicked(opt);
     const isRight = opt === correct;
     const prev = progress.drill_answers ?? {};
+    const prevStreak = progress.answer_streak ?? 0;
     onSaveProgress({
       ...progress,
       drill_answers: {
         ...prev,
         [idx]: { ...(prev[idx] ?? {} as any), picked: opt, correct: isRight, at: new Date().toISOString() },
       },
+      answer_streak: isRight ? prevStreak + 1 : 0,
     });
-    if (isRight) onGrantXp(25);
-    else onGrantXp(5);
+    if (isRight) {
+      onGrantXp(25);
+      confetti.fire();
+    } else {
+      onGrantXp(5);
+      try { navigator.vibrate?.(15); } catch { /* noop */ }
+    }
   };
 
   return (
     <div>
-      <Eyebrow>Mini-Übung · Welche ist besser?</Eyebrow>
+      <ConfettiBurst show={confetti.on} />
+      <Eyebrow>Kurzer Reflex-Check · Welche zündet?</Eyebrow>
       <p className="text-white/80 mb-4 leading-relaxed">{drill.prompt}</p>
       <div className="space-y-3">
         {(["a", "b"] as const).map((opt) => {
@@ -798,10 +860,13 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
           const isPicked = picked === opt;
           const isCorrect = opt === correct;
           return (
-            <button
+            <motion.button
               key={opt}
               onClick={() => choose(opt)}
               disabled={answered}
+              whileTap={{ scale: 0.98 }}
+              animate={answered && isCorrect ? { scale: [1, 1.03, 1] } : {}}
+              transition={{ duration: 0.35 }}
               className={[
                 "w-full text-left p-4 rounded-2xl border transition-all",
                 !answered && "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20",
@@ -822,18 +887,26 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
                 </div>
                 <div className="text-sm text-white/90 leading-snug">{text}</div>
               </div>
-            </button>
+            </motion.button>
           );
         })}
       </div>
       {answered && (
-        <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
-          <span className="font-medium text-amber-400">Warum: </span>{drill.why}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed"
+        >
+          <span className="font-medium text-amber-400">
+            {picked === correct ? "Genau der Move. " : "Nah dran. "}
+          </span>{drill.why}
+        </motion.div>
       )}
     </div>
   );
 }
+
 
 function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp }: CardProps) {
   const drill = lever?.drill;
@@ -948,6 +1021,7 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
   const idx = card.leverIndex!;
   const existing = progress.quiz_answers?.[idx];
   const [picked, setPicked] = useState<number | null>(existing?.selected ?? null);
+  const confetti = useConfetti();
   if (!quiz) return null;
   const answered = picked !== null;
   const correct = quiz.correct_index;
@@ -956,18 +1030,23 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
     if (answered) return;
     setPicked(i);
     const isRight = i === correct;
+    const prevStreak = progress.answer_streak ?? 0;
     onSaveProgress({
       ...progress,
       quiz_answers: {
         ...(progress.quiz_answers ?? {}),
         [idx]: { selected: i, correct: isRight, at: new Date().toISOString() },
       },
+      answer_streak: isRight ? prevStreak + 1 : 0,
     });
     onGrantXp(isRight ? 30 : 5);
+    if (isRight) confetti.fire();
+    else { try { navigator.vibrate?.(15); } catch { /* noop */ } }
   };
 
   return (
     <div>
+      <ConfettiBurst show={confetti.on} />
       <Eyebrow>Quick-Check</Eyebrow>
       <p className="text-white/90 text-lg leading-relaxed mb-5">{quiz.question}</p>
       <div className="space-y-2">
@@ -975,10 +1054,13 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
           const isPicked = picked === i;
           const isCorrect = i === correct;
           return (
-            <button
+            <motion.button
               key={i}
               disabled={answered}
               onClick={() => choose(i)}
+              whileTap={{ scale: 0.98 }}
+              animate={answered && isCorrect ? { scale: [1, 1.03, 1] } : {}}
+              transition={{ duration: 0.35 }}
               className={[
                 "w-full text-left p-3 rounded-xl border text-sm transition-all",
                 !answered && "border-white/10 bg-white/5 hover:bg-white/10",
@@ -988,19 +1070,27 @@ function QuizCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProp
               ].filter(Boolean).join(" ")}
             >
               {opt}
-            </button>
+            </motion.button>
           );
         })}
       </div>
       {answered && (
-        <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm">
-          {picked === correct ? <span className="text-emerald-400 font-semibold">Richtig. </span> : <span className="text-rose-400 font-semibold">Nicht ganz. </span>}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm"
+        >
+          {picked === correct
+            ? <span className="text-emerald-400 font-semibold">Sitzt. </span>
+            : <span className="text-amber-400 font-semibold">Fast. </span>}
           {quiz.explanation}
-        </div>
+        </motion.div>
       )}
     </div>
   );
 }
+
 
 function StrengthCard({ result }: CardProps) {
   const s = result.sbi_feedback?.strength;
@@ -1194,27 +1284,43 @@ function CommitmentCard({ commitment, setCommitment, onSaveCommitment, chatterFi
   );
 }
 
-function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSaveProgress }: CardProps) {
+function FinalCard({ xp, level, result, chatterFirstName, token, progress, commitment, onSaveProgress, levers }: CardProps) {
   const stats = useMemo(() => ({
     quiz: Object.values(progress.quiz_answers ?? {}).filter((a) => a?.correct).length,
     drills: Object.values(progress.drill_answers ?? {}).filter((a) => a?.correct).length,
   }), [progress]);
 
+  const takeaways = useMemo(
+    () => (levers ?? [])
+      .map((lv) => lv.storyboard?.[2]?.say_this || lv.one_liner)
+      .filter(Boolean)
+      .slice(0, 3) as string[],
+    [levers],
+  );
+
+  const confetti = useConfetti();
   useEffect(() => {
     if (!progress.completed) {
-      const next = { ...progress, completed: true };
+      const nextStreak = (progress.session_streak ?? 0) + 1;
+      const next = { ...progress, completed: true, session_streak: nextStreak };
       onSaveProgress(next);
       updateProgress(token, { progress: next }).catch(() => {});
+      confetti.fire();
     }
-  }, []); // eslint-disable-line
+    // eslint-disable-next-line
+  }, []);
 
   return (
     <div className="text-center">
+      <ConfettiBurst show={confetti.on} />
       <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 mb-4 shadow-2xl shadow-amber-500/30">
         <Trophy className="h-10 w-10 text-black" />
       </div>
       <h2 className="text-3xl font-serif font-light mb-2">Bam, {chatterFirstName}.</h2>
-      <p className="text-white/70 mb-6">Du hast dein Coaching durchgezogen.</p>
+      <p className="text-white/70 mb-6">
+        Du hast dein Coaching durchgezogen — und jedes Mal, wenn du das machst, wirst du besser lesbar für die Fans.
+      </p>
+
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
           <div className="text-[10px] uppercase tracking-widest text-white/40">Level</div>
@@ -1229,6 +1335,37 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
           <div className="text-2xl font-serif mt-1">{stats.drills}</div>
         </div>
       </div>
+
+      {(progress.session_streak ?? 0) > 1 && (
+        <div className="mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30">
+          <Flame className="h-4 w-4 text-rose-400" />
+          <span className="text-sm text-rose-100">
+            {progress.session_streak} Coachings in Folge — die Kurve zeigt nach oben.
+          </span>
+        </div>
+      )}
+
+      {takeaways.length > 0 && (
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-5 text-left mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3">Was du mitnimmst</div>
+          <ul className="space-y-2">
+            {takeaways.map((t, i) => (
+              <li key={i} className="flex items-start gap-2 text-white/85 text-sm leading-snug">
+                <span className="text-amber-400 mt-0.5">·</span>
+                <span className="italic">„{t}"</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {commitment && commitment.trim() && (
+        <div className="rounded-2xl bg-gradient-to-br from-amber-500/15 to-rose-500/10 border border-amber-500/40 p-5 text-left mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-amber-400/80 mb-2">Dein Versprechen an dich selbst</div>
+          <div className="text-amber-50 font-serif text-lg italic leading-snug">„{commitment}"</div>
+        </div>
+      )}
+
       {result.micro_action && (
         <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-5 text-left">
           <div className="text-[10px] uppercase tracking-widest text-amber-400/80 mb-2">Deine Mikro-Aktion diese Woche</div>
@@ -1238,3 +1375,4 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
     </div>
   );
 }
+

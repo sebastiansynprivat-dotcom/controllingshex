@@ -152,7 +152,12 @@ export interface CoachingProgress {
   actions_done?: Record<number, boolean>;
   levers_read?: number[]; // legacy
   completed?: boolean;
+  // v4 — dopamin / progress signals (nur UI, kein Backend-Impact)
+  momentum_scores?: number[]; // rollierend, max 10 Einträge (0–10)
+  answer_streak?: number;     // aktuelle „Richtig-in-Folge" innerhalb der Session
+  session_streak?: number;    // abgeschlossene Coachings in Folge (persistiert)
 }
+
 
 export interface CoachingAnalysisRow {
   id: string;
