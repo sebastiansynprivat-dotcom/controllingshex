@@ -125,10 +125,21 @@ export default function CoachingMemoBar({ coachingId, cardKey, isOwner, memo, su
   // Chatter view: only render if memo exists
   if (!isOwner && !memo) return null;
 
+  const highlight = isOwner && !memo && suggested;
+
   return (
-    <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2">
-      <Mic className="h-3.5 w-3.5 text-amber-300 shrink-0" />
-      <span className="text-[10px] uppercase tracking-wider text-amber-200/80 shrink-0">Memo vom Boss</span>
+    <div
+      className={
+        "mb-3 flex items-center gap-2 rounded-xl border px-3 py-2 " +
+        (highlight
+          ? "border-amber-400/50 bg-amber-500/10 shadow-[0_0_0_1px_rgba(251,191,36,0.15)]"
+          : "border-amber-500/25 bg-amber-500/5")
+      }
+    >
+      <Mic className={"h-3.5 w-3.5 shrink-0 " + (highlight ? "text-amber-200 animate-pulse" : "text-amber-300")} />
+      <span className="text-[10px] uppercase tracking-wider text-amber-200/80 shrink-0">
+        {highlight ? (suggestedReason ? `Memo empfohlen · ${suggestedReason}` : "Memo empfohlen") : "Memo vom Boss"}
+      </span>
 
       {audioUrl && (
         <>
