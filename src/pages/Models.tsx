@@ -77,6 +77,7 @@ export default function Models() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newProfileUrl, setNewProfileUrl] = useState("");
+  const [newBotDms, setNewBotDms] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -85,6 +86,7 @@ export default function Models() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editProfileUrl, setEditProfileUrl] = useState("");
+  const [editBotDms, setEditBotDms] = useState("");
   const [troubleFilter, setTroubleFilter] = useState(false);
   const [troubles, setTroubles] = useState<ModelTrouble[]>([]);
   const [showArchetypeFilter, setShowArchetypeFilter] = useState(false);
