@@ -920,9 +920,19 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
 
   const contextMsgs: CinemaMsg[] = useMemo(() => {
     const ctx = lever?.context_messages ?? [];
-    if (ctx.length > 0) return ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM");
-    if (round1?.customer) return [{ role: "KUNDE", text: round1.customer }];
-    return [];
+    let msgs: CinemaMsg[] =
+      ctx.length > 0
+        ? ctx.map(parseChatLine).filter((m) => m.role !== "BOT-DM")
+        : round1?.customer
+        ? [{ role: "KUNDE" as const, text: round1.customer }]
+        : [];
+    const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+    msgs = msgs.filter((m, i, arr) => {
+      if (i === 0) return true;
+      const prev = arr[i - 1];
+      return !(prev.role === m.role && norm(prev.text) === norm(m.text));
+    });
+    return msgs;
   }, [lever, round1]);
 
   if (!round1?.better_version) {
