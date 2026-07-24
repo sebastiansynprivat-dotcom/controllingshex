@@ -584,7 +584,7 @@ VERKÄUFE ZUERST ANSCHAUEN:
 - Wenn Verkäufe passiert sind: das ist die Stärke. Nicht kaputtreden.
 - Wenn nichts gekauft wurde trotz Angeboten: da liegt der wichtigste Hebel — aber nur, wenn der Kontext einen Verkauf überhaupt zugelassen hätte.
 
-Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
+${botDmBlock ? botDmBlock + '\n\n' : ''}Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
 
 ${coachingText || '(Kein Material hinterlegt — nutze gesunden Menschenverstand für Verkauf, Vertrauen und Nähe im Chat.)'}
 
