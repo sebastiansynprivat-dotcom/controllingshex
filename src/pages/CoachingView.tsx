@@ -171,8 +171,9 @@ export default function CoachingView() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-white/40">
-        <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center gap-3 text-white/60">
+        <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+        <div className="text-sm tracking-wide">Boss denkt nach<span className="inline-block animate-pulse">…</span></div>
       </div>
     );
   }
@@ -180,8 +181,8 @@ export default function CoachingView() {
     return (
       <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center text-center px-6">
         <div>
-          <div className="text-white/80 text-lg font-light mb-2">Coaching nicht gefunden</div>
-          <div className="text-white/40 text-sm">{error ?? "Der Link ist ungültig oder abgelaufen."}</div>
+          <div className="text-white/80 text-lg font-light mb-2">Kurz verloren.</div>
+          <div className="text-white/40 text-sm">{error ?? "Der Link stimmt nicht — nochmal antippen oder beim Boss melden."}</div>
         </div>
       </div>
     );
