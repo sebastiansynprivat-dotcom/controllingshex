@@ -206,9 +206,8 @@ export default function CoachingView() {
           <Crown className="h-3 w-3 text-amber-400" />
           <span className="text-[10px] font-medium text-amber-200">{level.title}</span>
         </div>
-
-        </div>
       </div>
+
 
       {/* Card area */}
       <div className="flex-1 relative overflow-hidden">
