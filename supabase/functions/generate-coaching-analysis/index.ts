@@ -786,6 +786,12 @@ JSON-Schema (EXAKT einhalten):
       "simulation_prompt": {
         "customer_message": "<Eine realistische Kunden-Nachricht die genau diesen Hebel triggert. So wie ein echter Fan schreiben würde. Max 200 Zeichen.>",
         "evaluation_criteria": "<Kurze Beschreibung was eine gute Antwort ausmacht (für den KI-Bewerter, nicht für den Chatter). 1-2 Sätze.>"
+      },
+      "follow_up": {
+        "expected_outcome": "<PFLICHT: 'sale' | 'rapport' | 'other'. NUR wenn die Szene realistisch in einen Kauf hätte laufen können, setze 'sale'. Bei reinen Zuhör-/Empathie-/Rapport-Szenen: 'rapport' — dann werden messages/sale_marker/reflex_line ignoriert.>",
+        "messages": ["<NUR bei expected_outcome='sale': 3-5 realistische Chat-Zeilen, die nach der besseren Antwort folgen würden. Format wie context_messages: 'KUNDE: text' / 'CHATTER: text'. MUSS glaubwürdig sein: erst Reaktion vom Kunden (leichtes Zögern/Rückfrage erlaubt), dann Chatter setzt nach, dann Kauf-Signal vom Kunden. KEIN sofortiges 'hier hast du 200€'. Stil des Chatters imitieren (Emojis/Slang wie im Original). Kein konkreter Preis in Chatter-Bubbles.>"],
+        "sale_marker": "<NUR bei expected_outcome='sale': kurzer Label max 6 Wörter, was gekauft wurde inkl. realistischer Range, z.B. 'PPV freigeschaltet · 40-60€' oder 'Custom-Video bestellt · 80-120€'.>",
+        "reflex_line": "<NUR bei expected_outcome='sale': 1 Satz max 15 Wörter, der die Kausalität zwischen dem besseren Move und dem Kauf benennt. Motivierend, konkret. z.B. 'Dieser eine Move zwischen zögern und pushen macht den Unterschied.'>"
       }
     }
   ],
