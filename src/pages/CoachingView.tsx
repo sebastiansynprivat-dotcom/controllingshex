@@ -88,6 +88,7 @@ type CardKind =
   | "customer_card"
   | "cinema"
   | "cinema_better"
+  | "cinema_follow_up"
   | "drill"
   | "type_drill"
   | "boss_anecdote"
