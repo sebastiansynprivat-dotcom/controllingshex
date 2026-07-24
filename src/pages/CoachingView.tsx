@@ -655,25 +655,20 @@ function CinemaCard({
       {/* Reveal phase: verdict + money loss */}
       {phase === "reveal" && (
         <div className="mt-4 space-y-3">
-          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
-            <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Warum das nicht sauber war ↑</div>
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="text-[10px] uppercase tracking-widest text-amber-300/80 mb-1">Der Aha-Moment ↑</div>
             {round0.verdict && (
-              <p className="text-rose-100 text-sm leading-relaxed">{round0.verdict}</p>
+              <p className="text-amber-50 text-sm leading-relaxed">{round0.verdict}</p>
             )}
           </div>
           {lever?.money_line && (
-            <div className="rounded-2xl bg-gradient-to-br from-rose-500/10 to-transparent border border-rose-500/30 p-4 flex items-start gap-3">
-              <div className="shrink-0 h-10 w-10 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
-                <TrendingDown className="h-5 w-5 text-rose-400" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-rose-300/80 mb-1">Was es dich kostet</div>
-                <div className="text-rose-50 font-serif text-lg leading-tight">{lever.money_line}</div>
-              </div>
+            <div className="text-[11px] text-white/40 italic px-1 leading-relaxed">
+              Kleiner Reminder: {lever.money_line}
             </div>
           )}
         </div>
       )}
+
     </div>
   );
 }
