@@ -257,8 +257,11 @@ export default function CoachingView() {
 
   const lever = currentCard?.leverIndex != null ? levers[currentCard.leverIndex] : undefined;
   const cardKey = currentCard
-    ? `${currentCard.kind}:${currentCard.leverIndex ?? ""}:${currentCard.roundIndex ?? ""}`
+    ? (currentCard.kind === "weekly_intro"
+        ? "weekly_intro"
+        : `${currentCard.kind}:${currentCard.leverIndex ?? ""}:${currentCard.roundIndex ?? ""}`)
     : "";
+
   const currentMemo = memos.find((m) => m.card_key === cardKey) ?? null;
 
   // Suggest a memo on complex/high-impact card kinds
