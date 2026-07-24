@@ -588,7 +588,7 @@ function CinemaCard({
           <span className="text-[10px] tracking-widest uppercase text-rose-200">Erst Kontext, dann Fehler</span>
         </div>
         <div className="text-[10px] text-white/40">
-          Lies erst, was davor passiert ist — sonst wirkt die Antwort unfair.
+          Lies erst, was davor passiert ist, damit du den Kontext von dem Fehler erkennst.
         </div>
       </div>
 
