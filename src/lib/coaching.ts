@@ -159,8 +159,19 @@ export interface CoachingProgress {
 }
 
 
+export interface CoachingMemo {
+  id: string;
+  card_key: string;
+  audio_path: string;
+  audio_url?: string | null;
+  duration_ms?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CoachingAnalysisRow {
   id: string;
+  user_id?: string;
   chatter_name: string;
   platform: string;
   model_username: string | null;
@@ -177,6 +188,7 @@ export interface CoachingAnalysisRow {
   current_card_index?: number;
   commitment_text?: string | null;
   boss_fight_result?: BossFightResult | null;
+  memos?: CoachingMemo[];
 }
 
 
