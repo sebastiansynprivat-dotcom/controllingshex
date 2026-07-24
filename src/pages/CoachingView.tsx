@@ -1009,6 +1009,135 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
 }
 
 
+/* ============================== Cinema Follow-Up ============================== */
+/**
+ * Nach der besseren Antwort: zeigt cineastisch, wie der Chat weiterläuft
+ * und im Kauf endet. Reines "Future Pacing" — der Chatter sieht das Ergebnis
+ * des besseren Moves und speichert Handlung + Belohnung zusammen ab.
+ */
+function CinemaFollowUpCard({ lever, setCanAdvance, onGrantXp }: CardProps) {
+  const followUp = lever?.follow_up;
+  const rawMsgs = followUp?.messages ?? [];
+  const messages: CinemaMsg[] = useMemo(() => {
+    return rawMsgs
+      .map(parseChatLine)
+      .filter((m) => m.role !== "BOT-DM" && !!m.text.trim());
+  }, [rawMsgs]);
+
+  const total = messages.length;
+  const [revealed, setRevealed] = useState(0);
+  const [showTyping, setShowTyping] = useState(false);
+  const [saleShown, setSaleShown] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<any>(null);
+
+  const done = revealed >= total && saleShown;
+
+  useEffect(() => {
+    setCanAdvance(done || total === 0);
+  }, [done, total, setCanAdvance]);
+
+  useEffect(() => {
+    if (total === 0) return;
+    if (revealed >= total) {
+      // Kleiner Beat, dann Sale-Marker einblenden
+      timerRef.current = setTimeout(() => setSaleShown(true), 500);
+      return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    }
+    setShowTyping(true);
+    const delay = 700 + Math.random() * 500;
+    timerRef.current = setTimeout(() => {
+      setShowTyping(false);
+      setRevealed((n) => n + 1);
+      onGrantXp(1);
+    }, delay);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [revealed, total, onGrantXp]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [revealed, showTyping, saleShown]);
+
+  if (total === 0) return null;
+
+  const shown = messages.slice(0, revealed);
+  const canTap = revealed < total;
+
+  return (
+    <div>
+      <div className="text-center mb-3">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
+          <Zap className="h-3 w-3 text-emerald-400" />
+          <span className="text-[10px] tracking-widest uppercase text-emerald-200">So läuft's weiter</span>
+        </div>
+        <p className="text-white/50 text-xs italic">
+          Was passiert, wenn du diesen Move wirklich spielst
+        </p>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onClick={canTap ? () => {
+          if (timerRef.current) clearTimeout(timerRef.current);
+          setShowTyping(false);
+          setRevealed((n) => Math.min(total, n + 1));
+        } : undefined}
+        className={`max-h-[50vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3 ${canTap ? "cursor-pointer" : ""}`}
+      >
+        {shown.map((m, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <ChatBubble role={m.role} text={m.text} />
+          </motion.div>
+        ))}
+        {showTyping && canTap && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+            <TypingDots />
+          </motion.div>
+        )}
+
+        {saleShown && followUp?.sale_marker && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.5 }}
+            className="pt-2 flex justify-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500/25 to-teal-500/20 border border-emerald-400/50 shadow-lg shadow-emerald-500/20">
+              <span className="text-lg">💸</span>
+              <span className="text-emerald-100 text-sm font-medium tracking-wide">
+                {followUp.sale_marker}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {canTap && (
+        <div className="mt-3 text-center text-[10px] text-white/40">
+          Tippen zeigt die nächste Nachricht schneller
+        </div>
+      )}
+
+      {saleShown && followUp?.reflex_line && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-4 flex items-start gap-2 text-white/85 text-sm rounded-2xl bg-amber-500/5 border border-amber-500/25 p-3"
+        >
+          <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{followUp.reflex_line}</span>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 
 function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardProps) {
   const drill = lever?.drill;
