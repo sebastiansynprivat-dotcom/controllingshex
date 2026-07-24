@@ -388,6 +388,74 @@ function awaitRequestCompletion(
   });
 }
 
+async function withRetry<T>(
+  label: string,
+  fn: (attempt: number) => Promise<T>,
+  opts: { retries?: number; baseDelayMs?: number } = {},
+): Promise<T> {
+  const retries = opts.retries ?? 2;
+  const base = opts.baseDelayMs ?? 1500;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn(attempt);
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[coaching] ${label} attempt ${attempt + 1}/${retries + 1} failed:`, e);
+      if (attempt === retries) break;
+      await new Promise((r) => setTimeout(r, base * Math.pow(2, attempt)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+async function requestChatsFor(
+  t: ResolvedToken,
+  telegram_id: string,
+  date_range: { start: string; end: string },
+): Promise<string> {
+  return withRetry(`request-chats(${t.username})`, async () => {
+    const { data, error } = await supabase.functions.invoke("request-chats", {
+      body: {
+        telegram_id,
+        platform: t.platform,
+        token: t.token,
+        model_username: t.username,
+        date_range,
+      },
+    });
+    if (error) throw new Error(error.message || "request-chats failed");
+    if (!data?.request_id) throw new Error("request-chats: keine request_id erhalten");
+    return data.request_id as string;
+  });
+}
+
+async function fetchChatsForOneModel(
+  t: ResolvedToken,
+  telegram_id: string,
+  date_range: { start: string; end: string },
+  onProgress: (n: number) => void,
+): Promise<any[]> {
+  // Bis zu 2 volle Retries (neuer request-chats Call), falls 0 Chats/Fehler.
+  const MAX_ATTEMPTS = 3;
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const request_id = await requestChatsFor(t, telegram_id, date_range);
+      const chats = await awaitRequestCompletion(request_id, onProgress);
+      if (chats.length > 0) return chats;
+      lastErr = new Error("0 Chats erhalten");
+      console.warn(`[coaching] ${t.username}: 0 Chats (Versuch ${attempt}/${MAX_ATTEMPTS}) – retry`);
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[coaching] ${t.username}: Fehler (Versuch ${attempt}/${MAX_ATTEMPTS})`, e);
+    }
+    if (attempt < MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, 2000 * attempt));
+  }
+  console.warn(`[coaching] ${t.username}: endgültig fehlgeschlagen`, lastErr);
+  return [];
+}
+
 export async function fetchChatsForAnalysis(input: {
   chatter_name: string;
   platform: string;
@@ -397,56 +465,38 @@ export async function fetchChatsForAnalysis(input: {
   onStage?: (stage: string) => void;
 }): Promise<any[]> {
   input.onStage?.("Tokens werden aufgelöst…");
-  const { telegram_id, tokens } = await resolveTokens({
-    chatter_name: input.chatter_name,
-    platform: input.platform,
-    model_username: input.model_username,
-  });
+  const { telegram_id, tokens } = await withRetry("resolve-chatter-tokens", () =>
+    resolveTokens({
+      chatter_name: input.chatter_name,
+      platform: input.platform,
+      model_username: input.model_username,
+    }),
+  );
 
   input.onStage?.(`Fordere Chats für ${tokens.length} Model(s) an…`);
   const date_range = { start: input.date_from, end: input.date_to };
 
-  const requestIds = await Promise.all(
-    tokens.map(async (t) => {
-      const { data, error } = await supabase.functions.invoke("request-chats", {
-        body: {
-          telegram_id,
-          platform: t.platform,
-          token: t.token,
-          model_username: t.username,
-          date_range,
-        },
-      });
-      if (error) throw new Error(error.message || "request-chats failed");
-      return { request_id: data.request_id as string, username: t.username };
-    }),
-  );
-
-  input.onStage?.("Warte auf Chats vom externen Dienst…");
   const counts = new Map<string, number>();
   const chatArrays = await Promise.all(
-    requestIds.map(({ request_id, username }) =>
-      awaitRequestCompletion(request_id, (n) => {
-        counts.set(username, n);
+    tokens.map((t) =>
+      fetchChatsForOneModel(t, telegram_id, date_range, (n) => {
+        counts.set(t.username, n);
         const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
         input.onStage?.(`Lade Chats… ${total}`);
-      }).catch((e) => {
-        console.warn(`Chat-Fetch für ${username} fehlgeschlagen:`, e);
-        return [] as any[];
       }),
     ),
   );
 
   const aggregated: any[] = [];
   for (let i = 0; i < chatArrays.length; i++) {
-    const username = requestIds[i].username;
+    const username = tokens[i].username;
     for (const c of chatArrays[i]) {
       aggregated.push({ ...c, model_username: (c && c.model_username) || username });
     }
   }
 
   if (aggregated.length === 0) {
-    const modelList = requestIds.map((r) => r.username).join(", ");
+    const modelList = tokens.map((t) => t.username).join(", ");
     throw new Error(
       `Für ${modelList} wurden im Zeitraum ${input.date_from} – ${input.date_to} keine Chats gefunden. Bitte Zeitraum vergrößern oder anderes Model wählen.`,
     );
@@ -468,25 +518,58 @@ export async function analyzeChats(input: {
   const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-coaching-analysis`;
   const { data: { session } } = await supabase.auth.getSession();
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${session?.access_token ?? anon}`,
-      "apikey": anon,
-    },
-    body: JSON.stringify({
-      chatter_name: input.chatter_name,
-      platform: input.platform,
-      model_username: input.model_username,
-      date_from: input.date_from,
-      date_to: input.date_to,
-      chats: input.chats,
-    }),
+  const body = JSON.stringify({
+    chatter_name: input.chatter_name,
+    platform: input.platform,
+    model_username: input.model_username,
+    date_from: input.date_from,
+    date_to: input.date_to,
+    chats: input.chats,
   });
-  const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json as AnalysisResult;
+
+  return withRetry(
+    "generate-coaching-analysis",
+    async (attempt) => {
+      if (attempt > 0) input.onStage?.(`KI-Analyse: Retry ${attempt}…`);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 240_000);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token ?? anon}`,
+            "apikey": anon,
+          },
+          body,
+          signal: ctrl.signal,
+        });
+        const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        if (!res.ok) {
+          const err: any = new Error(json.error || `HTTP ${res.status}`);
+          err.status = res.status;
+          // 4xx (außer 408/429) sind Client-Fehler → nicht retryen
+          if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+            (err as any).noRetry = true;
+          }
+          throw err;
+        }
+        // Leere / offensichtlich unvollständige Analyse → Retry
+        const cards = Array.isArray((json as any)?.story_cards) ? (json as any).story_cards.length : 0;
+        const levers = Array.isArray((json as any)?.top_3_levers) ? (json as any).top_3_levers.length : 0;
+        if (cards <= 2 && levers === 0) {
+          throw new Error("Analyse leer zurückgekommen – Retry");
+        }
+        return json as AnalysisResult;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    { retries: 2, baseDelayMs: 3000 },
+  ).catch((e) => {
+    if ((e as any)?.noRetry) throw e;
+    throw e;
+  });
 }
 
 export async function runAnalysis(input: {
