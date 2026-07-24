@@ -14,6 +14,8 @@ interface Props {
   cardKey: string;
   isOwner: boolean;
   memo: CoachingMemo | null;
+  suggested?: boolean;
+  suggestedReason?: string;
   onChange: (memo: CoachingMemo | null) => void;
 }
 
