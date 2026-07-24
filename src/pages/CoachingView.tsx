@@ -904,13 +904,18 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
         className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
       />
       {score === null ? (
-        <Button
-          onClick={submit}
-          disabled={!text.trim() || busy}
-          className="w-full mt-3 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
-        >
-          {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Bewerte…</> : <>Bewertung holen <Send className="h-4 w-4 ml-2" /></>}
-        </Button>
+        <>
+          {text.trim() && (
+            <div className="mt-2 text-[10px] text-white/40 italic">Der Boss liest mit …</div>
+          )}
+          <Button
+            onClick={submit}
+            disabled={!text.trim() || busy}
+            className="w-full mt-3 bg-gradient-to-r from-amber-500 to-rose-500 text-black font-semibold"
+          >
+            {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Boss liest …</> : <>Abschicken <Send className="h-4 w-4 ml-2" /></>}
+          </Button>
+        </>
       ) : (
         <div className="mt-4 space-y-3">
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
