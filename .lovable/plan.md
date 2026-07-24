@@ -1,102 +1,156 @@
-# Coaching-Präsentation v4 — Psychologische Verdichtung
+# Coaching-Verlauf: "Cinema-Mode" mit Pflicht-Play & Guess-Stops
 
-Fokus: **wie** dem Chatter das Coaching präsentiert wird. Keine Änderung an der KI-Analyse, Bewertungslogik oder DB-Struktur (bis auf ein neues Progress-Feld). Nur `src/pages/CoachingView.tsx` + kleine Ergänzungen in `src/lib/coaching.ts`.
+## Ziel
+Chatter sollen sich den echten Chatverlauf zu 100% durchlesen — psychologisch smart, ohne dass es sich wie Zwang anfühlt. Mix aus **Netflix-Sog** (Auto-Play, Cliffhanger) und **Hebel-Wirkung** (Guess-First, dann Reveal).
 
-## Leitidee
-Der Chatter soll fühlen: *"Das ist über MICH, das ist heiß, das darf ich nicht verpassen."* Wir bauen die bekannten Hebel aus Behavioral Psychology, Interrogation-Rapport-Playbooks (Reid/HIG), Cialdini, Milton-Erickson-Sprachmuster und Netflix/TikTok-Retention konsequent in die UI-Ebene.
+## Kernidee in einem Satz
+Statt "Kompletten Verlauf ansehen"-Button wird der Verlauf zur **Pflicht-Karte** in der Story-Sequenz: Nachrichten spielen sich einzeln ab wie ein Chat live vor deinen Augen, stoppen an DEINER Antwort, du rätst was du geschickt hast — dann Reveal.
 
-## 1. Personal Cold-Open (statt neutraler Intro-Karte)
-- Erste Karte spricht den Chatter beim Vornamen an, nennt exakte Zahl analysierter Chats + Zeitraum, und wirft **einen** brutal konkreten Satz auf den Screen: *"Jeanette — in 28 Chats hast du 3 Whales angefasst. Zwei davon habe ich verbluten sehen."*
-- Full-bleed dunkler Hintergrund, ein Satz, kein Chrome. Erst nach 1.2 s erscheint der "Weiter"-Hinweis (Delay = Gewicht).
-- Quelle: **Pattern-Interrupt** + **Named-Address** (Erickson) + **Loss-Framing** (Kahneman).
+## Wie der Chatter das erlebt
 
-## 2. Progress-HUD wie ein Game, nicht wie ein Kurs
-- Oben permanent sichtbar: dünner Fortschrittsbalken + Karten-Zähler ("3 / 17") + kleiner Puls-Dot rechts.
-- Bei jeder abgeschlossenen Karte: dezenter Haptik-artiger UI-Puls (scale 1 → 1.04 → 1) + Balken schiebt hörbar (sanftes Framer-Ease).
-- Level bleibt, XP bleibt raus (bestehende Entscheidung).
-- Quelle: **Zeigarnik** + **Endowed-Progress-Effekt**.
+```text
+┌─────────────────────────────────┐
+│  🎬 So lief euer Chat wirklich  │
+│  Nachricht 4 von 9              │
+│  ▓▓▓▓▓▓░░░░░░░░░               │
+├─────────────────────────────────┤
+│                                 │
+│  Kunde                          │
+│  ┌──────────────────┐           │
+│  │ hey, geht's dir  │           │
+│  │ noch gut heute?  │           │
+│  └──────────────────┘           │
+│                                 │
+│              (Kunde tippt...)   │
+│              ┌───┐              │
+│              │•••│              │
+│              └───┘              │
+│                                 │
+│  Kunde                          │
+│  ┌──────────────────┐           │
+│  │ hab an dich      │  ← neu    │
+│  │ gedacht 😏       │           │
+│  └──────────────────┘           │
+│                                 │
+│         [Pause] Antippen für    │
+│              nächste Nachricht  │
+└─────────────────────────────────┘
+```
 
-## 3. Tonalität: Boss-Voice statt Coach-Voice
-- Alle statischen UI-Texte (Eyebrows, Buttons, Empty-States, Gate-Hinweise) auf einen einheitlichen Stil bringen: kurz, direkt, "Du", leicht rau, kein Trainer-Sprech.
-- Beispiele:
-  - "Mini-Übung · Welche ist besser?" → "Zwei Antworten. Eine bringt Geld. Welche?"
-  - "Weiter" → "Weiter" bleibt, aber gated-Text ändert sich: *"Erst zu Ende schauen. Ich will nicht, dass du das überspringst."* (First-Person vom "Boss").
-  - Reveal-Header: "Was du wirklich geschrieben hast:" → "Deine echte Antwort — ungeschönt:"
-- Quelle: **In-Group-Signaling** + **Authority** (Cialdini).
+An der kritischen Stelle (deine Antwort):
 
-## 4. Cinema-Karte psychologisch nachschärfen
-Bestehende Cinema-Card bleibt, aber Präsentation:
-- Vor Playback ein 2-Sekunden-Split-Screen: links Kunde-Avatar, rechts Chatter-Name, dazwischen ein Zeitstempel. Wirkt wie Boxkampf-Ankündigung.
-- Während Playback zufällige Typing-Delays 400-1400 ms (bereits da) + gelegentlich "Kunde tippt…" verschwindet und kommt wieder → simuliert Zögern, erhöht Sog.
-- Reveal der echten Chatter-Antwort mit leichtem Delay + roter Kontur-Blink 1×, dann Verdict-Zeile.
-- €-Verlust-Zahl in großer, präziser Ziffer (nie gerundet auf 10er, nutzt genau die vom Prompt gelieferte Range).
-- Quelle: **Anticipation-Framing** (Netflix Cold-Opens), **Precision-Bias** (präzise Zahlen wirken glaubwürdiger).
+```text
+┌─────────────────────────────────┐
+│  ⏸  STOP — dein Moment          │
+│                                 │
+│  Der Kunde hat das gerade       │
+│  geschrieben ↑                  │
+│                                 │
+│  Was hättest DU jetzt           │
+│  geantwortet?                   │
+│                                 │
+│  ┌───────────────────────────┐  │
+│  │ Tipp deine Antwort...     │  │
+│  │                           │  │
+│  └───────────────────────────┘  │
+│                                 │
+│  [ Antwort abschicken ]         │
+│                                 │
+│  oder                           │
+│  [ Skip — nur zeigen ]          │
+└─────────────────────────────────┘
+```
 
-## 5. Better-Version-Karte als "Zeitmaschine"
-- Header: "Spul zurück. So hätte es laufen können."
-- Gleiche Chat-Szene, aber der letzte Bubble ist die bessere Antwort — mit einem grünen €-Betrag daneben ("+120–180€ Fan-Lifetime").
-- Ein Satz drunter, sehr klein: *"Merk dir diese eine Zeile. Sie ist der Unterschied."*
-- Quelle: **Counterfactual-Simulation** (Roese) — Menschen lernen aus "was wäre wenn" stärker als aus "was war".
+Nach Abschicken:
 
-## 6. Mini-Übung (Drill) als Split-Test-Optik
-- A/B nebeneinander in zwei Karten-Slots, nicht untereinander.
-- Nach Wahl: die falsche Option wird ausgegraut + durchgestrichen, die richtige bleibt farbig und bekommt eine kurze "Warum"-Zeile.
-- Bei falscher Wahl: **kein** rotes Kreuz, sondern trockener Text: *"Nicht falsch. Nur teurer."* + der €-Range der besseren Option.
-- Quelle: **Face-Saving-Feedback** (HIG Rapport-Playbook) — Härte ohne Demütigung.
+```text
+┌─────────────────────────────────┐
+│  Du hast geschrieben:           │
+│  "hey ja mir geht's gut..."     │
+│                                 │
+│  ─────────────────────          │
+│                                 │
+│  Was du WIRKLICH geschickt hast:│
+│  ┌──────────────────┐           │
+│  │ ja alles gut bei │           │
+│  │ dir 🙂           │           │
+│  └──────────────────┘           │
+│                                 │
+│  🤖 KI-Verdict: 4/10            │
+│  Du hast den heißen Ball        │
+│  ("hab an dich gedacht")        │
+│  komplett fallen gelassen.      │
+│                                 │
+│  💰 Geschätzter Verlust: ~35€   │
+└─────────────────────────────────┘
+```
 
-## 7. Type-Drill mit Live-Mirror
-- Während der Chatter tippt, erscheint über dem Textfeld in grau *"Der Boss liest mit…"* — verschwindet on-focus-out.
-- Nach Submit: die polierte Version wird **zusammen** mit der eigenen gezeigt, Diff-Markierung (Wörter, die entfernt/ersetzt wurden, sind unterstrichen).
-- Quelle: **Observer-Effect** (leichter sozialer Druck) + **Direct-Comparison-Learning**.
+## Psychologische Hebel (bewusst eingebaut)
 
-## 8. Boss-Anekdote als Chatblase vom "Boss"
-- Kein Karten-Header "Anekdote", sondern eine Nachricht-Bubble mit Boss-Avatar + Uhrzeit, so als würde der Boss dem Chatter privat schreiben.
-- Text zweiteilig: Hook (fett, ein Satz) → Story (2–3 Sätze) → kurze Signatur.
-- Quelle: **Social-Proof-Narrative** + **In-Group-Storytelling** — In-Character-Präsentation erhöht Encoding.
+1. **Cliffhanger-Loop:** Jede Kundennachricht endet mit "Und was passierte dann?" — Neugier zwingt zum Weitertappen.
+2. **Guess-First (Endowment-Effekt):** Sobald der Chatter seine eigene Version tippt, WILL er wissen, ob er richtig lag. Das eigene Investment macht den Reveal unwiderstehlich.
+3. **Zeigarnik-Effekt:** Fortschrittsbalken "4 von 9" macht Abbruch mental unmöglich (halb-fertige Aufgaben nerven das Gehirn).
+4. **Hartes Gate:** "Weiter" zur nächsten Karte ist **deaktiviert**, bis alle Nachrichten der Runde freigetappt wurden. Kein Skip.
+5. **Money-Anchor:** Nach jedem Reveal ein €-Verlust-Wert ("Diese Antwort hat dich ~35€ gekostet") — konkreter Schmerz > abstraktes Feedback.
+6. **Micro-Rewards:** +2 XP pro getappter Nachricht, +25 für gutes Guess, sichtbar als kleine Pings am Rand.
+7. **Social Proof am Anfang der Karte:** "Nur 12% der Chatter lesen den ganzen Verlauf — sei einer davon" (statischer Text, keine Live-Zahl nötig).
+8. **Realistische Typing-Delays:** 400ms-1200ms Pausen + "Kunde tippt…" Indicator = fühlt sich an wie live Zuschauen, nicht wie Lernen.
 
-## 9. Quiz als Konsequenz, nicht als Test
-- Header: nicht "Quiz", sondern "Kurz-Check — sitzt es?"
-- Bei richtig: eine Zeile Bestätigung + Micro-Line *"Genau so denkt ein Closer."*
-- Bei falsch: keine Punktabwertung sichtbar, stattdessen: *"Lies die Karte davor nochmal. Ich warte."* mit Scroll-Back-Button zur letzten Karte.
-- Quelle: **Reciprocity** (Boss "wartet auf dich") + **Autonomy-Support** (Deci/Ryan) — freundlicher Zwang.
+## Architektur
 
-## 10. Commitment-Karte am Ende — echter Vertrag
-- Zeigt oben den vollen Namen des Chatters, Datum, Modell-Range.
-- Textfeld heißt: *"Was machst du diese Woche anders? Ein Satz. Schreib ihn so, dass du ihn dir selbst glaubst."*
-- Submit-Button: "Ich commit-te mich" (deutscher Denglisch-Boss-Ton).
-- Nach Submit: der Satz wird als handgeschriebenes "Unterschrift"-Element gerendert (script-artige Font, bereits verfügbare Serif oder eine leichte Rotation).
-- Quelle: **Cialdini Commitment/Consistency** — schriftlich > mündlich, öffentlich > privat, personalisiert > generisch.
+### Ersetzt / ändert sich
+- **`FullChatHistory` (aktueller Collapse-Button)** → wird komplett entfernt.
+- **`ChatterDidCard`** → wird zur neuen **`CinemaCard`** (Auto-Play + Stops + Reveal in einem).
+- Bisherige `context` + `chatter_did` + `verdict` + `money_line` Karten werden in die CinemaCard fusioniert. Das reduziert die Anzahl Karten pro Hebel, macht den Flow filmischer und der Chatter kriegt Kontext + Fehler + Kosten in einem geführten Erlebnis.
 
-## 11. Micro-Momente über die ganze View
-- **Sticky Boss-Line**: Am unteren Screen-Rand permanent eine dünne Zeile mit der aktuellen `micro_action` (max 60 Zeichen), leicht transparent — konstante Erinnerung ohne Modal.
-- **Karten-Übergänge**: horizontales Slide + minimaler Blur beim Wechsel (bereits Framer da), gibt kinematisches Gefühl.
-- **Loading-States**: Statt Spinner: der Satz *"Boss denkt nach…"* mit Punkte-Animation.
-- **Fehler-States**: statt "Error" → *"Kurz verloren, nochmal antippen."*
+### Neue Karten-Kinds (in `CoachingView.tsx`)
+- `cinema` — die Pflicht-Karte mit Auto-Play + Stop + Guess.
+- `cinema_better` — direkt danach: gleicher Verlauf, aber die "bessere" Antwort spielt sich als Bubble ein. Kein Guess mehr, nur "So sieht's richtig aus."
 
-## 12. Gate-Verhalten diplomatischer, aber härter
-- "Weiter" gated bleibt, aber Tooltip wird persönlich: *"Nicht vor mir wegdrehen. Zu Ende sehen."*
-- Nach 8 s Inaktivität auf gated Karten: kleines Wobble der "Weiter"-Zone + Hinweis was noch fehlt (z. B. "Noch 3 Nachrichten offen").
-- Quelle: **Loss-Aversion** über Attention-Reminder.
+### Cards-Sequenz pro Hebel (neu)
+```text
+lever_intro
+  → customer_card
+  → cinema          (NEU: Verlauf + Guess + Real + Verdict + €-Verlust)
+  → cinema_better   (NEU: gleicher Verlauf, letzter Bubble = better_version)
+  → drill (A/B)
+  → type_drill
+  → boss_anecdote
+  → takeaway
+  → quiz
+```
 
-## Technische Umsetzung
+### Gate-Logik
+- Auf `cinema`-Karte ist `onAdvance` (Weiter-Button) **disabled**, bis:
+  - alle `context_messages` freigetappt wurden UND
+  - Guess abgeschickt (oder explizit "Skip — nur zeigen" gedrückt, gibt weniger XP) UND
+  - Reveal + Verdict gesehen.
+- Bottom-Nav-Weiter-Button muss den `canAdvance` State aus der aktiven Karte lesen. Dazu die bestehende `onAdvance`-Prop-Struktur um ein `canAdvance` erweitern (State im Parent, Karte meldet über neuen Callback `onGateStatus`).
 
-**Dateien**
-- `src/pages/CoachingView.tsx` — alle Präsentations-Änderungen: Personal-Intro-Karte, HUD-Refresh, überarbeitete Header/Buttons/Empty-States, Cinema/Better/Drill/Type-Drill/Anekdote/Quiz/Commitment-Präsentation, Sticky Boss-Line, gated-Tooltip + Wobble.
-- `src/lib/coaching.ts` — `CoachingProgress` optional um `sticky_dismissed?: boolean` und `intro_seen?: boolean` erweitern, damit die Cold-Open-Karte nach Erst-Ansicht nicht mehr modal wirkt und die Sticky-Line dismiss-bar bleibt.
+### State pro Cinema-Karte (in `progress_json`)
+- `cinema_progress: Record<leverIndex, { messages_revealed: number; guess?: string; guess_score?: number; completed: boolean }>`
+- Wird über `updateProgress` persistiert wie alle anderen Progress-Felder.
 
-**Was NICHT angefasst wird**
-- Keine Edge-Function-Änderung.
-- Kein Prompt-Change (Analyse liefert bereits alle nötigen Felder: `personal_intro`, `money_line`, `boss_anecdote`, `micro_action`, `context_messages`, `better_version` etc.).
-- Kein neues DB-Schema, keine Migration.
-- Keine Änderung an Boss-Fight-Mechanik (nur Kopien/Header dort werden auf Boss-Voice angeglichen).
+### Guess-Bewertung
+- Nutzt die bereits existierende `evaluateDrill` Edge Function (oder `evaluateSimulation` mit `mode: evaluate_single`) — kein neuer Backend-Endpoint nötig. Der Prompt bekommt Kontext + echte Antwort + Guess und liefert Score + kurzes Feedback.
 
-**Reihenfolge im Build**
-1. Text-Layer (alle Header/Buttons/Empty-States/Tooltips auf Boss-Voice + Neuformulierungen) — schnell, sofort spürbar.
-2. Personal Cold-Open + Progress-HUD-Refresh.
-3. Cinema/Better/Drill/Type-Drill/Anekdote/Quiz-Präsentation.
-4. Commitment-Vertrag-Optik.
-5. Sticky Boss-Line + Gate-Wobble.
-6. Micro-Animations & Loading/Error-Copy.
+### Money-Verlust anzeigen
+- Nutzt das existierende `lever.money_line` (bereits vom AI-Prompt geliefert). Kein Schema-Change nötig.
 
-**Verifikation**
-- Nach Build: Playwright-Run gegen `/c/:token` mit einem existierenden Analyse-Token, Screenshots pro Karten-Typ, visuelle Prüfung dass Text-Ton konsistent ist und keine Karte "leer" wirkt.
+## Technisches (kurz)
+
+- Auto-Play: `setTimeout`-Kette mit variablen Delays (500-1200ms), Typing-Dots als Zwischenschritt vor jeder Kunden-Bubble.
+- Tap-to-advance-Fallback: Wenn Chatter tappt, springt sofort zur nächsten Bubble (überspringt Delay).
+- Framer Motion für Bubble-Einblendung: `initial={{ opacity: 0, y: 8 }}, animate={{ opacity: 1, y: 0 }}`.
+- Alle neuen Farben/Styles über bestehende semantic tokens + amber/rose/emerald wie im Rest der View (bereits etabliert).
+- Kein neues Backend-Schema, keine neue Edge Function, keine DB-Migration.
+
+## Betroffene Dateien
+- `src/pages/CoachingView.tsx` — neue `CinemaCard` + `CinemaBetterCard`, alte `ChatterDidCard`/`MoneyLossCard`/`BetterCard`/`FullChatHistory`/`ContextCard` entfernen bzw. konsolidieren, `cards`-Sequenz-Builder anpassen, Gate-State ins Parent-Component ziehen.
+- `src/lib/coaching.ts` — `CoachingProgress` Interface um `cinema_progress` erweitern.
+
+## Was NICHT dazugehört
+- Keine Änderung an AI-Prompt / JSON-Schema (bestehende Felder reichen).
+- Keine neuen DB-Spalten.
+- Keine Änderung an Boss-Fight, Quiz, Drill, Commitment.
+- Kein Rework der Cover/Weekly/Final-Karten.
