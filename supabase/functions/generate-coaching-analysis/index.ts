@@ -387,6 +387,39 @@ Deno.serve(async (req) => {
       .join('\n\n---\n\n')
       .slice(0, 60000);
 
+    // Load known Bot-/Auto-DM openers for the analyzed model(s). These are
+    // configured per workspace on the Models page and let the coach reliably
+    // distinguish automated openers from real chatter-written messages.
+    const knownBotDms: string[] = await (async () => {
+      let q = supabase
+        .from('models')
+        .select('model_name, bot_dms')
+        .eq('user_id', authData.user.id)
+        .eq('platform', platform)
+        .not('bot_dms', 'is', null);
+      if (model_username) q = q.eq('model_name', model_username);
+      const { data } = await q;
+      const out: string[] = [];
+      for (const row of data ?? []) {
+        const raw = String((row as any).bot_dms ?? '');
+        for (const line of raw.split(/\r?\n/)) {
+          const t = line.trim();
+          if (t.length > 2) out.push(t);
+        }
+      }
+      // Dedupe (case-insensitive), keep original casing
+      const seen = new Set<string>();
+      const unique: string[] = [];
+      for (const s of out) {
+        const k = s.toLowerCase();
+        if (!seen.has(k)) { seen.add(k); unique.push(s); }
+      }
+      return unique.slice(0, 40);
+    })();
+    const botDmBlock = knownBotDms.length
+      ? `BEKANNTE BOT-/AUTO-DMs (vom Team-Lead hinterlegt — NIE dem Chatter anlasten, NIE zitieren, NIE als weakest_moment/wrong_example verwenden). Jede dieser Nachrichten ist eine automatisierte Anschrift, kein vom Chatter getippter Text:\n${knownBotDms.map((s, i) => `  ${i + 1}. ${s}`).join('\n')}\n\nBehandele auch leichte Varianten davon (kleine Umformulierungen, andere Emojis, Groß-/Kleinschreibung) als Auto-DM.`
+      : '';
+
     // === Chatter-Gesamtperformance (alle Models) im Zeitraum vs. Vorperiode ===
     // Wichtig um korrekt zu unterscheiden zwischen
     //   "keine Verkäufe in den analysierten Chats" vs "gar keine Verkäufe insgesamt".
