@@ -38,6 +38,8 @@ export default function CoachingPage() {
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<CoachingMaterial> | null>(null);
   const [selectedChatter, setSelectedChatter] = useState<ChatterCandidate | null>(null);
+  const [weeklyMemoReload, setWeeklyMemoReload] = useState(0);
+
 
   const load = async () => {
     setLoading(true);
