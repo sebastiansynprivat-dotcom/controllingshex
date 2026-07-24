@@ -295,6 +295,8 @@ function awaitRequestCompletion(
     let settled = false;
     let lastChats: any[] = [];
     let lastChangeAt = Date.now();
+    let completedAt: number | null = null; // Zeitpunkt, an dem status=completed erstmals gesehen wurde
+    const COMPLETED_GRACE_MS = 20_000; // Wartezeit auf verspätete Chats nach "completed"
     const cleanup = () => {
       try { channel.unsubscribe(); } catch { /* noop */ }
       clearInterval(poll);
@@ -316,8 +318,15 @@ function awaitRequestCompletion(
         lastChangeAt = Date.now();
         onProgress?.(chats.length);
       }
-      if (row.status === "completed") done(() => resolve(chats));
-      else if (row.status === "failed") {
+      if (row.status === "completed") {
+        if (chats.length > 0) {
+          done(() => resolve(chats));
+        } else if (completedAt === null) {
+          // Race: externer Dienst hat "done" vor den Chat-Batches geschickt.
+          // Nicht sofort mit 0 auflösen — bis zu COMPLETED_GRACE_MS auf Chats warten.
+          completedAt = Date.now();
+        }
+      } else if (row.status === "failed") {
         if (chats.length > 0) done(() => resolve(chats));
         else done(() => reject(new Error(row.error_message || "Chat-Fetch fehlgeschlagen")));
       }
@@ -340,14 +349,20 @@ function awaitRequestCompletion(
         .maybeSingle();
       handleRow(data);
     };
-    const poll = setInterval(pollOnce, 5000);
+    const poll = setInterval(pollOnce, 3000);
     pollOnce();
 
     const idleCheck = setInterval(() => {
+      // Nach "completed" + Grace Period: mit dem auflösen, was wir haben (auch 0).
+      if (completedAt !== null && Date.now() - completedAt >= COMPLETED_GRACE_MS) {
+        done(() => resolve(lastChats));
+        return;
+      }
+      // Klassischer Idle: wir haben Chats, seit `idleMs` kam nichts neues.
       if (lastChats.length > 0 && Date.now() - lastChangeAt >= idleMs) {
         done(() => resolve(lastChats));
       }
-    }, 2000);
+    }, 1000);
 
     const timer = setTimeout(() => {
       if (lastChats.length > 0) done(() => resolve(lastChats));
