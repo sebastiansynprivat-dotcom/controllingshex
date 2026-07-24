@@ -82,6 +82,7 @@ function StreakChip({ streak }: { streak: number }) {
 
 type CardKind =
   | "cover"
+  | "weekly_intro"
   | "weekly"
   | "lever_intro"
   | "customer_card"
@@ -97,6 +98,7 @@ type CardKind =
   | "boss_fight"
   | "commitment"
   | "final";
+
 
 interface StoryCard {
   kind: CardKind;
