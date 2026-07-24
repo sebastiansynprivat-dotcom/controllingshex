@@ -3,7 +3,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
-const META_MODEL = 'google/gemini-3.1-pro-preview';
+const META_MODEL = 'google/gemini-2.5-pro';
+const META_MODEL_FALLBACK = 'google/gemini-3.6-flash';
 const CONTROLLING_CHATS_ENDPOINT = 'https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-chats';
 const FETCH_CHATS_ENDPOINT = 'https://api.controlling.shexadmin.ngrok.pro/fetch-chats';
 
@@ -775,10 +776,28 @@ JSON-Schema (EXAKT einhalten):
   "retrieval_question": "<Eine Frage, die den Chatter zwingt selbst nachzudenken, z.B. 'Wie formulierst du beim nächsten Kunden anders, der 'zu teuer' schreibt?'>"
 }`;
 
+      const runMeta = async (modelId: string) => {
+        const raw = await callGemini(aiKey, systemPrompt, metaPrompt, true, modelId);
+        const parsed = safeParseJSON<any>(raw, null);
+        return { raw, parsed };
+      };
+
       try {
-        const raw = await callGemini(aiKey, systemPrompt, metaPrompt, true, META_MODEL);
-        focusedResult = safeParseJSON<any>(raw, null);
+        let attempt = await runMeta(META_MODEL);
+        if (!attempt.parsed || !Array.isArray(attempt.parsed?.top_3_levers) || attempt.parsed.top_3_levers.length === 0) {
+          console.warn('[coaching] Meta-Pass primary model returned empty/invalid JSON, retrying with fallback', {
+            primary: META_MODEL,
+            fallback: META_MODEL_FALLBACK,
+            raw_preview: (attempt.raw ?? '').slice(0, 400),
+          });
+          attempt = await runMeta(META_MODEL_FALLBACK);
+        }
+        focusedResult = attempt.parsed;
+        if (!focusedResult) {
+          console.error('[coaching] Meta-Pass fallback also failed to parse', { raw_preview: (attempt.raw ?? '').slice(0, 400) });
+        }
       } catch (e) {
+        console.error('[coaching] Meta-Pass exception', e);
         focusedResult = { error: (e as Error).message };
       }
     }
