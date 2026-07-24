@@ -138,7 +138,7 @@ export default function CoachingMemoBar({ coachingId, cardKey, isOwner, memo, su
     >
       <Mic className={"h-3.5 w-3.5 shrink-0 " + (highlight ? "text-amber-200 animate-pulse" : "text-amber-300")} />
       <span className="text-[10px] uppercase tracking-wider text-amber-200/80 shrink-0">
-        {highlight ? (suggestedReason ? `Memo empfohlen · ${suggestedReason}` : "Memo empfohlen") : "Memo vom Boss"}
+        {highlight ? (suggestedReason ? `Memo empfohlen · ${suggestedReason}` : "Memo empfohlen") : "Memo von Sebastian"}
       </span>
 
       {audioUrl && (
