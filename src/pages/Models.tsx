@@ -613,6 +613,13 @@ export default function Models() {
                           <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-Mail" type="email" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                           <Input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Passwort" type="text" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                           <Input value={editProfileUrl} onChange={(e) => setEditProfileUrl(e.target.value)} placeholder="Maloum-Profil-URL" type="url" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
+                          <textarea
+                            value={editBotDms}
+                            onChange={(e) => setEditBotDms(e.target.value)}
+                            placeholder="Bot-/Auto-DMs (eine pro Zeile)"
+                            rows={2}
+                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md text-foreground placeholder:text-white/20 text-xs font-light px-2 py-1.5 resize-y focus:outline-none focus:border-primary/30"
+                          />
                         </td>
                         <td className="py-3 sm:py-4 px-4 sm:px-8 align-top">
                           <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
