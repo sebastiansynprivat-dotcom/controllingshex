@@ -600,6 +600,7 @@ Umsatz: ${formatted.revenue.toFixed(2)}€, PPVs angeboten: ${formatted.sends}, 
 
 WICHTIG — BOT-DM-ERKENNUNG:
 Die allererste Nachricht im Chat kommt bei uns oft von einer automatisierten Bot-Anschrift (nicht vom Chatter getippt). Prüfe: Ist die ALLERERSTE Nachricht im Chat vom Model/Chatter-Account, direkt sexuell/anmachend, und gab es davor keine andere Chatter-Nachricht? Dann ist das mit hoher Wahrscheinlichkeit ein Bot-Opener. Solche Openings dürfen NIE als weakest_moment oder als Zitat vom Chatter verwendet werden.
+${knownBotDms.length ? `\nZUSÄTZLICH — vom Team-Lead hinterlegte Auto-DMs (auch leichte Varianten als Bot behandeln):\n${knownBotDms.map((s) => `  - ${s}`).join('\n')}\n` : ''}
 
 CHAT:
 ${formatted.text}
