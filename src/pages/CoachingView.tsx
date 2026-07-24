@@ -791,7 +791,7 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
 
   return (
     <div>
-      <Eyebrow>Drill · Welche ist besser?</Eyebrow>
+      <Eyebrow>Mini-Übung · Welche ist besser?</Eyebrow>
       <p className="text-white/80 mb-4 leading-relaxed">{drill.prompt}</p>
       <div className="space-y-3">
         {(["a", "b"] as const).map((opt) => {
@@ -1230,7 +1230,7 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
           <div className="text-2xl font-serif mt-1">{stats.quiz}</div>
         </div>
         <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/40">Drills</div>
+          <div className="text-[10px] uppercase tracking-widest text-white/40">Übungen</div>
           <div className="text-2xl font-serif mt-1">{stats.drills}</div>
         </div>
       </div>
