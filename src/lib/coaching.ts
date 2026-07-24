@@ -868,4 +868,3 @@ export async function attachAndConsumePendingWeeklyMemo(coachingId: string): Pro
   }
 }
 
-}
