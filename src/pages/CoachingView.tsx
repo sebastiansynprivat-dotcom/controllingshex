@@ -821,6 +821,7 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
   const idx = card.leverIndex!;
   const existing = progress.drill_answers?.[idx];
   const [picked, setPicked] = useState<"a" | "b" | null>(existing?.picked ?? null);
+  const confetti = useConfetti();
   if (!drill) return null;
   const correct = drill.better_option;
   const answered = picked !== null;
@@ -830,20 +831,28 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
     setPicked(opt);
     const isRight = opt === correct;
     const prev = progress.drill_answers ?? {};
+    const prevStreak = progress.answer_streak ?? 0;
     onSaveProgress({
       ...progress,
       drill_answers: {
         ...prev,
         [idx]: { ...(prev[idx] ?? {} as any), picked: opt, correct: isRight, at: new Date().toISOString() },
       },
+      answer_streak: isRight ? prevStreak + 1 : 0,
     });
-    if (isRight) onGrantXp(25);
-    else onGrantXp(5);
+    if (isRight) {
+      onGrantXp(25);
+      confetti.fire();
+    } else {
+      onGrantXp(5);
+      try { navigator.vibrate?.(15); } catch { /* noop */ }
+    }
   };
 
   return (
     <div>
-      <Eyebrow>Mini-Übung · Welche ist besser?</Eyebrow>
+      <ConfettiBurst show={confetti.on} />
+      <Eyebrow>Kurzer Reflex-Check · Welche zündet?</Eyebrow>
       <p className="text-white/80 mb-4 leading-relaxed">{drill.prompt}</p>
       <div className="space-y-3">
         {(["a", "b"] as const).map((opt) => {
@@ -851,10 +860,13 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
           const isPicked = picked === opt;
           const isCorrect = opt === correct;
           return (
-            <button
+            <motion.button
               key={opt}
               onClick={() => choose(opt)}
               disabled={answered}
+              whileTap={{ scale: 0.98 }}
+              animate={answered && isCorrect ? { scale: [1, 1.03, 1] } : {}}
+              transition={{ duration: 0.35 }}
               className={[
                 "w-full text-left p-4 rounded-2xl border transition-all",
                 !answered && "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20",
@@ -875,18 +887,26 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
                 </div>
                 <div className="text-sm text-white/90 leading-snug">{text}</div>
               </div>
-            </button>
+            </motion.button>
           );
         })}
       </div>
       {answered && (
-        <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed">
-          <span className="font-medium text-amber-400">Warum: </span>{drill.why}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm leading-relaxed"
+        >
+          <span className="font-medium text-amber-400">
+            {picked === correct ? "Genau der Move. " : "Nah dran. "}
+          </span>{drill.why}
+        </motion.div>
       )}
     </div>
   );
 }
+
 
 function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp }: CardProps) {
   const drill = lever?.drill;
