@@ -330,6 +330,7 @@ export default function CoachingView() {
                   level={level}
                   row={row}
                 />
+                </>
               )}
             </div>
           </motion.div>
