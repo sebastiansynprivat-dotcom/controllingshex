@@ -81,6 +81,7 @@ export interface Lever {
   drill?: DrillPrompt;
   boss_anecdote?: BossAnecdote;
   simulation_prompt?: SimulationPrompt;
+  follow_up?: LeverFollowUp;
   // Legacy fields
   principle?: string;
   wrong_example?: string;
