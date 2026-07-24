@@ -35,6 +35,7 @@ interface Model {
   password?: string | null;
   profile_url?: string | null;
   profile_image_url?: string | null;
+  bot_dms?: string | null;
 }
 
 type ArchetypeFilter = {
