@@ -82,6 +82,7 @@ function StreakChip({ streak }: { streak: number }) {
 
 type CardKind =
   | "cover"
+  | "weekly_intro"
   | "weekly"
   | "lever_intro"
   | "customer_card"
@@ -97,6 +98,7 @@ type CardKind =
   | "boss_fight"
   | "commitment"
   | "final";
+
 
 interface StoryCard {
   kind: CardKind;
@@ -149,6 +151,9 @@ export default function CoachingView() {
   const cards = useMemo<StoryCard[]>(() => {
     if (!row) return [];
     const list: StoryCard[] = [{ kind: "cover" }];
+    // Wochen-Intro-Memo vom Boss (direkt nach Cover, wenn vorhanden)
+    const hasWeeklyIntroMemo = (row.memos ?? []).some((m) => m.card_key === "weekly_intro");
+    if (hasWeeklyIntroMemo) list.push({ kind: "weekly_intro" });
     if (result.weekly_comparison) list.push({ kind: "weekly" });
     levers.forEach((lv, i) => {
       list.push({ kind: "lever_intro", leverIndex: i });
@@ -173,6 +178,7 @@ export default function CoachingView() {
     list.push({ kind: "final" });
     return list;
   }, [row, result, levers, bossScenario]);
+
 
   const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
   const currentCard = cards[safeCardIdx];
@@ -251,8 +257,11 @@ export default function CoachingView() {
 
   const lever = currentCard?.leverIndex != null ? levers[currentCard.leverIndex] : undefined;
   const cardKey = currentCard
-    ? `${currentCard.kind}:${currentCard.leverIndex ?? ""}:${currentCard.roundIndex ?? ""}`
+    ? (currentCard.kind === "weekly_intro"
+        ? "weekly_intro"
+        : `${currentCard.kind}:${currentCard.leverIndex ?? ""}:${currentCard.roundIndex ?? ""}`)
     : "";
+
   const currentMemo = memos.find((m) => m.card_key === cardKey) ?? null;
 
   // Suggest a memo on complex/high-impact card kinds
@@ -406,6 +415,8 @@ interface CardProps {
 function CardRenderer(p: CardProps) {
   switch (p.card.kind) {
     case "cover": return <CoverCard {...p} />;
+    case "weekly_intro": return <WeeklyIntroMemoCardView {...p} />;
+
     case "weekly": return <WeeklyCard {...p} />;
     case "lever_intro": return <LeverIntroCard {...p} />;
     case "customer_card": return <CustomerCardView {...p} />;
@@ -453,6 +464,29 @@ function CoverCard({ chatterFirstName, result, row }: CardProps) {
     </div>
   );
 }
+
+function WeeklyIntroMemoCardView({ chatterFirstName, row }: CardProps) {
+  const memo = (row.memos ?? []).find((m) => m.card_key === "weekly_intro");
+  if (!memo?.audio_url) return null;
+  return (
+    <div className="text-center">
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 mb-6">
+        <Sparkles className="h-3 w-3 text-amber-400" />
+        <span className="text-[10px] tracking-widest uppercase text-amber-200/90">Wochen-Memo vom Boss</span>
+      </div>
+      <h2 className="text-3xl font-serif font-light mb-3 leading-tight">
+        Kurze Nachricht für dich, <span className="italic text-amber-400">{chatterFirstName}</span>
+      </h2>
+      <p className="text-white/60 text-sm leading-relaxed mb-8">
+        Hör dir das kurz an, bevor du in die Szenen einsteigst.
+      </p>
+      <div className="rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.08] to-amber-500/[0.02] p-6">
+        <audio src={memo.audio_url} controls preload="metadata" className="w-full" />
+      </div>
+    </div>
+  );
+}
+
 
 function WeeklyCard({ result }: CardProps) {
   const wc = result.weekly_comparison ?? {};

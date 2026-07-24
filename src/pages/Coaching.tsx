@@ -24,7 +24,10 @@ import {
   deleteAnalysis,
   getShareUrl,
   computeProgressStats,
+  attachAndConsumePendingWeeklyMemo,
 } from "@/lib/coaching";
+import WeeklyIntroMemoCard from "@/components/WeeklyIntroMemoCard";
+
 
 export default function CoachingPage() {
   const { platform } = usePlatform();
@@ -35,6 +38,8 @@ export default function CoachingPage() {
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<CoachingMaterial> | null>(null);
   const [selectedChatter, setSelectedChatter] = useState<ChatterCandidate | null>(null);
+  const [weeklyMemoReload, setWeeklyMemoReload] = useState(0);
+
 
   const load = async () => {
     setLoading(true);
@@ -103,6 +108,8 @@ export default function CoachingPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 space-y-4">
+          <WeeklyIntroMemoCard reloadKey={weeklyMemoReload} />
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
             <Input
@@ -112,6 +119,7 @@ export default function CoachingPage() {
               className="pl-9 bg-white/[0.03] border-white/[0.06]"
             />
           </div>
+
 
           {loading ? (
             <div className="flex items-center justify-center py-20 text-white/30">
@@ -242,7 +250,9 @@ export default function CoachingPage() {
         chatter={selectedChatter}
         platform={platform}
         onClose={() => setSelectedChatter(null)}
+        onReportGenerated={() => setWeeklyMemoReload((v) => v + 1)}
       />
+
     </div>
   );
 }
@@ -251,11 +261,14 @@ function ChatterAnalysisSheet({
   chatter,
   platform,
   onClose,
+  onReportGenerated,
 }: {
   chatter: ChatterCandidate | null;
   platform: string;
   onClose: () => void;
+  onReportGenerated?: () => void;
 }) {
+
   const [history, setHistory] = useState<CoachingAnalysisRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
@@ -315,10 +328,18 @@ function ChatterAnalysisSheet({
         date_to: dateTo,
         result,
       });
+      // Attach pending weekly intro memo (if any) and consume it
+      const attachedMemo = await attachAndConsumePendingWeeklyMemo(row.id);
       const url = getShareUrl(row.share_token);
       setHistory((h) => [row, ...h]);
       setFreshShare({ url, row });
-      toast.success(`Coaching-Link erstellt — ${result.chats_analyzed} Chats`);
+      toast.success(
+        attachedMemo
+          ? `Coaching-Link erstellt — ${result.chats_analyzed} Chats · Wochen-Memo eingebaut`
+          : `Coaching-Link erstellt — ${result.chats_analyzed} Chats`,
+      );
+      if (attachedMemo) onReportGenerated?.();
+
     } catch (e: any) {
       const message = e.message ?? "Analyse fehlgeschlagen";
       setAnalysisNotice(message);

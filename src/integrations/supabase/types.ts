@@ -1031,6 +1031,39 @@ export type Database = {
         }
         Relationships: []
       }
+      coaching_pending_memos: {
+        Row: {
+          audio_path: string
+          consumed_at: string | null
+          consumed_coaching_id: string | null
+          created_at: string
+          duration_ms: number | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_path: string
+          consumed_at?: string | null
+          consumed_coaching_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_path?: string
+          consumed_at?: string | null
+          consumed_coaching_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_chatter_checks: {
         Row: {
           chatter_name: string
