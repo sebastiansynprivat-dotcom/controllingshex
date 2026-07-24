@@ -345,23 +345,26 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 function CoverCard({ chatterFirstName, result, row }: CardProps) {
+  const chats = row.chats_analyzed;
   return (
     <div className="text-center">
       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6">
         <Sparkles className="h-3 w-3 text-amber-400" />
-        <span className="text-[10px] tracking-widest uppercase text-white/70">Dein Coaching</span>
+        <span className="text-[10px] tracking-widest uppercase text-white/70">Nur für dich, {chatterFirstName}</span>
       </div>
       <h1 className="text-4xl font-serif font-light mb-3 leading-tight">
-        Hey <span className="italic text-amber-400">{chatterFirstName}</span>
+        Hey <span className="italic text-amber-400">{chatterFirstName}</span>.
       </h1>
       <p className="text-white/70 text-lg leading-relaxed mb-6">
-        {result.headline_promise || "Diese Karten bringen dich diese Woche auf das nächste Level."}
+        {result.headline_promise || `Ich habe deine letzten ${chats} Chats durch. Wir gehen jetzt zusammen durch, was Geld gekostet hat — und wie du es nächstes Mal holst.`}
       </p>
       {result.personal_intro && (
-        <p className="text-white/50 text-sm leading-relaxed italic">"{result.personal_intro}"</p>
+        <p className="text-white/60 text-sm leading-relaxed italic border-l-2 border-amber-500/40 pl-4 text-left">
+          {result.personal_intro}
+        </p>
       )}
-      <div className="mt-8 text-xs text-white/30">
-        Tippe unten auf „Weiter", um zu starten
+      <div className="mt-8 text-xs text-white/40">
+        Kein Skip. Ein Durchlauf, dann bist du besser als 90% der anderen.
       </div>
     </div>
   );
