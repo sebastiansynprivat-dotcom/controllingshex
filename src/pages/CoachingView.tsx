@@ -255,6 +255,19 @@ export default function CoachingView() {
     : "";
   const currentMemo = memos.find((m) => m.card_key === cardKey) ?? null;
 
+  // Suggest a memo on complex/high-impact card kinds
+  const memoSuggestion: { suggested: boolean; reason?: string } = (() => {
+    if (!currentCard) return { suggested: false };
+    switch (currentCard.kind) {
+      case "cinema": return { suggested: true, reason: "Kontext & Aha-Moment" };
+      case "simulation": return { suggested: true, reason: "Boss-Fight" };
+      case "principle": return { suggested: true, reason: "Prinzip vertiefen" };
+      case "lever_intro": return { suggested: true, reason: "Szene einordnen" };
+      case "micro_script": return { suggested: true, reason: "Tonalität zeigen" };
+      default: return { suggested: false };
+    }
+  })();
+
   /* ----------------------------- Render ----------------------------- */
 
   return (
