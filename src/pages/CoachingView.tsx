@@ -24,7 +24,58 @@ import {
   levelFromXp,
 } from "@/lib/coaching";
 
+/* ----------------------------- Dopamin helpers ----------------------------- */
+
+function ConfettiBurst({ show }: { show: boolean }) {
+  if (!show) return null;
+  const bits = Array.from({ length: 18 });
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
+      {bits.map((_, i) => {
+        const angle = (i / bits.length) * Math.PI * 2;
+        const dist = 120 + Math.random() * 160;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const colors = ["#f59e0b", "#f43f5e", "#10b981", "#fde68a", "#f472b6"];
+        const c = colors[i % colors.length];
+        return (
+          <motion.span
+            key={i}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{ x: dx, y: dy, opacity: 0, scale: 0.4, rotate: Math.random() * 360 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            style={{ background: c }}
+            className="absolute h-2 w-2 rounded-sm"
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function useConfetti() {
+  const [on, setOn] = useState(false);
+  const fire = useCallback(() => {
+    setOn(true);
+    try { navigator.vibrate?.(20); } catch { /* noop */ }
+    window.setTimeout(() => setOn(false), 950);
+  }, []);
+  return { on, fire };
+}
+
+function StreakChip({ streak }: { streak: number }) {
+  if (!streak || streak < 1) return null;
+  return (
+    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 shrink-0">
+      <Flame className="h-3 w-3 text-rose-400" />
+      <span className="text-[10px] font-medium text-rose-200 tabular-nums">{streak}</span>
+    </div>
+  );
+}
+
 /* ----------------------------- Card model ----------------------------- */
+
+
 
 type CardKind =
   | "cover"
