@@ -328,10 +328,18 @@ function ChatterAnalysisSheet({
         date_to: dateTo,
         result,
       });
+      // Attach pending weekly intro memo (if any) and consume it
+      const attachedMemo = await attachAndConsumePendingWeeklyMemo(row.id);
       const url = getShareUrl(row.share_token);
       setHistory((h) => [row, ...h]);
       setFreshShare({ url, row });
-      toast.success(`Coaching-Link erstellt — ${result.chats_analyzed} Chats`);
+      toast.success(
+        attachedMemo
+          ? `Coaching-Link erstellt — ${result.chats_analyzed} Chats · Wochen-Memo eingebaut`
+          : `Coaching-Link erstellt — ${result.chats_analyzed} Chats`,
+      );
+      if (attachedMemo) onReportGenerated?.();
+
     } catch (e: any) {
       const message = e.message ?? "Analyse fehlgeschlagen";
       setAnalysisNotice(message);
