@@ -35,6 +35,7 @@ interface Model {
   password?: string | null;
   profile_url?: string | null;
   profile_image_url?: string | null;
+  bot_dms?: string | null;
 }
 
 type ArchetypeFilter = {
@@ -76,6 +77,7 @@ export default function Models() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newProfileUrl, setNewProfileUrl] = useState("");
+  const [newBotDms, setNewBotDms] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -84,6 +86,7 @@ export default function Models() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editProfileUrl, setEditProfileUrl] = useState("");
+  const [editBotDms, setEditBotDms] = useState("");
   const [troubleFilter, setTroubleFilter] = useState(false);
   const [troubles, setTroubles] = useState<ModelTrouble[]>([]);
   const [showArchetypeFilter, setShowArchetypeFilter] = useState(false);
@@ -254,6 +257,7 @@ export default function Models() {
       email: newEmail.trim() || null,
       password: newPassword.trim() || null,
       profile_url: newProfileUrl.trim() || null,
+      bot_dms: newBotDms.trim() || null,
     });
     if (error) {
       console.error("[addModel] insert error:", error);
@@ -266,6 +270,7 @@ export default function Models() {
     setNewEmail("");
     setNewPassword("");
     setNewProfileUrl("");
+    setNewBotDms("");
     setShowAddForm(false);
     fetchModels();
   };
@@ -277,6 +282,7 @@ export default function Models() {
     setEditEmail(m.email || "");
     setEditPassword(m.password || "");
     setEditProfileUrl(m.profile_url || "");
+    setEditBotDms(m.bot_dms || "");
   };
 
   const saveEdit = async () => {
@@ -287,6 +293,7 @@ export default function Models() {
       email: editEmail.trim() || null,
       password: editPassword.trim() || null,
       profile_url: editProfileUrl.trim() || null,
+      bot_dms: editBotDms.trim() || null,
     }).eq("id", editId);
     if (error) { toast.error("Fehler beim Speichern"); return; }
     toast.success("Aktualisiert");
@@ -553,6 +560,16 @@ export default function Models() {
                 onChange={(e) => setNewProfileUrl(e.target.value)}
                 className="bg-white/[0.03] border-white/[0.06] text-foreground placeholder:text-white/20 font-light text-sm"
               />
+              <div>
+                <label className="block text-[10px] uppercase tracking-[0.18em] text-white/40 mb-1.5 font-light">Bot-/Auto-DMs (eine pro Zeile)</label>
+                <textarea
+                  placeholder="z.B. Hey Baby, ich bin so heiß gerade 🔥 — jede automatische Opener-Nachricht in eigene Zeile. Wird bei der Coaching-Analyse ignoriert und nicht dem Chatter angelastet."
+                  value={newBotDms}
+                  onChange={(e) => setNewBotDms(e.target.value)}
+                  rows={3}
+                  className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md text-foreground placeholder:text-white/20 font-light text-sm px-3 py-2 resize-y focus:outline-none focus:border-primary/30"
+                />
+              </div>
               <div className="flex justify-end">
                 <Button
                   onClick={addModel}
@@ -596,6 +613,13 @@ export default function Models() {
                           <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-Mail" type="email" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                           <Input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Passwort" type="text" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
                           <Input value={editProfileUrl} onChange={(e) => setEditProfileUrl(e.target.value)} placeholder="Maloum-Profil-URL" type="url" autoComplete="off" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 text-xs font-light" />
+                          <textarea
+                            value={editBotDms}
+                            onChange={(e) => setEditBotDms(e.target.value)}
+                            placeholder="Bot-/Auto-DMs (eine pro Zeile)"
+                            rows={2}
+                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md text-foreground placeholder:text-white/20 text-xs font-light px-2 py-1.5 resize-y focus:outline-none focus:border-primary/30"
+                          />
                         </td>
                         <td className="py-3 sm:py-4 px-4 sm:px-8 align-top">
                           <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />

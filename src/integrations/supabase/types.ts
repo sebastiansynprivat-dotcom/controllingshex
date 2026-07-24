@@ -1320,6 +1320,7 @@ export type Database = {
       }
       models: {
         Row: {
+          bot_dms: string | null
           created_at: string
           email: string | null
           follower_count: number
@@ -1333,6 +1334,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          bot_dms?: string | null
           created_at?: string
           email?: string | null
           follower_count?: number
@@ -1346,6 +1348,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          bot_dms?: string | null
           created_at?: string
           email?: string | null
           follower_count?: number

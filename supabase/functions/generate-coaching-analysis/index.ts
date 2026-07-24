@@ -387,6 +387,39 @@ Deno.serve(async (req) => {
       .join('\n\n---\n\n')
       .slice(0, 60000);
 
+    // Load known Bot-/Auto-DM openers for the analyzed model(s). These are
+    // configured per workspace on the Models page and let the coach reliably
+    // distinguish automated openers from real chatter-written messages.
+    const knownBotDms: string[] = await (async () => {
+      let q = supabase
+        .from('models')
+        .select('model_name, bot_dms')
+        .eq('user_id', authData.user.id)
+        .eq('platform', platform)
+        .not('bot_dms', 'is', null);
+      if (model_username) q = q.eq('model_name', model_username);
+      const { data } = await q;
+      const out: string[] = [];
+      for (const row of data ?? []) {
+        const raw = String((row as any).bot_dms ?? '');
+        for (const line of raw.split(/\r?\n/)) {
+          const t = line.trim();
+          if (t.length > 2) out.push(t);
+        }
+      }
+      // Dedupe (case-insensitive), keep original casing
+      const seen = new Set<string>();
+      const unique: string[] = [];
+      for (const s of out) {
+        const k = s.toLowerCase();
+        if (!seen.has(k)) { seen.add(k); unique.push(s); }
+      }
+      return unique.slice(0, 40);
+    })();
+    const botDmBlock = knownBotDms.length
+      ? `BEKANNTE BOT-/AUTO-DMs (vom Team-Lead hinterlegt — NIE dem Chatter anlasten, NIE zitieren, NIE als weakest_moment/wrong_example verwenden). Jede dieser Nachrichten ist eine automatisierte Anschrift, kein vom Chatter getippter Text:\n${knownBotDms.map((s, i) => `  ${i + 1}. ${s}`).join('\n')}\n\nBehandele auch leichte Varianten davon (kleine Umformulierungen, andere Emojis, Groß-/Kleinschreibung) als Auto-DM.`
+      : '';
+
     // === Chatter-Gesamtperformance (alle Models) im Zeitraum vs. Vorperiode ===
     // Wichtig um korrekt zu unterscheiden zwischen
     //   "keine Verkäufe in den analysierten Chats" vs "gar keine Verkäufe insgesamt".
@@ -551,7 +584,7 @@ VERKÄUFE ZUERST ANSCHAUEN:
 - Wenn Verkäufe passiert sind: das ist die Stärke. Nicht kaputtreden.
 - Wenn nichts gekauft wurde trotz Angeboten: da liegt der wichtigste Hebel — aber nur, wenn der Kontext einen Verkauf überhaupt zugelassen hätte.
 
-Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
+${botDmBlock ? botDmBlock + '\n\n' : ''}Coaching-Material des Team-Leads (verbindliche Basis — Fachbegriffe daraus in Alltagssprache übersetzen):
 
 ${coachingText || '(Kein Material hinterlegt — nutze gesunden Menschenverstand für Verkauf, Vertrauen und Nähe im Chat.)'}
 
@@ -567,6 +600,7 @@ Umsatz: ${formatted.revenue.toFixed(2)}€, PPVs angeboten: ${formatted.sends}, 
 
 WICHTIG — BOT-DM-ERKENNUNG:
 Die allererste Nachricht im Chat kommt bei uns oft von einer automatisierten Bot-Anschrift (nicht vom Chatter getippt). Prüfe: Ist die ALLERERSTE Nachricht im Chat vom Model/Chatter-Account, direkt sexuell/anmachend, und gab es davor keine andere Chatter-Nachricht? Dann ist das mit hoher Wahrscheinlichkeit ein Bot-Opener. Solche Openings dürfen NIE als weakest_moment oder als Zitat vom Chatter verwendet werden.
+${knownBotDms.length ? `\nZUSÄTZLICH — vom Team-Lead hinterlegte Auto-DMs (auch leichte Varianten als Bot behandeln):\n${knownBotDms.map((s) => `  - ${s}`).join('\n')}\n` : ''}
 
 CHAT:
 ${formatted.text}
