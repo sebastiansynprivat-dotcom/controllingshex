@@ -164,6 +164,10 @@ export default function CoachingView() {
         !!lv.situation_summary;
       if (hasContext && sb[0]?.chatter_did) list.push({ kind: "cinema", leverIndex: i });
       if (sb[1]?.better_version) list.push({ kind: "cinema_better", leverIndex: i });
+      if (
+        lv.follow_up?.expected_outcome === "sale" &&
+        (lv.follow_up?.messages?.length ?? 0) > 0
+      ) list.push({ kind: "cinema_follow_up", leverIndex: i });
       if (lv.drill) list.push({ kind: "drill", leverIndex: i });
       if (lv.drill) list.push({ kind: "type_drill", leverIndex: i });
       if (lv.boss_anecdote) list.push({ kind: "boss_anecdote", leverIndex: i });
