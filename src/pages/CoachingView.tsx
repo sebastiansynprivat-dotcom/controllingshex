@@ -791,7 +791,7 @@ function DrillCard({ lever, card, progress, onSaveProgress, onGrantXp }: CardPro
 
   return (
     <div>
-      <Eyebrow>Drill · Welche ist besser?</Eyebrow>
+      <Eyebrow>Mini-Übung · Welche ist besser?</Eyebrow>
       <p className="text-white/80 mb-4 leading-relaxed">{drill.prompt}</p>
       <div className="space-y-3">
         {(["a", "b"] as const).map((opt) => {
