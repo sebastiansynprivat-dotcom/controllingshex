@@ -465,6 +465,29 @@ function CoverCard({ chatterFirstName, result, row }: CardProps) {
   );
 }
 
+function WeeklyIntroMemoCardView({ chatterFirstName, row }: CardProps) {
+  const memo = (row.memos ?? []).find((m) => m.card_key === "weekly_intro");
+  if (!memo?.audio_url) return null;
+  return (
+    <div className="text-center">
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 mb-6">
+        <Sparkles className="h-3 w-3 text-amber-400" />
+        <span className="text-[10px] tracking-widest uppercase text-amber-200/90">Wochen-Memo vom Boss</span>
+      </div>
+      <h2 className="text-3xl font-serif font-light mb-3 leading-tight">
+        Kurze Nachricht für dich, <span className="italic text-amber-400">{chatterFirstName}</span>
+      </h2>
+      <p className="text-white/60 text-sm leading-relaxed mb-8">
+        Hör dir das kurz an, bevor du in die Szenen einsteigst.
+      </p>
+      <div className="rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.08] to-amber-500/[0.02] p-6">
+        <audio src={memo.audio_url} controls preload="metadata" className="w-full" />
+      </div>
+    </div>
+  );
+}
+
+
 function WeeklyCard({ result }: CardProps) {
   const wc = result.weekly_comparison ?? {};
   const delta = wc.delta_pct;
