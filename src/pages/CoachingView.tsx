@@ -1215,11 +1215,7 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
       </div>
       <h2 className="text-3xl font-serif font-light mb-2">Bam, {chatterFirstName}.</h2>
       <p className="text-white/70 mb-6">Du hast dein Coaching durchgezogen.</p>
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/40">XP</div>
-          <div className="text-2xl font-serif mt-1">{xp}</div>
-        </div>
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
           <div className="text-[10px] uppercase tracking-widest text-white/40">Level</div>
           <div className="text-2xl font-serif mt-1">{level.title}</div>
