@@ -939,15 +939,26 @@ function TypeDrillCard({ lever, card, token, progress, onSaveProgress, onGrantXp
 function BossAnecdoteCard({ lever }: CardProps) {
   const a = lever?.boss_anecdote;
   if (!a) return null;
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
   return (
     <div>
-      <Eyebrow>Aus dem Nähkästchen</Eyebrow>
-      <div className="relative rounded-3xl bg-gradient-to-br from-amber-500/10 to-rose-500/10 border border-amber-500/20 p-6">
-        <div className="absolute -top-3 -left-3 h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
+      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3 text-center">Direkt vom Boss</div>
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center shadow-lg">
           <Crown className="h-5 w-5 text-black" />
         </div>
-        <div className="text-amber-300 font-serif italic text-lg mb-3 mt-2">{a.hook}</div>
-        <p className="text-white/85 leading-relaxed">{a.story}</p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-white/90 text-sm font-semibold">Boss</span>
+            <span className="text-white/30 text-[10px] tabular-nums">{time}</span>
+          </div>
+          <div className="rounded-2xl rounded-tl-sm bg-gradient-to-br from-amber-500/15 to-rose-500/10 border border-amber-500/20 p-4">
+            <div className="text-amber-200 font-medium text-base mb-2 leading-snug">{a.hook}</div>
+            <p className="text-white/85 text-sm leading-relaxed">{a.story}</p>
+            <div className="text-white/40 text-[10px] mt-3 italic">— nicht weitersagen.</div>
+          </div>
+        </div>
       </div>
     </div>
   );
