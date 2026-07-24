@@ -1230,7 +1230,7 @@ function FinalCard({ xp, level, result, chatterFirstName, token, progress, onSav
           <div className="text-2xl font-serif mt-1">{stats.quiz}</div>
         </div>
         <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/40">Drills</div>
+          <div className="text-[10px] uppercase tracking-widest text-white/40">Übungen</div>
           <div className="text-2xl font-serif mt-1">{stats.drills}</div>
         </div>
       </div>
