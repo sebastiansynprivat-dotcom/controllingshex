@@ -398,7 +398,7 @@ function LeverIntroCard({ lever, card }: CardProps) {
   return (
     <div className="text-center">
       <div className="text-8xl font-serif italic text-amber-400/20 mb-4">{num}</div>
-      <Eyebrow>Hebel {num} von 3</Eyebrow>
+      <Eyebrow>Szene {num} von 3</Eyebrow>
       <h2 className="text-3xl font-serif font-light mb-4">{lever.title}</h2>
       <p className="text-white/80 text-lg leading-relaxed mb-6">{lever.one_liner}</p>
       {lever.money_line && (
@@ -410,6 +410,7 @@ function LeverIntroCard({ lever, card }: CardProps) {
     </div>
   );
 }
+
 
 function CustomerCardView({ lever }: CardProps) {
   const cc = lever?.customer_card;
