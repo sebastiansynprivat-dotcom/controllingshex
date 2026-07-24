@@ -121,12 +121,19 @@ REGELN:
       const history = Array.isArray(turn_history) ? turn_history : [];
       const historyText = history.map((t) => `${t.role === 'customer' ? 'KUNDE' : 'CHATTER'}: ${t.text}`).join('\n');
 
+      const turnCount = history.filter((t) => t.role === 'chatter').length;
       const system = `Du bist Team-Lead und bewertest das Ergebnis eines Boss-Fight-Simulators.
 REGELN:
 - Score 0-100.
-- Bewerte: Bindungsaufbau, Verkaufs-Chance genutzt, Stil-Passung, KEINE Preis-Nennung.
+- Bewerte primär: Bindungsaufbau, Führung, Stimmung, Stil-Passung, Empathie.
+- KEINE Preis-Nennung im Feedback.
+- WICHTIG: Der Sim ist KURZ (${turnCount} Chatter-Nachrichten). Bewerte NUR was in dieser kurzen Sequenz realistisch möglich war.
+- Fordere NIEMALS ein direktes Verkaufs-/Bild-/Content-Angebot, wenn der Sim nur wenige Nachrichten hatte (< 6 Chatter-Nachrichten). Führung & Spannung aufbauen ist in kurzen Sequenzen wichtiger als Closing.
+- "Chance zum Verkauf verpasst" ist KEIN gültiger Kritikpunkt, außer der Kunde hat konkret nach Content/Kaufen gefragt oder war offensichtlich bereit (mehrfache Kaufsignale). Sonst wäre ein Push zum Verkauf eher schädlich.
+- Das widerspricht sonst dem Kern-Training: erst Bindung/Führung, dann später Verkauf.
+- Verbesserungs-Tipp muss zur tatsächlichen Situation passen (z.B. tiefer führen, stärkere Frage, klarere Rolle) — nicht generisch "biete ein Bild an".
 - "du"-Ansprache an ${chatterName}.
-- Antworte NUR mit JSON: {"score": <0-100>, "verdict": "<max 6 Wörter, z.B. 'Souverän geschlossen' / 'Chance vertan'>", "revenue_potential_eur": <geschätzter €-Betrag den ein Top-Chatter in dieser Situation gemacht hätte>, "feedback": "<max 100 Wörter, konkret, B1, mit 1 Verbesserung>"}`;
+- Antworte NUR mit JSON: {"score": <0-100>, "verdict": "<max 6 Wörter, z.B. 'Souverän geführt' / 'Führung verloren'>", "revenue_potential_eur": <geschätzter €-Betrag den ein Top-Chatter in dieser Situation über die nächsten Tage gemacht hätte, nicht in dieser Sequenz>, "feedback": "<max 100 Wörter, konkret, B1, mit 1 Verbesserung die zur Situation passt>"}`;
 
       const user = `SZENARIO: ${scenario?.customer_profile}\nZIEL: ${scenario?.goal}\n\nGESAMTER VERLAUF:\n${historyText}\n\nBewerte. JSON only.`;
       const res = await callGateway(aiKey, system, user);
