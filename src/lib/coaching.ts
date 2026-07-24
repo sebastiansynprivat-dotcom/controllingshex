@@ -759,3 +759,113 @@ export async function getMemoSignedUrl(audio_path: string): Promise<string | nul
   const { data } = await supabase.storage.from("coaching-memos").createSignedUrl(audio_path, 60 * 60 * 6);
   return data?.signedUrl ?? null;
 }
+
+/* ---------------- Pending Weekly Intro Memo ---------------- */
+
+export const WEEKLY_INTRO_CARD_KEY = "weekly_intro";
+
+export interface PendingWeeklyMemo {
+  id: string;
+  audio_path: string;
+  audio_url?: string | null;
+  duration_ms: number | null;
+  consumed_at: string | null;
+  consumed_coaching_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getPendingWeeklyMemo(): Promise<PendingWeeklyMemo | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("coaching_pending_memos" as any)
+    .select("id, audio_path, duration_ms, consumed_at, consumed_coaching_id, created_at, updated_at")
+    .eq("user_id", user.id)
+    .is("consumed_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const url = await getMemoSignedUrl((data as any).audio_path);
+  return { ...(data as any), audio_url: url } as PendingWeeklyMemo;
+}
+
+export async function uploadPendingWeeklyMemo(input: {
+  blob: Blob;
+  durationMs?: number;
+}): Promise<PendingWeeklyMemo> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Nicht eingeloggt");
+
+  // Delete any existing unconsumed pending memo (row + storage file)
+  const existing = await getPendingWeeklyMemo();
+  if (existing) {
+    try { await supabase.storage.from("coaching-memos").remove([existing.audio_path]); } catch { /* noop */ }
+    await supabase.from("coaching_pending_memos" as any).delete().eq("id", existing.id);
+  }
+
+  const ext = input.blob.type.includes("mp4") ? "m4a" : "webm";
+  const uuid = crypto.randomUUID();
+  const path = `pending/${user.id}/${uuid}.${ext}`;
+  const { error: upErr } = await supabase.storage
+    .from("coaching-memos")
+    .upload(path, input.blob, { contentType: input.blob.type || "audio/webm", upsert: false });
+  if (upErr) throw upErr;
+
+  const { data, error } = await supabase
+    .from("coaching_pending_memos" as any)
+    .insert({
+      user_id: user.id,
+      audio_path: path,
+      duration_ms: input.durationMs ?? null,
+    })
+    .select("id, audio_path, duration_ms, consumed_at, consumed_coaching_id, created_at, updated_at")
+    .single();
+  if (error) throw error;
+  const url = await getMemoSignedUrl((data as any).audio_path);
+  return { ...(data as any), audio_url: url } as PendingWeeklyMemo;
+}
+
+export async function deletePendingWeeklyMemo(memo: PendingWeeklyMemo): Promise<void> {
+  try { await supabase.storage.from("coaching-memos").remove([memo.audio_path]); } catch { /* noop */ }
+  const { error } = await supabase.from("coaching_pending_memos" as any).delete().eq("id", memo.id);
+  if (error) throw error;
+}
+
+/**
+ * Attach the current pending weekly memo (if any) to a freshly created coaching row,
+ * then mark it as consumed. Silent on failures — never blocks report creation.
+ */
+export async function attachAndConsumePendingWeeklyMemo(coachingId: string): Promise<CoachingMemo | null> {
+  try {
+    const pending = await getPendingWeeklyMemo();
+    if (!pending) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: memoRow, error: memoErr } = await supabase
+      .from("coaching_memos")
+      .insert({
+        coaching_id: coachingId,
+        user_id: user.id,
+        card_key: WEEKLY_INTRO_CARD_KEY,
+        audio_path: pending.audio_path,
+        duration_ms: pending.duration_ms,
+      })
+      .select("*")
+      .single();
+    if (memoErr) throw memoErr;
+
+    await supabase
+      .from("coaching_pending_memos" as any)
+      .update({ consumed_at: new Date().toISOString(), consumed_coaching_id: coachingId })
+      .eq("id", pending.id);
+
+    return memoRow as unknown as CoachingMemo;
+  } catch (e) {
+    console.warn("attachAndConsumePendingWeeklyMemo failed", e);
+    return null;
+  }
+}
+
+}
