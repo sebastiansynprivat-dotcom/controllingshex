@@ -255,6 +255,19 @@ export default function CoachingView() {
     : "";
   const currentMemo = memos.find((m) => m.card_key === cardKey) ?? null;
 
+  // Suggest a memo on complex/high-impact card kinds
+  const memoSuggestion: { suggested: boolean; reason?: string } = (() => {
+    if (!currentCard) return { suggested: false };
+    switch (currentCard.kind) {
+      case "cinema": return { suggested: true, reason: "Kontext & Aha-Moment" };
+      case "cinema_better": return { suggested: true, reason: "Tonalität zeigen" };
+      case "boss_fight": return { suggested: true, reason: "Boss-Fight" };
+      case "lever_intro": return { suggested: true, reason: "Szene einordnen" };
+      case "boss_anecdote": return { suggested: true, reason: "Persönlicher Kontext" };
+      default: return { suggested: false };
+    }
+  })();
+
   /* ----------------------------- Render ----------------------------- */
 
   return (
@@ -297,6 +310,8 @@ export default function CoachingView() {
                     cardKey={cardKey}
                     isOwner={isOwner}
                     memo={currentMemo}
+                    suggested={memoSuggestion.suggested}
+                    suggestedReason={memoSuggestion.reason}
                     onChange={(m) => {
                       setMemos((list) => {
                         const rest = list.filter((x) => x.card_key !== cardKey);
