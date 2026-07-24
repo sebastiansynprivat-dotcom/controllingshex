@@ -27,7 +27,7 @@ function fmt(ms?: number | null) {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
-export default function CoachingMemoBar({ coachingId, cardKey, isOwner, memo, onChange }: Props) {
+export default function CoachingMemoBar({ coachingId, cardKey, isOwner, memo, suggested, suggestedReason, onChange }: Props) {
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [uploading, setUploading] = useState(false);
