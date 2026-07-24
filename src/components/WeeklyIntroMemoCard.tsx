@@ -122,8 +122,8 @@ export default function WeeklyIntroMemoCard({ onChange, reloadKey }: Props) {
           <div className="text-sm font-medium text-amber-100/90">Wochen-Memo für nächsten Report</div>
           <div className="text-[11px] text-amber-100/50 font-light">
             {memo
-              ? "Wird als Intro in den nächsten generierten Report eingebaut. Danach automatisch verbraucht."
-              : "Nimm einmal auf — läuft automatisch in den nächsten Report."}
+              ? "Wird als Intro in JEDEN neu generierten Report eingebaut — bis du neu aufnimmst oder löschst."
+              : "Nimm einmal auf — läuft automatisch in jeden neuen Report."}
           </div>
         </div>
         {memo && (

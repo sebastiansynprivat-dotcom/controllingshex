@@ -916,8 +916,10 @@ export async function deletePendingWeeklyMemo(memo: PendingWeeklyMemo): Promise<
 }
 
 /**
- * Attach the current pending weekly memo (if any) to a freshly created coaching row,
- * then mark it as consumed. Silent on failures — never blocks report creation.
+ * Attach the current pending weekly memo (if any) to a freshly created coaching row.
+ * The pending memo stays active (not consumed) so it flows into EVERY newly generated
+ * report until the user replaces or deletes it manually. Silent on failures — never
+ * blocks report creation.
  */
 export async function attachAndConsumePendingWeeklyMemo(coachingId: string): Promise<CoachingMemo | null> {
   try {
@@ -939,14 +941,12 @@ export async function attachAndConsumePendingWeeklyMemo(coachingId: string): Pro
       .single();
     if (memoErr) throw memoErr;
 
-    await supabase
-      .from("coaching_pending_memos" as any)
-      .update({ consumed_at: new Date().toISOString(), consumed_coaching_id: coachingId })
-      .eq("id", pending.id);
+    // Note: pending memo is intentionally NOT marked consumed — it should flow
+    // into every subsequent report until the user re-records or deletes it.
 
     return memoRow as unknown as CoachingMemo;
   } catch (e) {
-    console.warn("attachAndConsumePendingWeeklyMemo failed", e);
+    console.warn("attachPendingWeeklyMemo failed", e);
     return null;
   }
 }
