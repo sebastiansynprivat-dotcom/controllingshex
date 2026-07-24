@@ -24,7 +24,10 @@ import {
   deleteAnalysis,
   getShareUrl,
   computeProgressStats,
+  attachAndConsumePendingWeeklyMemo,
 } from "@/lib/coaching";
+import WeeklyIntroMemoCard from "@/components/WeeklyIntroMemoCard";
+
 
 export default function CoachingPage() {
   const { platform } = usePlatform();
