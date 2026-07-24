@@ -699,6 +699,11 @@ Regeln:
 - context_messages dürfen NIE mit einer Antwort wie "Ja", "Ja, sehr sogar", "Okay" oder einer anderen Reaktion beginnen, wenn die auslösende Nachricht davor fehlt. Wenn der Vorlauf fehlt: nimm diesen Moment NICHT.
 - context_messages brauchen 6-10 Zeilen, außer der ganze Chat ist kürzer. Die letzte Zeile davor muss klar machen, worauf chatter_did reagiert.
 
+FOLLOW-UP (Kauf-Verlauf nach der besseren Antwort):
+- Für jede Szene MUSST du entscheiden: hätte diese Situation realistisch in einen Kauf laufen können? Wenn ja → follow_up.expected_outcome="sale" und liefere messages + sale_marker + reflex_line. Wenn nein (z.B. reines Zuhören, Empathie, Bindung ohne Kaufsignal) → expected_outcome="rapport" und lass messages leer.
+- follow_up.messages sind KEINE Fantasie. Sie müssen so plausibel sein, dass der Chatter sie glaubt: leichtes Zögern beim Kunden zwischendrin, Chatter setzt subtil nach (kein Preisdruck), dann Kauf-Signal ("okay ich will es sehen" / "schick"). NIEMALS: "hier hast du 200€".
+- Stil-Mimikry gilt auch hier: Emojis/Groß-Klein wie der Chatter tippt. Kein konkreter Preis in Chatter-Bubbles.
+
 STIL-MIMIKRY — ABSOLUT KRITISCH FÜR better_example / if_then_script / alternative_if_then / micro_action:
 - Diese Vorschläge müssen so klingen, als hätte ${chatter_name} sie selbst getippt. Nicht wie ein Coach, nicht wie ein Werbetexter.
 - Lies in den Digests IMMER zuerst "writing_style_notes" und "chatter_voice_samples". Übernimm daraus:
@@ -786,6 +791,12 @@ JSON-Schema (EXAKT einhalten):
       "simulation_prompt": {
         "customer_message": "<Eine realistische Kunden-Nachricht die genau diesen Hebel triggert. So wie ein echter Fan schreiben würde. Max 200 Zeichen.>",
         "evaluation_criteria": "<Kurze Beschreibung was eine gute Antwort ausmacht (für den KI-Bewerter, nicht für den Chatter). 1-2 Sätze.>"
+      },
+      "follow_up": {
+        "expected_outcome": "<PFLICHT: 'sale' | 'rapport' | 'other'. NUR wenn die Szene realistisch in einen Kauf hätte laufen können, setze 'sale'. Bei reinen Zuhör-/Empathie-/Rapport-Szenen: 'rapport' — dann werden messages/sale_marker/reflex_line ignoriert.>",
+        "messages": ["<NUR bei expected_outcome='sale': 3-5 realistische Chat-Zeilen, die nach der besseren Antwort folgen würden. Format wie context_messages: 'KUNDE: text' / 'CHATTER: text'. MUSS glaubwürdig sein: erst Reaktion vom Kunden (leichtes Zögern/Rückfrage erlaubt), dann Chatter setzt nach, dann Kauf-Signal vom Kunden. KEIN sofortiges 'hier hast du 200€'. Stil des Chatters imitieren (Emojis/Slang wie im Original). Kein konkreter Preis in Chatter-Bubbles.>"],
+        "sale_marker": "<NUR bei expected_outcome='sale': kurzer Label max 6 Wörter, was gekauft wurde inkl. realistischer Range, z.B. 'PPV freigeschaltet · 40-60€' oder 'Custom-Video bestellt · 80-120€'.>",
+        "reflex_line": "<NUR bei expected_outcome='sale': 1 Satz max 15 Wörter, der die Kausalität zwischen dem besseren Move und dem Kauf benennt. Motivierend, konkret. z.B. 'Dieser eine Move zwischen zögern und pushen macht den Unterschied.'>"
       }
     }
   ],

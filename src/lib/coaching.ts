@@ -60,6 +60,13 @@ export interface BossScenario {
   max_turns?: number;
 }
 
+export interface LeverFollowUp {
+  expected_outcome?: "sale" | "rapport" | "other" | string;
+  messages?: string[];
+  sale_marker?: string;
+  reflex_line?: string;
+}
+
 export interface Lever {
   icon_hint?: string;
   title: string;
@@ -74,6 +81,7 @@ export interface Lever {
   drill?: DrillPrompt;
   boss_anecdote?: BossAnecdote;
   simulation_prompt?: SimulationPrompt;
+  follow_up?: LeverFollowUp;
   // Legacy fields
   principle?: string;
   wrong_example?: string;
