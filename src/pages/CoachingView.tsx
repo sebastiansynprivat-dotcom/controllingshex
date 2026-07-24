@@ -704,9 +704,10 @@ function CinemaBetterCard({ lever, chatterFirstName, setCanAdvance }: CardProps)
       <div className="text-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
           <Crown className="h-3 w-3 text-emerald-400" />
-          <span className="text-[10px] tracking-widest uppercase text-emerald-200">So macht's ein Top-Chatter</span>
+          <span className="text-[10px] tracking-widest uppercase text-emerald-200">Die Version, die zündet</span>
         </div>
       </div>
+
 
       {round1.context && (
         <p className="text-white/60 text-sm mb-3 text-center italic">{round1.context}</p>
