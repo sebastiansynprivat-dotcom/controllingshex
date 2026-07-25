@@ -21,6 +21,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import { fetchAllPaged } from "@/lib/paged";
 import { fetchLiveEfficiency, hasUsableLiveData, type LiveEfficiencyRow } from "@/lib/live-efficiency";
 import { tierForFollowers, type AccountTierId } from "@/lib/account-tiers";
 import type { RevenueTask } from "@/lib/revenue-tasks";
@@ -783,24 +784,16 @@ export async function buildAccountSwapTasks(platform: string): Promise<RevenueTa
   if (!user) return [];
 
   // History vollständig paginiert laden — keine künstliche Zeilen- oder Datumsgrenze.
-  const PAGE = 1000;
-  const historyAll: HistoryRow[] = [];
-  for (let page = 0; ; page++) {
-    const { data, error } = await supabase
+  // fetchAllPaged lädt Folgeseiten parallel; der alte sequentielle Loader hat den Heute-Tab ausgebremst.
+  const historyAll = await fetchAllPaged<HistoryRow>((from, to) =>
+    supabase
       .from("chatter_history")
       .select("chatter_name, account, analysis_date, revenue_today, response_delay_days")
       .eq("user_id", user.id)
       .ilike("platform", platform)
       .order("analysis_date", { ascending: false })
-      .range(page * PAGE, page * PAGE + PAGE - 1);
-    if (error) {
-      console.warn("[account-swap-engine] history page failed", page, error);
-      break;
-    }
-    const rows = (data ?? []) as HistoryRow[];
-    historyAll.push(...rows);
-    if (rows.length < PAGE) break;
-  }
+      .range(from, to)
+  );
 
   const [modelsRes, activeNames] = await Promise.all([
     supabase
