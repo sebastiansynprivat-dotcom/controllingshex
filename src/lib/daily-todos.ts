@@ -212,7 +212,6 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         perModel,
       });
     }
-    }
   } catch (e) {
     console.warn("[daily-todos] live-state lookup failed", e);
   }
