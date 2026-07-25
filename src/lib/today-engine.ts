@@ -90,6 +90,16 @@ export interface UnifiedAction {
   downgradeSince: string | null;
 }
 
+type TodayEngineResult = {
+  primary: UnifiedAction[];
+  watchlist: UnifiedAction[];
+  wins: UnifiedAction[];
+  totalImpactEurPerWeek: number;
+};
+
+const TODAY_ENGINE_CACHE_TTL_MS = 45_000;
+const todayEngineCache = new Map<string, { ts: number; promise: Promise<TodayEngineResult> }>();
+
 interface HistoryRow {
   chatter_name: string;
   analysis_date: string;
@@ -654,7 +664,7 @@ async function detectWakeups(
   return hits;
 }
 
-export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
+async function buildTodayActionsUncached(platform: string): Promise<TodayEngineResult> {
   const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
@@ -1025,5 +1035,18 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   const totalImpactEurPerWeek = primary.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
 
   return { primary, watchlist, wins, totalImpactEurPerWeek };
+}
+
+export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
+  const key = platform.toLowerCase().trim();
+  const cached = todayEngineCache.get(key);
+  if (cached && Date.now() - cached.ts < TODAY_ENGINE_CACHE_TTL_MS) return cached.promise;
+
+  const promise = buildTodayActionsUncached(platform).catch((error) => {
+    todayEngineCache.delete(key);
+    throw error;
+  });
+  todayEngineCache.set(key, { ts: Date.now(), promise });
+  return promise;
 }
 
