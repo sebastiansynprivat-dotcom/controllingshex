@@ -90,6 +90,9 @@ export interface UnifiedAction {
   downgradeSince: string | null;
 }
 
+const TODAY_ENGINE_CACHE_TTL_MS = 45_000;
+const todayEngineCache = new Map<string, { ts: number; promise: Promise<TodayEngineResult> }>();
+
 interface HistoryRow {
   chatter_name: string;
   analysis_date: string;
@@ -521,32 +524,60 @@ async function detectWakeups(
   type HistRow = { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null };
   type LiveTodayRow = { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null };
   type LiveYestRow = { chatter_name: string; unread_chats: number | null };
-  const [historyRows, liveRows, liveYestRows] = await Promise.all([
-    fetchAllPaged<HistRow>((from, to) =>
-      supabase
-        .from("chatter_history")
-        .select("chatter_name, analysis_date, revenue_today, mass_dms")
-        .eq("user_id", user.id)
-        .ilike("platform", platform)
-        .gte("analysis_date", since)
-        .range(from, to)
-    ),
-    fetchAllPaged<LiveTodayRow>((from, to) =>
+  const historyRows = await fetchAllPaged<HistRow>((from, to) =>
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms")
+      .eq("user_id", user.id)
+      .ilike("platform", platform)
+      .gte("analysis_date", since)
+      .range(from, to)
+  );
+
+  // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
+  let latestReportDate = "";
+  for (const r of historyRows) {
+    if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
+  }
+  const inLatestReport = new Set<string>();
+  const liveNames: string[] = [];
+  if (latestReportDate) {
+    const seen = new Set<string>();
+    for (const r of historyRows) {
+      if (r.analysis_date === latestReportDate && r.chatter_name) {
+        const key = normalizeChatterName(r.chatter_name);
+        inLatestReport.add(key);
+        if (!seen.has(key)) {
+          seen.add(key);
+          liveNames.push(r.chatter_name);
+        }
+      }
+    }
+  }
+
+  const nameChunks: string[][] = [];
+  for (let i = 0; i < liveNames.length; i += 50) {
+    nameChunks.push(liveNames.slice(i, i + 50));
+  }
+  const [liveRows, liveYestRows] = await Promise.all([
+    Promise.all(nameChunks.map((names) => fetchAllPaged<LiveTodayRow>((from, to) =>
       supabase
         .from("chatter_history_live")
         .select("chatter_name, revenue, mass_dms, unread_chats")
         .ilike("platform", platform)
         .eq("date", today)
+        .in("chatter_name", names)
         .range(from, to)
-    ),
-    fetchAllPaged<LiveYestRow>((from, to) =>
+      , 500))).then((chunks) => chunks.flat()),
+    Promise.all(nameChunks.map((names) => fetchAllPaged<LiveYestRow>((from, to) =>
       supabase
         .from("chatter_history_live")
         .select("chatter_name, unread_chats")
         .ilike("platform", platform)
         .eq("date", yesterday)
+        .in("chatter_name", names)
         .range(from, to)
-    ),
+      , 500))).then((chunks) => chunks.flat()),
   ]);
 
   // Per-chatter pro Tag aggregieren
@@ -577,20 +608,6 @@ async function detectWakeups(
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     unreadYest.set(k, (unreadYest.get(k) ?? 0) + (r.unread_chats ?? 0));
-  }
-
-  // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
-  let latestReportDate = "";
-  for (const r of historyRows) {
-    if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
-  }
-  const inLatestReport = new Set<string>();
-  if (latestReportDate) {
-    for (const r of historyRows) {
-      if (r.analysis_date === latestReportDate && r.chatter_name) {
-        inLatestReport.add(normalizeChatterName(r.chatter_name));
-      }
-    }
   }
 
   const silentDays = [1, 2, 3, 4].map(isoDaysAgo);
@@ -640,7 +657,7 @@ async function detectWakeups(
   return hits;
 }
 
-export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
+async function buildTodayActionsUncached(platform: string): Promise<TodayEngineResult> {
   const [todos, revTasks, statsBundle, roiMap, fitMatrix, modelsRes] = await Promise.all([
     generateDailyTodos(platform),
     generateRevenueTasks(platform),
@@ -663,25 +680,31 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   ]);
   const { stats, importanceFor } = statsBundle;
 
-  // === Live-Snapshot (chatter_history_live) für Suppress- und Refresh-Layer ===
-  // Lädt heute + gestern und nimmt pro Chatter den neuesten Eintrag (date desc, updated_at desc).
-  // "fresh" = updated_at innerhalb 6h → großzügig, weil Live > stale Snapshot.
-  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; fresh: boolean; updatedAt: number };
+  // === Live-Snapshot (chatter_history_live) für Refresh-Layer ===
+  // Nimmt pro Chatter den neuesten vorhandenen Echtzeit-Snapshot. Kein Datumsfenster:
+  // die Detailansicht zeigt denselben Snapshot, deshalb muss Today dieselbe Wahrheit nutzen.
+  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; updatedAt: number };
   const liveSnap = new Map<string, LiveSnap>();
   try {
-    const today = todayISO();
-    const y = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     type Row = { chatter_name: string; date: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null };
-    const liveRows = await fetchAllPaged<Row>((from, to) =>
-      supabase
-        .from("chatter_history_live")
-        .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
-        .ilike("platform", platform)
-        .gte("date", y)
-        .range(from, to)
-    );
-    const FRESH_MS = 6 * 60 * 60 * 1000; // 6h
-    const now = Date.now();
+    const relevantNames = Array.from(new Set(
+      [...todos.map((t) => t.chatterName), ...revTasks.map((r) => r.chatterName)]
+        .filter((name): name is string => Boolean(name)),
+    ));
+    const nameChunks: string[][] = [];
+    for (let i = 0; i < relevantNames.length; i += 50) {
+      nameChunks.push(relevantNames.slice(i, i + 50));
+    }
+    const liveRows = (
+      await Promise.all(nameChunks.map((names) => fetchAllPaged<Row>((from, to) =>
+        supabase
+          .from("chatter_history_live")
+          .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
+          .ilike("platform", platform)
+          .in("chatter_name", names)
+          .range(from, to)
+        , 500)))
+    ).flat();
     const sorted = [...liveRows].sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
@@ -695,14 +718,13 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       const k = normalizeChatterName(r.chatter_name);
       if (!newestDateByChatter.has(k)) newestDateByChatter.set(k, r.date);
       if (newestDateByChatter.get(k) !== r.date) continue; // nur Zeilen des neuesten Datums berücksichtigen
-      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, fresh: false, updatedAt: 0 };
+      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, updatedAt: 0 };
       cur.rev += Number(r.revenue) || 0;
       cur.dm += r.mass_dms ?? 0;
       cur.unread += r.unread_chats ?? 0;
       cur.oldest = Math.max(cur.oldest, Number(r.oldest_chat) || 0);
       const upd = r.updated_at ? new Date(r.updated_at).getTime() : 0;
       if (upd > cur.updatedAt) cur.updatedAt = upd;
-      if (upd && (now - upd) <= FRESH_MS) cur.fresh = true;
       liveSnap.set(k, cur);
     }
   } catch (e) {
@@ -713,7 +735,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   function refreshWhy(kind: ActionSourceKind, chatterKey: string | null, why: string, meta?: Record<string, any>): string {
     if (!chatterKey) return why;
     const live = liveSnap.get(chatterKey);
-    if (!live || !live.fresh) return why;
+    if (!live) return why;
     const parts: string[] = [];
     if (meta?.todayOpenChats != null && live.unread !== Number(meta.todayOpenChats)) {
       parts.push(`${live.unread} offen`);
@@ -735,7 +757,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   function refreshTitle(chatterKey: string | null, title: string, meta?: Record<string, any>): string {
     if (!chatterKey) return title;
     const live = liveSnap.get(chatterKey);
-    if (!live || !live.fresh) return title;
+    if (!live) return title;
     let out = title;
     // "X offene Chats"
     if (/\b\d+\s+offene Chats\b/.test(out)) {
@@ -1006,5 +1028,18 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   const totalImpactEurPerWeek = primary.reduce((s, a) => s + a.totalImpactEurPerWeek, 0);
 
   return { primary, watchlist, wins, totalImpactEurPerWeek };
+}
+
+export async function buildTodayActions(platform: string): Promise<TodayEngineResult> {
+  const key = platform.toLowerCase().trim();
+  const cached = todayEngineCache.get(key);
+  if (cached && Date.now() - cached.ts < TODAY_ENGINE_CACHE_TTL_MS) return cached.promise;
+
+  const promise = buildTodayActionsUncached(platform).catch((error) => {
+    todayEngineCache.delete(key);
+    throw error;
+  });
+  todayEngineCache.set(key, { ts: Date.now(), promise });
+  return promise;
 }
 

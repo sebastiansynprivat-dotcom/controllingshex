@@ -144,11 +144,16 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
-
+  const latestReportChatterNames = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.analysis_date === latestDate && r.chatter_name && isActive(r.chatter_name))
+        .map((r) => r.chatter_name),
+    ),
+  );
   // === LIVE-STATE laden (chatter_history_live) ===
-  // Wird benutzt, um Signale gegen den aktuellen Live-Stand abzugleichen:
-  //   - Verzug & offene Chats: falls live aufgelöst → Signal droppen
-  //   - sonst Live-Werte in die Beschreibung packen
+  // Wird für Verzug als einzige Wahrheit benutzt. Historische Report-Delays
+  // dürfen keinen Verzug mehr auslösen, weil Echtzeit den aktuellen Stand zeigt.
   interface LiveSnap {
     displayName: string;
     date: string;
@@ -163,8 +168,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const liveByName = new Map<string, LiveSnap>();
   try {
     const todayIso = todayStr();
-    const yIso = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const liveRows = await fetchAllPaged<{
+    const nameChunks: string[][] = [];
+    const CHUNK = 50;
+    for (let i = 0; i < latestReportChatterNames.length; i += CHUNK) {
+      nameChunks.push(latestReportChatterNames.slice(i, i + CHUNK));
+    }
+    const liveRows = (
+      await Promise.all(nameChunks.map((names) => fetchAllPaged<{
       chatter_name: string;
       date: string;
       unread_chats: number | null;
@@ -178,39 +188,71 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         .from("chatter_history_live")
         .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at, stats_details")
         .ilike("platform", platform)
-        .gte("date", yIso)
+        .in("chatter_name", names)
         .range(from, to)
-    );
-    const sorted = [...(liveRows ?? [])].sort((a, b) => {
-      if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
-    });
-    for (const r of sorted) {
+      , 500)))
+    ).flat();
+    const newestDateByName = new Map<string, string>();
+    for (const r of liveRows ?? []) {
       if (!r.chatter_name) continue;
       const k = normalizeChatterName(r.chatter_name);
-      if (liveByName.has(k)) continue;
-      const perModel: { model: string; unread: number; oldest: number }[] = [];
+      const d = r.date ?? "";
+      if (!k || !d) continue;
+      const prev = newestDateByName.get(k);
+      if (!prev || d > prev) newestDateByName.set(k, d);
+    }
+
+    const drafts = new Map<string, { snap: LiveSnap; modelMap: Map<string, { model: string; unread: number; oldest: number }> }>();
+    for (const r of liveRows ?? []) {
+      if (!r.chatter_name) continue;
+      const k = normalizeChatterName(r.chatter_name);
+      const d = r.date ?? "";
+      if (!k || !d || d !== newestDateByName.get(k)) continue;
+
+      let draft = drafts.get(k);
+      if (!draft) {
+        draft = {
+          snap: {
+            displayName: r.chatter_name,
+            date: d,
+            unread: 0,
+            oldest: 0,
+            revenue: 0,
+            massDms: 0,
+            updatedAt: r.updated_at ?? todayIso,
+            perModel: [],
+          },
+          modelMap: new Map(),
+        };
+        drafts.set(k, draft);
+      }
+
+      draft.snap.unread += Math.max(0, Number(r.unread_chats ?? 0));
+      draft.snap.oldest = Math.max(draft.snap.oldest, Math.max(0, Number(r.oldest_chat ?? 0)));
+      draft.snap.revenue += Math.max(0, Number(r.revenue ?? 0));
+      draft.snap.massDms += Math.max(0, Number(r.mass_dms ?? 0));
+      if ((r.updated_at ?? "") > draft.snap.updatedAt) draft.snap.updatedAt = r.updated_at ?? draft.snap.updatedAt;
+
       const sd = r.stats_details;
       if (sd && typeof sd === "object" && !Array.isArray(sd)) {
         for (const [model, raw] of Object.entries(sd as Record<string, any>)) {
           if (!raw || typeof raw !== "object") continue;
-          perModel.push({
+          const modelKey = model.trim().toLowerCase();
+          if (!modelKey) continue;
+          const cur = draft.modelMap.get(modelKey) ?? {
             model,
-            unread: Math.max(0, Number((raw as any).unread_chats ?? 0)),
-            oldest: Math.max(0, Number((raw as any).oldest_chat ?? 0)),
-          });
+            unread: 0,
+            oldest: 0,
+          };
+          cur.unread += Math.max(0, Number((raw as any).unread_chats ?? 0));
+          cur.oldest = Math.max(cur.oldest, Math.max(0, Number((raw as any).oldest_chat ?? 0)));
+          draft.modelMap.set(modelKey, cur);
         }
       }
-      liveByName.set(k, {
-        displayName: r.chatter_name,
-        date: r.date,
-        unread: Math.max(0, Number(r.unread_chats ?? 0)),
-        oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
-        revenue: Math.max(0, Number(r.revenue ?? 0)),
-        massDms: Math.max(0, Number(r.mass_dms ?? 0)),
-        updatedAt: r.updated_at ?? todayIso,
-        perModel,
-      });
+    }
+    for (const [k, draft] of drafts) {
+      draft.snap.perModel = [...draft.modelMap.values()];
+      liveByName.set(k, draft.snap);
     }
   } catch (e) {
     console.warn("[daily-todos] live-state lookup failed", e);
@@ -226,7 +268,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const h = Math.floor(mins / 60);
     return h < 24 ? `${h}h` : `${Math.floor(h / 24)}T`;
   };
-  const isCurrentLive = (l: LiveSnap): boolean => l.date === today || liveAgeMin(l) <= 360;
+  const isCurrentLive = (_l: LiveSnap): boolean => true;
 
 
 
@@ -351,15 +393,6 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const modelSuffix = modelInfo ? ` · Model: ${modelInfo}` : "";
     // Aggregierte Tageswerte über alle Account-Zeilen
     const todayOpenChats = todayEntries.reduce((s, e) => s + (e.open_chats ?? 0), 0);
-    const todayMaxDelay = todayEntries.reduce((m, e) => Math.max(m, e.response_delay_days ?? 0), 0);
-    const delayedReportEntries = todayEntries.filter(
-      (e) => (e.open_chats ?? 0) > 0 && (e.response_delay_days ?? 0) >= 2,
-    );
-    const reportOpenChatsInDelay = delayedReportEntries.reduce((s, e) => s + (e.open_chats ?? 0), 0);
-    const reportMaxDelayWithOpenChats = delayedReportEntries.reduce(
-      (m, e) => Math.max(m, e.response_delay_days ?? 0),
-      0,
-    );
 
     // Inaktivität — fehlt heute, war aber regelmäßig da
     if (!todayEntry && historical.length >= 5 && !onlyVerzug) {
@@ -374,11 +407,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       });
       continue;
     }
-    // Verzug — aktuelle Live-Daten sind die Wahrheit. Eine Karte entsteht nur,
-    // wenn der aktuelle Snapshot sowohl offene Chats als auch oldest_chat ≥ 3
-    // bestätigt (2 Tage gelten noch nicht als Verzug). Ist Live stale/fehlt,
-    // fällt der Trigger auf Report-Zeilen zurück, aber nur auf Zeilen, bei denen
-    // offene Chats UND Delay auf derselben Account-Zeile stehen.
+    // Verzug — Echtzeit ist die einzige Wahrheit. Eine Karte entsteht nur,
+    // wenn der Live-Snapshot offene Chats UND oldest_chat ≥ 3 bestätigt.
+    // Report-Werte werden dafür bewusst nicht mehr als Fallback verwendet.
     const live = liveFor(name);
     if (live && isCurrentLive(live)) {
       // Nur Models zählen, die selbst ≥ MIN_VERZUG_DAYS im Verzug sind.
@@ -409,18 +440,6 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           meta: { delayDays: oldestDays, todayOpenChats: unread },
         });
       }
-    } else if (reportMaxDelayWithOpenChats >= MIN_VERZUG_DAYS && reportOpenChatsInDelay > 0) {
-
-      // Kein aktueller Live-Snapshot vorhanden → Report-Fallback (mit klarer Kennzeichnung).
-      todos.push({
-        key: `verzug:${name}:${today}`,
-        category: "verzug",
-        score: Math.round((90 + reportMaxDelayWithOpenChats * 5) * importance),
-        title: `${name} dringend — ältester Chat ${reportMaxDelayWithOpenChats}T${tag}`,
-        why: `Report (kein aktueller Live-Snapshot): ältester Chat ${reportMaxDelayWithOpenChats}T · ${reportOpenChatsInDelay} offene Chats${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
-        chatterName: name,
-        meta: { delayDays: reportMaxDelayWithOpenChats, todayOpenChats: reportOpenChatsInDelay },
-      });
     }
 
 
@@ -698,7 +717,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   }
 
   // === LIVE-PASS: Verzug-Todos für Chatter erzeugen, die zwar Live-Rückstand
-  // haben (oldest_chat ≥ 2), aber im chatter_history-Loop nicht als eigener
+  // haben (oldest_chat ≥ 3), aber im chatter_history-Loop nicht als eigener
   // Eintrag erschienen (z.B. weil sie in den 30T-Reports nicht auftauchen
   // oder aus dem letzten Report gefallen sind). Ohne diesen Pass fehlen sie
   // im Verzugs-Tab, obwohl die Live-Daten sie klar zeigen.
@@ -709,7 +728,6 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     const oldestDays = Math.round(live.oldest);
     if (oldestDays < MIN_VERZUG_DAYS) continue;
     if (live.unread <= 0) continue;
-    if (!isCurrentLive(live)) continue;
 
     // Display-Name bevorzugt aus chatter_history (Report-Schreibweise), sonst
     // aus dem Live-Datensatz selbst.

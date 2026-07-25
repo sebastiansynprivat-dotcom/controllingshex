@@ -425,7 +425,6 @@ export default function Today() {
     (async () => {
       try {
         const today = new Date().toISOString().split("T")[0];
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
         const targetKeys = new Set(chatterNames.map(normalizeBreakdownKey));
 
         // Statt Full-Table-Scan: serverseitig auf die betroffenen Chatter filtern
@@ -468,7 +467,6 @@ export default function Today() {
                 .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
                 .ilike("platform", platform)
                 .in("chatter_name", names)
-                .gte("date", yesterday)
                 .range(from, to)
             , 500)
           ),
@@ -511,7 +509,6 @@ export default function Today() {
                 .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
                 .ilike("platform", platform)
                 .ilike("chatter_name", n.trim())
-                .gte("date", yesterday)
                 .limit(100);
               return (d ?? []) as any[];
             }),
@@ -565,7 +562,7 @@ export default function Today() {
           if (!prev || d > prev) latestDateByChatter.set(name, d);
         }
 
-        type AccountSnapshot = { account: string; reportOpen: number; reportDelay: number };
+        type AccountSnapshot = { account: string };
         const accountsByChatter = new Map<string, Map<string, AccountSnapshot>>();
         const displayNameByKey = new Map<string, string>();
         for (const r of rows) {
@@ -576,15 +573,10 @@ export default function Today() {
           if ((r.analysis_date || "") !== latestDateByChatter.get(nameKey)) continue;
           if (displayName && !displayNameByKey.has(nameKey)) displayNameByKey.set(nameKey, displayName);
 
-          const reportDelay = Number(r.response_delay_days) || 0;
-          const reportOpen = (Number(r.open_chats) || 0) / accounts.length;
           const byAccount = accountsByChatter.get(nameKey) ?? new Map<string, AccountSnapshot>();
           for (const account of accounts) {
             const accountKey = normalizeBreakdownKey(account);
-            const cur = byAccount.get(accountKey) ?? { account, reportOpen: 0, reportDelay: 0 };
-            cur.reportOpen += reportOpen;
-            cur.reportDelay = Math.max(cur.reportDelay, reportDelay);
-            byAccount.set(accountKey, cur);
+            if (!byAccount.has(accountKey)) byAccount.set(accountKey, { account });
           }
           accountsByChatter.set(nameKey, byAccount);
         }
@@ -606,8 +598,8 @@ export default function Today() {
           for (const a of accounts) {
             merged.set(normalizeBreakdownKey(a.account), {
               account: a.account,
-              openChats: Math.max(0, Math.round(a.reportOpen)),
-              delayDays: Math.max(0, Math.round(a.reportDelay)),
+              openChats: 0,
+              delayDays: 0,
             });
           }
           if (liveModels.length > 0) {
