@@ -157,6 +157,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     revenue: number;
     massDms: number;
     updatedAt: string;
+    /** Pro Model aufgeschlüsselte Live-Werte (aus stats_details). */
+    perModel: { model: string; unread: number; oldest: number }[];
   }
   const liveByName = new Map<string, LiveSnap>();
   try {
@@ -170,10 +172,11 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       revenue: number | null;
       mass_dms: number | null;
       updated_at: string | null;
+      stats_details: any;
     }>((from, to) =>
       supabase
         .from("chatter_history_live")
-        .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at")
+        .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at, stats_details")
         .ilike("platform", platform)
         .gte("date", yIso)
         .range(from, to)
@@ -186,6 +189,18 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       if (!r.chatter_name) continue;
       const k = normalizeChatterName(r.chatter_name);
       if (liveByName.has(k)) continue;
+      const perModel: { model: string; unread: number; oldest: number }[] = [];
+      const sd = r.stats_details;
+      if (sd && typeof sd === "object" && !Array.isArray(sd)) {
+        for (const [model, raw] of Object.entries(sd as Record<string, any>)) {
+          if (!raw || typeof raw !== "object") continue;
+          perModel.push({
+            model,
+            unread: Math.max(0, Number((raw as any).unread_chats ?? 0)),
+            oldest: Math.max(0, Number((raw as any).oldest_chat ?? 0)),
+          });
+        }
+      }
       liveByName.set(k, {
         displayName: r.chatter_name,
         date: r.date,
@@ -194,6 +209,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         revenue: Math.max(0, Number(r.revenue ?? 0)),
         massDms: Math.max(0, Number(r.mass_dms ?? 0)),
         updatedAt: r.updated_at ?? todayIso,
+        perModel,
       });
     }
   } catch (e) {
@@ -365,16 +381,32 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // offene Chats UND Delay auf derselben Account-Zeile stehen.
     const live = liveFor(name);
     if (live && isCurrentLive(live)) {
-      const oldestDays = Math.round(live.oldest);
-      if (live.unread > 0 && oldestDays >= MIN_VERZUG_DAYS) {
+      // Nur Models zählen, die selbst ≥ MIN_VERZUG_DAYS im Verzug sind.
+      const delayedModels = (live.perModel ?? []).filter(
+        (m) => m.unread > 0 && Math.round(m.oldest) >= MIN_VERZUG_DAYS,
+      );
+      const hasBreakdown = (live.perModel ?? []).length > 0;
+      const oldestDays = hasBreakdown
+        ? delayedModels.reduce((mx, m) => Math.max(mx, Math.round(m.oldest)), 0)
+        : Math.round(live.oldest);
+      const unread = hasBreakdown
+        ? delayedModels.reduce((s, m) => s + m.unread, 0)
+        : live.unread;
+      const modelDetail = delayedModels.length
+        ? ` (${delayedModels
+            .sort((a, b) => b.oldest - a.oldest || b.unread - a.unread)
+            .map((m) => `${m.model}: ${m.unread} offen / ${Math.round(m.oldest)}T`)
+            .join(" · ")})`
+        : "";
+      if (unread > 0 && oldestDays >= MIN_VERZUG_DAYS) {
         todos.push({
           key: `verzug:${name}:${today}`,
           category: "verzug",
           score: Math.round((90 + oldestDays * 5) * importance),
           title: `${name} dringend — ältester Chat ${oldestDays}T${tag}`,
-          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${live.unread} ungelesen${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
+          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${unread} ungelesen${modelDetail}${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
           chatterName: name,
-          meta: { delayDays: oldestDays, todayOpenChats: live.unread },
+          meta: { delayDays: oldestDays, todayOpenChats: unread },
         });
       }
     } else if (reportMaxDelayWithOpenChats >= MIN_VERZUG_DAYS && reportOpenChatsInDelay > 0) {
