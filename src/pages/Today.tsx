@@ -559,7 +559,6 @@ export default function Today() {
           if (arr.length === 0) continue;
 
           const displayName = displayNameByKey.get(nameKey)
-            ?? live?.["displayName" as keyof LiveAgg] as unknown as string
             ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey)
             ?? nameKey;
           map.set(displayName, arr);
