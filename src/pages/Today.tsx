@@ -425,7 +425,6 @@ export default function Today() {
     (async () => {
       try {
         const today = new Date().toISOString().split("T")[0];
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
         const targetKeys = new Set(chatterNames.map(normalizeBreakdownKey));
 
         // Statt Full-Table-Scan: serverseitig auf die betroffenen Chatter filtern
@@ -468,7 +467,6 @@ export default function Today() {
                 .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
                 .ilike("platform", platform)
                 .in("chatter_name", names)
-                .gte("date", yesterday)
                 .range(from, to)
             , 500)
           ),
@@ -511,7 +509,6 @@ export default function Today() {
                 .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
                 .ilike("platform", platform)
                 .ilike("chatter_name", n.trim())
-                .gte("date", yesterday)
                 .limit(100);
               return (d ?? []) as any[];
             }),
