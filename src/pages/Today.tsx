@@ -440,7 +440,7 @@ export default function Today() {
           fetchAllPaged<any>((from, to) =>
             supabase
               .from("chatter_history_live")
-              .select("chatter_name, unread_chats, oldest_chat, date, updated_at")
+              .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
               .ilike("platform", platform)
               .gte("date", yesterday)
               .range(from, to)
