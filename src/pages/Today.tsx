@@ -534,8 +534,11 @@ export default function Today() {
           const byAccount = accountsByChatter.get(nameKey) ?? new Map<string, AccountSnapshot>();
           const accounts = [...byAccount.values()];
           const live = liveByChatter.get(nameKey);
-          const liveFresh = !!live && live.date === today;
+          // Auch Live-Daten von gestern nutzen — sonst fiel der Breakdown weg,
+          // solange der heutige Snapshot noch nicht geschrieben war.
+          const liveFresh = !!live;
           const liveModels = liveFresh ? [...(live!.models.values())] : [];
+
 
           // Alle Models des Chatters immer zeigen — auch mit 0 offenen Chats.
           const merged = new Map<string, VerzugBreakdownEntry>();
