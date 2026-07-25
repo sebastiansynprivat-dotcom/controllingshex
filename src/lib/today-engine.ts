@@ -90,13 +90,6 @@ export interface UnifiedAction {
   downgradeSince: string | null;
 }
 
-type TodayEngineResult = {
-  primary: UnifiedAction[];
-  watchlist: UnifiedAction[];
-  wins: UnifiedAction[];
-  totalImpactEurPerWeek: number;
-};
-
 const TODAY_ENGINE_CACHE_TTL_MS = 45_000;
 const todayEngineCache = new Map<string, { ts: number; promise: Promise<TodayEngineResult> }>();
 
