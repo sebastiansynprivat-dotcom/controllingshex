@@ -120,14 +120,22 @@ function fmtEur(v: number): string {
   return Math.round(v).toLocaleString("de-DE") + " €";
 }
 
-/** Liest die "ältester Chat XT"-Tage aus einem Verzug-Signal. */
+/** Mindest-Verzug in Tagen, ab dem ein Chatter im Verzug-Tab auftaucht. */
+const MIN_VERZUG_DAYS = 3;
+
+/**
+ * Liest die "ältester Chat XT"-Tage aus einem Verzug-Signal.
+ * Live-Werte ("live jetzt: … ältester NT") schlagen den evtl. veralteten Titel.
+ */
 function getVerzugDays(a: UnifiedAction): number | null {
   if (!a?.signals) return null;
   for (const s of a.signals) {
     if (!s || s.kind !== "verzug") continue;
     const title = typeof s.title === "string" ? s.title : "";
     const why = typeof s.why === "string" ? s.why : "";
-    const m = title.match(/(\d+)\s*T/i) || why.match(/ältester Chat\s+(\d+)\s*T/i);
+    const liveM = why.match(/live jetzt:[^)]*ältester\s+(\d+)\s*T/i);
+    if (liveM) return parseInt(liveM[1], 10);
+    const m = why.match(/ältester Chat\s+(\d+)\s*T/i) || title.match(/(\d+)\s*T/i);
     if (m) return parseInt(m[1], 10);
   }
   return null;
@@ -139,6 +147,8 @@ function getVerzugOpenChats(a: UnifiedAction): number {
   for (const s of a.signals) {
     if (!s || s.kind !== "verzug") continue;
     const why = typeof s.why === "string" ? s.why : "";
+    const liveM = why.match(/live jetzt:[^)]*?(\d+)\s+offen/i);
+    if (liveM) return parseInt(liveM[1], 10);
     const m = why.match(/(\d+)\s+(?:ungelesen|offene Chats|offen)/i);
     if (m) return parseInt(m[1], 10);
   }
@@ -148,8 +158,9 @@ function getVerzugOpenChats(a: UnifiedAction): number {
 function hasRealVerzug(a: UnifiedAction): boolean {
   const days = getVerzugDays(a) ?? 0;
   const openChats = getVerzugOpenChats(a);
-  return days >= 2 && openChats > 0;
+  return days >= MIN_VERZUG_DAYS && openChats > 0;
 }
+
 
 type VerzugSort = "open" | "oldest";
 
