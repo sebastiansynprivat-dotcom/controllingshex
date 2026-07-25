@@ -381,16 +381,32 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     // offene Chats UND Delay auf derselben Account-Zeile stehen.
     const live = liveFor(name);
     if (live && isCurrentLive(live)) {
-      const oldestDays = Math.round(live.oldest);
-      if (live.unread > 0 && oldestDays >= MIN_VERZUG_DAYS) {
+      // Nur Models zählen, die selbst ≥ MIN_VERZUG_DAYS im Verzug sind.
+      const delayedModels = (live.perModel ?? []).filter(
+        (m) => m.unread > 0 && Math.round(m.oldest) >= MIN_VERZUG_DAYS,
+      );
+      const hasBreakdown = (live.perModel ?? []).length > 0;
+      const oldestDays = hasBreakdown
+        ? delayedModels.reduce((mx, m) => Math.max(mx, Math.round(m.oldest)), 0)
+        : Math.round(live.oldest);
+      const unread = hasBreakdown
+        ? delayedModels.reduce((s, m) => s + m.unread, 0)
+        : live.unread;
+      const modelDetail = delayedModels.length
+        ? ` (${delayedModels
+            .sort((a, b) => b.oldest - a.oldest || b.unread - a.unread)
+            .map((m) => `${m.model}: ${m.unread} offen / ${Math.round(m.oldest)}T`)
+            .join(" · ")})`
+        : "";
+      if (unread > 0 && oldestDays >= MIN_VERZUG_DAYS) {
         todos.push({
           key: `verzug:${name}:${today}`,
           category: "verzug",
           score: Math.round((90 + oldestDays * 5) * importance),
           title: `${name} dringend — ältester Chat ${oldestDays}T${tag}`,
-          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${live.unread} ungelesen${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
+          why: `Live (${liveAgeLabel(liveAgeMin(live))}): ältester Chat ${oldestDays}T · ${unread} ungelesen${modelDetail}${modelSuffix}${startSuffixFor(name)}. Sofort entlasten oder Ursache klären.`,
           chatterName: name,
-          meta: { delayDays: oldestDays, todayOpenChats: live.unread },
+          meta: { delayDays: oldestDays, todayOpenChats: unread },
         });
       }
     } else if (reportMaxDelayWithOpenChats >= MIN_VERZUG_DAYS && reportOpenChatsInDelay > 0) {
