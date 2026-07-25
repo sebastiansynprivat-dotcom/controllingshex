@@ -426,6 +426,9 @@ export default function Today() {
       try {
         const today = new Date().toISOString().split("T")[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+        // Nur die letzten 30 Tage laden — auf Mobile war der Full-Table-Scan
+        // langsam/instabil, wodurch die Aufschlüsselung manchmal leer blieb.
+        const historyCutoff = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
         const targetKeys = new Set(chatterNames.map(normalizeBreakdownKey));
 
         const [historyRows, liveRowsPaged] = await Promise.all([
@@ -434,9 +437,11 @@ export default function Today() {
               .from("chatter_history")
               .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
               .ilike("platform", platform)
+              .gte("analysis_date", historyCutoff)
               .order("analysis_date", { ascending: false })
               .range(from, to)
           ),
+
           fetchAllPaged<any>((from, to) =>
             supabase
               .from("chatter_history_live")
