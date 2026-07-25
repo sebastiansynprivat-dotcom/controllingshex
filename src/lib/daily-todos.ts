@@ -14,6 +14,10 @@ import { fetchAllPaged } from "@/lib/paged";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
+/** Mindest-Verzug in Tagen, ab dem ein Chatter als "im Verzug" gilt. */
+export const MIN_VERZUG_DAYS = 3;
+
+
 export interface DailyTodo {
   /** Stabiler Schlüssel inkl. Datum, z.B. "verzug:Sarah:2026-05-03" */
   key: string;
