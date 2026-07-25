@@ -675,7 +675,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   );
   for (const [nameKey, live] of liveByName) {
     const oldestDays = Math.round(live.oldest);
-    if (oldestDays < 2) continue;
+    if (oldestDays < MIN_VERZUG_DAYS) continue;
     if (live.unread <= 0) continue;
     if (!isCurrentLive(live)) continue;
 
