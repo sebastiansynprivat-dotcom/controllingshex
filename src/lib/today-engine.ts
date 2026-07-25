@@ -521,32 +521,60 @@ async function detectWakeups(
   type HistRow = { chatter_name: string; analysis_date: string; revenue_today: number | null; mass_dms: number | null };
   type LiveTodayRow = { chatter_name: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null };
   type LiveYestRow = { chatter_name: string; unread_chats: number | null };
-  const [historyRows, liveRows, liveYestRows] = await Promise.all([
-    fetchAllPaged<HistRow>((from, to) =>
-      supabase
-        .from("chatter_history")
-        .select("chatter_name, analysis_date, revenue_today, mass_dms")
-        .eq("user_id", user.id)
-        .ilike("platform", platform)
-        .gte("analysis_date", since)
-        .range(from, to)
-    ),
-    fetchAllPaged<LiveTodayRow>((from, to) =>
+  const historyRows = await fetchAllPaged<HistRow>((from, to) =>
+    supabase
+      .from("chatter_history")
+      .select("chatter_name, analysis_date, revenue_today, mass_dms")
+      .eq("user_id", user.id)
+      .ilike("platform", platform)
+      .gte("analysis_date", since)
+      .range(from, to)
+  );
+
+  // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
+  let latestReportDate = "";
+  for (const r of historyRows) {
+    if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
+  }
+  const inLatestReport = new Set<string>();
+  const liveNames: string[] = [];
+  if (latestReportDate) {
+    const seen = new Set<string>();
+    for (const r of historyRows) {
+      if (r.analysis_date === latestReportDate && r.chatter_name) {
+        const key = normalizeChatterName(r.chatter_name);
+        inLatestReport.add(key);
+        if (!seen.has(key)) {
+          seen.add(key);
+          liveNames.push(r.chatter_name);
+        }
+      }
+    }
+  }
+
+  const nameChunks: string[][] = [];
+  for (let i = 0; i < liveNames.length; i += 50) {
+    nameChunks.push(liveNames.slice(i, i + 50));
+  }
+  const [liveRows, liveYestRows] = await Promise.all([
+    Promise.all(nameChunks.map((names) => fetchAllPaged<LiveTodayRow>((from, to) =>
       supabase
         .from("chatter_history_live")
         .select("chatter_name, revenue, mass_dms, unread_chats")
         .ilike("platform", platform)
         .eq("date", today)
+        .in("chatter_name", names)
         .range(from, to)
-    ),
-    fetchAllPaged<LiveYestRow>((from, to) =>
+      , 500))).then((chunks) => chunks.flat()),
+    Promise.all(nameChunks.map((names) => fetchAllPaged<LiveYestRow>((from, to) =>
       supabase
         .from("chatter_history_live")
         .select("chatter_name, unread_chats")
         .ilike("platform", platform)
         .eq("date", yesterday)
+        .in("chatter_name", names)
         .range(from, to)
-    ),
+      , 500))).then((chunks) => chunks.flat()),
   ]);
 
   // Per-chatter pro Tag aggregieren
@@ -577,20 +605,6 @@ async function detectWakeups(
     if (!r.chatter_name) continue;
     const k = normalizeChatterName(r.chatter_name);
     unreadYest.set(k, (unreadYest.get(k) ?? 0) + (r.unread_chats ?? 0));
-  }
-
-  // Letzter Report = max(analysis_date) im 5T-Fenster — nur Chatter daraus zulassen
-  let latestReportDate = "";
-  for (const r of historyRows) {
-    if (r.analysis_date > latestReportDate) latestReportDate = r.analysis_date;
-  }
-  const inLatestReport = new Set<string>();
-  if (latestReportDate) {
-    for (const r of historyRows) {
-      if (r.analysis_date === latestReportDate && r.chatter_name) {
-        inLatestReport.add(normalizeChatterName(r.chatter_name));
-      }
-    }
   }
 
   const silentDays = [1, 2, 3, 4].map(isoDaysAgo);
@@ -670,13 +684,24 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   const liveSnap = new Map<string, LiveSnap>();
   try {
     type Row = { chatter_name: string; date: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null };
-    const liveRows = await fetchAllPaged<Row>((from, to) =>
-      supabase
-        .from("chatter_history_live")
-        .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
-        .ilike("platform", platform)
-        .range(from, to)
-    );
+    const relevantNames = Array.from(new Set(
+      [...todos.map((t) => t.chatterName), ...revTasks.map((r) => r.chatterName)]
+        .filter((name): name is string => Boolean(name)),
+    ));
+    const nameChunks: string[][] = [];
+    for (let i = 0; i < relevantNames.length; i += 50) {
+      nameChunks.push(relevantNames.slice(i, i + 50));
+    }
+    const liveRows = (
+      await Promise.all(nameChunks.map((names) => fetchAllPaged<Row>((from, to) =>
+        supabase
+          .from("chatter_history_live")
+          .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
+          .ilike("platform", platform)
+          .in("chatter_name", names)
+          .range(from, to)
+        , 500)))
+    ).flat();
     const sorted = [...liveRows].sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
