@@ -663,25 +663,20 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   ]);
   const { stats, importanceFor } = statsBundle;
 
-  // === Live-Snapshot (chatter_history_live) für Suppress- und Refresh-Layer ===
-  // Lädt heute + gestern und nimmt pro Chatter den neuesten Eintrag (date desc, updated_at desc).
-  // "fresh" = updated_at innerhalb 6h → großzügig, weil Live > stale Snapshot.
-  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; fresh: boolean; updatedAt: number };
+  // === Live-Snapshot (chatter_history_live) für Refresh-Layer ===
+  // Nimmt pro Chatter den neuesten vorhandenen Echtzeit-Snapshot. Kein Datumsfenster:
+  // die Detailansicht zeigt denselben Snapshot, deshalb muss Today dieselbe Wahrheit nutzen.
+  type LiveSnap = { rev: number; dm: number; unread: number; oldest: number; updatedAt: number };
   const liveSnap = new Map<string, LiveSnap>();
   try {
-    const today = todayISO();
-    const y = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     type Row = { chatter_name: string; date: string; revenue: number | null; mass_dms: number | null; unread_chats: number | null; oldest_chat: number | null; updated_at: string | null };
     const liveRows = await fetchAllPaged<Row>((from, to) =>
       supabase
         .from("chatter_history_live")
         .select("chatter_name, date, revenue, mass_dms, unread_chats, oldest_chat, updated_at")
         .ilike("platform", platform)
-        .gte("date", y)
         .range(from, to)
     );
-    const FRESH_MS = 6 * 60 * 60 * 1000; // 6h
-    const now = Date.now();
     const sorted = [...liveRows].sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
@@ -695,14 +690,13 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
       const k = normalizeChatterName(r.chatter_name);
       if (!newestDateByChatter.has(k)) newestDateByChatter.set(k, r.date);
       if (newestDateByChatter.get(k) !== r.date) continue; // nur Zeilen des neuesten Datums berücksichtigen
-      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, fresh: false, updatedAt: 0 };
+      const cur = liveSnap.get(k) ?? { rev: 0, dm: 0, unread: 0, oldest: 0, updatedAt: 0 };
       cur.rev += Number(r.revenue) || 0;
       cur.dm += r.mass_dms ?? 0;
       cur.unread += r.unread_chats ?? 0;
       cur.oldest = Math.max(cur.oldest, Number(r.oldest_chat) || 0);
       const upd = r.updated_at ? new Date(r.updated_at).getTime() : 0;
       if (upd > cur.updatedAt) cur.updatedAt = upd;
-      if (upd && (now - upd) <= FRESH_MS) cur.fresh = true;
       liveSnap.set(k, cur);
     }
   } catch (e) {
@@ -713,7 +707,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   function refreshWhy(kind: ActionSourceKind, chatterKey: string | null, why: string, meta?: Record<string, any>): string {
     if (!chatterKey) return why;
     const live = liveSnap.get(chatterKey);
-    if (!live || !live.fresh) return why;
+    if (!live) return why;
     const parts: string[] = [];
     if (meta?.todayOpenChats != null && live.unread !== Number(meta.todayOpenChats)) {
       parts.push(`${live.unread} offen`);
@@ -735,7 +729,7 @@ export async function buildTodayActions(platform: string): Promise<TodayEngineRe
   function refreshTitle(chatterKey: string | null, title: string, meta?: Record<string, any>): string {
     if (!chatterKey) return title;
     const live = liveSnap.get(chatterKey);
-    if (!live || !live.fresh) return title;
+    if (!live) return title;
     let out = title;
     // "X offene Chats"
     if (/\b\d+\s+offene Chats\b/.test(out)) {
