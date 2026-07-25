@@ -14,6 +14,10 @@ import { fetchAllPaged } from "@/lib/paged";
 
 export type TodoCategory = "verzug" | "activity" | "revenue" | "model" | "positive" | "talent";
 
+/** Mindest-Verzug in Tagen, ab dem ein Chatter als "im Verzug" gilt. */
+export const MIN_VERZUG_DAYS = 3;
+
+
 export interface DailyTodo {
   /** Stabiler Schlüssel inkl. Datum, z.B. "verzug:Sarah:2026-05-03" */
   key: string;
@@ -355,14 +359,14 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       continue;
     }
     // Verzug — aktuelle Live-Daten sind die Wahrheit. Eine Karte entsteht nur,
-    // wenn der aktuelle Snapshot sowohl offene Chats als auch oldest_chat ≥ 2
-    // bestätigt. Ist Live stale/fehlt, fällt der Trigger auf Report-Zeilen zurück,
-    // aber nur auf Zeilen, bei denen offene Chats UND Delay auf derselben Account-
-    // Zeile stehen. Dadurch entstehen keine "0 offen / 0 T"-Verzüge mehr.
+    // wenn der aktuelle Snapshot sowohl offene Chats als auch oldest_chat ≥ 3
+    // bestätigt (2 Tage gelten noch nicht als Verzug). Ist Live stale/fehlt,
+    // fällt der Trigger auf Report-Zeilen zurück, aber nur auf Zeilen, bei denen
+    // offene Chats UND Delay auf derselben Account-Zeile stehen.
     const live = liveFor(name);
     if (live && isCurrentLive(live)) {
       const oldestDays = Math.round(live.oldest);
-      if (live.unread > 0 && oldestDays >= 2) {
+      if (live.unread > 0 && oldestDays >= MIN_VERZUG_DAYS) {
         todos.push({
           key: `verzug:${name}:${today}`,
           category: "verzug",
@@ -373,7 +377,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
           meta: { delayDays: oldestDays, todayOpenChats: live.unread },
         });
       }
-    } else if (reportMaxDelayWithOpenChats >= 2 && reportOpenChatsInDelay > 0) {
+    } else if (reportMaxDelayWithOpenChats >= MIN_VERZUG_DAYS && reportOpenChatsInDelay > 0) {
+
       // Kein aktueller Live-Snapshot vorhanden → Report-Fallback (mit klarer Kennzeichnung).
       todos.push({
         key: `verzug:${name}:${today}`,
@@ -670,7 +675,7 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   );
   for (const [nameKey, live] of liveByName) {
     const oldestDays = Math.round(live.oldest);
-    if (oldestDays < 2) continue;
+    if (oldestDays < MIN_VERZUG_DAYS) continue;
     if (live.unread <= 0) continue;
     if (!isCurrentLive(live)) continue;
 
