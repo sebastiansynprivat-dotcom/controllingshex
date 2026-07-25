@@ -532,31 +532,36 @@ export default function Today() {
           const liveFresh = !!live && live.date === today;
           const liveModels = liveFresh ? [...(live!.models.values())] : [];
 
-          let arr: VerzugBreakdownEntry[];
+          // Alle Models des Chatters immer zeigen — auch mit 0 offenen Chats.
+          const merged = new Map<string, VerzugBreakdownEntry>();
+          for (const a of accounts) {
+            merged.set(normalizeBreakdownKey(a.account), {
+              account: a.account,
+              openChats: Math.max(0, Math.round(a.reportOpen)),
+              delayDays: Math.max(0, Math.round(a.reportDelay)),
+            });
+          }
           if (liveModels.length > 0) {
-            // Live liefert pro Model eigene Werte → jedes Model einzeln bewerten.
-            arr = liveModels.map((m) => ({
-              account: m.model,
-              openChats: Math.max(0, Math.round(m.unread)),
-              delayDays: Math.max(0, Math.round(m.oldest)),
-            }));
-          } else if (liveFresh && live!.unread > 0 && Math.round(live!.oldest) >= MIN_VERZUG_DAYS && accounts.length === 1) {
+            // Live liefert pro Model eigene Werte → diese haben Vorrang.
+            for (const m of liveModels) {
+              merged.set(normalizeBreakdownKey(m.model), {
+                account: m.model,
+                openChats: Math.max(0, Math.round(m.unread)),
+                delayDays: Math.max(0, Math.round(m.oldest)),
+              });
+            }
+          } else if (liveFresh && accounts.length === 1) {
             // Kein Model-Breakdown, aber nur ein Account → Live-Zahlen dorthin.
-            arr = [{
+            merged.set(normalizeBreakdownKey(accounts[0].account), {
               account: accounts[0].account,
               openChats: Math.max(0, Math.round(live!.unread)),
               delayDays: Math.max(0, Math.round(live!.oldest)),
-            }];
-          } else {
-            arr = accounts.map((account) => ({
-              account: account.account,
-              openChats: Math.max(0, Math.round(account.reportOpen)),
-              delayDays: Math.max(0, Math.round(account.reportDelay)),
-            }));
+            });
           }
 
-          arr = arr.filter((account) => account.openChats > 0 && account.delayDays >= MIN_VERZUG_DAYS);
+          const arr: VerzugBreakdownEntry[] = [...merged.values()];
           if (arr.length === 0) continue;
+
 
           const displayName = displayNameByKey.get(nameKey)
             ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey)
