@@ -144,7 +144,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
 
   // Tatsächlich neuestes Datum, nicht "heute" (Reports kommen evtl. mit Verzug)
   const latestDate = rows[0].analysis_date;
-
+  const latestReportChatterNames = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.analysis_date === latestDate && r.chatter_name && isActive(r.chatter_name))
+        .map((r) => r.chatter_name),
+    ),
+  );
   // === LIVE-STATE laden (chatter_history_live) ===
   // Wird für Verzug als einzige Wahrheit benutzt. Historische Report-Delays
   // dürfen keinen Verzug mehr auslösen, weil Echtzeit den aktuellen Stand zeigt.
@@ -162,7 +168,13 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
   const liveByName = new Map<string, LiveSnap>();
   try {
     const todayIso = todayStr();
-    const liveRows = await fetchAllPaged<{
+    const nameChunks: string[][] = [];
+    const CHUNK = 50;
+    for (let i = 0; i < latestReportChatterNames.length; i += CHUNK) {
+      nameChunks.push(latestReportChatterNames.slice(i, i + CHUNK));
+    }
+    const liveRows = (
+      await Promise.all(nameChunks.map((names) => fetchAllPaged<{
       chatter_name: string;
       date: string;
       unread_chats: number | null;
@@ -176,8 +188,10 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         .from("chatter_history_live")
         .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at, stats_details")
         .ilike("platform", platform)
+        .in("chatter_name", names)
         .range(from, to)
-    );
+      , 500)))
+    ).flat();
     const newestDateByName = new Map<string, string>();
     for (const r of liveRows ?? []) {
       if (!r.chatter_name) continue;
