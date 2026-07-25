@@ -517,7 +517,7 @@ export default function Today() {
           const live = liveByChatter.get(nameKey);
           const liveUnread = Math.max(0, Math.round(live?.unread ?? 0));
           const liveDelay = live && live.date === today ? Math.max(0, Math.round(live.oldest)) : 0;
-          const hasLiveVerzug = liveUnread > 0 && liveDelay >= 2;
+          const hasLiveVerzug = liveUnread > 0 && liveDelay >= MIN_VERZUG_DAYS;
 
           let liveCarrierKey: string | null = null;
           const positiveAccounts = accounts.filter((a) => a.reportOpen > 0);
