@@ -426,39 +426,100 @@ export default function Today() {
       try {
         const today = new Date().toISOString().split("T")[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-        // Nur die letzten 30 Tage laden — auf Mobile war der Full-Table-Scan
-        // langsam/instabil, wodurch die Aufschlüsselung manchmal leer blieb.
-        const historyCutoff = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
         const targetKeys = new Set(chatterNames.map(normalizeBreakdownKey));
 
-        const [historyRows, liveRowsPaged] = await Promise.all([
-          fetchAllPaged<any>((from, to) =>
-            supabase
-              .from("chatter_history")
-              .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
-              .ilike("platform", platform)
-              .gte("analysis_date", historyCutoff)
-              .order("analysis_date", { ascending: false })
-              .range(from, to)
-          ),
+        // Statt Full-Table-Scan: serverseitig auf die betroffenen Chatter filtern
+        // und in kleinen Chunks laden. Dadurch kein Zeitfenster-Limit mehr nötig —
+        // jeder Chatter im Verzug bekommt seine komplette Aufschlüsselung.
+        const CHUNK = 25;
+        const nameChunks: string[][] = [];
+        for (let i = 0; i < chatterNames.length; i += CHUNK) {
+          nameChunks.push(chatterNames.slice(i, i + CHUNK));
+        }
 
-          fetchAllPaged<any>((from, to) =>
-            supabase
-              .from("chatter_history_live")
-              .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
-              .ilike("platform", platform)
-              .gte("date", yesterday)
-              .range(from, to)
+        const runChunks = async <T,>(fn: (names: string[]) => Promise<T[]>): Promise<T[]> => {
+          const out: T[] = [];
+          const PARALLEL = 3;
+          for (let i = 0; i < nameChunks.length; i += PARALLEL) {
+            const batch = nameChunks.slice(i, i + PARALLEL);
+            const res = await Promise.all(batch.map(fn));
+            for (const r of res) out.push(...r);
+            if (cancel) break;
+          }
+          return out;
+        };
+
+        const [historyRowsRaw, liveRowsRaw] = await Promise.all([
+          runChunks<any>((names) =>
+            fetchAllPaged<any>((from, to) =>
+              supabase
+                .from("chatter_history")
+                .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
+                .ilike("platform", platform)
+                .in("chatter_name", names)
+                .order("analysis_date", { ascending: false })
+                .range(from, to)
+            , 500)
+          ),
+          runChunks<any>((names) =>
+            fetchAllPaged<any>((from, to) =>
+              supabase
+                .from("chatter_history_live")
+                .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
+                .ilike("platform", platform)
+                .in("chatter_name", names)
+                .gte("date", yesterday)
+                .range(from, to)
+            , 500)
           ),
         ]);
         if (cancel) return;
 
-        const rows = historyRows.filter((r) =>
+        const rows = historyRowsRaw.filter((r) =>
           targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
         );
-        const liveRows = liveRowsPaged.filter((r) =>
+        const liveRows = liveRowsRaw.filter((r) =>
           targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
         );
+
+        // Fallback: Namen, die per exaktem in()-Match nichts geliefert haben
+        // (abweichende Schreibweise), einzeln per ilike nachladen.
+        const foundHist = new Set(rows.map((r) => normalizeBreakdownKey(r.chatter_name)));
+        const missing = chatterNames.filter((n) => !foundHist.has(normalizeBreakdownKey(n)));
+        if (missing.length > 0) {
+          const extra = await Promise.all(
+            missing.map(async (n) => {
+              const { data: d } = await supabase
+                .from("chatter_history")
+                .select("chatter_name, account, open_chats, response_delay_days, analysis_date, revenue_today")
+                .ilike("platform", platform)
+                .ilike("chatter_name", n.trim())
+                .order("analysis_date", { ascending: false })
+                .limit(200);
+              return (d ?? []) as any[];
+            }),
+          );
+          if (cancel) return;
+          for (const arr of extra) rows.push(...arr);
+
+          const foundLive = new Set(liveRows.map((r) => normalizeBreakdownKey(r.chatter_name)));
+          const missingLive = missing.filter((n) => !foundLive.has(normalizeBreakdownKey(n)));
+          const extraLive = await Promise.all(
+            missingLive.map(async (n) => {
+              const { data: d } = await supabase
+                .from("chatter_history_live")
+                .select("chatter_name, unread_chats, oldest_chat, date, updated_at, stats_details")
+                .ilike("platform", platform)
+                .ilike("chatter_name", n.trim())
+                .gte("date", yesterday)
+                .limit(100);
+              return (d ?? []) as any[];
+            }),
+          );
+          if (cancel) return;
+          for (const arr of extraLive) liveRows.push(...arr);
+        }
+
 
         type LiveModel = { model: string; unread: number; oldest: number };
         type LiveAgg = { unread: number; oldest: number; date: string; updatedAt: string; models: Map<string, LiveModel> };
