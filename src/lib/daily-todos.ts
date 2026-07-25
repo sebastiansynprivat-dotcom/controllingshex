@@ -178,36 +178,67 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         .ilike("platform", platform)
         .range(from, to)
     );
-    const sorted = [...(liveRows ?? [])].sort((a, b) => {
-      if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
-    });
-    for (const r of sorted) {
+    const newestDateByName = new Map<string, string>();
+    for (const r of liveRows ?? []) {
       if (!r.chatter_name) continue;
       const k = normalizeChatterName(r.chatter_name);
-      if (liveByName.has(k)) continue;
-      const perModel: { model: string; unread: number; oldest: number }[] = [];
+      const d = r.date ?? "";
+      if (!k || !d) continue;
+      const prev = newestDateByName.get(k);
+      if (!prev || d > prev) newestDateByName.set(k, d);
+    }
+
+    const drafts = new Map<string, { snap: LiveSnap; modelMap: Map<string, { model: string; unread: number; oldest: number }> }>();
+    for (const r of liveRows ?? []) {
+      if (!r.chatter_name) continue;
+      const k = normalizeChatterName(r.chatter_name);
+      const d = r.date ?? "";
+      if (!k || !d || d !== newestDateByName.get(k)) continue;
+
+      let draft = drafts.get(k);
+      if (!draft) {
+        draft = {
+          snap: {
+            displayName: r.chatter_name,
+            date: d,
+            unread: 0,
+            oldest: 0,
+            revenue: 0,
+            massDms: 0,
+            updatedAt: r.updated_at ?? todayIso,
+            perModel: [],
+          },
+          modelMap: new Map(),
+        };
+        drafts.set(k, draft);
+      }
+
+      draft.snap.unread += Math.max(0, Number(r.unread_chats ?? 0));
+      draft.snap.oldest = Math.max(draft.snap.oldest, Math.max(0, Number(r.oldest_chat ?? 0)));
+      draft.snap.revenue += Math.max(0, Number(r.revenue ?? 0));
+      draft.snap.massDms += Math.max(0, Number(r.mass_dms ?? 0));
+      if ((r.updated_at ?? "") > draft.snap.updatedAt) draft.snap.updatedAt = r.updated_at ?? draft.snap.updatedAt;
+
       const sd = r.stats_details;
       if (sd && typeof sd === "object" && !Array.isArray(sd)) {
         for (const [model, raw] of Object.entries(sd as Record<string, any>)) {
           if (!raw || typeof raw !== "object") continue;
-          perModel.push({
+          const modelKey = model.trim().toLowerCase();
+          if (!modelKey) continue;
+          const cur = draft.modelMap.get(modelKey) ?? {
             model,
-            unread: Math.max(0, Number((raw as any).unread_chats ?? 0)),
-            oldest: Math.max(0, Number((raw as any).oldest_chat ?? 0)),
-          });
+            unread: 0,
+            oldest: 0,
+          };
+          cur.unread += Math.max(0, Number((raw as any).unread_chats ?? 0));
+          cur.oldest = Math.max(cur.oldest, Math.max(0, Number((raw as any).oldest_chat ?? 0)));
+          draft.modelMap.set(modelKey, cur);
         }
       }
-      liveByName.set(k, {
-        displayName: r.chatter_name,
-        date: r.date,
-        unread: Math.max(0, Number(r.unread_chats ?? 0)),
-        oldest: Math.max(0, Number(r.oldest_chat ?? 0)),
-        revenue: Math.max(0, Number(r.revenue ?? 0)),
-        massDms: Math.max(0, Number(r.mass_dms ?? 0)),
-        updatedAt: r.updated_at ?? todayIso,
-        perModel,
-      });
+    }
+    for (const [k, draft] of drafts) {
+      draft.snap.perModel = [...draft.modelMap.values()];
+      liveByName.set(k, draft.snap);
     }
   } catch (e) {
     console.warn("[daily-todos] live-state lookup failed", e);
