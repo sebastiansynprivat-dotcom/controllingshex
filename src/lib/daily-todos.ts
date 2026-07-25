@@ -172,10 +172,11 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       revenue: number | null;
       mass_dms: number | null;
       updated_at: string | null;
+      stats_details: any;
     }>((from, to) =>
       supabase
         .from("chatter_history_live")
-        .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at")
+        .select("chatter_name, date, unread_chats, oldest_chat, revenue, mass_dms, updated_at, stats_details")
         .ilike("platform", platform)
         .gte("date", yIso)
         .range(from, to)
@@ -188,6 +189,18 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
       if (!r.chatter_name) continue;
       const k = normalizeChatterName(r.chatter_name);
       if (liveByName.has(k)) continue;
+      const perModel: { model: string; unread: number; oldest: number }[] = [];
+      const sd = r.stats_details;
+      if (sd && typeof sd === "object" && !Array.isArray(sd)) {
+        for (const [model, raw] of Object.entries(sd as Record<string, any>)) {
+          if (!raw || typeof raw !== "object") continue;
+          perModel.push({
+            model,
+            unread: Math.max(0, Number((raw as any).unread_chats ?? 0)),
+            oldest: Math.max(0, Number((raw as any).oldest_chat ?? 0)),
+          });
+        }
+      }
       liveByName.set(k, {
         displayName: r.chatter_name,
         date: r.date,
@@ -196,7 +209,9 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
         revenue: Math.max(0, Number(r.revenue ?? 0)),
         massDms: Math.max(0, Number(r.mass_dms ?? 0)),
         updatedAt: r.updated_at ?? todayIso,
+        perModel,
       });
+    }
     }
   } catch (e) {
     console.warn("[daily-todos] live-state lookup failed", e);
