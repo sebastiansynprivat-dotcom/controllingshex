@@ -157,6 +157,8 @@ export async function generateDailyTodos(platform: string): Promise<DailyTodo[]>
     revenue: number;
     massDms: number;
     updatedAt: string;
+    /** Pro Model aufgeschlüsselte Live-Werte (aus stats_details). */
+    perModel: { model: string; unread: number; oldest: number }[];
   }
   const liveByName = new Map<string, LiveSnap>();
   try {
