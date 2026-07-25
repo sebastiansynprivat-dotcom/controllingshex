@@ -455,7 +455,8 @@ export default function Today() {
           targetKeys.has(normalizeBreakdownKey(r.chatter_name)),
         );
 
-        type LiveAgg = { unread: number; oldest: number; date: string; updatedAt: string };
+        type LiveModel = { model: string; unread: number; oldest: number };
+        type LiveAgg = { unread: number; oldest: number; date: string; updatedAt: string; models: Map<string, LiveModel> };
         const newestLiveDateByChatter = new Map<string, string>();
         for (const r of liveRows) {
           const key = normalizeBreakdownKey(r.chatter_name);
@@ -469,10 +470,22 @@ export default function Today() {
           const key = normalizeBreakdownKey(r.chatter_name);
           const d = (r.date || "") as string;
           if (!key || !d || d !== newestLiveDateByChatter.get(key)) continue;
-          const cur = liveByChatter.get(key) ?? { unread: 0, oldest: 0, date: d, updatedAt: "" };
+          const cur = liveByChatter.get(key) ?? { unread: 0, oldest: 0, date: d, updatedAt: "", models: new Map<string, LiveModel>() };
           cur.unread += Number(r.unread_chats) || 0;
           cur.oldest = Math.max(cur.oldest, Number(r.oldest_chat) || 0);
           if ((r.updated_at ?? "") > cur.updatedAt) cur.updatedAt = r.updated_at ?? "";
+          const sd = r.stats_details;
+          if (sd && typeof sd === "object" && !Array.isArray(sd)) {
+            for (const [model, raw] of Object.entries(sd as Record<string, any>)) {
+              if (!raw || typeof raw !== "object") continue;
+              const mk = normalizeBreakdownKey(model);
+              if (!mk) continue;
+              const prev = cur.models.get(mk) ?? { model, unread: 0, oldest: 0 };
+              prev.unread += Math.max(0, Number((raw as any).unread_chats) || 0);
+              prev.oldest = Math.max(prev.oldest, Math.max(0, Number((raw as any).oldest_chat) || 0));
+              cur.models.set(mk, prev);
+            }
+          }
           liveByChatter.set(key, cur);
         }
 
@@ -497,7 +510,6 @@ export default function Today() {
           if ((r.analysis_date || "") !== latestDateByChatter.get(nameKey)) continue;
           if (displayName && !displayNameByKey.has(nameKey)) displayNameByKey.set(nameKey, displayName);
 
-          const rev = Number(r.revenue_today) || 0;
           const reportDelay = Number(r.response_delay_days) || 0;
           const reportOpen = (Number(r.open_chats) || 0) / accounts.length;
           const byAccount = accountsByChatter.get(nameKey) ?? new Map<string, AccountSnapshot>();
@@ -512,40 +524,44 @@ export default function Today() {
         }
 
         const map = new Map<string, VerzugBreakdownEntry[]>();
-        for (const [nameKey, byAccount] of accountsByChatter) {
+        const allKeys = new Set<string>([...accountsByChatter.keys(), ...liveByChatter.keys()]);
+        for (const nameKey of allKeys) {
+          const byAccount = accountsByChatter.get(nameKey) ?? new Map<string, AccountSnapshot>();
           const accounts = [...byAccount.values()];
           const live = liveByChatter.get(nameKey);
-          const liveUnread = Math.max(0, Math.round(live?.unread ?? 0));
-          const liveDelay = live && live.date === today ? Math.max(0, Math.round(live.oldest)) : 0;
-          const hasLiveVerzug = liveUnread > 0 && liveDelay >= MIN_VERZUG_DAYS;
+          const liveFresh = !!live && live.date === today;
+          const liveModels = liveFresh ? [...(live!.models.values())] : [];
 
-          let liveCarrierKey: string | null = null;
-          const positiveAccounts = accounts.filter((a) => a.reportOpen > 0);
-          if (accounts.length === 1) {
-            liveCarrierKey = normalizeBreakdownKey(accounts[0].account);
-          } else if (positiveAccounts.length === 1) {
-            liveCarrierKey = normalizeBreakdownKey(positiveAccounts[0].account);
-          } else if (hasLiveVerzug && accounts.length > 0) {
-            const strongest = [...accounts].sort(
-              (a, b) => b.reportDelay - a.reportDelay || b.reportOpen - a.reportOpen || a.account.localeCompare(b.account),
-            )[0];
-            liveCarrierKey = normalizeBreakdownKey(strongest.account);
+          let arr: VerzugBreakdownEntry[];
+          if (liveModels.length > 0) {
+            // Live liefert pro Model eigene Werte → jedes Model einzeln bewerten.
+            arr = liveModels.map((m) => ({
+              account: m.model,
+              openChats: Math.max(0, Math.round(m.unread)),
+              delayDays: Math.max(0, Math.round(m.oldest)),
+            }));
+          } else if (liveFresh && live!.unread > 0 && Math.round(live!.oldest) >= MIN_VERZUG_DAYS && accounts.length === 1) {
+            // Kein Model-Breakdown, aber nur ein Account → Live-Zahlen dorthin.
+            arr = [{
+              account: accounts[0].account,
+              openChats: Math.max(0, Math.round(live!.unread)),
+              delayDays: Math.max(0, Math.round(live!.oldest)),
+            }];
+          } else {
+            arr = accounts.map((account) => ({
+              account: account.account,
+              openChats: Math.max(0, Math.round(account.reportOpen)),
+              delayDays: Math.max(0, Math.round(account.reportDelay)),
+            }));
           }
 
-          const arr = accounts.map((account) => {
-            const accountKey = normalizeBreakdownKey(account.account);
-            const carriesLive = accountKey === liveCarrierKey;
-            const useReport = !hasLiveVerzug;
-            return {
-              account: account.account,
-              openChats: carriesLive ? liveUnread : useReport ? Math.max(0, Math.round(account.reportOpen)) : 0,
-              delayDays: carriesLive ? liveDelay : useReport ? Math.max(0, Math.round(account.reportDelay)) : 0,
-            };
-          }).filter((account) => account.openChats > 0 && account.delayDays >= MIN_VERZUG_DAYS);
-
+          arr = arr.filter((account) => account.openChats > 0 && account.delayDays >= MIN_VERZUG_DAYS);
           if (arr.length === 0) continue;
 
-          const displayName = displayNameByKey.get(nameKey) ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey) ?? nameKey;
+          const displayName = displayNameByKey.get(nameKey)
+            ?? live?.["displayName" as keyof LiveAgg] as unknown as string
+            ?? chatterNames.find((n) => normalizeBreakdownKey(n) === nameKey)
+            ?? nameKey;
           map.set(displayName, arr);
           for (const originalName of chatterNames) {
             if (normalizeBreakdownKey(originalName) === nameKey) map.set(originalName, arr);
