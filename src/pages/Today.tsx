@@ -541,7 +541,7 @@ export default function Today() {
               openChats: carriesLive ? liveUnread : useReport ? Math.max(0, Math.round(account.reportOpen)) : 0,
               delayDays: carriesLive ? liveDelay : useReport ? Math.max(0, Math.round(account.reportDelay)) : 0,
             };
-          }).filter((account) => account.openChats > 0 && account.delayDays >= 2);
+          }).filter((account) => account.openChats > 0 && account.delayDays >= MIN_VERZUG_DAYS);
 
           if (arr.length === 0) continue;
 
