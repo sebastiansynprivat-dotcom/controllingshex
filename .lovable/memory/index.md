@@ -13,3 +13,5 @@ Zeitraumfilter überall: Heute / 7T / 14T / 30T / Custom.
 ## Memories
 - [Swipe constraints](mem://constraints/swipe) — Keine velocity-Schwellen bei Swipe-Gesten
 - [Revenue priority](mem://features/revenue-priority) — Umsatz-Definition, Hebel (MassDMs), Zeithorizonte, Krisensignale (Peer/eigener Schnitt/Persistenz)
+- [Chatter-Priorität bei Ad-hoc-Fragen](mem://preferences/chatter-priority-query) — Ranking: Account lief mal besser + Verzug + viele offene Chats + 0 Umsatz, sortiert nach €-Impact
+
