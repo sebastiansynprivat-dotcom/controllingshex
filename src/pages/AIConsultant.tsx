@@ -397,14 +397,42 @@ export default function AIConsultant() {
               <button
                 onClick={() => deleteThread(t.id)}
                 aria-label="Unterhaltung löschen"
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 transition-all"
+                data-keep-open
+                className="md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 transition-all"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>
           ))}
         </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Thread list — Desktop */}
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-white/[0.04] bg-black/20">
+        {sidebarContent}
       </aside>
+
+      {/* Thread list — Mobile drawer */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent
+          side="left"
+          className="w-[85vw] max-w-xs p-0 bg-zinc-950 border-white/[0.06] md:hidden"
+        >
+          <div
+            className="flex flex-col h-full pt-10"
+            onClickCapture={(e) => {
+              if (!(e.target as HTMLElement).closest("[data-keep-open]")) setNavOpen(false);
+            }}
+          >
+            {sidebarContent}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+
 
       {isRoadmap || isReview ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
