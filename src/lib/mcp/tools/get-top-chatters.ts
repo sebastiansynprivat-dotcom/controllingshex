@@ -33,7 +33,7 @@ export default defineTool({
         .range(offset, offset + 999);
       if (error) return errorResult(error.message);
       const page = activeNames
-        ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_")))
+        ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? "")))
         : (data ?? []);
       rows.push(...page);
       if (!data || data.length < 1000) break;

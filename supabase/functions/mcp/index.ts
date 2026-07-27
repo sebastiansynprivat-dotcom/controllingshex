@@ -175,7 +175,7 @@ var get_top_chatters_default = defineTool4({
     for (let offset = 0; offset < 2e4; offset += 1e3) {
       const { data, error } = await supabase.from("chatter_history").select("chatter_name,analysis_date,revenue_today,mass_dms,open_chats,response_delay_days,category,account").eq("platform", platform).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).range(offset, offset + 999);
       if (error) return errorResult(error.message);
-      const page = activeNames ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_"))) : data ?? [];
+      const page = activeNames ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? ""))) : data ?? [];
       rows.push(...page);
       if (!data || data.length < 1e3) break;
     }
