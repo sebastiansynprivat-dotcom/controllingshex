@@ -420,7 +420,7 @@ export default function AIConsultant() {
           <div className="mt-2 h-px bg-white/[0.05]" />
 
         </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-4 space-y-1">
 
           {threads.length === 0 && (
             <p className="px-3 py-4 text-[11px] text-white/20 font-light">Noch keine Unterhaltungen</p>
