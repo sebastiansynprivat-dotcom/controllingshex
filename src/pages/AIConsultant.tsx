@@ -370,8 +370,10 @@ export default function AIConsultant() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-                className="space-y-10 pt-16"
+                className="space-y-8 pt-4"
               >
+                <BriefingPanel onAsk={(q) => sendMessage(q)} />
+
                 <div className="text-center space-y-3">
                   <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center">
                     <Sparkles className="h-6 w-6 text-primary/50" />
