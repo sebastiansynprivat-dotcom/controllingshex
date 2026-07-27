@@ -380,6 +380,15 @@ export default function AIConsultant() {
         </div>
       </aside>
 
+      {isRoadmap ? (
+        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
+            <BriefingPanel
+              onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+            />
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Chat area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -391,7 +400,7 @@ export default function AIConsultant() {
                 transition={{ duration: 0.6 }}
                 className="space-y-8 pt-4"
               >
-                <BriefingPanel onAsk={(q) => sendMessage(q)} />
+
 
                 <div className="text-center space-y-3">
                   <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center">
