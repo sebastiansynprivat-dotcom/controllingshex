@@ -386,17 +386,18 @@ ${dataContext}`;
 
       try {
         if (name === "read_memos") {
-          let q = supabase.from("chatter_memos")
-            .select("id,chatter_name,text,topic,follow_up_at,status,created_at,resolved_at")
-            .eq("user_id", userId).eq("platform", activePlatform);
-          if (args.chatter_name) q = q.ilike("chatter_name", args.chatter_name);
-          if (args.status && args.status !== "all") q = q.eq("status", args.status);
-          else if (!args.status) q = q.eq("status", "open");
-          if (args.due_only) q = q.lte("follow_up_at", new Date().toISOString());
-          const { data, error } = await q
-            .order("created_at", { ascending: false })
-            .limit(Math.min(args.limit || 30, 100));
-          return error ? { ok: false, error: error.message } : { ok: true, memos: data };
+          const build = () => {
+            let q = supabase.from("chatter_memos")
+              .select("id,chatter_name,text,topic,follow_up_at,status,created_at,resolved_at")
+              .eq("user_id", userId).eq("platform", activePlatform);
+            if (args.chatter_name) q = q.ilike("chatter_name", args.chatter_name);
+            if (args.status && args.status !== "all") q = q.eq("status", args.status);
+            else if (!args.status) q = q.eq("status", "open");
+            if (args.due_only) q = q.lte("follow_up_at", new Date().toISOString());
+            return q.order("created_at", { ascending: false });
+          };
+          const { data, error } = await fetchAll(build);
+          return error ? { ok: false, error: error.message } : { ok: true, count: data.length, memos: data };
         }
         if (name === "create_memo") {
           let followUp: string | null = null;
