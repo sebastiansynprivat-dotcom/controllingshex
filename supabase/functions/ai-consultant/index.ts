@@ -526,13 +526,17 @@ ${dataContext}`;
           const days = Math.min(args.days || 30, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
+          const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
           const { data, error } = await fetchAll(() => supabase.from("chatter_history")
-            .select("analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category")
+            .select("chatter_name,analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category")
             .eq("user_id", userId).eq("platform", activePlatform)
             .ilike("chatter_name", `%${args.chatter_name}%`)
             .gte("analysis_date", from.toISOString().slice(0, 10))
             .order("analysis_date", { ascending: false }));
-          return error ? { ok: false, error: error.message } : { ok: true, count: data.length, rows: data };
+          const rows = activeNames
+            ? (data ?? []).filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+            : (data ?? []);
+          return error ? { ok: false, error: error.message } : { ok: true, count: rows.length, rows };
         }
         if (name === "get_account_history") {
           const days = Math.min(args.days || 90, 365);
