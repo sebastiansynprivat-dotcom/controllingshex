@@ -57,6 +57,18 @@ export default function AIConsultant() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const skipLoadRef = useRef<string | null>(null);
 
+  // Prefill from ?q= (z. B. aus dem Fahrplan)
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (!q) return;
+    setInput(q);
+    searchParams.delete("q");
+    setSearchParams(searchParams, { replace: true });
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [searchParams, setSearchParams]);
+
+
+
   const loadThreads = useCallback(async () => {
     const { data } = await supabase
       .from("ai_threads")
