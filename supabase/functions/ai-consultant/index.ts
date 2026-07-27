@@ -326,6 +326,14 @@ ${dueMemoBlock}
 MODELS (${modelsData.length}):
 ${modelsData.length ? modelsData.map((m: any) => `${m.model_name}:${m.follower_count}`).join(", ") : "keine"}`;
 
+    const { data: memoryRows } = await supabase
+      .from("ai_memories").select("id,content,category,created_at")
+      .eq("user_id", userId).order("created_at", { ascending: false }).limit(200);
+    const memoryBlock = (memoryRows ?? []).length
+      ? (memoryRows ?? []).map((m: any) => `- (${m.id}) [${m.category ?? "allgemein"}] ${m.content}`).join("\n")
+      : "noch nichts gemerkt";
+
+
     const systemPrompt = `Du bist Alex — der CEO-Berater dieser Agency. Sprich kurz, faktenbasiert, auf Deutsch, mit Markdown. Immer mit Zahlen (€) und konkreter Handlungsempfehlung.
 
 ARBEITSWEISE:
