@@ -408,15 +408,22 @@ export default function AIConsultant() {
         </div>
       </aside>
 
-      {isRoadmap ? (
+      {isRoadmap || isReview ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
-            <BriefingPanel
-              onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
-            />
+            {isRoadmap ? (
+              <BriefingPanel
+                onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+              />
+            ) : (
+              <ActionReviewPanel
+                onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+              />
+            )}
           </div>
         </div>
       ) : (
+
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Chat area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
