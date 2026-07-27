@@ -349,16 +349,22 @@ export default function AIConsultant() {
     >
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
 
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-2 sm:gap-3 items-end">
           <textarea
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              const el = e.currentTarget;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Frag den AI Consultant…"
             rows={1}
-            className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 sm:px-5 py-3.5 text-base sm:text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+            className="flex-1 min-w-0 max-h-[45vh] bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 sm:px-5 py-3.5 text-base sm:text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none overflow-y-auto focus:outline-none focus:border-primary/20 transition-colors duration-300"
           />
+
           <button
             onClick={submitInput}
             disabled={loading || !input.trim()}
