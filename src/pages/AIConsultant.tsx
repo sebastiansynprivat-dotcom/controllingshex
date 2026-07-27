@@ -343,8 +343,12 @@ export default function AIConsultant() {
   };
 
   const inputBar = (
-    <div className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl">
+    <div
+      className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+    >
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
+
         <div className="flex gap-3 items-end">
           <textarea
             ref={inputRef}
@@ -416,7 +420,7 @@ export default function AIConsultant() {
           <div className="mt-2 h-px bg-white/[0.05]" />
 
         </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-4 space-y-1">
 
           {threads.length === 0 && (
             <p className="px-3 py-4 text-[11px] text-white/20 font-light">Noch keine Unterhaltungen</p>
