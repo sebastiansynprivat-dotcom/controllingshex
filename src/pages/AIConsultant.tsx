@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin } from "lucide-react";
+import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
@@ -9,6 +9,9 @@ import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
 import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
 import BriefingPanel from "@/components/ai/BriefingPanel";
+import ActionReviewPanel from "@/components/ai/ActionReviewPanel";
+import { countBadVerdicts } from "@/lib/action-events";
+
 
 interface ToolCall {
   name: string;
@@ -102,16 +105,24 @@ export default function AIConsultant() {
     navigate("/ai-consultant");
   }, [platform, navigate]);
 
-
-
+  const [badCount, setBadCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    countBadVerdicts(platform)
+      .then((c) => { if (!cancelled) setBadCount(c); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [platform]);
 
   const isRoadmap = threadId === "fahrplan";
+  const isReview = threadId === "rueckblick";
 
   // Load messages of the routed thread
   useEffect(() => {
-    if (!threadId || threadId === "fahrplan") {
+    if (!threadId || threadId === "fahrplan" || threadId === "rueckblick") {
       setMessages([]);
       return;
+
 
     }
     if (skipLoadRef.current === threadId) {
@@ -347,7 +358,24 @@ export default function AIConsultant() {
               Fahrplan · heute
             </span>
           </button>
+          <button
+            onClick={() => navigate("/ai-consultant/rueckblick")}
+            className={`mt-1 w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+              isReview ? "bg-primary/10 border border-primary/20" : "hover:bg-white/[0.03] border border-transparent"
+            }`}
+          >
+            <History className={`h-3 w-3 shrink-0 ${isReview ? "text-primary" : "text-primary/60"}`} />
+            <span className={`flex-1 truncate text-[11px] font-light ${isReview ? "text-primary" : "text-white/70"}`}>
+              Rückblick
+            </span>
+            {badCount > 0 && (
+              <span className="shrink-0 rounded-full bg-red-500/15 border border-red-500/25 px-1.5 py-0.5 text-[9px] font-light text-red-400">
+                {badCount}
+              </span>
+            )}
+          </button>
           <div className="mt-2 h-px bg-white/[0.05]" />
+
         </div>
         <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
 
@@ -380,15 +408,22 @@ export default function AIConsultant() {
         </div>
       </aside>
 
-      {isRoadmap ? (
+      {isRoadmap || isReview ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
-            <BriefingPanel
-              onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
-            />
+            {isRoadmap ? (
+              <BriefingPanel
+                onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+              />
+            ) : (
+              <ActionReviewPanel
+                onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+              />
+            )}
           </div>
         </div>
       ) : (
+
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Chat area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">

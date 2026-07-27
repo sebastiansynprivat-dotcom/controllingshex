@@ -10,6 +10,8 @@ import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { generateBriefing } from "@/lib/daily-briefing";
+import { detectActionEvents, evaluateActionEvents } from "@/lib/action-events";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { mapToActionCategory } from "@/lib/action-categories";
 import { emitChatterDataUpdated } from "@/lib/data-events";
@@ -938,6 +940,17 @@ export default function UploadPage() {
         console.error("Briefing error:", briefErr);
         addStatus("⚠️ Fahrplan konnte nicht gestartet werden.");
       }
+
+      // Aktions-Monitor: Besetzungs-Änderungen erkennen + fällige Bewertungen nachziehen
+      try {
+        const det = await detectActionEvents(platform);
+        if (det?.created) addStatus(`🔎 ${det.created} Besetzungs-Änderung(en) erkannt — Rückblick im AI-Chat.`);
+        await evaluateActionEvents(platform);
+      } catch (evErr: any) {
+        console.error("Action monitor error:", evErr);
+      }
+
+
 
       setAnimationsReady(false);
       setResult(merged);

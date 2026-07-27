@@ -184,6 +184,23 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "get_action_history",
+      description:
+        "Rückblick auf die Besetzungs-Entscheidungen des Users (action_events): Account getauscht/weggenommen/dazugegeben, Chatter rein/raus — inklusive automatischer Bewertung (verdict good/neutral/bad/watch), Umsatz vorher/nachher und Empfehlung. Nutze das bei 'was habe ich getauscht', 'war der Tausch gut', 'welche Entscheidung lief schlecht' und bevor du einen neuen Tausch empfiehlst.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "Zeitfenster in Tagen, Default 30" },
+          verdict: { type: "string", enum: ["good", "neutral", "bad", "watch", "all"], description: "Default: all" },
+          chatter_name: { type: "string", description: "Optionaler Filter (Teilstring)" },
+        },
+      },
+    },
+  },
+  {
+
+    type: "function",
+    function: {
       name: "remember",
       description:
         "Speichert dauerhaft eine Information über den User, seine Agency oder seine Arbeitsweise (Präferenzen, Regeln, Fakten, Ziele, Namen). Nutze das PROAKTIV und ohne zu fragen, sobald der User etwas nennt, das auch in künftigen Unterhaltungen relevant ist (z.B. 'ich will keine X', 'mein Ziel ist Y', 'Chatter Z ist mein bester'). NICHT für kurzfristige Chatter-Fristen — dafür create_memo.",
@@ -578,7 +595,26 @@ ${dataContext}`;
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
           return { ok: true, count: rows.length, chatters: summary, rows };
         }
+        if (name === "get_action_history") {
+          const days = Math.min(args.days || 30, 365);
+          const from = new Date();
+          from.setDate(from.getDate() - days);
+          let q = supabase.from("action_events")
+            .select("detected_on,event_type,chatter_name,counterpart_chatter,account,verdict,verdict_reason,recommendation,impact_eur,outcome_json,status")
+            .eq("user_id", userId).eq("platform", activePlatform)
+            .gte("detected_on", from.toISOString().slice(0, 10))
+            .order("detected_on", { ascending: false });
+          if (args.verdict && args.verdict !== "all") q = q.eq("verdict", args.verdict);
+          if (args.chatter_name) q = q.ilike("chatter_name", `%${args.chatter_name}%`);
+          const { data, error } = await fetchAll(() => q);
+          if (error) return { ok: false, error: error.message };
+          const rows = data ?? [];
+          const stats = { total: rows.length, good: 0, bad: 0, neutral: 0, watch: 0, pending: 0 } as any;
+          for (const r of rows) stats[(r as any).verdict ?? "pending"] = (stats[(r as any).verdict ?? "pending"] ?? 0) + 1;
+          return { ok: true, stats, rows };
+        }
         if (name === "remember") {
+
           const content = String(args.content ?? "").trim();
           if (!content) return { ok: false, error: "content required" };
           const { data, error } = await supabase.from("ai_memories").insert({
