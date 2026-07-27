@@ -36,7 +36,10 @@ interface Model {
   profile_url?: string | null;
   profile_image_url?: string | null;
   bot_dms?: string | null;
+  style_emoji?: string | null;
 }
+
+const STYLE_EMOJIS = ["🏅", "👌🏼", "🤞🏼"] as const;
 
 type ArchetypeFilter = {
   age?: string;
@@ -78,6 +81,7 @@ export default function Models() {
   const [newPassword, setNewPassword] = useState("");
   const [newProfileUrl, setNewProfileUrl] = useState("");
   const [newBotDms, setNewBotDms] = useState("");
+  const [newStyleEmoji, setNewStyleEmoji] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -87,6 +91,7 @@ export default function Models() {
   const [editPassword, setEditPassword] = useState("");
   const [editProfileUrl, setEditProfileUrl] = useState("");
   const [editBotDms, setEditBotDms] = useState("");
+  const [editStyleEmoji, setEditStyleEmoji] = useState<string | null>(null);
   const [troubleFilter, setTroubleFilter] = useState(false);
   const [troubles, setTroubles] = useState<ModelTrouble[]>([]);
   const [showArchetypeFilter, setShowArchetypeFilter] = useState(false);
@@ -258,6 +263,7 @@ export default function Models() {
       password: newPassword.trim() || null,
       profile_url: newProfileUrl.trim() || null,
       bot_dms: newBotDms.trim() || null,
+      style_emoji: newStyleEmoji,
     });
     if (error) {
       console.error("[addModel] insert error:", error);
@@ -271,6 +277,7 @@ export default function Models() {
     setNewPassword("");
     setNewProfileUrl("");
     setNewBotDms("");
+    setNewStyleEmoji(null);
     setShowAddForm(false);
     fetchModels();
   };
@@ -283,6 +290,7 @@ export default function Models() {
     setEditPassword(m.password || "");
     setEditProfileUrl(m.profile_url || "");
     setEditBotDms(m.bot_dms || "");
+    setEditStyleEmoji(m.style_emoji || null);
   };
 
   const saveEdit = async () => {
@@ -294,6 +302,7 @@ export default function Models() {
       password: editPassword.trim() || null,
       profile_url: editProfileUrl.trim() || null,
       bot_dms: editBotDms.trim() || null,
+      style_emoji: editStyleEmoji,
     }).eq("id", editId);
     if (error) { toast.error("Fehler beim Speichern"); return; }
     toast.success("Aktualisiert");
@@ -570,6 +579,26 @@ export default function Models() {
                   className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md text-foreground placeholder:text-white/20 font-light text-sm px-3 py-2 resize-y focus:outline-none focus:border-primary/30"
                 />
               </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-[0.18em] text-white/40 mb-1.5 font-light">Style</label>
+                <div className="flex gap-2">
+                  {STYLE_EMOJIS.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setNewStyleEmoji(newStyleEmoji === e ? null : e)}
+                      className={cn(
+                        "h-9 w-9 rounded-lg border text-lg leading-none transition-all",
+                        newStyleEmoji === e
+                          ? "border-primary/40 bg-primary/10 scale-105"
+                          : "border-white/[0.06] bg-white/[0.03] opacity-50 hover:opacity-100",
+                      )}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex justify-end">
                 <Button
                   onClick={addModel}
@@ -620,6 +649,23 @@ export default function Models() {
                             rows={2}
                             className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md text-foreground placeholder:text-white/20 text-xs font-light px-2 py-1.5 resize-y focus:outline-none focus:border-primary/30"
                           />
+                          <div className="flex gap-1.5 pt-0.5">
+                            {STYLE_EMOJIS.map((e) => (
+                              <button
+                                key={e}
+                                type="button"
+                                onClick={() => setEditStyleEmoji(editStyleEmoji === e ? null : e)}
+                                className={cn(
+                                  "h-7 w-7 rounded-md border text-sm leading-none transition-all",
+                                  editStyleEmoji === e
+                                    ? "border-primary/40 bg-primary/10"
+                                    : "border-white/[0.06] bg-white/[0.03] opacity-50 hover:opacity-100",
+                                )}
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
                         </td>
                         <td className="py-3 sm:py-4 px-4 sm:px-8 align-top">
                           <Input value={editFollowers} onChange={(e) => setEditFollowers(e.target.value)} type="number" className="bg-white/[0.03] border-white/[0.06] text-foreground h-8 w-20 sm:w-28 text-sm font-light" />
@@ -643,6 +689,7 @@ export default function Models() {
                             className="text-foreground/85 font-light text-[13px] tracking-wide hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
                             title="Performance ansehen"
                           >
+                            {m.style_emoji && <span className="text-sm">{m.style_emoji}</span>}
                             {m.model_name}
                             <LineChartIcon className="h-3 w-3 text-white/20 group-hover:text-primary/70 transition-colors" />
                           </button>

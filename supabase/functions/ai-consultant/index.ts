@@ -315,7 +315,7 @@ Deno.serve(async (req) => {
       supabase.from("coaching_notes").select("chatter_name,note_text,created_at")
         .eq("platform", activePlatform).eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(60),
-      supabase.from("models").select("model_name,follower_count")
+      supabase.from("models").select("model_name,follower_count,style_emoji")
         .eq("platform", activePlatform).eq("user_id", userId),
       supabase.from("chatter_memos").select("id,chatter_name,text,follow_up_at,topic,created_at")
         .eq("platform", activePlatform).eq("user_id", userId).eq("status", "open")
@@ -400,8 +400,8 @@ ${notesData.length ? notesData.map((n: any) => `[${n.created_at?.slice(0, 10)}] 
 FÄLLIGE MEMOS / FRISTEN (heute oder überfällig):
 ${dueMemoBlock}
 
-MODELS (${modelsData.length}):
-${modelsData.length ? modelsData.map((m: any) => `${m.model_name}:${m.follower_count}`).join(", ") : "keine"}`;
+MODELS (${modelsData.length}) — Format Name:Follower:Style-Emoji (Style-Varianten: 🏅 = Premium/Top-Tier, 👌🏼 = Solide/Standard, 🤞🏼 = Unsicher/Test):
+${modelsData.length ? modelsData.map((m: any) => `${m.model_name}:${m.follower_count}${m.style_emoji ? `:${m.style_emoji}` : ":kein Style"}`).join(", ") : "keine"}`;
 
     const { data: memoryRows } = await supabase
       .from("ai_memories").select("id,content,category,created_at")
