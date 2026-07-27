@@ -528,6 +528,7 @@ export default function AIConsultant() {
 
 
       {isRoadmap || isReview ? (
+        <>
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
             {isRoadmap ? (
@@ -541,6 +542,8 @@ export default function AIConsultant() {
             )}
           </div>
         </div>
+        {inputBar}
+        </>
       ) : (
 
       <>
