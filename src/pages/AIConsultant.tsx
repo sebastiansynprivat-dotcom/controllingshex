@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History } from "lucide-react";
+import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History, PanelLeft } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
@@ -54,6 +55,8 @@ export default function AIConsultant() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoriesOpen, setMemoriesOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [threadId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -328,10 +331,8 @@ export default function AIConsultant() {
     }
   };
 
-  return (
-    <div className="flex h-full min-h-0">
-      {/* Thread list */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-white/[0.04] bg-black/20">
+  const sidebarContent = (
+    <>
         <div className="p-3 space-y-2">
           <button
             onClick={newThread}
@@ -399,14 +400,64 @@ export default function AIConsultant() {
               <button
                 onClick={() => deleteThread(t.id)}
                 aria-label="Unterhaltung löschen"
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 transition-all"
+                data-keep-open
+                className="md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 transition-all"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>
           ))}
         </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Thread list — Desktop */}
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-white/[0.04] bg-black/20">
+        {sidebarContent}
       </aside>
+
+      {/* Thread list — Mobile drawer */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent
+          side="left"
+          className="w-[85vw] max-w-xs p-0 bg-zinc-950 border-white/[0.06] md:hidden"
+        >
+          <div
+            className="flex flex-col h-full pt-10"
+            onClickCapture={(e) => {
+              if (!(e.target as HTMLElement).closest("[data-keep-open]")) setNavOpen(false);
+            }}
+          >
+            {sidebarContent}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+
+
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+        {/* Mobile toolbar */}
+        <div className="md:hidden shrink-0 flex items-center gap-1 border-b border-white/[0.04] px-1.5 py-1.5">
+          <button
+            onClick={() => setNavOpen(true)}
+            aria-label="Unterhaltungen öffnen"
+            className="p-2 rounded-lg text-white/50 hover:text-white/85 transition-colors"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
+          <span className="flex-1 min-w-0 truncate text-[12px] font-light text-white/50">
+            {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
+          </span>
+          <button
+            onClick={newThread}
+            aria-label="Neue Unterhaltung"
+            className="p-2 rounded-lg text-primary/70 hover:text-primary transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
 
       {isRoadmap || isReview ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
@@ -424,7 +475,8 @@ export default function AIConsultant() {
         </div>
       ) : (
 
-      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+      <>
+
         {/* Chat area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-12 space-y-6 sm:space-y-8">
@@ -576,20 +628,23 @@ export default function AIConsultant() {
                 onKeyDown={handleKeyDown}
                 placeholder="Frag den AI Consultant…"
                 rows={1}
-                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-3.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 sm:px-5 py-3.5 text-base sm:text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
               />
               <button
                 onClick={() => sendMessage(input)}
                 disabled={loading || !input.trim()}
-                className="px-4 py-3.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                aria-label="Senden"
+                className="shrink-0 h-[50px] w-[50px] flex items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </>
       )}
+      </div>
+
 
 
 
