@@ -6,6 +6,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
+import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
 
 interface ToolCall {
   name: string;
@@ -400,12 +401,18 @@ export default function AIConsultant() {
                               tc.name;
                             const ok = tc.result?.ok !== false;
                             return (
-                              <div key={idx} className={`flex items-center gap-2 text-[11px] font-light px-2.5 py-1.5 rounded-md border ${tc.pending ? "bg-white/[0.03] border-white/10 text-white/40" : ok ? "bg-primary/5 border-primary/15 text-primary/80" : "bg-red-500/5 border-red-500/15 text-red-400/80"}`}>
+                              <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, x: -6 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.32, 0.72, 0, 1] }}
+                                className={`relative overflow-hidden flex items-center gap-2.5 text-[11px] font-light px-3 py-2 rounded-lg border backdrop-blur-sm ${tc.pending ? "lux-thinking text-white/45" : ok ? "bg-primary/[0.06] border-primary/15 text-primary/80 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.04)]" : "bg-red-500/[0.06] border-red-500/15 text-red-400/80"}`}
+                              >
                                 {tc.pending
-                                  ? <span className="h-3 w-3 shrink-0 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+                                  ? <span className="lux-orb" />
                                   : <Wrench className="h-3 w-3 shrink-0" />}
-                                <span>{label}</span>
-                              </div>
+                                <span className={tc.pending ? "lux-shimmer-text" : ""}>{label}</span>
+                              </motion.div>
                             );
                           })}
                         </div>
@@ -413,6 +420,9 @@ export default function AIConsultant() {
                       {msg.content && (
                         <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          {loading && i === messages.length - 1 && (
+                            <span className="inline-block align-middle -mt-0.5 ml-0.5 h-3.5 w-[2px] rounded-full bg-primary/70 animate-pulse" />
+                          )}
                         </div>
                       )}
                     </div>
@@ -424,12 +434,11 @@ export default function AIConsultant() {
             ))}
 
             {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && !(messages[messages.length - 1]?.tool_calls?.length) && (
-              <div className="flex justify-start">
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl px-6 py-4 flex items-center gap-2">
-                  <span className="h-4 w-4 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
-                  <span className="text-xs text-white/25 font-light">Analysiert deine Daten…</span>
-                </div>
-              </div>
+              <ThinkingIndicator />
+            )}
+
+            {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && !!messages[messages.length - 1]?.tool_calls?.length && (
+              <ThinkingIndicator label="Werte Ergebnisse aus" />
             )}
           </div>
         </div>
