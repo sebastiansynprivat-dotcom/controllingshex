@@ -1,7 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { errorResult, supabaseForUser, textResult } from "../supabase";
-import { loadActiveChatterNames } from "./active-roster";
+import { loadActiveChatterNames, normalizeName } from "./active-roster";
 
 export default defineTool({
   name: "get_chatter_history",
