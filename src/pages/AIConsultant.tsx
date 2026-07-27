@@ -6,6 +6,7 @@ import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
+import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
 
 interface ToolCall {
   name: string;
