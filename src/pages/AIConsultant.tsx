@@ -424,12 +424,11 @@ export default function AIConsultant() {
             ))}
 
             {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && !(messages[messages.length - 1]?.tool_calls?.length) && (
-              <div className="flex justify-start">
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl px-6 py-4 flex items-center gap-2">
-                  <span className="h-4 w-4 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
-                  <span className="text-xs text-white/25 font-light">Analysiert deine Daten…</span>
-                </div>
-              </div>
+              <ThinkingIndicator />
+            )}
+
+            {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && !!messages[messages.length - 1]?.tool_calls?.length && (
+              <ThinkingIndicator label="Werte Ergebnisse aus" />
             )}
           </div>
         </div>
