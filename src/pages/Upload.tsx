@@ -939,6 +939,17 @@ export default function UploadPage() {
         addStatus("⚠️ Fahrplan konnte nicht gestartet werden.");
       }
 
+      // Aktions-Monitor: Besetzungs-Änderungen erkennen + fällige Bewertungen nachziehen
+      try {
+        const det = await detectActionEvents(platform);
+        if (det?.created) addStatus(`🔎 ${det.created} Besetzungs-Änderung(en) erkannt — Rückblick im AI-Chat.`);
+        await evaluateActionEvents(platform);
+      } catch (evErr: any) {
+        console.error("Action monitor error:", evErr);
+      }
+
+
+
       setAnimationsReady(false);
       setResult(merged);
       if (failedBatches.length === 0) {
