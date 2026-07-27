@@ -343,8 +343,12 @@ export default function AIConsultant() {
   };
 
   const inputBar = (
-    <div className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl">
+    <div
+      className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+    >
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
+
         <div className="flex gap-3 items-end">
           <textarea
             ref={inputRef}
