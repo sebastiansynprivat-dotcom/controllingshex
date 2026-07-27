@@ -368,8 +368,22 @@ Tone: knapp, COO-Energy, kein Smalltalk, keine Generic-Phrasen. "Sarah-Frist heu
 
 ${dataContext}`;
 
+    // Holt ALLE Zeilen (umgeht das 1000-Zeilen-Limit von PostgREST)
+    async function fetchAll(build: () => any, hardCap = 20000): Promise<{ data: any[]; error: any }> {
+      const page = 1000;
+      let out: any[] = [];
+      for (let from = 0; from < hardCap; from += page) {
+        const { data, error } = await build().range(from, from + page - 1);
+        if (error) return { data: out, error };
+        out = out.concat(data ?? []);
+        if (!data || data.length < page) break;
+      }
+      return { data: out, error: null };
+    }
+
     // ---------- Tool executor ----------
     async function runTool(name: string, args: any): Promise<any> {
+
       try {
         if (name === "read_memos") {
           let q = supabase.from("chatter_memos")
