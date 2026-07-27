@@ -30,6 +30,7 @@ import Messages from "@/pages/Messages";
 import ContentScout from "@/pages/ContentScout";
 import Coaching from "@/pages/Coaching";
 import CoachingView from "@/pages/CoachingView";
+import OAuthConsent from "@/pages/OAuthConsent";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const AppRoutes = () => (
     <Route path="/auth" element={<Auth />} />
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/c/:token" element={<CoachingView />} />
+    <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
     <Route
       path="/*"
       element={

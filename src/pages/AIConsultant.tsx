@@ -9,7 +9,8 @@ import { motion } from "framer-motion";
 interface ToolCall {
   name: string;
   args: any;
-  result: any;
+  result?: any;
+  pending?: boolean;
 }
 
 interface Message {
@@ -17,6 +18,7 @@ interface Message {
   content: string;
   tool_calls?: ToolCall[];
 }
+
 
 const quickActions = [
   "Was steht heute an? Welche Memos sind fällig?",
@@ -31,10 +33,27 @@ export default function AIConsultant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!loading) inputRef.current?.focus();
+  }, [loading]);
+
+  const patchLast = (fn: (m: Message) => Message) => {
+    setMessages((prev) => {
+      const next = [...prev];
+      next[next.length - 1] = fn(next[next.length - 1]);
+      return next;
+    });
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -44,7 +63,7 @@ export default function AIConsultant() {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    setMessages((prev) => [...prev, { role: "assistant", content: "", tool_calls: [] }]);
 
     try {
       const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/ai-consultant`;
@@ -63,20 +82,64 @@ export default function AIConsultant() {
         }),
       });
 
-      const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      if (!res.ok || !res.body) {
+        const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
 
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          role: "assistant",
-          content: json.reply || "Keine Antwort erhalten.",
-          tool_calls: json.tool_calls || [],
-        };
-        return next;
-      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamError: string | null = null;
+
+      const handle = (evt: any) => {
+        if (evt.t === "delta") {
+          patchLast((m) => ({ ...m, content: m.content + evt.c }));
+        } else if (evt.t === "tool_start") {
+          patchLast((m) => ({
+            ...m,
+            tool_calls: [...(m.tool_calls ?? []), { name: evt.name, args: evt.args, pending: true }],
+          }));
+        } else if (evt.t === "tool") {
+          patchLast((m) => {
+            const tcs = [...(m.tool_calls ?? [])];
+            const idx = tcs.findIndex((t) => t.pending && t.name === evt.name);
+            const done = { name: evt.name, args: evt.args, result: evt.result, pending: false };
+            if (idx >= 0) tcs[idx] = done;
+            else tcs.push(done);
+            return { ...m, tool_calls: tcs };
+          });
+        } else if (evt.t === "error") {
+          streamError = evt.m;
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (!line.startsWith("data:")) continue;
+          try { handle(JSON.parse(line.slice(5).trim())); } catch { /* ignore */ }
+        }
+      }
+
+      if (streamError) throw new Error(streamError);
+
+      patchLast((m) => ({
+        ...m,
+        content: m.content || "Keine Antwort erhalten.",
+        tool_calls: (m.tool_calls ?? []).filter((t) => !t.pending),
+      }));
     } catch (err: any) {
-      setMessages((prev) => prev.slice(0, -1));
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && !last.content) return prev.slice(0, -1);
+        return prev;
+      });
       toast.error(err.message || "Fehler beim Senden.");
     } finally {
       setLoading(false);
@@ -89,6 +152,7 @@ export default function AIConsultant() {
       sendMessage(input);
     }
   };
+
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -148,17 +212,24 @@ export default function AIConsultant() {
                         {msg.tool_calls.map((tc, idx) => {
                           const label =
                             tc.name === "create_memo" ? `Memo angelegt: ${tc.args?.chatter_name}${tc.args?.follow_up_days ? ` · Reminder in ${tc.args.follow_up_days}d` : ""}` :
-                            tc.name === "read_memos" ? `Memos gelesen${tc.args?.chatter_name ? ` (${tc.args.chatter_name})` : ""} → ${tc.result?.memos?.length ?? 0}` :
+                            tc.name === "read_memos" ? `Memos gelesen${tc.args?.chatter_name ? ` (${tc.args.chatter_name})` : ""}${tc.result ? ` → ${tc.result?.memos?.length ?? 0}` : ""}` :
                             tc.name === "resolve_memo" ? "Memo erledigt" :
-                            tc.name === "delete_memo" ? "Memo gelöscht" : tc.name;
+                            tc.name === "delete_memo" ? "Memo gelöscht" :
+                            tc.name === "get_live_status" ? `Echtzeit-Daten${tc.args?.chatter_name ? ` (${tc.args.chatter_name})` : ""}${tc.result ? ` → ${tc.result?.count ?? 0} Chatter` : ""}` :
+                            tc.name === "get_chatter_history" ? `Verlauf: ${tc.args?.chatter_name ?? ""}${tc.result ? ` → ${tc.result?.count ?? 0} Tage` : ""}` :
+                            tc.name === "get_account_history" ? `Account-Chronologie: ${tc.args?.account ?? ""}` :
+                            tc.name;
                           const ok = tc.result?.ok !== false;
                           return (
-                            <div key={idx} className={`flex items-center gap-2 text-[11px] font-light px-2.5 py-1.5 rounded-md border ${ok ? "bg-primary/5 border-primary/15 text-primary/80" : "bg-red-500/5 border-red-500/15 text-red-400/80"}`}>
-                              <Wrench className="h-3 w-3 shrink-0" />
+                            <div key={idx} className={`flex items-center gap-2 text-[11px] font-light px-2.5 py-1.5 rounded-md border ${tc.pending ? "bg-white/[0.03] border-white/10 text-white/40" : ok ? "bg-primary/5 border-primary/15 text-primary/80" : "bg-red-500/5 border-red-500/15 text-red-400/80"}`}>
+                              {tc.pending
+                                ? <span className="h-3 w-3 shrink-0 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+                                : <Wrench className="h-3 w-3 shrink-0" />}
                               <span>{label}</span>
                             </div>
                           );
                         })}
+
                       </div>
                     )}
                     {msg.content && (
@@ -174,7 +245,7 @@ export default function AIConsultant() {
             </motion.div>
           ))}
 
-          {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
+          {loading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && !(messages[messages.length - 1]?.tool_calls?.length) && (
             <div className="flex justify-start">
               <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl px-6 py-4 flex items-center gap-2">
                 <span className="h-4 w-4 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
@@ -190,6 +261,7 @@ export default function AIConsultant() {
         <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
           <div className="flex gap-3 items-end">
             <textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
