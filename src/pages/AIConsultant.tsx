@@ -648,7 +648,7 @@ export default function AIConsultant() {
         </div>
 
         {/* Input bar */}
-        <div className="shrink-0 border-t border-white/[0.04] bg-zinc-950/80 backdrop-blur-2xl">
+        <div className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
             <div className="flex gap-3 items-end">
               <textarea
