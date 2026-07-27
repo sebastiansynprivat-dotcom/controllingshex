@@ -187,6 +187,27 @@ Deno.serve(async (req) => {
 
     const activePlatform = platform || "Maloum";
 
+    // ---------- Thread validation + persist user message ----------
+    let threadId: string | null = null;
+    if (thread_id) {
+      const { data: th } = await supabase
+        .from("ai_threads").select("id,title").eq("id", thread_id).eq("user_id", userId).maybeSingle();
+      if (!th) return jsonResponse({ error: "thread not found" }, 404);
+      threadId = th.id;
+      const lastUser = [...messages].reverse().find((m: any) => m.role === "user");
+      if (lastUser) {
+        const { error: insErr } = await supabase.from("ai_messages").insert({
+          thread_id: threadId, user_id: userId, role: "user", content: String(lastUser.content ?? ""),
+        });
+        if (insErr) console.error("[ai-consultant] persist user msg", insErr.message);
+        const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (!th.title || th.title === "Neue Unterhaltung") {
+          patch.title = String(lastUser.content ?? "").replace(/\s+/g, " ").trim().slice(0, 60) || "Neue Unterhaltung";
+        }
+        await supabase.from("ai_threads").update(patch).eq("id", threadId).eq("user_id", userId);
+      }
+    }
+
     // ---------- Build data context ----------
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
