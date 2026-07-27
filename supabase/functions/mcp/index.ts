@@ -65,7 +65,7 @@ var get_live_status_default = defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ platform, chatter_name, min_delay_days, sort, limit }, ctx) => {
     if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
-    const activeNames = await loadActiveChatterNames(supabaseForUser(ctx), platform, ctx.user?.id ?? null);
+    const activeNames = await loadActiveChatterNames(supabaseForUser(ctx), platform);
     let q = supabaseForUser(ctx).from("chatter_history_live").select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at").ilike("platform", platform);
     if (chatter_name) q = q.ilike("chatter_name", `%${chatter_name}%`);
     if (typeof min_delay_days === "number") q = q.gte("oldest_chat", min_delay_days);
