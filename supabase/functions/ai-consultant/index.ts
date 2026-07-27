@@ -487,11 +487,43 @@ ${dataContext}`;
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
           return { ok: true, chatters: summary, rows: (data ?? []).slice(0, 200) };
         }
+        if (name === "remember") {
+          const content = String(args.content ?? "").trim();
+          if (!content) return { ok: false, error: "content required" };
+          const { data, error } = await supabase.from("ai_memories").insert({
+            user_id: userId, content, category: args.category ?? null,
+            source_thread_id: threadId,
+          }).select("id,content,category").single();
+          return error ? { ok: false, error: error.message } : { ok: true, memory: data };
+        }
+        if (name === "forget_memory") {
+          const { error } = await supabase.from("ai_memories")
+            .delete().eq("id", args.memory_id).eq("user_id", userId);
+          return error ? { ok: false, error: error.message } : { ok: true };
+        }
       } catch (e: any) {
         return { ok: false, error: e.message };
       }
       return { ok: false, error: "unknown tool" };
     }
+
+    // Assistant answer persistence
+    const assistantText: string[] = [];
+    const assistantTools: any[] = [];
+    async function persistAssistant() {
+      if (!threadId) return;
+      const text = assistantText.join("");
+      if (!text && assistantTools.length === 0) return;
+      const { error } = await supabase.from("ai_messages").insert({
+        thread_id: threadId, user_id: userId, role: "assistant",
+        content: text, tool_calls: assistantTools,
+      });
+      if (error) console.error("[ai-consultant] persist assistant msg", error.message);
+      await supabase.from("ai_threads")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", threadId).eq("user_id", userId);
+    }
+
 
     // ---------- Streaming tool-loop ----------
     const convo: any[] = [
