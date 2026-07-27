@@ -401,12 +401,18 @@ export default function AIConsultant() {
                               tc.name;
                             const ok = tc.result?.ok !== false;
                             return (
-                              <div key={idx} className={`flex items-center gap-2 text-[11px] font-light px-2.5 py-1.5 rounded-md border ${tc.pending ? "bg-white/[0.03] border-white/10 text-white/40" : ok ? "bg-primary/5 border-primary/15 text-primary/80" : "bg-red-500/5 border-red-500/15 text-red-400/80"}`}>
+                              <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, x: -6 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.32, 0.72, 0, 1] }}
+                                className={`relative overflow-hidden flex items-center gap-2.5 text-[11px] font-light px-3 py-2 rounded-lg border backdrop-blur-sm ${tc.pending ? "lux-thinking text-white/45" : ok ? "bg-primary/[0.06] border-primary/15 text-primary/80 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.04)]" : "bg-red-500/[0.06] border-red-500/15 text-red-400/80"}`}
+                              >
                                 {tc.pending
-                                  ? <span className="h-3 w-3 shrink-0 border border-white/20 border-t-primary/60 rounded-full" style={{ animation: "spin-slow 1s linear infinite" }} />
+                                  ? <span className="lux-orb" />
                                   : <Wrench className="h-3 w-3 shrink-0" />}
-                                <span>{label}</span>
-                              </div>
+                                <span className={tc.pending ? "lux-shimmer-text" : ""}>{label}</span>
+                              </motion.div>
                             );
                           })}
                         </div>
