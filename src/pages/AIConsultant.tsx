@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin } from "lucide-react";
+import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
@@ -9,6 +9,9 @@ import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
 import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
 import BriefingPanel from "@/components/ai/BriefingPanel";
+import ActionReviewPanel from "@/components/ai/ActionReviewPanel";
+import { countBadVerdicts } from "@/lib/action-events";
+
 
 interface ToolCall {
   name: string;
