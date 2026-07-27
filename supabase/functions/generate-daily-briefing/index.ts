@@ -285,7 +285,52 @@ Deno.serve(async (req) => {
           memories: (memories ?? []).map((m: any) => m.content),
         };
 
-        const userPrompt = `DATEN (JSON) für Workspace ${platform}, Stichtag ${today}:
+        const ACTION_ITEM = {
+          type: "object",
+          properties: {
+            chatter_name: { type: "string" },
+            account: { type: "string" },
+            title: { type: "string" },
+            instruction: { type: "string" },
+            reasoning: { type: "string" },
+            impact_eur: { type: "number" },
+            confidence: { type: "string", enum: ["hoch", "mittel", "niedrig"] },
+            bucket: { type: "string", enum: ["quick_win", "structural"] },
+            action_type: { type: "string" },
+          },
+          required: ["title", "instruction", "reasoning", "impact_eur", "confidence", "bucket"],
+          additionalProperties: false,
+        };
+
+        async function callAI(userContent: string, params: any, fnName: string): Promise<any | null> {
+          const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "google/gemini-3.6-flash",
+              messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: userContent },
+              ],
+              tools: [{ type: "function", function: { name: fnName, description: "Strukturierte Ausgabe", parameters: params } }],
+              tool_choice: { type: "function", function: { name: fnName } },
+            }),
+          });
+          if (!resp.ok) {
+            const t = await resp.text();
+            console.error("AI error", resp.status, t.slice(0, 400));
+            if (resp.status === 429) throw new Error("Rate limit erreicht, bitte später erneut versuchen.");
+            if (resp.status === 402) throw new Error("AI-Credits aufgebraucht.");
+            throw new Error(`AI Fehler (${resp.status})`);
+          }
+          const j = await resp.json();
+          const args = j?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+          if (!args) return null;
+          try { return JSON.parse(args); } catch { return null; }
+        }
+
+        // --- 1) Lagebild + Muster (Gesamtsicht) ---
+        const overviewPrompt = `DATEN (JSON) für Workspace ${platform}, Stichtag ${today}:
 
 ${JSON.stringify(payload)}
 
@@ -293,103 +338,95 @@ AUFGABE:
 1. "headline": ein Satz, wo wir heute stehen (mit Zahlen).
 2. "situation": 3–5 Sätze Lagebild inkl. Monatsziel-Pace und Lücke in Euro.
 3. "patterns": ALLE relevanten erkannten Muster (Trendbrüche, Mass-DM-Defizite, Accounts unter eigenem Bestwert, Peer-Ausreißer, Umsatzkonzentration). Jeweils mit Zahlen.
-4. "actions": der VOLLSTÄNDIGE Fahrplan, sortiert nach impact_eur absteigend — ohne jede Obergrenze, jeder datenbelegte Hebel bekommt eine eigene Aufgabe (kein "Top 10", keine Zusammenfassung mehrerer Chatter in einer Aufgabe). Jede Aktion mit chatter_name (falls vorhanden), account, title, instruction (was genau heute tun, konkret formuliert), reasoning (Datenbeleg mit Zahlen), impact_eur, confidence (hoch|mittel|niedrig), bucket (quick_win|structural).
-Nichts über Verzug/Anwesenheit als eigene Aufgabe.`;
+Nichts über Verzug/Anwesenheit.`;
 
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-3.6-flash",
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              { role: "user", content: userPrompt },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "deliver_briefing",
-                description: "Liefert das vollständige Tages-Briefing mit Fahrplan.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    headline: { type: "string" },
-                    situation: { type: "string" },
-                    patterns: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          title: { type: "string" },
-                          detail: { type: "string" },
-                          severity: { type: "string", enum: ["info", "warn", "critical"] },
-                        },
-                        required: ["title", "detail", "severity"],
-                        additionalProperties: false,
-                      },
-                    },
-                    actions: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          chatter_name: { type: "string" },
-                          account: { type: "string" },
-                          title: { type: "string" },
-                          instruction: { type: "string" },
-                          reasoning: { type: "string" },
-                          impact_eur: { type: "number" },
-                          confidence: { type: "string", enum: ["hoch", "mittel", "niedrig"] },
-                          bucket: { type: "string", enum: ["quick_win", "structural"] },
-                          action_type: { type: "string" },
-                        },
-                        required: ["title", "instruction", "reasoning", "impact_eur", "confidence", "bucket"],
-                        additionalProperties: false,
-                      },
-                    },
-                  },
-                  required: ["headline", "situation", "patterns", "actions"],
-                  additionalProperties: false,
+        const overview = await callAI(overviewPrompt, {
+          type: "object",
+          properties: {
+            headline: { type: "string" },
+            situation: { type: "string" },
+            patterns: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  detail: { type: "string" },
+                  severity: { type: "string", enum: ["info", "warn", "critical"] },
                 },
+                required: ["title", "detail", "severity"],
+                additionalProperties: false,
               },
-            }],
-            tool_choice: { type: "function", function: { name: "deliver_briefing" } },
-          }),
-        });
+            },
+          },
+          required: ["headline", "situation", "patterns"],
+          additionalProperties: false,
+        }, "deliver_overview");
 
-        if (!aiResp.ok) {
-          const t = await aiResp.text();
-          const msg = aiResp.status === 429
-            ? "Rate limit erreicht, bitte später erneut versuchen."
-            : aiResp.status === 402
-              ? "AI-Credits aufgebraucht."
-              : `AI Fehler (${aiResp.status})`;
-          console.error("AI error", aiResp.status, t.slice(0, 500));
-          await admin.from("daily_briefings").update({ status: "error", error_message: msg }).eq("id", briefingId);
-          return;
+        const parsed: any = overview ?? {};
+
+        // --- 2) Aktionen in Chunks: jeder Chatter wird garantiert bewertet ---
+        const liveByName = new Map(liveRows.map((l) => [normalizeName(l.name), l]));
+        const CHUNK = 8;
+        const chunks: any[][] = [];
+        for (let i = 0; i < chatterStats.length; i += CHUNK) chunks.push(chatterStats.slice(i, i + CHUNK));
+
+        const actionParams = {
+          type: "object",
+          properties: { actions: { type: "array", items: ACTION_ITEM } },
+          required: ["actions"],
+          additionalProperties: false,
+        };
+
+        const collected: any[] = [];
+        const CONCURRENCY = 4;
+        for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+          const batch = chunks.slice(i, i + CONCURRENCY).map(async (chunk) => {
+            const chunkPayload = chunk.map((c) => ({ ...c, live_today: liveByName.get(normalizeName(c.name)) ?? null }));
+            const prompt = `Workspace ${platform}, Stichtag ${today}.
+
+KONTEXT (Gesamtbild):
+- Monatsziel-Snapshot: ${JSON.stringify(goalSnapshot)}
+- Peer-Schnitt Umsatz/Tag (7d) aller aktiven Chatter: ${peerAvgDay} €
+- Aktive Chatter gesamt: ${chatterStats.length}
+- Offene Memos: ${JSON.stringify(memos ?? [])}
+
+ZU BEWERTENDE CHATTER (JSON):
+${JSON.stringify(chunkPayload)}
+
+AUFGABE: Erzeuge für JEDEN dieser Chatter mindestens eine Aufgabe, sofern die Daten irgendeine Umsatzchance zeigen (Potenzial-Gap zum eigenen Bestwert, Trendbruch, Mass-DMs unter 6/Tag, Nulltage, Umsatz unter Peer-Schnitt, Account unter Potenzial). Mehrere Hebel = mehrere Aufgaben. Keine Zusammenfassung mehrerer Chatter in einer Aufgabe. Keine Verzugs-/Anwesenheitsaufgaben. Jede Aufgabe mit chatter_name, account (falls zuordenbar), title, instruction (konkret, heute umsetzbar), reasoning (mit Zahlen aus den Daten), impact_eur (realistisch, € pro Tag), confidence, bucket.`;
+            try {
+              const r = await callAI(prompt, actionParams, "deliver_actions");
+              return (r?.actions ?? []) as any[];
+            } catch (e) {
+              console.error("chunk failed", e);
+              return [];
+            }
+          });
+          const res = await Promise.all(batch);
+          for (const r of res) collected.push(...r);
         }
 
-        const aiJson = await aiResp.json();
-        const args = aiJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-        if (!args) {
+        if (!overview && collected.length === 0) {
           await admin.from("daily_briefings").update({
             status: "error", error_message: "AI lieferte kein strukturiertes Ergebnis",
           }).eq("id", briefingId);
           return;
         }
 
-        let parsed: any;
-        try { parsed = JSON.parse(args); }
-        catch {
-          await admin.from("daily_briefings").update({ status: "error", error_message: "Parse-Fehler" }).eq("id", briefingId);
-          return;
-        }
-
-        const actions = (parsed.actions ?? [])
+        const seenAction = new Set<string>();
+        const actions = collected
           .map((a: any) => ({ ...a, impact_eur: Number(a.impact_eur) || 0 }))
+          .filter((a: any) => {
+            const k = `${normalizeName(a.chatter_name ?? "")}|${(a.title ?? "").trim().toLowerCase()}`;
+            if (seenAction.has(k)) return false;
+            seenAction.add(k);
+            return true;
+          })
           .sort((x: any, y: any) => y.impact_eur - x.impact_eur);
 
         const totalImpact = actions.reduce((s: number, a: any) => s + a.impact_eur, 0);
+
 
         await admin.from("briefing_actions").delete().eq("briefing_id", briefingId);
         if (actions.length) {
