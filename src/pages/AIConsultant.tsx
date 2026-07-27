@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -45,6 +45,7 @@ export default function AIConsultant() {
   const { platform } = usePlatform();
   const navigate = useNavigate();
   const { threadId } = useParams<{ threadId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -55,6 +56,18 @@ export default function AIConsultant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const skipLoadRef = useRef<string | null>(null);
+
+  // Prefill from ?q= (z. B. aus dem Fahrplan)
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (!q) return;
+    setInput(q);
+    searchParams.delete("q");
+    setSearchParams(searchParams, { replace: true });
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [searchParams, setSearchParams]);
+
+
 
   const loadThreads = useCallback(async () => {
     const { data } = await supabase

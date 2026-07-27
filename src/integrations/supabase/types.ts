@@ -345,6 +345,80 @@ export type Database = {
         }
         Relationships: []
       }
+      briefing_actions: {
+        Row: {
+          account: string | null
+          action_type: string
+          briefing_id: string
+          bucket: string
+          chatter_name: string | null
+          confidence: string | null
+          created_at: string
+          done_at: string | null
+          evidence: Json
+          id: string
+          impact_eur: number
+          instruction: string
+          platform: string
+          rank: number
+          reasoning: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account?: string | null
+          action_type?: string
+          briefing_id: string
+          bucket?: string
+          chatter_name?: string | null
+          confidence?: string | null
+          created_at?: string
+          done_at?: string | null
+          evidence?: Json
+          id?: string
+          impact_eur?: number
+          instruction: string
+          platform: string
+          rank?: number
+          reasoning?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account?: string | null
+          action_type?: string
+          briefing_id?: string
+          bucket?: string
+          chatter_name?: string | null
+          confidence?: string | null
+          created_at?: string
+          done_at?: string | null
+          evidence?: Json
+          id?: string
+          impact_eur?: number
+          instruction?: string
+          platform?: string
+          rank?: number
+          reasoning?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefing_actions_briefing_id_fkey"
+            columns: ["briefing_id"]
+            isOneToOne: false
+            referencedRelation: "daily_briefings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_knowledge: {
         Row: {
           body: string
@@ -1170,6 +1244,63 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_briefings: {
+        Row: {
+          briefing_date: string
+          created_at: string
+          error_message: string | null
+          goal_snapshot: Json
+          headline: string | null
+          id: string
+          patterns: Json
+          platform: string
+          quick_wins: Json
+          report_id: string | null
+          situation: string | null
+          status: string
+          structural: Json
+          total_impact_eur: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          briefing_date: string
+          created_at?: string
+          error_message?: string | null
+          goal_snapshot?: Json
+          headline?: string | null
+          id?: string
+          patterns?: Json
+          platform: string
+          quick_wins?: Json
+          report_id?: string | null
+          situation?: string | null
+          status?: string
+          structural?: Json
+          total_impact_eur?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          briefing_date?: string
+          created_at?: string
+          error_message?: string | null
+          goal_snapshot?: Json
+          headline?: string | null
+          id?: string
+          patterns?: Json
+          platform?: string
+          quick_wins?: Json
+          report_id?: string | null
+          situation?: string | null
+          status?: string
+          structural?: Json
+          total_impact_eur?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_chatter_checks: {
         Row: {
           chatter_name: string
@@ -1596,6 +1727,36 @@ export type Database = {
           p256dh?: string
           updated_at?: string
           user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      revenue_goals: {
+        Row: {
+          created_at: string
+          goal_eur: number
+          id: string
+          month_key: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_eur?: number
+          id?: string
+          month_key: string
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_eur?: number
+          id?: string
+          month_key?: string
+          platform?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

@@ -9,6 +9,7 @@ import CategoryResultCards from "@/components/CategoryResultCards";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { generateBriefing } from "@/lib/daily-briefing";
 import { useAuth } from "@/contexts/AuthContext";
 import { mapToActionCategory } from "@/lib/action-categories";
 import { emitChatterDataUpdated } from "@/lib/data-events";
@@ -927,6 +928,16 @@ export default function UploadPage() {
       addStatus(`✅ 100% Coverage — alle ${totalReturned} Chatter erfasst!`);
 
       addStatus(`🎉 Fertig: ${totalReturned} Chatter in ${merged.categories.length} Kategorien`);
+
+      // AI-Fahrplan für heute automatisch neu erstellen
+      try {
+        addStatus("🧭 AI erstellt den Tages-Fahrplan…");
+        await generateBriefing(platform, true);
+        addStatus("✅ Fahrplan wird im Hintergrund gebaut — im Tab „Fahrplan“ ansehen.");
+      } catch (briefErr: any) {
+        console.error("Briefing error:", briefErr);
+        addStatus("⚠️ Fahrplan konnte nicht gestartet werden.");
+      }
 
       setAnimationsReady(false);
       setResult(merged);
