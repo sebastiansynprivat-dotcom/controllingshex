@@ -79,6 +79,17 @@ export default function AIConsultant() {
     loadMemories();
   }, [loadThreads, loadMemories]);
 
+  // Workspace-Wechsel: offenen Thread verlassen (Verlauf ist pro Workspace)
+  const prevPlatformRef = useRef(platform);
+  useEffect(() => {
+    if (prevPlatformRef.current === platform) return;
+    prevPlatformRef.current = platform;
+    setMessages([]);
+    navigate("/ai-consultant");
+  }, [platform, navigate]);
+
+
+
 
   // Load messages of the routed thread
   useEffect(() => {
