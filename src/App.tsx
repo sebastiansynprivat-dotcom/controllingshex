@@ -71,6 +71,7 @@ const AppRoutes = () => (
 
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/ai-consultant" element={<AIConsultant />} />
+              <Route path="/ai-consultant/:threadId" element={<AIConsultant />} />
               <Route path="/notes" element={<Notes />} />
               <Route path="/tinder" element={<TinderMode />} />
               <Route path="/models" element={<Models />} />
