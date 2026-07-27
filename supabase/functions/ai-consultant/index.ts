@@ -265,6 +265,7 @@ Deno.serve(async (req) => {
     const fromDate = fourteenDaysAgo.toISOString().split("T")[0];
 
     async function fetchAllHistory() {
+      const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
       const all: any[] = [];
       let offset = 0;
       const pageSize = 1000;
@@ -278,7 +279,10 @@ Deno.serve(async (req) => {
           .order("analysis_date", { ascending: false })
           .range(offset, offset + pageSize - 1);
         if (error || !data) break;
-        all.push(...data);
+        const page = activeNames
+          ? data.filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+          : data;
+        all.push(...page);
         if (data.length < pageSize) break;
         offset += pageSize;
         if (offset > 20000) break;
