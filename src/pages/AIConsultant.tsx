@@ -328,10 +328,8 @@ export default function AIConsultant() {
     }
   };
 
-  return (
-    <div className="flex h-full min-h-0">
-      {/* Thread list */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-white/[0.04] bg-black/20">
+  const sidebarContent = (
+    <>
         <div className="p-3 space-y-2">
           <button
             onClick={newThread}
