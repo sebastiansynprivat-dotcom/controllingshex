@@ -33,7 +33,6 @@ const tools = [
           chatter_name: { type: "string", description: "Optionaler Chatter-Filter (case-insensitive)" },
           status: { type: "string", enum: ["open", "resolved", "all"], description: "Default: open" },
           due_only: { type: "boolean", description: "Nur Memos mit follow_up_at <= jetzt (überfällig oder heute fällig)" },
-          limit: { type: "number", description: "Default: 30" },
         },
       },
     },
@@ -92,7 +91,6 @@ const tools = [
           chatter_name: { type: "string", description: "Optionaler Chatter-Filter (Teilstring, case-insensitive)" },
           min_delay_days: { type: "number", description: "Nur Einträge mit ältestem Chat >= N Tage" },
           sort: { type: "string", enum: ["delay", "unread", "revenue"], description: "Default: delay" },
-          limit: { type: "number", description: "Default: 40, max 150" },
         },
       },
     },
@@ -340,6 +338,11 @@ ARBEITSWEISE:
 - Du hast Tools für Echtzeit-Daten (get_live_status), Chatter-Verläufe (get_chatter_history), Account-Chronologien (get_account_history) und Memos. Nutze sie aktiv statt zu raten. Lieber 2–3 Tool-Calls als eine vage Antwort.
 - Bei Fragen zu Verzug / offenen Chats IMMER get_live_status — Echtzeit schlägt Report-Daten.
 - Verzug zählt erst ab 3 Tagen ältester unbeantworteter Chat.
+
+VOLLSTÄNDIGKEIT (wichtig):
+- Die Tools liefern IMMER alle Treffer, es gibt kein Limit. Wenn ich nach "welche Accounts / Chatter soll ich tauschen", "wer ist im Verzug", "wer baut ab" o.ä. frage, liste ALLE zutreffenden Fälle auf — nicht nur 3 Beispiele.
+- Sortiert nach Impact (größtes Potenzial/Verlust zuerst), kompakt als Liste oder Tabelle, eine Zeile pro Fall.
+- Nenne am Ende die Gesamtzahl ("28 Fälle gesamt"). Kürze nur, wenn ich ausdrücklich "Top 3" o.ä. sage.
 
 PRIORISIERUNG (wenn ich nach "wen soll ich mir vornehmen" o.ä. frage), in dieser Reihenfolge:
 1. Historisches Uplift-Potenzial (bestes €/Tag früher vs. heute)
