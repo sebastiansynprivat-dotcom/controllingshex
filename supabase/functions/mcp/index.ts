@@ -120,10 +120,38 @@ var get_account_history_default = defineTool3({
 // src/lib/mcp/tools/get-top-chatters.ts
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z4 } from "npm:zod@^3.25.76";
+
+// src/lib/mcp/tools/active-roster.ts
+function normalizeName(name) {
+  return name.normalize("NFKC").replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "").replace(/[\u00A0\u2007\u202F]/g, " ").toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
+async function loadActiveChatterNames(supabase, platform) {
+  const { data: reports } = await supabase.from("analysis_reports").select("result_json, analysis_date").eq("platform", platform).not("result_json", "is", null).order("analysis_date", { ascending: false }).order("created_at", { ascending: false }).limit(1);
+  const latest = reports?.[0];
+  if (!latest) return null;
+  const names = /* @__PURE__ */ new Set();
+  const result = latest.result_json;
+  if (result && Array.isArray(result.categories)) {
+    for (const cat of result.categories) {
+      for (const ch of cat.chatters ?? []) {
+        if (ch?.name) names.add(normalizeName(ch.name));
+      }
+    }
+  }
+  if (names.size === 0 && latest.analysis_date) {
+    const { data: histRows } = await supabase.from("chatter_history").select("chatter_name").eq("platform", platform).eq("analysis_date", latest.analysis_date);
+    for (const r of histRows ?? []) {
+      if (r.chatter_name) names.add(normalizeName(r.chatter_name));
+    }
+  }
+  return names;
+}
+
+// src/lib/mcp/tools/get-top-chatters.ts
 var get_top_chatters_default = defineTool4({
   name: "get_top_chatters",
   title: "Chatter-Ranking",
-  description: "Aggregiertes Ranking aller Chatter einer Plattform \xFCber ein Zeitfenster: Gesamtumsatz, \xD8 pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt f\xFCr 'wer performt', 'wer ist im R\xFCckgang'.",
+  description: "Aggregiertes Ranking aller Chatter einer Plattform \xFCber ein Zeitfenster: Gesamtumsatz, \xD8 pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt f\xFCr 'wer performt', 'wer ist im R\xFCckgang'. Beschr\xE4nkt auf Chatter, die im letzten Report vorkommen.",
   inputSchema: {
     platform: z4.string().describe("Plattform, z.B. 'Maloum'."),
     days: z4.number().nullable().describe("Zeitfenster in Tagen, Default 14."),
@@ -136,11 +164,13 @@ var get_top_chatters_default = defineTool4({
     const from = /* @__PURE__ */ new Date();
     from.setDate(from.getDate() - win);
     const supabase = supabaseForUser(ctx);
+    const activeNames = await loadActiveChatterNames(supabase, platform);
     const rows = [];
     for (let offset = 0; offset < 2e4; offset += 1e3) {
       const { data, error } = await supabase.from("chatter_history").select("chatter_name,analysis_date,revenue_today,mass_dms,open_chats,response_delay_days,category,account").eq("platform", platform).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).range(offset, offset + 999);
       if (error) return errorResult(error.message);
-      rows.push(...data ?? []);
+      const page = activeNames ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_"))) : data ?? [];
+      rows.push(...page);
       if (!data || data.length < 1e3) break;
     }
     const per = /* @__PURE__ */ new Map();
