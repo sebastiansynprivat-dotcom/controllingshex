@@ -56,6 +56,7 @@ export default function AIConsultant() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoriesOpen, setMemoriesOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [threadId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
