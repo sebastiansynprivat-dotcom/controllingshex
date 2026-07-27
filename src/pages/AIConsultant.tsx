@@ -627,20 +627,23 @@ export default function AIConsultant() {
                 onKeyDown={handleKeyDown}
                 placeholder="Frag den AI Consultant…"
                 rows={1}
-                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-3.5 text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
+                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 sm:px-5 py-3.5 text-base sm:text-sm text-foreground/80 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-primary/20 transition-colors duration-300"
               />
               <button
                 onClick={() => sendMessage(input)}
                 disabled={loading || !input.trim()}
-                className="px-4 py-3.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                aria-label="Senden"
+                className="shrink-0 h-[50px] w-[50px] flex items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </>
       )}
+      </div>
+
 
 
 
