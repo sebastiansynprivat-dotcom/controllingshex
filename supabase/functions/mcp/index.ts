@@ -24,35 +24,6 @@ function errorResult(message) {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
-// src/lib/mcp/tools/get-live-status.ts
-var get_live_status_default = defineTool({
-  name: "get_live_status",
-  title: "Echtzeit-Status der Chatter",
-  description: "Echtzeit-Daten pro Chatter: offene Chats, \xE4ltester unbeantworteter Chat (Verzug in Tagen), Umsatz heute, Mass-DMs, plus Aufschl\xFCsselung pro Model/Account. Nutze das f\xFCr Fragen zu Verzug, offenen Chats und aktueller Auslastung. Verzug z\xE4hlt erst ab 3 Tagen.",
-  inputSchema: {
-    platform: z.string().describe("Plattform, z.B. 'Maloum' oder 'Brezzels'."),
-    chatter_name: z.string().nullable().describe("Optionaler Chatter-Filter (Teilstring)."),
-    min_delay_days: z.number().nullable().describe("Nur Chatter mit \xE4ltestem Chat >= N Tage."),
-    sort: z.enum(["delay", "unread", "revenue"]).nullable().describe("Sortierung, Default 'delay'."),
-    limit: z.number().nullable().describe("Max. Anzahl Zeilen, Default 40.")
-  },
-  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ platform, chatter_name, min_delay_days, sort, limit }, ctx) => {
-    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
-    let q = supabaseForUser(ctx).from("chatter_history_live").select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at").ilike("platform", platform);
-    if (chatter_name) q = q.ilike("chatter_name", `%${chatter_name}%`);
-    if (typeof min_delay_days === "number") q = q.gte("oldest_chat", min_delay_days);
-    const col = sort === "unread" ? "unread_chats" : sort === "revenue" ? "revenue" : "oldest_chat";
-    const { data, error } = await q.order(col, { ascending: false, nullsFirst: false }).limit(Math.min(limit ?? 40, 200));
-    if (error) return errorResult(error.message);
-    return textResult({ count: data?.length ?? 0, rows: data });
-  }
-});
-
-// src/lib/mcp/tools/get-chatter-history.ts
-import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.24.0";
-import { z as z2 } from "npm:zod@^3.25.76";
-
 // src/lib/mcp/tools/active-roster.ts
 function normalizeName(name) {
   return name.normalize("NFKC").replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "").replace(/[\u00A0\u2007\u202F]/g, " ").toLowerCase().replace(/[_ ]+/g, "_").trim();
@@ -79,7 +50,36 @@ async function loadActiveChatterNames(supabase, platform) {
   return names;
 }
 
+// src/lib/mcp/tools/get-live-status.ts
+var get_live_status_default = defineTool({
+  name: "get_live_status",
+  title: "Echtzeit-Status der Chatter",
+  description: "Echtzeit-Daten pro Chatter: offene Chats, \xE4ltester unbeantworteter Chat (Verzug in Tagen), Umsatz heute, Mass-DMs, plus Aufschl\xFCsselung pro Model/Account. Nutze das f\xFCr Fragen zu Verzug, offenen Chats und aktueller Auslastung. Verzug z\xE4hlt erst ab 3 Tagen.",
+  inputSchema: {
+    platform: z.string().describe("Plattform, z.B. 'Maloum' oder 'Brezzels'."),
+    chatter_name: z.string().nullable().describe("Optionaler Chatter-Filter (Teilstring)."),
+    min_delay_days: z.number().nullable().describe("Nur Chatter mit \xE4ltestem Chat >= N Tage."),
+    sort: z.enum(["delay", "unread", "revenue"]).nullable().describe("Sortierung, Default 'delay'."),
+    limit: z.number().nullable().describe("Max. Anzahl Zeilen, Default 40.")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ platform, chatter_name, min_delay_days, sort, limit }, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const activeNames = await loadActiveChatterNames(supabaseForUser(ctx), platform, ctx.user?.id ?? null);
+    let q = supabaseForUser(ctx).from("chatter_history_live").select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at").ilike("platform", platform);
+    if (chatter_name) q = q.ilike("chatter_name", `%${chatter_name}%`);
+    if (typeof min_delay_days === "number") q = q.gte("oldest_chat", min_delay_days);
+    const col = sort === "unread" ? "unread_chats" : sort === "revenue" ? "revenue" : "oldest_chat";
+    const { data, error } = await q.order(col, { ascending: false, nullsFirst: false }).limit(Math.min(limit ?? 40, 200));
+    if (error) return errorResult(error.message);
+    const rows = activeNames ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? ""))) : data ?? [];
+    return textResult({ count: rows.length, rows });
+  }
+});
+
 // src/lib/mcp/tools/get-chatter-history.ts
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z2 } from "npm:zod@^3.25.76";
 var get_chatter_history_default = defineTool2({
   name: "get_chatter_history",
   title: "Chatter-Verlauf",
