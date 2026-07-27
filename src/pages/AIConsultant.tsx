@@ -45,6 +45,7 @@ export default function AIConsultant() {
   const { platform } = usePlatform();
   const navigate = useNavigate();
   const { threadId } = useParams<{ threadId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
