@@ -60,22 +60,36 @@ export default function AIConsultant() {
     const { data } = await supabase
       .from("ai_threads")
       .select("id,title,updated_at")
+      .eq("platform", platform)
       .order("updated_at", { ascending: false });
     setThreads((data as Thread[]) ?? []);
-  }, []);
+  }, [platform]);
 
   const loadMemories = useCallback(async () => {
     const { data } = await supabase
       .from("ai_memories")
       .select("id,content,category")
+      .eq("platform", platform)
       .order("created_at", { ascending: false });
     setMemories((data as Memory[]) ?? []);
-  }, []);
+  }, [platform]);
 
   useEffect(() => {
     loadThreads();
     loadMemories();
   }, [loadThreads, loadMemories]);
+
+  // Workspace-Wechsel: offenen Thread verlassen (Verlauf ist pro Workspace)
+  const prevPlatformRef = useRef(platform);
+  useEffect(() => {
+    if (prevPlatformRef.current === platform) return;
+    prevPlatformRef.current = platform;
+    setMessages([]);
+    navigate("/ai-consultant");
+  }, [platform, navigate]);
+
+
+
 
   // Load messages of the routed thread
   useEffect(() => {
