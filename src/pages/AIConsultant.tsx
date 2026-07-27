@@ -439,25 +439,55 @@ export default function AIConsultant() {
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Mobile toolbar */}
-        <div className="md:hidden shrink-0 flex items-center gap-1 border-b border-white/[0.04] px-1.5 py-1.5">
-          <button
-            onClick={() => setNavOpen(true)}
-            aria-label="Unterhaltungen öffnen"
-            className="p-2 rounded-lg text-white/50 hover:text-white/85 transition-colors"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-          <span className="flex-1 min-w-0 truncate text-[12px] font-light text-white/50">
-            {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
-          </span>
-          <button
-            onClick={newThread}
-            aria-label="Neue Unterhaltung"
-            className="p-2 rounded-lg text-primary/70 hover:text-primary transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+        <div className="md:hidden shrink-0 border-b border-white/[0.04]">
+          <div className="flex items-center gap-1.5 px-2 py-2">
+            <button
+              onClick={() => setNavOpen(true)}
+              aria-label="Unterhaltungen öffnen"
+              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-light text-white/65 active:bg-white/[0.07] transition-colors"
+            >
+              <PanelLeft className="h-3.5 w-3.5" /> Verlauf
+            </button>
+            <span className="flex-1 min-w-0 truncate text-[12px] font-light text-white/45">
+              {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
+            </span>
+            <button
+              onClick={newThread}
+              aria-label="Neue Unterhaltung"
+              className="shrink-0 p-2 rounded-lg text-primary/80 active:text-primary transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-2 pb-2">
+            <button
+              onClick={() => navigate("/ai-consultant/fahrplan")}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-light transition-colors ${
+                isRoadmap ? "border-primary/25 bg-primary/10 text-primary" : "border-white/[0.07] bg-white/[0.02] text-white/55"
+              }`}
+            >
+              <Pin className="h-3 w-3" /> Fahrplan
+            </button>
+            <button
+              onClick={() => navigate("/ai-consultant/rueckblick")}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-light transition-colors ${
+                isReview ? "border-primary/25 bg-primary/10 text-primary" : "border-white/[0.07] bg-white/[0.02] text-white/55"
+              }`}
+            >
+              <History className="h-3 w-3" /> Rückblick
+              {badCount > 0 && (
+                <span className="rounded-full bg-red-500/15 border border-red-500/25 px-1.5 text-[9px] text-red-400">{badCount}</span>
+              )}
+            </button>
+            <button
+              onClick={() => { setMemoriesOpen(true); loadMemories(); }}
+              className="shrink-0 flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1.5 text-[11px] font-light text-white/55 transition-colors"
+            >
+              <Brain className="h-3 w-3" /> Gedächtnis ({memories.length})
+            </button>
+          </div>
         </div>
+
 
       {isRoadmap || isReview ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
