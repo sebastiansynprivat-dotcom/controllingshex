@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone, Inbox, Sparkles, GraduationCap } from "lucide-react";
+import { LayoutDashboard, Upload, Users, Settings, MessageSquareText, LogOut, Trophy, StickyNote, Flame, AlertOctagon, Target, ListChecks, Radio, Megaphone, Inbox, Sparkles, GraduationCap, Route as RouteIcon } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { PlatformSwitcher } from "@/components/PlatformSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import {
 
 const items = [
   { title: "Heute", url: "/today", icon: ListChecks },
+  { title: "Fahrplan", url: "/fahrplan", icon: RouteIcon },
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Live-Tracking", url: "/live", icon: Radio },
   { title: "Nachrichten", url: "/nachrichten", icon: Inbox },
