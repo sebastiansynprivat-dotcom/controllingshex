@@ -105,11 +105,14 @@ export default function AIConsultant() {
 
 
 
+  const isRoadmap = threadId === "fahrplan";
+
   // Load messages of the routed thread
   useEffect(() => {
-    if (!threadId) {
+    if (!threadId || threadId === "fahrplan") {
       setMessages([]);
       return;
+
     }
     if (skipLoadRef.current === threadId) {
       skipLoadRef.current = null;
