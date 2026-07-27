@@ -15,7 +15,6 @@ import {
 
 const items = [
   { title: "Heute", url: "/today", icon: ListChecks },
-  { title: "Fahrplan", url: "/fahrplan", icon: RouteIcon },
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Live-Tracking", url: "/live", icon: Radio },
   { title: "Nachrichten", url: "/nachrichten", icon: Inbox },
