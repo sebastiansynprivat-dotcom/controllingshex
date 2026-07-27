@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { errorResult, supabaseForUser, textResult } from "../supabase";
+import { loadActiveChatterNames, normalizeName } from "./active-roster";
 
 export default defineTool({
   name: "get_live_status",
@@ -17,6 +18,7 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ platform, chatter_name, min_delay_days, sort, limit }, ctx) => {
     if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const activeNames = await loadActiveChatterNames(supabaseForUser(ctx), platform);
     let q = supabaseForUser(ctx)
       .from("chatter_history_live")
       .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
@@ -28,6 +30,9 @@ export default defineTool({
       .order(col, { ascending: false, nullsFirst: false })
       .limit(Math.min(limit ?? 40, 200));
     if (error) return errorResult(error.message);
-    return textResult({ count: data?.length ?? 0, rows: data });
+    const rows = activeNames
+      ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+      : (data ?? []);
+    return textResult({ count: rows.length, rows });
   },
 });

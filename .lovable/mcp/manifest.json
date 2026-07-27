@@ -85,7 +85,7 @@
       {
         "name": "get_chatter_history",
         "title": "Chatter-Verlauf",
-        "description": "Tages-Zeitreihe eines Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. Für Trend- und Verlaufsfragen zu einer konkreten Person.",
+        "description": "Tages-Zeitreihe eines aktuellen Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. Für Trend- und Verlaufsfragen zu einer konkreten Person. Nur Chatter aus dem letzten Report.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -123,7 +123,7 @@
       {
         "name": "get_account_history",
         "title": "Account-Chronologie",
-        "description": "Chronologie eines Accounts/Models: welche Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen.",
+        "description": "Chronologie eines Accounts/Models: welche aktuellen Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen. Nur Chatter aus dem letzten Report.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -161,7 +161,7 @@
       {
         "name": "get_top_chatters",
         "title": "Chatter-Ranking",
-        "description": "Aggregiertes Ranking aller Chatter einer Plattform über ein Zeitfenster: Gesamtumsatz, Ø pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt für 'wer performt', 'wer ist im Rückgang'.",
+        "description": "Aggregiertes Ranking aller Chatter einer Plattform über ein Zeitfenster: Gesamtumsatz, Ø pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt für 'wer performt', 'wer ist im Rückgang'. Beschränkt auf Chatter, die im letzten Report vorkommen.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

@@ -1,12 +1,13 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { errorResult, supabaseForUser, textResult } from "../supabase";
+import { loadActiveChatterNames, normalizeName } from "./active-roster";
 
 export default defineTool({
   name: "get_top_chatters",
   title: "Chatter-Ranking",
   description:
-    "Aggregiertes Ranking aller Chatter einer Plattform über ein Zeitfenster: Gesamtumsatz, Ø pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt für 'wer performt', 'wer ist im Rückgang'.",
+    "Aggregiertes Ranking aller Chatter einer Plattform über ein Zeitfenster: Gesamtumsatz, Ø pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt für 'wer performt', 'wer ist im Rückgang'. Beschränkt auf Chatter, die im letzten Report vorkommen.",
   inputSchema: {
     platform: z.string().describe("Plattform, z.B. 'Maloum'."),
     days: z.number().nullable().describe("Zeitfenster in Tagen, Default 14."),
@@ -20,6 +21,7 @@ export default defineTool({
     from.setDate(from.getDate() - win);
 
     const supabase = supabaseForUser(ctx);
+    const activeNames = await loadActiveChatterNames(supabase, platform);
     const rows: any[] = [];
     for (let offset = 0; offset < 20000; offset += 1000) {
       const { data, error } = await supabase
@@ -30,7 +32,10 @@ export default defineTool({
         .order("analysis_date", { ascending: false })
         .range(offset, offset + 999);
       if (error) return errorResult(error.message);
-      rows.push(...(data ?? []));
+      const page = activeNames
+        ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+        : (data ?? []);
+      rows.push(...page);
       if (!data || data.length < 1000) break;
     }
 

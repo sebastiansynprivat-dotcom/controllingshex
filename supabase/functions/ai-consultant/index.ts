@@ -12,6 +12,60 @@ function round(n: number, d = 0) {
   return Math.round(n * f) / f;
 }
 
+function normalizeName(name: string): string {
+  return name
+    .normalize("NFKC")
+    .replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "")
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .toLowerCase()
+    .replace(/[_ ]+/g, "_")
+    .trim();
+}
+
+async function loadActiveChatterNames(
+  supabase: any,
+  platform: string,
+  userId: string | null,
+): Promise<Set<string> | null> {
+  if (!userId) return null;
+  const { data: reports } = await supabase
+    .from("analysis_reports")
+    .select("result_json, analysis_date")
+    .eq("platform", platform)
+    .eq("user_id", userId)
+    .not("result_json", "is", null)
+    .order("analysis_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  const latest = reports?.[0];
+  if (!latest) return null;
+
+  const names = new Set<string>();
+  const result = latest.result_json as any;
+  if (result && Array.isArray(result.categories)) {
+    for (const cat of result.categories) {
+      for (const ch of cat.chatters ?? []) {
+        if (ch?.name) names.add(normalizeName(ch.name));
+      }
+    }
+  }
+
+  if (names.size === 0 && latest.analysis_date) {
+    const { data: histRows } = await supabase
+      .from("chatter_history")
+      .select("chatter_name")
+      .eq("platform", platform)
+      .eq("user_id", userId)
+      .eq("analysis_date", latest.analysis_date);
+    for (const r of histRows ?? []) {
+      if (r.chatter_name) names.add(normalizeName(r.chatter_name));
+    }
+  }
+
+  return names;
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -212,6 +266,7 @@ Deno.serve(async (req) => {
     const fromDate = fourteenDaysAgo.toISOString().split("T")[0];
 
     async function fetchAllHistory() {
+      const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
       const all: any[] = [];
       let offset = 0;
       const pageSize = 1000;
@@ -225,7 +280,10 @@ Deno.serve(async (req) => {
           .order("analysis_date", { ascending: false })
           .range(offset, offset + pageSize - 1);
         if (error || !data) break;
-        all.push(...data);
+        const page = activeNames
+          ? data.filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+          : data;
+        all.push(...page);
         if (data.length < pageSize) break;
         offset += pageSize;
         if (offset > 20000) break;
@@ -234,6 +292,7 @@ Deno.serve(async (req) => {
     }
 
     const nowIso = new Date().toISOString();
+    const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
     const [historyData, notesRes, modelsRes, dueMemosRes, liveRes] = await Promise.all([
       fetchAllHistory(),
       supabase.from("coaching_notes").select("chatter_name,note_text,created_at")
@@ -253,7 +312,10 @@ Deno.serve(async (req) => {
     const notesData = notesRes.data ?? [];
     const modelsData = modelsRes.data ?? [];
     const dueMemos = dueMemosRes.data ?? [];
-    const liveData = liveRes.data ?? [];
+    let liveData = liveRes.data ?? [];
+    if (activeNames) {
+      liveData = liveData.filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")));
+    }
 
     const today = new Date().toISOString().split("T")[0];
     const byChatter = new Map<string, any[]>();
@@ -430,6 +492,7 @@ ${dataContext}`;
         }
         if (name === "get_live_status") {
           const sortCol = args.sort === "unread" ? "unread_chats" : args.sort === "revenue" ? "revenue" : "oldest_chat";
+          const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
           const build = () => {
             let q = supabase.from("chatter_history_live")
               .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
@@ -440,7 +503,10 @@ ${dataContext}`;
           };
           const { data, error } = await fetchAll(build);
           if (error) return { ok: false, error: error.message };
-          const rows = (data ?? []).map((r: any) => {
+          const filtered = activeNames
+            ? (data ?? []).filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+            : (data ?? []);
+          const rows = filtered.map((r: any) => {
             const details = r.stats_details && typeof r.stats_details === "object" ? r.stats_details : null;
             let models: any = null;
             if (details) {
@@ -469,18 +535,23 @@ ${dataContext}`;
           const days = Math.min(args.days || 30, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
+          const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
           const { data, error } = await fetchAll(() => supabase.from("chatter_history")
-            .select("analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category")
+            .select("chatter_name,analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category")
             .eq("user_id", userId).eq("platform", activePlatform)
             .ilike("chatter_name", `%${args.chatter_name}%`)
             .gte("analysis_date", from.toISOString().slice(0, 10))
             .order("analysis_date", { ascending: false }));
-          return error ? { ok: false, error: error.message } : { ok: true, count: data.length, rows: data };
+          const rows = activeNames
+            ? (data ?? []).filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+            : (data ?? []);
+          return error ? { ok: false, error: error.message } : { ok: true, count: rows.length, rows };
         }
         if (name === "get_account_history") {
           const days = Math.min(args.days || 90, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
+          const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
           const { data, error } = await fetchAll(() => supabase.from("chatter_history")
             .select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days")
             .eq("user_id", userId).eq("platform", activePlatform)
@@ -488,8 +559,11 @@ ${dataContext}`;
             .gte("analysis_date", from.toISOString().slice(0, 10))
             .order("analysis_date", { ascending: false }));
           if (error) return { ok: false, error: error.message };
+          const rows = activeNames
+            ? (data ?? []).filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+            : (data ?? []);
           const perChatter = new Map<string, { days: number; total: number; best: number; first: string; last: string }>();
-          for (const r of data ?? []) {
+          for (const r of rows) {
             const k = r.chatter_name;
             const rev = Number(r.revenue_today) || 0;
             const e = perChatter.get(k) ?? { days: 0, total: 0, best: 0, first: r.analysis_date, last: r.analysis_date };
@@ -502,7 +576,7 @@ ${dataContext}`;
             chatter, days: e.days, total: round(e.total), avg_per_day: round(e.total / e.days, 1),
             best_day: round(e.best), from: e.first, to: e.last,
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
-          return { ok: true, count: data.length, chatters: summary, rows: data };
+          return { ok: true, count: rows.length, chatters: summary, rows };
         }
         if (name === "remember") {
           const content = String(args.content ?? "").trim();

@@ -1,12 +1,13 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { errorResult, supabaseForUser, textResult } from "../supabase";
+import { loadActiveChatterNames, normalizeName } from "./active-roster";
 
 export default defineTool({
   name: "get_account_history",
   title: "Account-Chronologie",
   description:
-    "Chronologie eines Accounts/Models: welche Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen.",
+    "Chronologie eines Accounts/Models: welche aktuellen Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen. Nur Chatter aus dem letzten Report.",
   inputSchema: {
     platform: z.string().describe("Plattform, z.B. 'Maloum'."),
     account: z.string().describe("Account-/Model-Name (Teilstring reicht)."),
@@ -18,7 +19,9 @@ export default defineTool({
     const win = Math.min(days ?? 90, 365);
     const from = new Date();
     from.setDate(from.getDate() - win);
-    const { data, error } = await supabaseForUser(ctx)
+    const supabase = supabaseForUser(ctx);
+    const activeNames = await loadActiveChatterNames(supabase, platform);
+    const { data, error } = await supabase
       .from("chatter_history")
       .select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days")
       .eq("platform", platform)
@@ -28,8 +31,12 @@ export default defineTool({
       .limit(1500);
     if (error) return errorResult(error.message);
 
+    const rows = activeNames
+      ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+      : (data ?? []);
+
     const per = new Map<string, { days: number; total: number; best: number; first: string; last: string }>();
-    for (const r of data ?? []) {
+    for (const r of rows) {
       const rev = Number(r.revenue_today) || 0;
       const e = per.get(r.chatter_name) ?? { days: 0, total: 0, best: 0, first: r.analysis_date, last: r.analysis_date };
       e.days += 1;
@@ -51,6 +58,6 @@ export default defineTool({
       }))
       .sort((a, b) => b.avg_per_day - a.avg_per_day);
 
-    return textResult({ chatters, rows: (data ?? []).slice(0, 300) });
+    return textResult({ chatters, rows: rows.slice(0, 300) });
   },
 });
