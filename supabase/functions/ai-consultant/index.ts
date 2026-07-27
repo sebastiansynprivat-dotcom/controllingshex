@@ -542,6 +542,7 @@ ${dataContext}`;
           const days = Math.min(args.days || 90, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
+          const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
           const { data, error } = await fetchAll(() => supabase.from("chatter_history")
             .select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days")
             .eq("user_id", userId).eq("platform", activePlatform)
@@ -549,8 +550,11 @@ ${dataContext}`;
             .gte("analysis_date", from.toISOString().slice(0, 10))
             .order("analysis_date", { ascending: false }));
           if (error) return { ok: false, error: error.message };
+          const rows = activeNames
+            ? (data ?? []).filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+            : (data ?? []);
           const perChatter = new Map<string, { days: number; total: number; best: number; first: string; last: string }>();
-          for (const r of data ?? []) {
+          for (const r of rows) {
             const k = r.chatter_name;
             const rev = Number(r.revenue_today) || 0;
             const e = perChatter.get(k) ?? { days: 0, total: 0, best: 0, first: r.analysis_date, last: r.analysis_date };
@@ -563,7 +567,7 @@ ${dataContext}`;
             chatter, days: e.days, total: round(e.total), avg_per_day: round(e.total / e.days, 1),
             best_day: round(e.best), from: e.first, to: e.last,
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
-          return { ok: true, count: data.length, chatters: summary, rows: data };
+          return { ok: true, count: rows.length, chatters: summary, rows };
         }
         if (name === "remember") {
           const content = String(args.content ?? "").trim();
