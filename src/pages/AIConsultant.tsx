@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
 import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
 
@@ -419,7 +420,36 @@ export default function AIConsultant() {
                       )}
                       {msg.content && (
                         <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              table: ({ children }) => (
+                                <div className="not-prose my-4 -mx-1 overflow-x-auto rounded-xl border border-white/[0.07] bg-white/[0.015]">
+                                  <table className="w-full border-collapse text-[12px]">{children}</table>
+                                </div>
+                              ),
+                              thead: ({ children }) => (
+                                <thead className="bg-white/[0.03]">{children}</thead>
+                              ),
+                              th: ({ children }) => (
+                                <th className="whitespace-nowrap border-b border-white/[0.07] px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-wider text-white/35">
+                                  {children}
+                                </th>
+                              ),
+                              tr: ({ children }) => (
+                                <tr className="border-b border-white/[0.04] last:border-0 transition-colors hover:bg-white/[0.02]">
+                                  {children}
+                                </tr>
+                              ),
+                              td: ({ children }) => (
+                                <td className="px-3 py-2.5 align-top font-light text-white/60 tabular-nums">
+                                  {children}
+                                </td>
+                              ),
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
                           {loading && i === messages.length - 1 && (
                             <span className="inline-block align-middle -mt-0.5 ml-0.5 h-3.5 w-[2px] rounded-full bg-primary/70 animate-pulse" />
                           )}
