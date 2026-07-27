@@ -488,6 +488,7 @@ ${dataContext}`;
         }
         if (name === "get_live_status") {
           const sortCol = args.sort === "unread" ? "unread_chats" : args.sort === "revenue" ? "revenue" : "oldest_chat";
+          const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
           const build = () => {
             let q = supabase.from("chatter_history_live")
               .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
@@ -498,7 +499,10 @@ ${dataContext}`;
           };
           const { data, error } = await fetchAll(build);
           if (error) return { ok: false, error: error.message };
-          const rows = (data ?? []).map((r: any) => {
+          const filtered = activeNames
+            ? (data ?? []).filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")))
+            : (data ?? []);
+          const rows = filtered.map((r: any) => {
             const details = r.stats_details && typeof r.stats_details === "object" ? r.stats_details : null;
             let models: any = null;
             if (details) {
