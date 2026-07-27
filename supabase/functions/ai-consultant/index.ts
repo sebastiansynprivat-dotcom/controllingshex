@@ -292,6 +292,7 @@ Deno.serve(async (req) => {
     }
 
     const nowIso = new Date().toISOString();
+    const activeNames = await loadActiveChatterNames(supabase, activePlatform, userId);
     const [historyData, notesRes, modelsRes, dueMemosRes, liveRes] = await Promise.all([
       fetchAllHistory(),
       supabase.from("coaching_notes").select("chatter_name,note_text,created_at")
@@ -311,7 +312,10 @@ Deno.serve(async (req) => {
     const notesData = notesRes.data ?? [];
     const modelsData = modelsRes.data ?? [];
     const dueMemos = dueMemosRes.data ?? [];
-    const liveData = liveRes.data ?? [];
+    let liveData = liveRes.data ?? [];
+    if (activeNames) {
+      liveData = liveData.filter((r: any) => activeNames.has(normalizeName(r.chatter_name ?? "")));
+    }
 
     const today = new Date().toISOString().split("T")[0];
     const byChatter = new Map<string, any[]>();
