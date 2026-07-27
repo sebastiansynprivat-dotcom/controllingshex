@@ -595,7 +595,26 @@ ${dataContext}`;
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
           return { ok: true, count: rows.length, chatters: summary, rows };
         }
+        if (name === "get_action_history") {
+          const days = Math.min(args.days || 30, 365);
+          const from = new Date();
+          from.setDate(from.getDate() - days);
+          let q = supabase.from("action_events")
+            .select("detected_on,event_type,chatter_name,counterpart_chatter,account,verdict,verdict_reason,recommendation,impact_eur,outcome_json,status")
+            .eq("user_id", userId).eq("platform", activePlatform)
+            .gte("detected_on", from.toISOString().slice(0, 10))
+            .order("detected_on", { ascending: false });
+          if (args.verdict && args.verdict !== "all") q = q.eq("verdict", args.verdict);
+          if (args.chatter_name) q = q.ilike("chatter_name", `%${args.chatter_name}%`);
+          const { data, error } = await fetchAll(() => q);
+          if (error) return { ok: false, error: error.message };
+          const rows = data ?? [];
+          const stats = { total: rows.length, good: 0, bad: 0, neutral: 0, watch: 0, pending: 0 } as any;
+          for (const r of rows) stats[(r as any).verdict ?? "pending"] = (stats[(r as any).verdict ?? "pending"] ?? 0) + 1;
+          return { ok: true, stats, rows };
+        }
         if (name === "remember") {
+
           const content = String(args.content ?? "").trim();
           if (!content) return { ok: false, error: "content required" };
           const { data, error } = await supabase.from("ai_memories").insert({
