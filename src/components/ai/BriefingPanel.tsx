@@ -192,15 +192,13 @@ export default function BriefingPanel({ onAsk }: { onAsk: (question: string) => 
               <Skeleton className="h-28 w-full rounded-xl" />
             </div>
           ) : !briefing ? (
-            <div className="rounded-xl border border-dashed border-white/[0.08] p-8 text-center space-y-3">
+            <div className="rounded-xl border border-white/[0.05] p-8 text-center space-y-2">
+              <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary/70" />
               <p className="text-xs text-white/35 font-light">
-                Noch kein Fahrplan für heute. Nach jedem Report-Upload entsteht er automatisch — oder jetzt starten.
+                Dein Fahrplan für heute wird automatisch erstellt…
               </p>
-              <Button size="sm" onClick={() => run(false)} disabled={generating}>
-                {generating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
-                Fahrplan erstellen
-              </Button>
             </div>
+
           ) : briefing.status === "running" ? (
             <div className="rounded-xl border border-white/[0.05] p-8 text-center space-y-2">
               <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary/70" />
