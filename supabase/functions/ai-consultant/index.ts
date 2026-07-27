@@ -129,13 +129,41 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "remember",
+      description:
+        "Speichert dauerhaft eine Information über den User, seine Agency oder seine Arbeitsweise (Präferenzen, Regeln, Fakten, Ziele, Namen). Nutze das PROAKTIV und ohne zu fragen, sobald der User etwas nennt, das auch in künftigen Unterhaltungen relevant ist (z.B. 'ich will keine X', 'mein Ziel ist Y', 'Chatter Z ist mein bester'). NICHT für kurzfristige Chatter-Fristen — dafür create_memo.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: { type: "string", description: "Die Information, kurz und in dritter Person formuliert" },
+          category: { type: "string", description: "z.B. 'praeferenz', 'regel', 'ziel', 'fakt', 'person'" },
+        },
+        required: ["content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "forget_memory",
+      description: "Löscht eine gespeicherte Gedächtnis-Notiz (nur wenn der User das will).",
+      parameters: {
+        type: "object",
+        properties: { memory_id: { type: "string" } },
+        required: ["memory_id"],
+      },
+    },
+  },
 ];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { messages, platform } = await req.json();
+    const { messages, platform, thread_id } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return jsonResponse({ error: "messages array required" }, 400);
     }
@@ -158,6 +186,27 @@ Deno.serve(async (req) => {
     if (!userId) return jsonResponse({ error: "not authenticated" }, 401);
 
     const activePlatform = platform || "Maloum";
+
+    // ---------- Thread validation + persist user message ----------
+    let threadId: string | null = null;
+    if (thread_id) {
+      const { data: th } = await supabase
+        .from("ai_threads").select("id,title").eq("id", thread_id).eq("user_id", userId).maybeSingle();
+      if (!th) return jsonResponse({ error: "thread not found" }, 404);
+      threadId = th.id;
+      const lastUser = [...messages].reverse().find((m: any) => m.role === "user");
+      if (lastUser) {
+        const { error: insErr } = await supabase.from("ai_messages").insert({
+          thread_id: threadId, user_id: userId, role: "user", content: String(lastUser.content ?? ""),
+        });
+        if (insErr) console.error("[ai-consultant] persist user msg", insErr.message);
+        const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (!th.title || th.title === "Neue Unterhaltung") {
+          patch.title = String(lastUser.content ?? "").replace(/\s+/g, " ").trim().slice(0, 60) || "Neue Unterhaltung";
+        }
+        await supabase.from("ai_threads").update(patch).eq("id", threadId).eq("user_id", userId);
+      }
+    }
 
     // ---------- Build data context ----------
     const fourteenDaysAgo = new Date();
@@ -277,6 +326,14 @@ ${dueMemoBlock}
 MODELS (${modelsData.length}):
 ${modelsData.length ? modelsData.map((m: any) => `${m.model_name}:${m.follower_count}`).join(", ") : "keine"}`;
 
+    const { data: memoryRows } = await supabase
+      .from("ai_memories").select("id,content,category,created_at")
+      .eq("user_id", userId).order("created_at", { ascending: false }).limit(200);
+    const memoryBlock = (memoryRows ?? []).length
+      ? (memoryRows ?? []).map((m: any) => `- (${m.id}) [${m.category ?? "allgemein"}] ${m.content}`).join("\n")
+      : "noch nichts gemerkt";
+
+
     const systemPrompt = `Du bist Alex — der CEO-Berater dieser Agency. Sprich kurz, faktenbasiert, auf Deutsch, mit Markdown. Immer mit Zahlen (€) und konkreter Handlungsempfehlung.
 
 ARBEITSWEISE:
@@ -298,6 +355,14 @@ MEMO-SYSTEM:
 - "notier:", "merk dir", "gib X noch N Tage", "erinner mich", "Frist" → SOFORT create_memo.
 - "was war mit X" / "welche Fristen laufen" → read_memos.
 - Fällige Memos ungefragt erwähnen, wenn nach Tagesplan / Heute / Übersicht gefragt wird.
+
+LANGZEIT-GEDÄCHTNIS:
+- Nutze remember() proaktiv und ohne Nachfrage, wenn der User etwas dauerhaft Relevantes nennt (Präferenzen, Regeln, Ziele, Arbeitsweise, wichtige Personen). Ein kurzer Satz pro Eintrag, keine Dubletten zu dem was unten schon steht.
+- Erwähne das Merken höchstens in einem Halbsatz, keine große Ansage.
+
+GEMERKT (Langzeit-Gedächtnis):
+${memoryBlock}
+
 
 Tone: knapp, COO-Energy, kein Smalltalk, keine Generic-Phrasen. "Sarah-Frist heute fällig — Mass-DMs 1, 0. Cut oder verlängern?" statt "Schau mal vorbei wenn du Zeit hast".
 
@@ -422,11 +487,43 @@ ${dataContext}`;
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
           return { ok: true, chatters: summary, rows: (data ?? []).slice(0, 200) };
         }
+        if (name === "remember") {
+          const content = String(args.content ?? "").trim();
+          if (!content) return { ok: false, error: "content required" };
+          const { data, error } = await supabase.from("ai_memories").insert({
+            user_id: userId, content, category: args.category ?? null,
+            source_thread_id: threadId,
+          }).select("id,content,category").single();
+          return error ? { ok: false, error: error.message } : { ok: true, memory: data };
+        }
+        if (name === "forget_memory") {
+          const { error } = await supabase.from("ai_memories")
+            .delete().eq("id", args.memory_id).eq("user_id", userId);
+          return error ? { ok: false, error: error.message } : { ok: true };
+        }
       } catch (e: any) {
         return { ok: false, error: e.message };
       }
       return { ok: false, error: "unknown tool" };
     }
+
+    // Assistant answer persistence
+    const assistantText: string[] = [];
+    const assistantTools: any[] = [];
+    async function persistAssistant() {
+      if (!threadId) return;
+      const text = assistantText.join("");
+      if (!text && assistantTools.length === 0) return;
+      const { error } = await supabase.from("ai_messages").insert({
+        thread_id: threadId, user_id: userId, role: "assistant",
+        content: text, tool_calls: assistantTools,
+      });
+      if (error) console.error("[ai-consultant] persist assistant msg", error.message);
+      await supabase.from("ai_threads")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", threadId).eq("user_id", userId);
+    }
+
 
     // ---------- Streaming tool-loop ----------
     const convo: any[] = [
@@ -495,6 +592,7 @@ ${dataContext}`;
                 if (!delta) continue;
                 if (delta.content) {
                   content += delta.content;
+                  assistantText.push(delta.content);
                   send({ t: "delta", c: delta.content });
                 }
                 for (const tc of delta.tool_calls ?? []) {
@@ -509,6 +607,7 @@ ${dataContext}`;
             }
 
             if (toolAcc.size === 0) {
+              await persistAssistant();
               send({ t: "done" });
               controller.close();
               return;
@@ -529,18 +628,22 @@ ${dataContext}`;
               try { args = JSON.parse(c.args || "{}"); } catch { /* ignore */ }
               send({ t: "tool_start", name: c.name, args });
               const result = await runTool(c.name, args);
+              assistantTools.push({ name: c.name, args, result });
               send({ t: "tool", name: c.name, args, result });
               convo.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 60000) });
             }
           }
 
+          await persistAssistant();
           send({ t: "error", m: "Tool-Loop Limit erreicht." });
           controller.close();
         } catch (e: any) {
           console.error("[ai-consultant] stream error", e);
+          try { await persistAssistant(); } catch { /* ignore */ }
           try { send({ t: "error", m: e?.message ?? "Unbekannter Fehler" }); } catch { /* ignore */ }
           controller.close();
         }
+
       },
     });
 
