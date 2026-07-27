@@ -41,7 +41,9 @@ HARTE REGELN:
 - Kern-Metrik: Umsatz gemessen am POTENZIAL des Accounts/Models, nicht der absolute Betrag.
 - Mass-DMs sind ein zentraler Hebel: Ziel bis zu 6 pro Chatter pro Tag.
 - Keine erfundenen Namen. Nur Chatter/Accounts, die in den Daten vorkommen.
-- Impact-Schätzungen realistisch und in Euro pro Tag; lieber wenige große Hebel als viele Mini-Tasks. Trotzdem: liefere ALLE relevanten Fälle, kein künstliches Kürzen.
+- Impact-Schätzungen realistisch und in Euro pro Tag.
+- KEINE OBERGRENZE an Aufgaben. Es gibt kein "Top 10". Du lieferst JEDEN datenbelegten Hebel als eigene Aufgabe — für jeden Chatter und jeden Account, bei dem die Daten eine Umsatzchance zeigen. Wenn es 60 sind, dann liefere 60. Kürze niemals aus Platz-, Zeit- oder Übersichtsgründen.
+- Vollständigkeit vor Kürze: prüfe am Ende, ob du wirklich alle Chatter/Accounts aus den Daten mit Potenzial-Gap, Trendbruch, Mass-DM-Defizit oder Umsatzkonzentration abgedeckt hast.
 - Wording: nie "absäuft" — stattdessen "im Rückgang".
 - Emojis: kein Punkt direkt vor einem Emoji; Hautton-Emojis immer mit hellem Modifier 🏻.
 
@@ -170,9 +172,9 @@ Deno.serve(async (req) => {
         // --- Memos + memories ---
         const [{ data: memos }, { data: memories }, { data: goalRow }] = await Promise.all([
           admin.from("chatter_memos").select("chatter_name, text, topic, status")
-            .eq("user_id", userId).eq("platform", platform).eq("status", "open").limit(200),
+            .eq("user_id", userId).eq("platform", platform).eq("status", "open"),
           admin.from("ai_memories").select("content, category")
-            .eq("user_id", userId).limit(200),
+            .eq("user_id", userId),
           admin.from("revenue_goals").select("goal_eur")
             .eq("user_id", userId).eq("platform", platform).eq("month_key", monthKey).maybeSingle(),
         ]);
@@ -290,8 +292,8 @@ ${JSON.stringify(payload)}
 AUFGABE:
 1. "headline": ein Satz, wo wir heute stehen (mit Zahlen).
 2. "situation": 3–5 Sätze Lagebild inkl. Monatsziel-Pace und Lücke in Euro.
-3. "patterns": alle relevanten erkannten Muster (Trendbrüche, Mass-DM-Defizite, Accounts unter eigenem Bestwert, Peer-Ausreißer, Umsatzkonzentration). Jeweils mit Zahlen.
-4. "actions": der vollständige Fahrplan, sortiert nach impact_eur absteigend. Jede Aktion mit chatter_name (falls vorhanden), account, title, instruction (was genau heute tun, konkret formuliert), reasoning (Datenbeleg mit Zahlen), impact_eur, confidence (hoch|mittel|niedrig), bucket (quick_win|structural).
+3. "patterns": ALLE relevanten erkannten Muster (Trendbrüche, Mass-DM-Defizite, Accounts unter eigenem Bestwert, Peer-Ausreißer, Umsatzkonzentration). Jeweils mit Zahlen.
+4. "actions": der VOLLSTÄNDIGE Fahrplan, sortiert nach impact_eur absteigend — ohne jede Obergrenze, jeder datenbelegte Hebel bekommt eine eigene Aufgabe (kein "Top 10", keine Zusammenfassung mehrerer Chatter in einer Aufgabe). Jede Aktion mit chatter_name (falls vorhanden), account, title, instruction (was genau heute tun, konkret formuliert), reasoning (Datenbeleg mit Zahlen), impact_eur, confidence (hoch|mittel|niedrig), bucket (quick_win|structural).
 Nichts über Verzug/Anwesenheit als eigene Aufgabe.`;
 
         const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
