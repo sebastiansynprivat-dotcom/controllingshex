@@ -105,16 +105,24 @@ export default function AIConsultant() {
     navigate("/ai-consultant");
   }, [platform, navigate]);
 
-
-
+  const [badCount, setBadCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    countBadVerdicts(platform)
+      .then((c) => { if (!cancelled) setBadCount(c); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [platform]);
 
   const isRoadmap = threadId === "fahrplan";
+  const isReview = threadId === "rueckblick";
 
   // Load messages of the routed thread
   useEffect(() => {
-    if (!threadId || threadId === "fahrplan") {
+    if (!threadId || threadId === "fahrplan" || threadId === "rueckblick") {
       setMessages([]);
       return;
+
 
     }
     if (skipLoadRef.current === threadId) {
