@@ -420,6 +420,9 @@ export default function AIConsultant() {
                       {msg.content && (
                         <div className="prose prose-sm prose-invert max-w-none prose-headings:text-foreground/90 prose-headings:font-light prose-headings:tracking-tight prose-p:text-white/50 prose-p:font-light prose-p:leading-relaxed prose-li:text-white/50 prose-li:font-light prose-strong:text-foreground/80 prose-strong:font-medium">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          {loading && i === messages.length - 1 && (
+                            <span className="inline-block align-middle -mt-0.5 ml-0.5 h-3.5 w-[2px] rounded-full bg-primary/70 animate-pulse" />
+                          )}
                         </div>
                       )}
                     </div>
