@@ -1,51 +1,63 @@
 ## Ziel
 
-Nach jedem Report-Upload analysiert die AI automatisch die Daten, erkennt Muster und erstellt einen **Tages-Fahrplan** pro Workspace (Maloum, Brezzels, 4Based) — priorisiert nach €-Impact, mit Monatsziel-Tracking auf 300.000 €.
+Die AI soll deine Handlungen im Hintergrund mitbekommen — ohne dass du ihr etwas sagst — und danach bewerten: „Der Tausch war gut / war schlecht, schau nochmal rein."
 
-Ausgeschlossen: reine Zeiterfassung / Verzug (ist bereits im Heute-Tab gelöst).
+## Was bereits existiert (geprüft)
 
-## Was gebaut wird
+- `swap_decisions` — nur explizit im Wechsel-Mode bestätigte Swaps
+- `swap-tracking.ts` — misst Ø-Umsatz 3 Tage vor/nach Swap
+- `action_outcomes` — misst Erfolg von im Heute-Tab abgehakten Aufgaben (24/48/72h)
 
-### 1. Neue Tabellen
-- `daily_briefings` — ein Briefing pro Nutzer/Plattform/Tag: Zusammenfassung, erkannte Muster, geschätzter €-Impact gesamt, Report-Bezug, Status.
-- `briefing_actions` — die einzelnen Fahrplan-Punkte: Chatter/Model, Aktionstyp, Begründung aus den Daten, geschätzter €-Impact, konkrete Handlungsanweisung, Rang, Status (offen/erledigt/verworfen).
-- `revenue_goals` — Monatsziel pro Plattform (Startwert 300.000 € gesamt, aufteilbar).
+Lücke: Handlungen, die du **außerhalb der App** machst (Account wegnehmen, Chatter tauschen, Chatter rausnehmen, neuen Chatter draufsetzen) werden nirgends erfasst. Genau die sollen jetzt automatisch erkannt werden.
 
-### 2. Edge Function `generate-daily-briefing`
-Wird nach erfolgreichem Report-Upload automatisch gestartet (und manuell per Button neu auslösbar).
+## Konzept: Change-Detection aus Reports
 
-Sie zieht ohne Zeilenlimit zusammen:
-- aktuellen Report + Historie der letzten 30 Tage (Umsatz-Trends je Chatter & Account)
-- Live-Daten (offene Chats, Mass-DMs, Umsatz heute)
-- Model-/Account-Potenzial (welcher Account lief mal deutlich besser)
-- Peer-Vergleich innerhalb der Plattform
-- bestehende Memos, Labels und AI-Memories
-- Monatsziel + bisher erreichter Monatsumsatz → nötiger Tagesschnitt
+Jeder Upload liefert die aktuelle Chatter×Account-Zuordnung. Vergleich mit dem vorherigen Report ergibt automatisch alle Handlungen:
 
-Daraus generiert das Modell (`google/gemini-3.6-flash`) strukturiert:
-- **Lagebild**: wo steht der Monat vs. 300k-Ziel, Pace, Lücke in €
-- **Muster**: z. B. „Umsatz kippt bei X seit 5 Tagen", „Mass-DM-Quote unter 6/Tag bei N Chattern", „Account Y unterperformt vs. eigener Bestwert"
-- **Fahrplan**: sortierte Aktionsliste mit €-Impact-Schätzung, Begründung und konkreter Anweisung
-- **Quick Wins vs. strukturelle Hebel** getrennt
+```text
+Report gestern          Report heute            → erkanntes Event
+Lara → xbabymarie       Lara → (weg)            → account_removed
+                        Maurice → xbabymarie    → account_reassigned (Paar = swap)
+Heiko → acc_a           (Heiko fehlt komplett)  → chatter_offboarded
+(neu)                   Nina → acc_b            → chatter_onboarded
+```
 
-Zeiterfassungs-/Verzugs-Themen werden per Prompt explizit ausgeschlossen.
+### 1. Neue Tabelle `action_events`
+`user_id, platform, event_type, chatter_name, counterpart_chatter, account, prev_account, detected_at, report_id, baseline_json, evaluated_at, verdict, verdict_reason, impact_eur, status`
 
-### 3. Neue Ansicht „Fahrplan"
-Eigener Bereich (Sidebar-Eintrag, plattform-gefiltert):
-- Kopf: Monatsziel-Ring (erreicht / Ziel / benötigter Tagesschnitt / Prognose)
-- „Heutiger Fahrplan": Aktionskarten nach €-Impact absteigend, abhakbar, mit Verwerfen-Option
-- Muster-Sektion mit den erkannten Trends
-- „Neu generieren"-Button und Zugriff auf frühere Briefings
-- Jede Aktion kann per Klick als Thread im AI-Chat vertieft werden
+Events werden pro Report-Upload einmal geschrieben (idempotent über report_id + event-key).
 
-### 4. Upload-Integration
-Am Ende von `runAnalysis` in `src/pages/Upload.tsx`: Briefing-Generierung anstoßen, Fortschritt im Status-Log anzeigen, danach Hinweis mit Direktlink zum Fahrplan.
+### 2. Erkennung — Edge Function `detect-action-events`
+Läuft automatisch direkt nach dem Report-Upload (gleicher Trigger wie der Fahrplan). Vergleicht letzten vs. vorletzten Report, erzeugt Events, und snapshottet die Baseline: Ø Umsatz/Tag der letzten 7 Tage pro betroffenem Chatter und pro betroffenem Account, plus Verzug/Unread aus `chatter_history_live`.
 
-### 5. Monatsziel-Feedback
-Erledigte Aktionen werden mit tatsächlicher Umsatzentwicklung der Folgetage abgeglichen (analog zur bestehenden `action_outcomes`-Logik), damit Impact-Schätzungen über die Zeit realistischer werden.
+### 3. Bewertung — Edge Function `evaluate-action-events`
+Läuft täglich (Cron) plus nach jedem Upload. Für Events, die 3 bzw. 7 Tage alt sind:
+
+- Account-Performance vorher vs. nachher (Account-zentriert, nicht nur Chatter-zentriert — ein Account, der nach dem Wechsel einbricht, ist das eigentliche Signal)
+- Chatter-Performance vorher vs. nachher, beide Seiten eines Tausches
+- Tier-Kontext (`account-tiers.ts`): kleiner Chatter auf großem Account = Warnung
+- Verzug/Unread nach der Handlung: Account liegt jetzt brach → harter Negativ-Verdict
+
+Verdict: `good` / `neutral` / `bad` / `watch` mit Klartext-Begründung und €-Impact, formuliert von Lovable AI (`google/gemini-3.6-flash`) aus den Zahlen — kein reines Regelwerk, damit die Empfehlung auch sagt, was stattdessen zu tun ist.
+
+### 4. Wo du das siehst
+
+- **Neuer angepinnter Eintrag „Rückblick" in der AI-Sidebar**, direkt unter „Fahrplan · heute". Zeigt offene Verdicts als Karten: was du getan hast, was daraus wurde, Empfehlung, plus „Rückgängig prüfen" / „Passt so" / „Im Chat besprechen".
+- **Badge mit Anzahl negativer Verdicts** am Rückblick-Eintrag, damit du es ohne Klick siehst.
+- **Fahrplan**: negative Verdicts fließen als eigene Actions mit €-Impact in die Tagesliste ein, nach Impact einsortiert wie alles andere.
+- **AI-Chat**: neues Tool `get_action_history`, damit du fragen kannst „was habe ich diese Woche getauscht und wie lief es".
+
+### 5. Lernen über Zeit
+
+Verdicts werden aggregiert: „Tausch von Top-Account auf Chatter mit <X Tagen Aktivität ging in 4 von 5 Fällen schief." Dieses Muster geht als Kontext in Fahrplan-Generierung und Swap-Vorschläge, damit die AI dieselbe schlechte Empfehlung nicht wiederholt.
 
 ## Technische Details
-- Alle Abfragen über `fetchAllPaged` — keine 1000-Zeilen-Truncation, keine künstlichen Caps.
-- Strikte Isolation nach `user_id` + `platform`; RLS-Policies und GRANTs für jede neue Tabelle.
-- Strukturierte Ausgabe über Tool-Calling, ohne Längenbegrenzungen im Schema.
-- Briefing läuft asynchron; die UI pollt bis Status `ready`, damit der Upload nicht blockiert.
+
+- Tabelle mit RLS auf `auth.uid()`, GRANTs für `authenticated` + `service_role`
+- Erkennung liest `analysis_reports.result_json` der letzten beiden Reports pro Platform, plus `chatter_history` für Baselines, alles über `fetchAllPaged` — keine Limits
+- Alles platform-isoliert, konsistent mit der bestehenden Workspace-Trennung der AI
+- Neue Dateien: `src/lib/action-events.ts`, `src/components/ai/ActionReviewPanel.tsx`; Erweiterungen in `AIConsultant.tsx`, `Upload.tsx`, `generate-daily-briefing`, `ai-consultant`, `mcp`
+
+## Offen für später (nicht in diesem Schritt)
+
+Push-Benachrichtigung bei hartem Negativ-Verdict — sinnvoll, aber erst wenn die Verdicts sich in der Praxis als treffsicher erweisen.
