@@ -1,43 +1,51 @@
 ## Ziel
-Vor dem wöchentlichen Report-Generieren nimmst du **einmal** ein Sprach-Memo auf. Es erscheint als **Intro-Karte** in jedem Report, der in genau diesem Generierungslauf entsteht. Danach wird es automatisch als "verbraucht" markiert und rutscht **nicht** in später erzeugte Reports.
 
-## User Flow
-1. Auf `/coaching` oben neuer **Wochen-Memo-Recorder** (nutzt bestehende `CoachingMemoBar`-Optik, Owner-Only).
-2. Du nimmst ein Memo auf → Status: **"Bereit für nächsten Report-Batch"**. Playback + Löschen/Neu aufnehmen möglich.
-3. Du klickst wie gewohnt "Reports generieren" → Memo wird an jeden neu erzeugten Report als Intro-Karte gehängt.
-4. Nach dem Batch: Memo bekommt `consumed_at`. Recorder zeigt "Verbraucht am …" mit Button "Neues Memo aufnehmen".
-5. Nimmst du **kein** neues Memo auf und generierst später einen einzelnen Report → **kein Intro-Memo**.
+Nach jedem Report-Upload analysiert die AI automatisch die Daten, erkennt Muster und erstellt einen **Tages-Fahrplan** pro Workspace (Maloum, Brezzels, 4Based) — priorisiert nach €-Impact, mit Monatsziel-Tracking auf 300.000 €.
 
-## Chatter-Sicht
-- Wenn ein Intro-Memo existiert, ist die erste Karte des Flows eine neue **Intro-Karte** ("Nachricht vom Boss vor dem Coaching") mit Play-Button. Ohne Memo bleibt der Flow unverändert.
+Ausgeschlossen: reine Zeiterfassung / Verzug (ist bereits im Heute-Tab gelöst).
 
-## Technisches
+## Was gebaut wird
 
-### DB — neue Tabelle `coaching_pending_memos`
-Genau ein aktiver Eintrag pro User (unique partial index auf `user_id WHERE consumed_at IS NULL`).
-Felder (fachlich): `audio_path`, `duration_ms`, `consumed_at`, `consumed_report_ids uuid[]`. RLS: Owner-only. Grants auth+service_role.
+### 1. Neue Tabellen
+- `daily_briefings` — ein Briefing pro Nutzer/Plattform/Tag: Zusammenfassung, erkannte Muster, geschätzter €-Impact gesamt, Report-Bezug, Status.
+- `briefing_actions` — die einzelnen Fahrplan-Punkte: Chatter/Model, Aktionstyp, Begründung aus den Daten, geschätzter €-Impact, konkrete Handlungsanweisung, Rang, Status (offen/erledigt/verworfen).
+- `revenue_goals` — Monatsziel pro Plattform (Startwert 300.000 € gesamt, aufteilbar).
 
-### Storage
-- Bucket `coaching-memos` (existiert). Upload unter `pending/{user_id}/{uuid}.webm`.
-- Beim Attach an Reports wird **derselbe** `audio_path` in `coaching_memos` mit `card_key = 'weekly_intro'` referenziert (mehrere Rows teilen sich die Datei — kein Kopieren, kein Delete-on-consume).
+### 2. Edge Function `generate-daily-briefing`
+Wird nach erfolgreichem Report-Upload automatisch gestartet (und manuell per Button neu auslösbar).
 
-### Frontend
-- `src/lib/coaching.ts`: Neue Helpers `getPendingWeeklyMemo`, `uploadPendingWeeklyMemo`, `deletePendingWeeklyMemo`, `consumePendingWeeklyMemo(reportIds)`.
-- `src/components/WeeklyIntroMemoCard.tsx` (neu): Recorder-Karte oben auf `/coaching`. Zeigt Status "Bereit" / "Verbraucht am … für N Reports".
-- `src/pages/Coaching.tsx`: Rendert Karte oben. Beim Batch-Generieren:
-  1. Vor dem Lauf `pending_memo_id` einmal auslesen.
-  2. Nach jedem erfolgreich generierten Report → `INSERT INTO coaching_memos (coaching_id, card_key='weekly_intro', audio_path, duration_ms)`.
-  3. Nach Batch-Ende: `consumePendingWeeklyMemo(alleReportIds)` → setzt `consumed_at` + speichert IDs.
-- `src/pages/CoachingView.tsx`: Beim Aufbau des Kartenstacks prüfen, ob ein `coaching_memos`-Row mit `card_key='weekly_intro'` existiert. Wenn ja, als erste Karte einen neuen `kind: 'weekly_intro'` einfügen (großer Play-Button, Titel "Bevor du loslegst — kurz von mir"). Reuse `CoachingMemoBar` nur für Owner-Edit-Modus wird hier **nicht** gebraucht (Edit nur auf `/coaching`).
+Sie zieht ohne Zeilenlimit zusammen:
+- aktuellen Report + Historie der letzten 30 Tage (Umsatz-Trends je Chatter & Account)
+- Live-Daten (offene Chats, Mass-DMs, Umsatz heute)
+- Model-/Account-Potenzial (welcher Account lief mal deutlich besser)
+- Peer-Vergleich innerhalb der Plattform
+- bestehende Memos, Labels und AI-Memories
+- Monatsziel + bisher erreichter Monatsumsatz → nötiger Tagesschnitt
 
-### Keine Edge-Function-Änderungen
-`generate-coaching-analysis` bleibt unverändert. Attach + Consume laufen client-seitig — atomar genug, weil Batch-Loop im Frontend ohnehin sequenziell die Report-IDs sammelt.
+Daraus generiert das Modell (`google/gemini-3.6-flash`) strukturiert:
+- **Lagebild**: wo steht der Monat vs. 300k-Ziel, Pace, Lücke in €
+- **Muster**: z. B. „Umsatz kippt bei X seit 5 Tagen", „Mass-DM-Quote unter 6/Tag bei N Chattern", „Account Y unterperformt vs. eigener Bestwert"
+- **Fahrplan**: sortierte Aktionsliste mit €-Impact-Schätzung, Begründung und konkreter Anweisung
+- **Quick Wins vs. strukturelle Hebel** getrennt
 
-## Edge Cases
-- Neues Memo aufnehmen bei bereits vorhandenem pending → alte pending-Row wird gelöscht (inkl. Storage-File), neue erstellt.
-- Generierung schlägt für einen Chatter fehl → Memo wird nur an erfolgreiche Reports gehängt.
-- Kein pending Memo vorhanden → Flow unverändert, keine Intro-Karte.
-- Manuelles Regenerieren eines einzelnen alten Reports zieht **kein** verbrauchtes Memo.
+Zeiterfassungs-/Verzugs-Themen werden per Prompt explizit ausgeschlossen.
 
-## Out of Scope
-- Text-Memos, AI-generierte Memos, Zeitfenster-Ablauf.
+### 3. Neue Ansicht „Fahrplan"
+Eigener Bereich (Sidebar-Eintrag, plattform-gefiltert):
+- Kopf: Monatsziel-Ring (erreicht / Ziel / benötigter Tagesschnitt / Prognose)
+- „Heutiger Fahrplan": Aktionskarten nach €-Impact absteigend, abhakbar, mit Verwerfen-Option
+- Muster-Sektion mit den erkannten Trends
+- „Neu generieren"-Button und Zugriff auf frühere Briefings
+- Jede Aktion kann per Klick als Thread im AI-Chat vertieft werden
+
+### 4. Upload-Integration
+Am Ende von `runAnalysis` in `src/pages/Upload.tsx`: Briefing-Generierung anstoßen, Fortschritt im Status-Log anzeigen, danach Hinweis mit Direktlink zum Fahrplan.
+
+### 5. Monatsziel-Feedback
+Erledigte Aktionen werden mit tatsächlicher Umsatzentwicklung der Folgetage abgeglichen (analog zur bestehenden `action_outcomes`-Logik), damit Impact-Schätzungen über die Zeit realistischer werden.
+
+## Technische Details
+- Alle Abfragen über `fetchAllPaged` — keine 1000-Zeilen-Truncation, keine künstlichen Caps.
+- Strikte Isolation nach `user_id` + `platform`; RLS-Policies und GRANTs für jede neue Tabelle.
+- Strukturierte Ausgabe über Tool-Calling, ohne Längenbegrenzungen im Schema.
+- Briefing läuft asynchron; die UI pollt bis Status `ready`, damit der Upload nicht blockiert.
