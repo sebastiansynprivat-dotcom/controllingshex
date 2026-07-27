@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_events: {
+        Row: {
+          account: string | null
+          baseline_json: Json
+          chatter_name: string | null
+          counterpart_chatter: string | null
+          created_at: string
+          detected_at: string
+          detected_on: string
+          evaluated_at: string | null
+          event_key: string
+          event_type: string
+          id: string
+          impact_eur: number
+          outcome_json: Json
+          platform: string
+          prev_account: string | null
+          recommendation: string | null
+          report_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          verdict: string | null
+          verdict_reason: string | null
+        }
+        Insert: {
+          account?: string | null
+          baseline_json?: Json
+          chatter_name?: string | null
+          counterpart_chatter?: string | null
+          created_at?: string
+          detected_at?: string
+          detected_on?: string
+          evaluated_at?: string | null
+          event_key: string
+          event_type: string
+          id?: string
+          impact_eur?: number
+          outcome_json?: Json
+          platform: string
+          prev_account?: string | null
+          recommendation?: string | null
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          verdict?: string | null
+          verdict_reason?: string | null
+        }
+        Update: {
+          account?: string | null
+          baseline_json?: Json
+          chatter_name?: string | null
+          counterpart_chatter?: string | null
+          created_at?: string
+          detected_at?: string
+          detected_on?: string
+          evaluated_at?: string | null
+          event_key?: string
+          event_type?: string
+          id?: string
+          impact_eur?: number
+          outcome_json?: Json
+          platform?: string
+          prev_account?: string | null
+          recommendation?: string | null
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verdict?: string | null
+          verdict_reason?: string | null
+        }
+        Relationships: []
+      }
       action_outcomes: {
         Row: {
           action_key: string | null
