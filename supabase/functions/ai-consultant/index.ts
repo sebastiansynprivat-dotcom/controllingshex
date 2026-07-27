@@ -129,6 +129,34 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "remember",
+      description:
+        "Speichert dauerhaft eine Information über den User, seine Agency oder seine Arbeitsweise (Präferenzen, Regeln, Fakten, Ziele, Namen). Nutze das PROAKTIV und ohne zu fragen, sobald der User etwas nennt, das auch in künftigen Unterhaltungen relevant ist (z.B. 'ich will keine X', 'mein Ziel ist Y', 'Chatter Z ist mein bester'). NICHT für kurzfristige Chatter-Fristen — dafür create_memo.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: { type: "string", description: "Die Information, kurz und in dritter Person formuliert" },
+          category: { type: "string", description: "z.B. 'praeferenz', 'regel', 'ziel', 'fakt', 'person'" },
+        },
+        required: ["content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "forget_memory",
+      description: "Löscht eine gespeicherte Gedächtnis-Notiz (nur wenn der User das will).",
+      parameters: {
+        type: "object",
+        properties: { memory_id: { type: "string" } },
+        required: ["memory_id"],
+      },
+    },
+  },
 ];
 
 Deno.serve(async (req) => {
