@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
 import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
+import BriefingPanel from "@/components/ai/BriefingPanel";
 
 interface ToolCall {
   name: string;

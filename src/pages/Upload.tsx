@@ -933,7 +933,7 @@ export default function UploadPage() {
       try {
         addStatus("🧭 AI erstellt den Tages-Fahrplan…");
         await generateBriefing(platform, true);
-        addStatus("✅ Fahrplan wird im Hintergrund gebaut — im Tab „Fahrplan“ ansehen.");
+        addStatus("✅ Fahrplan wird im Hintergrund gebaut — im AI-Chat ansehen.");
       } catch (briefErr: any) {
         console.error("Briefing error:", briefErr);
         addStatus("⚠️ Fahrplan konnte nicht gestartet werden.");
