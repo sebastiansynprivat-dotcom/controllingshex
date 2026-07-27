@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { messages, platform } = await req.json();
+    const { messages, platform, thread_id } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return jsonResponse({ error: "messages array required" }, 400);
     }
