@@ -592,6 +592,7 @@ ${dataContext}`;
                 if (!delta) continue;
                 if (delta.content) {
                   content += delta.content;
+                  assistantText.push(delta.content);
                   send({ t: "delta", c: delta.content });
                 }
                 for (const tc of delta.tool_calls ?? []) {
@@ -606,6 +607,7 @@ ${dataContext}`;
             }
 
             if (toolAcc.size === 0) {
+              await persistAssistant();
               send({ t: "done" });
               controller.close();
               return;
@@ -626,18 +628,22 @@ ${dataContext}`;
               try { args = JSON.parse(c.args || "{}"); } catch { /* ignore */ }
               send({ t: "tool_start", name: c.name, args });
               const result = await runTool(c.name, args);
+              assistantTools.push({ name: c.name, args, result });
               send({ t: "tool", name: c.name, args, result });
               convo.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 60000) });
             }
           }
 
+          await persistAssistant();
           send({ t: "error", m: "Tool-Loop Limit erreicht." });
           controller.close();
         } catch (e: any) {
           console.error("[ai-consultant] stream error", e);
+          try { await persistAssistant(); } catch { /* ignore */ }
           try { send({ t: "error", m: e?.message ?? "Unbekannter Fehler" }); } catch { /* ignore */ }
           controller.close();
         }
+
       },
     });
 
