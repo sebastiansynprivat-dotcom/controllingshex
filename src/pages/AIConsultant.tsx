@@ -554,6 +554,9 @@ export default function AIConsultant() {
           </div>
         </div>
       </div>
+      )}
+
+
 
       {/* Memory panel */}
       {memoriesOpen && (
