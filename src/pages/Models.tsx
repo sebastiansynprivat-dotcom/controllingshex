@@ -36,7 +36,10 @@ interface Model {
   profile_url?: string | null;
   profile_image_url?: string | null;
   bot_dms?: string | null;
+  style_emoji?: string | null;
 }
+
+const STYLE_EMOJIS = ["🏅", "👌🏼", "🤞🏼"] as const;
 
 type ArchetypeFilter = {
   age?: string;
