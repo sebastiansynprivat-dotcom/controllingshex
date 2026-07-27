@@ -1716,6 +1716,7 @@ export type Database = {
           platform: string
           profile_image_url: string | null
           profile_url: string | null
+          style_emoji: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1730,6 +1731,7 @@ export type Database = {
           platform?: string
           profile_image_url?: string | null
           profile_url?: string | null
+          style_emoji?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1744,6 +1746,7 @@ export type Database = {
           platform?: string
           profile_image_url?: string | null
           profile_url?: string | null
+          style_emoji?: string | null
           updated_at?: string
           user_id?: string | null
         }
