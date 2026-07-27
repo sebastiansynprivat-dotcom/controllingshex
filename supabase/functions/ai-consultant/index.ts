@@ -184,6 +184,23 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "get_action_history",
+      description:
+        "Rückblick auf die Besetzungs-Entscheidungen des Users (action_events): Account getauscht/weggenommen/dazugegeben, Chatter rein/raus — inklusive automatischer Bewertung (verdict good/neutral/bad/watch), Umsatz vorher/nachher und Empfehlung. Nutze das bei 'was habe ich getauscht', 'war der Tausch gut', 'welche Entscheidung lief schlecht' und bevor du einen neuen Tausch empfiehlst.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "Zeitfenster in Tagen, Default 30" },
+          verdict: { type: "string", enum: ["good", "neutral", "bad", "watch", "all"], description: "Default: all" },
+          chatter_name: { type: "string", description: "Optionaler Filter (Teilstring)" },
+        },
+      },
+    },
+  },
+  {
+
+    type: "function",
+    function: {
       name: "remember",
       description:
         "Speichert dauerhaft eine Information über den User, seine Agency oder seine Arbeitsweise (Präferenzen, Regeln, Fakten, Ziele, Namen). Nutze das PROAKTIV und ohne zu fragen, sobald der User etwas nennt, das auch in künftigen Unterhaltungen relevant ist (z.B. 'ich will keine X', 'mein Ziel ist Y', 'Chatter Z ist mein bester'). NICHT für kurzfristige Chatter-Fristen — dafür create_memo.",
