@@ -33,7 +33,6 @@ const tools = [
           chatter_name: { type: "string", description: "Optionaler Chatter-Filter (case-insensitive)" },
           status: { type: "string", enum: ["open", "resolved", "all"], description: "Default: open" },
           due_only: { type: "boolean", description: "Nur Memos mit follow_up_at <= jetzt (überfällig oder heute fällig)" },
-          limit: { type: "number", description: "Default: 30" },
         },
       },
     },
@@ -92,7 +91,6 @@ const tools = [
           chatter_name: { type: "string", description: "Optionaler Chatter-Filter (Teilstring, case-insensitive)" },
           min_delay_days: { type: "number", description: "Nur Einträge mit ältestem Chat >= N Tage" },
           sort: { type: "string", enum: ["delay", "unread", "revenue"], description: "Default: delay" },
-          limit: { type: "number", description: "Default: 40, max 150" },
         },
       },
     },
@@ -249,7 +247,7 @@ Deno.serve(async (req) => {
       supabase.from("chatter_history_live")
         .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,updated_at")
         .ilike("platform", activePlatform)
-        .order("oldest_chat", { ascending: false, nullsFirst: false }).limit(60),
+        .order("oldest_chat", { ascending: false, nullsFirst: false }).limit(1000),
     ]);
 
     const notesData = notesRes.data ?? [];
@@ -314,7 +312,7 @@ CHATTER:
 ${header}
 ${tableLines.join("\n")}
 
-ECHTZEIT (Top 60 nach Verzug):
+ECHTZEIT (alle Chatter, sortiert nach Verzug):
 ${liveBlock}
 
 NOTIZEN (${notesData.length}):
@@ -340,6 +338,11 @@ ARBEITSWEISE:
 - Du hast Tools für Echtzeit-Daten (get_live_status), Chatter-Verläufe (get_chatter_history), Account-Chronologien (get_account_history) und Memos. Nutze sie aktiv statt zu raten. Lieber 2–3 Tool-Calls als eine vage Antwort.
 - Bei Fragen zu Verzug / offenen Chats IMMER get_live_status — Echtzeit schlägt Report-Daten.
 - Verzug zählt erst ab 3 Tagen ältester unbeantworteter Chat.
+
+VOLLSTÄNDIGKEIT (wichtig):
+- Die Tools liefern IMMER alle Treffer, es gibt kein Limit. Wenn ich nach "welche Accounts / Chatter soll ich tauschen", "wer ist im Verzug", "wer baut ab" o.ä. frage, liste ALLE zutreffenden Fälle auf — nicht nur 3 Beispiele.
+- Sortiert nach Impact (größtes Potenzial/Verlust zuerst), kompakt als Liste oder Tabelle, eine Zeile pro Fall.
+- Nenne am Ende die Gesamtzahl ("28 Fälle gesamt"). Kürze nur, wenn ich ausdrücklich "Top 3" o.ä. sage.
 
 PRIORISIERUNG (wenn ich nach "wen soll ich mir vornehmen" o.ä. frage), in dieser Reihenfolge:
 1. Historisches Uplift-Potenzial (bestes €/Tag früher vs. heute)
@@ -368,21 +371,36 @@ Tone: knapp, COO-Energy, kein Smalltalk, keine Generic-Phrasen. "Sarah-Frist heu
 
 ${dataContext}`;
 
+    // Holt ALLE Zeilen (umgeht das 1000-Zeilen-Limit von PostgREST)
+    async function fetchAll(build: () => any, hardCap = 20000): Promise<{ data: any[]; error: any }> {
+      const page = 1000;
+      let out: any[] = [];
+      for (let from = 0; from < hardCap; from += page) {
+        const { data, error } = await build().range(from, from + page - 1);
+        if (error) return { data: out, error };
+        out = out.concat(data ?? []);
+        if (!data || data.length < page) break;
+      }
+      return { data: out, error: null };
+    }
+
     // ---------- Tool executor ----------
     async function runTool(name: string, args: any): Promise<any> {
+
       try {
         if (name === "read_memos") {
-          let q = supabase.from("chatter_memos")
-            .select("id,chatter_name,text,topic,follow_up_at,status,created_at,resolved_at")
-            .eq("user_id", userId).eq("platform", activePlatform);
-          if (args.chatter_name) q = q.ilike("chatter_name", args.chatter_name);
-          if (args.status && args.status !== "all") q = q.eq("status", args.status);
-          else if (!args.status) q = q.eq("status", "open");
-          if (args.due_only) q = q.lte("follow_up_at", new Date().toISOString());
-          const { data, error } = await q
-            .order("created_at", { ascending: false })
-            .limit(Math.min(args.limit || 30, 100));
-          return error ? { ok: false, error: error.message } : { ok: true, memos: data };
+          const build = () => {
+            let q = supabase.from("chatter_memos")
+              .select("id,chatter_name,text,topic,follow_up_at,status,created_at,resolved_at")
+              .eq("user_id", userId).eq("platform", activePlatform);
+            if (args.chatter_name) q = q.ilike("chatter_name", args.chatter_name);
+            if (args.status && args.status !== "all") q = q.eq("status", args.status);
+            else if (!args.status) q = q.eq("status", "open");
+            if (args.due_only) q = q.lte("follow_up_at", new Date().toISOString());
+            return q.order("created_at", { ascending: false });
+          };
+          const { data, error } = await fetchAll(build);
+          return error ? { ok: false, error: error.message } : { ok: true, count: data.length, memos: data };
         }
         if (name === "create_memo") {
           let followUp: string | null = null;
@@ -411,15 +429,16 @@ ${dataContext}`;
           return error ? { ok: false, error: error.message } : { ok: true };
         }
         if (name === "get_live_status") {
-          let q = supabase.from("chatter_history_live")
-            .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
-            .ilike("platform", activePlatform);
-          if (args.chatter_name) q = q.ilike("chatter_name", `%${args.chatter_name}%`);
-          if (typeof args.min_delay_days === "number") q = q.gte("oldest_chat", args.min_delay_days);
           const sortCol = args.sort === "unread" ? "unread_chats" : args.sort === "revenue" ? "revenue" : "oldest_chat";
-          const { data, error } = await q
-            .order(sortCol, { ascending: false, nullsFirst: false })
-            .limit(Math.min(args.limit || 40, 150));
+          const build = () => {
+            let q = supabase.from("chatter_history_live")
+              .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
+              .ilike("platform", activePlatform);
+            if (args.chatter_name) q = q.ilike("chatter_name", `%${args.chatter_name}%`);
+            if (typeof args.min_delay_days === "number") q = q.gte("oldest_chat", args.min_delay_days);
+            return q.order(sortCol, { ascending: false, nullsFirst: false });
+          };
+          const { data, error } = await fetchAll(build);
           if (error) return { ok: false, error: error.message };
           const rows = (data ?? []).map((r: any) => {
             const details = r.stats_details && typeof r.stats_details === "object" ? r.stats_details : null;
@@ -447,29 +466,27 @@ ${dataContext}`;
           return { ok: true, count: rows.length, rows };
         }
         if (name === "get_chatter_history") {
-          const days = Math.min(args.days || 30, 180);
+          const days = Math.min(args.days || 30, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
-          const { data, error } = await supabase.from("chatter_history")
+          const { data, error } = await fetchAll(() => supabase.from("chatter_history")
             .select("analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category")
             .eq("user_id", userId).eq("platform", activePlatform)
             .ilike("chatter_name", `%${args.chatter_name}%`)
             .gte("analysis_date", from.toISOString().slice(0, 10))
-            .order("analysis_date", { ascending: false })
-            .limit(600);
-          return error ? { ok: false, error: error.message } : { ok: true, count: data?.length ?? 0, rows: data };
+            .order("analysis_date", { ascending: false }));
+          return error ? { ok: false, error: error.message } : { ok: true, count: data.length, rows: data };
         }
         if (name === "get_account_history") {
           const days = Math.min(args.days || 90, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
-          const { data, error } = await supabase.from("chatter_history")
+          const { data, error } = await fetchAll(() => supabase.from("chatter_history")
             .select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days")
             .eq("user_id", userId).eq("platform", activePlatform)
             .ilike("account", `%${args.account}%`)
             .gte("analysis_date", from.toISOString().slice(0, 10))
-            .order("analysis_date", { ascending: false })
-            .limit(1000);
+            .order("analysis_date", { ascending: false }));
           if (error) return { ok: false, error: error.message };
           const perChatter = new Map<string, { days: number; total: number; best: number; first: string; last: string }>();
           for (const r of data ?? []) {
@@ -485,7 +502,7 @@ ${dataContext}`;
             chatter, days: e.days, total: round(e.total), avg_per_day: round(e.total / e.days, 1),
             best_day: round(e.best), from: e.first, to: e.last,
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
-          return { ok: true, chatters: summary, rows: (data ?? []).slice(0, 200) };
+          return { ok: true, count: data.length, chatters: summary, rows: data };
         }
         if (name === "remember") {
           const content = String(args.content ?? "").trim();
