@@ -4,12 +4,17 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Mail, Lock, Loader2 } from "lucide-react";
 
 export default function Auth() {
   const { session, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get("next") ?? "";
+  // Only same-origin relative paths are accepted as a post-login target.
+  const nextPath = /^\/(?!\/)/.test(rawNext) ? rawNext : "/";
+  const returnUrl = `${window.location.origin}${nextPath}`;
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +29,7 @@ export default function Auth() {
     );
   }
 
-  if (session) return <Navigate to="/" replace />;
+  if (session) return <Navigate to={nextPath} replace />;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +43,7 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: returnUrl },
         });
         if (error) throw error;
         toast.success("Bestätigungs-E-Mail gesendet! Bitte prüfe dein Postfach.");
@@ -54,7 +59,7 @@ export default function Auth() {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: returnUrl,
       });
       if (result.error) {
         toast.error("Google Login fehlgeschlagen");
