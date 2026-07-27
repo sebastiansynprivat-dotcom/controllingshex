@@ -70,7 +70,7 @@ const AppRoutes = () => (
               <Route path="/upload" element={<UploadPage />} />
 
               <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/fahrplan" element={<Navigate to="/ai-consultant" replace />} /></ErrorBoundary>} />
+              <Route path="/fahrplan" element={<Navigate to="/ai-consultant" replace />} />
               <Route path="/ai-consultant" element={<AIConsultant />} />
               <Route path="/ai-consultant/:threadId" element={<AIConsultant />} />
               <Route path="/notes" element={<Notes />} />
