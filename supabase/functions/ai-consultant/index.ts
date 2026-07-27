@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
       supabase.from("chatter_history_live")
         .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,updated_at")
         .ilike("platform", activePlatform)
-        .order("oldest_chat", { ascending: false, nullsFirst: false }).limit(60),
+        .order("oldest_chat", { ascending: false, nullsFirst: false }).limit(1000),
     ]);
 
     const notesData = notesRes.data ?? [];
@@ -314,7 +314,7 @@ CHATTER:
 ${header}
 ${tableLines.join("\n")}
 
-ECHTZEIT (Top 60 nach Verzug):
+ECHTZEIT (alle Chatter, sortiert nach Verzug):
 ${liveBlock}
 
 NOTIZEN (${notesData.length}):
