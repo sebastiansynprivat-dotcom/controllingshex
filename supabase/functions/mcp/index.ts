@@ -126,7 +126,7 @@ var get_account_history_default = defineTool3({
     const activeNames = await loadActiveChatterNames(supabase, platform);
     const { data, error } = await supabase.from("chatter_history").select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days").eq("platform", platform).ilike("account", `%${account}%`).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).limit(1500);
     if (error) return errorResult(error.message);
-    const rows = activeNames ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_"))) : data ?? [];
+    const rows = activeNames ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? ""))) : data ?? [];
     const per = /* @__PURE__ */ new Map();
     for (const r of rows) {
       const rev = Number(r.revenue_today) || 0;

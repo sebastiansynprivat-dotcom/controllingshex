@@ -32,7 +32,7 @@ export default defineTool({
     if (error) return errorResult(error.message);
 
     const rows = activeNames
-      ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_")))
+      ? (data ?? []).filter((r) => activeNames.has(normalizeName(r.chatter_name ?? "")))
       : (data ?? []);
 
     const per = new Map<string, { days: number; total: number; best: number; first: string; last: string }>();
