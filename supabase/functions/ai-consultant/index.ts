@@ -25,8 +25,9 @@ function normalizeName(name: string): string {
 async function loadActiveChatterNames(
   supabase: any,
   platform: string,
-  userId: string,
+  userId: string | null,
 ): Promise<Set<string> | null> {
+  if (!userId) return null;
   const { data: reports } = await supabase
     .from("analysis_reports")
     .select("result_json, analysis_date")
