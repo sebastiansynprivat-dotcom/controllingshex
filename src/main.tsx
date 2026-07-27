@@ -7,11 +7,19 @@ const isStandaloneDisplay = () =>
   window.matchMedia("(display-mode: standalone)").matches ||
   Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
 
+// Nur iOS-PWA/Standalone darf die Screen-Höhe als Fallback nutzen. Auf Desktop
+// (z.B. Browser-Vollbild) ist screen.height groesser als der echte Viewport und
+// wuerde das Layout — inkl. Eingabeleiste — unter den sichtbaren Bereich schieben.
+const isIOSStandalone = () =>
+  Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone) ||
+  (window.matchMedia("(display-mode: standalone)").matches &&
+    /iPhone|iPad|iPod/.test(window.navigator.userAgent));
+
 const syncAppHeight = () => {
   const viewport = window.visualViewport;
   const innerH = window.innerHeight;
   const vvH = viewport?.height ?? innerH;
-  const standalone = isStandaloneDisplay();
+  const standalone = isIOSStandalone();
   const screenH = window.screen?.height ?? innerH;
   // iOS standalone kann innerHeight ebenfalls ohne Home-Indicator-Safe-Area liefern.
   // Dann die volle Screen-Höhe nutzen; nur beim Keyboard bewusst auf visualViewport schrumpfen.
