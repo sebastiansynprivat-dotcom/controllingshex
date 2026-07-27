@@ -335,7 +335,22 @@ export default function AIConsultant() {
             <Brain className="h-3.5 w-3.5" /> Gedächtnis ({memories.length})
           </button>
         </div>
+        <div className="px-2 pb-2">
+          <button
+            onClick={() => navigate("/ai-consultant/fahrplan")}
+            className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+              isRoadmap ? "bg-primary/10 border border-primary/20" : "hover:bg-white/[0.03] border border-transparent"
+            }`}
+          >
+            <Pin className={`h-3 w-3 shrink-0 ${isRoadmap ? "text-primary" : "text-primary/60"}`} />
+            <span className={`truncate text-[11px] font-light ${isRoadmap ? "text-primary" : "text-white/70"}`}>
+              Fahrplan · heute
+            </span>
+          </button>
+          <div className="mt-2 h-px bg-white/[0.05]" />
+        </div>
         <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
+
           {threads.length === 0 && (
             <p className="px-3 py-4 text-[11px] text-white/20 font-light">Noch keine Unterhaltungen</p>
           )}
