@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://kgtbciqqvctjrelgbdvx.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "controlling-mcp",
+      "version": "0.1.0",
+      "title": "Controlling Dashboard"
+    },
+    "tools": [
+      {
+        "name": "get_live_status",
+        "title": "Echtzeit-Status der Chatter",
+        "description": "Echtzeit-Daten pro Chatter: offene Chats, ältester unbeantworteter Chat (Verzug in Tagen), Umsatz heute, Mass-DMs, plus Aufschlüsselung pro Model/Account. Nutze das für Fragen zu Verzug, offenen Chats und aktueller Auslastung. Verzug zählt erst ab 3 Tagen.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum' oder 'Brezzels'."
+            },
+            "chatter_name": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Optionaler Chatter-Filter (Teilstring)."
+            },
+            "min_delay_days": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Nur Chatter mit ältestem Chat >= N Tage."
+            },
+            "sort": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "delay",
+                    "unread",
+                    "revenue"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sortierung, Default 'delay'."
+            },
+            "limit": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Max. Anzahl Zeilen, Default 40."
+            }
+          },
+          "required": [
+            "platform",
+            "chatter_name",
+            "min_delay_days",
+            "sort",
+            "limit"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_chatter_history",
+        "title": "Chatter-Verlauf",
+        "description": "Tages-Zeitreihe eines Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. Für Trend- und Verlaufsfragen zu einer konkreten Person.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum'."
+            },
+            "chatter_name": {
+              "type": "string",
+              "description": "Name des Chatters (Teilstring reicht)."
+            },
+            "days": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Zeitfenster in Tagen, Default 30."
+            }
+          },
+          "required": [
+            "platform",
+            "chatter_name",
+            "days"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_account_history",
+        "title": "Account-Chronologie",
+        "description": "Chronologie eines Accounts/Models: welche Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum'."
+            },
+            "account": {
+              "type": "string",
+              "description": "Account-/Model-Name (Teilstring reicht)."
+            },
+            "days": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Zeitfenster in Tagen, Default 90."
+            }
+          },
+          "required": [
+            "platform",
+            "account",
+            "days"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_top_chatters",
+        "title": "Chatter-Ranking",
+        "description": "Aggregiertes Ranking aller Chatter einer Plattform über ein Zeitfenster: Gesamtumsatz, Ø pro Tag, bester Tag, aktueller Account und Kategorie. Guter Einstiegspunkt für 'wer performt', 'wer ist im Rückgang'.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum'."
+            },
+            "days": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Zeitfenster in Tagen, Default 14."
+            },
+            "limit": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Max. Anzahl Chatter, Default 50."
+            }
+          },
+          "required": [
+            "platform",
+            "days",
+            "limit"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "read_memos",
+        "title": "Memos lesen",
+        "description": "Liest gespeicherte Memos und Vereinbarungen zu Chattern (inkl. Fristen / Follow-up-Datum). Nutze das vor Empfehlungen zu einem Chatter, um bereits angestoßene Maßnahmen nicht zu wiederholen.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum'."
+            },
+            "chatter_name": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Optionaler Chatter-Filter (Teilstring)."
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "resolved",
+                    "all"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default 'open'."
+            },
+            "due_only": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "Nur heute fällige oder überfällige Memos."
+            },
+            "limit": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Max. Anzahl, Default 30."
+            }
+          },
+          "required": [
+            "platform",
+            "chatter_name",
+            "status",
+            "due_only",
+            "limit"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_memo",
+        "title": "Memo anlegen",
+        "description": "Legt ein Memo / eine Vereinbarung für einen Chatter an, optional mit Frist. Nutze das bei 'notier:', 'merk dir', 'gib X noch N Tage', 'erinner mich'.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum'."
+            },
+            "chatter_name": {
+              "type": "string",
+              "description": "Name des Chatters."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Was wurde vereinbart bzw. die Notiz."
+            },
+            "follow_up_days": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Tage bis zur Erinnerung, optional."
+            },
+            "topic": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Kurz-Tag, z.B. 'frist', 'mass_dms_low'."
+            }
+          },
+          "required": [
+            "platform",
+            "chatter_name",
+            "text",
+            "follow_up_days",
+            "topic"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "resolve_memo",
+        "title": "Memo erledigen",
+        "description": "Markiert ein Memo als erledigt. Nutze das, wenn der Chatter geliefert hat oder das Thema geschlossen wird.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "memo_id": {
+              "type": "string",
+              "description": "ID des Memos (aus read_memos)."
+            }
+          },
+          "required": [
+            "memo_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
