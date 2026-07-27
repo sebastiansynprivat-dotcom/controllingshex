@@ -463,29 +463,27 @@ ${dataContext}`;
           return { ok: true, count: rows.length, rows };
         }
         if (name === "get_chatter_history") {
-          const days = Math.min(args.days || 30, 180);
+          const days = Math.min(args.days || 30, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
-          const { data, error } = await supabase.from("chatter_history")
+          const { data, error } = await fetchAll(() => supabase.from("chatter_history")
             .select("analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category")
             .eq("user_id", userId).eq("platform", activePlatform)
             .ilike("chatter_name", `%${args.chatter_name}%`)
             .gte("analysis_date", from.toISOString().slice(0, 10))
-            .order("analysis_date", { ascending: false })
-            .limit(600);
-          return error ? { ok: false, error: error.message } : { ok: true, count: data?.length ?? 0, rows: data };
+            .order("analysis_date", { ascending: false }));
+          return error ? { ok: false, error: error.message } : { ok: true, count: data.length, rows: data };
         }
         if (name === "get_account_history") {
           const days = Math.min(args.days || 90, 365);
           const from = new Date();
           from.setDate(from.getDate() - days);
-          const { data, error } = await supabase.from("chatter_history")
+          const { data, error } = await fetchAll(() => supabase.from("chatter_history")
             .select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days")
             .eq("user_id", userId).eq("platform", activePlatform)
             .ilike("account", `%${args.account}%`)
             .gte("analysis_date", from.toISOString().slice(0, 10))
-            .order("analysis_date", { ascending: false })
-            .limit(1000);
+            .order("analysis_date", { ascending: false }));
           if (error) return { ok: false, error: error.message };
           const perChatter = new Map<string, { days: number; total: number; best: number; first: string; last: string }>();
           for (const r of data ?? []) {
@@ -501,7 +499,7 @@ ${dataContext}`;
             chatter, days: e.days, total: round(e.total), avg_per_day: round(e.total / e.days, 1),
             best_day: round(e.best), from: e.first, to: e.last,
           })).sort((a, b) => b.avg_per_day - a.avg_per_day);
-          return { ok: true, chatters: summary, rows: (data ?? []).slice(0, 200) };
+          return { ok: true, count: data.length, chatters: summary, rows: data };
         }
         if (name === "remember") {
           const content = String(args.content ?? "").trim();
