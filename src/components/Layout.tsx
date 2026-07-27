@@ -7,6 +7,10 @@ import { useLocation } from "react-router-dom";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  // Full-height app screens (own internal scrolling) must not add page padding
+  // or a second scroll container — otherwise their sticky footer (input bar)
+  // is pushed below the fold on shorter viewports.
+  const fullHeight = location.pathname.startsWith("/ai-consultant");
   return (
     <SidebarProvider defaultOpen={false}>
       <HotStreakListener />
@@ -33,15 +37,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main
-            className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            className={`flex flex-col flex-1 min-h-0 overflow-x-hidden ${fullHeight ? "overflow-y-hidden" : "overflow-y-auto"}`}
             style={{
-              paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)",
+              paddingBottom: fullHeight ? 0 : "max(env(safe-area-inset-bottom), 1.5rem)",
               paddingLeft: "max(env(safe-area-inset-left), 0px)",
               paddingRight: "max(env(safe-area-inset-right), 0px)",
             }}
           >
             <motion.div
-              className="content-frame h-full min-h-full px-3 pt-3 sm:px-8 sm:pt-8 lg:px-10 lg:pt-10 xl:px-14 xl:pt-12"
+              className={
+                fullHeight
+                  ? "content-frame flex-1 min-h-0 h-full"
+                  : "content-frame h-full min-h-full px-3 pt-3 sm:px-8 sm:pt-8 lg:px-10 lg:pt-10 xl:px-14 xl:pt-12"
+              }
               key={location.pathname}
               initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -50,6 +58,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {children}
             </motion.div>
           </main>
+
         </div>
       </div>
     </SidebarProvider>
