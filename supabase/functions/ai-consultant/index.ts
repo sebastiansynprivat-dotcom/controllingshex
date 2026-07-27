@@ -426,15 +426,16 @@ ${dataContext}`;
           return error ? { ok: false, error: error.message } : { ok: true };
         }
         if (name === "get_live_status") {
-          let q = supabase.from("chatter_history_live")
-            .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
-            .ilike("platform", activePlatform);
-          if (args.chatter_name) q = q.ilike("chatter_name", `%${args.chatter_name}%`);
-          if (typeof args.min_delay_days === "number") q = q.gte("oldest_chat", args.min_delay_days);
           const sortCol = args.sort === "unread" ? "unread_chats" : args.sort === "revenue" ? "revenue" : "oldest_chat";
-          const { data, error } = await q
-            .order(sortCol, { ascending: false, nullsFirst: false })
-            .limit(Math.min(args.limit || 40, 150));
+          const build = () => {
+            let q = supabase.from("chatter_history_live")
+              .select("chatter_name,unread_chats,oldest_chat,revenue,mass_dms,stats_details,updated_at")
+              .ilike("platform", activePlatform);
+            if (args.chatter_name) q = q.ilike("chatter_name", `%${args.chatter_name}%`);
+            if (typeof args.min_delay_days === "number") q = q.gte("oldest_chat", args.min_delay_days);
+            return q.order(sortCol, { ascending: false, nullsFirst: false });
+          };
+          const { data, error } = await fetchAll(build);
           if (error) return { ok: false, error: error.message };
           const rows = (data ?? []).map((r: any) => {
             const details = r.stats_details && typeof r.stats_details === "object" ? r.stats_details : null;
