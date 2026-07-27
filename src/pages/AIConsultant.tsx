@@ -436,6 +436,28 @@ export default function AIConsultant() {
 
 
 
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+        {/* Mobile toolbar */}
+        <div className="md:hidden shrink-0 flex items-center gap-1 border-b border-white/[0.04] px-1.5 py-1.5">
+          <button
+            onClick={() => setNavOpen(true)}
+            aria-label="Unterhaltungen öffnen"
+            className="p-2 rounded-lg text-white/50 hover:text-white/85 transition-colors"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
+          <span className="flex-1 min-w-0 truncate text-[12px] font-light text-white/50">
+            {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
+          </span>
+          <button
+            onClick={newThread}
+            aria-label="Neue Unterhaltung"
+            className="p-2 rounded-lg text-primary/70 hover:text-primary transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
       {isRoadmap || isReview ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
@@ -452,7 +474,8 @@ export default function AIConsultant() {
         </div>
       ) : (
 
-      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+      <>
+
         {/* Chat area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-12 space-y-6 sm:space-y-8">
