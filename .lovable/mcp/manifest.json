@@ -85,7 +85,7 @@
       {
         "name": "get_chatter_history",
         "title": "Chatter-Verlauf",
-        "description": "Tages-Zeitreihe eines Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. Für Trend- und Verlaufsfragen zu einer konkreten Person.",
+        "description": "Tages-Zeitreihe eines aktuellen Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. Für Trend- und Verlaufsfragen zu einer konkreten Person. Nur Chatter aus dem letzten Report.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

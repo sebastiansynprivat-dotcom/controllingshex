@@ -52,10 +52,38 @@ var get_live_status_default = defineTool({
 // src/lib/mcp/tools/get-chatter-history.ts
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z2 } from "npm:zod@^3.25.76";
+
+// src/lib/mcp/tools/active-roster.ts
+function normalizeName(name) {
+  return name.normalize("NFKC").replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "").replace(/[\u00A0\u2007\u202F]/g, " ").toLowerCase().replace(/[_ ]+/g, "_").trim();
+}
+async function loadActiveChatterNames(supabase, platform) {
+  const { data: reports } = await supabase.from("analysis_reports").select("result_json, analysis_date").eq("platform", platform).not("result_json", "is", null).order("analysis_date", { ascending: false }).order("created_at", { ascending: false }).limit(1);
+  const latest = reports?.[0];
+  if (!latest) return null;
+  const names = /* @__PURE__ */ new Set();
+  const result = latest.result_json;
+  if (result && Array.isArray(result.categories)) {
+    for (const cat of result.categories) {
+      for (const ch of cat.chatters ?? []) {
+        if (ch?.name) names.add(normalizeName(ch.name));
+      }
+    }
+  }
+  if (names.size === 0 && latest.analysis_date) {
+    const { data: histRows } = await supabase.from("chatter_history").select("chatter_name").eq("platform", platform).eq("analysis_date", latest.analysis_date);
+    for (const r of histRows ?? []) {
+      if (r.chatter_name) names.add(normalizeName(r.chatter_name));
+    }
+  }
+  return names;
+}
+
+// src/lib/mcp/tools/get-chatter-history.ts
 var get_chatter_history_default = defineTool2({
   name: "get_chatter_history",
   title: "Chatter-Verlauf",
-  description: "Tages-Zeitreihe eines Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. F\xFCr Trend- und Verlaufsfragen zu einer konkreten Person.",
+  description: "Tages-Zeitreihe eines aktuellen Chatters: Umsatz, Mass-DMs, offene Chats, Verzug, Account und Kategorie pro Tag. F\xFCr Trend- und Verlaufsfragen zu einer konkreten Person. Nur Chatter aus dem letzten Report.",
   inputSchema: {
     platform: z2.string().describe("Plattform, z.B. 'Maloum'."),
     chatter_name: z2.string().describe("Name des Chatters (Teilstring reicht)."),
@@ -67,9 +95,12 @@ var get_chatter_history_default = defineTool2({
     const win = Math.min(days ?? 30, 365);
     const from = /* @__PURE__ */ new Date();
     from.setDate(from.getDate() - win);
-    const { data, error } = await supabaseForUser(ctx).from("chatter_history").select("analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category").eq("platform", platform).ilike("chatter_name", `%${chatter_name}%`).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).limit(800);
+    const supabase = supabaseForUser(ctx);
+    const activeNames = await loadActiveChatterNames(supabase, platform);
+    const { data, error } = await supabase.from("chatter_history").select("chatter_name,analysis_date,account,revenue_today,mass_dms,open_chats,response_delay_days,category").eq("platform", platform).ilike("chatter_name", `%${chatter_name}%`).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).limit(800);
     if (error) return errorResult(error.message);
-    return textResult({ count: data?.length ?? 0, rows: data });
+    const rows = activeNames ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_"))) : data ?? [];
+    return textResult({ count: rows.length, rows });
   }
 });
 
@@ -120,34 +151,6 @@ var get_account_history_default = defineTool3({
 // src/lib/mcp/tools/get-top-chatters.ts
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z4 } from "npm:zod@^3.25.76";
-
-// src/lib/mcp/tools/active-roster.ts
-function normalizeName(name) {
-  return name.normalize("NFKC").replace(/[\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD]/g, "").replace(/[\u00A0\u2007\u202F]/g, " ").toLowerCase().replace(/[_ ]+/g, "_").trim();
-}
-async function loadActiveChatterNames(supabase, platform) {
-  const { data: reports } = await supabase.from("analysis_reports").select("result_json, analysis_date").eq("platform", platform).not("result_json", "is", null).order("analysis_date", { ascending: false }).order("created_at", { ascending: false }).limit(1);
-  const latest = reports?.[0];
-  if (!latest) return null;
-  const names = /* @__PURE__ */ new Set();
-  const result = latest.result_json;
-  if (result && Array.isArray(result.categories)) {
-    for (const cat of result.categories) {
-      for (const ch of cat.chatters ?? []) {
-        if (ch?.name) names.add(normalizeName(ch.name));
-      }
-    }
-  }
-  if (names.size === 0 && latest.analysis_date) {
-    const { data: histRows } = await supabase.from("chatter_history").select("chatter_name").eq("platform", platform).eq("analysis_date", latest.analysis_date);
-    for (const r of histRows ?? []) {
-      if (r.chatter_name) names.add(normalizeName(r.chatter_name));
-    }
-  }
-  return names;
-}
-
-// src/lib/mcp/tools/get-top-chatters.ts
 var get_top_chatters_default = defineTool4({
   name: "get_top_chatters",
   title: "Chatter-Ranking",
