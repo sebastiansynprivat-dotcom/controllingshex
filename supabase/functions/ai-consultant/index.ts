@@ -388,7 +388,7 @@ ${modelsData.length ? modelsData.map((m: any) => `${m.model_name}:${m.follower_c
 
     const { data: memoryRows } = await supabase
       .from("ai_memories").select("id,content,category,created_at")
-      .eq("user_id", userId).eq("platform", platform).order("created_at", { ascending: false }).limit(200);
+      .eq("user_id", userId).eq("platform", activePlatform).order("created_at", { ascending: false }).limit(200);
     const memoryBlock = (memoryRows ?? []).length
       ? (memoryRows ?? []).map((m: any) => `- (${m.id}) [${m.category ?? "allgemein"}] ${m.content}`).join("\n")
       : "noch nichts gemerkt";
@@ -583,7 +583,7 @@ ${dataContext}`;
           if (!content) return { ok: false, error: "content required" };
           const { data, error } = await supabase.from("ai_memories").insert({
             user_id: userId, content, category: args.category ?? null,
-            platform, source_thread_id: threadId,
+            platform: activePlatform, source_thread_id: threadId,
           }).select("id,content,category").single();
           return error ? { ok: false, error: error.message } : { ok: true, memory: data };
         }
