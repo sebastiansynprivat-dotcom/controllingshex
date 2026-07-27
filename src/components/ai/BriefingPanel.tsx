@@ -46,8 +46,17 @@ export default function BriefingPanel({ onAsk }: { onAsk: (question: string) => 
 
   useEffect(() => {
     setLoading(true);
-    load();
+    autoRef.current = false;
+    load().then((b) => {
+      // Auto-Fahrplan: ohne Klick starten, wenn heute noch keiner existiert
+      if (!b && !autoRef.current) {
+        autoRef.current = true;
+        run(false);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
+
 
   useEffect(() => {
     if (briefing?.status !== "running") {
