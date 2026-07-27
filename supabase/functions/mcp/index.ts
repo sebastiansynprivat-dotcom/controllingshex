@@ -110,7 +110,7 @@ import { z as z3 } from "npm:zod@^3.25.76";
 var get_account_history_default = defineTool3({
   name: "get_account_history",
   title: "Account-Chronologie",
-  description: "Chronologie eines Accounts/Models: welche Chatter sa\xDFen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. F\xFCr 'lief der Account fr\xFCher besser' sowie Besetzungs- und Tausch-Fragen.",
+  description: "Chronologie eines Accounts/Models: welche aktuellen Chatter sa\xDFen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. F\xFCr 'lief der Account fr\xFCher besser' sowie Besetzungs- und Tausch-Fragen. Nur Chatter aus dem letzten Report.",
   inputSchema: {
     platform: z3.string().describe("Plattform, z.B. 'Maloum'."),
     account: z3.string().describe("Account-/Model-Name (Teilstring reicht)."),
@@ -122,10 +122,13 @@ var get_account_history_default = defineTool3({
     const win = Math.min(days ?? 90, 365);
     const from = /* @__PURE__ */ new Date();
     from.setDate(from.getDate() - win);
-    const { data, error } = await supabaseForUser(ctx).from("chatter_history").select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days").eq("platform", platform).ilike("account", `%${account}%`).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).limit(1500);
+    const supabase = supabaseForUser(ctx);
+    const activeNames = await loadActiveChatterNames(supabase, platform);
+    const { data, error } = await supabase.from("chatter_history").select("analysis_date,chatter_name,account,revenue_today,open_chats,response_delay_days").eq("platform", platform).ilike("account", `%${account}%`).gte("analysis_date", from.toISOString().slice(0, 10)).order("analysis_date", { ascending: false }).limit(1500);
     if (error) return errorResult(error.message);
+    const rows = activeNames ? (data ?? []).filter((r) => activeNames.has((r.chatter_name ?? "").trim().toLowerCase().replace(/\s+/g, "_"))) : data ?? [];
     const per = /* @__PURE__ */ new Map();
-    for (const r of data ?? []) {
+    for (const r of rows) {
       const rev = Number(r.revenue_today) || 0;
       const e = per.get(r.chatter_name) ?? { days: 0, total: 0, best: 0, first: r.analysis_date, last: r.analysis_date };
       e.days += 1;
@@ -144,7 +147,7 @@ var get_account_history_default = defineTool3({
       from: e.first,
       to: e.last
     })).sort((a, b) => b.avg_per_day - a.avg_per_day);
-    return textResult({ chatters, rows: (data ?? []).slice(0, 300) });
+    return textResult({ chatters, rows: rows.slice(0, 300) });
   }
 });
 

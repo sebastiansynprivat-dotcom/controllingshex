@@ -123,7 +123,7 @@
       {
         "name": "get_account_history",
         "title": "Account-Chronologie",
-        "description": "Chronologie eines Accounts/Models: welche Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen.",
+        "description": "Chronologie eines Accounts/Models: welche aktuellen Chatter saßen wann darauf, mit Umsatz pro Tag, Durchschnitt und bestem Tag. Für 'lief der Account früher besser' sowie Besetzungs- und Tausch-Fragen. Nur Chatter aus dem letzten Report.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
