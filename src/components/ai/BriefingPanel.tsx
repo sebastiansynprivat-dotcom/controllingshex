@@ -27,6 +27,8 @@ export default function BriefingPanel({ onAsk }: { onAsk: (question: string) => 
   const [goal, setGoalState] = useState(0);
   const [goalInput, setGoalInput] = useState("");
   const pollRef = useRef<number | null>(null);
+  const autoRef = useRef(false);
+
 
   const load = useCallback(async () => {
     try {
