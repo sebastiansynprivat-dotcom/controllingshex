@@ -327,6 +327,7 @@ export default function AIConsultant() {
   const submitInput = () => {
     const text = input.trim();
     if (!text) return;
+    if (inputRef.current) inputRef.current.style.height = "auto";
     if (isRoadmap || isReview) {
       setInput("");
       navigate(`/ai-consultant?q=${encodeURIComponent(text)}`);
@@ -334,6 +335,7 @@ export default function AIConsultant() {
     }
     sendMessage(input);
   };
+
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
