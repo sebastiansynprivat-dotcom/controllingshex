@@ -739,7 +739,7 @@ export default function PersonActionCard({
                 {verzugBreakdown.map((m) => {
                   const critical = m.delayDays >= 3;
                   const warn = m.delayDays >= 1 && m.delayDays < 3;
-                  const loginKey = m.account.toLowerCase().trim();
+                  const loginKey = normalizeLoginKey(m.account);
                   const login = accountLogins?.get(loginKey);
                   const pwRevealed = revealedPw.has(loginKey);
                   return (
