@@ -817,6 +817,19 @@ export default function WeeklyGoals() {
           const prev = dedupedRev.get(k) ?? 0;
           if (v > prev) dedupedRev.set(k, v);
         }
+        // Multi-Account: Gesamt-Zeilen ohne Account verwerfen, wenn für denselben
+        // Tag benannte Account-Zeilen existieren (sonst doppelte Zählung).
+        {
+          const namedDays = new Set<string>();
+          for (const k of dedupedRev.keys()) {
+            const [chatter, date, account] = k.split("|");
+            if (account) namedDays.add(`${chatter}|${date}`);
+          }
+          for (const k of Array.from(dedupedRev.keys())) {
+            const [chatter, date, account] = k.split("|");
+            if (!account && namedDays.has(`${chatter}|${date}`)) dedupedRev.delete(k);
+          }
+        }
         const sumByChatter = new Map<string, number>();
         const daysByChatter = new Map<string, Set<string>>();
         for (const [k, v] of dedupedRev) {
