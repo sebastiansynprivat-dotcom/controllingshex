@@ -748,11 +748,25 @@ export default function WeeklyGoals() {
           const prev = monthRevMax.get(key) ?? 0;
           if (v > prev) monthRevMax.set(key, v);
         }
-        const monthRevByChatter = new Map<string, number>();
+        // Multi-Account: pro (chatter, date) summieren wir über die Accounts.
+        // Existiert für denselben Tag zusätzlich eine Zeile OHNE Account, ist das
+        // eine Gesamtzeile — sie wird ignoriert, sonst zählt der Umsatz doppelt.
+        const perChatterDay = new Map<string, Map<string, number>>();
         for (const [key, v] of monthRevMax) {
-          const chatter = key.split("|")[0];
-          monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + v);
+          const [chatter, date, account = ""] = key.split("|");
+          const dk = `${chatter}|${date}`;
+          if (!perChatterDay.has(dk)) perChatterDay.set(dk, new Map());
+          perChatterDay.get(dk)!.set(account, v);
         }
+        const monthRevByChatter = new Map<string, number>();
+        for (const [dk, accMap] of perChatterDay) {
+          const chatter = dk.split("|")[0];
+          const named = Array.from(accMap.entries()).filter(([a]) => a !== "");
+          const entries = named.length > 0 ? named : Array.from(accMap.entries());
+          const sum = entries.reduce((acc, [, v]) => acc + v, 0);
+          monthRevByChatter.set(chatter, (monthRevByChatter.get(chatter) ?? 0) + sum);
+        }
+
         let latestCurrentReportIso: string | null = null;
         for (const h of histAllRows) {
           if (h.analysis_date >= reportStartIso && h.analysis_date <= todayIso) {
