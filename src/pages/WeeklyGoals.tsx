@@ -1046,7 +1046,12 @@ export default function WeeklyGoals() {
         if (skipErr) console.warn("[WeeklyGoals] skip load failed", skipErr);
 
         if (!cancelled) {
-          setRows(built);
+          // Gekündigte / nicht mehr im aktuellen Report enthaltene Chatter raus
+          setRows(
+            activeInLatestReport.size > 0
+              ? built.filter((r) => activeInLatestReport.has(r.chatter))
+              : built,
+          );
           setSuggestions(sugg);
           setTrackedThroughDate(progressDate);
           setSkipped(new Set((skipRows ?? []).map((r) => r.chatter_name)));
