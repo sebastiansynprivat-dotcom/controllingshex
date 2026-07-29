@@ -677,7 +677,7 @@ export default function Today() {
           if (cancel) return;
           const loginMap = new Map<string, { email?: string | null; password?: string | null }>();
           for (const m of (modelsData || []) as Array<{ model_name: string; email?: string | null; password?: string | null }>) {
-            const key = (m.model_name || "").toLowerCase().trim();
+            const key = normalizeLoginKey(m.model_name || "");
             if (!key) continue;
             if (m.email || m.password) loginMap.set(key, { email: m.email, password: m.password });
           }
