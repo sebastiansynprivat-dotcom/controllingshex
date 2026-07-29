@@ -5,7 +5,7 @@ import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, Lif
 
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
-import PersonActionCard from "@/components/PersonActionCard";
+import PersonActionCard, { normalizeLoginKey } from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
@@ -677,7 +677,7 @@ export default function Today() {
           if (cancel) return;
           const loginMap = new Map<string, { email?: string | null; password?: string | null }>();
           for (const m of (modelsData || []) as Array<{ model_name: string; email?: string | null; password?: string | null }>) {
-            const key = (m.model_name || "").toLowerCase().trim();
+            const key = normalizeLoginKey(m.model_name || "");
             if (!key) continue;
             if (m.email || m.password) loginMap.set(key, { email: m.email, password: m.password });
           }
