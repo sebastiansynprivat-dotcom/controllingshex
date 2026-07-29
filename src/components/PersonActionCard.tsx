@@ -31,9 +31,19 @@ interface Props {
   verzugBreakdown?: { account: string; openChats: number; delayDays: number }[];
   /** 14T-Durchschnitt offener Chats pro Chatter (nur für Verzug-Karten). */
   verzugAvgOpenChats?: number;
-  /** Login-Daten pro Account (Key = account.toLowerCase().trim()). */
+  /** Login-Daten pro Account (Key = normalizeLoginKey(account)). */
   accountLogins?: Map<string, { email?: string | null; password?: string | null }>;
 }
+
+/** Normalisiert Account-/Model-Namen für den Login-Abgleich (Emojis, Leerzeichen etc. raus). */
+export function normalizeLoginKey(name: string): string {
+  return (name || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]/g, "");
+}
+
+
 
 
 const TONE: Record<
