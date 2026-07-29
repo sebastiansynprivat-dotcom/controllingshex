@@ -5,7 +5,7 @@ import { Check, Eye, EyeOff, Sparkles, Flame, AlertTriangle, ArrowLeftRight, Lif
 
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/contexts/PlatformContext";
-import PersonActionCard from "@/components/PersonActionCard";
+import PersonActionCard, { normalizeLoginKey } from "@/components/PersonActionCard";
 import ChatterSlideOver from "@/components/ChatterSlideOver";
 import ModelPerformanceSlideOver from "@/components/ModelPerformanceSlideOver";
 import ModelTrackingView from "@/components/today/ModelTrackingView";
