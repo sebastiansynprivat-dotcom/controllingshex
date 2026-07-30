@@ -516,30 +516,33 @@ export default function AIConsultant() {
           {threads.length === 0 && (
             <p className="px-3 py-4 text-[11px] text-white/20 font-light">Noch keine Unterhaltungen</p>
           )}
-          {threads.map((t) => (
-            <div
-              key={t.id}
-              className={`group flex items-center gap-1 rounded-lg pr-1 transition-colors ${
-                t.id === threadId ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"
-              }`}
-            >
-              <button
-                onClick={() => navigate(`/ai-consultant/${t.id}`)}
-                className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-2 text-left"
-              >
-                <MessageSquare className="h-3 w-3 shrink-0 text-white/25" />
-                <span className="truncate text-[11px] font-light text-white/55">{t.title}</span>
-              </button>
-              <button
-                onClick={() => deleteThread(t.id)}
-                aria-label="Unterhaltung löschen"
-                data-keep-open
-                className="md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 transition-all"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
+          {(["pinned", "rest"] as const).map((group) => {
+            const list = threads.filter((t) => (group === "pinned" ? t.pinned : !t.pinned));
+            if (list.length === 0) return null;
+            return (
+              <div key={group} className="space-y-1">
+                {threads.some((t) => t.pinned) && (
+                  <p className="px-2.5 pt-2 pb-0.5 text-[9px] uppercase tracking-wider font-light text-white/20">
+                    {group === "pinned" ? "Angepinnt" : "Zuletzt"}
+                  </p>
+                )}
+                {list.map((t) => (
+                  <ThreadRow
+                    key={t.id}
+                    id={t.id}
+                    title={t.title}
+                    pinned={!!t.pinned}
+                    hasSuperPrompt={!!t.super_prompt?.trim()}
+                    active={t.id === threadId}
+                    onSelect={() => navigate(`/ai-consultant/${t.id}`)}
+                    onRename={(title) => renameThread(t.id, title)}
+                    onTogglePin={() => togglePin(t.id, !t.pinned)}
+                    onDelete={() => deleteThread(t.id)}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
     </>
   );
