@@ -66,6 +66,7 @@ export default function AIConsultant() {
   useEffect(() => { setNavOpen(false); }, [threadId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [draftSuperPrompt, setDraftSuperPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
