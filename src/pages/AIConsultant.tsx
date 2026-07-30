@@ -121,6 +121,7 @@ export default function AIConsultant() {
 
   const isRoadmap = threadId === "fahrplan";
   const isReview = threadId === "rueckblick";
+  const isCompany = threadId === "company";
 
   // Load messages of the routed thread
   useEffect(() => {
