@@ -951,6 +951,16 @@ export default function UploadPage() {
         console.error("Action monitor error:", evErr);
       }
 
+      // AI Company-Digest für heute automatisch neu erstellen
+      try {
+        addStatus("🏢 AI erstellt den Company-Digest…");
+        await generateDigest(platform, true);
+        addStatus("✅ Company-Digest wird im Hintergrund gebaut — im AI-Chat ansehen.");
+      } catch (companyErr: any) {
+        console.error("Company digest error:", companyErr);
+        addStatus("⚠️ Company-Digest konnte nicht gestartet werden.");
+      }
+
 
 
       setAnimationsReady(false);
