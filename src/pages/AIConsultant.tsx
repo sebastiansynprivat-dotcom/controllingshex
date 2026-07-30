@@ -33,6 +33,9 @@ interface Thread {
   id: string;
   title: string;
   updated_at: string;
+  pinned?: boolean;
+  super_prompt?: string | null;
+  title_custom?: boolean;
 }
 
 interface Memory {
