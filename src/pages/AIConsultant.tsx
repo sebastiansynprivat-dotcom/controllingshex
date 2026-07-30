@@ -217,6 +217,46 @@ export default function AIConsultant() {
     }
   };
 
+  const togglePin = async (id: string, pinned: boolean) => {
+    setThreads((prev) =>
+      [...prev.map((t) => (t.id === id ? { ...t, pinned } : t))].sort((a, b) => {
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return a.updated_at < b.updated_at ? 1 : -1;
+      })
+    );
+    const { error } = await supabase.from("ai_threads").update({ pinned }).eq("id", id);
+    if (error) {
+      toast.error("Anpinnen fehlgeschlagen.");
+      loadThreads();
+    }
+  };
+
+  const renameThread = async (id: string, title: string) => {
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, title, title_custom: true } : t)));
+    const { error } = await supabase
+      .from("ai_threads")
+      .update({ title, title_custom: true })
+      .eq("id", id);
+    if (error) {
+      toast.error("Umbenennen fehlgeschlagen.");
+      loadThreads();
+    }
+  };
+
+  const saveSuperPrompt = async (value: string) => {
+    const next = value.trim() ? value.trim() : null;
+    if (!threadId) {
+      setDraftSuperPrompt(value.trim());
+      return;
+    }
+    setThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, super_prompt: next } : t)));
+    const { error } = await supabase.from("ai_threads").update({ super_prompt: next }).eq("id", threadId);
+    if (error) {
+      toast.error("Überprompt konnte nicht gespeichert werden.");
+      loadThreads();
+    }
+  };
+
   const deleteMemory = async (id: string) => {
     const { error } = await supabase.from("ai_memories").delete().eq("id", id);
     if (error) {
