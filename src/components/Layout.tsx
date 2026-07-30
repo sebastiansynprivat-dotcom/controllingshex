@@ -11,6 +11,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // or a second scroll container — otherwise their sticky footer (input bar)
   // is pushed below the fold on shorter viewports.
   const fullHeight = location.pathname.startsWith("/ai-consultant");
+  // Der AI-Consultant hält seinen State über Thread-Wechsel hinweg: keine Remounts
+  // pro Thread-URL, sonst bricht ein laufender Chat ab.
+  const transitionKey = fullHeight ? "/ai-consultant" : location.pathname;
   return (
     <SidebarProvider defaultOpen={false}>
       <HotStreakListener />
@@ -50,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   ? "content-frame flex-1 min-h-0 h-full"
                   : "content-frame h-full min-h-full px-3 pt-3 sm:px-8 sm:pt-8 lg:px-10 lg:pt-10 xl:px-14 xl:pt-12"
               }
-              key={location.pathname}
+              key={transitionKey}
               initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}

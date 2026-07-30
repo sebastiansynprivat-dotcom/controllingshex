@@ -71,8 +71,9 @@ const AppRoutes = () => (
 
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/fahrplan" element={<Navigate to="/ai-consultant" replace />} />
-              <Route path="/ai-consultant" element={<AIConsultant />} />
-              <Route path="/ai-consultant/:threadId" element={<AIConsultant />} />
+              {/* Eine einzige Route mit optionalem Param: sonst remountet die Seite
+                  beim Wechsel auf den frisch erzeugten Thread und der laufende Chat bricht ab. */}
+              <Route path="/ai-consultant/:threadId?" element={<AIConsultant />} />
               <Route path="/notes" element={<Notes />} />
               <Route path="/tinder" element={<TinderMode />} />
               <Route path="/models" element={<Models />} />
