@@ -411,12 +411,25 @@ export default function AIConsultant() {
     }
   };
 
+  const activeSuperPrompt = threadId
+    ? threads.find((t) => t.id === threadId)?.super_prompt ?? ""
+    : draftSuperPrompt;
+
   const inputBar = (
     <div
       className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
     >
+      {!isRoadmap && !isReview && !isCompany && (
+        <SuperPromptBar
+          value={activeSuperPrompt}
+          disabled={loading}
+          onSave={saveSuperPrompt}
+          onRun={(v) => sendMessage(v)}
+        />
+      )}
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
+
 
         <div className="flex gap-2 sm:gap-3 items-end">
           <textarea
