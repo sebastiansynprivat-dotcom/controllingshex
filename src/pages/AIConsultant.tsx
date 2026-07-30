@@ -64,7 +64,7 @@ export default function AIConsultant() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const skipLoadRef = useRef<string | null>(null);
+  const activeStreamingThreadRef = useRef<string | null>(null);
 
   // Prefill from ?q= (z. B. aus dem Fahrplan)
   useEffect(() => {
@@ -140,8 +140,10 @@ export default function AIConsultant() {
 
 
     }
-    if (skipLoadRef.current === threadId) {
-      skipLoadRef.current = null;
+    // A newly created thread is routed immediately, before its first response has
+    // been persisted. Keep the optimistic first turn instead of replacing it with
+    // the still-empty database history (also safe under React StrictMode effects).
+    if (activeStreamingThreadRef.current === threadId) {
       return;
     }
     let cancelled = false;
@@ -190,6 +192,7 @@ export default function AIConsultant() {
   };
 
   const newThread = () => {
+    if (loading) return;
     setMessages([]);
     navigate("/ai-consultant");
     inputRef.current?.focus();
@@ -245,7 +248,7 @@ export default function AIConsultant() {
           .single();
         if (threadErr || !created) throw new Error(threadErr?.message ?? "Thread konnte nicht angelegt werden.");
         activeThread = created.id;
-        skipLoadRef.current = created.id;
+        activeStreamingThreadRef.current = created.id;
         setThreads((prev) => [created as Thread, ...prev]);
         navigate(`/ai-consultant/${created.id}`, { replace: true });
       }
@@ -332,6 +335,9 @@ export default function AIConsultant() {
       });
       toast.error(err.message || "Fehler beim Senden.");
     } finally {
+      if (activeStreamingThreadRef.current === activeThread) {
+        activeStreamingThreadRef.current = null;
+      }
       setLoading(false);
     }
   };
