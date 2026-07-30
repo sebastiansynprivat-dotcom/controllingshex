@@ -3,6 +3,7 @@ import getLiveStatus from "./tools/get-live-status";
 import getChatterHistory from "./tools/get-chatter-history";
 import getAccountHistory from "./tools/get-account-history";
 import getTopChatters from "./tools/get-top-chatters";
+import getCompanyDigest from "./tools/get-company-digest";
 import readMemos from "./tools/read-memos";
 import createMemo from "./tools/create-memo";
 import resolveMemo from "./tools/resolve-memo";
