@@ -359,8 +359,16 @@ Deno.serve(async (req) => {
             .eq("platform", platform)
             .eq("briefing_date", today)
             .maybeSingle(),
-          admin.from("chatter_memos").select("chatter_name, text, topic, status").eq("user_id", userId).eq("platform", platform).eq("status", "open"),
-          admin.from("ai_memories").select("content, category").eq("user_id", userId).eq("platform", platform),
+          (async () => {
+            const { data, error } = await admin.from("chatter_memos").select("chatter_name, text, topic, status").eq("user_id", userId).eq("platform", platform).eq("status", "open");
+            if (error) throw error;
+            return data ?? [];
+          })(),
+          (async () => {
+            const { data, error } = await admin.from("ai_memories").select("content, category").eq("user_id", userId).eq("platform", platform);
+            if (error) throw error;
+            return data ?? [];
+          })(),
         ]);
 
         // Per-chatter aggregates (active roster only)
