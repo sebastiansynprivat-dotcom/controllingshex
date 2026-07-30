@@ -119,6 +119,15 @@ export default function AIConsultant() {
     return () => { cancelled = true; };
   }, [platform]);
 
+  const [companySignalCount, setCompanySignalCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    getTodayDigest(platform)
+      .then((d) => { if (!cancelled) setCompanySignalCount(countCriticalSignals(d)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [platform]);
+
   const isRoadmap = threadId === "fahrplan";
   const isReview = threadId === "rueckblick";
   const isCompany = threadId === "company";
