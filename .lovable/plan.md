@@ -1,63 +1,137 @@
 ## Ziel
 
-Die AI soll deine Handlungen im Hintergrund mitbekommen — ohne dass du ihr etwas sagst — und danach bewerten: „Der Tausch war gut / war schlecht, schau nochmal rein."
+Eine „AI Company“ im AI-Consultant einführen: ein täglicher Überblick, der alle aktiven Chatters und Accounts wie ein Management-Team beobachtet, bewertet und Handlungsempfehlungen liefert – ohne selbst auszulösen. Die Ausgabe soll strukturiert, rollenbasiert und direkt im bestehenden AI-Consultant erreichbar sein.
 
 ## Was bereits existiert (geprüft)
 
-- `swap_decisions` — nur explizit im Wechsel-Mode bestätigte Swaps
-- `swap-tracking.ts` — misst Ø-Umsatz 3 Tage vor/nach Swap
-- `action_outcomes` — misst Erfolg von im Heute-Tab abgehakten Aufgaben (24/48/72h)
+- `daily_briefings` + `briefing_actions` → Fahrplan, automatisch nach Report-Upload
+- `action_events` + `detect-action-events` / `evaluate-action-events` → automatische Erkennung/Bewertung von Account-Tausch, On-/Offboarding
+- `chatter_history_live` → Echtzeit-Daten (Verzug, offene Chats, Umsatz heute)
+- MCP-Tools: `get_live_status`, `get_chatter_history`, `get_account_history`, `get_top_chatters`, `read_memos`, `create_memo`
+- `AIConsultant.tsx` mit angepinnten Bereichen „Fahrplan · heute“ und „Rückblick“
+- Workspace-Isolierung und Thread-Persistenz sind bereits vorhanden
 
-Lücke: Handlungen, die du **außerhalb der App** machst (Account wegnehmen, Chatter tauschen, Chatter rausnehmen, neuen Chatter draufsetzen) werden nirgends erfasst. Genau die sollen jetzt automatisch erkannt werden.
+## Empfehlung zu den AI-Rollen
 
-## Konzept: Change-Detection aus Reports
-
-Jeder Upload liefert die aktuelle Chatter×Account-Zuordnung. Vergleich mit dem vorherigen Report ergibt automatisch alle Handlungen:
+Ja, es macht Sinn – aber sehr leichtgewichtig. Statt eines komplexen Agenten-Frameworks bekommen wir 4 fiktive „AI-Rollen“, die jeweils einen festen Blickwinkel liefern. Das macht die tägliche Ausgabe lesbarer und vertrauenswürdiger, ohne dass die AI eigenmächtig handelt.
 
 ```text
-Report gestern          Report heute            → erkanntes Event
-Lara → xbabymarie       Lara → (weg)            → account_removed
-                        Maurice → xbabymarie    → account_reassigned (Paar = swap)
-Heiko → acc_a           (Heiko fehlt komplett)  → chatter_offboarded
-(neu)                   Nina → acc_b            → chatter_onboarded
+Head of Revenue     → Finanz-Pulse: Ziel-Pace, Top-/Bottom-Mover, Umsatzkonzentration
+Operations Manager  → Chatter-Gesundheit: Verzug, offene Chats, Burner, Coaching-Bedarf
+Staffing Analyst    → Besetzung: Tausch-Empfehlungen, On-/Offboarding, Rückblick-Verdicts
+Account Strategist  → Account-Potenzial: Whale-Warnung, Buyer-Diversity, unterbesetzte Accounts
 ```
 
-### 1. Neue Tabelle `action_events`
-`user_id, platform, event_type, chatter_name, counterpart_chatter, account, prev_account, detected_at, report_id, baseline_json, evaluated_at, verdict, verdict_reason, impact_eur, status`
+## Konzept: „Company · heute“
 
-Events werden pro Report-Upload einmal geschrieben (idempotent über report_id + event-key).
+Neuer angepinnter Bereich im AI-Consultant, direkt unter „Fahrplan · heute“.
 
-### 2. Erkennung — Edge Function `detect-action-events`
-Läuft automatisch direkt nach dem Report-Upload (gleicher Trigger wie der Fahrplan). Vergleicht letzten vs. vorletzten Report, erzeugt Events, und snapshottet die Baseline: Ø Umsatz/Tag der letzten 7 Tage pro betroffenem Chatter und pro betroffenem Account, plus Verzug/Unread aus `chatter_history_live`.
+```text
+Sidebar
+├── Fahrplan · heute
+├── Rückblick (Badge bei bad-Verdicts)
+├── Company · heute  ← neu (Badge bei kritischen Signalen)
+└── Threads …
+```
 
-### 3. Bewertung — Edge Function `evaluate-action-events`
-Läuft täglich (Cron) plus nach jedem Upload. Für Events, die 3 bzw. 7 Tage alt sind:
+### Inhalt pro Tag
 
-- Account-Performance vorher vs. nachher (Account-zentriert, nicht nur Chatter-zentriert — ein Account, der nach dem Wechsel einbricht, ist das eigentliche Signal)
-- Chatter-Performance vorher vs. nachher, beide Seiten eines Tausches
-- Tier-Kontext (`account-tiers.ts`): kleiner Chatter auf großem Account = Warnung
-- Verzug/Unread nach der Handlung: Account liegt jetzt brach → harter Negativ-Verdict
+Der Digest besteht aus 4 rollenbasierten Abschnitten. Jeder Abschnitt enthält 0–n Karten mit:
 
-Verdict: `good` / `neutral` / `bad` / `watch` mit Klartext-Begründung und €-Impact, formuliert von Lovable AI (`google/gemini-3.6-flash`) aus den Zahlen — kein reines Regelwerk, damit die Empfehlung auch sagt, was stattdessen zu tun ist.
+- Titel + konkrete Zahlen
+- Bewertung (info / warn / critical)
+- Empfehlung (nur Vorschlag, keine Ausführung)
+- „Im Chat besprechen“-Button → öffnet neuen Thread mit kontextualisierter Frage
 
-### 4. Wo du das siehst
+Beispiel-Karten:
 
-- **Neuer angepinnter Eintrag „Rückblick" in der AI-Sidebar**, direkt unter „Fahrplan · heute". Zeigt offene Verdicts als Karten: was du getan hast, was daraus wurde, Empfehlung, plus „Rückgängig prüfen" / „Passt so" / „Im Chat besprechen".
-- **Badge mit Anzahl negativer Verdicts** am Rückblick-Eintrag, damit du es ohne Klick siehst.
-- **Fahrplan**: negative Verdicts fließen als eigene Actions mit €-Impact in die Tagesliste ein, nach Impact einsortiert wie alles andere.
-- **AI-Chat**: neues Tool `get_action_history`, damit du fragen kannst „was habe ich diese Woche getauscht und wie lief es".
+- Head of Revenue: „Lara La sitzt auf 34 Tagen Verzug bei xbabymarie – geschätztes Verlustpotenzial 180 €/Tag“
+- Operations Manager: „3 Chatters haben heute 0 €, aber historisch >200 €/Tag bester Tag“
+- Staffing Analyst: „Rückblick: Account-Tausch Maurice → Lara war schlecht (-90 €/Tag), Rückgängig prüfen“
+- Account Strategist: „hotmiamor: 78 % Umsatz aus einem Buyer – Diversifizierung empfohlen“
 
-### 5. Lernen über Zeit
+## Datenquellen
 
-Verdicts werden aggregiert: „Tausch von Top-Account auf Chatter mit <X Tagen Aktivität ging in 4 von 5 Fällen schief." Dieses Muster geht als Kontext in Fahrplan-Generierung und Swap-Vorschläge, damit die AI dieselbe schlechte Empfehlung nicht wiederholt.
+- `chatter_history_live` (Echtzeit: Verzug, offene Chats, heutiger Umsatz)
+- `chatter_history` (30–90 Tage Trends, Bestwerte, Peer-Schnitt)
+- `analysis_reports` (aktiver Roster)
+- `action_events` + `daily_briefings` (bereits erkannte Muster und Fahrplan)
+- `ai_memories`, `chatter_memos`, `revenue_goals`
+
+## Technische Umsetzung
+
+### 1. Neue Tabelle `company_digests`
+
+```text
+user_id uuid
+platform text
+digest_date date
+status text (running | ready | error)
+sections_json jsonb   -- Array der 4 Rollen-Abschnitte inkl. Karten
+signals_json jsonb    -- flache Liste aller Signale für Badges/Filter
+created_at / updated_at timestamptz
+```
+
+- RLS auf `auth.uid()`
+- `GRANT SELECT, INSERT, UPDATE, DELETE ON public.company_digests TO authenticated;`
+- `GRANT ALL ON public.company_digests TO service_role;`
+
+### 2. Edge Function `generate-company-digest`
+
+- Läuft automatisch nach Report-Upload (wie `generate-daily-briefing`)
+- Optional täglicher Cron um 07:00 Uhr
+- Sammelt alle Daten, ruft 4 parallele AI-Prompts (einer pro Rolle) mit `google/gemini-3.6-flash`
+- Jeder Prompt liefert strukturiertes JSON zurück (section_title, summary, cards[])
+- Speichert Ergebnis in `company_digests`, Status `ready`
+- Idempotent pro Tag: bei erneutem Upload wird der gleiche Tag neu generiert
+
+### 3. Frontend `CompanyPanel.tsx`
+
+- Neues Panel, ähnlich wie `BriefingPanel.tsx` / `ActionReviewPanel.tsx`
+- Lädt heutigen Digest aus `company_digests`
+- Zeigt 4 rollenbasierte Abschnitte als Karten
+- Badges: Anzahl `critical`/`warn` Signale für Sidebar-Icon
+- „Im Chat besprechen“ pro Karte → `navigate(`/ai-consultant?q=...`)`
+- „Neu generieren“-Button (force)
+- Skeleton-Loading während `status === running`
+
+### 4. Integration in `AIConsultant.tsx`
+
+- Neuer Route-Parameter `threadId === "company"`
+- Neuer Sidebar-Eintrag „Company · heute“ mit Badge
+- `useEffect` lädt Digest beim Öffnen; startet automatisch, wenn heute noch keiner existiert
+- Mobile: Eintrag in die bestehende mobile Chip-Leiste übernehmen
+
+### 5. Trigger nach Upload
+
+- In `src/pages/Upload.tsx` nach erfolgreichem Report-Upload aufrufen:
+  `supabase.functions.invoke("generate-company-digest", { body: { platform } })`
+- Gleiches Pattern wie beim Fahrplan
+
+### 6. MCP / Chat-Integration (optional, aber sinnvoll)
+
+- Neues MCP-Tool `get_company_digest` liefert den aktuellen Digest an die AI
+- Damit kann der User im Chat fragen: „Was sagt die Company heute?“ oder „Welche kritischen Signale gibt es?“
+- Keine Pflicht für den ersten Schritt
+
+## Was die AI nicht macht (Scope-Grenze)
+
+- Keine automatische Ausführung (kein Auto-Tausch, kein Auto-Memo, kein Auto-Push)
+- Keine Echtzeit-Push-Alerts (nur täglicher Digest)
+- Keine menschlichen Rollen/Rechte verwalten
+- Keine plattformübergreifenden Vergleiche (weiterhin strikt pro Workspace)
+
+## Offen für später
+
+- Echtzeit-Alerts, sobald Verdicts als treffsicher gelten
+- „In Fahrplan übernehmen“-Button pro Company-Karte
+- Wochen-/Monats-Zusammenfassung der Company-Daten
 
 ## Technische Details
 
-- Tabelle mit RLS auf `auth.uid()`, GRANTs für `authenticated` + `service_role`
-- Erkennung liest `analysis_reports.result_json` der letzten beiden Reports pro Platform, plus `chatter_history` für Baselines, alles über `fetchAllPaged` — keine Limits
-- Alles platform-isoliert, konsistent mit der bestehenden Workspace-Trennung der AI
-- Neue Dateien: `src/lib/action-events.ts`, `src/components/ai/ActionReviewPanel.tsx`; Erweiterungen in `AIConsultant.tsx`, `Upload.tsx`, `generate-daily-briefing`, `ai-consultant`, `mcp`
-
-## Offen für später (nicht in diesem Schritt)
-
-Push-Benachrichtigung bei hartem Negativ-Verdict — sinnvoll, aber erst wenn die Verdicts sich in der Praxis als treffsicher erweisen.
+- Tabelle mit RLS + GRANTs wie oben
+- Edge Function parallelisiert die 4 Rollen-Prompts
+- Keine harten Limits: alle aktiven Chatters/Accounts werden betrachtet
+- Wording-Regeln aus Memory beachten: „im Rückgang“, kein Punkt vor Emojis, 🏻-Modifier
+- Neue Dateien: `src/components/ai/CompanyPanel.tsx`, `src/lib/company-digest.ts`, `supabase/functions/generate-company-digest/index.ts`
+- Erweiterungen: `src/pages/AIConsultant.tsx`, `src/pages/Upload.tsx`, `src/lib/mcp/index.ts` (optional)
