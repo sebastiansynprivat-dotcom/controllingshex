@@ -527,7 +527,7 @@ export default function AIConsultant() {
               <PanelLeft className="h-3.5 w-3.5" /> Verlauf
             </button>
             <span className="flex-1 min-w-0 truncate text-[12px] font-light text-white/45">
-              {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
+              {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : isCompany ? "Company · heute" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
             </span>
             <button
               onClick={newThread}
