@@ -14,6 +14,8 @@ import ActionReviewPanel from "@/components/ai/ActionReviewPanel";
 import CompanyPanel from "@/components/ai/CompanyPanel";
 import { countBadVerdicts } from "@/lib/action-events";
 import { countCriticalSignals, getTodayDigest } from "@/lib/company-digest";
+import ThreadRow from "@/components/ai/ThreadRow";
+import SuperPromptBar from "@/components/ai/SuperPromptBar";
 
 
 interface ToolCall {
