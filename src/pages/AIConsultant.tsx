@@ -578,7 +578,7 @@ export default function AIConsultant() {
         </div>
 
 
-      {isRoadmap || isReview ? (
+      {isRoadmap || isReview || isCompany ? (
         <>
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
@@ -586,8 +586,12 @@ export default function AIConsultant() {
               <BriefingPanel
                 onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
               />
-            ) : (
+            ) : isReview ? (
               <ActionReviewPanel
+                onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+              />
+            ) : (
+              <CompanyPanel
                 onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
               />
             )}
