@@ -290,12 +290,14 @@ export default function AIConsultant() {
             user_id: uid,
             platform,
             title: text.trim().replace(/\s+/g, " ").slice(0, 60) || "Neue Unterhaltung",
+            super_prompt: draftSuperPrompt.trim() ? draftSuperPrompt.trim() : null,
           })
-          .select("id,title,updated_at")
+          .select("id,title,updated_at,pinned,super_prompt,title_custom")
           .single();
         if (threadErr || !created) throw new Error(threadErr?.message ?? "Thread konnte nicht angelegt werden.");
         activeThread = created.id;
         activeStreamingThreadRef.current = created.id;
+        setDraftSuperPrompt("");
         setThreads((prev) => [created as Thread, ...prev]);
         navigate(`/ai-consultant/${created.id}`, { replace: true });
       }
