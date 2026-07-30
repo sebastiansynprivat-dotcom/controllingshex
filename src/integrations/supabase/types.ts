@@ -1319,6 +1319,45 @@ export type Database = {
         }
         Relationships: []
       }
+      company_digests: {
+        Row: {
+          created_at: string
+          digest_date: string
+          error_message: string | null
+          id: string
+          platform: string
+          sections_json: Json | null
+          signals_json: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          digest_date: string
+          error_message?: string | null
+          id?: string
+          platform: string
+          sections_json?: Json | null
+          signals_json?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          digest_date?: string
+          error_message?: string | null
+          id?: string
+          platform?: string
+          sections_json?: Json | null
+          signals_json?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_briefings: {
         Row: {
           briefing_date: string
