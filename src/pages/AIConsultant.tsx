@@ -558,6 +558,17 @@ export default function AIConsultant() {
               )}
             </button>
             <button
+              onClick={() => navigate("/ai-consultant/company")}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-light transition-colors ${
+                isCompany ? "border-primary/25 bg-primary/10 text-primary" : "border-white/[0.07] bg-white/[0.02] text-white/55"
+              }`}
+            >
+              <Building2 className="h-3 w-3" /> Company
+              {companySignalCount > 0 && (
+                <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 text-[9px] text-amber-400">{companySignalCount}</span>
+              )}
+            </button>
+            <button
               onClick={() => { setMemoriesOpen(true); loadMemories(); }}
               className="shrink-0 flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1.5 text-[11px] font-light text-white/55 transition-colors"
             >
