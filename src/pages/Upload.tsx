@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { generateBriefing } from "@/lib/daily-briefing";
 import { detectActionEvents, evaluateActionEvents } from "@/lib/action-events";
+import { generateDigest } from "@/lib/company-digest";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { mapToActionCategory } from "@/lib/action-categories";
