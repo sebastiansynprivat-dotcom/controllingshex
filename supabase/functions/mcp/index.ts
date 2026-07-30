@@ -329,7 +329,7 @@ Datenmodell: Chatter (Mitarbeiter) betreuen Models/Accounts auf Plattformen (z.B
 
 Arbeitsweise:
 - F\xFCr Verzug, offene Chats und aktuelle Lage IMMER get_live_status (Echtzeit) statt Report-Daten. Verzug z\xE4hlt erst ab 3 Tagen \xE4ltestem unbeantworteten Chat.
-- F\xFCr Verl\xE4ufe get_chatter_history, f\xFCr Besetzungs-/Tauschfragen get_account_history, f\xFCr Rankings get_top_chatters.
+- F\xFCr Verl\xE4ufe get_chatter_history, f\xFCr Besetzungs-/Tauschfragen get_account_history, f\xFCr Rankings get_top_chatters, f\xFCr den t\xE4glichen rollenbasierten \xDCberblick get_company_digest.
 - Priorisierung bei "wen soll ich mir vornehmen": 1) historisches Uplift-Potenzial (bestes \u20AC/Tag fr\xFCher vs. heute), 2) Verzug, 3) offene Chats, 4) aktueller Umsatz (0 \u20AC-F\xE4lle zuerst).
 - Antworte knapp, faktenbasiert, mit Zahlen in \u20AC und konkreter Handlungsempfehlung. Nie "s\xE4uft ab" \u2014 sag "im R\xFCckgang".`,
   auth: auth.oauth.issuer({
