@@ -437,6 +437,22 @@ export default function AIConsultant() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => navigate("/ai-consultant/company")}
+            className={`mt-1 w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+              isCompany ? "bg-primary/10 border border-primary/20" : "hover:bg-white/[0.03] border border-transparent"
+            }`}
+          >
+            <Building2 className={`h-3 w-3 shrink-0 ${isCompany ? "text-primary" : "text-primary/60"}`} />
+            <span className={`flex-1 truncate text-[11px] font-light ${isCompany ? "text-primary" : "text-white/70"}`}>
+              Company · heute
+            </span>
+            {companySignalCount > 0 && (
+              <span className="shrink-0 rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 py-0.5 text-[9px] font-light text-amber-400">
+                {companySignalCount}
+              </span>
+            )}
+          </button>
           <div className="mt-2 h-px bg-white/[0.05]" />
 
         </div>
