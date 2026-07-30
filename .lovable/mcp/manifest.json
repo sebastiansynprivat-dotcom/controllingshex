@@ -200,6 +200,31 @@
         "outputSchema": null
       },
       {
+        "name": "get_company_digest",
+        "title": "Company-Digest heute",
+        "description": "Liefert den aktuellen AI-Company-Digest für den Workspace: rollenbasierte Beobachtungen zu Umsatz, Operations, Besetzung und Accounts inkl. Empfehlungen und Signalen. Für Fragen wie 'Wie sieht die Company heute aus?' oder 'Welche kritischen Signale gibt es?'.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "string",
+              "description": "Plattform, z.B. 'Maloum' oder 'Brezzels'."
+            }
+          },
+          "required": [
+            "platform"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
         "name": "read_memos",
         "title": "Memos lesen",
         "description": "Liest gespeicherte Memos und Vereinbarungen zu Chattern (inkl. Fristen / Follow-up-Datum). Nutze das vor Empfehlungen zu einem Chatter, um bereits angestoßene Maßnahmen nicht zu wiederholen.",

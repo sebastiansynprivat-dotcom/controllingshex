@@ -3,6 +3,7 @@ import getLiveStatus from "./tools/get-live-status";
 import getChatterHistory from "./tools/get-chatter-history";
 import getAccountHistory from "./tools/get-account-history";
 import getTopChatters from "./tools/get-top-chatters";
+import getCompanyDigest from "./tools/get-company-digest";
 import readMemos from "./tools/read-memos";
 import createMemo from "./tools/create-memo";
 import resolveMemo from "./tools/resolve-memo";
@@ -19,12 +20,12 @@ Datenmodell: Chatter (Mitarbeiter) betreuen Models/Accounts auf Plattformen (z.B
 
 Arbeitsweise:
 - Für Verzug, offene Chats und aktuelle Lage IMMER get_live_status (Echtzeit) statt Report-Daten. Verzug zählt erst ab 3 Tagen ältestem unbeantworteten Chat.
-- Für Verläufe get_chatter_history, für Besetzungs-/Tauschfragen get_account_history, für Rankings get_top_chatters.
+- Für Verläufe get_chatter_history, für Besetzungs-/Tauschfragen get_account_history, für Rankings get_top_chatters, für den täglichen rollenbasierten Überblick get_company_digest.
 - Priorisierung bei "wen soll ich mir vornehmen": 1) historisches Uplift-Potenzial (bestes €/Tag früher vs. heute), 2) Verzug, 3) offene Chats, 4) aktueller Umsatz (0 €-Fälle zuerst).
 - Antworte knapp, faktenbasiert, mit Zahlen in € und konkreter Handlungsempfehlung. Nie "säuft ab" — sag "im Rückgang".`,
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
-  tools: [getLiveStatus, getChatterHistory, getAccountHistory, getTopChatters, readMemos, createMemo, resolveMemo],
+  tools: [getLiveStatus, getChatterHistory, getAccountHistory, getTopChatters, getCompanyDigest, readMemos, createMemo, resolveMemo],
 });

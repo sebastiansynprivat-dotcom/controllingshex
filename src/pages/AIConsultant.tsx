@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History, PanelLeft } from "lucide-react";
+import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History, PanelLeft, Building2 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -11,7 +11,9 @@ import { motion } from "framer-motion";
 import ThinkingIndicator from "@/components/ai/ThinkingIndicator";
 import BriefingPanel from "@/components/ai/BriefingPanel";
 import ActionReviewPanel from "@/components/ai/ActionReviewPanel";
+import CompanyPanel from "@/components/ai/CompanyPanel";
 import { countBadVerdicts } from "@/lib/action-events";
+import { countCriticalSignals, getTodayDigest } from "@/lib/company-digest";
 
 
 interface ToolCall {
@@ -117,8 +119,18 @@ export default function AIConsultant() {
     return () => { cancelled = true; };
   }, [platform]);
 
+  const [companySignalCount, setCompanySignalCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    getTodayDigest(platform)
+      .then((d) => { if (!cancelled) setCompanySignalCount(countCriticalSignals(d)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [platform]);
+
   const isRoadmap = threadId === "fahrplan";
   const isReview = threadId === "rueckblick";
+  const isCompany = threadId === "company";
 
   // Load messages of the routed thread
   useEffect(() => {
@@ -328,7 +340,7 @@ export default function AIConsultant() {
     const text = input.trim();
     if (!text) return;
     if (inputRef.current) inputRef.current.style.height = "auto";
-    if (isRoadmap || isReview) {
+    if (isRoadmap || isReview || isCompany) {
       setInput("");
       navigate(`/ai-consultant?q=${encodeURIComponent(text)}`);
       return;
@@ -425,6 +437,22 @@ export default function AIConsultant() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => navigate("/ai-consultant/company")}
+            className={`mt-1 w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+              isCompany ? "bg-primary/10 border border-primary/20" : "hover:bg-white/[0.03] border border-transparent"
+            }`}
+          >
+            <Building2 className={`h-3 w-3 shrink-0 ${isCompany ? "text-primary" : "text-primary/60"}`} />
+            <span className={`flex-1 truncate text-[11px] font-light ${isCompany ? "text-primary" : "text-white/70"}`}>
+              Company · heute
+            </span>
+            {companySignalCount > 0 && (
+              <span className="shrink-0 rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 py-0.5 text-[9px] font-light text-amber-400">
+                {companySignalCount}
+              </span>
+            )}
+          </button>
           <div className="mt-2 h-px bg-white/[0.05]" />
 
         </div>
@@ -499,7 +527,7 @@ export default function AIConsultant() {
               <PanelLeft className="h-3.5 w-3.5" /> Verlauf
             </button>
             <span className="flex-1 min-w-0 truncate text-[12px] font-light text-white/45">
-              {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
+              {isRoadmap ? "Fahrplan · heute" : isReview ? "Rückblick" : isCompany ? "Company · heute" : threads.find((t) => t.id === threadId)?.title ?? "Neue Unterhaltung"}
             </span>
             <button
               onClick={newThread}
@@ -530,6 +558,17 @@ export default function AIConsultant() {
               )}
             </button>
             <button
+              onClick={() => navigate("/ai-consultant/company")}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-light transition-colors ${
+                isCompany ? "border-primary/25 bg-primary/10 text-primary" : "border-white/[0.07] bg-white/[0.02] text-white/55"
+              }`}
+            >
+              <Building2 className="h-3 w-3" /> Company
+              {companySignalCount > 0 && (
+                <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 text-[9px] text-amber-400">{companySignalCount}</span>
+              )}
+            </button>
+            <button
               onClick={() => { setMemoriesOpen(true); loadMemories(); }}
               className="shrink-0 flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1.5 text-[11px] font-light text-white/55 transition-colors"
             >
@@ -539,7 +578,7 @@ export default function AIConsultant() {
         </div>
 
 
-      {isRoadmap || isReview ? (
+      {isRoadmap || isReview || isCompany ? (
         <>
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-3 sm:px-8 py-6 sm:py-10">
@@ -547,8 +586,12 @@ export default function AIConsultant() {
               <BriefingPanel
                 onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
               />
-            ) : (
+            ) : isReview ? (
               <ActionReviewPanel
+                onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
+              />
+            ) : (
+              <CompanyPanel
                 onAsk={(q) => navigate(`/ai-consultant?q=${encodeURIComponent(q)}`)}
               />
             )}

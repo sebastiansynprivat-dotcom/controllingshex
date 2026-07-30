@@ -204,19 +204,47 @@ var get_top_chatters_default = defineTool4({
   }
 });
 
-// src/lib/mcp/tools/read-memos.ts
+// src/lib/mcp/tools/get-company-digest.ts
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z5 } from "npm:zod@^3.25.76";
-var read_memos_default = defineTool5({
+var get_company_digest_default = defineTool5({
+  name: "get_company_digest",
+  title: "Company-Digest heute",
+  description: "Liefert den aktuellen AI-Company-Digest f\xFCr den Workspace: rollenbasierte Beobachtungen zu Umsatz, Operations, Besetzung und Accounts inkl. Empfehlungen und Signalen. F\xFCr Fragen wie 'Wie sieht die Company heute aus?' oder 'Welche kritischen Signale gibt es?'.",
+  inputSchema: {
+    platform: z5.string().describe("Plattform, z.B. 'Maloum' oder 'Brezzels'.")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ platform }, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const { data, error } = await supabaseForUser(ctx).from("company_digests").select("status,sections_json,signals_json,error_message").eq("platform", platform).eq("digest_date", today).maybeSingle();
+    if (error) return errorResult(error.message);
+    if (!data) return textResult({ status: "missing", message: `Noch kein Company-Digest f\xFCr ${platform} am ${today}.` });
+    return textResult({
+      platform,
+      date: today,
+      status: data.status,
+      sections: data.sections_json ?? [],
+      signals: data.signals_json ?? [],
+      error: data.error_message
+    });
+  }
+});
+
+// src/lib/mcp/tools/read-memos.ts
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z6 } from "npm:zod@^3.25.76";
+var read_memos_default = defineTool6({
   name: "read_memos",
   title: "Memos lesen",
   description: "Liest gespeicherte Memos und Vereinbarungen zu Chattern (inkl. Fristen / Follow-up-Datum). Nutze das vor Empfehlungen zu einem Chatter, um bereits angesto\xDFene Ma\xDFnahmen nicht zu wiederholen.",
   inputSchema: {
-    platform: z5.string().describe("Plattform, z.B. 'Maloum'."),
-    chatter_name: z5.string().nullable().describe("Optionaler Chatter-Filter (Teilstring)."),
-    status: z5.enum(["open", "resolved", "all"]).nullable().describe("Default 'open'."),
-    due_only: z5.boolean().nullable().describe("Nur heute f\xE4llige oder \xFCberf\xE4llige Memos."),
-    limit: z5.number().nullable().describe("Max. Anzahl, Default 30.")
+    platform: z6.string().describe("Plattform, z.B. 'Maloum'."),
+    chatter_name: z6.string().nullable().describe("Optionaler Chatter-Filter (Teilstring)."),
+    status: z6.enum(["open", "resolved", "all"]).nullable().describe("Default 'open'."),
+    due_only: z6.boolean().nullable().describe("Nur heute f\xE4llige oder \xFCberf\xE4llige Memos."),
+    limit: z6.number().nullable().describe("Max. Anzahl, Default 30.")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ platform, chatter_name, status, due_only, limit }, ctx) => {
@@ -233,18 +261,18 @@ var read_memos_default = defineTool5({
 });
 
 // src/lib/mcp/tools/create-memo.ts
-import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.24.0";
-import { z as z6 } from "npm:zod@^3.25.76";
-var create_memo_default = defineTool6({
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z7 } from "npm:zod@^3.25.76";
+var create_memo_default = defineTool7({
   name: "create_memo",
   title: "Memo anlegen",
   description: "Legt ein Memo / eine Vereinbarung f\xFCr einen Chatter an, optional mit Frist. Nutze das bei 'notier:', 'merk dir', 'gib X noch N Tage', 'erinner mich'.",
   inputSchema: {
-    platform: z6.string().describe("Plattform, z.B. 'Maloum'."),
-    chatter_name: z6.string().describe("Name des Chatters."),
-    text: z6.string().min(1).describe("Was wurde vereinbart bzw. die Notiz."),
-    follow_up_days: z6.number().nullable().describe("Tage bis zur Erinnerung, optional."),
-    topic: z6.string().nullable().describe("Kurz-Tag, z.B. 'frist', 'mass_dms_low'.")
+    platform: z7.string().describe("Plattform, z.B. 'Maloum'."),
+    chatter_name: z7.string().describe("Name des Chatters."),
+    text: z7.string().min(1).describe("Was wurde vereinbart bzw. die Notiz."),
+    follow_up_days: z7.number().nullable().describe("Tage bis zur Erinnerung, optional."),
+    topic: z7.string().nullable().describe("Kurz-Tag, z.B. 'frist', 'mass_dms_low'.")
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   handler: async ({ platform, chatter_name, text, follow_up_days, topic }, ctx) => {
@@ -271,14 +299,14 @@ var create_memo_default = defineTool6({
 });
 
 // src/lib/mcp/tools/resolve-memo.ts
-import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.24.0";
-import { z as z7 } from "npm:zod@^3.25.76";
-var resolve_memo_default = defineTool7({
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z8 } from "npm:zod@^3.25.76";
+var resolve_memo_default = defineTool8({
   name: "resolve_memo",
   title: "Memo erledigen",
   description: "Markiert ein Memo als erledigt. Nutze das, wenn der Chatter geliefert hat oder das Thema geschlossen wird.",
   inputSchema: {
-    memo_id: z7.string().describe("ID des Memos (aus read_memos).")
+    memo_id: z8.string().describe("ID des Memos (aus read_memos).")
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   handler: async ({ memo_id }, ctx) => {
@@ -301,14 +329,14 @@ Datenmodell: Chatter (Mitarbeiter) betreuen Models/Accounts auf Plattformen (z.B
 
 Arbeitsweise:
 - F\xFCr Verzug, offene Chats und aktuelle Lage IMMER get_live_status (Echtzeit) statt Report-Daten. Verzug z\xE4hlt erst ab 3 Tagen \xE4ltestem unbeantworteten Chat.
-- F\xFCr Verl\xE4ufe get_chatter_history, f\xFCr Besetzungs-/Tauschfragen get_account_history, f\xFCr Rankings get_top_chatters.
+- F\xFCr Verl\xE4ufe get_chatter_history, f\xFCr Besetzungs-/Tauschfragen get_account_history, f\xFCr Rankings get_top_chatters, f\xFCr den t\xE4glichen rollenbasierten \xDCberblick get_company_digest.
 - Priorisierung bei "wen soll ich mir vornehmen": 1) historisches Uplift-Potenzial (bestes \u20AC/Tag fr\xFCher vs. heute), 2) Verzug, 3) offene Chats, 4) aktueller Umsatz (0 \u20AC-F\xE4lle zuerst).
 - Antworte knapp, faktenbasiert, mit Zahlen in \u20AC und konkreter Handlungsempfehlung. Nie "s\xE4uft ab" \u2014 sag "im R\xFCckgang".`,
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [get_live_status_default, get_chatter_history_default, get_account_history_default, get_top_chatters_default, read_memos_default, create_memo_default, resolve_memo_default]
+  tools: [get_live_status_default, get_chatter_history_default, get_account_history_default, get_top_chatters_default, get_company_digest_default, read_memos_default, create_memo_default, resolve_memo_default]
 });
 
 // lovable-mcp-supabase-entry.ts

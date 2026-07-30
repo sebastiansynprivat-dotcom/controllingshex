@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { generateBriefing } from "@/lib/daily-briefing";
 import { detectActionEvents, evaluateActionEvents } from "@/lib/action-events";
+import { generateDigest } from "@/lib/company-digest";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { mapToActionCategory } from "@/lib/action-categories";
@@ -948,6 +949,16 @@ export default function UploadPage() {
         await evaluateActionEvents(platform);
       } catch (evErr: any) {
         console.error("Action monitor error:", evErr);
+      }
+
+      // AI Company-Digest für heute automatisch neu erstellen
+      try {
+        addStatus("🏢 AI erstellt den Company-Digest…");
+        await generateDigest(platform, true);
+        addStatus("✅ Company-Digest wird im Hintergrund gebaut — im AI-Chat ansehen.");
+      } catch (companyErr: any) {
+        console.error("Company digest error:", companyErr);
+        addStatus("⚠️ Company-Digest konnte nicht gestartet werden.");
       }
 
 
