@@ -340,7 +340,7 @@ export default function AIConsultant() {
     const text = input.trim();
     if (!text) return;
     if (inputRef.current) inputRef.current.style.height = "auto";
-    if (isRoadmap || isReview) {
+    if (isRoadmap || isReview || isCompany) {
       setInput("");
       navigate(`/ai-consultant?q=${encodeURIComponent(text)}`);
       return;
