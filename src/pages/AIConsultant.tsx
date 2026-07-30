@@ -86,8 +86,9 @@ export default function AIConsultant() {
   const loadThreads = useCallback(async () => {
     const { data } = await supabase
       .from("ai_threads")
-      .select("id,title,updated_at")
+      .select("id,title,updated_at,pinned,super_prompt,title_custom")
       .eq("platform", platform)
+      .order("pinned", { ascending: false })
       .order("updated_at", { ascending: false });
     setThreads((data as Thread[]) ?? []);
   }, [platform]);
