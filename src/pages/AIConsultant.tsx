@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History, PanelLeft, Building2 } from "lucide-react";
+import { Send, Sparkles, Wrench, Plus, Trash2, Brain, X, Pin, History, PanelLeft, Building2 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
@@ -14,6 +14,8 @@ import ActionReviewPanel from "@/components/ai/ActionReviewPanel";
 import CompanyPanel from "@/components/ai/CompanyPanel";
 import { countBadVerdicts } from "@/lib/action-events";
 import { countCriticalSignals, getTodayDigest } from "@/lib/company-digest";
+import ThreadRow from "@/components/ai/ThreadRow";
+import SuperPromptBar from "@/components/ai/SuperPromptBar";
 
 
 interface ToolCall {
@@ -33,6 +35,9 @@ interface Thread {
   id: string;
   title: string;
   updated_at: string;
+  pinned?: boolean;
+  super_prompt?: string | null;
+  title_custom?: boolean;
 }
 
 interface Memory {
@@ -61,6 +66,7 @@ export default function AIConsultant() {
   useEffect(() => { setNavOpen(false); }, [threadId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [draftSuperPrompt, setDraftSuperPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -81,8 +87,9 @@ export default function AIConsultant() {
   const loadThreads = useCallback(async () => {
     const { data } = await supabase
       .from("ai_threads")
-      .select("id,title,updated_at")
+      .select("id,title,updated_at,pinned,super_prompt,title_custom")
       .eq("platform", platform)
+      .order("pinned", { ascending: false })
       .order("updated_at", { ascending: false });
     setThreads((data as Thread[]) ?? []);
   }, [platform]);
@@ -211,6 +218,46 @@ export default function AIConsultant() {
     }
   };
 
+  const togglePin = async (id: string, pinned: boolean) => {
+    setThreads((prev) =>
+      [...prev.map((t) => (t.id === id ? { ...t, pinned } : t))].sort((a, b) => {
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return a.updated_at < b.updated_at ? 1 : -1;
+      })
+    );
+    const { error } = await supabase.from("ai_threads").update({ pinned }).eq("id", id);
+    if (error) {
+      toast.error("Anpinnen fehlgeschlagen.");
+      loadThreads();
+    }
+  };
+
+  const renameThread = async (id: string, title: string) => {
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, title, title_custom: true } : t)));
+    const { error } = await supabase
+      .from("ai_threads")
+      .update({ title, title_custom: true })
+      .eq("id", id);
+    if (error) {
+      toast.error("Umbenennen fehlgeschlagen.");
+      loadThreads();
+    }
+  };
+
+  const saveSuperPrompt = async (value: string) => {
+    const next = value.trim() ? value.trim() : null;
+    if (!threadId) {
+      setDraftSuperPrompt(value.trim());
+      return;
+    }
+    setThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, super_prompt: next } : t)));
+    const { error } = await supabase.from("ai_threads").update({ super_prompt: next }).eq("id", threadId);
+    if (error) {
+      toast.error("Überprompt konnte nicht gespeichert werden.");
+      loadThreads();
+    }
+  };
+
   const deleteMemory = async (id: string) => {
     const { error } = await supabase.from("ai_memories").delete().eq("id", id);
     if (error) {
@@ -243,12 +290,14 @@ export default function AIConsultant() {
             user_id: uid,
             platform,
             title: text.trim().replace(/\s+/g, " ").slice(0, 60) || "Neue Unterhaltung",
+            super_prompt: draftSuperPrompt.trim() ? draftSuperPrompt.trim() : null,
           })
-          .select("id,title,updated_at")
+          .select("id,title,updated_at,pinned,super_prompt,title_custom")
           .single();
         if (threadErr || !created) throw new Error(threadErr?.message ?? "Thread konnte nicht angelegt werden.");
         activeThread = created.id;
         activeStreamingThreadRef.current = created.id;
+        setDraftSuperPrompt("");
         setThreads((prev) => [created as Thread, ...prev]);
         navigate(`/ai-consultant/${created.id}`, { replace: true });
       }
@@ -362,12 +411,25 @@ export default function AIConsultant() {
     }
   };
 
+  const activeSuperPrompt = threadId
+    ? threads.find((t) => t.id === threadId)?.super_prompt ?? ""
+    : draftSuperPrompt;
+
   const inputBar = (
     <div
       className="shrink-0 sticky bottom-0 z-20 border-t border-white/[0.04] bg-zinc-950/90 backdrop-blur-2xl"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
     >
+      {!isRoadmap && !isReview && !isCompany && (
+        <SuperPromptBar
+          value={activeSuperPrompt}
+          disabled={loading}
+          onSave={saveSuperPrompt}
+          onRun={(v) => sendMessage(v)}
+        />
+      )}
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-3 sm:py-5">
+
 
         <div className="flex gap-2 sm:gap-3 items-end">
           <textarea
@@ -467,30 +529,33 @@ export default function AIConsultant() {
           {threads.length === 0 && (
             <p className="px-3 py-4 text-[11px] text-white/20 font-light">Noch keine Unterhaltungen</p>
           )}
-          {threads.map((t) => (
-            <div
-              key={t.id}
-              className={`group flex items-center gap-1 rounded-lg pr-1 transition-colors ${
-                t.id === threadId ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"
-              }`}
-            >
-              <button
-                onClick={() => navigate(`/ai-consultant/${t.id}`)}
-                className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-2 text-left"
-              >
-                <MessageSquare className="h-3 w-3 shrink-0 text-white/25" />
-                <span className="truncate text-[11px] font-light text-white/55">{t.title}</span>
-              </button>
-              <button
-                onClick={() => deleteThread(t.id)}
-                aria-label="Unterhaltung löschen"
-                data-keep-open
-                className="md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 transition-all"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
+          {(["pinned", "rest"] as const).map((group) => {
+            const list = threads.filter((t) => (group === "pinned" ? t.pinned : !t.pinned));
+            if (list.length === 0) return null;
+            return (
+              <div key={group} className="space-y-1">
+                {threads.some((t) => t.pinned) && (
+                  <p className="px-2.5 pt-2 pb-0.5 text-[9px] uppercase tracking-wider font-light text-white/20">
+                    {group === "pinned" ? "Angepinnt" : "Zuletzt"}
+                  </p>
+                )}
+                {list.map((t) => (
+                  <ThreadRow
+                    key={t.id}
+                    id={t.id}
+                    title={t.title}
+                    pinned={!!t.pinned}
+                    hasSuperPrompt={!!t.super_prompt?.trim()}
+                    active={t.id === threadId}
+                    onSelect={() => navigate(`/ai-consultant/${t.id}`)}
+                    onRename={(title) => renameThread(t.id, title)}
+                    onTogglePin={() => togglePin(t.id, !t.pinned)}
+                    onDelete={() => deleteThread(t.id)}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
     </>
   );
