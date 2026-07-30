@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Send, Sparkles, Wrench, Plus, Trash2, MessageSquare, Brain, X, Pin, History, PanelLeft, Building2 } from "lucide-react";
+import { Send, Sparkles, Wrench, Plus, Trash2, Brain, X, Pin, History, PanelLeft, Building2 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatform } from "@/contexts/PlatformContext";
