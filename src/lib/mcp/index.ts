@@ -27,5 +27,5 @@ Arbeitsweise:
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
-  tools: [getLiveStatus, getChatterHistory, getAccountHistory, getTopChatters, readMemos, createMemo, resolveMemo],
+  tools: [getLiveStatus, getChatterHistory, getAccountHistory, getTopChatters, getCompanyDigest, readMemos, createMemo, resolveMemo],
 });
