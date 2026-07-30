@@ -244,24 +244,33 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          pinned: boolean
           platform: string | null
+          super_prompt: string | null
           title: string
+          title_custom: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          pinned?: boolean
           platform?: string | null
+          super_prompt?: string | null
           title?: string
+          title_custom?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          pinned?: boolean
           platform?: string | null
+          super_prompt?: string | null
           title?: string
+          title_custom?: boolean
           updated_at?: string
           user_id?: string
         }
