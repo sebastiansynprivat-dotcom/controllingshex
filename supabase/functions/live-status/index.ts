@@ -17,15 +17,31 @@ function json(body: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const secret = Deno.env.get("LIVE_HISTORY_SECRET");
-  if (!secret) return json({ error: "LIVE_HISTORY_SECRET not configured" }, 500);
-
   const url = new URL(req.url);
+
+  // Auth: entweder API-Key ODER eingeloggter User (Bearer-Token aus der App)
+  const secret = Deno.env.get("LIVE_HISTORY_SECRET");
   const provided =
     req.headers.get("x-api-key")?.trim() ||
     url.searchParams.get("key")?.trim() ||
     "";
-  if (provided !== secret) return json({ error: "Unauthorized" }, 401);
+  let authorized = Boolean(secret) && provided === secret;
+
+  if (!authorized) {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (authHeader.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      const authClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { auth: { persistSession: false } },
+      );
+      const { data, error } = await authClient.auth.getUser(token);
+      if (!error && data?.user?.id) authorized = true;
+    }
+  }
+
+  if (!authorized) return json({ error: "Unauthorized" }, 401);
 
   let body: Record<string, unknown> = {};
   if (req.method === "POST") body = await req.json().catch(() => ({}));
