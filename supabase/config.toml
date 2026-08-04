@@ -29,3 +29,7 @@ verify_jwt = false
 
 [functions.evaluate-coaching-simulation]
 verify_jwt = false
+
+[functions.live-status]
+verify_jwt = false
+
