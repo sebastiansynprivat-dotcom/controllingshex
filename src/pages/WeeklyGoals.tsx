@@ -978,7 +978,7 @@ export default function WeeklyGoals() {
             const share = Math.max(1, chattersByModel.get(m)?.size ?? 1);
             perChatterDailyBaseline += modelDaily / share;
           }
-          const daysInWeek = 7;
+          const daysInWeek = 8;
           const rawModelGoal = perChatterDailyBaseline * daysInWeek * stretchFactor;
           const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
             ? Math.max(10, Math.round(rawModelGoal / 10) * 10)
@@ -1364,8 +1364,8 @@ export default function WeeklyGoals() {
     for (const s of considered) {
       const goal = s.currentGoal ?? s.suggested;
       goalSum += goal;
-      // "Wochen-Schnitt" = Chatter-Ø/Tag × 7
-      avgSum += (s.avg30 || 0) * 7;
+      // "Wochen-Schnitt" = Chatter-Ø/Tag × 8 (Di–Di)
+      avgSum += (s.avg30 || 0) * 8;
       if (s.suggested > 0) withGoal += 1;
       if (s.currentGoal != null) withCurrent += 1;
     }
