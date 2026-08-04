@@ -20,12 +20,15 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   // Auth: entweder API-Key ODER eingeloggter User (Bearer-Token aus der App)
-  const secret = Deno.env.get("LIVE_HISTORY_SECRET");
+  const secrets = [
+    Deno.env.get("LIVE_STATUS_KEY"),
+    Deno.env.get("LIVE_HISTORY_SECRET"),
+  ].filter(Boolean) as string[];
   const provided =
     req.headers.get("x-api-key")?.trim() ||
     url.searchParams.get("key")?.trim() ||
     "";
-  let authorized = Boolean(secret) && provided === secret;
+  let authorized = provided !== "" && secrets.includes(provided);
 
   if (!authorized) {
     const authHeader = req.headers.get("Authorization") ?? "";
