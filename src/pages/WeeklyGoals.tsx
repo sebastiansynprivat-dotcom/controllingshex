@@ -886,7 +886,7 @@ export default function WeeklyGoals() {
         const prevWeekMondayDate = weekStart(today);
         prevWeekMondayDate.setDate(prevWeekMondayDate.getDate() - 7);
         const prevWeekSundayDate = new Date(prevWeekMondayDate);
-        prevWeekSundayDate.setDate(prevWeekMondayDate.getDate() + 6);
+        prevWeekSundayDate.setDate(prevWeekMondayDate.getDate() + 7);
         const prevWeekMondayIso = toIsoDateLocal(prevWeekMondayDate);
         const prevWeekSundayIso = toIsoDateLocal(prevWeekSundayDate);
         const { week: prevKwNum, year: prevKwYear } = isoWeekNumber(prevWeekMondayDate);
@@ -978,7 +978,7 @@ export default function WeeklyGoals() {
             const share = Math.max(1, chattersByModel.get(m)?.size ?? 1);
             perChatterDailyBaseline += modelDaily / share;
           }
-          const daysInWeek = 7;
+          const daysInWeek = 8;
           const rawModelGoal = perChatterDailyBaseline * daysInWeek * stretchFactor;
           const modelGoal = Number.isFinite(rawModelGoal) && rawModelGoal > 0
             ? Math.max(10, Math.round(rawModelGoal / 10) * 10)
@@ -1123,7 +1123,7 @@ export default function WeeklyGoals() {
 
       // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
-      // Ziel gilt für die laufende Woche (Di–Mo) und wandert am nächsten Dienstag in „Vergangene".
+      // Ziel gilt für die laufende Woche (Di–Di) und wandert am nächsten Dienstag in „Vergangene".
       const weekLbl = currentWeekLabel(today);
       const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
 
@@ -1364,8 +1364,8 @@ export default function WeeklyGoals() {
     for (const s of considered) {
       const goal = s.currentGoal ?? s.suggested;
       goalSum += goal;
-      // "Wochen-Schnitt" = Chatter-Ø/Tag × 7
-      avgSum += (s.avg30 || 0) * 7;
+      // "Wochen-Schnitt" = Chatter-Ø/Tag × 8 (Di–Di)
+      avgSum += (s.avg30 || 0) * 8;
       if (s.suggested > 0) withGoal += 1;
       if (s.currentGoal != null) withCurrent += 1;
     }
