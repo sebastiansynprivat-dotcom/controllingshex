@@ -1,5 +1,5 @@
 // snapshot-weekly-goals
-// Läuft jeden Montag (per pg_cron) und schreibt für JEDE Plattform/User/Chatter,
+// Läuft jeden Dienstag (per pg_cron) und schreibt für JEDE Plattform/User/Chatter,
 // die ein Wochenziel für die abgelaufene Woche hatten, einen Eintrag in
 // weekly_goal_results (Ziel, Ist-Umsatz, erreicht ja/nein, Datum).
 //
@@ -20,9 +20,10 @@ function isoWeekday(d: Date): number {
   const x = d.getUTCDay();
   return x === 0 ? 7 : x;
 }
+// Woche läuft Dienstag–Montag
 function weekStartUtc(d: Date): Date {
   const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  x.setUTCDate(x.getUTCDate() - (isoWeekday(x) - 1));
+  x.setUTCDate(x.getUTCDate() - ((isoWeekday(x) - 2 + 7) % 7));
   return x;
 }
 function addDays(d: Date, n: number): Date {

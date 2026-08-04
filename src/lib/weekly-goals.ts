@@ -1,5 +1,5 @@
 /**
- * Wochenziel-Helpers: Fortschritt & Vorschläge auf ISO-Wochen-Basis (Mo–So).
+ * Wochenziel-Helpers: Fortschritt & Vorschläge auf Wochen-Basis Dienstag–Montag.
  * Teilen sich Parse-/Format-Helfer mit monthly-goals.
  */
 import {
@@ -19,22 +19,22 @@ export function isoWeekday(date: Date): number {
   return d === 0 ? 7 : d;
 }
 
-/** Erster Tag (Montag, lokal 00:00) der Woche, in der `date` liegt. */
+/** Erster Tag (Dienstag, lokal 00:00) der Woche, in der `date` liegt. */
 export function weekStart(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const offset = isoWeekday(d) - 1;
+  const offset = (isoWeekday(d) - 2 + 7) % 7;
   d.setDate(d.getDate() - offset);
   return d;
 }
 
-/** Sonntag (lokal 00:00) der Woche, in der `date` liegt. */
+/** Montag (lokal 00:00), letzter Tag der Woche, in der `date` liegt. */
 export function weekEnd(date: Date): Date {
   const start = weekStart(date);
   start.setDate(start.getDate() + 6);
   return start;
 }
 
-/** Montag der nächsten Woche. */
+/** Dienstag der nächsten Woche. */
 export function firstOfNextWeek(today: Date): Date {
   const next = weekStart(today);
   next.setDate(next.getDate() + 7);
@@ -53,7 +53,7 @@ export function isoWeekNumber(date: Date): { week: number; year: number } {
 
 /** "KW 25 2026" */
 export function weekLabel(date: Date): string {
-  const { week, year } = isoWeekNumber(date);
+  const { week, year } = isoWeekNumber(weekStart(date));
   return `KW ${week} ${year}`;
 }
 
@@ -77,7 +77,7 @@ export function nextWeekLabel(today: Date): string {
 }
 
 /**
- * Liest aus "Wochenziel KW <num> <Year>: ..." den Stichtag (Mo dieser KW).
+ * Liest aus "Wochenziel KW <num> <Year>: ..." den Stichtag (Di dieser KW).
  * null wenn nicht parsebar.
  */
 export function parseTargetWeek(noteText: string | null | undefined): Date | null {
@@ -87,12 +87,12 @@ export function parseTargetWeek(noteText: string | null | undefined): Date | nul
   const week = parseInt(m[1], 10);
   const year = parseInt(m[2], 10);
   if (!Number.isFinite(week) || !Number.isFinite(year)) return null;
-  // Mo der gegebenen ISO-Woche
+  // Dienstag der gegebenen KW (Woche läuft Di–Mo)
   const jan4 = new Date(year, 0, 4);
   const jan4Iso = isoWeekday(jan4);
   const mondayOfWeek1 = new Date(year, 0, 4 - (jan4Iso - 1));
   const target = new Date(mondayOfWeek1);
-  target.setDate(target.getDate() + (week - 1) * 7);
+  target.setDate(target.getDate() + (week - 1) * 7 + 1);
   return target;
 }
 
@@ -100,7 +100,7 @@ export interface WeekProgress {
   goal: number;
   currentRevenue: number;
   daysInWeek: number;        // immer 7
-  daysPassed: number;        // erfasste Tage seit Montag, inkl. Referenzdatum
+  daysPassed: number;        // erfasste Tage seit Dienstag, inkl. Referenzdatum
   daysRemaining: number;     // verbleibende Tage nach dem letzten erfassten Tag (min 1)
   dailyTarget: number;
   expectedSoFar: number;
@@ -113,7 +113,7 @@ export interface WeekProgress {
 
 /**
  * Fortschritt für die Woche, in der `today` liegt (bzw. die durch `today` angepeilte Woche).
- * `today` ist dabei der letzte tatsächlich erfasste Report-Tag. Wochenziel läuft Mo–Mo:
+ * `today` ist dabei der letzte tatsächlich erfasste Report-Tag. Wochenziel läuft Di–Mo:
  * On Track heißt, dass der bisherige Tagesdurchschnitt mindestens Ziel/7 erreicht.
  */
 export function computeWeekProgress(

@@ -47,10 +47,11 @@ function isoWeekday(d: Date): number {
   const wd = d.getUTCDay();
   return wd === 0 ? 7 : wd;
 }
+// Woche läuft Dienstag–Montag
 function startOfIsoWeek(d: Date): Date {
   const wd = isoWeekday(d);
   const s = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  s.setUTCDate(s.getUTCDate() - (wd - 1));
+  s.setUTCDate(s.getUTCDate() - ((wd - 2 + 7) % 7));
   return s;
 }
 
