@@ -718,7 +718,7 @@ export default function WeeklyGoals() {
         // === Aktuelle Wochenziele ===
         // Nur Notes für die laufende oder zukünftige KW zählen als „aktuell".
         // Ältere Notes (z.B. letzte Woche) fallen automatisch raus — der
-        // Montags-Snapshot hat sie da schon in „Vergangene" geschrieben.
+        // Dienstags-Snapshot hat sie da schon in „Vergangene" geschrieben.
         const currentWeekStartMs = weekStart(today).getTime();
         const goalByChatter = new Map<string, { goal: number; text: string; date: string }>();
         for (const n of notesRes.data ?? []) {
@@ -883,8 +883,8 @@ export default function WeeklyGoals() {
         // Reports die nach dem Snapshot noch nachgelaufen sind, im Status korrekt
         // berücksichtigt werden. Multi-Account-Chatter werden über die Summe
         // aller ihrer Accounts pro Tag aggregiert.
-        const prevWeekMondayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        prevWeekMondayDate.setDate(prevWeekMondayDate.getDate() - ((prevWeekMondayDate.getDay() + 6) % 7) - 7);
+        const prevWeekMondayDate = weekStart(today);
+        prevWeekMondayDate.setDate(prevWeekMondayDate.getDate() - 7);
         const prevWeekSundayDate = new Date(prevWeekMondayDate);
         prevWeekSundayDate.setDate(prevWeekMondayDate.getDate() + 6);
         const prevWeekMondayIso = toIsoDateLocal(prevWeekMondayDate);
@@ -1123,7 +1123,7 @@ export default function WeeklyGoals() {
 
       // 2) Assignment nur, falls noch nicht vorhanden (Überschreiben → kein Duplikat)
       const today = new Date();
-      // Ziel gilt für die laufende Woche (Mo–So) und wandert am nächsten Montag in „Vergangene".
+      // Ziel gilt für die laufende Woche (Di–Mo) und wandert am nächsten Dienstag in „Vergangene".
       const weekLbl = currentWeekLabel(today);
       const noteText = `Wochenziel ${weekLbl}: ${formatEUR(goal)}`;
 
