@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { auth: { persistSession: false } },
       );
-      const { data, error } = await authClient.auth.getClaims(token);
-      if (!error && data?.claims?.sub) authorized = true;
+      const { data, error } = await authClient.auth.getUser(token);
+      if (!error && data?.user?.id) authorized = true;
     }
   }
 
