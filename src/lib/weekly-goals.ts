@@ -1,5 +1,5 @@
 /**
- * Wochenziel-Helpers: Fortschritt & Vorschläge auf Wochen-Basis Dienstag–Montag.
+ * Wochenziel-Helpers: Fortschritt & Vorschläge auf Wochen-Basis Dienstag–Dienstag (8 Tage, inkl. beider Dienstage).
  * Teilen sich Parse-/Format-Helfer mit monthly-goals.
  */
 import {
@@ -27,10 +27,10 @@ export function weekStart(date: Date): Date {
   return d;
 }
 
-/** Montag (lokal 00:00), letzter Tag der Woche, in der `date` liegt. */
+/** Folgender Dienstag (lokal 00:00), letzter Tag der Woche, in der `date` liegt. */
 export function weekEnd(date: Date): Date {
   const start = weekStart(date);
-  start.setDate(start.getDate() + 6);
+  start.setDate(start.getDate() + 7);
   return start;
 }
 
@@ -60,7 +60,7 @@ export function weekLabel(date: Date): string {
 function weekLabelWithRange(start: Date): string {
   const { week, year } = isoWeekNumber(start);
   const end = new Date(start);
-  end.setDate(end.getDate() + 6);
+  end.setDate(end.getDate() + 7);
   const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
   return `KW ${week} ${year} (${fmt(start)}–${fmt(end)})`;
 }
@@ -99,7 +99,7 @@ export function parseTargetWeek(noteText: string | null | undefined): Date | nul
 export interface WeekProgress {
   goal: number;
   currentRevenue: number;
-  daysInWeek: number;        // immer 7
+  daysInWeek: number;        // immer 8 (Di–Di inkl.)
   daysPassed: number;        // erfasste Tage seit Dienstag, inkl. Referenzdatum
   daysRemaining: number;     // verbleibende Tage nach dem letzten erfassten Tag (min 1)
   dailyTarget: number;
@@ -113,7 +113,7 @@ export interface WeekProgress {
 
 /**
  * Fortschritt für die Woche, in der `today` liegt (bzw. die durch `today` angepeilte Woche).
- * `today` ist dabei der letzte tatsächlich erfasste Report-Tag. Wochenziel läuft Di–Mo:
+ * `today` ist dabei der letzte tatsächlich erfasste Report-Tag. Wochenziel läuft Di–Di (8 Tage):
  * On Track heißt, dass der bisherige Tagesdurchschnitt mindestens Ziel/7 erreicht.
  */
 export function computeWeekProgress(
@@ -121,7 +121,7 @@ export function computeWeekProgress(
   currentRevenue: number,
   today: Date = new Date(),
 ): WeekProgress {
-  const daysInWeek = 7;
+  const daysInWeek = 8;
   const refDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const start = weekStart(refDate);
   const elapsedDays = Math.floor((refDate.getTime() - start.getTime()) / 86400000) + 1;
@@ -157,16 +157,16 @@ export function computeWeekProgress(
 }
 
 /**
- * Schlägt ein Wochenziel basierend auf Ø Tagesumsatz vor: avg × 7 × 1.10, gerundet auf 10 €.
+ * Schlägt ein Wochenziel basierend auf Ø Tagesumsatz vor: avg × 8 × 1.10, gerundet auf 10 €.
  */
 export function suggestWeeklyGoal(avgDailyRevenue: number): number {
-  const raw = avgDailyRevenue * 7 * 1.10;
+  const raw = avgDailyRevenue * 8 * 1.10;
   if (!Number.isFinite(raw) || raw <= 0) return 0;
   return Math.max(10, Math.round(raw / 10) * 10);
 }
 
 /**
- * Ziel = Σ(Ø EUR/Tag pro Model im Roster) × 7 × stretch, auf 10 € gerundet.
+ * Ziel = Σ(Ø EUR/Tag pro Model im Roster) × 8 × stretch, auf 10 € gerundet.
  */
 export function suggestWeeklyFromModels(
   roster: string[],
@@ -177,7 +177,7 @@ export function suggestWeeklyFromModels(
     (acc, m) => acc + (baselines.get(m.toLowerCase()) ?? 0),
     0,
   );
-  const raw = baseline * 7 * stretch;
+  const raw = baseline * 8 * stretch;
   const goal = Number.isFinite(raw) && raw > 0 ? Math.max(10, Math.round(raw / 10) * 10) : 0;
   return { goal, modelBaselineEurPerDay: baseline };
 }

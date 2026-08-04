@@ -20,7 +20,7 @@ function isoWeekday(d: Date): number {
   const x = d.getUTCDay();
   return x === 0 ? 7 : x;
 }
-// Woche läuft Dienstag–Montag
+// Woche läuft Dienstag–Dienstag (8 Tage, inkl. beider Dienstage)
 function weekStartUtc(d: Date): Date {
   const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   x.setUTCDate(x.getUTCDate() - ((isoWeekday(x) - 2 + 7) % 7));
@@ -69,7 +69,7 @@ async function processWeek(
   supabase: ReturnType<typeof createClient>,
   weekStart: Date,
 ): Promise<{ weekKey: string; processed: number }> {
-  const weekEnd = addDays(weekStart, 6);
+  const weekEnd = addDays(weekStart, 7);
   const wk = isoWeekNumber(weekStart);
   const weekKey = `${wk.year}-W${String(wk.week).padStart(2, "0")}`;
   const fromIso = isoDate(weekStart);
