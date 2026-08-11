@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Copy, Check, X, MessageCircle, Circle, CheckCircle2 } from "lucide-react";
+import { Loader2, Copy, Check, X, Circle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -319,7 +319,6 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
             const unaccepting = unacceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
             const skipped = skippedSet.has(r.chatter);
-            const isWhatsApp = classifyName(r.chatter) === "whatsapp";
             const dimmed = accepted || skipped;
             const effectiveGoal = editedGoals[r.chatter] ?? r.goal;
             const goalEdited = editedGoals[r.chatter] != null && editedGoals[r.chatter] !== r.goal;
