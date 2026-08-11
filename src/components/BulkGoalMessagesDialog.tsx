@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Copy, Check, X, MessageCircle, Circle, CheckCircle2 } from "lucide-react";
+import { Loader2, Copy, Check, X, Circle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -319,7 +319,6 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
             const unaccepting = unacceptingSet.has(r.chatter);
             const acceptErr = acceptErrors[r.chatter];
             const skipped = skippedSet.has(r.chatter);
-            const isWhatsApp = classifyName(r.chatter) === "whatsapp";
             const dimmed = accepted || skipped;
             const effectiveGoal = editedGoals[r.chatter] ?? r.goal;
             const goalEdited = editedGoals[r.chatter] != null && editedGoals[r.chatter] !== r.goal;
@@ -474,34 +473,13 @@ export default function BulkGoalMessagesDialog({ open, onClose, platform, target
                       </span>
                     )}
                     {r.status === "done" && (
-                      <>
-                        {isWhatsApp ? (
-                          <button
-                            onClick={async () => {
-                              try { await navigator.clipboard.writeText(r.message); } catch {}
-                              copyOne(idx, r.message);
-                              const isMobile = /iphone|ipad|android/i.test(navigator.userAgent);
-                              const url = isMobile
-                                ? `whatsapp://send?text=${encodeURIComponent(r.message)}`
-                                : `https://web.whatsapp.com/send?text=${encodeURIComponent(r.message)}`;
-                              window.open(url, "_blank", "noopener,noreferrer");
-                            }}
-                            className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 transition-colors"
-                            title="Nachricht kopieren & WhatsApp öffnen"
-                          >
-                            <MessageCircle className="h-3 w-3" />
-                            WhatsApp
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => copyOne(idx, r.message)}
-                            className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
-                          >
-                            {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            {copiedIdx === idx ? "Kopiert" : "Kopieren"}
-                          </button>
-                        )}
-                      </>
+                      <button
+                        onClick={() => copyOne(idx, r.message)}
+                        className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-md border border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:text-white transition-colors"
+                      >
+                        {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {copiedIdx === idx ? "Kopiert" : "Kopieren"}
+                      </button>
                     )}
                   </div>
                 </div>
