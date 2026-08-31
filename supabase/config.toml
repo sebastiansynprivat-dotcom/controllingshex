@@ -33,3 +33,7 @@ verify_jwt = false
 [functions.live-status]
 verify_jwt = false
 
+[functions.models-export]
+verify_jwt = false
+
+
