@@ -24,6 +24,47 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
+function hexToBytes(hex: string): Uint8Array {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return out;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+async function loadCredKey(): Promise<CryptoKey> {
+  const raw = Deno.env.get("SHEX_EXPORT_CRED_KEY")?.trim() ?? "";
+  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+    throw new Error("SHEX_EXPORT_CRED_KEY missing or invalid (expected 64 hex chars)");
+  }
+  return await crypto.subtle.importKey(
+    "raw",
+    hexToBytes(raw),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"],
+  );
+}
+
+async function encryptPassword(key: CryptoKey, password: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(password),
+    ),
+  );
+  return `enc:v1:${toBase64(iv)}:${toBase64(ct)}`;
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
