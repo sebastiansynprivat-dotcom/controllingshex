@@ -103,6 +103,29 @@ Deno.serve(async (req) => {
     url.searchParams.get("platform") ??
     undefined;
 
+  const updatedSinceRaw =
+    (body.updated_since as string | undefined) ??
+    url.searchParams.get("updated_since") ??
+    undefined;
+  let updatedSinceIso: string | undefined;
+  if (updatedSinceRaw !== undefined && updatedSinceRaw !== null && `${updatedSinceRaw}`.trim() !== "") {
+    const d = new Date(`${updatedSinceRaw}`.trim());
+    if (isNaN(d.getTime())) {
+      return json({ error: "Invalid updated_since: expected ISO-8601 timestamp" }, 400);
+    }
+    updatedSinceIso = d.toISOString();
+  }
+
+  let credKey: CryptoKey;
+  try {
+    credKey = await loadCredKey();
+  } catch {
+    return json(
+      { error: "Encryption key not configured (SHEX_EXPORT_CRED_KEY missing or invalid)" },
+      500,
+    );
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -116,9 +139,12 @@ Deno.serve(async (req) => {
     .order("model_name", { ascending: true });
 
   if (platform) q = q.ilike("platform", platform);
+  if (updatedSinceIso) q = q.gt("updated_at", updatedSinceIso);
 
   const { data, error } = await q;
   if (error) return json({ error: error.message }, 500);
+
+  let encryptErrors = 0;
 
   const rows = await Promise.all(
     (data ?? []).map(async (m) => {
@@ -126,16 +152,40 @@ Deno.serve(async (req) => {
       const password = m.password ?? "";
       const fingerprint =
         email && password ? await sha256Hex(`${email}\n${password}`) : null;
+
+      let passwordEncrypted: string | null = null;
+      if (password) {
+        try {
+          passwordEncrypted = await encryptPassword(credKey, password);
+        } catch {
+          encryptErrors++;
+          passwordEncrypted = null;
+        }
+      }
+
       return {
         id: m.id,
         platform: m.platform,
         model_name: m.model_name,
         email: m.email ?? null,
         fingerprint,
+        password_encrypted: passwordEncrypted,
         updated_at: new Date(m.updated_at).toISOString(),
       };
     }),
   );
 
-  return json(rows);
+  if (encryptErrors > 0) {
+    console.error(`models-export: encryption failed for ${encryptErrors} row(s)`);
+  }
+
+  return new Response(JSON.stringify(rows), {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "x-encrypt-errors": String(encryptErrors),
+    },
+  });
+
 });
