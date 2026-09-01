@@ -214,12 +214,20 @@ export default function Models() {
     loadAttributes(models.map((m) => m.id));
   }, [models]);
 
-  // Trouble detection (always run; used for filter pill count + filter)
+  // Trouble detection (always run; used for filter pill count + filter).
+  // Beim Workspace-Wechsel abbrechen — sonst blockieren die alten Requests
+  // das Nachladen der Model-Liste des neuen Workspaces.
   useEffect(() => {
     const names = models.map((m) => m.model_name);
     if (names.length === 0) { setTroubles([]); return; }
-    detectModelTroubles(platform, names).then(setTroubles).catch(() => setTroubles([]));
+    const controller = new AbortController();
+    const target = platform;
+    detectModelTroubles(platform, names, controller.signal)
+      .then((res) => { if (!controller.signal.aborted && platformRef.current === target) setTroubles(res); })
+      .catch(() => { if (!controller.signal.aborted) setTroubles([]); });
+    return () => controller.abort();
   }, [platform, models.map((m) => m.model_name).join("|")]);
+
 
   const troubleNames = useMemo(() => new Set(troubles.map((t) => t.modelName)), [troubles]);
 
