@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, Pencil, Trash2, Save, X, CalendarIcon, DollarSign, Search, AlertTriangle, ChevronDown, Database } from "lucide-react";
 import { detectModelTroubles, type ModelTrouble } from "@/lib/model-tracking";
 import { format } from "date-fns";
@@ -74,7 +74,10 @@ function capitalizeName(raw: string): string {
 export default function Models() {
   const { platform } = usePlatform();
   const { user } = useAuth();
+  const platformRef = useRef(platform);
+  const [modelsLoading, setModelsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
+
   const [newName, setNewName] = useState("");
   const [newFollowers, setNewFollowers] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -123,14 +126,19 @@ export default function Models() {
     };
   }, [period, customFrom, customTo]);
 
-  const fetchModels = async () => {
+  const fetchModels = async (targetPlatform: string = platform) => {
     const { data } = await supabase
       .from("models")
       .select("*")
-      .eq("platform", platform)
+      .eq("platform", targetPlatform)
       .order("created_at", { ascending: true });
-    if (data) setModels(data);
+    // Ergebnis verwerfen, wenn der Workspace zwischenzeitlich gewechselt wurde —
+    // sonst landen Models des alten Workspaces in der neuen Ansicht.
+    if (platformRef.current !== targetPlatform) return;
+    setModels(data ?? []);
+    setModelsLoading(false);
   };
+
 
   // Load revenue data from chatter_history grouped by account
   useEffect(() => {
@@ -173,10 +181,20 @@ export default function Models() {
     loadRevenues();
   }, [models, platform, dateRange]);
 
+  // Workspace-Wechsel: Liste und Eingabeformular komplett zurücksetzen, damit
+  // keine Daten (und keine offenen Eingaben) aus dem vorherigen Workspace
+  // versehentlich im neuen angelegt werden.
   useEffect(() => {
-    fetchModels();
+    platformRef.current = platform;
+    setModels([]);
+    setModelRevenues({});
+    setModelsLoading(true);
     setEditId(null);
+    resetAddForm();
+    setShowAddForm(false);
+    fetchModels(platform);
   }, [platform]);
+
 
   const loadAttributes = async (modelIds: string[]) => {
     if (modelIds.length === 0) {
@@ -248,16 +266,33 @@ export default function Models() {
     });
   }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter, troubleFilter, troubleNames]);
 
+  const resetAddForm = () => {
+    setNewName("");
+    setNewFollowers("");
+    setNewEmail("");
+    setNewPassword("");
+    setNewProfileUrl("");
+    setNewBotDms("");
+    setNewStyleEmoji(null);
+  };
+
   const addModel = async () => {
     if (!newName.trim()) return;
     if (!user?.id) {
       toast.error("Nicht eingeloggt");
       return;
     }
+    // Workspace zum Klickzeitpunkt fixieren — das Model gehört nur hierher.
+    const targetPlatform = platform;
+    const name = capitalizeName(newName);
+    if (models.some((m) => m.model_name.toLocaleLowerCase("de-DE") === name)) {
+      toast.error(`"${name}" existiert in ${targetPlatform} bereits`);
+      return;
+    }
     const { error } = await supabase.from("models").insert({
-      model_name: capitalizeName(newName),
+      model_name: name,
       follower_count: parseInt(newFollowers) || 0,
-      platform,
+      platform: targetPlatform,
       user_id: user.id,
       email: newEmail.trim() || null,
       password: newPassword.trim() || null,
@@ -270,17 +305,12 @@ export default function Models() {
       toast.error(`Fehler: ${error.message}`);
       return;
     }
-    toast.success(`Model hinzugefügt`);
-    setNewName("");
-    setNewFollowers("");
-    setNewEmail("");
-    setNewPassword("");
-    setNewProfileUrl("");
-    setNewBotDms("");
-    setNewStyleEmoji(null);
+    toast.success(`Model in ${targetPlatform} hinzugefügt`);
+    resetAddForm();
     setShowAddForm(false);
-    fetchModels();
+    fetchModels(targetPlatform);
   };
+
 
   const startEdit = (m: Model) => {
     setEditId(m.id);
@@ -625,7 +655,7 @@ export default function Models() {
               {filteredModels.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-16 text-white/20 font-light text-sm">
-                    {models.length === 0 ? "Keine Models" : "Keine Models für diesen Filter"}
+                    {modelsLoading ? `${platform} lädt…` : models.length === 0 ? "Keine Models" : "Keine Models für diesen Filter"}
                   </td>
                 </tr>
               )}
