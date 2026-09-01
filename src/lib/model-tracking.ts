@@ -63,12 +63,14 @@ async function fetchModelCandidateRows(
   modelName: string,
   fromDate?: string,
   toDate?: string,
+  signal?: AbortSignal,
 ): Promise<RawHistoryRow[]> {
   const out: RawHistoryRow[] = [];
   let offset = 0;
   const patterns = accountSearchPatterns(modelName);
 
   while (true) {
+    if (signal?.aborted) return out;
     let query = supabase
       .from("chatter_history")
       .select("account, chatter_name, revenue_today, analysis_date")
@@ -76,6 +78,7 @@ async function fetchModelCandidateRows(
       .or(patterns.map((term) => `account.ilike.%${escapeIlike(term)}%`).join(","))
       .order("analysis_date", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
+    if (signal) query = query.abortSignal(signal);
 
     if (fromDate) query = query.gte("analysis_date", fromDate);
     if (toDate) query = query.lte("analysis_date", toDate);
@@ -91,11 +94,13 @@ async function fetchModelCandidateRows(
   return out;
 }
 
-async function loadFollowerMap(platform: string): Promise<Map<string, number>> {
-  const { data } = await supabase
+async function loadFollowerMap(platform: string, signal?: AbortSignal): Promise<Map<string, number>> {
+  let q = supabase
     .from("models")
     .select("model_name, follower_count")
     .eq("platform", platform);
+  if (signal) q = q.abortSignal(signal);
+  const { data } = await q;
 
   const map = new Map<string, number>();
   for (const row of data || []) {
@@ -115,13 +120,14 @@ export async function loadModelHistoryForModel(
   modelName: string,
   fromDate?: string,
   toDate?: string,
+  signal?: AbortSignal,
 ): Promise<ModelHistoryPoint[]> {
   const targetKey = normalizeAccountName(modelName);
   if (!targetKey) return [];
 
   const [rows, followerMap] = await Promise.all([
-    fetchModelCandidateRows(platform, modelName, fromDate, toDate),
-    loadFollowerMap(platform),
+    fetchModelCandidateRows(platform, modelName, fromDate, toDate, signal),
+    loadFollowerMap(platform, signal),
   ]);
 
   const points: ModelHistoryPoint[] = [];
@@ -198,9 +204,10 @@ export async function loadModelTimeline(
   platform: string,
   modelName: string,
   fromDate: string,
-  toDate: string
+  toDate: string,
+  signal?: AbortSignal,
 ): Promise<ModelTimeline> {
-  const data = await loadModelHistoryForModel(platform, modelName, fromDate, toDate);
+  const data = await loadModelHistoryForModel(platform, modelName, fromDate, toDate, signal);
 
   // Gruppieren pro Tag
   const byDay = new Map<string, Map<string, { name: string; revenue: number }>>(); // date -> chatterKey -> sum
@@ -270,7 +277,8 @@ export async function loadModelTimeline(
  */
 export async function detectModelTroubles(
   platform: string,
-  modelNames: string[]
+  modelNames: string[],
+  signal?: AbortSignal,
 ): Promise<ModelTrouble[]> {
   if (modelNames.length === 0) return [];
   const since = new Date();
@@ -283,7 +291,7 @@ export async function detectModelTroubles(
   // Sequentiell, aber preisgünstig — pro Model ein Query.
   // Bei vielen Models könnte man einen Sammel-Query bauen; reicht erstmal.
   const results = await Promise.all(
-    modelNames.map((name) => loadModelTimeline(platform, name, sinceStr, today))
+    modelNames.map((name) => loadModelTimeline(platform, name, sinceStr, today, signal))
   );
 
   for (const tl of results) {
