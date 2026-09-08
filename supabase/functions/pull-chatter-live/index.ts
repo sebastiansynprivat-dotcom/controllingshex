@@ -161,6 +161,54 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  // Live-Namen auf die kanonischen Report-Namen mappen. Ohne das fällt z.B.
+  // "Joshua Krewer" (Live) gegen "Joshua Noel Krewer" (Report) aus allen
+  // Ansichten raus — inklusive Verzug/offene Chats.
+  const platformsInRows = Array.from(
+    new Set(rows.map((r) => String(r.platform ?? "")).filter(Boolean)),
+  );
+  for (const p of platformsInRows) {
+    try {
+      const { data: reports } = await supabase
+        .from("analysis_reports")
+        .select("result_json")
+        .eq("platform", p)
+        .not("result_json", "is", null)
+        .order("analysis_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const result = (reports?.[0] as { result_json?: unknown } | undefined)?.result_json as
+        | { categories?: { chatters?: { name?: string }[] }[] }
+        | undefined;
+      const rosterNames: string[] = [];
+      for (const cat of result?.categories ?? []) {
+        for (const ch of cat?.chatters ?? []) {
+          if (typeof ch?.name === "string" && ch.name.trim()) rosterNames.push(ch.name);
+        }
+      }
+      if (rosterNames.length === 0) continue;
+      const platformRows = rows.filter((r) => r.platform === p);
+      const resolver = buildNameResolver(
+        rosterNames,
+        platformRows.map((r) => String(r.chatter_name ?? "")),
+      );
+      if (resolver.size === 0) continue;
+      let renamed = 0;
+      for (const r of platformRows) {
+        const before = String(r.chatter_name ?? "");
+        const after = resolveName(resolver, before);
+        if (after !== before) {
+          r.chatter_name = after;
+          renamed++;
+        }
+      }
+      console.log(`[name-resolve] ${p}: ${renamed} Live-Namen auf Report-Namen gemappt`);
+    } catch (e) {
+      console.error("[name-resolve] failed for", p, String(e));
+    }
+  }
+
+
   const { data, error } = await supabase
     .from("chatter_history_live")
     .upsert(rows, { onConflict: "platform,telegram_id,date" })
