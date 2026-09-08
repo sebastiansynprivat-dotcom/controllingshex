@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildNameResolver, resolveName } from "../_shared/roster-match.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
