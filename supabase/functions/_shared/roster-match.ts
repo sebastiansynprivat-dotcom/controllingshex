@@ -93,9 +93,14 @@ export function buildNameResolver(
   rosterNames: string[],
   liveNames: string[],
 ): Map<string, string> {
-  const roster = rosterNames
-    .map((n) => ({ raw: n.trim(), t: tokens(n) }))
-    .filter((r) => r.t.length > 0);
+  const rosterDedup = new Map<string, { raw: string; t: string[] }>();
+  for (const n of rosterNames) {
+    const t = tokens(n);
+    if (t.length === 0) continue;
+    const k = t.join(" ");
+    if (!rosterDedup.has(k)) rosterDedup.set(k, { raw: n.trim(), t });
+  }
+  const roster = [...rosterDedup.values()];
   const rosterKeys = new Set(roster.map((r) => r.t.join(" ")));
 
   // live key → { roster raw, tier }
@@ -119,6 +124,7 @@ export function buildNameResolver(
         candidates.push(r.raw);
       }
     }
+    candidates = [...new Set(candidates)];
     if (candidates.length !== 1) continue; // mehrdeutig → nicht anfassen
     best.set(key, { target: candidates[0], tier: bestTier });
   }
