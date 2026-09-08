@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
       const { data: reports } = await supabase
         .from("analysis_reports")
         .select("result_json")
-        .eq("platform", p)
+        .ilike("platform", p)
         .not("result_json", "is", null)
         .order("analysis_date", { ascending: false })
         .order("created_at", { ascending: false })
