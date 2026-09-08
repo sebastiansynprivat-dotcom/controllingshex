@@ -62,7 +62,7 @@ function editDistance1(a: string, b: string): boolean {
 
 /**
  * Tier: 0 = exakt, 1 = Vor- und Nachname passen (Prefix/Zusatz-Mittelnamen),
- * 2 = Einzelname eindeutig, 3 = Tippfehler im Nachnamen. -1 = kein Match.
+ * 2/2.5 = Einzelname eindeutig, 3 = Tippfehler im Nachnamen. -1 = kein Match.
  */
 function matchTier(live: string[], roster: string[]): number {
   if (live.length === 0 || roster.length === 0) return -1;
@@ -80,7 +80,8 @@ function matchTier(live: string[], roster: string[]): number {
     return -1;
   }
   // Eine Seite hat nur einen Token → nur über den Vornamen matchbar.
-  if (prefixEq(lf, rf)) return 2;
+  if (lf === rf) return 2;
+  if (prefixEq(lf, rf)) return 2.5;
   return -1;
 }
 
