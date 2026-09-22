@@ -927,6 +927,18 @@ export default function UploadPage() {
         addStatus("⚠️ Chatter-Historie konnte nicht gespeichert werden.");
       }
 
+      // Wochenziel-Auswertung der letzten Wochen neu rechnen (Reports kommen oft
+      // erst nach dem Dienstags-Snapshot rein → sonst bleiben die Ziele auf "verfehlt").
+      try {
+        addStatus("📅 Wochenziele werden neu berechnet…");
+        const { error: snapErr } = await supabase.functions.invoke("snapshot-weekly-goals?weeks=3");
+        if (snapErr) throw snapErr;
+        addStatus("✅ Wochenziele aktualisiert.");
+      } catch (snapErr: any) {
+        console.error("Weekly snapshot error:", snapErr);
+        addStatus("⚠️ Wochenziele konnten nicht neu berechnet werden.");
+      }
+
       // Summary
       addStatus(`✅ 100% Coverage — alle ${totalReturned} Chatter erfasst!`);
 
