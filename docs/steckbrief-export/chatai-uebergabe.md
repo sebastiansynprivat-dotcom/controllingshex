@@ -141,7 +141,7 @@ Fehlerantworten enthalten nur `{"error":"<code>"}`, nie Daten.
 | 500 | `internal_error` | Datenbankfehler im Controlling | letzten Stand behalten, später erneut |
 | 500 | `inventory_incomplete` | Bestand nicht vollständig geladen | letzten Stand behalten, später erneut |
 | 502 | `upstream_failed` | SheX Coaching nicht erreichbar oder Antwort ungültig | letzten Stand behalten, später erneut |
-| 503 | `not_configured` | Secret im Controlling oder SheX fehlt | letzten Stand behalten; Betrieb informieren |
+| 503 | `not_configured` | Noch nicht fertig eingerichtet: ein Secret fehlt, der SheX-Endpunkt ist nicht ausgerollt oder die Tabelle fehlt | letzten Stand behalten; Betrieb informieren |
 
 Es gibt **nie ein Teilergebnis**: Entweder kommt 200 mit allen Konten, oder ein Fehler ohne Konten.
 Ein Fehler darf nie als „kein Steckbrief“ gewertet werden.
@@ -186,8 +186,9 @@ Ein Fehler darf nie als „kein Steckbrief“ gewertet werden.
    - ChatAIs lokale `provider_accounts.model_id` wird nie umgehängt
 5. **Dubletten.** Mehrere Zeilen mit derselben `(platform, email)` tragen immer denselben Status und
    denselben Inhalt; einmal anwenden reicht.
-6. **Reihenfolge und Frische.** Einen Export nur anwenden, wenn sein `generated_at` neuer ist als der
-   des zuletzt angewandten. Liegt der letzte erfolgreiche Export mehr als 24 h zurück, keine neuen
+6. **Reihenfolge und Frische.** `generated_at` ist der Beginn der Anfrage. Die Daten sind mindestens so
+   frisch. Einen Export nur anwenden, wenn sein `generated_at` neuer ist als der des zuletzt
+   angewandten. So kann ein langsamer, älterer Lauf keinen neueren überschreiben. Liegt der letzte erfolgreiche Export mehr als 24 h zurück, keine neuen
    Konten zum Senden freischalten.
 7. **Negative Ergebnisse gelten auch rückwirkend.** Wird ein zuvor `approved` Konto `not_approved`
    oder `missing`, soll ChatAI das alte Profil nicht weiter als freigegeben behandeln. Ob

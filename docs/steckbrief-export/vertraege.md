@@ -35,6 +35,7 @@ SheX Coaching, dem Controlling und ChatAI. Code, Tests und Übergabe richten sic
   - `confirmed_at` gesetzt und `approved_snapshot` ist ein JSON-Objekt (kein Array) mit mindestens
     einem eigenen Schlüssel → `approved`
   - `confirmed_at` gesetzt, Snapshot fehlt, ist leer oder kein Objekt → `unusable`
+  - `confirmed_at` gesetzt, aber nicht als Zeitpunkt darstellbar (z. B. PostgreSQL `infinity`) → `unusable`
 - **Zeitstempel** in allen Antworten: `new Date(wert).toISOString()` (UTC, 24 Zeichen), sonst `null`.
 - **Datenschutz** für alle drei Endpunkte: keine Mails, IDs, Namen oder Steckbrief-Werte in Logs
   oder Fehlerantworten. Höchstens eine Logzeile je Anfrage mit Funktionsname, HTTP-Status,
@@ -81,7 +82,9 @@ Antwort 200:
 - `model_ids`: Array (darf leer sein), höchstens 1000 UUIDs; Groß-/Kleinschreibung egal, Ausgabe
   in Kleinbuchstaben.
 - `include_profiles`: boolean, optional, Standard `false`. Unbekannte Felder werden ignoriert.
-- Zuordnung: alle `public.accounts` (`id, model_id, platform, account_email`) seitenweise laden.
+- Zuordnung: alle `public.accounts` (`id, model_id, platform, account_email`) seitenweise laden, und zwar
+  per Keyset nach `id`, nicht per Offset. Doppelte Schlüssel oder eine Gesamtzahl, die von der Zählung
+  abweicht, führen zu 500.
   Zeilen ohne `model_id` oder ohne Mail ignorieren. Pro Identität:
   `pk = platformKey(platform)`, `e = normalizeLogin(email)`.
   - `same_platform_model_ids`: sortierte, eindeutige `model_id` aller Konten mit
@@ -143,7 +146,10 @@ Antwort 200:
 - Antwort-Header: `content-type: application/json; charset=utf-8`, `cache-control: no-store`.
 - Fehler: 500 `internal_error`; 500 `inventory_incomplete` (geladene Zeilen ≠ Zählung);
   502 `upstream_failed` (A nicht erreichbar, Timeout, Nicht-200 oder Vertragsverletzung).
-  **Nie ein Teilergebnis.**
+  503 `not_configured` auch, wenn A noch nicht ausgerollt ist (A antwortet 404), wenn dort das Secret
+  fehlt (A antwortet 503 `not_configured`) oder wenn die Tabelle aus D noch fehlt. **Nie ein Teilergebnis.**
+- `generated_at` ist der Zeitpunkt, zu dem die Anfrage begonnen hat, also vor dem Laden. Die Daten sind
+  damit mindestens so frisch wie `generated_at`.
 
 Antwort 200:
 

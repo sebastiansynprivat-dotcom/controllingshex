@@ -31,7 +31,7 @@ Migration und nur SELECTs.
 cd gold-reveal-next
 git checkout -b feat/controlling-model-profiles
 git am /pfad/zu/0001-controlling-model-profiles.patch
-DENO_NO_PACKAGE_JSON=1 deno test --no-prompt supabase/functions/controlling-model-profiles   # 35 Tests
+DENO_NO_PACKAGE_JSON=1 deno test --no-prompt supabase/functions/controlling-model-profiles   # 43 Tests
 git push -u origin feat/controlling-model-profiles   # PR, Merge nach main → Lovable deployt
 ```
 

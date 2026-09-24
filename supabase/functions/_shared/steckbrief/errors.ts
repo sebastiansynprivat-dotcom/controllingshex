@@ -1,4 +1,11 @@
 // These constructors deliberately accept no upstream or database error text.
+export class NotConfiguredError extends Error {
+  constructor() {
+    super("not_configured");
+    this.name = "NotConfiguredError";
+  }
+}
+
 export class UpstreamError extends Error {
   constructor() {
     super("upstream_failed");
@@ -26,6 +33,9 @@ export type ErrorCode =
 export function classifyError(
   error: unknown,
 ): { status: number; code: ErrorCode } {
+  if (error instanceof NotConfiguredError) {
+    return { status: 503, code: "not_configured" };
+  }
   if (error instanceof UpstreamError) {
     return { status: 502, code: "upstream_failed" };
   }

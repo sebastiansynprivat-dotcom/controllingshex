@@ -53,6 +53,7 @@ export function createExportHandler(
       ) return context.fail(401, "unauthorized");
       const upstreamKey = deps.env("CONTROLLING_MODEL_PROFILES_KEY")?.trim();
       if (!upstreamKey) return context.fail(503, "not_configured");
+      const generatedAt = deps.now().toISOString();
 
       const queryPlatforms = new URL(request.url).searchParams.getAll(
         "platform",
@@ -114,7 +115,7 @@ export function createExportHandler(
       for (const account of accounts) summary[account.status]++;
       const envelope: ExportEnvelope = {
         contract: "models-steckbrief-export.v1",
-        generated_at: deps.now().toISOString(),
+        generated_at: generatedAt,
         summary,
         accounts,
       };

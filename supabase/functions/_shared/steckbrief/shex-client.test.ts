@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { UpstreamError } from "./errors.ts";
+import { NotConfiguredError, UpstreamError } from "./errors.ts";
 import {
   ATTEMPT_TIMEOUT_MS,
   MAX_RESPONSE_BYTES,
@@ -134,6 +134,147 @@ Deno.test("SheX client retries exactly once after 1000 ms on 429 and 5xx", async
   }
 });
 
+Deno.test("SheX client stops on 404 or exact 503 not_configured for either action", async () => {
+  for (const action of ["resolve", "list_models"]) {
+    for (const status of [404, 503]) {
+      let calls = 0;
+      const sleeps: number[] = [];
+      const instance = client((_url, init) => {
+        calls++;
+        assertEquals((init as RequestInit).redirect, "manual");
+        return Promise.resolve(json({
+          error: status === 503 ? "not_configured" : "synthetic",
+        }, status));
+      }, sleeps);
+      const error = await assertRejects(
+        () => action === "resolve" ? instance.resolve(empty) : instance.listModels(),
+        NotConfiguredError,
+      );
+      assertEquals(error.message, "not_configured");
+      assertEquals(calls, 1);
+      assertEquals(sleeps, []);
+    }
+  }
+});
+
+Deno.test("SheX client cancels 404 bodies without reading them", async () => {
+  let cancelled = 0;
+  let reads = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull() {
+      reads++;
+    },
+    cancel() {
+      cancelled++;
+    },
+  }, { highWaterMark: 0 });
+  await assertRejects(
+    () => client(() => Promise.resolve(new Response(body, { status: 404 }))).resolve(empty),
+    NotConfiguredError,
+  );
+  assertEquals(reads, 0);
+  assertEquals(cancelled, 1);
+});
+
+Deno.test("SheX client retries other 503 bodies, including extra keys and malformed JSON", async () => {
+  for (
+    const body of [
+      "",
+      "invalid",
+      "null",
+      "[]",
+      '"not_configured"',
+      '{"error":["not_configured"]}',
+      '{"error":"NOT_CONFIGURED"}',
+      '{"error":"synthetic"}',
+      '{"error":"not_configured","detail":"synthetic"}',
+      '{"error":"not_configured"} trailing',
+    ]
+  ) {
+    let calls = 0;
+    const sleeps: number[] = [];
+    const error = await assertRejects(
+      () => client(() => {
+        calls++;
+        return Promise.resolve(new Response(body, {
+          status: 503,
+          headers: { "content-type": "application/json" },
+        }));
+      }, sleeps).resolve(empty),
+      UpstreamError,
+    );
+    assertEquals(error.message, "upstream_failed");
+    assertEquals(calls, 2);
+    assertEquals(sleeps, [1000]);
+  }
+});
+
+Deno.test("SheX client only treats not_configured as rollout failure on HTTP 503", async () => {
+  for (const status of [429, 500, 502, 504, 599]) {
+    let calls = 0;
+    const sleeps: number[] = [];
+    await assertRejects(
+      () => client(() => {
+        calls++;
+        return Promise.resolve(json({ error: "not_configured" }, status));
+      }, sleeps).resolve(empty),
+      UpstreamError,
+    );
+    assertEquals(calls, 2);
+    assertEquals(sleeps, [1000]);
+  }
+});
+
+Deno.test("SheX client accepts exact not_configured JSON at the 4 KiB error-body limit", async () => {
+  const jsonBody = JSON.stringify({ error: "not_configured" });
+  const body = " ".repeat(4096 - jsonBody.length) + jsonBody;
+  assertEquals(new TextEncoder().encode(body).byteLength, 4096);
+  let calls = 0;
+  const sleeps: number[] = [];
+  await assertRejects(
+    () => client(() => {
+      calls++;
+      return Promise.resolve(new Response(body, { status: 503 }));
+    }, sleeps).resolve(empty),
+    NotConfiguredError,
+  );
+  assertEquals(calls, 1);
+  assertEquals(sleeps, []);
+});
+
+Deno.test("SheX client bounds 503 bodies to 4 KiB without trusting Content-Length and retains retries", async () => {
+  const jsonBody = JSON.stringify({ error: "not_configured" });
+  const prefix = new TextEncoder().encode(
+    jsonBody + " ".repeat(4096 - jsonBody.length),
+  );
+  for (const declaredLength of [undefined, "1", "4097"]) {
+    let calls = 0;
+    let cancelled = 0;
+    const sleeps: number[] = [];
+    await assertRejects(
+      () => client(() => {
+        calls++;
+        let part = 0;
+        const body = new ReadableStream<Uint8Array>({
+          pull(controller) {
+            controller.enqueue(part++ === 0 ? prefix : new Uint8Array([32]));
+          },
+          cancel() {
+            cancelled++;
+          },
+        }, { highWaterMark: 0 });
+        const headers = new Headers();
+        if (declaredLength) headers.set("content-length", declaredLength);
+        return Promise.resolve(new Response(body, { status: 503, headers }));
+      }, sleeps).resolve(empty),
+      UpstreamError,
+    );
+    assertEquals(calls, 2);
+    assertEquals(cancelled, 2);
+    assertEquals(sleeps, [1000]);
+  }
+});
+
 Deno.test("SheX client retries network errors once and closes error text", async () => {
   for (const recover of [true, false]) {
     let calls = 0;
@@ -220,7 +361,7 @@ Deno.test("SheX client deadline also bounds a stalled response body", async () =
 });
 
 Deno.test("SheX client never retries 400/401 or other nonretryable HTTP statuses", async () => {
-  for (const status of [201, 302, 400, 401, 403, 404]) {
+  for (const status of [201, 302, 400, 401, 403]) {
     let calls = 0;
     const sleeps: number[] = [];
     const instance = client(() => {

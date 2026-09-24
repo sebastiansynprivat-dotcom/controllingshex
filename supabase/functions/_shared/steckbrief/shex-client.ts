@@ -4,7 +4,7 @@ import {
   validateResolveRequest,
   validateResolveResponse,
 } from "./contracts.ts";
-import { UpstreamError } from "./errors.ts";
+import { NotConfiguredError, UpstreamError } from "./errors.ts";
 import type {
   Resolution,
   ResolveRequest,
@@ -16,6 +16,7 @@ import type {
 export const SHEX_URL =
   "https://acznyhzgbkdcmnbqvptt.supabase.co/functions/v1/controlling-model-profiles";
 export const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+const MAX_ERROR_RESPONSE_BYTES = 4 * 1024;
 export const ATTEMPT_TIMEOUT_MS = 20_000;
 export const RETRY_DELAY_MS = 1000;
 
@@ -36,9 +37,10 @@ function cancel(body: ReadableStream<Uint8Array> | null): void {
 async function boundedBody(
   response: Response,
   signal: AbortSignal,
+  maxBytes = MAX_RESPONSE_BYTES,
 ): Promise<string> {
   const declaredSize = response.headers.get("content-length");
-  if (declaredSize !== null && Number(declaredSize) > MAX_RESPONSE_BYTES) {
+  if (declaredSize !== null && Number(declaredSize) > maxBytes) {
     cancel(response.body);
     throw new UpstreamError();
   }
@@ -57,7 +59,7 @@ async function boundedBody(
       if (signal.aborted) throw new DOMException("aborted", "AbortError");
       if (part.done) break;
       size += part.value.byteLength;
-      if (size > MAX_RESPONSE_BYTES) {
+      if (size > maxBytes) {
         void reader.cancel().catch(() => {});
         throw new UpstreamError();
       }
@@ -92,6 +94,21 @@ function sameJson(a: unknown, b: unknown): boolean {
     );
 }
 
+async function isNotConfigured(
+  response: Response,
+  signal: AbortSignal,
+): Promise<boolean> {
+  try {
+    return sameJson(
+      JSON.parse(await boundedBody(response, signal, MAX_ERROR_RESPONSE_BYTES)),
+      { error: "not_configured" },
+    );
+  } catch {
+    // Unreadable, oversized or malformed 503 bodies retain the normal retry.
+    return false;
+  }
+}
+
 export class ShexClient {
   constructor(private readonly deps: ShexClientDeps) {}
 
@@ -122,7 +139,11 @@ export class ShexClient {
           return { ok: false, retryable: true };
         }
         if (response.status !== 200) {
+          const notConfigured = response.status === 404 ||
+            (response.status === 503 &&
+              await isNotConfigured(response, controller.signal));
           cancel(response.body);
+          if (notConfigured) throw new NotConfiguredError();
           return {
             ok: false,
             retryable: response.status === 429 ||
@@ -143,6 +164,7 @@ export class ShexClient {
           return { ok: false, retryable: false };
         }
       } catch (error) {
+        if (error instanceof NotConfiguredError) throw error;
         return { ok: false, retryable: !(error instanceof UpstreamError) };
       }
     };
@@ -165,7 +187,8 @@ export class ShexClient {
         if (!result.retryable || attempt === 1) throw new UpstreamError();
         await this.deps.sleep(RETRY_DELAY_MS);
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof NotConfiguredError) throw error;
       throw new UpstreamError();
     }
     throw new UpstreamError();

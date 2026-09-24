@@ -1,4 +1,5 @@
 import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1";
+import { NotConfiguredError } from "../_shared/steckbrief/errors.ts";
 import { LINKS_CORS_HEADERS } from "../_shared/steckbrief/http.ts";
 import {
   ADMIN_ID,
@@ -239,6 +240,66 @@ Deno.test("links resolves auth user ID then checks that user's role", async () =
   assertEquals(steps, ["token", "role", "secret"]);
 });
 
+Deno.test("links captures generated_at once after auth/config and before inventory loading", async () => {
+  const steps: string[] = [];
+  let ticks = 0;
+  const memory = memoryStore({ models: [model(1)] });
+  const upstream = fakeShex();
+  const h = setup({
+    env: (name) => {
+      steps.push(name);
+      return testEnv(name);
+    },
+    now: () => {
+      steps.push(`now:${ticks}`);
+      return new Date(Date.parse(FIXED_NOW) + ticks++ * 1000);
+    },
+    store: {
+      getUserIdFromToken: (token) => {
+        steps.push("token");
+        return memory.store.getUserIdFromToken(token);
+      },
+      isAdmin: (userId) => {
+        steps.push("role");
+        return memory.store.isAdmin(userId);
+      },
+      getModelsPage: (from, to) => {
+        steps.push("models");
+        return memory.store.getModelsPage(from, to);
+      },
+      getLinksPage: (from, to) => {
+        steps.push("links");
+        return memory.store.getLinksPage(from, to);
+      },
+      getAdminUserIdsPage: (from, to) => {
+        steps.push("admins");
+        return memory.store.getAdminUserIdsPage(from, to);
+      },
+    },
+    fetchImpl: (url, init) => {
+      steps.push("upstream");
+      return upstream.fetchImpl(url, init);
+    },
+  });
+  const response = await h.handler(request());
+  assertEquals(response.status, 200);
+  const body: OverviewEnvelope = await response.json();
+  assertEquals(body.generated_at, "2026-09-24T18:00:01.000Z");
+  assertEquals(steps, [
+    "now:0",
+    "token",
+    "role",
+    "CONTROLLING_MODEL_PROFILES_KEY",
+    "now:1",
+    "models",
+    "links",
+    "admins",
+    "upstream",
+    "upstream",
+    "now:2",
+  ]);
+});
+
 Deno.test("links overview is sorted, deduplicated, excludes untrusted rows and contains no profile key", async () => {
   const models = [
     model(1, { platform: "Maloum", email: "zulu@example.org" }),
@@ -370,6 +431,47 @@ Deno.test("links upstream failures carry CORS, exact closed errors and one priva
   await checkError(await h.handler(request()), 502, "upstream_failed");
   checkLog(h.logs, 502, "upstream_failed");
   assertEquals(h.sleeps, []);
+});
+
+Deno.test("links classifies rollout failures from either SheX action and preserves CORS/retries", async () => {
+  for (const action of ["resolve", "list_models"]) {
+    for (
+      const [status, error, expectedStatus, expectedCode, attempts] of [
+        [404, "synthetic", 503, "not_configured", 1],
+        [503, "not_configured", 503, "not_configured", 1],
+        [503, "synthetic", 502, "upstream_failed", 2],
+      ] as const
+    ) {
+      let calls = 0;
+      const fake = fakeShex();
+      const h = setup({
+        fetchImpl: (url, init) => {
+          const body = JSON.parse((init as RequestInit).body as string);
+          if (body.action !== action) return fake.fetchImpl(url, init);
+          calls++;
+          return Promise.resolve(json({ error }, status));
+        },
+      });
+      await checkError(
+        await h.handler(request()),
+        expectedStatus,
+        expectedCode,
+      );
+      assertEquals(calls, attempts);
+      assertEquals(fake.requests.length, 1);
+      assertEquals(h.sleeps, attempts === 1 ? [] : [1000]);
+      checkLog(h.logs, expectedStatus, expectedCode);
+    }
+  }
+});
+
+Deno.test("links maps a missing links table to closed 503 with CORS before calling SheX", async () => {
+  const memory = memoryStore();
+  memory.store.getLinksPage = () => Promise.reject(new NotConfiguredError());
+  const h = setup({ store: memory.store });
+  await checkError(await h.handler(request()), 503, "not_configured");
+  checkLog(h.logs, 503, "not_configured");
+  assertEquals(h.upstream.requests, []);
 });
 
 Deno.test("links never returns successful resolve data when list_models violates its contract", async () => {

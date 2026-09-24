@@ -59,6 +59,7 @@ export function createLinksHandler(
       }
       const upstreamKey = deps.env("CONTROLLING_MODEL_PROFILES_KEY")?.trim();
       if (!upstreamKey) return context.fail(503, "not_configured");
+      const generatedAt = deps.now().toISOString();
       let body: unknown;
       try {
         body = await request.json();
@@ -89,7 +90,7 @@ export function createLinksHandler(
         inventory,
         resolved.value,
         listed.value,
-        deps.now().toISOString(),
+        generatedAt,
       );
       context.counts = {
         models: envelope.models.length,

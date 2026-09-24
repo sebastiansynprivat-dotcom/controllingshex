@@ -360,6 +360,7 @@ export default function Models() {
     resetAddForm();
     setShowAddForm(false);
     fetchModels(targetPlatform);
+    refreshSteckbrief();
   };
 
 
@@ -389,6 +390,7 @@ export default function Models() {
     toast.success("Aktualisiert");
     setEditId(null);
     fetchModels();
+    refreshSteckbrief();
   };
 
   const confirmDelete = async () => {
@@ -398,6 +400,7 @@ export default function Models() {
     toast.success("Gelöscht");
     setDeleteConfirmId(null);
     fetchModels();
+    refreshSteckbrief();
   };
 
   const totalRevAll = Object.values(modelRevenues).reduce((s, r) => s + r.totalRevenue, 0);

@@ -1,4 +1,4 @@
-From 9eb11dd33422249894c16cae11ef5c4344828069 Mon Sep 17 00:00:00 2001
+From dea31ace663c69bf30c5f47389f99090f82ea838 Mon Sep 17 00:00:00 2001
 From: Fabio Hossli <249954926+fabiohossli04@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 19:19:54 +0200
 Subject: [PATCH] =?UTF-8?q?Lese-Endpunkt=20controlling-model-profiles=20f?=
@@ -23,14 +23,14 @@ Implemented-By: codex task 20260924-1905-steckbrief-d-shex
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 ---
  supabase/config.toml                          |   2 +
- .../controlling-model-profiles/core.test.ts   | 465 +++++++++++
- .../controlling-model-profiles/core.ts        | 248 ++++++
- .../handler.test.ts                           | 745 ++++++++++++++++++
+ .../controlling-model-profiles/core.test.ts   | 606 +++++++++++++
+ .../controlling-model-profiles/core.ts        | 257 ++++++
+ .../handler.test.ts                           | 811 ++++++++++++++++++
  .../controlling-model-profiles/handler.ts     | 196 +++++
  .../controlling-model-profiles/index.ts       |  13 +
- .../controlling-model-profiles/store.test.ts  | 233 ++++++
- .../controlling-model-profiles/store.ts       | 119 +++
- 8 files changed, 2021 insertions(+)
+ .../controlling-model-profiles/store.test.ts  | 316 +++++++
+ .../controlling-model-profiles/store.ts       | 129 +++
+ 8 files changed, 2330 insertions(+)
  create mode 100644 supabase/functions/controlling-model-profiles/core.test.ts
  create mode 100644 supabase/functions/controlling-model-profiles/core.ts
  create mode 100644 supabase/functions/controlling-model-profiles/handler.test.ts
@@ -54,10 +54,10 @@ index 7194fefa..9c62d144 100644
    [functions.auth-email-hook]
 diff --git a/supabase/functions/controlling-model-profiles/core.test.ts b/supabase/functions/controlling-model-profiles/core.test.ts
 new file mode 100644
-index 00000000..1e0c9b04
+index 00000000..d77db1c6
 --- /dev/null
 +++ b/supabase/functions/controlling-model-profiles/core.test.ts
-@@ -0,0 +1,465 @@
+@@ -0,0 +1,606 @@
 +import {
 +  assertEquals,
 +  assertNotStrictEquals,
@@ -82,6 +82,13 @@ index 00000000..1e0c9b04
 +const C = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3";
 +const D = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4";
 +const E = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5";
++const UNREPRESENTABLE_TIMESTAMPS = [
++  "infinity",
++  "-infinity",
++  "synthetic-invalid-date",
++  "+010000-01-01T00:00:00.000Z",
++  "-000001-01-01T00:00:00.000Z",
++];
 +
 +function model(id: string): ModelRow {
 +  return { id, name: "Testmodell Fiktiva", username: null, model_active: true };
@@ -216,6 +223,32 @@ index 00000000..1e0c9b04
 +      profileStatus({
 +        confirmed_at: "2026-09-20T10:15:00Z",
 +        approved_snapshot: snapshot,
++      }),
++      "approved",
++    );
++  }
++});
++
++Deno.test("profileStatus requires a confirmation representable as a 24-character UTC timestamp", () => {
++  for (const confirmed_at of UNREPRESENTABLE_TIMESTAMPS) {
++    assertEquals(
++      profileStatus({
++        confirmed_at,
++        approved_snapshot: { name: "Testmodell Fiktiva" },
++      }),
++      "unusable",
++    );
++  }
++  for (
++    const confirmed_at of [
++      "0000-01-01T00:00:00.000Z",
++      "9999-12-31T23:59:59.999Z",
++    ]
++  ) {
++    assertEquals(
++      profileStatus({
++        confirmed_at,
++        approved_snapshot: { name: "Testmodell Fiktiva" },
 +      }),
 +      "approved",
 +    );
@@ -507,6 +540,114 @@ index 00000000..1e0c9b04
 +  assertEquals(buildProfiles([], models, profiles, true), []);
 +});
 +
++Deno.test("buildProfiles hides contents and both timestamps when confirmation is unrepresentable", () => {
++  for (const confirmed_at of UNREPRESENTABLE_TIMESTAMPS) {
++    for (const includeProfiles of [false, true]) {
++      assertEquals(
++        buildProfiles(
++          [A],
++          new Map([[A, model(A)]]),
++          new Map([[A, {
++            model_id: A,
++            confirmed_at,
++            updated_at: "2026-09-20T10:14:12Z",
++            approved_snapshot: { name: "Testmodell Fiktiva" },
++          }]]),
++          includeProfiles,
++        ),
++        [{
++          model_id: A,
++          model_exists: true,
++          profile_status: "unusable",
++          confirmed_at: null,
++          updated_at: null,
++          profile: null,
++        }],
++      );
++    }
++  }
++});
++
++Deno.test("buildProfiles keeps approval and contents when updated_at is unrepresentable", () => {
++  for (const updated_at of UNREPRESENTABLE_TIMESTAMPS) {
++    assertEquals(
++      buildProfiles(
++        [A],
++        new Map([[A, model(A)]]),
++        new Map([[A, {
++          model_id: A,
++          confirmed_at: "2026-09-20T12:15:00+02:00",
++          updated_at,
++          approved_snapshot: { name: "Testmodell Fiktiva" },
++        }]]),
++        true,
++      ),
++      [{
++        model_id: A,
++        model_exists: true,
++        profile_status: "approved",
++        confirmed_at: "2026-09-20T10:15:00.000Z",
++        updated_at: null,
++        profile: { name: "Testmodell Fiktiva" },
++      }],
++    );
++  }
++});
++
++Deno.test("buildProfiles guards exceptions during ISO conversion", () => {
++  const original = Date.prototype.toISOString;
++  try {
++    Date.prototype.toISOString = function () {
++      const iso = original.call(this);
++      if (iso === "2026-09-20T10:15:00.000Z") {
++        throw new RangeError("synthetic-date-conversion-failure");
++      }
++      return iso;
++    };
++    assertEquals(
++      buildProfiles(
++        [A, B],
++        new Map([A, B].map((id) => [id, model(id)])),
++        new Map([
++          [A, {
++            model_id: A,
++            confirmed_at: "2026-09-20T10:15:00Z",
++            updated_at: "2026-09-20T10:14:12Z",
++            approved_snapshot: { name: "Testmodell Fiktiva" },
++          }],
++          [B, {
++            model_id: B,
++            confirmed_at: "2026-09-20T10:14:12Z",
++            updated_at: "2026-09-20T10:15:00Z",
++            approved_snapshot: { name: "Testmodell Fiktiva" },
++          }],
++        ]),
++        true,
++      ),
++      [
++        {
++          model_id: A,
++          model_exists: true,
++          profile_status: "unusable",
++          confirmed_at: null,
++          updated_at: null,
++          profile: null,
++        },
++        {
++          model_id: B,
++          model_exists: true,
++          profile_status: "approved",
++          confirmed_at: "2026-09-20T10:14:12.000Z",
++          updated_at: null,
++          profile: { name: "Testmodell Fiktiva" },
++        },
++      ],
++    );
++  } finally {
++    Date.prototype.toISOString = original;
++  }
++});
++
 +Deno.test("approved snapshots can project to an empty object and have null updated_at", () => {
 +  const result = buildProfiles(
 +    [A],
@@ -525,10 +666,10 @@ index 00000000..1e0c9b04
 +});
 diff --git a/supabase/functions/controlling-model-profiles/core.ts b/supabase/functions/controlling-model-profiles/core.ts
 new file mode 100644
-index 00000000..0f5b5485
+index 00000000..f789eb81
 --- /dev/null
 +++ b/supabase/functions/controlling-model-profiles/core.ts
-@@ -0,0 +1,248 @@
+@@ -0,0 +1,257 @@
 +export const CONTRACT = "controlling-model-profiles.v1";
 +export const MAX_ITEMS = 1000;
 +export const MAX_BODY_BYTES = 1024 * 1024;
@@ -657,6 +798,18 @@ index 00000000..0f5b5485
 +  return projected;
 +}
 +
++function toIsoTimestamp(value: string | null): string | null {
++  if (value === null) return null;
++  try {
++    const date = new Date(value);
++    if (Number.isNaN(date.getTime())) return null;
++    const iso = date.toISOString();
++    return iso.length === 24 ? iso : null;
++  } catch {
++    return null;
++  }
++}
++
 +export function profileStatus(
 +  row:
 +    | Pick<ProfileSummaryRow, "confirmed_at" | "approved_snapshot">
@@ -665,7 +818,8 @@ index 00000000..0f5b5485
 +  if (row === undefined) return "none";
 +  if (row.confirmed_at === null) return "not_approved";
 +  return isPlainObject(row.approved_snapshot) &&
-+      Object.keys(row.approved_snapshot).length > 0
++      Object.keys(row.approved_snapshot).length > 0 &&
++      toIsoTimestamp(row.confirmed_at) !== null
 +    ? "approved"
 +    : "unusable";
 +}
@@ -765,12 +919,8 @@ index 00000000..0f5b5485
 +      model_id: modelId,
 +      model_exists: modelExists,
 +      profile_status: status,
-+      confirmed_at: approved && row.confirmed_at !== null
-+        ? new Date(row.confirmed_at).toISOString()
-+        : null,
-+      updated_at: approved && row.updated_at !== null
-+        ? new Date(row.updated_at).toISOString()
-+        : null,
++      confirmed_at: approved ? toIsoTimestamp(row.confirmed_at) : null,
++      updated_at: approved ? toIsoTimestamp(row.updated_at) : null,
 +      profile: approved && includeProfiles === true
 +        ? projectProfile(row.approved_snapshot)
 +        : null,
@@ -779,10 +929,10 @@ index 00000000..0f5b5485
 +}
 diff --git a/supabase/functions/controlling-model-profiles/handler.test.ts b/supabase/functions/controlling-model-profiles/handler.test.ts
 new file mode 100644
-index 00000000..ec6d7807
+index 00000000..5af2c6bc
 --- /dev/null
 +++ b/supabase/functions/controlling-model-profiles/handler.test.ts
-@@ -0,0 +1,745 @@
+@@ -0,0 +1,811 @@
 +import { assert, assertEquals } from "jsr:@std/assert@1";
 +import {
 +  type AccountRow,
@@ -1448,7 +1598,7 @@ index 00000000..ec6d7807
 +  }
 +});
 +
-+Deno.test("unexpected configuration, stream and approved timestamp errors remain generic", async () => {
++Deno.test("unexpected configuration and stream errors remain generic", async () => {
 +  const badEnv = fixture({
 +    env: () => {
 +      throw new Error(PRIVATE_VALUES.join(" "));
@@ -1470,18 +1620,84 @@ index 00000000..ec6d7807
 +    500,
 +    "internal_error",
 +  );
-+  const badDate = fixture();
-+  badDate.store.models = [model(A)];
-+  badDate.store.profiles = [
-+    profile(A, { name: "Testmodell Fiktiva" }, "synthetic-invalid-date"),
-+  ];
-+  await expectError(
-+    await badDate.invoke(
-+      post({ action: "resolve", identities: [], model_ids: [A] }),
-+    ),
-+    500,
-+    "internal_error",
-+  );
++});
++
++Deno.test("list_models and resolve report unrepresentable confirmations as unusable without leaking profiles", async () => {
++  for (
++    const confirmed_at of [
++      "infinity",
++      "-infinity",
++      "synthetic-invalid-date",
++      "+010000-01-01T00:00:00.000Z",
++    ]
++  ) {
++    const f = fixture();
++    f.store.models = [model(A)];
++    f.store.profiles = [
++      profile(A, { name: "Testmodell Fiktiva" }, confirmed_at),
++    ];
++    const listed = await f.invoke(post({ action: "list_models" }));
++    assertEquals(listed.status, 200);
++    assertEquals(await listed.json(), {
++      contract: "controlling-model-profiles.v1",
++      models: [{
++        model_id: A,
++        name: "Testmodell Fiktiva",
++        username: null,
++        model_active: true,
++        profile_status: "unusable",
++      }],
++    });
++    const resolved = await f.invoke(post({
++      action: "resolve",
++      identities: [],
++      model_ids: [A],
++      include_profiles: true,
++    }));
++    assertEquals(resolved.status, 200);
++    assertEquals(await resolved.json(), {
++      contract: "controlling-model-profiles.v1",
++      resolutions: [],
++      profiles: [{
++        model_id: A,
++        model_exists: true,
++        profile_status: "unusable",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      }],
++    });
++  }
++});
++
++Deno.test("resolve keeps approved profiles when updated_at is unrepresentable", async () => {
++  for (const updated_at of ["infinity", "-infinity", "synthetic-invalid-date"]) {
++    const f = fixture();
++    f.store.models = [model(A)];
++    f.store.profiles = [{
++      ...profile(A, { name: "Testmodell Fiktiva" }),
++      updated_at,
++    }];
++    const response = await f.invoke(post({
++      action: "resolve",
++      identities: [],
++      model_ids: [A],
++      include_profiles: true,
++    }));
++    assertEquals(response.status, 200);
++    assertEquals(await response.json(), {
++      contract: "controlling-model-profiles.v1",
++      resolutions: [],
++      profiles: [{
++        model_id: A,
++        model_exists: true,
++        profile_status: "approved",
++        confirmed_at: "2026-09-20T10:15:00.000Z",
++        updated_at: null,
++        profile: { name: "Testmodell Fiktiva" },
++      }],
++    });
++  }
 +});
 +
 +Deno.test("unknown actions and invalid values never enter logs or error bodies", async () => {
@@ -1751,10 +1967,10 @@ index 00000000..bafc6932
 +}));
 diff --git a/supabase/functions/controlling-model-profiles/store.test.ts b/supabase/functions/controlling-model-profiles/store.test.ts
 new file mode 100644
-index 00000000..f5a22079
+index 00000000..b7f0f6ee
 --- /dev/null
 +++ b/supabase/functions/controlling-model-profiles/store.test.ts
-@@ -0,0 +1,233 @@
+@@ -0,0 +1,316 @@
 +import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 +import { createSupabaseStore, type ShexStore } from "./store.ts";
 +
@@ -1762,19 +1978,19 @@ index 00000000..f5a22079
 +  return `10000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 +}
 +
-+function result(data: unknown[], count: number | null, offset = 0): Response {
++function result(data: unknown[], count: number | null): Response {
 +  const headers = new Headers({ "content-type": "application/json" });
 +  if (count !== null) {
 +    headers.set(
 +      "content-range",
-+      `${offset}-${offset + data.length - 1}/${count}`,
++      `0-${data.length - 1}/${count}`,
 +    );
 +  }
 +  return new Response(JSON.stringify(data), { headers });
 +}
 +
 +async function withStore(
-+  reply: (url: URL) => Response,
++  reply: (url: URL, req: Request) => Response,
 +  run: (store: ShexStore) => Promise<void>,
 +) {
 +  const originalFetch = globalThis.fetch;
@@ -1787,8 +2003,7 @@ index 00000000..f5a22079
 +      ["/rest/v1/accounts", "/rest/v1/models", "/rest/v1/model_profiles"]
 +        .includes(url.pathname),
 +    );
-+    assert(req.headers.get("prefer")?.includes("count=exact"));
-+    return Promise.resolve(reply(url));
++    return Promise.resolve(reply(url, req));
 +  };
 +  try {
 +    await run(
@@ -1807,48 +2022,50 @@ index 00000000..f5a22079
 +    method: "listAccounts",
 +    table: "accounts",
 +    columns: "id,model_id,platform,account_email",
-+    order: "id.asc",
++    key: "id",
 +  },
 +  {
 +    method: "listModels",
 +    table: "models",
 +    columns: "id,name,username,model_active",
-+    order: "id.asc",
++    key: "id",
 +  },
 +  {
 +    method: "listProfiles",
 +    table: "model_profiles",
 +    columns: "model_id,confirmed_at,approved_snapshot",
-+    order: "model_id.asc",
++    key: "model_id",
 +  },
 +] as const;
 +
-+Deno.test("store lists all three tables using exact counts and ordered pages of 1000", async () => {
++Deno.test("store lists all three tables with keyset pages of 1000 and counts only the first page", async () => {
 +  for (const listing of listings) {
-+    const offsets: number[] = [];
-+    const rows = Array.from({ length: 1005 }, (_, i) => ({
-+      id: id(i),
-+      model_id: id(i),
-+      platform: "4Based",
-+      account_email: "fixture@example.com",
-+      name: "Synthetic fixture model",
-+      username: null,
-+      model_active: true,
-+      confirmed_at: null,
-+      approved_snapshot: null,
++    const cursors: (string | null)[] = [];
++    const rows = Array.from({ length: 2005 }, (_, i) => ({
++      [listing.key]: id(i),
 +    }));
-+    await withStore((url) => {
++    await withStore((url, req) => {
 +      assertEquals(url.pathname, `/rest/v1/${listing.table}`);
 +      assertEquals(url.searchParams.get("select"), listing.columns);
-+      assertEquals(url.searchParams.get("order"), listing.order);
++      assertEquals(url.searchParams.get("order"), `${listing.key}.asc`);
 +      assertEquals(url.searchParams.get("limit"), "1000");
-+      const offset = Number(url.searchParams.get("offset"));
-+      offsets.push(offset);
-+      return result(rows.slice(offset, offset + 1000), rows.length, offset);
++      assertEquals(url.searchParams.get("offset"), null);
++      const cursor = url.searchParams.get(listing.key);
++      cursors.push(cursor);
++      assert(cursors.length <= 3);
++      assertEquals(
++        req.headers.get("prefer"),
++        cursors.length === 1 ? "count=exact" : null,
++      );
++      if (cursor !== null) assert(cursor.startsWith("gt."));
++      const page = rows.filter((row) =>
++        cursor === null || row[listing.key] > cursor.slice(3)
++      ).slice(0, 1000);
++      return result(page, cursors.length === 1 ? rows.length : null);
 +    }, async (store) => {
-+      assertEquals(await store[listing.method](), rows);
++      assertEquals<unknown>(await store[listing.method](), rows);
 +    });
-+    assertEquals(offsets, [0, 1000]);
++    assertEquals(cursors, [null, `gt.${id(999)}`, `gt.${id(1999)}`]);
 +  }
 +});
 +
@@ -1860,8 +2077,8 @@ index 00000000..f5a22079
 +    for (
 +      const response of [
 +        result([], null),
-+        result([{ id: id(1) }], 2),
-+        result([{ id: id(1) }], 0),
++        result([{ [listing.key]: id(1) }], 2),
++        result([{ [listing.key]: id(1) }], 0),
 +      ]
 +    ) {
 +      await withStore(() => response, async (store) => {
@@ -1875,31 +2092,112 @@ index 00000000..f5a22079
 +  }
 +});
 +
-+Deno.test("store rejects counts that change between pages", async () => {
-+  let calls = 0;
-+  await withStore(() => {
-+    calls++;
-+    return calls === 1
-+      ? result(Array.from({ length: 1000 }, (_, i) => ({ id: id(i) })), 1001)
-+      : result([{ id: id(1000) }, { id: id(1001) }], 1002, 1000);
-+  }, async (store) => {
-+    await assertRejects(() => store.listModels(), Error, "incomplete_result");
-+  });
-+  assertEquals(calls, 2);
++Deno.test("store rejects final totals above or below the first page's exact count", async () => {
++  for (const listing of listings) {
++    for (const remaining of [0, 2]) {
++      let calls = 0;
++      await withStore(() => {
++        calls++;
++        assert(calls <= 2);
++        return calls === 1
++          ? result(
++            Array.from({ length: 1000 }, (_, i) => ({ [listing.key]: id(i) })),
++            1001,
++          )
++          : result(
++            Array.from({ length: remaining }, (_, i) => ({
++              [listing.key]: id(1000 + i),
++            })),
++            null,
++          );
++      }, async (store) => {
++        await assertRejects(
++          () => store[listing.method](),
++          Error,
++          "incomplete_result",
++        );
++      });
++      assertEquals(calls, 2);
++    }
++  }
 +});
 +
-+Deno.test("store stops at a full final page when the exact count is satisfied", async () => {
++Deno.test("store rejects duplicate keys from any earlier page even when the total matches", async () => {
++  for (const listing of listings) {
++    let calls = 0;
++    await withStore(() => {
++      calls++;
++      assert(calls <= 3);
++      return calls <= 2
++        ? result(
++          Array.from({ length: 1000 }, (_, i) => ({
++            [listing.key]: id((calls - 1) * 1000 + i),
++          })),
++          calls === 1 ? 2001 : null,
++        )
++        : result([{ [listing.key]: id(42) }], null);
++    }, async (store) => {
++      const error = await assertRejects(
++        () => store[listing.method](),
++        Error,
++        "incomplete_result",
++      );
++      assertEquals(error.message, "incomplete_result");
++    });
++    assertEquals(calls, 3);
++  }
++});
++
++Deno.test("store reads past a full final page until a short page even when the count is satisfied", async () => {
++  for (const listing of listings) {
++    for (const extraRow of [false, true]) {
++      let calls = 0;
++      const rows = Array.from({ length: 1000 }, (_, i) => ({
++        [listing.key]: id(i),
++      }));
++      await withStore((url) => {
++        calls++;
++        assert(calls <= 2);
++        assertEquals(
++          url.searchParams.get(listing.key),
++          calls === 1 ? null : `gt.${id(999)}`,
++        );
++        return calls === 1
++          ? result(rows, 1000)
++          : result(extraRow ? [{ [listing.key]: id(1000) }] : [], null);
++      }, async (store) => {
++        if (extraRow) {
++          await assertRejects(
++            () => store[listing.method](),
++            Error,
++            "incomplete_result",
++          );
++        } else {
++          assertEquals<unknown>(await store[listing.method](), rows);
++        }
++      });
++      assertEquals(calls, 2);
++    }
++  }
++});
++
++Deno.test("store does not skip unread rows when an earlier row is deleted between pages", async () => {
++  const rows = Array.from({ length: 1005 }, (_, i) => ({ id: id(i) }));
 +  let calls = 0;
-+  await withStore(() => {
++  await withStore((url) => {
 +    calls++;
-+    return result(
-+      Array.from({ length: 1000 }, (_, i) => ({ id: id(i) })),
-+      1000,
-+    );
++    assert(calls <= 2);
++    const currentRows = calls === 1 ? rows : rows.slice(1);
++    const cursor = url.searchParams.get("id");
++    const offset = Number(url.searchParams.get("offset") ?? 0);
++    const page = currentRows.filter((row) =>
++      cursor === null || row.id > cursor.slice(3)
++    ).slice(offset, offset + 1000);
++    return result(page, calls === 1 ? rows.length : null);
 +  }, async (store) => {
-+    assertEquals((await store.listModels()).length, 1000);
++    assertEquals(await store.listModels(), rows);
 +  });
-+  assertEquals(calls, 1);
++  assertEquals(calls, 2);
 +});
 +
 +Deno.test("store chunks both ID lookups into at most 200 literal IDs with exact selects", async () => {
@@ -1921,7 +2219,8 @@ index 00000000..f5a22079
 +    ] as const
 +  ) {
 +    const chunks: string[][] = [];
-+    await withStore((url) => {
++    await withStore((url, req) => {
++      assert(req.headers.get("prefer")?.includes("count=exact"));
 +      assertEquals(url.pathname, `/rest/v1/${lookup.table}`);
 +      assertEquals(url.searchParams.get("select"), lookup.columns);
 +      const filter = url.searchParams.get(lookup.column);
@@ -1990,10 +2289,10 @@ index 00000000..f5a22079
 +});
 diff --git a/supabase/functions/controlling-model-profiles/store.ts b/supabase/functions/controlling-model-profiles/store.ts
 new file mode 100644
-index 00000000..4358ea28
+index 00000000..c3f2178f
 --- /dev/null
 +++ b/supabase/functions/controlling-model-profiles/store.ts
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,129 @@
 +import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 +import {
 +  type AccountRow,
@@ -2033,29 +2332,39 @@ index 00000000..4358ea28
 +  async function listAll<Row>(
 +    table: string,
 +    columns: string,
-+    orderColumn: string,
++    orderColumn: keyof Row & string,
 +  ): Promise<Row[]> {
 +    const rows: Row[] = [];
++    const seenKeys = new Set<Row[typeof orderColumn]>();
++    let lastSeen: Row[typeof orderColumn] | undefined;
 +    let expectedCount: number | undefined;
-+    for (let offset = 0;; offset += PAGE_SIZE) {
-+      const { data, error, count } = await database()
++    while (true) {
++      let query = database()
 +        .from(table)
-+        .select(columns, { count: "exact" })
++        .select(columns, expectedCount === undefined ? { count: "exact" } : {})
 +        .order(orderColumn, { ascending: true })
-+        .range(offset, offset + PAGE_SIZE - 1)
-+        .returns<Row[]>();
++        .limit(PAGE_SIZE);
++      if (lastSeen !== undefined) query = query.gt(orderColumn, lastSeen);
++      const { data, error, count } = await query.returns<Row[]>();
 +
 +      if (error || data === null) throw new Error("read_failed");
-+      if (
-+        count === null || !Number.isSafeInteger(count) || count < 0 ||
-+        (expectedCount !== undefined && count !== expectedCount)
-+      ) throw new Error("incomplete_result");
-+      expectedCount = count;
++      if (expectedCount === undefined) {
++        if (count === null || !Number.isSafeInteger(count) || count < 0) {
++          throw new Error("incomplete_result");
++        }
++        expectedCount = count;
++      }
++      for (const row of data) {
++        const key = row[orderColumn];
++        if (seenKeys.has(key)) throw new Error("incomplete_result");
++        seenKeys.add(key);
++      }
 +      rows.push(...data);
-+      if (data.length < PAGE_SIZE || rows.length >= expectedCount) {
++      if (data.length < PAGE_SIZE) {
 +        if (rows.length !== expectedCount) throw new Error("incomplete_result");
 +        return rows;
 +      }
++      lastSeen = data[data.length - 1][orderColumn];
 +    }
 +  }
 +

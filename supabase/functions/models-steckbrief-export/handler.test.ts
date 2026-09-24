@@ -3,6 +3,7 @@ import {
   ACCOUNT_FIELDS,
   validateExportEnvelope,
 } from "../_shared/steckbrief/contracts.ts";
+import { NotConfiguredError } from "../_shared/steckbrief/errors.ts";
 import {
   fakeShex,
   FIXED_NOW,
@@ -294,6 +295,57 @@ Deno.test("export returns strict 11-field rows in store order with correct count
   assertEquals(JSON.parse(h.logs[0]).counts, body.summary);
 });
 
+Deno.test("export captures generated_at once after auth/config and before inventory loading", async () => {
+  const steps: string[] = [];
+  let ticks = 0;
+  const memory = memoryStore({ models: [model(1)] });
+  const upstream = fakeShex();
+  const h = setup({
+    env: (name) => {
+      steps.push(name);
+      return testEnv(name);
+    },
+    now: () => {
+      steps.push(`now:${ticks}`);
+      return new Date(Date.parse(FIXED_NOW) + ticks++ * 1000);
+    },
+    store: {
+      ...memory.store,
+      getModelsPage: (from, to) => {
+        steps.push("models");
+        return memory.store.getModelsPage(from, to);
+      },
+      getLinksPage: (from, to) => {
+        steps.push("links");
+        return memory.store.getLinksPage(from, to);
+      },
+      getAdminUserIdsPage: (from, to) => {
+        steps.push("admins");
+        return memory.store.getAdminUserIdsPage(from, to);
+      },
+    },
+    fetchImpl: (url, init) => {
+      steps.push("upstream");
+      return upstream.fetchImpl(url, init);
+    },
+  });
+  const response = await h.handler(request());
+  assertEquals(response.status, 200);
+  const body = validateExportEnvelope(await response.json());
+  assertEquals(body.generated_at, "2026-09-24T18:00:01.000Z");
+  assertEquals(steps, [
+    "now:0",
+    "STECKBRIEF_EXPORT_KEY",
+    "CONTROLLING_MODEL_PROFILES_KEY",
+    "now:1",
+    "models",
+    "links",
+    "admins",
+    "upstream",
+    "now:2",
+  ]);
+});
+
 Deno.test("export platform filter is case-insensitive and applies only after full inventory resolution", async () => {
   for (const useBody of [true, false]) {
     const h = populated();
@@ -404,18 +456,51 @@ Deno.test("empty export still calls upstream and trims configured/header keys", 
 });
 
 Deno.test("export closes upstream failures to exact 502 and logs once without sensitive values", async () => {
+  let calls = 0;
   const h = setup({
-    fetchImpl: () =>
-      Promise.resolve(
+    fetchImpl: () => {
+      calls++;
+      return Promise.resolve(
         json(
           { error: `${PROFILE_MARKER} synthetic@example.org ${MODEL_A}` },
           503,
         ),
-      ),
+      );
+    },
   });
   await checkError(await h.handler(request()), 502, "upstream_failed");
+  assertEquals(calls, 2);
   assertEquals(h.sleeps, [1000]);
   checkLog(h.logs, 502, "upstream_failed");
+});
+
+Deno.test("export maps missing SheX rollout/config to closed 503 without retries or CORS", async () => {
+  for (const status of [404, 503]) {
+    let calls = 0;
+    const h = setup({
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(json({
+          error: status === 503
+            ? "not_configured"
+            : `synthetic@example.org ${MODEL_A} ${PROFILE_MARKER}`,
+        }, status));
+      },
+    });
+    await checkError(await h.handler(request()), 503, "not_configured");
+    assertEquals(calls, 1);
+    assertEquals(h.sleeps, []);
+    checkLog(h.logs, 503, "not_configured");
+  }
+});
+
+Deno.test("export maps a missing links table to closed 503 before calling SheX", async () => {
+  const memory = memoryStore();
+  memory.store.getLinksPage = () => Promise.reject(new NotConfiguredError());
+  const h = setup({ store: memory.store });
+  await checkError(await h.handler(request()), 503, "not_configured");
+  checkLog(h.logs, 503, "not_configured");
+  assertEquals(h.upstream.requests, []);
 });
 
 Deno.test("export never returns a partial or empty filtered result on upstream contract failure", async () => {

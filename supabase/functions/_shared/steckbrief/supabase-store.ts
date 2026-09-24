@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { NotConfiguredError } from "./errors.ts";
 import type { AuthStore, InventoryStore, Page } from "./inventory.ts";
 import type { LinkRow, ModelRow } from "./types.ts";
 
@@ -42,6 +43,9 @@ export function createSupabaseStore(
           { count: "exact" },
         )
         .order("id").range(from, to).returns<LinkRow[]>();
+      if (
+        result.error?.code === "42P01" || result.error?.code === "PGRST205"
+      ) throw new NotConfiguredError();
       return page<LinkRow>(result);
     },
     async getAdminUserIdsPage(from, to) {
