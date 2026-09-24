@@ -1,0 +1,2118 @@
+From 9eb11dd33422249894c16cae11ef5c4344828069 Mon Sep 17 00:00:00 2001
+From: Fabio Hossli <249954926+fabiohossli04@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 19:19:54 +0200
+Subject: [PATCH] =?UTF-8?q?Lese-Endpunkt=20controlling-model-profiles=20f?=
+ =?UTF-8?q?=C3=BCr=20das=20Controlling?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Neue, rein lesende Edge Function für das Controlling (Projekt
+kgtbciqqvctjrelgbdvx). Sie liefert die Model-Liste mit Freigabestatus
+(list_models) und löst Login-Identitäten auf SheX-Models auf, inklusive
+der freigegebenen Steckbrief-Fassung, gekürzt auf die 34 Felder, die
+ChatAI nutzt (resolve).
+
+Zugriff nur per POST mit x-api-key = CONTROLLING_MODEL_PROFILES_KEY
+(zeitkonstanter Vergleich), keine CORS-Header, nur SELECTs, keine Mails
+oder Inhalte in Logs. Bestehende Functions (model-profile-lookup) bleiben
+unverändert.
+
+Implemented-By: codex task 20260924-1905-steckbrief-d-shex
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ supabase/config.toml                          |   2 +
+ .../controlling-model-profiles/core.test.ts   | 465 +++++++++++
+ .../controlling-model-profiles/core.ts        | 248 ++++++
+ .../handler.test.ts                           | 745 ++++++++++++++++++
+ .../controlling-model-profiles/handler.ts     | 196 +++++
+ .../controlling-model-profiles/index.ts       |  13 +
+ .../controlling-model-profiles/store.test.ts  | 233 ++++++
+ .../controlling-model-profiles/store.ts       | 119 +++
+ 8 files changed, 2021 insertions(+)
+ create mode 100644 supabase/functions/controlling-model-profiles/core.test.ts
+ create mode 100644 supabase/functions/controlling-model-profiles/core.ts
+ create mode 100644 supabase/functions/controlling-model-profiles/handler.test.ts
+ create mode 100644 supabase/functions/controlling-model-profiles/handler.ts
+ create mode 100644 supabase/functions/controlling-model-profiles/index.ts
+ create mode 100644 supabase/functions/controlling-model-profiles/store.test.ts
+ create mode 100644 supabase/functions/controlling-model-profiles/store.ts
+
+diff --git a/supabase/config.toml b/supabase/config.toml
+index 7194fefa..9c62d144 100644
+--- a/supabase/config.toml
++++ b/supabase/config.toml
+@@ -17,6 +17,8 @@ project_id = "acznyhzgbkdcmnbqvptt"
+     verify_jwt = false
+   [functions.controlling-chats]
+     verify_jwt = false
++  [functions.controlling-model-profiles]
++    verify_jwt = false
+   [functions.assign-chatter-accounts]
+     verify_jwt = false
+   [functions.auth-email-hook]
+diff --git a/supabase/functions/controlling-model-profiles/core.test.ts b/supabase/functions/controlling-model-profiles/core.test.ts
+new file mode 100644
+index 00000000..1e0c9b04
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/core.test.ts
+@@ -0,0 +1,465 @@
++import {
++  assertEquals,
++  assertNotStrictEquals,
++  assertStrictEquals,
++} from "jsr:@std/assert@1";
++import {
++  type AccountRow,
++  buildProfiles,
++  buildResolutions,
++  type ModelRow,
++  normalizeLogin,
++  platformKey,
++  PROFILE_KEYS,
++  type ProfileRow,
++  profileStatus,
++  projectProfile,
++  validateRequest,
++} from "./core.ts";
++
++const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
++const B = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
++const C = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3";
++const D = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4";
++const E = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5";
++
++function model(id: string): ModelRow {
++  return { id, name: "Testmodell Fiktiva", username: null, model_active: true };
++}
++
++function account(
++  model_id: string | null,
++  platform: string,
++  account_email: string | null,
++): AccountRow {
++  return { id: E, model_id, platform, account_email };
++}
++
++Deno.test("normalization uses JavaScript trim/lowercase and literal platform keys", () => {
++  assertEquals(normalizeLogin("  Lena@Example.COM "), "lena@example.com");
++  assertEquals(
++    normalizeLogin("\u00a0\tLENA@EXAMPLE.COM\n"),
++    "lena@example.com",
++  );
++  assertEquals(normalizeLogin("  Under_%@Example.COM "), "under_%@example.com");
++  for (const value of ["", " \t\n", undefined, null, 42, false, {}, []]) {
++    assertEquals(normalizeLogin(value), null);
++  }
++  assertEquals(platformKey("4Based"), "4based");
++  assertEquals(platformKey(" 4Based "), "4based");
++  assertEquals(platformKey("4-BA_SED!"), "4based");
++  assertEquals(platformKey("Maloum"), "maloum");
++  assertEquals(platformKey("Brezzels"), "brezzels");
++  assertEquals(platformKey(" --_ "), "");
++});
++
++Deno.test("PROFILE_KEYS matches all 34 contract keys in exact order", () => {
++  const expected = (
++    "name age city occupation hobbies languages personality content_preferences no_gos " +
++    "place_of_birth favorite_color favorite_food favorite_movie favorite_music dream education " +
++    "work special_marks natural_hair shoe_size bra_size height weight " +
++    "content_anal_fingering content_anal_penetration content_anal_plug content_audios_for_chat " +
++    "content_dick_ratings content_joi content_moaning_name content_orgasm " +
++    "content_roleplay_costumes content_squirting content_video_speaking"
++  ).split(" ");
++  assertEquals(PROFILE_KEYS.length, 34);
++  assertEquals(new Set(PROFILE_KEYS).size, 34);
++  assertEquals([...PROFILE_KEYS], expected);
++  const reversed = Object.fromEntries(
++    [...expected].reverse().map((key) => [key, null]),
++  );
++  assertEquals(Object.keys(projectProfile(reversed)), expected);
++});
++
++Deno.test("projectProfile preserves values and nulls, drops private and inherited fields", () => {
++  const hobbies = ["synthetic-hobby", { nested: true }];
++  const snapshot = Object.freeze({
++    content_video_speaking: false,
++    hobbies,
++    age: null,
++    name: "Testmodell Fiktiva",
++    id: A,
++    model_id: B,
++    additional_info: "synthetic-private-value",
++    account_name: "synthetic-account-name",
++    created_at: "2026-09-20T10:00:00Z",
++    updated_at: "2026-09-20T11:00:00Z",
++    confirmed_at: "2026-09-20T12:00:00Z",
++    email: "private@example.com",
++  });
++  const projected = projectProfile(snapshot);
++  assertEquals(projected, {
++    name: "Testmodell Fiktiva",
++    age: null,
++    hobbies,
++    content_video_speaking: false,
++  });
++  assertEquals(Object.keys(projected), [
++    "name",
++    "age",
++    "hobbies",
++    "content_video_speaking",
++  ]);
++  assertNotStrictEquals(projected, snapshot);
++  assertStrictEquals(projected.hobbies, hobbies);
++  const inherited = Object.assign(
++    Object.create({ name: "Inherited fixture" }),
++    {
++      age: null,
++    },
++  );
++  assertEquals(projectProfile(inherited), { age: null });
++  assertEquals(projectProfile({ account_name: "Private fixture" }), {});
++});
++
++Deno.test("profileStatus requires confirmation and a nonempty plain snapshot object", () => {
++  assertEquals(profileStatus(undefined), "none");
++  for (const snapshot of [null, {}, [], { name: "Testmodell Fiktiva" }]) {
++    assertEquals(
++      profileStatus({ confirmed_at: null, approved_snapshot: snapshot }),
++      "not_approved",
++    );
++  }
++  for (
++    const snapshot of [
++      undefined,
++      null,
++      {},
++      [],
++      ["nonempty-array"],
++      "",
++      "nonempty-string",
++      0,
++      1,
++      false,
++      true,
++      Object.assign(new Date(0), { name: "Non-plain fixture" }),
++      Object.create({ name: "Inherited fixture" }),
++    ]
++  ) {
++    assertEquals(
++      profileStatus({
++        confirmed_at: "2026-09-20T10:15:00Z",
++        approved_snapshot: snapshot,
++      }),
++      "unusable",
++    );
++  }
++  for (
++    const snapshot of [
++      { name: null },
++      { account_name: "Only a non-exported key" },
++      Object.assign(Object.create(null), { name: "Null-prototype fixture" }),
++    ]
++  ) {
++    assertEquals(
++      profileStatus({
++        confirmed_at: "2026-09-20T10:15:00Z",
++        approved_snapshot: snapshot,
++      }),
++      "approved",
++    );
++  }
++});
++
++Deno.test("validation preserves input order, lowercases UUIDs, ignores extras and defaults profiles off", () => {
++  assertEquals(validateRequest({ action: "list_models", ignored: "fixture" }), {
++    ok: true,
++    value: { action: "list_models" },
++  });
++  assertEquals(
++    validateRequest({
++      action: "resolve",
++      identities: [{
++        platform: " 4Based ",
++        email: " LENA@EXAMPLE.COM ",
++        ignored: 1,
++      }],
++      model_ids: [B.toUpperCase(), A, B],
++      ignored: "fixture",
++    }),
++    {
++      ok: true,
++      value: {
++        action: "resolve",
++        identities: [{ platform: " 4Based ", email: " LENA@EXAMPLE.COM " }],
++        model_ids: [B, A, B],
++        include_profiles: false,
++      },
++    },
++  );
++  assertEquals(
++    validateRequest({
++      action: "resolve",
++      identities: [{ platform: "p".repeat(32), email: "e".repeat(320) }],
++      model_ids: [],
++      include_profiles: true,
++    }).ok,
++    true,
++  );
++  assertEquals(
++    validateRequest({
++      action: "resolve",
++      identities: [{ platform: " ", email: " " }],
++      model_ids: [],
++    }).ok,
++    true,
++  );
++});
++
++Deno.test("validation rejects malformed shapes and UUIDs before reporting list limits", () => {
++  const base = { action: "resolve", identities: [], model_ids: [] };
++  const invalidBodies: unknown[] = [
++    null,
++    [],
++    "resolve",
++    {},
++    { action: 1 },
++    { action: "unknown", identities: [], model_ids: [] },
++    { action: "resolve" },
++    { ...base, identities: {} },
++    { ...base, model_ids: "not-an-array" },
++    ...[null, "true", 1].map((include_profiles) => ({
++      ...base,
++      include_profiles,
++    })),
++    ...[
++      null,
++      {},
++      [],
++      { platform: 1, email: "a@example.com" },
++      { platform: "", email: "a@example.com" },
++      { platform: "p".repeat(33), email: "a@example.com" },
++      { platform: "4Based", email: "" },
++      { platform: "4Based", email: "e".repeat(321) },
++      { platform: "4Based", email: null },
++    ].map((identity) => ({
++      ...base,
++      identities: [identity],
++    })),
++    ...[
++      null,
++      1,
++      "",
++      "not-a-uuid",
++      A.replace(/-/g, ""),
++      ` ${A}`,
++      `${A}\n`,
++      "gaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
++    ].map((id) => ({ ...base, model_ids: [id] })),
++    { ...base, model_ids: [...Array(1000).fill(A), "bad-uuid"] },
++  ];
++  for (const body of invalidBodies) {
++    assertEquals(validateRequest(body), {
++      ok: false,
++      error: "invalid_request",
++    });
++  }
++});
++
++Deno.test("validation limits each list independently before deduplication", () => {
++  const identity = { platform: "4Based", email: "fixture@example.com" };
++  const base = { action: "resolve", identities: [], model_ids: [] };
++  assertEquals(
++    validateRequest({
++      ...base,
++      identities: Array(1000).fill(identity),
++      model_ids: Array(1000).fill(A),
++    }).ok,
++    true,
++  );
++  for (
++    const body of [
++      { ...base, identities: Array(1001).fill(identity) },
++      { ...base, model_ids: Array(1001).fill(A) },
++      { ...base, action: "unknown", model_ids: Array(1001).fill(A) },
++    ]
++  ) {
++    assertEquals(validateRequest(body), { ok: false, error: "too_many_items" });
++  }
++});
++
++Deno.test("buildResolutions normalizes both sides, deduplicates per platform group and echoes order", () => {
++  const accounts = [
++    account(B.toUpperCase(), "4based", "  Lena@Example.COM "),
++    account(A, " 4Based ", "lena@example.com"),
++    account(A, "4-BA_SED", "LENA@EXAMPLE.COM"),
++    account(C, "Maloum", " Lena@Example.COM "),
++    account(C, "Brezzels", "lena@example.com"),
++    account(A, "Maloum", "lena@example.com"),
++    account(null, "4Based", "lena@example.com"),
++    account(D, "4Based", " \t "),
++    account(D, "4Based", null),
++    account(D, "4Based", "different@example.com"),
++  ];
++  assertEquals(
++    buildResolutions([
++      { platform: " 4Based ", email: " LENA@EXAMPLE.COM " },
++      { platform: "Maloum", email: "lena@example.com" },
++      { platform: "4Based", email: " " },
++      { platform: "4Based", email: "missing@example.com" },
++      { platform: "4Based", email: "lena@example.com" },
++    ], accounts),
++    [
++      {
++        platform: "4based",
++        email: "lena@example.com",
++        same_platform_model_ids: [A, B],
++        other_platform_model_ids: [A, C],
++      },
++      {
++        platform: "maloum",
++        email: "lena@example.com",
++        same_platform_model_ids: [A, C],
++        other_platform_model_ids: [A, B, C],
++      },
++      {
++        platform: "4based",
++        email: "",
++        same_platform_model_ids: [],
++        other_platform_model_ids: [],
++      },
++      {
++        platform: "4based",
++        email: "missing@example.com",
++        same_platform_model_ids: [],
++        other_platform_model_ids: [],
++      },
++      {
++        platform: "4based",
++        email: "lena@example.com",
++        same_platform_model_ids: [A, B],
++        other_platform_model_ids: [A, C],
++      },
++    ],
++  );
++});
++
++Deno.test("buildResolutions treats underscore and percent as literal characters", () => {
++  assertEquals(
++    buildResolutions([
++      { platform: "4Based", email: "under_score@example.com" },
++      { platform: "4Based", email: "percent%mail@example.com" },
++    ], [
++      account(A, "4Based", " UNDER_SCORE@EXAMPLE.COM "),
++      account(B, "4Based", "underXscore@example.com"),
++      account(C, "4Based", " PERCENT%MAIL@EXAMPLE.COM "),
++      account(D, "4Based", "percentANYmail@example.com"),
++    ]),
++    [
++      {
++        platform: "4based",
++        email: "under_score@example.com",
++        same_platform_model_ids: [A],
++        other_platform_model_ids: [],
++      },
++      {
++        platform: "4based",
++        email: "percent%mail@example.com",
++        same_platform_model_ids: [C],
++        other_platform_model_ids: [],
++      },
++    ],
++  );
++});
++
++Deno.test("buildProfiles sorts distinct IDs, gates contents and dates, and handles missing models", () => {
++  const models = new Map([A, B, C, D].map((id) => [id, model(id)]));
++  const profiles = new Map<string, ProfileRow>([
++    [A, {
++      model_id: A,
++      confirmed_at: "2026-09-20T12:15:00+02:00",
++      updated_at: "2026-09-20T12:14:12.7+02:00",
++      approved_snapshot: {
++        age: null,
++        name: "Testmodell Fiktiva",
++        additional_info: "Private fixture",
++      },
++    }],
++    [B, {
++      model_id: B,
++      confirmed_at: null,
++      updated_at: "unparsed-unapproved-date",
++      approved_snapshot: { name: "Unapproved fixture" },
++    }],
++    [C, {
++      model_id: C,
++      confirmed_at: "unparsed-unusable-date",
++      updated_at: "unparsed-unusable-date",
++      approved_snapshot: {},
++    }],
++    [E, {
++      model_id: E,
++      confirmed_at: "unparsed-orphan-date",
++      updated_at: "unparsed-orphan-date",
++      approved_snapshot: { name: "Orphan fixture" },
++    }],
++  ]);
++  assertEquals(
++    buildProfiles([E, B, A.toUpperCase(), D, C, A], models, profiles, true),
++    [
++      {
++        model_id: A,
++        model_exists: true,
++        profile_status: "approved",
++        confirmed_at: "2026-09-20T10:15:00.000Z",
++        updated_at: "2026-09-20T10:14:12.700Z",
++        profile: { name: "Testmodell Fiktiva", age: null },
++      },
++      {
++        model_id: B,
++        model_exists: true,
++        profile_status: "not_approved",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++      {
++        model_id: C,
++        model_exists: true,
++        profile_status: "unusable",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++      {
++        model_id: D,
++        model_exists: true,
++        profile_status: "none",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++      {
++        model_id: E,
++        model_exists: false,
++        profile_status: "none",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++    ],
++  );
++  const withoutContents = buildProfiles([A], models, profiles, false);
++  assertEquals(withoutContents[0].profile, null);
++  assertEquals(withoutContents[0].confirmed_at, "2026-09-20T10:15:00.000Z");
++  assertEquals(withoutContents[0].updated_at, "2026-09-20T10:14:12.700Z");
++  assertEquals(buildProfiles([], models, profiles, true), []);
++});
++
++Deno.test("approved snapshots can project to an empty object and have null updated_at", () => {
++  const result = buildProfiles(
++    [A],
++    new Map([[A, model(A)]]),
++    new Map([[A, {
++      model_id: A,
++      confirmed_at: "2026-09-20T10:15:00Z",
++      updated_at: null,
++      approved_snapshot: { additional_info: "Private fixture" },
++    }]]),
++    true,
++  );
++  assertEquals(result[0].profile_status, "approved");
++  assertEquals(result[0].profile, {});
++  assertEquals(result[0].updated_at, null);
++});
+diff --git a/supabase/functions/controlling-model-profiles/core.ts b/supabase/functions/controlling-model-profiles/core.ts
+new file mode 100644
+index 00000000..0f5b5485
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/core.ts
+@@ -0,0 +1,248 @@
++export const CONTRACT = "controlling-model-profiles.v1";
++export const MAX_ITEMS = 1000;
++export const MAX_BODY_BYTES = 1024 * 1024;
++
++export const PROFILE_KEYS = [
++  "name",
++  "age",
++  "city",
++  "occupation",
++  "hobbies",
++  "languages",
++  "personality",
++  "content_preferences",
++  "no_gos",
++  "place_of_birth",
++  "favorite_color",
++  "favorite_food",
++  "favorite_movie",
++  "favorite_music",
++  "dream",
++  "education",
++  "work",
++  "special_marks",
++  "natural_hair",
++  "shoe_size",
++  "bra_size",
++  "height",
++  "weight",
++  "content_anal_fingering",
++  "content_anal_penetration",
++  "content_anal_plug",
++  "content_audios_for_chat",
++  "content_dick_ratings",
++  "content_joi",
++  "content_moaning_name",
++  "content_orgasm",
++  "content_roleplay_costumes",
++  "content_squirting",
++  "content_video_speaking",
++] as const;
++
++export interface AccountRow {
++  id: string;
++  model_id: string | null;
++  platform: string;
++  account_email: string | null;
++}
++
++export interface ModelRow {
++  id: string;
++  name: string;
++  username: string | null;
++  model_active: boolean;
++}
++
++export interface ProfileSummaryRow {
++  model_id: string;
++  confirmed_at: string | null;
++  approved_snapshot: unknown;
++}
++
++export interface ProfileRow extends ProfileSummaryRow {
++  updated_at: string | null;
++}
++
++export type ProfileStatus = "approved" | "not_approved" | "none" | "unusable";
++export type ProjectedProfile = Partial<
++  Record<(typeof PROFILE_KEYS)[number], unknown>
++>;
++
++export interface Identity {
++  platform: string;
++  email: string;
++}
++
++export interface Resolution extends Identity {
++  same_platform_model_ids: string[];
++  other_platform_model_ids: string[];
++}
++
++export interface ResolvedProfile {
++  model_id: string;
++  model_exists: boolean;
++  profile_status: ProfileStatus;
++  confirmed_at: string | null;
++  updated_at: string | null;
++  profile: ProjectedProfile | null;
++}
++
++export type ValidRequest = { action: "list_models" } | {
++  action: "resolve";
++  identities: Identity[];
++  model_ids: string[];
++  include_profiles: boolean;
++};
++
++export type ValidationResult = { ok: true; value: ValidRequest } | {
++  ok: false;
++  error: "invalid_request" | "too_many_items";
++};
++
++export function normalizeLogin(value: unknown): string | null {
++  return typeof value === "string" ? value.trim().toLowerCase() || null : null;
++}
++
++export function platformKey(label: string): string {
++  return label.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
++}
++
++export function isPlainObject(
++  value: unknown,
++): value is Record<string, unknown> {
++  if (value === null || typeof value !== "object") return false;
++  const prototype = Object.getPrototypeOf(value);
++  return prototype === Object.prototype || prototype === null;
++}
++
++export function projectProfile(snapshot: unknown): ProjectedProfile {
++  const projected: ProjectedProfile = {};
++  if (snapshot === null || typeof snapshot !== "object") return projected;
++  for (const key of PROFILE_KEYS) {
++    if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
++      projected[key] = (snapshot as Record<string, unknown>)[key];
++    }
++  }
++  return projected;
++}
++
++export function profileStatus(
++  row:
++    | Pick<ProfileSummaryRow, "confirmed_at" | "approved_snapshot">
++    | undefined,
++): ProfileStatus {
++  if (row === undefined) return "none";
++  if (row.confirmed_at === null) return "not_approved";
++  return isPlainObject(row.approved_snapshot) &&
++      Object.keys(row.approved_snapshot).length > 0
++    ? "approved"
++    : "unusable";
++}
++
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++
++function isIdentity(value: unknown): value is Identity {
++  return isPlainObject(value) &&
++    typeof value.platform === "string" && value.platform.length >= 1 &&
++    value.platform.length <= 32 &&
++    typeof value.email === "string" && value.email.length >= 1 &&
++    value.email.length <= 320;
++}
++
++export function validateRequest(body: unknown): ValidationResult {
++  const invalid: ValidationResult = { ok: false, error: "invalid_request" };
++  if (!isPlainObject(body) || typeof body.action !== "string") return invalid;
++  if (body.action === "list_models") {
++    return { ok: true, value: { action: "list_models" } };
++  }
++  if (
++    !Array.isArray(body.identities) || !Array.isArray(body.model_ids) ||
++    (body.include_profiles !== undefined &&
++      typeof body.include_profiles !== "boolean") ||
++    !body.identities.every(isIdentity) ||
++    !body.model_ids.every((id) => typeof id === "string" && UUID.test(id))
++  ) return invalid;
++  if (body.identities.length > MAX_ITEMS || body.model_ids.length > MAX_ITEMS) {
++    return { ok: false, error: "too_many_items" };
++  }
++  if (body.action !== "resolve") return invalid;
++  return {
++    ok: true,
++    value: {
++      action: "resolve",
++      identities: body.identities.map(({ platform, email }) => ({
++        platform,
++        email,
++      })),
++      model_ids: body.model_ids.map((id: string) => id.toLowerCase()),
++      include_profiles: body.include_profiles === true,
++    },
++  };
++}
++
++export function sortedModelIds(ids: Iterable<string>): string[] {
++  return [...new Set(Array.from(ids, (id) => id.toLowerCase()))].sort();
++}
++
++export function buildResolutions(
++  identities: readonly Identity[],
++  accounts: readonly AccountRow[],
++): Resolution[] {
++  const byEmail = new Map<string, Map<string, Set<string>>>();
++  for (const account of accounts) {
++    const email = normalizeLogin(account.account_email);
++    if (!account.model_id || email === null) continue;
++    const platform = platformKey(account.platform);
++    let byPlatform = byEmail.get(email);
++    if (!byPlatform) byEmail.set(email, byPlatform = new Map());
++    let ids = byPlatform.get(platform);
++    if (!ids) byPlatform.set(platform, ids = new Set());
++    ids.add(account.model_id.toLowerCase());
++  }
++
++  return identities.map((identity) => {
++    const platform = platformKey(identity.platform);
++    const email = normalizeLogin(identity.email);
++    const same: string[] = [];
++    const other: string[] = [];
++    const matches = email === null ? undefined : byEmail.get(email);
++    for (const [accountPlatform, ids] of matches ?? []) {
++      const target = accountPlatform === platform ? same : other;
++      target.push(...ids);
++    }
++    return {
++      platform,
++      email: email ?? "",
++      same_platform_model_ids: sortedModelIds(same),
++      other_platform_model_ids: sortedModelIds(other),
++    };
++  });
++}
++
++export function buildProfiles(
++  ids: Iterable<string>,
++  modelsById: ReadonlyMap<string, ModelRow>,
++  profilesByModelId: ReadonlyMap<string, ProfileRow>,
++  includeProfiles: boolean,
++): ResolvedProfile[] {
++  return sortedModelIds(ids).map((modelId) => {
++    const modelExists = modelsById.has(modelId);
++    const row = profilesByModelId.get(modelId);
++    const status = modelExists ? profileStatus(row) : "none";
++    const approved = status === "approved" && row !== undefined;
++    return {
++      model_id: modelId,
++      model_exists: modelExists,
++      profile_status: status,
++      confirmed_at: approved && row.confirmed_at !== null
++        ? new Date(row.confirmed_at).toISOString()
++        : null,
++      updated_at: approved && row.updated_at !== null
++        ? new Date(row.updated_at).toISOString()
++        : null,
++      profile: approved && includeProfiles === true
++        ? projectProfile(row.approved_snapshot)
++        : null,
++    };
++  });
++}
+diff --git a/supabase/functions/controlling-model-profiles/handler.test.ts b/supabase/functions/controlling-model-profiles/handler.test.ts
+new file mode 100644
+index 00000000..ec6d7807
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/handler.test.ts
+@@ -0,0 +1,745 @@
++import { assert, assertEquals } from "jsr:@std/assert@1";
++import {
++  type AccountRow,
++  MAX_BODY_BYTES,
++  type ModelRow,
++  type ProfileRow,
++} from "./core.ts";
++import { createHandler, type HandlerDeps } from "./handler.ts";
++import type { ShexStore } from "./store.ts";
++
++const KEY = "synthetic-test-key-not-a-secret";
++const URL = "https://example.com/functions/v1/controlling-model-profiles";
++const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
++const B = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
++const C = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3";
++const D = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4";
++const E = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5";
++const PRIVATE_VALUES = [
++  KEY,
++  A,
++  B,
++  C,
++  D,
++  E,
++  "lena@example.com",
++  "Testmodell Fiktiva",
++  "synthetic-profile-content",
++  "synthetic-database-detail",
++];
++
++class FakeStore implements ShexStore {
++  accounts: AccountRow[] = [];
++  models: ModelRow[] = [];
++  profiles: ProfileRow[] = [];
++  calls: (keyof ShexStore)[] = [];
++  modelQueries: string[][] = [];
++  profileQueries: string[][] = [];
++  failOn?: keyof ShexStore;
++
++  private called(method: keyof ShexStore) {
++    this.calls.push(method);
++    if (this.failOn === method) {
++      throw new Error(PRIVATE_VALUES.join(" "));
++    }
++  }
++
++  listAccounts(): Promise<AccountRow[]> {
++    this.called("listAccounts");
++    return Promise.resolve(this.accounts);
++  }
++
++  listModels(): Promise<ModelRow[]> {
++    this.called("listModels");
++    return Promise.resolve(this.models);
++  }
++
++  listProfiles(): Promise<ProfileRow[]> {
++    this.called("listProfiles");
++    return Promise.resolve(this.profiles);
++  }
++
++  getModelsByIds(ids: readonly string[]): Promise<ModelRow[]> {
++    this.called("getModelsByIds");
++    this.modelQueries.push([...ids]);
++    return Promise.resolve(this.models.filter((row) => ids.includes(row.id)));
++  }
++
++  getProfilesByModelIds(ids: readonly string[]): Promise<ProfileRow[]> {
++    this.called("getProfilesByModelIds");
++    this.profileQueries.push([...ids]);
++    return Promise.resolve(
++      this.profiles.filter((row) => ids.includes(row.model_id)),
++    );
++  }
++}
++
++function model(id: string, name = "Testmodell Fiktiva"): ModelRow {
++  return { id, name, username: null, model_active: true };
++}
++
++function profile(
++  id: string,
++  approved_snapshot: unknown = {
++    name: "Testmodell Fiktiva",
++    age: null,
++    city: "synthetic-profile-content",
++  },
++  confirmed_at: string | null = "2026-09-20T12:15:00+02:00",
++): ProfileRow {
++  return {
++    model_id: id,
++    approved_snapshot,
++    confirmed_at,
++    updated_at: "2026-09-20T12:14:12+02:00",
++  };
++}
++
++function postText(
++  body: BodyInit | null,
++  headers: HeadersInit = { "x-api-key": KEY },
++) {
++  return new Request(URL, { method: "POST", headers, body });
++}
++
++function post(body: unknown, headers?: HeadersInit) {
++  return postText(JSON.stringify(body), headers);
++}
++
++function fixture(overrides: Partial<HandlerDeps> = {}) {
++  const store = new FakeStore();
++  const logs: string[] = [];
++  let tick = 100;
++  const handler = createHandler({
++    env: (name) => {
++      assertEquals(name, "CONTROLLING_MODEL_PROFILES_KEY");
++      return KEY;
++    },
++    store,
++    log: (line) => logs.push(line),
++    now: () => tick += 5,
++    ...overrides,
++  });
++  return {
++    store,
++    logs,
++    async invoke(req: Request): Promise<Response> {
++      const previous = logs.length;
++      const response = await handler(req);
++      assertEquals(
++        response.headers.get("content-type"),
++        "application/json; charset=utf-8",
++      );
++      assertEquals(response.headers.get("cache-control"), "no-store");
++      for (const header of response.headers.keys()) {
++        assert(!header.toLowerCase().startsWith("access-control-"));
++      }
++      assertEquals(logs.length, previous + 1);
++      const line = logs[previous];
++      assertEquals(line.split("\n").length, 1);
++      const entry = JSON.parse(line);
++      assertEquals(Object.keys(entry), [
++        "fn",
++        "action",
++        "status",
++        "identities",
++        "model_ids",
++        "ms",
++      ]);
++      assertEquals(entry.fn, "controlling-model-profiles");
++      assertEquals(entry.status, response.status);
++      assert([null, "list_models", "resolve"].includes(entry.action));
++      assertEquals(typeof entry.identities, "number");
++      assertEquals(typeof entry.model_ids, "number");
++      assertEquals(entry.ms, 5);
++      for (const value of PRIVATE_VALUES) {
++        assert(!line.toLowerCase().includes(value.toLowerCase()));
++      }
++      return response;
++    },
++  };
++}
++
++async function expectError(response: Response, status: number, code: string) {
++  assertEquals(response.status, status);
++  assertEquals(await response.text(), JSON.stringify({ error: code }));
++}
++
++Deno.test("GET and OPTIONS return 405 before reading configuration or the body", async () => {
++  const f = fixture({
++    env: () => {
++      throw new Error("must not be called");
++    },
++  });
++  for (const method of ["GET", "OPTIONS", "PUT", "DELETE"]) {
++    const req = new Request(URL, {
++      method,
++      headers: { "content-length": String(MAX_BODY_BYTES + 1) },
++    });
++    await expectError(await f.invoke(req), 405, "method_not_allowed");
++    assertEquals(req.bodyUsed, false);
++  }
++  assertEquals(f.store.calls, []);
++});
++
++Deno.test("missing or trimmed-empty secret returns 503 before auth, size and JSON checks", async () => {
++  for (const secret of [undefined, "", " \t\n "]) {
++    const f = fixture({ env: () => secret });
++    const req = postText("not-json", {
++      "content-length": String(MAX_BODY_BYTES + 1),
++    });
++    await expectError(await f.invoke(req), 503, "not_configured");
++    assertEquals(req.bodyUsed, false);
++    assertEquals(f.store.calls, []);
++  }
++});
++
++Deno.test("missing or wrong x-api-key returns 401, with no bearer or query fallback", async () => {
++  const f = fixture();
++  const cases: Record<string, string>[] = [
++    {},
++    { "x-api-key": "" },
++    { "x-api-key": "   " },
++    { "x-api-key": "wrong-key" },
++    { "x-api-key": `${KEY}x` },
++    { "x-api-key": KEY.slice(0, -1) },
++    { authorization: `Bearer ${KEY}` },
++    { authorization: KEY },
++    { "x-api-key": "wrong-key", authorization: `Bearer ${KEY}` },
++    { apikey: KEY },
++  ];
++  for (
++    const headers of cases
++  ) {
++    const req = postText("not-json", {
++      ...headers,
++      "content-length": String(MAX_BODY_BYTES + 1),
++    });
++    await expectError(await f.invoke(req), 401, "unauthorized");
++    assertEquals(req.bodyUsed, false);
++  }
++  const queryOnly = new Request(`${URL}?x-api-key=${KEY}`, {
++    method: "POST",
++    body: "not-json",
++  });
++  await expectError(await f.invoke(queryOnly), 401, "unauthorized");
++  assertEquals(f.store.calls, []);
++});
++
++Deno.test("auth trims the configured secret and x-api-key", async () => {
++  const f = fixture({ env: () => ` \n ${KEY} \t ` });
++  const response = await f.invoke(
++    post({ action: "list_models" }, { "x-api-key": `  ${KEY}\t` }),
++  );
++  assertEquals(response.status, 200);
++  assertEquals(await response.json(), {
++    contract: "controlling-model-profiles.v1",
++    models: [],
++  });
++});
++
++Deno.test("Content-Length over 1 MiB returns 413 before reading even a small body", async () => {
++  const f = fixture();
++  const req = postText("not-json", {
++    "x-api-key": KEY,
++    "content-length": String(MAX_BODY_BYTES + 1),
++  });
++  await expectError(await f.invoke(req), 413, "payload_too_large");
++  assertEquals(req.bodyUsed, false);
++  assertEquals(f.store.calls, []);
++});
++
++Deno.test("actual streamed bytes enforce 1 MiB with absent, false or malformed Content-Length", async () => {
++  for (const declared of [undefined, "1", "invalid"]) {
++    const f = fixture();
++    let cancelled = false;
++    let part = 0;
++    const stream = new ReadableStream<Uint8Array>({
++      pull(controller) {
++        controller.enqueue(
++          part++ === 0 ? new Uint8Array(MAX_BODY_BYTES) : new Uint8Array([32]),
++        );
++      },
++      cancel() {
++        cancelled = true;
++      },
++    });
++    const headers = new Headers({ "x-api-key": KEY });
++    if (declared !== undefined) headers.set("content-length", declared);
++    await expectError(
++      await f.invoke(postText(stream, headers)),
++      413,
++      "payload_too_large",
++    );
++    assertEquals(cancelled, true);
++    assertEquals(f.store.calls, []);
++  }
++  const f = fixture();
++  const multibyte = JSON.stringify({
++    action: "list_models",
++    ignored: "ü".repeat(600_000),
++  });
++  assert(multibyte.length < MAX_BODY_BYTES);
++  assert(new TextEncoder().encode(multibyte).byteLength > MAX_BODY_BYTES);
++  await expectError(
++    await f.invoke(postText(multibyte)),
++    413,
++    "payload_too_large",
++  );
++});
++
++Deno.test("a valid body of exactly 1 MiB is accepted", async () => {
++  const f = fixture();
++  const minimal = JSON.stringify({ action: "list_models", ignored: "" });
++  const body = JSON.stringify({
++    action: "list_models",
++    ignored: "x".repeat(MAX_BODY_BYTES - minimal.length),
++  });
++  assertEquals(new TextEncoder().encode(body).byteLength, MAX_BODY_BYTES);
++  const response = await f.invoke(
++    postText(body, {
++      "x-api-key": KEY,
++      "content-length": String(MAX_BODY_BYTES),
++    }),
++  );
++  assertEquals(response.status, 200);
++});
++
++Deno.test("invalid JSON, wrong types, unknown action and bad UUID yield only invalid_request", async () => {
++  const f = fixture();
++  for (const raw of ["", "{", "undefined", '{"action":']) {
++    await expectError(await f.invoke(postText(raw)), 400, "invalid_request");
++  }
++  const base = { action: "resolve", identities: [], model_ids: [] };
++  for (
++    const body of [
++      null,
++      [],
++      "list_models",
++      42,
++      {},
++      { action: null },
++      { action: "unknown" },
++      { ...base, action: "unknown" },
++      { action: "resolve" },
++      { ...base, identities: null },
++      { ...base, model_ids: {} },
++      { ...base, include_profiles: "true" },
++      { ...base, include_profiles: null },
++      { ...base, identities: [{ platform: 1, email: "lena@example.com" }] },
++      { ...base, identities: [{ platform: "4Based", email: false }] },
++      { ...base, identities: [{ platform: "4Based", email: "" }] },
++      {
++        ...base,
++        identities: [{ platform: "p".repeat(33), email: "lena@example.com" }],
++      },
++      { ...base, model_ids: ["synthetic-database-detail"] },
++      { ...base, model_ids: [A.replace(/-/g, "")] },
++    ]
++  ) {
++    await expectError(await f.invoke(post(body)), 400, "invalid_request");
++  }
++  assertEquals(f.store.calls, []);
++});
++
++Deno.test("1001 items in either list returns too_many_items before store access", async () => {
++  const f = fixture();
++  const base = { action: "resolve", identities: [], model_ids: [] };
++  for (
++    const body of [
++      {
++        ...base,
++        identities: Array(1001).fill({
++          platform: "4Based",
++          email: "lena@example.com",
++        }),
++      },
++      { ...base, model_ids: Array(1001).fill(A) },
++      { ...base, action: "unknown", model_ids: Array(1001).fill(A) },
++    ]
++  ) {
++    await expectError(await f.invoke(post(body)), 400, "too_many_items");
++  }
++  assertEquals(f.store.calls, []);
++});
++
++Deno.test("list_models returns only allowed fields and all statuses, sorted in German then by ID", async () => {
++  const f = fixture();
++  f.store.models = [
++    model(E, "Zeta-Testmodell"),
++    model(C, "Äther-Testmodell"),
++    {
++      ...model(B, "Äther-Testmodell"),
++      model_active: false,
++      username: "synthetic-handle",
++    },
++    model(A, "Alpha-Testmodell"),
++    Object.assign(model(D, "Beta-Testmodell"), {
++      account_email: "lena@example.com",
++      profile: "synthetic-profile-content",
++    }),
++  ];
++  f.store.profiles = [
++    profile(A),
++    profile(B, { name: "Unapproved fixture" }, null),
++    profile(C, []),
++    profile(E, {}),
++  ];
++  const response = await f.invoke(post({ action: "list_models" }));
++  assertEquals(response.status, 200);
++  assertEquals(await response.json(), {
++    contract: "controlling-model-profiles.v1",
++    models: [
++      {
++        model_id: A,
++        name: "Alpha-Testmodell",
++        username: null,
++        model_active: true,
++        profile_status: "approved",
++      },
++      {
++        model_id: B,
++        name: "Äther-Testmodell",
++        username: "synthetic-handle",
++        model_active: false,
++        profile_status: "not_approved",
++      },
++      {
++        model_id: C,
++        name: "Äther-Testmodell",
++        username: null,
++        model_active: true,
++        profile_status: "unusable",
++      },
++      {
++        model_id: D,
++        name: "Beta-Testmodell",
++        username: null,
++        model_active: true,
++        profile_status: "none",
++      },
++      {
++        model_id: E,
++        name: "Zeta-Testmodell",
++        username: null,
++        model_active: true,
++        profile_status: "unusable",
++      },
++    ],
++  });
++  assertEquals(f.store.calls, ["listModels", "listProfiles"]);
++  assertEquals(JSON.parse(f.logs[0]), {
++    fn: "controlling-model-profiles",
++    action: "list_models",
++    status: 200,
++    identities: 0,
++    model_ids: 0,
++    ms: 5,
++  });
++  assert(!f.logs[0].includes("Testmodell"));
++  assert(!f.logs[0].includes("synthetic-handle"));
++});
++
++Deno.test("resolve preserves echo order and includes the sorted union of both match groups and explicit IDs", async () => {
++  const f = fixture();
++  f.store.accounts = [
++    {
++      id: D,
++      model_id: B,
++      platform: "4based",
++      account_email: " LENA@EXAMPLE.COM ",
++    },
++    {
++      id: E,
++      model_id: A,
++      platform: " 4Based ",
++      account_email: "lena@example.com",
++    },
++    {
++      id: C,
++      model_id: A,
++      platform: "4Based",
++      account_email: "lena@example.com",
++    },
++    {
++      id: B,
++      model_id: C,
++      platform: "Maloum",
++      account_email: " Lena@Example.COM ",
++    },
++    {
++      id: A,
++      model_id: null,
++      platform: "4Based",
++      account_email: "lena@example.com",
++    },
++  ];
++  f.store.models = [model(C), model(B), model(A), model(D)];
++  f.store.profiles = [
++    profile(A, {
++      age: null,
++      name: "Testmodell Fiktiva",
++      city: "synthetic-profile-content",
++      model_id: A,
++      additional_info: "Private fixture",
++      account_name: "Private fixture",
++    }),
++    profile(B, { name: "Unapproved fixture" }, null),
++    profile(D, ["unusable-array"]),
++    profile(E, { name: "Orphan fixture" }),
++  ];
++  const response = await f.invoke(post({
++    action: "resolve",
++    identities: [
++      { platform: "Maloum", email: "lena@example.com" },
++      { platform: " 4Based ", email: " LENA@EXAMPLE.COM " },
++      { platform: "Brezzels", email: " " },
++      { platform: "4Based", email: "lena@example.com" },
++    ],
++    model_ids: [E.toUpperCase(), D, A, E],
++    include_profiles: true,
++    ignored: "synthetic-database-detail",
++  }));
++  assertEquals(response.status, 200);
++  const body = await response.json();
++  assertEquals(body, {
++    contract: "controlling-model-profiles.v1",
++    resolutions: [
++      {
++        platform: "maloum",
++        email: "lena@example.com",
++        same_platform_model_ids: [C],
++        other_platform_model_ids: [A, B],
++      },
++      {
++        platform: "4based",
++        email: "lena@example.com",
++        same_platform_model_ids: [A, B],
++        other_platform_model_ids: [C],
++      },
++      {
++        platform: "brezzels",
++        email: "",
++        same_platform_model_ids: [],
++        other_platform_model_ids: [],
++      },
++      {
++        platform: "4based",
++        email: "lena@example.com",
++        same_platform_model_ids: [A, B],
++        other_platform_model_ids: [C],
++      },
++    ],
++    profiles: [
++      {
++        model_id: A,
++        model_exists: true,
++        profile_status: "approved",
++        confirmed_at: "2026-09-20T10:15:00.000Z",
++        updated_at: "2026-09-20T10:14:12.000Z",
++        profile: {
++          name: "Testmodell Fiktiva",
++          age: null,
++          city: "synthetic-profile-content",
++        },
++      },
++      {
++        model_id: B,
++        model_exists: true,
++        profile_status: "not_approved",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++      {
++        model_id: C,
++        model_exists: true,
++        profile_status: "none",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++      {
++        model_id: D,
++        model_exists: true,
++        profile_status: "unusable",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++      {
++        model_id: E,
++        model_exists: false,
++        profile_status: "none",
++        confirmed_at: null,
++        updated_at: null,
++        profile: null,
++      },
++    ],
++  });
++  assertEquals(Object.keys(body.profiles[0].profile), ["name", "age", "city"]);
++  assertEquals(f.store.modelQueries, [[A, B, C, D, E]]);
++  assertEquals(f.store.profileQueries, [[A, B, C, D, E]]);
++  assertEquals(JSON.parse(f.logs[0]), {
++    fn: "controlling-model-profiles",
++    action: "resolve",
++    status: 200,
++    identities: 4,
++    model_ids: 4,
++    ms: 5,
++  });
++});
++
++Deno.test("resolve defaults include_profiles to false and also honors explicit false", async () => {
++  for (const optional of [{}, { include_profiles: false }]) {
++    const f = fixture();
++    f.store.models = [model(A)];
++    f.store.profiles = [profile(A)];
++    const response = await f.invoke(
++      post({ action: "resolve", identities: [], model_ids: [A], ...optional }),
++    );
++    assertEquals(response.status, 200);
++    const body = await response.json();
++    assertEquals(body.profiles, [{
++      model_id: A,
++      model_exists: true,
++      profile_status: "approved",
++      confirmed_at: "2026-09-20T10:15:00.000Z",
++      updated_at: "2026-09-20T10:14:12.000Z",
++      profile: null,
++    }]);
++  }
++});
++
++Deno.test("resolve accepts empty lists and 1000 entries in both lists", async () => {
++  const f = fixture();
++  const empty = await f.invoke(
++    post({ action: "resolve", identities: [], model_ids: [] }),
++  );
++  assertEquals(empty.status, 200);
++  assertEquals(await empty.json(), {
++    contract: "controlling-model-profiles.v1",
++    resolutions: [],
++    profiles: [],
++  });
++  const max = await f.invoke(
++    post({
++      action: "resolve",
++      identities: Array(1000).fill({
++        platform: "4Based",
++        email: "lena@example.com",
++      }),
++      model_ids: Array(1000).fill(A),
++    }),
++  );
++  assertEquals(max.status, 200);
++  const body = await max.json();
++  assertEquals(body.resolutions.length, 1000);
++  assertEquals(body.profiles.length, 1);
++  assertEquals(body.profiles[0].model_exists, false);
++});
++
++Deno.test("each failing store operation returns the exact generic 500 body and one log without private data", async () => {
++  for (
++    const method of [
++      "listAccounts",
++      "listModels",
++      "listProfiles",
++      "getModelsByIds",
++      "getProfilesByModelIds",
++    ] as const
++  ) {
++    const f = fixture();
++    f.store.failOn = method;
++    const body = method === "listModels" || method === "listProfiles"
++      ? { action: "list_models" }
++      : {
++        action: "resolve",
++        identities: [{ platform: "4Based", email: "lena@example.com" }],
++        model_ids: [A],
++        include_profiles: true,
++      };
++    await expectError(await f.invoke(post(body)), 500, "internal_error");
++  }
++});
++
++Deno.test("unexpected configuration, stream and approved timestamp errors remain generic", async () => {
++  const badEnv = fixture({
++    env: () => {
++      throw new Error(PRIVATE_VALUES.join(" "));
++    },
++  });
++  await expectError(
++    await badEnv.invoke(post({ action: "list_models" })),
++    500,
++    "internal_error",
++  );
++  const badStream = fixture();
++  const stream = new ReadableStream({
++    start(controller) {
++      controller.error(new Error(PRIVATE_VALUES.join(" ")));
++    },
++  });
++  await expectError(
++    await badStream.invoke(postText(stream)),
++    500,
++    "internal_error",
++  );
++  const badDate = fixture();
++  badDate.store.models = [model(A)];
++  badDate.store.profiles = [
++    profile(A, { name: "Testmodell Fiktiva" }, "synthetic-invalid-date"),
++  ];
++  await expectError(
++    await badDate.invoke(
++      post({ action: "resolve", identities: [], model_ids: [A] }),
++    ),
++    500,
++    "internal_error",
++  );
++});
++
++Deno.test("unknown actions and invalid values never enter logs or error bodies", async () => {
++  const f = fixture();
++  await expectError(
++    await f.invoke(
++      post({
++        action: PRIVATE_VALUES.join("\n"),
++        identities: [],
++        model_ids: [],
++      }),
++    ),
++    400,
++    "invalid_request",
++  );
++  assertEquals(JSON.parse(f.logs[0]).action, null);
++  await expectError(
++    await f.invoke(
++      post({
++        action: "resolve",
++        identities: [{ platform: "4Based", email: "lena@example.com" }],
++        model_ids: [PRIVATE_VALUES.join(" ")],
++      }),
++    ),
++    400,
++    "invalid_request",
++  );
++});
++
++Deno.test("a throwing log sink is called once and yields a generic 500", async () => {
++  let calls = 0;
++  const handler = createHandler({
++    env: () => KEY,
++    store: new FakeStore(),
++    log: () => {
++      calls++;
++      throw new Error(PRIVATE_VALUES.join(" "));
++    },
++  });
++  await expectError(
++    await handler(post({ action: "list_models" })),
++    500,
++    "internal_error",
++  );
++  assertEquals(calls, 1);
++});
+diff --git a/supabase/functions/controlling-model-profiles/handler.ts b/supabase/functions/controlling-model-profiles/handler.ts
+new file mode 100644
+index 00000000..54de8bf1
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/handler.ts
+@@ -0,0 +1,196 @@
++import {
++  buildProfiles,
++  buildResolutions,
++  CONTRACT,
++  isPlainObject,
++  MAX_BODY_BYTES,
++  profileStatus,
++  sortedModelIds,
++  validateRequest,
++} from "./core.ts";
++import type { ShexStore } from "./store.ts";
++
++export interface HandlerDeps {
++  env: (name: string) => string | undefined;
++  store: ShexStore;
++  log: (line: string) => void;
++  now?: () => number;
++}
++
++function json(body: unknown, status = 200): Response {
++  return new Response(JSON.stringify(body), {
++    status,
++    headers: {
++      "content-type": "application/json; charset=utf-8",
++      "cache-control": "no-store",
++    },
++  });
++}
++
++async function equalKeys(expected: string, supplied: string): Promise<boolean> {
++  const encoder = new TextEncoder();
++  const [expectedDigest, suppliedDigest] = await Promise.all([
++    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
++    crypto.subtle.digest("SHA-256", encoder.encode(supplied)),
++  ]);
++  const left = new Uint8Array(expectedDigest);
++  const right = new Uint8Array(suppliedDigest);
++  let difference = 0;
++  for (let i = 0; i < left.length; i++) difference |= left[i] ^ right[i];
++  return difference === 0;
++}
++
++// null signals a size violation; read bytes before decoding, including streams
++// with absent or understated Content-Length headers.
++async function readBody(req: Request): Promise<string | null> {
++  const contentLength = req.headers.get("content-length");
++  if (contentLength !== null && Number(contentLength) > MAX_BODY_BYTES) {
++    return null;
++  }
++  if (req.body === null) return "";
++  const reader = req.body.getReader();
++  const chunks: Uint8Array[] = [];
++  let size = 0;
++  try {
++    while (true) {
++      const { done, value } = await reader.read();
++      if (done) break;
++      size += value.byteLength;
++      if (size > MAX_BODY_BYTES) {
++        await reader.cancel().catch(() => {});
++        return null;
++      }
++      chunks.push(value);
++    }
++  } finally {
++    reader.releaseLock();
++  }
++  const bytes = new Uint8Array(size);
++  let offset = 0;
++  for (const chunk of chunks) {
++    bytes.set(chunk, offset);
++    offset += chunk.byteLength;
++  }
++  return new TextDecoder().decode(bytes);
++}
++
++export function createHandler(deps: HandlerDeps) {
++  const now = deps.now ?? Date.now;
++  return async (req: Request): Promise<Response> => {
++    let action: "list_models" | "resolve" | null = null;
++    let identities = 0;
++    let modelIds = 0;
++    let ms = 0;
++
++    async function dispatch(): Promise<Response> {
++      if (req.method !== "POST") {
++        return json({ error: "method_not_allowed" }, 405);
++      }
++      const expected = deps.env("CONTROLLING_MODEL_PROFILES_KEY")?.trim();
++      if (!expected) return json({ error: "not_configured" }, 503);
++      const supplied = req.headers.get("x-api-key")?.trim();
++      if (!supplied || !await equalKeys(expected, supplied)) {
++        return json({ error: "unauthorized" }, 401);
++      }
++      const text = await readBody(req);
++      if (text === null) return json({ error: "payload_too_large" }, 413);
++      let body: unknown;
++      try {
++        body = JSON.parse(text);
++      } catch {
++        return json({ error: "invalid_request" }, 400);
++      }
++      if (isPlainObject(body)) {
++        // Never copy arbitrary request strings into the log, including action.
++        if (body.action === "resolve" || body.action === "list_models") {
++          action = body.action;
++        }
++        identities = Array.isArray(body.identities)
++          ? body.identities.length
++          : 0;
++        modelIds = Array.isArray(body.model_ids) ? body.model_ids.length : 0;
++      }
++      const parsed = validateRequest(body);
++      if (!parsed.ok) return json({ error: parsed.error }, 400);
++      if (parsed.value.action === "list_models") {
++        const [models, profiles] = await Promise.all([
++          deps.store.listModels(),
++          deps.store.listProfiles(),
++        ]);
++        const profilesById = new Map(
++          profiles.map((profile) => [profile.model_id.toLowerCase(), profile]),
++        );
++        const result = models.map((model) => ({
++          model_id: model.id.toLowerCase(),
++          name: model.name,
++          username: model.username,
++          model_active: model.model_active,
++          profile_status: profileStatus(
++            profilesById.get(model.id.toLowerCase()),
++          ),
++        }));
++        result.sort((a, b) =>
++          a.name.localeCompare(b.name, "de") ||
++          a.model_id.localeCompare(b.model_id)
++        );
++        return json({ contract: CONTRACT, models: result });
++      }
++
++      const request = parsed.value;
++      const resolutions = buildResolutions(
++        request.identities,
++        await deps.store.listAccounts(),
++      );
++      const ids = sortedModelIds([
++        ...request.model_ids,
++        ...resolutions.flatMap((resolution) => [
++          ...resolution.same_platform_model_ids,
++          ...resolution.other_platform_model_ids,
++        ]),
++      ]);
++      const [models, profiles] = await Promise.all([
++        deps.store.getModelsByIds(ids),
++        deps.store.getProfilesByModelIds(ids),
++      ]);
++      return json({
++        contract: CONTRACT,
++        resolutions,
++        profiles: buildProfiles(
++          ids,
++          new Map(models.map((model) => [model.id.toLowerCase(), model])),
++          new Map(
++            profiles.map((
++              profile,
++            ) => [profile.model_id.toLowerCase(), profile]),
++          ),
++          request.include_profiles,
++        ),
++      });
++    }
++
++    let response: Response;
++    try {
++      const started = now();
++      try {
++        response = await dispatch();
++      } finally {
++        ms = Math.max(0, now() - started);
++      }
++    } catch {
++      response = json({ error: "internal_error" }, 500);
++    }
++    try {
++      deps.log(JSON.stringify({
++        fn: "controlling-model-profiles",
++        action,
++        status: response.status,
++        identities,
++        model_ids: modelIds,
++        ms,
++      }));
++    } catch {
++      return json({ error: "internal_error" }, 500);
++    }
++    return response;
++  };
++}
+diff --git a/supabase/functions/controlling-model-profiles/index.ts b/supabase/functions/controlling-model-profiles/index.ts
+new file mode 100644
+index 00000000..bafc6932
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/index.ts
+@@ -0,0 +1,13 @@
++import { createHandler } from "./handler.ts";
++import { createSupabaseStore } from "./store.ts";
++
++const store = createSupabaseStore(
++  Deno.env.get("SUPABASE_URL") ?? "",
++  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
++);
++
++Deno.serve(createHandler({
++  env: (name) => Deno.env.get(name),
++  store,
++  log: (line) => console.log(line),
++}));
+diff --git a/supabase/functions/controlling-model-profiles/store.test.ts b/supabase/functions/controlling-model-profiles/store.test.ts
+new file mode 100644
+index 00000000..f5a22079
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/store.test.ts
+@@ -0,0 +1,233 @@
++import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
++import { createSupabaseStore, type ShexStore } from "./store.ts";
++
++function id(n: number): string {
++  return `10000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
++}
++
++function result(data: unknown[], count: number | null, offset = 0): Response {
++  const headers = new Headers({ "content-type": "application/json" });
++  if (count !== null) {
++    headers.set(
++      "content-range",
++      `${offset}-${offset + data.length - 1}/${count}`,
++    );
++  }
++  return new Response(JSON.stringify(data), { headers });
++}
++
++async function withStore(
++  reply: (url: URL) => Response,
++  run: (store: ShexStore) => Promise<void>,
++) {
++  const originalFetch = globalThis.fetch;
++  globalThis.fetch = (input, init) => {
++    const req = new Request(input, init);
++    assertEquals(req.method, "GET");
++    const url = new URL(req.url);
++    assertEquals(url.origin, "https://shex-fixture.example.com");
++    assert(
++      ["/rest/v1/accounts", "/rest/v1/models", "/rest/v1/model_profiles"]
++        .includes(url.pathname),
++    );
++    assert(req.headers.get("prefer")?.includes("count=exact"));
++    return Promise.resolve(reply(url));
++  };
++  try {
++    await run(
++      createSupabaseStore(
++        "https://shex-fixture.example.com",
++        "synthetic-service-key",
++      ),
++    );
++  } finally {
++    globalThis.fetch = originalFetch;
++  }
++}
++
++const listings = [
++  {
++    method: "listAccounts",
++    table: "accounts",
++    columns: "id,model_id,platform,account_email",
++    order: "id.asc",
++  },
++  {
++    method: "listModels",
++    table: "models",
++    columns: "id,name,username,model_active",
++    order: "id.asc",
++  },
++  {
++    method: "listProfiles",
++    table: "model_profiles",
++    columns: "model_id,confirmed_at,approved_snapshot",
++    order: "model_id.asc",
++  },
++] as const;
++
++Deno.test("store lists all three tables using exact counts and ordered pages of 1000", async () => {
++  for (const listing of listings) {
++    const offsets: number[] = [];
++    const rows = Array.from({ length: 1005 }, (_, i) => ({
++      id: id(i),
++      model_id: id(i),
++      platform: "4Based",
++      account_email: "fixture@example.com",
++      name: "Synthetic fixture model",
++      username: null,
++      model_active: true,
++      confirmed_at: null,
++      approved_snapshot: null,
++    }));
++    await withStore((url) => {
++      assertEquals(url.pathname, `/rest/v1/${listing.table}`);
++      assertEquals(url.searchParams.get("select"), listing.columns);
++      assertEquals(url.searchParams.get("order"), listing.order);
++      assertEquals(url.searchParams.get("limit"), "1000");
++      const offset = Number(url.searchParams.get("offset"));
++      offsets.push(offset);
++      return result(rows.slice(offset, offset + 1000), rows.length, offset);
++    }, async (store) => {
++      assertEquals(await store[listing.method](), rows);
++    });
++    assertEquals(offsets, [0, 1000]);
++  }
++});
++
++Deno.test("store distinguishes an empty table from missing counts or truncated pages", async () => {
++  for (const listing of listings) {
++    await withStore(() => result([], 0), async (store) => {
++      assertEquals(await store[listing.method](), []);
++    });
++    for (
++      const response of [
++        result([], null),
++        result([{ id: id(1) }], 2),
++        result([{ id: id(1) }], 0),
++      ]
++    ) {
++      await withStore(() => response, async (store) => {
++        await assertRejects(
++          () => store[listing.method](),
++          Error,
++          "incomplete_result",
++        );
++      });
++    }
++  }
++});
++
++Deno.test("store rejects counts that change between pages", async () => {
++  let calls = 0;
++  await withStore(() => {
++    calls++;
++    return calls === 1
++      ? result(Array.from({ length: 1000 }, (_, i) => ({ id: id(i) })), 1001)
++      : result([{ id: id(1000) }, { id: id(1001) }], 1002, 1000);
++  }, async (store) => {
++    await assertRejects(() => store.listModels(), Error, "incomplete_result");
++  });
++  assertEquals(calls, 2);
++});
++
++Deno.test("store stops at a full final page when the exact count is satisfied", async () => {
++  let calls = 0;
++  await withStore(() => {
++    calls++;
++    return result(
++      Array.from({ length: 1000 }, (_, i) => ({ id: id(i) })),
++      1000,
++    );
++  }, async (store) => {
++    assertEquals((await store.listModels()).length, 1000);
++  });
++  assertEquals(calls, 1);
++});
++
++Deno.test("store chunks both ID lookups into at most 200 literal IDs with exact selects", async () => {
++  const ids = Array.from({ length: 405 }, (_, i) => id(i));
++  for (
++    const lookup of [
++      {
++        method: "getModelsByIds",
++        table: "models",
++        column: "id",
++        columns: "id,name,username,model_active",
++      },
++      {
++        method: "getProfilesByModelIds",
++        table: "model_profiles",
++        column: "model_id",
++        columns: "model_id,confirmed_at,updated_at,approved_snapshot",
++      },
++    ] as const
++  ) {
++    const chunks: string[][] = [];
++    await withStore((url) => {
++      assertEquals(url.pathname, `/rest/v1/${lookup.table}`);
++      assertEquals(url.searchParams.get("select"), lookup.columns);
++      const filter = url.searchParams.get(lookup.column);
++      assert(filter !== null);
++      assert(filter?.startsWith("in.(") && filter.endsWith(")"));
++      const chunk = filter.slice(4, -1).split(",");
++      assert(chunk.length <= 200);
++      chunks.push(chunk);
++      // An absent model is legitimate: counts cover returned rows, not input IDs.
++      const rows = chunk.filter((value) => value !== ids[0]).map((value) => ({
++        [lookup.column]: value,
++      }));
++      return result(rows, rows.length);
++    }, async (store) => {
++      const rows = await store[lookup.method](
++        [...ids].reverse().concat(ids[10].toUpperCase()),
++      );
++      assertEquals(rows.length, 404);
++    });
++    assertEquals(chunks.map((chunk) => chunk.length), [200, 200, 5]);
++    assertEquals(chunks.flat(), ids);
++  }
++});
++
++Deno.test("store skips all queries for empty ID lists, including client initialization", async () => {
++  const store = createSupabaseStore("", "");
++  assertEquals(await store.getModelsByIds([]), []);
++  assertEquals(await store.getProfilesByModelIds([]), []);
++});
++
++Deno.test("store rejects incomplete ID results and never exposes database error details", async () => {
++  await withStore(() => result([{ id: id(1) }], 2), async (store) => {
++    await assertRejects(
++      () => store.getModelsByIds([id(1), id(2)]),
++      Error,
++      "incomplete_result",
++    );
++  });
++  await withStore(() => result([], null), async (store) => {
++    await assertRejects(
++      () => store.getProfilesByModelIds([id(1)]),
++      Error,
++      "incomplete_result",
++    );
++  });
++  await withStore(
++    () =>
++      new Response(
++        JSON.stringify({
++          message: "synthetic-private-error fixture@example.com",
++        }),
++        {
++          status: 400,
++          headers: { "content-type": "application/json" },
++        },
++      ),
++    async (store) => {
++      const error = await assertRejects(
++        () => store.listAccounts(),
++        Error,
++        "read_failed",
++      );
++      assertEquals(error.message, "read_failed");
++    },
++  );
++});
+diff --git a/supabase/functions/controlling-model-profiles/store.ts b/supabase/functions/controlling-model-profiles/store.ts
+new file mode 100644
+index 00000000..4358ea28
+--- /dev/null
++++ b/supabase/functions/controlling-model-profiles/store.ts
+@@ -0,0 +1,119 @@
++import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
++import {
++  type AccountRow,
++  type ModelRow,
++  type ProfileRow,
++  type ProfileSummaryRow,
++  sortedModelIds,
++} from "./core.ts";
++
++export interface ShexStore {
++  listAccounts(): Promise<AccountRow[]>;
++  listModels(): Promise<ModelRow[]>;
++  listProfiles(): Promise<ProfileSummaryRow[]>;
++  getModelsByIds(ids: readonly string[]): Promise<ModelRow[]>;
++  getProfilesByModelIds(ids: readonly string[]): Promise<ProfileRow[]>;
++}
++
++const PAGE_SIZE = 1000;
++const ID_CHUNK_SIZE = 200;
++
++export function createSupabaseStore(
++  url: string,
++  serviceKey: string,
++): ShexStore {
++  // Initialize only after the handler's method, auth and body checks succeed.
++  let client: ReturnType<typeof createClient> | undefined;
++  function database() {
++    return client ??= createClient(url, serviceKey, {
++      auth: {
++        persistSession: false,
++        autoRefreshToken: false,
++        detectSessionInUrl: false,
++      },
++    });
++  }
++
++  async function listAll<Row>(
++    table: string,
++    columns: string,
++    orderColumn: string,
++  ): Promise<Row[]> {
++    const rows: Row[] = [];
++    let expectedCount: number | undefined;
++    for (let offset = 0;; offset += PAGE_SIZE) {
++      const { data, error, count } = await database()
++        .from(table)
++        .select(columns, { count: "exact" })
++        .order(orderColumn, { ascending: true })
++        .range(offset, offset + PAGE_SIZE - 1)
++        .returns<Row[]>();
++
++      if (error || data === null) throw new Error("read_failed");
++      if (
++        count === null || !Number.isSafeInteger(count) || count < 0 ||
++        (expectedCount !== undefined && count !== expectedCount)
++      ) throw new Error("incomplete_result");
++      expectedCount = count;
++      rows.push(...data);
++      if (data.length < PAGE_SIZE || rows.length >= expectedCount) {
++        if (rows.length !== expectedCount) throw new Error("incomplete_result");
++        return rows;
++      }
++    }
++  }
++
++  async function getByIds<Row>(
++    table: string,
++    columns: string,
++    idColumn: string,
++    ids: readonly string[],
++  ): Promise<Row[]> {
++    const uniqueIds = sortedModelIds(ids);
++    const rows: Row[] = [];
++    for (let offset = 0; offset < uniqueIds.length; offset += ID_CHUNK_SIZE) {
++      const { data, error, count } = await database()
++        .from(table)
++        .select(columns, { count: "exact" })
++        .in(idColumn, uniqueIds.slice(offset, offset + ID_CHUNK_SIZE))
++        .returns<Row[]>();
++      if (error || data === null) throw new Error("read_failed");
++      if (count === null || data.length !== count) {
++        throw new Error("incomplete_result");
++      }
++      rows.push(...data);
++    }
++    return rows;
++  }
++
++  return {
++    listAccounts: () =>
++      listAll<AccountRow>(
++        "accounts",
++        "id, model_id, platform, account_email",
++        "id",
++      ),
++    listModels: () =>
++      listAll<ModelRow>("models", "id, name, username, model_active", "id"),
++    listProfiles: () =>
++      listAll<ProfileSummaryRow>(
++        "model_profiles",
++        "model_id, confirmed_at, approved_snapshot",
++        "model_id",
++      ),
++    getModelsByIds: (ids) =>
++      getByIds<ModelRow>(
++        "models",
++        "id, name, username, model_active",
++        "id",
++        ids,
++      ),
++    getProfilesByModelIds: (ids) =>
++      getByIds<ProfileRow>(
++        "model_profiles",
++        "model_id, confirmed_at, updated_at, approved_snapshot",
++        "model_id",
++        ids,
++      ),
++  };
++}
+-- 
+2.54.0 (Apple Git-157)
+
