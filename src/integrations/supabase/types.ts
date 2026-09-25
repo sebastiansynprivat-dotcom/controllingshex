@@ -1752,6 +1752,42 @@ export type Database = {
         }
         Relationships: []
       }
+      model_steckbrief_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email_normalized: string
+          external_model_id: string | null
+          external_model_name: string | null
+          id: string
+          mode: string
+          platform: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email_normalized: string
+          external_model_id?: string | null
+          external_model_name?: string | null
+          id?: string
+          mode: string
+          platform: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email_normalized?: string
+          external_model_id?: string | null
+          external_model_name?: string | null
+          id?: string
+          mode?: string
+          platform?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           bot_dms: string | null

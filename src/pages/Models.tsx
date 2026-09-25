@@ -24,6 +24,19 @@ import ModelArchetypePanel, {
   type ModelAttributes,
   AGE_LABELS, BODY_LABELS, HAIR_LABELS, STYLE_LABELS,
 } from "@/components/ModelArchetypePanel";
+import SteckbriefPanel from "@/components/SteckbriefPanel";
+import SteckbriefOrphansDialog from "@/components/SteckbriefOrphansDialog";
+import {
+  countWithoutApproved, fetchSteckbriefOverview, identityKey,
+  type SteckbriefFailure, type SteckbriefOverview, type SteckbriefState,
+} from "@/lib/steckbrief-links";
+
+const STECKBRIEF_NOTICES: Record<SteckbriefFailure, string> = {
+  forbidden: "Steckbriefe: Admin-Rolle fehlt",
+  not_configured: "Steckbriefe: Anbindung noch nicht eingerichtet",
+  upstream: "Steckbriefe: SheX Coaching nicht erreichbar",
+  error: "Steckbriefe: konnten nicht geladen werden",
+};
 
 interface Model {
   id: string;
@@ -109,6 +122,35 @@ export default function Models() {
   const [perfModelName, setPerfModelName] = useState<string | null>(null);
   const [attributesByModel, setAttributesByModel] = useState<Record<string, ModelAttributes>>({});
   const [archetypeFilter, setArchetypeFilter] = useState<ArchetypeFilter>({});
+  const [steckbriefState, setSteckbriefState] = useState<SteckbriefState>("loading");
+  const [steckbriefOverview, setSteckbriefOverview] = useState<SteckbriefOverview | null>(null);
+  const [steckbriefRevision, setSteckbriefRevision] = useState(0);
+  const [withoutApprovedFilter, setWithoutApprovedFilter] = useState(false);
+  const [orphansOpen, setOrphansOpen] = useState(false);
+
+  const refreshSteckbrief = () => setSteckbriefRevision((revision) => revision + 1);
+
+  useEffect(() => {
+    let active = true;
+    // Only the first load shows "loading"; refreshes keep the current panels visible.
+    if (steckbriefRevision === 0) setSteckbriefState("loading");
+    void fetchSteckbriefOverview().then((result) => {
+      if (!active) return;
+      setSteckbriefOverview(result.state === "ready" ? result.overview : null);
+      setSteckbriefState(result.state);
+    });
+    return () => { active = false; };
+  }, [steckbriefRevision]);
+
+  const identitiesByKey = useMemo(() => new Map(
+    steckbriefOverview?.identities.map((identity) => [identityKey(identity.platform, identity.email), identity]) ?? [],
+  ), [steckbriefOverview]);
+  const modelsById = useMemo(() => new Map(
+    steckbriefOverview?.models.map((model) => [model.model_id, model]) ?? [],
+  ), [steckbriefOverview]);
+  const withoutApprovedCount = useMemo(() => countWithoutApproved(
+    models.filter((model) => model.platform === platform), identitiesByKey,
+  ), [models, platform, identitiesByKey]);
 
   const dateRange = useMemo(() => {
     if (period === "custom") {
@@ -265,6 +307,7 @@ export default function Models() {
         if (revenueFilter === "zero" && rev && rev.totalRevenue > 0) return false;
       }
       if (troubleFilter && !troubleNames.has(m.model_name)) return false;
+      if (steckbriefState === "ready" && withoutApprovedFilter && countWithoutApproved([m], identitiesByKey) === 0) return false;
       const a = attributesByModel[m.id];
       if (archetypeFilter.age && a?.age_group !== archetypeFilter.age) return false;
       if (archetypeFilter.body && a?.body_type !== archetypeFilter.body) return false;
@@ -272,7 +315,7 @@ export default function Models() {
       if (archetypeFilter.style && a?.style !== archetypeFilter.style) return false;
       return true;
     });
-  }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter, troubleFilter, troubleNames]);
+  }, [models, revenueFilter, modelRevenues, searchQuery, attributesByModel, archetypeFilter, troubleFilter, troubleNames, steckbriefState, withoutApprovedFilter, identitiesByKey]);
 
   const resetAddForm = () => {
     setNewName("");
@@ -317,6 +360,7 @@ export default function Models() {
     resetAddForm();
     setShowAddForm(false);
     fetchModels(targetPlatform);
+    refreshSteckbrief();
   };
 
 
@@ -346,6 +390,7 @@ export default function Models() {
     toast.success("Aktualisiert");
     setEditId(null);
     fetchModels();
+    refreshSteckbrief();
   };
 
   const confirmDelete = async () => {
@@ -355,6 +400,7 @@ export default function Models() {
     toast.success("Gelöscht");
     setDeleteConfirmId(null);
     fetchModels();
+    refreshSteckbrief();
   };
 
   const totalRevAll = Object.values(modelRevenues).reduce((s, r) => s + r.totalRevenue, 0);
@@ -378,6 +424,9 @@ export default function Models() {
           <p className="text-[11px] text-white/25 mt-1.5 font-light tracking-wider uppercase">
             {platform} · {models.length} Models
           </p>
+          {steckbriefState !== "ready" && steckbriefState !== "loading" && (
+            <p className="mt-2 text-[10px] font-light text-white/35">{STECKBRIEF_NOTICES[steckbriefState]}</p>
+          )}
         </div>
 
         {/* Filter-Bar */}
@@ -500,6 +549,22 @@ export default function Models() {
               Im Rückgang
               <span className="text-[10px] opacity-60">{troubles.length}</span>
             </button>
+            {steckbriefState === "ready" && (
+              <button
+                type="button"
+                onClick={() => setWithoutApprovedFilter((value) => !value)}
+                aria-pressed={withoutApprovedFilter}
+                className={cn(
+                  "premium-chip px-3 py-1.5 rounded-lg text-[11px] font-light tracking-wide transition-all duration-300 border whitespace-nowrap active:scale-[0.97]",
+                  withoutApprovedFilter
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                    : "bg-white/[0.03] border-white/[0.06] text-white/45 hover:text-white/70 hover:bg-white/[0.05] hover:border-white/[0.1]"
+                )}
+              >
+                Ohne freigegebenen Steckbrief
+                <span className="ml-1 text-[10px] opacity-60">{withoutApprovedCount}</span>
+              </button>
+            )}
           </div>
 
           {/* Archetyp-Filter (collapsible) */}
@@ -584,6 +649,15 @@ export default function Models() {
               <Database className="h-3.5 w-3.5 text-primary/60" />
               <span className="text-[11px] gold-text-subtle font-medium tracking-[0.2em] uppercase">Datenbank · {filteredModels.length}{filteredModels.length !== models.length && <span className="opacity-50">/{models.length}</span>}</span>
             </div>
+            {steckbriefState === "ready" && steckbriefOverview.orphan_overrides.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOrphansOpen(true)}
+                className="ml-auto text-right text-[10px] font-light text-white/40 transition-colors hover:text-primary"
+              >
+                Zuordnungen ohne Konto ({steckbriefOverview.orphan_overrides.length})
+              </button>
+            )}
             <button
               onClick={() => setShowAddForm((v) => !v)}
               className="text-[10px] uppercase tracking-[0.18em] text-white/40 hover:text-primary transition-colors inline-flex items-center gap-1.5 font-light"
@@ -758,6 +832,16 @@ export default function Models() {
                             attributes={attributesByModel[m.id] ?? null}
                             onChange={() => { fetchModels(); loadAttributes(models.map((mm) => mm.id)); }}
                           />
+                          {steckbriefState === "ready" && (
+                            <SteckbriefPanel
+                              platform={m.platform}
+                              email={m.email}
+                              identity={identitiesByKey.get(identityKey(m.platform, m.email))}
+                              models={steckbriefOverview.models}
+                              modelsById={modelsById}
+                              onChanged={refreshSteckbrief}
+                            />
+                          )}
                         </td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 text-foreground/60 font-extralight text-base sm:text-lg tracking-tight align-top">{m.follower_count.toLocaleString()}</td>
                         <td className="py-4 sm:py-5 px-4 sm:px-8 align-top">
@@ -785,6 +869,15 @@ export default function Models() {
         </div>
       </motion.div>
     </AnimatePresence>
+
+    {steckbriefState === "ready" && (
+      <SteckbriefOrphansDialog
+        open={orphansOpen}
+        onOpenChange={setOrphansOpen}
+        orphanOverrides={steckbriefOverview.orphan_overrides}
+        onChanged={refreshSteckbrief}
+      />
+    )}
 
     <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
       <AlertDialogContent className="bg-[#141414] border-white/5">
