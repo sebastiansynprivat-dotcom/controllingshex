@@ -16,8 +16,10 @@ import type { DateRange } from "react-day-picker";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import CountUp from "@/components/CountUp";
 import { loadActiveChatterNames, normalizeChatterName } from "@/lib/active-chatters";
+import { classifyChannel } from "@/lib/chatter-channel";
 
 type FilterMode = "today" | "yesterday" | "7d" | "14d" | "30d" | "custom";
+type ChannelFilter = "all" | "whatsapp" | "platform";
 
 interface LeaderboardEntry {
   name: string;
@@ -29,6 +31,11 @@ interface LeaderboardEntry {
   rankDelta: number | null; // positive = aufgestiegen, negative = abgefallen, null = neu
   pctChange: number | null; // % vs. previous period
   isNew: boolean;
+}
+
+interface LeaderboardResult {
+  entries: LeaderboardEntry[];
+  counts: Record<ChannelFilter, number>;
 }
 
 interface Highlight {
@@ -47,6 +54,16 @@ export default function Leaderboard() {
   const [filter, setFilter] = useState<FilterMode>("7d");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [selectedChatter, setSelectedChatter] = useState<string | null>(null);
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>(() => {
+    try {
+      const v = localStorage.getItem("leaderboard.channelFilter");
+      return v === "whatsapp" || v === "platform" ? v : "all";
+    } catch { return "all"; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("leaderboard.channelFilter", channelFilter); } catch {}
+  }, [channelFilter]);
 
   const { dateRange, prevRange } = useMemo(() => {
     const now = new Date();
@@ -76,9 +93,9 @@ export default function Leaderboard() {
     return { dateRange: { from, to }, prevRange: { from: prevFrom, to: prevTo } };
   }, [filter, customRange]);
 
-  const { data: leaderboard = [], isLoading } = useQuery({
-    queryKey: ["leaderboard", platform, filter, dateRange.from, dateRange.to],
-    queryFn: async (): Promise<LeaderboardEntry[]> => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["leaderboard", platform, filter, dateRange.from, dateRange.to, channelFilter],
+    queryFn: async (): Promise<LeaderboardResult> => {
       const fromStr = format(dateRange.from, "yyyy-MM-dd");
       const toStr = format(dateRange.to, "yyyy-MM-dd");
       const prevFromStr = format(prevRange.from, "yyyy-MM-dd");
@@ -107,11 +124,26 @@ export default function Leaderboard() {
 
       if (currentRes.error) throw currentRes.error;
 
+      // Kanal-Klassifikation (DB-Namen können Unterstriche statt Leerzeichen haben)
+      const chanOf = (n: string) => classifyChannel(n.replace(/_/g, " "));
+      const keepChannel = (n: string) => channelFilter === "all" || chanOf(n) === channelFilter;
+
+      // Kanal-Zähler: voller Roster, unabhängig vom aktiven Filter
+      const countNames: string[] = activeNames
+        ? [...activeNames].map((n) => n.replace(/_/g, " "))
+        : [...new Set((currentRes.data ?? []).map((r) => r.chatter_name))];
+      const counts: Record<ChannelFilter, number> = {
+        all: countNames.length,
+        whatsapp: countNames.filter((n) => chanOf(n) === "whatsapp").length,
+        platform: countNames.filter((n) => chanOf(n) === "platform").length,
+      };
+
       const grouped = (currentRes.data ?? []).reduce<
         Record<string, { total: number; days: Set<string> }>
       >((acc, row) => {
         const name = row.chatter_name;
         if (activeNames && !activeNames.has(normalizeChatterName(name))) return acc;
+        if (!keepChannel(name)) return acc;
         if (!acc[name]) acc[name] = { total: 0, days: new Set() };
         acc[name].total += Number(row.revenue_today ?? 0);
         acc[name].days.add(row.analysis_date);
@@ -120,6 +152,7 @@ export default function Leaderboard() {
 
       const prevGrouped = (prevRes.data ?? []).reduce<Record<string, number>>((acc, row) => {
         const name = row.chatter_name;
+        if (!keepChannel(name)) return acc;
         acc[name] = (acc[name] ?? 0) + Number(row.revenue_today ?? 0);
         return acc;
       }, {});
@@ -141,7 +174,7 @@ export default function Leaderboard() {
         .filter((e) => e.total > 0)
         .sort((a, b) => b.total - a.total);
 
-      return sorted.map((entry, i) => {
+      const entries = sorted.map((entry, i) => {
         const rank = i + 1;
         const prevRank = prevRankMap.get(entry.name) ?? null;
         const isNew = entry.prevTotal === 0;
@@ -154,9 +187,14 @@ export default function Leaderboard() {
               : 0;
         return { ...entry, rank, prevRank, rankDelta, pctChange, isNew };
       });
+      return { entries, counts };
     },
     enabled: !!session?.user?.id,
   });
+
+  const leaderboard: LeaderboardEntry[] = data?.entries ?? [];
+  const channelCounts: Record<ChannelFilter, number> =
+    data?.counts ?? { all: 0, whatsapp: 0, platform: 0 };
 
   // ── Highlights für Live-Ticker ──
   const highlights = useMemo<Highlight[]>(() => {
@@ -329,6 +367,26 @@ export default function Leaderboard() {
               )}
             >
               {fb.label}
+            </button>
+          ))}
+
+          <div className="w-px h-4 bg-white/10 mx-2" />
+          {([
+            { key: "all" as ChannelFilter, label: "Alle" },
+            { key: "whatsapp" as ChannelFilter, label: "WhatsApp" },
+            { key: "platform" as ChannelFilter, label: "Plattform" },
+          ]).map((c) => (
+            <button
+              key={c.key}
+              onClick={() => setChannelFilter(c.key)}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-[11px] tracking-[0.08em] uppercase transition-all duration-300 whitespace-nowrap active:scale-[0.97]",
+                channelFilter === c.key
+                  ? "gold-text font-medium bg-white/[0.04]"
+                  : "text-white/40 hover:text-white/75 font-light",
+              )}
+            >
+              {c.label} <span className="text-white/25 tabular-nums">{channelCounts[c.key]}</span>
             </button>
           ))}
 
